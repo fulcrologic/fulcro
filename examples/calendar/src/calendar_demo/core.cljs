@@ -10,16 +10,14 @@
 
 (enable-console-print!)
 
-(defonce app-state
-         (atom {
-                :scope/vis1         {
-                                     :text                    "Some Widget with Dates"
-                                     :data                    ["A" "B" "C" "D"]
-                                     :start-date              (cal/initial-calendar)
-                                     :end-date                (cal/initial-calendar)
-                                     }
-                :__figwheel_counter 0
-                }))
+(defn make-visualization []
+  {
+   :text       "Some Widget with Dates"
+   :data       ["A" "B" "C" "D"]
+   :start-date (cal/initial-calendar)
+   :end-date   (cal/initial-calendar)
+   }
+  )
 
 (defn random-numbers [] (repeatedly rand))
 
@@ -39,11 +37,17 @@
                           (cal/Calendar :start-date context {:picked refresh-data})
                           (cal/Calendar :end-date context {:picked refresh-data})
                           (for [txt (:data data)]
-                            (d/span {} txt)
+                            (d/div {} txt)
                             )
                           ))
                  )
 
+
+(defonce app-state
+         (atom {
+                :scope/vis1         (make-visualization)
+                :__figwheel_counter 0
+                }))
 
 (q/defcomponent Root [data context]
                 (d/div {}
