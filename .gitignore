@@ -17,3 +17,4 @@ target
 .idea
 *.iml
 .lein-env
+examples/calendar/resources/public/js/specs
