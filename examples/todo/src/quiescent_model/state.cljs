@@ -22,9 +22,6 @@
   (let [state-atom (:app-state-atom context)
         path (data-path context)
         ]
-    (cljs.pprint/pprint "CONTEXT DATA")
-    (cljs.pprint/pprint context)
-    (cljs.pprint/pprint path)
     (get-in @state-atom path)))
 
 (defn update-in-context [context op]
@@ -37,13 +34,6 @@
   (cond-> (assoc scope
             :scope (if (sequential? id) (concat (reverse id) (:scope scope)) (conj (:scope scope) id))
             :current-component nil)
-          handler-map (assoc :event-listeners (concat (:event-listeners scope) handler-map))
-          )
-  )
-
-(defn in-context "create a context for the given component in a scope"
-  [scope id handler-map]
-  (cond-> (assoc scope :current-component id)
           handler-map (assoc :event-listeners (concat (:event-listeners scope) handler-map))
           )
   )

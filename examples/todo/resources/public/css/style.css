@@ -1,6 +1,19 @@
 /* Sorry, I'm a great engineer, but lousy at CSS */
 .done {
 text-decoration: line-through;
+color: red;
+}
+ul.filters {
+  list-style-type: none;
+  display: inline;
+}
+.filters li {
+display: inline;
+float: left;
+margin-left: 5px;
+}
+.selected {
+text-decoration: underline;
 }
 .overlay {
 background-color: rgb(230,230,240);

@@ -12,16 +12,17 @@
 
 (defn data-path [context]
   (let [scope (:scope context)
-        comp-id (:current-component context)
-        path-seq (reverse (if comp-id (conj scope comp-id) scope))
+        path-seq (reverse scope)
         ]
     path-seq
     )
   )
 
 (defn context-data [context]
-  (let [state-atom (:app-state-atom context)]
-    (get-in @state-atom (data-path context))))
+  (let [state-atom (:app-state-atom context)
+        path (data-path context)
+        ]
+    (get-in @state-atom path)))
 
 (defn update-in-context [context op]
   (let [state-atom (:app-state-atom context)
@@ -31,15 +32,8 @@
 
 (defn new-scope [scope id handler-map]
   (cond-> (assoc scope
-            :scope (conj (:scope scope) id)
+            :scope (if (sequential? id) (concat (reverse id) (:scope scope)) (conj (:scope scope) id))
             :current-component nil)
-          handler-map (assoc :event-listeners (concat (:event-listeners scope) handler-map))
-          )
-  )
-
-(defn in-context "create a context for the given component in a scope"
-  [scope id handler-map]
-  (cond-> (assoc scope :current-component id)
           handler-map (assoc :event-listeners (concat (:event-listeners scope) handler-map))
           )
   )

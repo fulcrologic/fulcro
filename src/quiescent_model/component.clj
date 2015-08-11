@@ -86,9 +86,7 @@
        ;; the plumbing that extracts the application state and passes it to the real handler.
        (def ~name ~docstr
          (fn [id# context# & event-handlers#]
-           (let [new-context# (if (= "scope" (namespace id#))
-                                (quiescent-model.state/new-scope context# id# event-handlers#)
-                                (quiescent-model.state/in-context context# id# event-handlers#))
+           (let [new-context# (quiescent-model.state/new-scope context# id# event-handlers#)
                  data# (quiescent-model.state/context-data new-context#)]
              (real-handler# data# new-context#)
              ))))))
