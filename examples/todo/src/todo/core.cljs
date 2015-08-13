@@ -17,11 +17,9 @@
                 :__figwheel_counter 0
                 }))
 
-(q/defcomponent Root [data context]
-                (d/div {}
-                       (Todo :scope/vis1 context)
-                       )
-                )
+(q/defcomponent Root [data context] (d/div {}
+                                           (Todo :scope/vis1 context)
+                                           ))
 
 (defn render [data app-state]
   (q/render (Root data (qms/root-scope app-state))

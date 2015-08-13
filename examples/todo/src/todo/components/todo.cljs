@@ -34,14 +34,11 @@
         :items (vec new-items))
       )))
 
-(defn check-all [todolist]
-  (assoc todolist :items
-                  (for [item (:items todolist)] (set-checked item))
-                  ))
+(defn check-all [todolist] (assoc todolist :items (vec (map set-checked (:items todolist)))))
 
 (defn uncheck-all [todolist]
   (assoc todolist :items
-                  (for [item (:items todolist)] (set-unchecked item))
+                  (vec (for [item (:items todolist)] (set-unchecked item)))
                   ))
 
 (defn toggle-all [todolist]
@@ -69,30 +66,36 @@
       )
     )
   )
+
 (c/defscomponent Todo
                  "A Todo list"
                  [data context op]
                  (let [add-the-item (op add-item)
-                       filter (:filter data)
+                       which-filter (:filter data)
                        filter-all (op (partial set-filter :all))
                        filter-complete (op (partial set-filter :completed))
                        filter-incomplete (op (partial set-filter :incomplete))
-                       indexed-items (map-indexed vector (:items data))
-                       indexed-visible-items (filtered-items filter indexed-items)
+                       items (:items data)
+                       indexed-items (map-indexed vector items)
+                       indexed-visible-items (filtered-items which-filter indexed-items)
+                       incomplete-count (->> items (filter (comp not :checked)) (count))
+                       toggle-all (op toggle-all)
                        ]
                    (d/div {:className "todo"}
+                          (d/input { :type "checkbox" :checked (every? is-checked (:items data)) :onChange toggle-all } )
                           (d/div {:className "new-item-input"}
                                  (text-input (:new-item-label data) add-the-item set-new-item-label op)
                                  )
                           (d/div {:className "items"}
                                  (map #(TodoItem [:items (first %1)] context) indexed-visible-items))
+                          (d/div {:className "status"} (str incomplete-count " items left."))
                           (d/div {:className "filter"}
                                  (d/ul {:className "filters"}
-                                       (d/li {:className (selected-filter-class :all data)} 
+                                       (d/li {:className (selected-filter-class :all data)}
                                              (d/a {:onClick filter-all} "All"))
-                                       (d/li {:className (selected-filter-class :completed data)} 
+                                       (d/li {:className (selected-filter-class :completed data)}
                                              (d/a {:onClick filter-complete} "Completed"))
-                                       (d/li {:className (selected-filter-class :incomplete data)} 
+                                       (d/li {:className (selected-filter-class :incomplete data)}
                                              (d/a {:onClick filter-incomplete} "Incomplete"))
                                        )
                                  )

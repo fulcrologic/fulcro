@@ -1,7 +1,7 @@
 /* Sorry, I'm a great engineer, but lousy at CSS */
 .done {
 text-decoration: line-through;
-color: red;
+color: green;
 }
 ul.filters {
   list-style-type: none;

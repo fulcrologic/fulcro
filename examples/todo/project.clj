@@ -42,5 +42,6 @@
 
   :figwheel {
              :css-dirs ["resources/public/css"] 
+             :open-file-command "figwheel_edit"
              :nrepl-port 7888
              })
