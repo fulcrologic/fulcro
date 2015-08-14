@@ -376,3 +376,22 @@ html .clear-completed:active {
 		bottom: 10px;
 	}
 }
+
+.undo {
+    position:fixed;
+    top: 10px;
+    right: 10px;
+	padding: 2px;
+	background-color: white;
+	border: 1px solid black;
+	font-size: 100%;
+	vertical-align: baseline;
+	font-family: inherit;
+	font-weight: inherit;
+	color: inherit;
+	-webkit-appearance: button !important;
+	appearance: button !important;
+	-webkit-font-smoothing: antialiased;
+	-moz-font-smoothing: antialiased;
+	font-smoothing: antialiased;
+}

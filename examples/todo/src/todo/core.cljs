@@ -17,16 +17,33 @@
                 :__figwheel_counter 0
                 }))
 
-(q/defcomponent Root [data context] (d/div { :className "todoapp"}
-                                           (Todo :scope/vis1 context)
-                                           ))
+;; 12 lines of code for FULL undo!
+(defonce undo-history (atom '()))
+(defonce is-undo (atom false))
+(defn undo []
+  (if (not-empty @undo-history)
+    (let [last-state (first @undo-history)]
+      (reset! is-undo true)
+      (swap! undo-history rest)
+      (reset! app-state last-state)
+      )))
+
+(q/defcomponent Root [data context]
+                (d/div {}
+                       (d/div {:className "todoapp"}
+                              (d/button {:className "undo" :onClick todo.core/undo} "Undo")
+                              (Todo :scope/vis1 context)
+                              )))
 
 (defn render [data app-state]
   (q/render (Root data (qms/root-scope app-state))
             (.getElementById js/document "app")))
 
 (add-watch app-state ::render
-           (fn [_ _ _ data]
+           (fn [_ _ old-state data]
+             (if (not @is-undo)
+               (swap! undo-history #(cons old-state %)))
+             (reset! is-undo false)
              (render data app-state)))
 
 (defn on-js-reload []
