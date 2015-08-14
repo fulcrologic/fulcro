@@ -6,8 +6,9 @@
 
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "0.0-3297"]
+                 [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [quiescent "0.2.0-RC1"]
-                 [quiescent-model "0.1.0-SNAPSHOT"]
+                 ;[quiescent-model "0.1.0-SNAPSHOT"]
                  ]
 
   :plugins [[lein-cljsbuild "1.0.5"]

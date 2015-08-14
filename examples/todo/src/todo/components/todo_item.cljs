@@ -6,6 +6,8 @@
     [quiescent.dom :as d]
     [todo.events :refer [enter-key? text-value]]
     [todo.components.input :refer [text-input]]
+    [clojure.string :as string]
+    [cljs-uuid-utils.core :as uuid]
     cljs.pprint
     )
   (:require-macros [quiescent-model.component :as c])
@@ -13,11 +15,12 @@
 
 (defn new-item
   [text]
-     {
-      :checked false
-      :editing false
-      :label text
-      })
+  {
+   :id      (uuid/uuid-string (uuid/make-random-uuid)) ; make sure react can tell things apart
+   :checked false
+   :editing false
+   :label   text
+   })
 
 (defn set-label [t item] (assoc item :label t))
 (defn is-checked [item] (:checked item))
@@ -27,18 +30,27 @@
 (defn start-editing [item] (assoc item :editing true))
 (defn commit-edit [item] (assoc item :editing false))
 
+(defn item-class [item]
+  (string/join " " (cond-> []
+                           (:editing item) (conj "editing")
+                           (:checked item) (conj "completed")
+                           ))
+  )
+
 (c/defscomponent TodoItem
                  "A Todo item"
-                 :keyfn :label
+                 :keyfn :id
                  [data context op]
                  (let [toggle-item (op toggle)
                        edit-text (op start-editing)
                        finish-edit (op commit-edit)
+                       delete-me #(evt/trigger context [:delete-me]) ; triggering an event that has no local state chg
                        ]
-                   (d/div { :className (if (is-checked data) "done" "") }
-                    (d/input {:type "checkbox" :checked (:checked data) :onChange toggle-item})
-                    (if (:editing data)
-                      (text-input (:label data) finish-edit set-label op)
-                      (d/span { :onDoubleClick edit-text } (:label data))
-                      )
-                    )))
+                   (d/li {:className (item-class data)}
+                         (d/div {:className "view"}
+                                (d/input {:className "toggle" :type "checkbox" :checked (:checked data) :onChange toggle-item})
+                                (d/label {:onDoubleClick edit-text} (:label data))
+                                (d/button {:className "destroy" :onClick delete-me} "")
+                                )
+                         (text-input {:className "edit"} (:label data) finish-edit set-label op)
+                         )))

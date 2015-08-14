@@ -17,7 +17,7 @@
                 :__figwheel_counter 0
                 }))
 
-(q/defcomponent Root [data context] (d/div {}
+(q/defcomponent Root [data context] (d/div { :className "todoapp"}
                                            (Todo :scope/vis1 context)
                                            ))
 

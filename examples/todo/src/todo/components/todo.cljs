@@ -34,6 +34,10 @@
         :items (vec new-items))
       )))
 
+(defn has-items? [todolist] (not (empty? (:items todolist))))
+(defn has-completed-items? [todolist] (some is-checked (:items todolist)))
+(defn all-checked? [todolist] (every? is-checked (:items todolist)))
+
 (defn check-all [todolist] (assoc todolist :items (vec (map set-checked (:items todolist)))))
 
 (defn uncheck-all [todolist]
@@ -50,11 +54,11 @@
 
 (defn set-new-item-label [text todolist] (assoc todolist :new-item-label text))
 
-(defn filtered-items [choice indexed-items]
+(defn filtered-items [choice items]
   (cond
-    (= choice :completed) (filter #(is-checked (second %)) indexed-items)
-    (= choice :incomplete) (filter #((comp not is-checked) (second %)) indexed-items)
-    :else indexed-items
+    (= choice :completed) (filter is-checked items)
+    (= choice :incomplete) (filter (comp not is-checked) items)
+    :else items
     )
   )
 
@@ -67,38 +71,53 @@
     )
   )
 
+(defn delete-completed-items [todolist]
+  (assoc todolist :items (vec (filter (comp not is-checked) (:items todolist))))
+  )
+
+(defn delete-item [item todolist] (assoc todolist :items (vec (filter #(not= item %) (:items todolist)))))
+
 (c/defscomponent Todo
                  "A Todo list"
-                 [data context op]
+                 [todo-list context op]
                  (let [add-the-item (op add-item)
-                       which-filter (:filter data)
+                       which-filter (:filter todo-list)
                        filter-all (op (partial set-filter :all))
                        filter-complete (op (partial set-filter :completed))
                        filter-incomplete (op (partial set-filter :incomplete))
-                       items (:items data)
-                       indexed-items (map-indexed vector items)
-                       indexed-visible-items (filtered-items which-filter indexed-items)
+                       items (:items todo-list)
+                       visible-items (filtered-items which-filter items)
                        incomplete-count (->> items (filter (comp not :checked)) (count))
                        toggle-all (op toggle-all)
+                       clear-completed (op delete-completed-items)
+                       delete-item-handler (fn [item] (op (partial delete-item item)))
+                       filter-ui (fn [kw activation-function label]
+                                   (d/li {} (d/a {:className (selected-filter-class kw todo-list) :onClick activation-function} label)))
                        ]
-                   (d/div {:className "todo"}
-                          (d/input { :type "checkbox" :checked (every? is-checked (:items data)) :onChange toggle-all } )
-                          (d/div {:className "new-item-input"}
-                                 (text-input (:new-item-label data) add-the-item set-new-item-label op)
-                                 )
-                          (d/div {:className "items"}
-                                 (map #(TodoItem [:items (first %1)] context) indexed-visible-items))
-                          (d/div {:className "status"} (str incomplete-count " items left."))
-                          (d/div {:className "filter"}
-                                 (d/ul {:className "filters"}
-                                       (d/li {:className (selected-filter-class :all data)}
-                                             (d/a {:onClick filter-all} "All"))
-                                       (d/li {:className (selected-filter-class :completed data)}
-                                             (d/a {:onClick filter-complete} "Completed"))
-                                       (d/li {:className (selected-filter-class :incomplete data)}
-                                             (d/a {:onClick filter-incomplete} "Incomplete"))
-                                       )
-                                 )
+                   (d/section {:className "todoapp"}
+                              (d/header {:className "header"}
+                                        (d/h1 {} "todos")
+                                        (text-input {:className "new-todo" :placeholder "What needs to be done?"} 
+                                                    (:new-item-label todo-list) add-the-item set-new-item-label op)
+                                        )
+                              (d/section {:className "main"}
+                                         (d/input {:className "toggle-all" :type "checkbox" :checked (all-checked? todo-list) :onChange toggle-all})
+                                         (d/label {:htmlFor "toggle-all"} "Mark all as complete")
+                                         (d/ul {:className "todo-list"}
+                                               (map #(TodoItem [:items :id (:id %)] context 
+                                                               {:delete-me (delete-item-handler %)}) 
+                                                    visible-items)))
+                              (if (has-items? todo-list)
+                                (d/footer {:className "footer"}
+                                          (d/span {:className "todo-count"} (d/strong {} incomplete-count) " items left.")
+                                          (d/ul {:className "filters"}
+                                                (filter-ui :all filter-all "All")
+                                                (filter-ui :completed filter-complete "Completed")
+                                                (filter-ui :incomplete filter-incomplete "Incomplete")
+                                                )
+                                          (if (has-completed-items? todo-list)
+                                            (d/button {:className "clear-completed" :onClick clear-completed} "Clear completed"))
+                                          ))
 
-                          ))
+                              ))
                  )
