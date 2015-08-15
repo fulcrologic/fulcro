@@ -40,11 +40,11 @@
             (.getElementById js/document "app")))
 
 (add-watch app-state ::render
-           (fn [_ _ old-state data]
+           (fn [_ _ old-state new-state]
              (if (not @is-undo)
                (swap! undo-history #(cons old-state %)))
              (reset! is-undo false)
-             (render data app-state)))
+             (render new-state app-state)))
 
 (defn on-js-reload []
   ;; touch app-state to force rerendering

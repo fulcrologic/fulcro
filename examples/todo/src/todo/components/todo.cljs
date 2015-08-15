@@ -77,18 +77,19 @@
 
 (defn delete-item [item todolist] (assoc todolist :items (vec (filter #(not= item %) (:items todolist)))))
 
+(defn item-path [item] [:items :id (:id item)])
+
 (c/defscomponent Todo
                  "A Todo list"
                  [todo-list context op]
-                 (let [add-the-item (op add-item)
-                       which-filter (:filter todo-list)
+                 (let [which-filter (:filter todo-list)
                        filter-all (op (partial set-filter :all))
                        filter-complete (op (partial set-filter :completed))
                        filter-incomplete (op (partial set-filter :incomplete))
                        items (:items todo-list)
                        visible-items (filtered-items which-filter items)
                        incomplete-count (->> items (filter (comp not :checked)) (count))
-                       toggle-all (op toggle-all)
+                       toggle-all-handler (op toggle-all)
                        clear-completed (op delete-completed-items)
                        delete-item-handler (fn [item] (op (partial delete-item item)))
                        filter-ui (fn [kw activation-function label]
@@ -98,13 +99,13 @@
                               (d/header {:className "header"}
                                         (d/h1 {} "todos")
                                         (text-input {:className "new-todo" :placeholder "What needs to be done?"} 
-                                                    (:new-item-label todo-list) add-the-item set-new-item-label op)
+                                                    (:new-item-label todo-list) (op add-item) set-new-item-label op)
                                         )
                               (d/section {:className "main"}
-                                         (d/input {:className "toggle-all" :type "checkbox" :checked (all-checked? todo-list) :onChange toggle-all})
+                                         (d/input {:className "toggle-all" :type "checkbox" :checked (all-checked? todo-list) :onChange toggle-all-handler})
                                          (d/label {:htmlFor "toggle-all"} "Mark all as complete")
                                          (d/ul {:className "todo-list"}
-                                               (map #(TodoItem [:items :id (:id %)] context 
+                                               (map #(TodoItem (item-path %) context 
                                                                {:delete-me (delete-item-handler %)}) 
                                                     visible-items)))
                               (if (has-items? todo-list)

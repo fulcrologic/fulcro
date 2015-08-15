@@ -41,16 +41,12 @@
                  "A Todo item"
                  :keyfn :id
                  [data context op]
-                 (let [toggle-item (op toggle)
-                       edit-text (op start-editing)
-                       finish-edit (op commit-edit)
-                       delete-me #(evt/trigger context [:delete-me]) ; triggering an event that has no local state chg
-                       ]
+                 (let [delete-me #(evt/trigger context [:delete-me])] ; triggering an event that has no local state chg
                    (d/li {:className (item-class data)}
                          (d/div {:className "view"}
-                                (d/input {:className "toggle" :type "checkbox" :checked (:checked data) :onChange toggle-item})
-                                (d/label {:onDoubleClick edit-text} (:label data))
+                                (d/input {:className "toggle" :type "checkbox" :checked (:checked data) :onChange (op toggle)})
+                                (d/label {:onDoubleClick (op start-editing)} (:label data))
                                 (d/button {:className "destroy" :onClick delete-me} "")
                                 )
-                         (text-input {:className "edit"} (:label data) finish-edit set-label op)
+                         (text-input {:className "edit"} (:label data) (op commit-edit) set-label op)
                          )))
