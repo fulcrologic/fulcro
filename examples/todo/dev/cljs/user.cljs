@@ -40,21 +40,21 @@
   nsteps of history ago."
   ([nsteps] (diff nsteps 0))
   ([nsteps nsteps-end]
-    (if (< (count @todo.core/undo-history) nsteps)
-      (cljs.pprint/pprint "Not enough history")
-      (let [old-state (get-in (nth @todo.core/undo-history (dec nsteps)) @current-focus)
-            end-state (if (= 0 nsteps-end)
-                            (get-in @todo.core/app-state @current-focus)
-                            (get-in (nth @todo.core/undo-history (dec nsteps-end)) @current-focus)
-                            )
-            ]
-        (cljs.pprint/pprint (differ/diff old-state end-state))
-        )
-      ))
-
+   (if (< (count @todo.core/undo-history) nsteps)
+     (cljs.pprint/pprint "Not enough history")
+     (let [old-state (get-in (nth @todo.core/undo-history (dec nsteps)) @current-focus)
+           end-state (if (= 0 nsteps-end)
+                       (get-in @todo.core/app-state @current-focus)
+                       (get-in (nth @todo.core/undo-history (dec nsteps-end)) @current-focus)
+                       )
+           ]
+       (if (not= old-state end-state)
+         (cljs.pprint/pprint (differ/diff old-state end-state)))
+       )
+     ))
   )
 
-(defn evolution 
+(defn evolution
   "Show the evolution of the app-state between a and b steps ago."
   [a b]
   (assert (> a b) "'a' must be more steps than 'b'")
@@ -63,3 +63,12 @@
     (diff n (dec n))
     )
   )
+
+(defn auto-trigger!
+  "Turn on/off auto-printing of changes if the focused state changes"
+  [turn-on]
+  (if turn-on
+    (add-watch todo.core/app-state ::auto-trigger (fn [_ _ old-state new-state] (diff 1)))
+    (remove-watch todo.core/app-state ::auto-trigger)
+    ))
+
