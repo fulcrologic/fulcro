@@ -9,6 +9,7 @@
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [quiescent "0.2.0-RC1"]
                  [quiescent-model "0.1.0-SNAPSHOT"]
+                 [differ "0.2.1"]
                  ]
 
   :plugins [[lein-cljsbuild "1.0.5"]
@@ -21,9 +22,9 @@
   :cljsbuild {
     :builds [
              {:id "dev"
-              :source-paths ["src"]
+              :source-paths ["src" "dev"]
               :figwheel { :on-jsload "todo.core/on-js-reload" }
-              :compiler {:main todo.core
+              :compiler {:main cljs.user ;todo.core
                          :asset-path "js/compiled/out"
                          :output-to "resources/public/js/compiled/todo.js"
                          :output-dir "resources/public/js/compiled/out"
