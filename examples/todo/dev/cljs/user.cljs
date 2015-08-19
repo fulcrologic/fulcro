@@ -7,10 +7,18 @@
 
 (defonce current-focus (atom []))
 
+(defn check-focus []
+  (if (nil? (get-in @todo.core/app-state @current-focus))
+    (cljs.pprint/pprint "WARNING: No data exists at the current focus!")
+    )
+  )
+
 (defn focus!
   "Set the focus to a specific app-state path"
   [target]
-  (reset! current-focus target))
+  (reset! current-focus target)
+  (check-focus)
+  )
 
 (defn focus-in
   "Narrow the app-state focus (see fpp for printing current focus)"
@@ -19,7 +27,10 @@
          #(if (sequential? sub-component)
            (vec (concat % sub-component))
            (conj % sub-component)
-           )))
+           ))
+  (check-focus)
+  @current-focus
+  )
 
 (defn focus-out
   "Widen the current focus"
@@ -27,7 +38,9 @@
                (do
                  (swap! current-focus #(pop %))
                  (recur (- nlevels 1))
-                 )))
+                 )
+               @current-focus
+               ))
   ([] (focus-out 1))
   )
 
@@ -53,6 +66,27 @@
        )
      ))
   )
+
+(defn vdiff
+  ([nsteps] (vdiff nsteps 0))
+  ([nsteps nsteps-end]
+   (if (< (count @todo.core/undo-history) nsteps)
+     (cljs.pprint/pprint "Not enough history")
+     (let [old-state (get-in (nth @todo.core/undo-history (dec nsteps)) @current-focus)
+           end-state (if (= 0 nsteps-end)
+                       (get-in @todo.core/app-state @current-focus)
+                       (get-in (nth @todo.core/undo-history (dec nsteps-end)) @current-focus)
+                       )
+           ]
+       (if (not= old-state end-state)
+         (do
+           (cljs.pprint/pprint (str "STATE " nsteps " STEPS AGO"))
+           (cljs.pprint/pprint old-state)
+           (cljs.pprint/pprint "STATE NOW")
+           (cljs.pprint/pprint end-state)
+           ))
+       )
+     )))
 
 (defn evolution
   "Show the evolution of the app-state between a and b steps ago."

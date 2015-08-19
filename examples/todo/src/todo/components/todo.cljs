@@ -37,7 +37,6 @@
 (defn has-items? [todolist] (not (empty? (:items todolist))))
 (defn has-completed-items? [todolist] (some is-checked (:items todolist)))
 (defn all-checked? [todolist] (every? is-checked (:items todolist)))
-
 (defn check-all [todolist] (assoc todolist :items (vec (map set-checked (:items todolist)))))
 
 (defn uncheck-all [todolist]
@@ -107,7 +106,8 @@
                                          (d/ul {:className "todo-list"}
                                                (map #(TodoItem (item-path %) context 
                                                                {:delete-me (delete-item-handler %)}) 
-                                                    visible-items)))
+                                                    visible-items)
+                                               ))
                               (if (has-items? todo-list)
                                 (d/footer {:className "footer"}
                                           (d/span {:className "todo-count"} (d/strong {} incomplete-count) " items left.")

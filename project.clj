@@ -4,6 +4,7 @@
   :license {:name "NAVIS"
             :url "http://www.thenavisway.com"}
   :dependencies [[org.clojure/clojure "1.7.0"]
+                 [quiescent "0.2.0-RC1"]
                  [org.clojure/clojurescript "0.0-3297"]
                  ]
   :source-paths ["src"]

@@ -8,7 +8,7 @@
 (deftest initial-calendar-test
          (let [cal (initial-calendar (js/Date. 1990 0 11 1 0 0 0))]
               (is (= 1990 (:year cal)))
-              (is (= 1 (:month cal)))
+              (is (= 3 (:month cal)))
               (is (= 11 (:day cal)))
               )
          )
