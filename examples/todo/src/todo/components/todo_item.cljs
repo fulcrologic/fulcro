@@ -19,6 +19,7 @@
    :id      (uuid/uuid-string (uuid/make-random-uuid)) ; make sure react can tell things apart
    :checked false
    :editing false
+   :old-value ""
    :label   text
    })
 
@@ -27,8 +28,9 @@
 (defn set-checked [item] (assoc item :checked true))
 (defn set-unchecked [item] (assoc item :checked false))
 (defn toggle [item] (update item :checked not))
-(defn start-editing [item] (assoc item :editing true))
-(defn commit-edit [item] (assoc item :editing false))
+(defn start-editing [item] (assoc item :editing true :old-label (:label item)))
+(defn commit-edit [item] (assoc item :editing false :old-label ""))
+(defn cancel-edit [item] (assoc item :editing false :label (:old-label item)))
 
 (defn item-class [item]
   (string/join " " (cond-> []
@@ -48,5 +50,5 @@
                                 (d/label {:onDoubleClick (op start-editing)} (:label data))
                                 (d/button {:className "destroy" :onClick delete-me} "")
                                 )
-                         (text-input {:className "edit"} (:label data) (op commit-edit) set-label op)
+                         (text-input {:className "edit"} (:label data) (op commit-edit) (op cancel-edit) set-label op)
                          )))

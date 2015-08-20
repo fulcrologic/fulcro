@@ -22,6 +22,8 @@
     })
   )
 
+(defn cancel-add [todolist] (assoc todolist :new-item-label ""))
+
 (defn add-item [todolist]
   (if (empty? (:new-item-label todolist))
     todolist
@@ -70,16 +72,17 @@
     )
   )
 
-(defn delete-completed-items [todolist]
-  (assoc todolist :items (vec (filter (comp not is-checked) (:items todolist))))
-  )
-
+(defn delete-completed-items [todolist] (assoc todolist :items (vec (filter (comp not is-checked) (:items todolist)))))
 (defn delete-item [item todolist] (assoc todolist :items (vec (filter #(not= item %) (:items todolist)))))
-
 (defn item-path [item] [:items :id (:id item)])
 
 (c/defscomponent Todo
                  "A Todo list"
+                 ; you can get an op-builder like so in the lifecycle methods:
+                 ;:on-mount (fn [ele-dom data context]
+                 ;            (let [op (state/context-op-builder context)]
+                 ;              (js/setInterval (op toggle-all) 10000)
+                 ;              ))
                  [todo-list context op]
                  (let [which-filter (:filter todo-list)
                        filter-all (op (partial set-filter :all))
@@ -97,16 +100,15 @@
                    (d/section {:className "todoapp"}
                               (d/header {:className "header"}
                                         (d/h1 {} "todos")
-                                        (text-input {:className "new-todo" :placeholder "What needs to be done?"} 
-                                                    (:new-item-label todo-list) (op add-item) set-new-item-label op)
+                                        (text-input {:className "new-todo" :placeholder "What needs to be done?"}
+                                                    (:new-item-label todo-list) (op add-item) (op cancel-add) set-new-item-label op)
                                         )
                               (d/section {:className "main"}
                                          (d/input {:className "toggle-all" :type "checkbox" :checked (all-checked? todo-list) :onChange toggle-all-handler})
                                          (d/label {:htmlFor "toggle-all"} "Mark all as complete")
                                          (d/ul {:className "todo-list"}
-                                               (map #(TodoItem (item-path %) context 
-                                                               {:delete-me (delete-item-handler %)}) 
-                                                    visible-items)
+                                               (map #(TodoItem (item-path %) context {:delete-me (delete-item-handler %)})
+                                                            visible-items)
                                                ))
                               (if (has-items? todo-list)
                                 (d/footer {:className "footer"}
