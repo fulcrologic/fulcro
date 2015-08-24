@@ -125,7 +125,7 @@ First, we make the following assertions about application state:
 Next, we realize that we can do nothing about the last item, we can simply attempt to add little or no
 _incidental_ complexity [(thanks for the clarity Rich!)](http://www.infoq.com/presentations/Simple-Made-Easy).
 
-So, it is time we formed an opinion: This library requires that you store application state in a map within an atom. 
+So, it is time we formed an opinion: This library, like Om, requires that you store application state in a map within an atom. 
 This atom can be created in a let, def, or whatever. For figwheel, it is convenient to use a defonce:
 
      (defonce app-state (atom { ... }))
@@ -134,17 +134,17 @@ You may have as many of these as you have root-level renderings in your applicat
 split your UI (on a single page) into sub-components, each of which has it's own state. This is useful for things
 that don't need to interop. For example, the navigation/router of your single-page webapp might work just fine
 as an isolated sub-component with it's own state. There is also nothing that says you cannot define crossover APIs
-(e.g. event systems, core.async channels, whatever) that allow one sub-component to communicate with another.
+(e.g. event systems, core.async channels, whatever) that allow one sub-component to communicate with another, though
+in the general case you will not need that complexity.
 
 Within this state, you may structure it as you like with the following conventions for any data that will have direct
 use in the UI:
 
 A component's data in the state _must_ be a map that:
-- _Must_ include a key `:id` with a *unique* value (within that app-state). This will be error-checked for you at runtime. If
-you omit the `:id`, it will not be reachable without entanglement (e.g. you won't be using this library)
 - _Should_ include any key/value pairs to model the local state of that component, including transient state (e.g.
 `overlay-visible?`)
-- _May_ include data for sub-components that are "managed" by this component (and therefore have no `:id`). In other 
+- _May_ include data for sub-components that are "managed" by this component (e.g. are themselves plain Quiescent/React components,
+not stateful ones). In other 
 words, you may define what "local reasoning" means for your component. There may be tight clusters of components 
 (e.g. an input field component within a form) that wish to have some localized coupling and don't need this library's
 direct support.
@@ -153,45 +153,40 @@ direct support.
      ; application state namespace
      (defonce app-state
        (atom 
-          (qmodel/identify-state
             {
-               ; two things that are not component state...app-specific purpose. Need not be maps
-               :VERSION 1.0
-               :some-other-tracking-thing [] 
-               :visualizations { ; not a 'component' itself...just part of the organization of state. needs no :id
+              ; two things that are not component state...app-specific purpose. Need not be maps
+              :VERSION 1.0
+              :some-other-tracking-thing [] 
+              ; not a 'component' itself...just part of the organization of state. needs no :id
+              :visualizations { 
                                  :main-report { ; component
-                                    :id "main-report"
-                                    :start-date (cal/make-calendar "vis-main-start-date") ; sub-components
-                                    :end-date (cal/make-calendar "vis-main-end-date")
-                                    :table-data { :id "vis-main-table-data" :data [] }
+                                    :start-date (cal/make-calendar) ; sub-components
+                                    :end-date (cal/make-calendar)
+                                    :table-data { :data [] }
                                  }
                               }
             }))
             
-The call to `(qmodel/identify-state your-map)` is *required*. It scans you state, checks it for duplicate IDs, and 
-augments it with a lookup-by-id map that makes the isolation of data modelling possible. Thus, you should never 
-overwrite the top-level map with a completely new map without re-calling this method on that map.
-
-Notice that I've chosen to invent an ID scheme in this example that mimics the data structure. This is not necessary, and possibly
-not even desirable; however, there is nothing to say that my UI has to mimic this data structure. Since "naming things" 
-is one of the [two hard problems of computer science](http://martinfowler.com/bliki/TwoHardThings.html), 
-we can do nothing but rely on your own good taste here.
-
-Also note that the application state itself is as simple as it _can_ be. Component model "constructor" functions can
+Note that the application state itself is as simple as it _can_ be. Component model "constructor" functions can
 be used to simplify the initialization of this state, and an application start-up function could even set defaults
 via a simple `swap!` on this state. AJAX calls (e.g. to fill out the table's data vector) are similarly trivial to implement.
 
-We can summarize the most important point as: EACH component in the UI has a unique ID, and you are required to assign it.
+We can summarize the most important point as: EACH component in the UI has a unique ID in a map, and you are required to assign it.
 If two different date pickers are there, then each will have a unique ID. If you have 10 pop-up panels that each have 2 date
 pickers, then there will be 20 date pickers in your application state, each with a unique ID.
 
-From this point forward, most of your code need only know the unique name that you've assigned to that component. Note
-the subtle things we just solved:
+## Lists of objects
 
-- Easy to have "more than one" of anything. Simply add another instance to the app state with an ID.
-- Creation of state using localized model-specific constructors encouraged, and those constructors need know nothing
-  specific about the UI (other than the general capabilities of it, such as the existence of a hideable overlay).
-- The library is now able to locate state by ID, and you are free to (re)structure your application state without worry.
+You can also use vectors of objects in your application state. These support associative access, but in order for them
+to work properly with this library (and optimized React rendering) each such item _must_ be a map that in turn _must_
+have a unique ID of some sort (e.g. random uuid, server-side id, etc.).
+
+We have a number of issues to solve, and the above requirement solve them. They are:
+
+1. React prefers to know a unique ID for lists of things, so it can optimize rendering.
+2. We need to be able to locate a distinct item in a potentially changing list (e.g. you might reorder items). We need
+a way to correlate the real item in the list with the new position, or event handlers will do things like look up the
+wrong state.
 
 ## Writing the UI Component
 
@@ -202,6 +197,7 @@ You define components using the `defscomponent` macro:
 
     (ns my-app.calendar
       (:require [quiescent-model.component :as c]
+                [quiescent-model.state :as state]
                 [quiescent.core :as q]
                 [my-app.model.calendar :as cal]
                 [quiescent.dom :as d]))
@@ -209,11 +205,12 @@ You define components using the `defscomponent` macro:
     (c/defscomponent Calendar
                      "A Calendar" ;; A name/description, as in quiescent
                      :on-mount (fn [&rest] (.log js/console "Hello"))  ;; as in quiescent
-                     [calendar-data app-state callback-builder] ;; required signature, you pick the names
-                    (let [overlay-visible? (:overlay-visible? calendar-data)
-                          move-to-next-month (callback-builder cal/next-month)
-                          toggle-days (callback-builder cal/toggle-calendar-overlay)
-                          set-date-builder (fn [dt] (callback-builder (partial cal/set-date dt)))
+                     [calendar-data context] ;; required signature, you pick the names
+                    (let [op (state/op-builder context)
+                          overlay-visible? (:overlay-visible? calendar-data)
+                          move-to-next-month (op cal/next-month)
+                          toggle-days (op cal/toggle-calendar-overlay)
+                          set-date-builder (fn [dt] (op (partial cal/set-date dt)))
                           ]
                       (d/div (d/span { :onClick toggle-days } ()
                          ...
@@ -222,11 +219,9 @@ You define components using the `defscomponent` macro:
 
 There are a number of things to take note of:
 
-- The argument list to your body of the component has three arguments. They will be:
+- The argument list to your body of the component has two arguments. They will be:
   - The state of your component (you need not worry where it is stored)
-  - The overall application state atom, which you should mainly use in an abstract sense to embed sub-components. Accessing
-    the items of the app state introduces coupling, while just passing it along as abstract data limits such coupling.
-  - A higher-order function for making event handlers for your UI
+  - The rendering context. This context is used for generating event handlers and for rendering sub-components.
 
 Now, you can write the rendering itself based on your localized understanding of the component model. E.g. you
 simply access the first argument as a "calendar" model:
@@ -235,18 +230,34 @@ simply access the first argument as a "calendar" model:
 
 Also note that all of the UI operations need know absolutely nothing about the location of the data, how it gets updated
 or even its format (accessor functions for things like overlay-visible? could give you this property for reads as well).
-Basically, the `callback-builder` must be passed a function that can take your components current application state, 
-and return the desired new state. Technically it can also have side-effects, but the only thing the callback-builder
-is going to pass to your function is the component state. If you have additional arguments, simply use `partial` to
-pre-apply those before calling the generated event handler function. For example, clicking on the "day" of a 
-calendar component should set the date of that component to the day in question. To implement this, create
-a secondary event-handler builder that takes a desired date `dt` and uses partial application to turn a call to `set-date`
-into a function that takes a calendar and returns one (this is the reason I recommend passing the component state last
-in your models, but you can certainly use lambdas if you're using a component that does not follow this convention):
 
-       (let [set-date-to (fn [dt] (callback-builder (partial cal/set-date dt)))]
+The `quiescent-model.state/op-builder` function is the real work-horse and key to this entire library's simplicity. This
+function takes the current rendering context and produces a callback-builder (commonly referred to in this doc and 
+examples as `op`, short for "operation-on-the-current-state").  This is a higer-order function that is meant to preserve
+everything about local reasoning on your component. It requires a function that accepts the current state of the 
+component and returns an updated state (e.g. calendar/next-month takes a current calendar and returns a new one representing
+next month). `op` itself _returns_ a function that can cause this side-effect on the application's state (which can then
+be used as a callback function for async operations, events, etc.). No need for core.async or other complications! You
+can reason about things locally (a function than takes/returns a calendar) and an abstraction (a higher order function 
+that can make a change to my component's state). Technically your function can also have side-effects (though purity is 
+meant to be the goal). 
 
-and when creating the UI element for a specific day, construct new functions for each day:
+Since the only thing the callback-builder
+is going to pass to your function is the component's state, one wonders how to do many of the useful tasks, like update
+the state of an input field based on an event. Simple, since we're doing FP: Partial application. (See `set-date-builder`
+in the example above). If you choose to use partial application (instead of anonymous functions) then we recommend
+you write your multi-arg pure functions of component state such that the component itself is the last arg.
+
+     (defn set-date [new-dt calendar] ...)
+     
+     (let [goto-today (op (partial set-date today))] 
+        (d/button { :onClick goto-today } "Today")
+     )
+
+When creating the UI elements of sub-components (e.g. for days in the calendar), you can make event handlers for those
+day selections by constructing new functions for each day:
+
+       (let [set-date-to (fn [dt] (op (partial cal/set-date dt)))]
 
        ; assume 'days' is the vector: [ {:month 1 :day 1 :year 2015 } {:month 1 :day 2 :year 2015 } ... ]
        (map (fn [d] (d/span { :onClick (set-date-to d) } (str (:day d))) days)
@@ -254,31 +265,44 @@ and when creating the UI element for a specific day, construct new functions for
 ## Using Your Component
 
 You component body (above) _receives_ parameters passed by the internals of this library. It is very important for
-you to note that *you do not pass* these arguments when you use it. This is a significant break from
-quiescent.
+you to note that *you do not pass* these arguments when you use it. *This is a significant break from
+quiescent, React, and Om*.
 
 Instead, `defscomponent` def's a function that can create a React component based on your template (above), the 
-application state, and your self-assigned IDs. Thus, you create the instances of your component with:
+key of your component in the application state, and the rendering context. Thus, you create the instances of your component with:
 
-     (Calendar "vis-main-start-date" app-state-atom)
+     (Calendar key context)
 
-Now you see that the use of the component also allows local reasoning. The only things you need to know are the ID
-of that component (which you defined), and since the template body is _passed_ the app-state-atom
-most components need not even know the real name/location of the application state atom!
+At first this may sound like you are not preserving local reasoning, but remember that this render will be invoked
+in the context of the component that owns the state of that sub-component (even though it used that component's
+constructor function to build that state). For example:
 
-## Dynamically Generated UI Elements
+     (defn make-visualization []
+     { :visualization {
+           :start-date (make-calendar)
+           :end-date (make-calendar) })
+       
+The renderer for Visualization knows (because it's constructor defined the map) that there are calendars at :start-date
+and :end-date. So even if you embed Visualization somewhere deep, the renderer for Visualization still knows where 
+the sub-state is (even though it does not know where it, itself, is).
+ 
+Think of this just like you do a call stack in normal programming. The stack is a global data structure, and the 
+"stack pointer" is a behind-the-scenes mechanism for tracking where in the stack you're code is running. Rendering
+`context` is this stack pointer.
 
-Many applications require that the user be able to "add" things. The TODO application is a prime example: the whole
-point of the application is to allow the user to dynamically add data that then generates new UI elements. This 
-library suggests that the data for such elements be locally-owned-and-operated by the component that creates and
-edits them. This means they do *not* generally have any global unique ID, nor do they need it. It also implies that
-you will simply use the mechanisms provided by quiescent itself to model these sub-components.
+## Components without state
 
-Thus, the short answer to this problem is: Use quiescent to create these sub-components on your localized model. This
-preserves simplicity, rendering efficiency, and local(ized) reasoning. Use the callback-builder to pass your 'hook-ups'
-through the "constant argument" parameter of quiescent. Those pre-build functions include closure over functions
-that will cause them to "just work"; however, be sure you understand that your subcomponents will follow the 
-re-rendering rules of quiescent (if the first arg doesn't change, they won't update).
+You may use quiescent (or raw React) to create any components of your UI. You may also simply write functions
+that output groupings of other components. There is nothing to say that all of your UI elements have to be modeled
+with `defscomponent` and explicit state.
+ 
+This preserves simplicity, rendering efficiency, and local(ized) reasoning. You can also very simply use the `callback-builder`
+(op) to build up operations that can be passed as your 'hook-up logic'
+through to these raw components so they can still act on application state. 
+
+Remember that React rules, however, still apply: Components don't re-render unless their state changes. So if you do
+raw rendering within some sub-tree of the UI, be sure that tracked state changes will cause appropriate re-rendering
+when needed.
 
 ## License
 
