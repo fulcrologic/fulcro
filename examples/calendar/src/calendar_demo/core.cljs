@@ -27,7 +27,7 @@
 
 (c/defscomponent Visualization
                  [data context]
-                 (let [cbb (cms/op-builder context)
+                 (let [cbb (qms/op-builder context)
                        refresh-data (fn []
                                       (js/setTimeout (cbb set-data) 500))]
                    (d/div {}
