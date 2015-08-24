@@ -1,9 +1,7 @@
 (ns quiescent-model.state
   (:require [quiescent-model.events :as evt]))
 
-(defn root-scope 
-  "Creates a root scope for a top-level component"
-  [app-state-atom]
+(defn root-scope [app-state-atom]
   {
    :app-state-atom  app-state-atom
    :scope           []
@@ -11,15 +9,10 @@
    }
   )
 
-(defn find-first 
-  "Helper function returning (first (filter pred coll))"
-  [pred coll] 
-  (first (filter pred coll)) )
+(defn find-first [pred coll] (first (filter pred coll)))
 
 (defn data-path
-  "Converts a conceptual data path to an associative path usable by get-in.
-  The abstract internal path may include vectors as data structures which
-  are instructions to look up items in a list by a key."
+  "Corrects actual internal path to account for the inclusion of vectors as data structures."
   [context]
   (let [state @(:app-state-atom context)
         path-seq (:scope context)
@@ -48,20 +41,13 @@
               )
             [] path-seq)))
 
-(defn context-data 
-  "Get the data from the application state that is represented by an
-  abstract context"
-  [context]
+(defn context-data [context]
   (let [state-atom (:app-state-atom context)
         path (data-path context)
         ]
     (get-in @state-atom path)))
 
-(defn update-in-context 
-  "Update the data represented by the context in the real application 
-  state using the supplied operation (this operation is like swap!, but
-  you don't have to know where the data is actually stored)."
-  [context op]
+(defn update-in-context [context op]
   (let [state-atom (:app-state-atom context)
         path (data-path context)
         ]
@@ -86,11 +72,4 @@
                                  (update-in-context context operation))
   )
 
-(defn context-op-builder 
-  "Creates an application-state operation builder based on the given 
-  context. In other words: returns a function that takes
-  a function that can evolve the context data. This function, when called,
-  returns a function that can do that operation in the larger context
-  of the application state."
-  [context] 
-  (fn [op & triggers] (path-operator context op triggers)))
+(defn op-builder [context] (fn [op & rest] (path-operator context op rest)))

@@ -71,17 +71,9 @@
   (let [[docstr forms] (extract-docstr forms)
         [options forms] (extract-opts forms)
         [argvec & body] forms
-        op-builder '(fn [op & rest]
-                      (quiescent-model.state/path-operator react-args op rest)
-                      )
-        let-forms (interleave argvec ['react-data 'react-args op-builder])
         ]
     ; Create plumbing to an underlying quiescent component
-    `(let [real-handler# (quiescent.core/component (fn [~(symbol "react-data") ~(symbol "react-args")]
-                                                     (let [~@let-forms]
-                                                       ~@body
-                                                       )
-                                                     ) ~options)]
+    `(let [real-handler# (quiescent.core/component (fn ~argvec ~@body) ~options)]
        ;; Def the quiescent construction function so users can create instances of the component that "close over"
        ;; the plumbing that extracts the application state and passes it to the real handler.
        (def ~name ~docstr
