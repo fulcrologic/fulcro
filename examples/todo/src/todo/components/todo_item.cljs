@@ -42,8 +42,9 @@
 (c/defscomponent TodoItem
                  "A Todo item"
                  :keyfn :id
-                 [data context op]
-                 (let [delete-me #(evt/trigger context [:delete-me])] ; triggering an event that has no local state chg
+                 [data context]
+                 (let [op (state/op-builder context)
+                       delete-me #(evt/trigger context [:delete-me])] ; triggering an event that has no local state chg
                    (d/li {:className (item-class data)}
                          (d/div {:className "view"}
                                 (d/input {:className "toggle" :type "checkbox" :checked (:checked data) :onChange (op toggle)})
