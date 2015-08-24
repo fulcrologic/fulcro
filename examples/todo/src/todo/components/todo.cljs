@@ -83,8 +83,9 @@
                  ;            (let [op (state/context-op-builder context)]
                  ;              (js/setInterval (op toggle-all) 10000)
                  ;              ))
-                 [todo-list context op]
-                 (let [which-filter (:filter todo-list)
+                 [todo-list context]
+                 (let [op (state/op-builder context)
+                       which-filter (:filter todo-list)
                        filter-all (op (partial set-filter :all))
                        filter-complete (op (partial set-filter :completed))
                        filter-incomplete (op (partial set-filter :incomplete))
