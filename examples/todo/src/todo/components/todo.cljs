@@ -80,8 +80,8 @@
                  "A Todo list"
                  ; you can get an op-builder like so in the lifecycle methods:
                  ;:on-mount (fn [ele-dom data context]
-                 ;            (let [op (state/context-op-builder context)]
-                 ;              (js/setInterval (op toggle-all) 10000)
+                 ;            (let [op (state/op-builder context)]
+                 ;              (js/setInterval (op toggle-all) 2000)
                  ;              ))
                  [todo-list context]
                  (let [op (state/op-builder context)

@@ -87,8 +87,9 @@
 
 (c/defscomponent Calendar
                  "A Calendar"
-                 [calendar-data context op]
-                 (let [overlay-visible? (:overlay-visible? calendar-data)
+                 [calendar-data context]
+                 (let [op (state/op-builder context)
+                       overlay-visible? (:overlay-visible? calendar-data)
                        move-to-next-month (op next-month)
                        move-to-prior-month (op prior-month)
                        toggle-days (op toggle-calendar-overlay)
