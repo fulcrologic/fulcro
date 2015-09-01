@@ -31,6 +31,7 @@
 
 (defn run-all-tests []
   (run-tests 'dom-tools.query-spec)
+  ;(run-tests 'dom-tools.event-sim-spec)
   )
 
 (defn on-load []
