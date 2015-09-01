@@ -1,4 +1,5 @@
-(ns dom-tools.event-sim)
+(ns dom-tools.event-sim
+  (:require [dom-tools.query]))
 
 ;(defn click-button [search-kind pattern component]
 ;(let [dom-frag (first-in-dom search-kind pattern)]
@@ -14,3 +15,5 @@
 ;(send-input  )
 ;(send-keys  )
 
+(defn click-button [search-kind pattern component]
+  )

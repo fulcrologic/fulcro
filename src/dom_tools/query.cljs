@@ -1,16 +1,9 @@
 (ns dom-tools.query
   (:require [clojure.string :as str]
+            [dom-tools.test-utils :as tu]
             [goog.dom :as gd]))
 
-; TODO: this needs to take a react component
-;(defn dom-frag [] (.getDOMNode (js/React.addons.TestUtils.renderIntoDocument (calendar))))
-
 (defn is-button? [dom-node] (= "button" (str/lower-case (.-nodeName dom-node))))
-
-(defn text-matches [string dom-node]
-  (let [regex (js/RegExp. string)
-        text (gd/getTextContent dom-node)]
-    (.test regex text)))
 
 ;(defn is-button-with-label? [string dom-node] (let [regex (js/RegExp. string)]
 ;                                                (and (is-button? dom-node)
@@ -20,10 +13,10 @@
 ;                                                 (gd/findNode dom-node predicate)))
 
 
+
 (defn get-dom-element [component]
-  ; TODO: ask tony how to shorten calls to TestUtils...
-  (let [element (js/React.addons.TestUtils.renderIntoDocument component)]
-    (when (js/React.addons.TestUtils.isDOMComponent element) (.getDOMNode element))))
+  (let [element (tu/renderIntoDocument component)]
+    (when (tu/isDOMComponent element) (.getDOMNode element))))
 
 (defn find-element
   "
@@ -31,10 +24,11 @@
 
   Parameters:
   *`keyword`: defines search type and can be one of:
-    *`:key`: the :key hash of the React component
-    *`:text`: the user-visible text of an element
+    *`:key`: the :key hash of the React component, this will look for your `value` as a substring within a data-reactid
+             attribute
+    *`:text`: look for `value` as a substring of the user-visible text of an element
     *`:selector`: any arbitrary CSS selector
-    * any attribute name passed as a keyword, i.e. :class
+    * any attribute name passed as a keyword, i.e. :class will look for your `value` in the class attribute
   *`value`: a string used to find the element based on your :keyword search type
   *`obj`: should be either a React component or rendered HTML element
 
@@ -44,15 +38,8 @@
   (let [elem (if (gd/isElement obj) obj (get-dom-element obj))]
     (cond
       (= keyword :key) (.querySelector elem (str/join ["[data-reactid$='$" value "'"]))
-      (= keyword :text) (gd/findNode elem (partial text-matches value elem))
+      (= keyword :text) (gd/findNode elem (partial tu/text-matches value elem))
       (= keyword :selector) (or (.querySelector elem value) nil)
       :else (let [attr (name keyword)
                   selector (str/join ["[" attr "=" value "]"])]
               (or (.querySelector elem selector) nil)))))
-
-
-;(defn first-in-dom [search-kind pattern component]
-;  nil)
-;
-;(first-in-dom :key "Today" component)
-; => <dom-node>

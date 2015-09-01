@@ -1,7 +1,42 @@
-(ns dom-tools.event-sim-spec)
+(ns dom-tools.event-sim-spec
+  (:require-macros [quiescent-model.component :as c]
+                   [cljs.test :refer (is deftest run-tests)])
+  (:require [dom-tools.query :as q]
+            [cljs.test :as t]
+            [goog.dom :as gd]
+            [quiescent.dom :as d]
+            [quiescent.core]
+            [quiescent-model.state :as state]
+            [dom-tools.test-utils :as tu]))
 
 
+; This is for stateful component testing... later...
 
+
+(deftest anything
+  (is true))
+
+;(def root-context (state/root-scope (atom {:button
+;                                           {:data-count 0}})))
+;
+;(c/defscomponent Button
+;                 "A button"
+;                 [data context]
+;
+;                 (let [op (state/op-builder context)
+;                       plus-one (op #(inc %))]
+;                   (d/button {:onClick    (plus-one (:data-count data))
+;                              :className  "test-button"
+;                              :data-count (:data-count data)})))
+;
+;(cljs.pprint/pprint "a random string")
+;
+;
+;(tu/click (q/find-element :class "test-button" (Button :button root-context)))
+
+; Call our button with:
+;
+;(q/dom-frag (Button :button root-context))
 
 
 
