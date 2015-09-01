@@ -5,6 +5,7 @@
             [cljs.test :as t]
             [goog.dom :as gd]
             [quiescent.dom :as d]
+            [quiescent.core :include-macros true]
             [quiescent-model.state :as state]
             [dom-tools.test-utils :as tu]))
 
@@ -26,13 +27,14 @@
                               :data-count (:data-count data)})))
 
 (deftest get-dom-element
-  (let [from-quiescent-component (q/get-dom-element dumb-butt) from-qmodel-component (Button :button root-context)]
+  (let [from-quiescent-component (q/get-dom-element dumb-butt)
+        from-qmodel-component (q/get-dom-element (Button :button root-context))]
     (is (gd/isElement from-qmodel-component) "gets the dom node from a quiescent-model component")
     (is (gd/isElement from-quiescent-component) "gets the dom node from a vanilla quiescent component")))
 
 (deftest find-element
-  (let [component (js/React.addons.TestUtils.renderIntoDocument nested-button)
-        parent-elem (.getDOMNode component)
+  (let [rendered-component (js/React.addons.TestUtils.renderIntoDocument nested-button)
+        parent-elem (.getDOMNode rendered-component)
         wrong-key (q/find-element :key "cyid" parent-elem)
         child-elem-by-key (or (q/find-element :key "myid" parent-elem) dumb-div)
         no-such-value (q/find-element :class "active" parent-elem)
@@ -49,9 +51,6 @@
     (is (= "derp." (.-innerHTML child-elem-by-text)) "find-element by visible inner text")
     (is (= "derp." (.-innerHTML child-elem-by-selector)) "find-element by arbitrary CSS selector")
     (is (= "derp." (.-innerHTML child-elem-by-attr)) "find-element by attr and value")))
-
-(cljs.pprint/pprint "a random string")
-
 
 (deftest clickly (let [root-context (state/root-scope (atom {:button {:data-count 0}}))
                        button (q/find-element :class "test-button" (d/div {} (Button :button root-context)))

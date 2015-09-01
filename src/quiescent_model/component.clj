@@ -1,4 +1,5 @@
-(ns quiescent-model.component)
+(ns quiescent-model.component
+  (:require [quiescent.core :include-macros true]))
 
 (defn- extract-docstr
   [[docstr? & forms]]

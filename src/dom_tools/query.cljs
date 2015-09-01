@@ -12,11 +12,8 @@
 ;(defn find-button-with-label [string dom-node] (let [predicate (partial is-button-with-label? string)]
 ;                                                 (gd/findNode dom-node predicate)))
 
-
-
 (defn get-dom-element [component]
-  (let [element (tu/renderIntoDocument component)]
-    (when (tu/isDOMComponent element) (.getDOMNode element))))
+  (.getDOMNode (tu/renderIntoDocument component)))
 
 (defn find-element
   "
