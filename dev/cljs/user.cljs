@@ -5,6 +5,7 @@
             [cljs.test :as test :include-macros true :refer [report]]))
 
 ; TODO: this will go away when smooth-test is finished
+(enable-console-print!)
 
 (defn color-favicon-data-url [color]
   (let [cvs (.createElement js/document "canvas")]
@@ -27,7 +28,6 @@
     (change-favicon-to-color "#d00")
     (change-favicon-to-color "#0d0")))
 
-(enable-console-print!)
 
 (defn run-all-tests []
   (run-tests 'dom-tools.query-spec)
