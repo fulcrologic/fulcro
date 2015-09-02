@@ -9,12 +9,14 @@
             [quiescent-model.state :as state]
             [dom-tools.test-utils :as tu]))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Fixtures
+
+
 (def dumb-butt (d/button {:className "test-button" :data-foo "test-foo-data" :key "myid"} "derp."))
 (def nested-button (d/div {} dumb-butt))
 (def dumb-div (d/div {}))
-
-(def root-context (state/root-scope (atom {:button
-                                           {:data-count 0}})))
 
 (c/defscomponent Button
                  "A button"
@@ -26,9 +28,17 @@
                               :className  "test-button"
                               :data-count (:data-count data)})))
 
+(def my-button-context (state/root-scope (atom {:my-button {:data-count 0}})))
+(def custom-button (Button :my-button my-button-context))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Tests
+
+
 (deftest get-dom-element
-  (let [from-quiescent-component (q/get-dom-element dumb-butt)
-        from-qmodel-component (q/get-dom-element (Button :button root-context))]
+  (let [from-quiescent-component (q/render-as-dom dumb-butt)
+        from-qmodel-component (q/render-as-dom "custom-button")]
     (is (gd/isElement from-qmodel-component) "gets the dom node from a quiescent-model component")
     (is (gd/isElement from-quiescent-component) "gets the dom node from a vanilla quiescent component")))
 
@@ -54,10 +64,6 @@
 
 (deftest clickly (let [root-context (state/root-scope (atom {:button {:data-count 0}}))
                        button (q/find-element :class "test-button" (d/div {} (Button :button root-context)))
-                       button-click (tu/click button)
+                       click-event (tu/click button)
                        click-count (:data-count (:button @(:app-state-atom root-context)))]
                    (is (= 1 click-count))))
-
-; Call our button with:
-;
-;(q/dom-frag (Button :button root-context))

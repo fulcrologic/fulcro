@@ -3,18 +3,6 @@
             [dom-tools.test-utils :as tu]
             [goog.dom :as gd]))
 
-(defn is-button? [dom-node] (= "button" (str/lower-case (.-nodeName dom-node))))
-
-;(defn is-button-with-label? [string dom-node] (let [regex (js/RegExp. string)]
-;                                                (and (is-button? dom-node)
-;                                                     (text-matches regex dom-node))))
-;
-;(defn find-button-with-label [string dom-node] (let [predicate (partial is-button-with-label? string)]
-;                                                 (gd/findNode dom-node predicate)))
-
-(defn get-dom-element [component]
-  (.getDOMNode (tu/renderIntoDocument component)))
-
 (defn find-element
   "
   Finds an HTML element inside a React component or HTML element based on keyword
@@ -32,7 +20,7 @@
   Returns a rendered HTML element or nil if no match is found.
   "
   [keyword value obj]
-  (let [elem (if (gd/isElement obj) obj (get-dom-element obj))]
+  (let [elem (if (gd/isElement obj) obj (render-as-dom obj))]
     (cond
       (= keyword :key) (.querySelector elem (str/join ["[data-reactid$='$" value "'"]))
       (= keyword :text) (gd/findNode elem (partial tu/text-matches value elem))
