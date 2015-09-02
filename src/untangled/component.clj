@@ -1,4 +1,4 @@
-(ns quiescent-model.component)
+(ns untangled.component)
 
 (defn- extract-docstr
   [[docstr? & forms]]
@@ -78,8 +78,8 @@
        ;; the plumbing that extracts the application state and passes it to the real handler.
        (def ~name ~docstr
          (fn [id# context# & event-handlers#]
-           (let [new-context# (quiescent-model.state/new-scope context# id# event-handlers#)
-                 data# (quiescent-model.state/context-data new-context#)]
+           (let [new-context# (untangled.state/new-scope context# id# event-handlers#)
+                 data# (untangled.state/context-data new-context#)]
              (real-handler# data# new-context#)
              ))))))
 

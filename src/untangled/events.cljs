@@ -1,4 +1,4 @@
-(ns quiescent-model.events
+(ns untangled.events
   (:require
     cljs.pprint
     ))

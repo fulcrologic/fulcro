@@ -1,12 +1,12 @@
 (ns calendar-demo.calendar
   (:require
-    [quiescent-model.state :as state]
-    [quiescent-model.events :as evt]
+    [untangled.state :as state]
+    [untangled.events :as evt]
     [quiescent.core :as q :include-macros true]
     [quiescent.dom :as d]
     cljs.pprint
     )
-  (:require-macros [quiescent-model.component :as c])
+  (:require-macros [untangled.component :as c])
   )
 
 (declare weeks-of-interest)

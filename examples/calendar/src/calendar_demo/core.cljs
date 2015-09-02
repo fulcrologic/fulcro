@@ -2,11 +2,11 @@
   (:require [figwheel.client :as fw]
             [quiescent.core :as q :include-macros true]
             [quiescent.dom :as d]
-            [quiescent-model.state :as qms]
-            [quiescent-model.events :as evt]
+            [untangled.state :as qms]
+            [untangled.events :as evt]
             [calendar-demo.calendar :as cal]
             )
-  (:require-macros [quiescent-model.component :as c]))
+  (:require-macros [untangled.component :as c]))
 
 (enable-console-print!)
 

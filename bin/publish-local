@@ -1,2 +1,2 @@
 lein jar
-lein localrepo install target/quiescent-model-0.1.0-SNAPSHOT.jar quiescent-model 0.1.0-SNAPSHOT
+lein localrepo install target/untangled-0.1.0-SNAPSHOT.jar untangled 0.1.0-SNAPSHOT
