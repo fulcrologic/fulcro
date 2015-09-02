@@ -10,14 +10,14 @@ web applications:
 - Immutable data, with *no need* for embedded/hidden local state
 - Interfacing to React via Quiescent for a *referentially transparent* rendering model.
 - A data model similar to Om, but much simpler to manage
-- A custom component event model
+- A custom component event model for localized component communication
 - Unit testing tools, including:
    - Event simulation
    - DOM analysis/checkers
    - Async timeline simulation (via our companion testing library)
    - An in-browser test runner that requires NO external tools (including auto-running)
    - Any number of different browsers running all tests automatically simply by sending the browser to a web page.
-- Application Undo/Redo (partially complete)
+- Application Undo/Redo 
    - The ability to mark "undoable" operations to prevent undo over things like POST.
    - The ability to "hook" undo functions to make "undoable" operations (like POST) undoable!
 - "Support ticketing" that provides your support team and developers 
@@ -84,8 +84,7 @@ honor the pure FP intentions of Quiescent while encouraging clean
 Specifically:
 
 - Eliminate **direct reliance** on globals anywhere in your UI
-  implementation. Global _definition_ is fine (and useful with
-figwheel), but optional.
+  implementation. Global _definition_ is fine.
 - Provide a strong opinion about the data modelling that allows you to
   concentrate on building your webapp without having to design that
 model and the associated conventions for using it.
