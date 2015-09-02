@@ -1,5 +1,5 @@
-(ns quiescent-model.state
-  (:require [quiescent-model.events :as evt]))
+(ns untangled.state
+  (:require [untangled.events :as evt]))
 
 (defn root-scope [app-state-atom]
   {

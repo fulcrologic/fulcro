@@ -1,7 +1,7 @@
 (ns todo.components.todo-item
   (:require
-    [quiescent-model.state :as state]
-    [quiescent-model.events :as evt]
+    [untangled.state :as state]
+    [untangled.events :as evt]
     [quiescent.core :as q :include-macros true]
     [quiescent.dom :as d]
     [todo.events :refer [enter-key? text-value]]
@@ -10,7 +10,7 @@
     [cljs-uuid-utils.core :as uuid]
     cljs.pprint
     )
-  (:require-macros [quiescent-model.component :as c])
+  (:require-macros [untangled.component :as c])
   )
 
 (defn new-item

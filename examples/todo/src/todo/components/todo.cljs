@@ -1,7 +1,7 @@
 (ns todo.components.todo
   (:require
-    [quiescent-model.state :as state]
-    [quiescent-model.events :as evt]
+    [untangled.state :as state]
+    [untangled.events :as evt]
     [quiescent.core :as q :include-macros true]
     [quiescent.dom :as d]
     [todo.components.todo-item :refer [is-checked set-checked set-unchecked new-item TodoItem]]
@@ -9,7 +9,7 @@
     [todo.components.input :refer [text-input]]
     cljs.pprint
     )
-  (:require-macros [quiescent-model.component :as c])
+  (:require-macros [untangled.component :as c])
   )
 
 (defn make-todolist
