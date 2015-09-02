@@ -1,5 +1,6 @@
 (ns dom-tools.test-utils
-  (:require [goog.dom :as gd]))
+  (:require [goog.dom :as gd]
+            [clojure.string :as str]))
 
 
 ;; def these long-named React functions to a convenient symbol, to make our other code more readable
@@ -15,3 +16,6 @@
   "Creates a DOM element from a React component."
   [component]
   (.getDOMNode (renderIntoDocument component)))
+
+(defn hashmap-to-js-obj [hashmap]
+  {(map #(str/join [(name %1) ":"]) hashmap)})

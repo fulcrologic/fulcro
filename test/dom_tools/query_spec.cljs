@@ -7,6 +7,8 @@
             [quiescent.dom :as d]
             [quiescent.core :include-macros true]
             [quiescent-model.state :as state]
+            [dom-tools.event-sim :as ev]
+            [dom-tools.fixtures :as f]
             [dom-tools.test-utils :as tu]))
 
 
@@ -18,27 +20,17 @@
 (def nested-button (d/div {} dumb-butt))
 (def dumb-div (d/div {}))
 
-(c/defscomponent Button
-                 "A button"
-                 [data context]
 
-                 (let [op (state/op-builder context)
-                       plus-one (op (fn [data] (assoc data :data-count (inc (:data-count data)))))]
-                   (d/button {:onClick    plus-one
-                              :className  "test-button"
-                              :data-count (:data-count data)})))
-
-(def my-button-context (state/root-scope (atom {:my-button {:data-count 0}})))
-(def custom-button (Button :my-button my-button-context))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Tests
 
+;; TODO: add assertions on argument types for get-dom-element and find-element
 
 (deftest get-dom-element
-  (let [from-quiescent-component (q/render-as-dom dumb-butt)
-        from-qmodel-component (q/render-as-dom "custom-button")]
+  (let [from-quiescent-component (tu/render-as-dom dumb-butt)
+        from-qmodel-component (tu/render-as-dom f/custom-button)]
     (is (gd/isElement from-qmodel-component) "gets the dom node from a quiescent-model component")
     (is (gd/isElement from-quiescent-component) "gets the dom node from a vanilla quiescent component")))
 
@@ -62,8 +54,4 @@
     (is (= "derp." (.-innerHTML child-elem-by-selector)) "find-element by arbitrary CSS selector")
     (is (= "derp." (.-innerHTML child-elem-by-attr)) "find-element by attr and value")))
 
-(deftest clickly (let [root-context (state/root-scope (atom {:button {:data-count 0}}))
-                       button (q/find-element :class "test-button" (d/div {} (Button :button root-context)))
-                       click-event (tu/click button)
-                       click-count (:data-count (:button @(:app-state-atom root-context)))]
-                   (is (= 1 click-count))))
+
