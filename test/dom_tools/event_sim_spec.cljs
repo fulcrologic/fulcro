@@ -1,20 +1,23 @@
 (ns dom-tools.event-sim-spec
-  (:require-macros [quiescent-model.component :as c]
-                   [cljs.test :refer (is deftest run-tests)])
+  (:require-macros [cljs.test :refer (is deftest run-tests)])
   (:require [dom-tools.query :as q]
             [cljs.test :as t]
             [goog.dom :as gd]
             [quiescent.dom :as d]
-            [quiescent.core]
+            [quiescent.core :include-macros true]
             [quiescent-model.state :as state]
-            [dom-tools.test-utils :as tu]))
+            [dom-tools.test-utils :as tu]
+            [dom-tools.event-sim :as ev]
+            [dom-tools.fixtures :as f]))
 
+(deftest clicks (let [root-context (state/root-scope (atom {:button {:last-event {}}}))
+                      custom-button (f/Button :button root-context)
+                      rendered-button (tu/render-as-dom custom-button)
+                      click-event (ev/click rendered-button :clientX 20)
+                      last-event (:last-event (:button @(:app-state-atom root-context)))]
+                  (js/console.log last-event)
+                  (is (= true (.-altKey last-event)))))
 
-; This is for stateful component testing... later...
-
-
-(deftest anything
-  (is true))
 
 ;(def root-context (state/root-scope (atom {:button
 ;                                           {:data-count 0}})))

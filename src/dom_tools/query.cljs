@@ -20,7 +20,7 @@
   Returns a rendered HTML element or nil if no match is found.
   "
   [keyword value obj]
-  (let [elem (if (gd/isElement obj) obj (render-as-dom obj))]
+  (let [elem (if (gd/isElement obj) obj (tu/render-as-dom obj))]
     (cond
       (= keyword :key) (.querySelector elem (str/join ["[data-reactid$='$" value "'"]))
       (= keyword :text) (gd/findNode elem (partial tu/text-matches value elem))
