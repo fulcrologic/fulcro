@@ -1,8 +1,8 @@
 (ns ^:figwheel-always cljs.user
   (:require-macros [cljs.test
                     :refer (is deftest run-tests testing)])
-  (:require dom-tools.query-spec
-            dom-tools.event-sim-spec
+  (:require untangled.dom-tools.query-spec
+            untangled.dom-tools.event-sim-spec
             [cljs.test :as test :include-macros true :refer [report]]))
 
 ; TODO: this will go away when smooth-test is finished
@@ -30,8 +30,9 @@
     (change-favicon-to-color "#0d0")))
 
 (defn run-all-tests []
-  (run-tests 'dom-tools.query-spec)
-  (run-tests 'dom-tools.event-sim-spec) )
+  (run-tests 'untangled.dom-tools.query-spec)
+  (run-tests 'untangled.dom-tools.event-sim-spec))
 
 (defn on-load []
   (run-all-tests))
+

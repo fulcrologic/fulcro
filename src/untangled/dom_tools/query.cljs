@@ -1,6 +1,6 @@
-(ns dom-tools.query
+(ns untangled.dom-tools.query
   (:require [clojure.string :as str]
-            [dom-tools.test-utils :as tu]
+            [untangled.dom-tools.test-utils :as tu]
             [goog.dom :as gd]))
 
 (defn find-element

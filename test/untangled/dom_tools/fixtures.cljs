@@ -1,9 +1,9 @@
-(ns dom-tools.fixtures
-  (:require-macros [quiescent-model.component :as c])
+(ns untangled.dom-tools.fixtures
+  (:require-macros [untangled.component :as c])
   (:require
     [quiescent.dom :as d]
     [quiescent.core :include-macros true]
-    [quiescent-model.state :as state]))
+    [untangled.state :as state]))
 
 (c/defscomponent Button
                  "A button"

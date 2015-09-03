@@ -1,15 +1,15 @@
-(ns dom-tools.event-sim-spec
+(ns untangled.dom-tools.event-sim-spec
   (:require-macros [cljs.test :refer (is deftest run-tests)]
                    cljs.user)
-  (:require [dom-tools.query :as q]
+  (:require [untangled.dom-tools.query :as q]
             [cljs.test :as t]
             [goog.dom :as gd]
             [quiescent.dom :as d]
             [quiescent.core :include-macros true]
-            [quiescent-model.state :as state]
-            [dom-tools.test-utils :as tu]
-            [dom-tools.event-sim :as ev]
-            [dom-tools.fixtures :as f]))
+            [untangled.state :as state]
+            [untangled.dom-tools.test-utils :as tu]
+            [untangled.dom-tools.event-sim :as ev]
+            [untangled.dom-tools.fixtures :as f]))
 
 (deftest clicks (let [root-context (state/root-scope (atom {:button {:last-event {}}}))
                       custom-button (f/Button :button root-context)
