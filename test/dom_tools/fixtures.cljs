@@ -10,18 +10,12 @@
                  [data context]
 
                  (let [op (state/op-builder context)
-                       store-last-event (fn [evt data] (assoc data :last-event evt)
-                                          (js/console.log evt))
-                       ]
-                   (d/button {:onClick    (fn [evt data] ((op (partial store-last-event (clj->js [evt data])))))
+                       store-last-event (fn [evt input]
+                                          (assoc input :last-event evt))]
+
+                   (d/button {:onClick    (fn [evt] ((op (partial store-last-event (clj->js evt)))))
                               :className  "test-button"
                               :last-event (:last-event data)})))
-
-
-
-;:onChange (fn [evt] ((op (partial set-and-validate evt))))
-
-
 
 (def my-button-context (state/root-scope (atom {:my-button {:data-count 0}})))
 (def custom-button (Button :my-button my-button-context))

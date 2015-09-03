@@ -1,5 +1,6 @@
 (ns dom-tools.event-sim-spec
-  (:require-macros [cljs.test :refer (is deftest run-tests)])
+  (:require-macros [cljs.test :refer (is deftest run-tests)]
+                   cljs.user)
   (:require [dom-tools.query :as q]
             [cljs.test :as t]
             [goog.dom :as gd]
@@ -14,8 +15,7 @@
                       custom-button (f/Button :button root-context)
                       rendered-button (tu/render-as-dom custom-button)
                       click-event (ev/click rendered-button :clientX 20 :altKey true)
-                      last-event (:last-event (:button @(:app-state-atom root-context)))]
-                  ;(js/console.log last-event)
+                      last-event #log (:last-event (:button @(:app-state-atom root-context)))]
                   (is (= true (.-altKey last-event)))))
 
 
@@ -29,6 +29,7 @@
 ;                 (let [op (state/op-builder context)
 ;                       plus-one (op #(inc %))]
 ;                   (d/button {:onClick    (plus-one (:data-count data))
+
 ;                              :className  "test-button"
 ;                              :data-count (:data-count data)})))
 ;
