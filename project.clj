@@ -2,11 +2,12 @@
   :description "An opinionated data model for use with (and following) the sensibilities of Quiescent."
   :url ""
   :license {:name "NAVIS"
-            :url "http://www.thenavisway.com"}
+            :url  "http://www.thenavisway.com"}
+
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [quiescent "0.2.0-RC1"]
-                 [org.clojure/clojurescript "1.7.48"]
-                 ]
+                 [org.clojure/clojurescript "1.7.48"]]
+  
   :source-paths ["src"]
   
   :plugins [[lein-cljsbuild "1.0.5"]
@@ -23,5 +24,4 @@
                                :asset-path           "js/test/out"
                                :optimizations        :none}}]}
 
-  :figwheel {:nrepl-port 7888}
-  :source-paths ["src"])
+  :figwheel {:nrepl-port 7888})
