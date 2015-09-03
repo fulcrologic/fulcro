@@ -1,68 +1,112 @@
-# Quiescent Model
+# Untangled
 
-An opinionated data model to use with Quiescent that encourages a pure FP approach with local reasoning about all
-of the significant components, and minimal coupling.
+An opinionated web framework with fewer sharp edges.
 
-## tl;dr
+Untangled provides the following features for creating single-page
+web applications:
 
-Here is a short example that shows the basic usage of this library:
-
-    TODO: Link to example project
+- Simple, local reasoning everywhere.
+   - Rarely need core.async! Much less complexity.
+- Immutable data, with *no need* for embedded/hidden local state
+- Interfacing to React via Quiescent for a *referentially transparent* rendering model.
+- A data model similar to Om, but much simpler to manage
+- A custom component event model for localized component communication
+- Unit testing tools, including:
+   - Event simulation
+   - DOM analysis/checkers
+   - Async timeline simulation (via our companion testing library)
+   - An in-browser test runner that requires NO external tools (including auto-running)
+   - Any number of different browsers running all tests automatically simply by sending the browser to a web page.
+- Application Undo/Redo 
+   - The ability to mark "undoable" operations to prevent undo over things like POST.
+   - The ability to "hook" undo functions to make "undoable" operations (like POST) undoable!
+- "Support ticketing" that provides your support team and developers 
+  with accurate information about what went wrong when someone
+  reports a problem.
 
 ## The Problem
 
-The Quiescent rendering library for ClojureScript give you the ability to write pure functions that can be efficiently
-used to render your application's user interface. It forms no opinion of how you store that data, and makes writing
-the UI itself very simple (and unit-testable); however, this leaves you to invent an organization of layout for your
-data (both persistent and transient), and can lead to a lot of unintentional complexity in your application that
-requires some careful design.
+Other frameworks (for Clojurescript) have varying degrees of complexity. Om
+has some wonderful ideas, but the overuse of protocols, use of core.async,
+and tendency to allow for embedded/hidden state left us looking for more.
 
-The main problems that you need to solve when writing a real webapp with Quiescent are:
+Reagent throws caution to the wind (in an FP sense), but gives developers
+something that feels more like Angular. Attractive, yet the complexity that
+mutation brings to the table is a non-starter for teams looking to 
+stick with an FP approach.
+
+The Quiescent rendering library for ClojureScript gives you the ability
+to write pure functions that can be efficiently used to render your
+application's user interface, and is a very thin layer of code that
+is largely interested in making React hyper-fast under the assumption
+that you'd like to treat rendering as a pure function.
+makes writing the UI itself very simple (and unit-testable); however,
+this leaves you to invent everything else.
+
+The main problems that you need to solve when writing a real webapp
+with Quiescent are:
 
 - Where do I put my application data?
-- How do I model "transient state", which we are encouraged NOT to hide in the local UI code?
+- How do I model "transient state", which we are encouraged NOT to
+  hide in the local UI code?
 - How do I hook up event handlers without introducing incidental complexity?
 - When do I trigger re-renders?
 
-If you read the TODOMVC example for quiescent, you'll see that using core.async and a global set of handlers is one
-possible approach, and indeed that code is very clean and easy to understand; however, if you were to take that
-approach with a larger application you very quickly run into some concerns:
+If you read the TODOMVC example for quiescent, you'll see that using
+core.async and a global set of handlers is one possible approach, and
+indeed that code is very clean and easy to understand; however, if you
+were to take that approach with a larger application you very quickly
+run into some concerns:
 
 The structure of the application data is encoded throughout the recursive descent of the UI itself
 See, for example, [this line](https://github.com/levand/todomvc/blob/bdb6b8c0bb51bb8afa8430292634c270e7d77f1d/architecture-examples/quiescent/src/todomvc_quiescent/render.cljs#L45):
 
      (let [completed (count (filter :completed (:items app))) ...
 
-The example has been coded so that each _local_ component has to know the structure of the _global_ data.
+The example has been coded so that each _local_ component has to know
+the structure of the _global_ data.
 
-Additionally, event handlers are easy to hook up, but suffer from similar problems: you're either encouraged to do
-direct `swap!`s on global state, or send messages to an API via core.async channels, or invent you own. The lack of
-an opinion on where to put the state leaves you in a position that can cause your collaborators to "do the wrong thing"
-and tie implementation in a manner that complects your UI with your data model.
+Additionally, event handlers are easy to hook up, but suffer from
+similar problems: you're either encouraged to do direct `swap!`s on
+global state, or send messages to an API via `core.async` channels, or
+invent you own. The lack of an opinion on where to put the state
+leaves you in a position that can cause your collaborators to "do the
+wrong thing" and tie implementation in a manner that complects your UI
+with your data model.
 
 ## A Solution
 
-This library is a data model framework that attempts to honor the pure FP intentions of Quiescent while encouraging
-clean **local reasoning** wherever possible.
+This library includes a data modelling framework that attempts to
+honor the pure FP intentions of Quiescent while encouraging clean
+**local reasoning** wherever possible. It builds on ideas taken
+(and simplified) from Om.
 
 Specifically:
 
-- Eliminate **direct reliance** on globals anywhere in your UI implementation. Global _definition_ is fine (and useful
-with figwheel), but optional.
-- Provide a strong opinion about the data modelling that allows you to concentrate on building your webapp without
-having to design that model and the associated conventions for using it.
-- Provide the ability to write the **UI** in a manner that *promotes local reasoning and referential transparency* of the UI rendering
-- Support writing the *data model* of components in a manner that allows **completely local reasoning and easy referential
+- Eliminate **direct reliance** on globals anywhere in your UI
+  implementation. Global _definition_ is fine.
+- Provide a strong opinion about the data modelling that allows you to
+  concentrate on building your webapp without having to design that
+model and the associated conventions for using it.
+- Provide the ability to write the **UI** in a manner that *promotes
+  local reasoning and referential transparency* of the UI rendering
+- Support writing the *data model* of components in a manner that
+  allows **completely local reasoning and easy referential
 transparency**.
     - Support transient _and_ persistent data
-    - Support the ability for local components to *create* new (sub)state without having to know the specifics of the
-    data model. For example, a "TODO" list component needs to create TODO Items.
-- Enable event handler hook-ups that need know **nothing** about the specifics of data storage (location, name, or content),
- just the abstract API of the local component's model.
+    - Support the ability for local components to *create* new
+      (sub)state without having to know the specifics of the entire
+data model. For example, a "TODO" list component needs to create TODO
+items.
+- Enable event handler hook-ups that need know **nothing** about the
+  specifics of data storage (location, name, or content), just the
+abstract API of the local component's model.
 - Support solid composition and editing:
   - Multiple sub-applications on the same page.
-  - (Re)use components in arbitrary locations within the webapp without worrying about data locality.
-  - Move existing components in the UI without needing to affect any other layer
+  - (Re)use components in arbitrary locations within the webapp
+    without worrying about data locality.
+  - Move existing components in the UI without needing to affect any
+    other layer
 
 # Approach
 
@@ -196,8 +240,8 @@ decoupling from global state, and automatic re-rendering when needed (thanks to 
 You define components using the `defscomponent` macro:
 
     (ns my-app.calendar
-      (:require [quiescent-model.component :as c]
-                [quiescent-model.state :as state]
+      (:require [untangled.component :as c]
+                [untangled.state :as state]
                 [quiescent.core :as q]
                 [my-app.model.calendar :as cal]
                 [quiescent.dom :as d]))
@@ -231,7 +275,7 @@ simply access the first argument as a "calendar" model:
 Also note that all of the UI operations need know absolutely nothing about the location of the data, how it gets updated
 or even its format (accessor functions for things like overlay-visible? could give you this property for reads as well).
 
-The `quiescent-model.state/op-builder` function is the real work-horse and key to this entire library's simplicity. This
+The `untangled.state/op-builder` function is the real work-horse and key to this entire library's simplicity. This
 function takes the current rendering context and produces a callback-builder (commonly referred to in this doc and 
 examples as `op`, short for "operation-on-the-current-state").  This is a higer-order function that is meant to preserve
 everything about local reasoning on your component. It requires a function that accepts the current state of the 
