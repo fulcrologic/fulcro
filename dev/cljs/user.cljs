@@ -29,12 +29,9 @@
     (change-favicon-to-color "#d00")
     (change-favicon-to-color "#0d0")))
 
-
 (defn run-all-tests []
   (run-tests 'dom-tools.query-spec)
-  (run-tests 'dom-tools.event-sim-spec)
-  )
+  (run-tests 'dom-tools.event-sim-spec) )
 
 (defn on-load []
   (run-all-tests))
-
