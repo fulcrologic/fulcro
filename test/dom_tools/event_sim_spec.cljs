@@ -13,9 +13,9 @@
 (deftest clicks (let [root-context (state/root-scope (atom {:button {:last-event {}}}))
                       custom-button (f/Button :button root-context)
                       rendered-button (tu/render-as-dom custom-button)
-                      click-event (ev/click rendered-button :clientX 20)
+                      click-event (ev/click rendered-button :clientX 20 :altKey true)
                       last-event (:last-event (:button @(:app-state-atom root-context)))]
-                  (js/console.log last-event)
+                  ;(js/console.log last-event)
                   (is (= true (.-altKey last-event)))))
 
 

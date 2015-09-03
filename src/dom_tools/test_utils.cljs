@@ -17,5 +17,10 @@
   [component]
   (.getDOMNode (renderIntoDocument component)))
 
-(defn hashmap-to-js-obj [hashmap]
-  {(map #(str/join [(name %1) ":"]) hashmap)})
+(defn hashmap-to-js-obj
+  "Converts a clojure hashmap to a javascript object."
+  [hashmap]
+  (->> hashmap
+       (map (fn [x] [(name (first x)) (last x)]))
+       (into {})
+       (clj->js)))
