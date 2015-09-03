@@ -1,5 +1,6 @@
 (ns dom-tools.event-sim
-  (:require [dom-tools.query]))
+  (:require [dom-tools.query]
+            [dom-tools.test-utils :as tu]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -16,7 +17,7 @@
 
 
 (defn blur [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.blur x (clj->js evt-data)))
-(defn click [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.SimulateNative.click x (cljs.pprint/pprint (clj->js evt-data))))
+(defn click [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.click x (tu/hashmap-to-js-obj evt-data)))
 (defn contextMenu [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.contextMenu x evt-data))
 (defn copy [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.copy x evt-data))
 (defn cut [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.cut x evt-data))
