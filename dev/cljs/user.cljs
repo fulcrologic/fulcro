@@ -31,7 +31,7 @@
 
 (defn run-all-tests []
   (run-tests 'untangled.test.dom-spec)
-  ;(run-tests 'untangled.test.events-spec)
+  (run-tests 'untangled.test.events-spec)
   )
 
 (defn on-load []

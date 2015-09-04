@@ -1,4 +1,4 @@
-(defproject quiescent-model "0.1.0-SNAPSHOT"
+(defproject untangled "0.1.0-SNAPSHOT"
   :description "An opinionated data model for use with (and following) the sensibilities of Quiescent."
   :url ""
   :license {:name "NAVIS"
