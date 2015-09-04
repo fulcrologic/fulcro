@@ -1,31 +1,23 @@
 (ns untangled.test.events-spec
-  (:require-macros [cljs.test :refer (is deftest run-tests testing)]
+  (:require-macros [cljs.test :refer (is deftest run-tests)]
                    cljs.user)
-  (:require
-    [cljs.test :as t]
-    [goog.dom :as gd]
-    [quiescent.dom :as d]
-    [quiescent.core :include-macros true]
-    [untangled.state :as state]
-    [untangled.test.dom :refer [render-as-dom]]
-    [untangled.test.events :as ev]
-    [untangled.test.fixtures :as f]
-    ))
+  (:require 
+            [cljs.test :as t]
+            [goog.dom :as gd]
+            [quiescent.dom :as d]
+            [quiescent.core :include-macros true]
+            [untangled.state :as state]
+            [untangled.test.dom :refer [render-as-dom]]
+            [untangled.test.events :as ev]
+            [untangled.test.fixtures :as f]
+            ))
 
-(deftest clicks (let [root-context (state/root-context (atom {:button {:last-event nil}}))
-                      rendered-button (render-as-dom (f/Button :button root-context))
-                      get-state (fn [] (:button @(:app-state-atom root-context)))
-                      last-event (fn [] (:last-event (get-state)))]
-
-                  (testing "sends a click event"
-                           (is (nil? (last-event)))
-                           (ev/click rendered-button)
-                           (is (not (nil? (last-event)))))
-
-                  (testing "allows caller to set event data values"
-                           (ev/click rendered-button :clientX 20 :altKey true)
-                           (is (= true (.-altKey (last-event))))
-                           (is (= 20 (.-clientX (last-event)))))))
+(deftest clicks (let [root-context (state/root-scope (atom {:button {:last-event {}}}))
+                      custom-button (f/Button :button root-context)
+                      rendered-button (render-as-dom custom-button)
+                      click-event (ev/click rendered-button :clientX 20 :altKey true)
+                      last-event (:last-event (:button @(:app-state-atom root-context)))]
+                  (is (= true (.-altKey last-event)))))
 
 
 ;(def root-context (state/root-scope (atom {:button
