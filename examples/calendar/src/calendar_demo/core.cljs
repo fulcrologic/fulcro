@@ -19,6 +19,7 @@
    }
   )
 
+
 (defn random-numbers [] (repeatedly rand))
 
 (defn set-data [visual]
@@ -71,3 +72,5 @@
   )
 
 (render @app-state app-state)
+
+
