@@ -20,7 +20,7 @@
   :cljsbuild {
     :builds [
              {:id "dev"
-              :source-paths ["src"]
+              :source-paths ["src" "dev"]
               :figwheel { :on-jsload "calendar-demo.core/on-js-reload" }
               :compiler {:main calendar-demo.core
                          :asset-path "js/compiled/out"

@@ -1,4 +1,5 @@
-(ns untangled.component)
+(ns untangled.component
+  (:require [quiescent.core :include-macros true]))
 
 (defn- extract-docstr
   [[docstr? & forms]]
