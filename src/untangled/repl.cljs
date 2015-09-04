@@ -27,7 +27,7 @@
 (defn check-focus
   "Verify that the current focus makes sense in the app state."
   []
-  (if (nil? (get-in (app-state) @current-focus))
+  (if (nil? (get-in @(app-state) @current-focus))
     (cljs.pprint/pprint "WARNING: No data exists at the current focus!")
     )
   )
