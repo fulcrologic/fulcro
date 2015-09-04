@@ -1,6 +1,5 @@
-(ns untangled.dom-tools.event-sim
-  (:require [untangled.dom-tools.query]
-            [untangled.dom-tools.test-utils :as tu]))
+(ns untangled.test.events
+  (:require [untangled.test.dom]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -14,10 +13,17 @@
 ; TODO:
 ; Check existing libraries for a way to create event data.
 
+(defn hashmap-to-js-obj
+  "Converts a clojure hashmap to a javascript object."
+  [hashmap]
+  (->> hashmap
+       (map (fn [x] [(name (first x)) (last x)]))
+       (into {})
+       (clj->js)))
 
 
 (defn blur [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.blur x (clj->js evt-data)))
-(defn click [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.click x (tu/hashmap-to-js-obj evt-data)))
+(defn click [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.click x (hashmap-to-js-obj evt-data)))
 (defn contextMenu [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.contextMenu x evt-data))
 (defn copy [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.copy x evt-data))
 (defn cut [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.cut x evt-data))

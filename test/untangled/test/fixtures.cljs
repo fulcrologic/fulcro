@@ -1,4 +1,4 @@
-(ns untangled.dom-tools.fixtures
+(ns untangled.test.fixtures
   (:require-macros [untangled.component :as c])
   (:require
     [quiescent.dom :as d]
