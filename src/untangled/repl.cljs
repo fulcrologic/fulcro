@@ -4,25 +4,21 @@
             ))
 
 (defonce current-focus (atom []))
-(defonce *ui-state* (atom nil))
-(defonce *undo-history* (atom nil))
+(defonce *current-application* (atom nil))
 
-(defn follow-app-state!
-  "Define the app state atom that you wish to debug/watch via the Untangled REPL tools. The argument should be
-  the atom that holds your application state. If your app supports undo, then you can enable the history analysis tools
-  by also passing the undo-atom."
-  ([state-atom] (reset! *ui-state* state-atom))
-  ([state-atom undo-atom]
-   (reset! *ui-state* state-atom)
-   (reset! *undo-history* undo-atom)))
+(defn follow-application!
+  "Define the application that you wish to debug/watch via the Untangled REPL tools. The argument should be
+  the application you created with new-application."
+  [application]
+  (reset! *current-application* application))
 
 (defn app-state
   "Returns the atom that is currently the focus of Untangled's REPL tools."
-  [] @*ui-state*)
+  [] (:app-state @*current-application*))
 
 (defn undo-history
   "Returns the atom that is currently tracking the undo history for the application. Used to enable state diff support."
-  [] @*undo-history*)
+  [] (-> @*current-application* :history :entries))
 
 (defn check-focus
   "Verify that the current focus makes sense in the app state."
@@ -119,7 +115,7 @@
            ))
        )
      )
-    ""
+   ""
     ))
 
 (defn evolution
