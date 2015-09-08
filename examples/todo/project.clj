@@ -9,6 +9,7 @@
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [quiescent "0.2.0-RC1"]
                  [untangled "0.1.0-SNAPSHOT"]
+                 [differ "0.2.1"]
                  ]
 
   :plugins [[lein-cljsbuild "1.0.5"]
@@ -27,6 +28,7 @@
                          :asset-path "js/compiled/out"
                          :output-to "resources/public/js/compiled/todo.js"
                          :output-dir "resources/public/js/compiled/out"
+                         :optimizations :none
                          :source-map-timestamp true }
               }
              {:id "test"

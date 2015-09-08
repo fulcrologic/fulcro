@@ -4,7 +4,5 @@
             )
   )
 
-(def funcs [fpp focus-in focus-out vdiff auto-trigger! evolution ])
 (untangled.repl/follow-application! todo.core/todo)
-
 
