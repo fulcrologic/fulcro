@@ -30,11 +30,7 @@
 
   (force-refresh [this] (swap! app-state #(assoc % :time (js/Date.))))
 
-  (state-changed [this old-state new-state]
-    (if (not @is-undo)
-      (swap! history (fn [old-history] (h/record old-history (h/new-point-in-time new-state)))))
-    (reset! is-undo false)
-    (render this)))
+  (state-changed [this old-state new-state] (render this)))
 
 (defn new-application
   "Create a new Untangled application with:

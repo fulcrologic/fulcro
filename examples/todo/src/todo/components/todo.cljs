@@ -2,6 +2,7 @@
   (:require
     [untangled.state :as state]
     [untangled.events :as evt]
+    [untangled.i18n :refer-macros [tr trc trf]]
     [quiescent.core :as q :include-macros true]
     [quiescent.dom :as d]
     [todo.components.todo-item :refer [is-checked set-checked set-unchecked new-item TodoItem]]
@@ -76,52 +77,55 @@
 (defn delete-item [item todolist] (assoc todolist :items (vec (filter #(not= item %) (:items todolist)))))
 (defn item-path [item] [:items :id (:id item)])
 
-(c/defscomponent Todo
-                 "A Todo list"
-                 ; you can get an op-builder like so in the lifecycle methods:
-                 ;:on-mount (fn [ele-dom data context]
-                 ;            (let [op (state/op-builder context)]
-                 ;              (js/setInterval (op toggle-all) 2000)
-                 ;              ))
-                 [todo-list context]
-                 (let [op (state/op-builder context)
-                       which-filter (:filter todo-list)
-                       filter-all (op (partial set-filter :all))
-                       filter-complete (op (partial set-filter :completed))
-                       filter-incomplete (op (partial set-filter :incomplete))
-                       items (:items todo-list)
-                       visible-items (filtered-items which-filter items)
-                       incomplete-count (->> items (filter (comp not :checked)) (count))
-                       toggle-all-handler (op toggle-all)
-                       clear-completed (op delete-completed-items)
-                       delete-item-handler (fn [item] (op (partial delete-item item)))
-                       filter-ui (fn [kw activation-function label]
-                                   (d/li {} (d/a {:className (selected-filter-class kw todo-list) :onClick activation-function} label)))
-                       ]
-                   (d/section {:className "todoapp"}
-                              (d/header {:className "header"}
-                                        (d/h1 {} "todos")
-                                        (text-input {:className "new-todo" :placeholder "What needs to be done?"}
-                                                    (:new-item-label todo-list) (op add-item) (op cancel-add) set-new-item-label op)
-                                        )
-                              (d/section {:className "main"}
-                                         (d/input {:className "toggle-all" :type "checkbox" :checked (all-checked? todo-list) :onChange toggle-all-handler})
-                                         (d/label {:htmlFor "toggle-all"} "Mark all as complete")
-                                         (d/ul {:className "todo-list"}
-                                               (map #(TodoItem (item-path %) context {:delete-me (delete-item-handler %)})
-                                                            visible-items)
-                                               ))
-                              (if (has-items? todo-list)
-                                (d/footer {:className "footer"}
-                                          (d/span {:className "todo-count"} (d/strong {} incomplete-count) " items left.")
-                                          (d/ul {:className "filters"}
-                                                (filter-ui :all filter-all "All")
-                                                (filter-ui :completed filter-complete "Completed")
-                                                (filter-ui :incomplete filter-incomplete "Incomplete")
-                                                )
-                                          (if (has-completed-items? todo-list)
-                                            (d/button {:className "clear-completed" :onClick clear-completed} "Clear completed"))
-                                          ))
+(c/defscomponent
+  Todo
+  "A Todo list"
+  ; you can get an op-builder like so in the lifecycle methods:
+  ;:on-mount (fn [ele-dom data context]
+  ;            (let [op (state/op-builder context)]
+  ;              (js/setInterval (op toggle-all) 2000)
+  ;              ))
+  [todo-list context]
+  (let [op (state/op-builder context)
+        which-filter (:filter todo-list)
+        filter-all (op (partial set-filter :all))
+        filter-complete (op (partial set-filter :completed))
+        filter-incomplete (op (partial set-filter :incomplete))
+        items (:items todo-list)
+        visible-items (filtered-items which-filter items)
+        incomplete-count (->> items (filter (comp not :checked)) (count))
+        toggle-all-handler (op toggle-all)
+        clear-completed (op delete-completed-items)
+        delete-item-handler (fn [item] (op (partial delete-item item)))
+        filter-ui (fn [kw activation-function label]
+                    (d/li {} (d/a {:className (selected-filter-class kw todo-list) :onClick activation-function} label)))
+        ]
+    (d/div {}
+           (d/div {:className "todoapp"}
+                  (d/section {:className "todoapp"}
+                             (d/header {:className "header"}
+                                       (d/h1 {} "todos")
+                                       (text-input {:className "new-todo" :placeholder (trf "What needs to be done?" 1 2 3)}
+                                                   (:new-item-label todo-list) (op add-item) (op cancel-add) set-new-item-label op)
+                                       )
+                             (d/section {:className "main"}
+                                        (d/input {:className "toggle-all" :type "checkbox" :checked (all-checked? todo-list) :onChange toggle-all-handler})
+                                        (d/label {:htmlFor "toggle-all"} (tr "Mark all as complete"))
+                                        (d/ul {:className "todo-list"}
+                                              (map #(TodoItem (item-path %) context {:delete-me (delete-item-handler %)})
+                                                   visible-items)
+                                              ))
+                             (if (has-items? todo-list)
+                               (d/footer {:className "footer"}
+                                         (d/span {:className "todo-count"} (d/strong {} incomplete-count) " items left.")
+                                         (d/ul {:className "filters"}
+                                               (filter-ui :all filter-all "All")
+                                               (filter-ui :completed filter-complete "Completed")
+                                               (filter-ui :incomplete filter-incomplete "Incomplete")
+                                               )
+                                         (if (has-completed-items? todo-list)
+                                           (d/button {:className "clear-completed" :onClick clear-completed} "Clear completed"))
+                                         ))
 
-                              ))
-                 )
+                             ))))
+  )
