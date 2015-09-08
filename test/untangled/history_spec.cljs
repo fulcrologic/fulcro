@@ -4,6 +4,12 @@
             [cljs.test :as t])
   )
 
+(deftest point-in-time-spec
+  (testing "default to undoable" (is (= true (:undoable (h/new-point-in-time "A")))))
+  (testing "default to not collapsable" (is (= false (:can-collapse? (h/new-point-in-time "A")))))
+  (testing "can have a reason" (is (= "because" (-> (h/new-point-in-time "A") (h/set-reason "because") :reason))))
+  )
+
 (deftest collapsing-history
   (testing "removes adjacent collapseable entries"
     (is (= (h/collapse-history (h/->History (list
