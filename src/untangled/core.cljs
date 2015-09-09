@@ -20,8 +20,7 @@
                   (ui-render :top context)
                   ))
 
-;; Represents an Untangle application (rendered to some part of a DOM)
-(defrecord Application
+(defrecord UntangledApplication
   [app-state dom-target history renderer is-undo]
   IApplication
   (render [this]
@@ -30,9 +29,7 @@
 
   (force-refresh [this] (swap! app-state #(assoc % :time (js/Date.))))
 
-  (state-changed [this old-state new-state]
-    (swap! history #(h/record % (h/new-point-in-time old-state)))
-    (render this)))
+  (state-changed [this old-state new-state] (render this)))
 
 (defn new-application
   "Create a new Untangled application with:
@@ -46,12 +43,11 @@
   - `:history n` : Set the history size. The default is 100.
   "
   [ui-render initial-state & { :keys [target history] :or {target "app" history 100} }]
-  (let [app (map->Application {:app-state  (atom {:top initial-state :time (js/Date.)})
+  (let [app (map->UntangledApplication {:app-state  (atom {:top initial-state :time (js/Date.)})
                                :renderer   ui-render
                                :dom-target target
                                :history    (atom (h/empty-history history))
                                :is-undo    (atom false)
                                })]
-    (add-watch (:app-state app) ::render (fn [_ _ old-state new-state] (state-changed app old-state new-state)))
     app
     ))

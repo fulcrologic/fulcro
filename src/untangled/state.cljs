@@ -1,13 +1,14 @@
 (ns untangled.state
   (:require [untangled.events :as evt]
             cljs.pprint
-            ))
+            [untangled.application :as app]
+            [untangled.history :as h]))
 
-(defn root-scope 
-  "Create a root context for a top-level component render. The argument must be an atom holding a map."
-  [app-state-atom]
+(defn root-scope
+  "Create a root context for a given Untangled Application (see untangled.core/new-application)."
+  [^app/Application app]
   {
-   :app-state-atom  app-state-atom
+   :application     app
    :scope           []
    :event-listeners []
    }
@@ -19,7 +20,7 @@
   "Used by internal context tracking to correct the internal path to account for the inclusion of vectors as data structures 
   pointing to items in vectors."
   [context]
-  (let [state @(:app-state-atom context)
+  (let [state @(-> context :application :app-state)
         path-seq (:scope context)
         ]
     (reduce (fn [real-path path-ele]
@@ -46,25 +47,31 @@
               )
             [] path-seq)))
 
-(defn context-data 
+(defn context-data
   "Extract the data for the component indicated by the given context."
   [context]
-  (let [state-atom (:app-state-atom context)
+  (let [state-atom (-> context :application :app-state)
         path (data-path context)
         ]
     (get-in @state-atom path)))
 
-(defn update-in-context 
+(defn- update-in-context
   "Update the application state by applying the given operation to the state of the component implied by
   the given context. Think of this as a 'targeted' `swap!` where you don't have to know where the data is 
-  stored."
-  [context operation]
-  (let [state-atom (:app-state-atom context)
+  stored. This function also records the change in this state history with an optional associated Reason."
+  [context operation undoable compressable reason]
+  (let [application (-> context :application)
+        state-atom (:app-state application)
+        history-atom (:history application)
         path (data-path context)
-        ]
-    (swap! state-atom #(update-in % path operation))))
+        old-state @state-atom
+        history-entry (h/set-reason (h/new-point-in-time old-state undoable compressable) reason)]
+    (swap! history-atom #(h/record % history-entry))
+    (swap! state-atom #(update-in % path operation))
+    (app/state-changed application old-state @state-atom)
+    ))
 
-(defn new-scope 
+(defn new-scope
   "Create a new context (scope) which represents a child's context. Also installs the given handler map as a list of
   event handlers the child can trigger on the parent."
   [context id handler-map]
@@ -73,42 +80,35 @@
           )
   )
 
-(defn path-operator
-  "Create a function that, when called, updates the app state localized to the given context.
+(defn context-operator
+  "Create a function that, when called, updates the app state localized to the given context. Think of this as a 
+  constructor for targeted `swap!` functions.
   
   Parameters:
   `context`: The application state atom
-  `operation`: A 1-arg function that takes the data type at the given path, and returns an updated value
+  `operation`: A 1-arg function that takes the data type at the context's path, and returns an updated value
   
-  Think of this as a constructor for targeted `swap!` functions.
+  Optional named parameters:
   
-  The triggers parameter indicates that the resulting function will trigger those abstract events on the parent.
+  - `:undoable boolean`: Indicate that this state change is (or is not) undoable. Defaults to true.
+  - `:compress boolean`: Indicate that this state change can be compressed (keeping only the most recent of adjacent
+    compressable items in the state history). Defaults to false.
+  - `:trigger [evt-kw evt2-kw]`: Sets user-defined event(s) to be triggered (in the parent) when the
+  *generated* operation runs. E.g. `:trigger [:deleted :edited]`.  May be a list or single keyword.
+  - `:reason Reason`: When the *generated* operation runs, causes resulting application state change in history to
+   include the stated (default) reason. The reason can be overridden by passing a :reason named parameter to the 
+   generated function.
+  
+  The trigger parameter indicates that the resulting function will trigger those abstract events on the parent.
+  
+  Examples:
+  
+  let [set-today (context-operator context set-to-today :trigger [:date-picked] :reason (Reason. \"Set date\"))]
+  ...
+      (d/button { :onClick (fn [] (set-today :reason \"Clicked 'Today'\")) } \"Today\")
   "
-  [context operation triggers] (fn []
-                                 (if triggers (evt/trigger context triggers))
-                                 (update-in-context context operation))
+  [context operation & {:keys [trigger reason undoable compress] :or {undoable true compress false}}]
+  (fn [& {:keys [reason] :or {reason reason}}]
+    (if trigger (evt/trigger context trigger))
+    (update-in-context context operation undoable compress reason))
   )
-
-(defn op-builder 
-  "Build a localized operation on the data in the given context.  This function returns a function of the form:
-  
-       (fn [operation & events-to-trigger] ...)
-  
-  The returned function can be used to build yet another function that can evolve the application state by
-  applying the provided operation to the local component.
-  
-  The `operation` should be a referentially transparent function that can take your component's state and
-  return a new version of that state (e.g. via `assoc`).
-  
-  The optional extra parameters indicate abstract (user-defined) events that you wish to trigger on the parent. 
-  The common pattern in your components is:
-  
-       (defscomponent Calendar
-          [data context]
-          (let [op (state/op-builder context) ; make an op-builder for the calendar's context
-                goto-today (op (partial set-date (js/Date.)))] ; make a function that can set the calendar to today
-                (d/button {:onClick goto-today } Today)
-                ))
-  "
-  [context] 
-  (fn [operation & rest] (path-operator context operation rest)))

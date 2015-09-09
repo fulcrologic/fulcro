@@ -1,9 +1,7 @@
 (ns untangled.events)
 
-;; Support for inter-component communication...
-
 (defn trigger 
-  "Trigger a custom event on the parent of the current component. Parent components can capture an event from a 
+  "Trigger custom event(s) on the parent of the current component. Parent components can capture an event from a 
   child component by including a map as the final argument of the call to the child's render function. For example,
   to capture a `:picked` event from a Calendar component:
   
@@ -13,13 +11,14 @@
   
        (d/button { :onClick (fn [] (trigger context :picked)) } \"Today\")
   
-  Note that in most cases you do not need this function, as the op-builder can generate events as it updates the 
+  Note that in most cases you do not need this function, as a context-operation can generate events as it updates the 
   app state:
   
-       (op thing-to-do :picked) 
+       (let [op (context-operator context do-thing :trigger :picked)]
+         (d/button { :onClick op } \"Click me to generate :picked\"))
   "
   [context events]
-  (doseq [evt events
+  (doseq [evt (flatten (list events))
           listener-map (:event-listeners context)]
     (if-let [listener (get listener-map evt)] (listener))
     )
