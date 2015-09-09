@@ -1,0 +1,37 @@
+.overlay {
+background-color: rgb(230,230,240);
+width: 194px;
+}
+.hidden {
+display:none;
+}
+
+.test-report {
+display: block;
+font-size: 20pt;
+}
+
+.test-item {
+display: block;
+font-size: 15pt;
+}
+
+.test-pending
+{
+   color: gray;
+}
+
+.test-passed
+{
+   color: green;
+}
+
+.test-error
+{
+   color: red;
+}
+
+.test-failed
+{
+   color: red;
+}

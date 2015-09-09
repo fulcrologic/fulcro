@@ -46,7 +46,7 @@
 (deftest node-contains-text-spec
   (testing "can do basic non-nested matching"
     (is (node-contains-text? "Hello World" (render-as-dom (d/div {} "Hello World"))))
-    (is (node-contains-text? "Hello" (render-as-dom (d/div {} "Hello World"))))
+    (is (node-contains-text? "Hello" (render-as-dom (d/div {} "Helksllo World"))))
     (is (node-contains-text? "o Wo" (render-as-dom (d/div {} "Hello World"))))
     )
   (testing "can find nested text"

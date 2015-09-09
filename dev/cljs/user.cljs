@@ -1,9 +1,12 @@
 (ns ^:figwheel-always cljs.user
   (:require-macros [cljs.test
                     :refer (is deftest run-tests testing)])
-  (:require ;untangled.test.dom-spec
-            ;untangled.test.events-spec
+  (:require untangled.test.dom-spec
+            cljs.core
+            untangled.test.events-spec
             untangled.history-spec
+            [cljs.tagged-literals :refer [*cljs-data-readers*]]
+            [untangled.test.html-test-report :as tr]
             untangled.state-spec
             smooth-test.report
             smooth-test.runner.browser
@@ -33,17 +36,20 @@
     (change-favicon-to-color "#d00")
     (change-favicon-to-color "#0d0")))
 
-;(defn run-all-tests []
-;  ;(run-tests 'untangled.test.dom-spec)
-;  ;(run-tests 'untangled.test.events-spec)
-;  (run-tests 'untangled.history-spec)
-;  ;(run-tests 'untangled.core-spec)
-;  )
 (defn run-all-tests []
-  ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.history-spec)
-  (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.state-spec)
+  (run-tests (cljs.test/empty-env :untangled.test.report-components/browser)  'untangled.test.dom-spec)
+  ;(run-tests 'untangled.test.events-spec)
+  ;(run-tests 'untangled.history-spec)
+  ; (run-tests 'untangled.core-spec)
   )
 
 (defn on-load []
-  (run-all-tests))
+  (tr/on-js-reload)
+  (run-all-tests)
+  )
+
+;(defn pp [form] `(doto ~form (cljs.pprint/pprint)))
+;(defn cl [form] `(doto ~form (js/console.log)))
+;
+;(alter-var-root #'*cljs-data-readers* assoc 'spy pp 'log cl)
 
