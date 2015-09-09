@@ -82,9 +82,9 @@
   "A Todo list"
   ; you can get an op-builder like so in the lifecycle methods:
   ;:on-mount (fn [ele-dom data context]
-  ;            (let [op (state/op-builder context)]
-  ;              (js/setInterval (op toggle-all) 2000)
-  ;              ))
+              ;(let [op (state/op-builder context)]
+                ;(js/setInterval (op toggle-all) 2000)
+                ;))
   [todo-list context]
   (let [op (state/op-builder context)
         which-filter (:filter todo-list)
@@ -109,7 +109,8 @@
                                                    (:new-item-label todo-list) (op add-item) (op cancel-add) set-new-item-label op)
                                        )
                              (d/section {:className "main"}
-                                        (d/input {:className "toggle-all" :type "checkbox" :checked (all-checked? todo-list) :onChange toggle-all-handler})
+                                        (d/input {:className "toggle-all" :type "checkbox" :checked (all-checked? todo-list) 
+                                                  :onChange toggle-all-handler})
                                         (d/label {:htmlFor "toggle-all"} (tr "Mark all as complete"))
                                         (d/ul {:className "todo-list"}
                                               (map #(TodoItem (item-path %) context {:delete-me (delete-item-handler %)})
