@@ -13,7 +13,7 @@
   :source-paths ["src"]
   
   :plugins [[lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.3.7"]]
+            [lein-figwheel "0.3.9"]]
 
   :cljsbuild {:builds
               [{:id           "test"
