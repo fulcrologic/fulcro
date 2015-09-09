@@ -68,6 +68,7 @@
         history-entry (h/set-reason (h/new-point-in-time old-state undoable compressable) reason)]
     (swap! history-atom #(h/record % history-entry))
     (swap! state-atom #(update-in % path operation))
+    (swap! state-atom #(assoc % :time (js/Date.)))
     (app/state-changed application old-state @state-atom)
     ))
 
@@ -105,10 +106,16 @@
   
   let [set-today (context-operator context set-to-today :trigger [:date-picked] :reason (Reason. \"Set date\"))]
   ...
-      (d/button { :onClick (fn [] (set-today :reason \"Clicked 'Today'\")) } \"Today\")
+      (d/button { :onClick set-today } \"Today\")
+      (d/button { :onClick (fn [] (set-today :reason \"Clicked 'Today'\")) } \"Today\"))
   "
-  [context operation & {:keys [trigger reason undoable compress] :or {undoable true compress false}}]
+  [context operation & {:keys [trigger reason undoable compress] :or {trigger false undoable true compress false}}]
   (fn [& {:keys [reason] :or {reason reason}}]
     (if trigger (evt/trigger context trigger))
     (update-in-context context operation undoable compress reason))
   )
+
+(defn op-builder
+  "Exactly equivalent to (partial context-operator context). See context-operator for details."
+  [context]
+  (partial context-operator context))
