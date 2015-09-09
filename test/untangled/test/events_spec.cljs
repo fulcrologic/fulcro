@@ -7,25 +7,38 @@
     [quiescent.dom :as d]
     [quiescent.core :include-macros true]
     [untangled.state :as state]
-    [untangled.test.dom :refer [render-as-dom]]
+    [untangled.test.dom :as td]
     [untangled.test.events :as ev]
     [untangled.test.fixtures :as f]
     ))
 
-(deftest clicks (let [root-context (state/root-context (atom {:button {:last-event nil}}))
-                      rendered-button (render-as-dom (f/Button :button root-context))
+(deftest clicks (let [root-context (state/root-scope (atom {:button {:last-event nil}}))
+                      rendered-button (td/render-as-dom (f/Button :button root-context))
                       get-state (fn [] (:button @(:app-state-atom root-context)))
                       last-event (fn [] (:last-event (get-state)))]
 
                   (testing "sends a click event"
-                           (is (nil? (last-event)))
-                           (ev/click rendered-button)
-                           (is (not (nil? (last-event)))))
+                    (is (nil? (last-event)))
+                    (ev/click rendered-button)
+                    (is (not (nil? (last-event)))))
 
                   (testing "allows caller to set event data values"
-                           (ev/click rendered-button :clientX 20 :altKey true)
-                           (is (= true (.-altKey (last-event))))
-                           (is (= 20 (.-clientX (last-event)))))))
+                    (ev/click rendered-button :clientX 20 :altKey true)
+                    (is (= true (.-altKey (last-event))))
+                    (is (= 20 (.-clientX (last-event)))))))
+
+(defn setup-input []
+  (let [seqnc (atom [])
+        input (d/input {:onKeyDown  (fn [evt] (swap! seqnc #(conj % evt)))
+                        :onKeyPress (fn [evt] (swap! seqnc #(conj % evt)))
+                        :onKeyUp    (fn [evt] (swap! seqnc #(conj % evt)))})]
+    [seqnc input]))
+
+(deftest key-sent
+  (testing "send-key"
+    (let [[seqnc input] (setup-input)]
+      (ev/send-key input "a")
+      (is (= "a" #spy seqnc)))))
 
 
 ;(def root-context (state/root-scope (atom {:button

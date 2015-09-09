@@ -90,3 +90,35 @@
 ;(send-keys  )
 
 
+(defn str-to-keycode
+  "
+  Converts a one-character string into the equivalent JavaScript keyCode.
+
+  Returns:   `[keycode modifier]`
+  `keycode`  The JavaScript keyCode indicating what key was pressed.
+  `modifier` Either a `:keyword` indicating what modifier is required to produce the character,
+             or `nil` if no modifier key is required. "
+  [key-str])
+
+
+(defn send-key
+  "
+  Simulates the series of events that occur when a user pressess a single key, which may be
+  modified with [shift].
+
+  - For non-modified (i.e. lowercase) keys, the event sequence is `keydown->keypress->keyup`.
+  - For modified (i.e. uppercase letters and keys such as !@#$ etc.), the event sequence is
+  `[shift-keydown]->keydown->keypress->keyup->[shift-keyup]`.
+
+  Parameters:
+  `element` A rendered HTML element, as generated with `untangled.test.dom/render-as-dom`.
+  `key-str` A string representing the key that was pressed, i.e. \"a\" or \">\".
+  "
+  [element key-str]
+  (let [[keycode modifier] (str-to-keycode key-str)
+        shift-pressed? (= :shift modifier)]
+    (when shift-pressed? (keyDown element {:keyCode modifier}))
+    (keyDown element {:keyCode keycode})
+    (keyPress element {:keyCode keycode})
+    (keyUp element {:keyCode keycode})
+    (when shift-pressed? (keyUp element {:keyCode modifier}))))
