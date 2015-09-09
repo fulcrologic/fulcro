@@ -1,5 +1,7 @@
 (ns untangled.state
-  (:require [untangled.events :as evt]))
+  (:require [untangled.events :as evt]
+            cljs.pprint
+            ))
 
 (defn root-scope 
   "Create a root context for a top-level component render. The argument must be an atom holding a map."
