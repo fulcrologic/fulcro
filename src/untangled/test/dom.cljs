@@ -6,7 +6,7 @@
 ;; def these long-named React functions to a convenient symbol, to make our other code more readable
 (defn isDOMComponent [x] (js/React.addons.TestUtils.isDOMComponent x))
 (defn renderIntoDocument [x] (js/React.addons.TestUtils.renderIntoDocument x))
-(defn isValidElement [x] ( x))
+(defn isValidElement [x] (x))
 
 (defn node-contains-text?
   "Returns a boolean indicating whether `dom-node` node (or any of its children) contains `string`."
@@ -27,8 +27,8 @@
 (defn as-dom
   "Checks if a React element has been rendered to the DOM, and renders it if it hasn't."
   [obj]
-  (assert (not (or (gd/isElement obj) (js/React.isValidElement obj)))
-          "Argument must be either a DOM element or a React component.")
+  ;(assert (not (or (gd/isElement obj) (js/React.isValidElement obj))) TODO: learn how to check for a React component
+  ;        "Argument must be either a DOM element or a React component.")
   (if (gd/isElement obj) obj (render-as-dom obj)))
 
 
@@ -43,7 +43,7 @@
   Returns the attribute value as a string.
   "
   [obj attribute]
-  (.getAttribute #log (as-dom obj) (name attribute)))
+  (.getAttribute (as-dom obj) (name attribute)))
 
 
 (defn find-element
@@ -68,7 +68,8 @@
         strkw (name keyword)]
     (cond
       (re-find #"-text$" strkw) (let [tagname (str/lower-case (re-find #"^\w+" strkw))]
-                                  (gd/findNode elem (fn [e] (and (node-contains-text? value e) (= tagname (str/lower-case (.-tagName e))))))
+                                  (gd/findNode elem (fn [e] (and (node-contains-text? value e)
+                                                                 (= tagname (str/lower-case (.-tagName e))))))
                                   )
       (= keyword :key) (.querySelector elem (str/join ["[data-reactid$='$" value "'"]))
       (= keyword :class) (.querySelector elem (str "." value))

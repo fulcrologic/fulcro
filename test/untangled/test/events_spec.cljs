@@ -12,6 +12,10 @@
     [untangled.test.fixtures :as f]
     ))
 
+
+;; React events ref: https://facebook.github.io/react/docs/events.html
+
+
 (deftest clicks (let [root-context (state/root-scope (atom {:button {:last-event nil}}))
                       rendered-button (td/render-as-dom (f/Button :button root-context))
                       get-state (fn [] (:button @(:app-state-atom root-context)))
@@ -29,17 +33,22 @@
 
 (defn setup-input []
   (let [seqnc (atom [])
-        input (d/input {:onKeyDown  (fn [evt] (swap! seqnc #(conj % evt)))
-                        :onKeyPress (fn [evt] (swap! seqnc #(conj % evt)))
-                        :onKeyUp    (fn [evt] (swap! seqnc #(conj % evt)))})]
+        input (td/as-dom (d/input {:onKeyDown  (fn [evt] (swap! seqnc #(conj % (.-keyCode evt))))
+                                   :onKeyPress (fn [evt] (swap! seqnc #(conj % (.-keyCode evt))))
+                                   :onKeyUp    (fn [evt] (swap! seqnc #(conj % (.-keyCode evt))))}))]
     [seqnc input]))
 
 (deftest key-sent
   (testing "send-key"
     (let [[seqnc input] (setup-input)]
       (ev/send-key input "a")
-      (is (= "a" #spy seqnc)))))
+      (is (= [97] @seqnc)))))
 
+(deftest keys-sent
+  (testing "send-keys"
+    (let [[seqnc input] (setup-input)]
+      (ev/send-keys input "aA1!")
+      (is (= [97 65 49 33] @seqnc)))))
 
 ;(def root-context (state/root-scope (atom {:button
 ;                                           {:data-count 0}})))
