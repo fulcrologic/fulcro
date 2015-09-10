@@ -14,7 +14,7 @@
    }
   )
 
-(defn find-first [pred coll] (first (filter pred coll)))
+(defn- find-first [pred coll] (first (filter pred coll)))
 
 (defn data-path
   "Used by internal context tracking to correct the internal path to account for the inclusion of vectors as data structures 
@@ -26,7 +26,7 @@
     (reduce (fn [real-path path-ele]
               (if (sequential? path-ele)
                 (do
-                  (if (not= 3 (count path-ele)) (.log js/console "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY"))
+                  (if (not= 3 (count path-ele)) (println "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY"))
                   (let [vector-key (first path-ele)
                         state-vector (get-in state (conj real-path vector-key))
                         lookup-function (second path-ele)

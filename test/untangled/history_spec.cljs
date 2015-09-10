@@ -1,16 +1,24 @@
 (ns untangled.history-spec
   (:require-macros [cljs.test :refer (is deftest testing)]
-                   [smooth-test.core :refer (specification behavior provided)]
+                   [smooth-test.core :refer (specification behavior provided assertions)]
                    )
   (:require [untangled.history :as h]
             [cljs.test :refer [do-report]])
   )
 
 (specification "Points in time"
-  (behavior "default to undoable" (is (= true (:undoable (h/new-point-in-time "A")))))
-  (behavior "default to not collapsable" (is (= false (:can-collapse? (h/new-point-in-time "A")))))
-  (behavior "can have a reason" (is (= "because" (-> (h/new-point-in-time "A") (h/set-reason "because") :reason))))
-  )
+  (behavior "default to undoable"
+            (assertions
+              (-> (h/new-point-in-time "A") :undoable) => true
+              ))
+  (behavior "default to not collapsable" 
+            (assertions 
+              (:can-collapse? (h/new-point-in-time "A")) => false
+              ))
+  (behavior "can have a reason" 
+            (assertions 
+              (-> (h/new-point-in-time "A") (h/set-reason "because") :reason) => "because"
+                        )))
 
 (specification "Collapsing history"
   (behavior "removes adjacent collapseable entries"

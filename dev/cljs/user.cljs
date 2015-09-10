@@ -1,9 +1,12 @@
 (ns ^:figwheel-always cljs.user
   (:require-macros [cljs.test
                     :refer (is deftest run-tests testing)])
-  (:require untangled.test.dom-spec
-            untangled.test.events-spec
+  (:require ;untangled.test.dom-spec
+            ;untangled.test.events-spec
             untangled.history-spec
+            untangled.state-spec
+            smooth-test.report
+            smooth-test.runner.browser
             [cljs.test :as test :include-macros true :refer [report]]))
 
 ; TODO: this will go away when smooth-test is finished
@@ -30,11 +33,15 @@
     (change-favicon-to-color "#d00")
     (change-favicon-to-color "#0d0")))
 
+;(defn run-all-tests []
+;  ;(run-tests 'untangled.test.dom-spec)
+;  ;(run-tests 'untangled.test.events-spec)
+;  (run-tests 'untangled.history-spec)
+;  ;(run-tests 'untangled.core-spec)
+;  )
 (defn run-all-tests []
-  ;(run-tests 'untangled.test.dom-spec)
-  ;(run-tests 'untangled.test.events-spec)
-  (run-tests 'untangled.history-spec)
-  ;(run-tests 'untangled.core-spec)
+  (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.history-spec)
+  (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.state-spec)
   )
 
 (defn on-load []
