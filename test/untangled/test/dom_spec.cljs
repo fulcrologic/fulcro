@@ -19,6 +19,10 @@
 ;; Fixtures
 
 
+
+
+
+
 (def dumb-butt (d/button {:className "test-button" :data-foo "test-foo-data" :key "myid"} "derp."))
 (def sample-doc (d/div {}
                        (d/div {:key "myid"} "by-key")
@@ -49,7 +53,7 @@
     "node-contains-text-spec"
     (sm/behavior "can do basic non-nested matching"
       (is (node-contains-text? "Hello World" (render-as-dom (d/div {} "Hello World"))))
-      (is (node-contains-text? "Hello" (render-as-dom (d/div {} "Helksllo World"))))
+      (is (node-contains-text? "Hello" (render-as-dom (d/div {} "Helkslo World"))))
       (is (node-contains-text? "o Wo" (render-as-dom (d/div {} "Hello World"))))
       )
     (sm/behavior "can find nested text"
@@ -58,23 +62,25 @@
       )
     ))
 
-(deftest render-as-dom-spec
-  (let [from-quiescent-component (render-as-dom dumb-butt)
-        from-our-component (render-as-dom f/custom-button)]
-    (is (gd/isElement from-our-component) "renders dom for an untangled component")
-    (is (gd/isElement from-quiescent-component) "renders dom for a vanilla quiescent component")))
-
-(deftest find-element-spec
-  (let [sample-dom (render-as-dom sample-doc)]
-    (testing "returns nil when nothing is found"
-      (is (nil? (find-element :key "no-such-key" sample-dom)) "by React key")
-      (is (nil? (find-element :class "no-such-class" sample-dom)) "by CSS class")
-      (is (nil? (find-element :no-such-attr "myid" sample-dom)) "by arbitrary attribute value"))
-    (testing "finds dom nodes"
-      (text-matches "^by-key$" (find-element :key "myid" sample-dom))
-      (text-matches "^by-classname$" (find-element :class "test-button" sample-dom))
-      (text-matches "^with-multiple-classes$" (find-element :class "bar" sample-dom))
-      (text-matches "^Click Me$" (find-element :button-text "Click Me" sample-dom))
-      (text-matches "^by-attribute$" (find-element :data-foo "test-foo-data" sample-dom))
-      )
-    ))
+;(deftest render-as-dom-spec
+;  (let [from-quiescent-component (render-as-dom dumb-butt)
+;        from-our-component (render-as-dom f/custom-button)]
+;    (is (gd/isElement from-our-component) "renders dom for an untangled component")
+;    (is (gd/isElement from-quiescent-component) "renders dom for a vanilla quiescent component")))
+;
+;
+;
+;(deftest find-element-spec
+;  (let [sample-dom (render-as-dom sample-doc)]
+;    (testing "returns nil when nothing is found"
+;      (is (nil? (find-element :key "no-such-key" sample-dom)) "by React key")
+;      (is (nil? (find-element :class "no-such-class" sample-dom)) "by CSS class")
+;      (is (nil? (find-element :no-such-attr "myid" sample-dom)) "by arbitrary attribute value"))
+;    (testing "finds dom nodes"
+;      (text-matches "^by-key$" (find-element :key "myid" sample-dom))
+;      (text-matches "^by-classname$" (find-element :class "test-button" sample-dom))
+;      (text-matches "^with-multiple-classes$" (find-element :class "bar" sample-dom))
+;      (text-matches "^Click Me$" (find-element :button-text "Click Me" sample-dom))
+;      (text-matches "^by-attribute$" (find-element :data-foo "test-foo-data" sample-dom))
+;      )
+;    ))

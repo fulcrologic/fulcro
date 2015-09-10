@@ -8,7 +8,11 @@
   (:require-macros [cljs.test :refer (is deftest run-tests testing)]))
 
 (defprotocol ITest
+  (set-test-result [this status] "Set the pass/fail/error result of a test")
   (pass [this] "Tests are reporting that they passed")
+  (fail [this detail] "Tests are reporting that they failed, with additional details")
+  (error [this detail] "Tests are reporting that they error'ed, with additional details")
+  (summary [this stats] "A summary of the test run, how many passed/failed/error'ed")
   (begin-behavior [this behavior] "Tests are reporting the start of a behavior")
   (end-behavior [this] "Tests are reporting the end of a behavior")
   (begin-provided [this behavior] "Tests are reporting the start of a provided")
@@ -33,7 +37,7 @@
 (defn translate-item-path [app-state test-item-path]
   (loop [data (:top @app-state)
          path test-item-path
-         result []]
+         result [:top]]
     (if (empty? path) result
                       (let [resolved-path (qms/resolve-data-path data (vector (take 3 path)))
                             context-data (get-in data resolved-path)]
@@ -48,8 +52,8 @@
                                 :fail       2,
                                 :error      0},
                          :time #inst "2015-09-09T22:31:48.759-00:00"})]
-    (is (= [:namespaces 0] (translate-item-path app-state [:namespaces :name "untangled.test.dom-spec"])))
-    (is (= [:namespaces 0 :test-items 0] (translate-item-path app-state [:namespaces :name "untangled.test.dom-spec" :test-items :id "xyz"]))))
+    (is (= [:top :namespaces 0] (translate-item-path app-state [:namespaces :name "untangled.test.dom-spec"])))
+    (is (= [:top :namespaces 0 :test-items 0] (translate-item-path app-state [:namespaces :name "untangled.test.dom-spec" :test-items :id "xyz"]))))
 
   )
 
@@ -65,24 +69,51 @@
   (state-changed [this old-state new-state] (render this))
 
   ITest
-  (pass [this] (let [translated-item-path (translate-item-path app-state @test-item-path)
-                     result-path (concat [:top] translated-item-path [:result])
-                     ]
-                 (swap! app-state #(assoc-in % result-path :passed))
-                 ))
+  (set-test-result [this status] (let [translated-item-path (translate-item-path app-state @test-item-path)
+                                       ]
+                                   (loop [current-test-result-path translated-item-path]
+                                     (if (> (count current-test-result-path) 1)
+                                       (let [target (get-in @app-state current-test-result-path)
+                                             current-status (:status target)]
+                                         (if (not (or (= current-status :error)(= current-status :failed)))
+                                           (do (cljs.pprint/pprint current-test-result-path)
+                                               (cljs.pprint/pprint @app-state)
+                                             (swap! app-state #(assoc-in % (concat current-test-result-path [:status]) status))))
+                                         (recur (drop-last 2 current-test-result-path)))))))
+
+  (pass [this] (set-test-result this :passed))
+  (error [this detail] (let [translated-item-path (translate-item-path app-state @test-item-path)
+                             current-test-item (get-in @app-state translated-item-path)
+                             test-result (rc/make-test-result :error detail)
+                             test-result-path (concat translated-item-path
+                                                      [:test-results (count (:test-results current-test-item))])]
+                         (set-test-result this :error)
+                         (swap! app-state #(assoc-in % test-result-path test-result))
+                         ))
+
+  (fail [this detail] (let [translated-item-path (translate-item-path app-state @test-item-path)
+                            current-test-item (get-in @app-state translated-item-path)
+                            test-result (rc/make-test-result :failed detail)
+                            test-result-path (concat translated-item-path
+                                                     [:test-results (count (:test-results current-test-item))])]
+                        (set-test-result this :failed)
+                        (swap! app-state #(assoc-in % test-result-path test-result))
+                        ))
   (push-test-item-path [this test-item] (swap! test-item-path #(conj % :test-items :id (:id test-item)))
     )
-  (pop-test-item-path [this] (swap! test-item-path #(-> % (pop) (pop) (pop)))
+
+  (pop-test-item-path [this]
+    (swap! test-item-path #(-> % (pop) (pop) (pop)))
     )
   (begin-namespace [this name]
     (reset! test-item-path [:namespaces :name name])
-    (swap! app-state #(assoc-in % [:top :namespaces (count (:namespaces @app-state))] {:name name :test-items []}))
+    (swap! app-state #(assoc-in % [:top :namespaces (count (:namespaces @app-state))] (rc/make-tests-by-namespace name)))
     )
   (run-tests [this] (test-runner))
   (begin-specification [this spec]
     (let [test-item (rc/make-testitem spec)
-          test-items-count (count (get-in @app-state (concat @test-item-path [:test-items])))]
-      (swap! app-state #(assoc-in % (concat [:top] (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
+          test-items-count (count (get-in @app-state (concat (translate-item-path app-state @test-item-path) [:test-items])))]
+      (swap! app-state #(assoc-in % (concat (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
       (push-test-item-path this test-item)
       )
     )
@@ -90,26 +121,32 @@
     )
   (begin-behavior [this behavior]
     (let [test-item (rc/make-testitem behavior)
-          test-items-count (count (get-in @app-state (concat @test-item-path [:test-items])))]
-
-
-      (swap! app-state #(assoc-in % (concat [:top] (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
+          parent-test-item (get-in @app-state (translate-item-path app-state @test-item-path))
+          test-items-count (count (:test-items parent-test-item))]
+      (swap! app-state #(assoc-in % (concat (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
       (push-test-item-path this test-item)
       )
     )
-  (end-behavior [this] (pop-test-item-path this)
+  (end-behavior [this]
+    (pop-test-item-path this)
     )
   (begin-provided [this provided]
     (let [test-item (rc/make-testitem provided)
-          test-items-count (count (get-in @app-state (concat @test-item-path [:test-items])))]
+          test-items-count (count (get-in @app-state (concat (translate-item-path app-state @test-item-path) [:test-items])))]
 
 
-      (swap! app-state #(assoc-in % (concat [:top] (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
+      (swap! app-state #(assoc-in % (concat (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
       (push-test-item-path this test-item)
       )
     )
   (end-provided [this] (pop-test-item-path this)
     )
+  (summary [this stats]
+    (let [translated-item-path (translate-item-path app-state @test-item-path)]
+      (swap! app-state #(assoc-in % (concat translated-item-path [:passed]) (:passed stats)))
+      (swap! app-state #(assoc-in % (concat translated-item-path [:failed]) (:failed stats)))
+      (swap! app-state #(assoc-in % (concat translated-item-path [:error]) (:error stats)))
+      ))
   )
 
 (defrecord UntangledApplication

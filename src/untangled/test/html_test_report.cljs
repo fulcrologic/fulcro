@@ -31,20 +31,20 @@
 
 (defmethod cljs.test/report [::browser :error] [m]
   (cljs.test/inc-report-counter! :error)
-  (println "\nERROR in" (cljs.test/testing-vars-str m))
-  (when-let [message (:message m)] (println message))
-  (println "expected:" (pr-str (:expected m)))
-  (println "  actual:" (pr-str (:actual m)))
-  (println)
+  (let [detail {:where    (cljs.test/testing-vars-str m)
+                :message  (:message m)
+                :expected (str (:expected m))
+                :actual   (str (:actual m))}]
+    (core/fail test-report detail))
   )
 
 (defmethod cljs.test/report [::browser :fail] [m]
   (cljs.test/inc-report-counter! :fail)
-  (println "\nFAIL in" (cljs.test/testing-vars-str m))
-  (when-let [message (:message m)] (println message))
-  (println "expected:" (pr-str (:expected m)))
-  (println "  actual:" (pr-str (:actual m)))
-  (println)
+  (let [detail {:where    (cljs.test/testing-vars-str m)
+                :message  (:message m)
+                :expected (str (:expected m))
+                :actual   (str (:actual m))}]
+    (core/fail test-report detail))
   )
 
 (defmethod cljs.test/report [::browser :begin-test-ns] [m]
@@ -78,8 +78,7 @@
   (core/end-provided test-report)
   )
 
-
-
 (defmethod cljs.test/report [::browser :summary] [m]
-
+  (let [stats {:passed (:pass m) :failed (:fail m) :error (:error m)}]
+    (core/summary test-report stats))
   )
