@@ -8,6 +8,8 @@
             )
   (:require-macros [untangled.component :as c]))
 
+(declare TestItem)
+
 (defn make-testreport
   ([] (make-testreport []))
   ([initial-items]

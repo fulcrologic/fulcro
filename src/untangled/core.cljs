@@ -76,9 +76,7 @@
                                        (let [target (get-in @app-state current-test-result-path)
                                              current-status (:status target)]
                                          (if (not (or (= current-status :error)(= current-status :failed)))
-                                           (do (cljs.pprint/pprint current-test-result-path)
-                                               (cljs.pprint/pprint @app-state)
-                                             (swap! app-state #(assoc-in % (concat current-test-result-path [:status]) status))))
+                                           (swap! app-state #(assoc-in % (concat current-test-result-path [:status]) status)))
                                          (recur (drop-last 2 current-test-result-path)))))))
 
   (pass [this] (set-test-result this :passed))
