@@ -37,7 +37,8 @@
     (change-favicon-to-color "#0d0")))
 
 (defn run-all-tests []
-  (run-tests (cljs.test/empty-env :untangled.test.report-components/browser)  'untangled.test.dom-spec)
+  ;(run-tests (cljs.test/empty-env :untangled.test.report-components/browser)  'untangled.test.dom-spec)
+  (run-tests (cljs.test/empty-env)  'untangled.core)
   ;(run-tests 'untangled.test.events-spec)
   ;(run-tests 'untangled.history-spec)
   ; (run-tests 'untangled.core-spec)

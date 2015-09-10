@@ -8,13 +8,14 @@
             )
   (:require-macros [untangled.component :as c]))
 
+
+
 (defn make-testreport
   ([] (make-testreport []))
   ([initial-items]
    {
     :summary    ""
-    :namespaces {"namespace1"     {:test-items initial-items}
-                 "namespace2"     {:test-items initial-items}}
+    :namespaces []
     :pass       3
     :fail       2
     :error      0
@@ -58,6 +59,19 @@
                          ))
                  )
 
+(c/defscomponent TestNamespace
+                 :keyfn :id
+                 [tests-by-namespace context]
+                   (d/li {:className "test-item"}
+                         (d/div {:className "test-header"}
+                                (d/h3 {} (:name tests-by-namespace))
+                                (d/ul {:className "test-list"}
+                                      (map #(TestItem (item-path %) context) (:test-items tests-by-namespace))
+                                      )
+                                )
+                         )
+                 )
+
 (c/defscomponent TestReport
                  [test-report context]
                  (let [cbb (qms/op-builder context)]
@@ -67,7 +81,7 @@
                                         )
                               (d/section {:className "main"}
                                          (d/ul {:className "test-list"}
-                                               (map #(TestItem (item-path %) context) (:test-items test-report))
+                                               (map #(TestNamespace [:namespaces :name (:name %)] context) (:namespaces test-report))
                                                )
                                          )
                               (d/footer {:className "footer"}

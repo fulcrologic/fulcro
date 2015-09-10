@@ -1,8 +1,9 @@
 (ns untangled.test.dom-spec
   (:require-macros [untangled.component :as c]
+                   [smooth-test.core :as sm]
                    [cljs.test :refer (is deftest run-tests testing)])
   (:require
-    [cljs.test :as t]
+    [cljs.test :refer [do-report]]
     [goog.dom :as gd]
     [quiescent.dom :as d]
     [quiescent.core :include-macros true]
@@ -42,18 +43,20 @@
 
 ;; TODO: add assertions on argument types for get-dom-element and find-element
 
-
-(deftest node-contains-text-spec
-  (testing "can do basic non-nested matching"
-    (is (node-contains-text? "Hello World" (render-as-dom (d/div {} "Hello World"))))
-    (is (node-contains-text? "Hello" (render-as-dom (d/div {} "Helksllo World"))))
-    (is (node-contains-text? "o Wo" (render-as-dom (d/div {} "Hello World"))))
-    )
-  (testing "can find nested text"
-    (is (node-contains-text? "Hello World" (render-as-dom (d/div {} (d/em {} "Hello World")))))
-    (is (not (node-contains-text? "xyz" (render-as-dom (d/div {} (d/em {} "Hello World"))))))
-    )
-  )
+(sm/specification
+  "testing nested specs"
+  (sm/behavior
+    "node-contains-text-spec"
+    (sm/behavior "can do basic non-nested matching"
+      (is (node-contains-text? "Hello World" (render-as-dom (d/div {} "Hello World"))))
+      (is (node-contains-text? "Hello" (render-as-dom (d/div {} "Helksllo World"))))
+      (is (node-contains-text? "o Wo" (render-as-dom (d/div {} "Hello World"))))
+      )
+    (sm/behavior "can find nested text"
+      (is (node-contains-text? "Hello World" (render-as-dom (d/div {} (d/em {} "Hello World")))))
+      (is (not (node-contains-text? "xyz" (render-as-dom (d/div {} (d/em {} "Hello World"))))))
+      )
+    ))
 
 (deftest render-as-dom-spec
   (let [from-quiescent-component (render-as-dom dumb-butt)
@@ -75,5 +78,3 @@
       (text-matches "^by-attribute$" (find-element :data-foo "test-foo-data" sample-dom))
       )
     ))
-
-

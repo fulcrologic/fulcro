@@ -5,58 +5,28 @@
             [quiescent.dom :as d]
             [untangled.state :as qms]
             [untangled.events :as evt]
+            [untangled.test.dom-spec]
             [cljs.test :as test :include-macros true :refer [report]]
-            )
+            [untangled.core :as core])
   )
 
-(defonce app-state
-         (atom {
-                :test-report        (rc/make-testreport [(rc/make-testitem "item1"
-                                                                           [(rc/make-testitem "sub-item1"
-                                                                                              [(rc/make-testitem "sub-sub-item1")])
-                                                                            (rc/make-testitem "sub-item2")])
-                                                         (rc/make-testitem "item2")])
-                :__figwheel_counter 0
-                }))
-
-(q/defcomponent Root [data context]
-                (d/div {}
-                       (d/div {:className "testreportapp"}
-                              (rc/TestReport :test-report context)
-                              )))
-
-(defn render [data app-state]
-  (q/render (Root data (qms/root-scope app-state))
-            (.getElementById js/document "app")))
-
-
-(add-watch app-state ::render
-           (fn [_ _ _ data]
-             (render data app-state)))
-
-(defn on-js-reload []
-  ;; touch app-state to force rerendering
-  (swap! app-state update-in [:__figwheel_counter] inc)
-  (render @app-state app-state)
+(defn test-runner []
+  (cljs.test/run-tests (cljs.test/empty-env :untangled.test.html-test-report/browser) 'untangled.test.dom-spec)
   )
 
-(render @app-state app-state)
+(defonce test-report (core/new-test-suite :test-runner test-runner))
+
+(defn on-js-reload [] (core/run-tests test-report))
 
 
-
-
-
-(defn begin-test-namespace [name]
-  (swap! app-state #(assoc-in % [:namespaces name :test-items] []))
-  (reset! *current-namespace* name)
-  )
-
+(core/render test-report)
 
 (defmethod cljs.test/report :browser [m]
   )
 
-(defmethod cljs.test/report [::browser :pass ] [m]
+(defmethod cljs.test/report [::browser :pass] [m]
   (cljs.test/inc-report-counter! :pass)
+  (core/pass test-report)
   )
 
 (defmethod cljs.test/report [::browser :error] [m]
@@ -77,38 +47,39 @@
   (println)
   )
 
-(defmethod cljs.test/report [::browser :begin-test-ns ] [m]
-  (begin-test-namespace (name (:ns m)))
-  )
-
-(defmethod cljs.test/report [::browser :begin-specification ] [m]
-  (reset! *test-level* 0)
-  )
-
-(defmethod cljs.test/report [::browser :end-specification ] [m]
-  (println)
-  (reset! *test-level* 0)
-  )
-
-(defmethod cljs.test/report [::browser :begin-behavior ] [m]
-  (swap! *test-level* inc)
-  )
-
-(defmethod cljs.test/report [::browser :end-behavior ] [m]
-  (swap! *test-level* dec)
-  )
-
-(defmethod cljs.test/report [::browser :begin-provided ] [m]
-  (swap! *test-level* inc)
-  )
-
-(defmethod cljs.test/report [::browser :end-provided ] [m]
-  (swap! *test-level* dec)
+(defmethod cljs.test/report [::browser :begin-test-ns] [m]
+  (core/begin-namespace test-report (name (:ns m)))
   )
 
 
-(defmethod cljs.test/report [::browser :summary ] [m]
-  (println "\nRan" (:test m) "tests containing"
-           (+ (:pass m) (:fail m) (:error m)) "assertions.")
-  (println (:fail m) "failures," (:error m) "errors.")
+(defmethod cljs.test/report [::browser :begin-specification] [m]
+  (core/begin-specification test-report (:string m))
+  )
+
+(defmethod cljs.test/report [::browser :end-specification] [m]
+  (core/end-specification test-report)
+
+  )
+
+(defmethod cljs.test/report [::browser :begin-behavior] [m]
+  (core/begin-behavior test-report (:string m))
+
+  )
+
+(defmethod cljs.test/report [::browser :end-behavior] [m]
+  (core/end-behavior test-report)
+  )
+
+(defmethod cljs.test/report [::browser :begin-provided] [m]
+  (core/begin-provided test-report (:string m))
+  )
+
+(defmethod cljs.test/report [::browser :end-provided] [m]
+  (core/end-provided test-report)
+  )
+
+
+
+(defmethod cljs.test/report [::browser :summary] [m]
+
   )
