@@ -12,7 +12,7 @@
     [untangled.test.fixtures :as f]
     ))
 
-(deftest clicks (let [root-context (state/root-scope (atom {:button {:last-event nil}}))
+(deftest clicks (let [root-context (state/root-context (atom {:button {:last-event nil}}))
                       rendered-button (render-as-dom (f/Button :button root-context))
                       get-state (fn [] (:button @(:app-state-atom root-context)))
                       last-event (fn [] (:last-event (get-state)))]
