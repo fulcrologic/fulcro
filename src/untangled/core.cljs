@@ -9,7 +9,7 @@
                 "The root renderer for Untangled. Not for direct use."
                 [state application]
                 (let [ui-render (:renderer application)
-                      context (qms/root-scope application)
+                      context (qms/root-context application)
                       ]
                   (ui-render :top context)
                   ))

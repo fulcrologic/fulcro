@@ -79,7 +79,7 @@
        ;; the plumbing that extracts the application state and passes it to the real handler.
        (def ~name ~docstr
          (fn [id# context# & event-handlers#]
-           (let [new-context# (untangled.state/new-scope context# id# event-handlers#)
+           (let [new-context# (untangled.state/new-sub-context context# id# event-handlers#)
                  data# (untangled.state/context-data new-context#)]
              (real-handler# data# new-context#)
              ))))))

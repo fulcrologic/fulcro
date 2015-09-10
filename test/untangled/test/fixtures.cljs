@@ -17,5 +17,5 @@
                               :className  "test-button"
                               :last-event (:last-event data)})))
 
-(def my-button-context (state/root-scope (atom {:my-button {:data-count 0}})))
+(def my-button-context (state/root-context (atom {:my-button {:data-count 0}})))
 (def custom-button (Button :my-button my-button-context))

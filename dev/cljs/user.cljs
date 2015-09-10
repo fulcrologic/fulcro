@@ -40,7 +40,7 @@
 ;  ;(run-tests 'untangled.core-spec)
 ;  )
 (defn run-all-tests []
-  (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.history-spec)
+  ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.history-spec)
   (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.state-spec)
   )
 

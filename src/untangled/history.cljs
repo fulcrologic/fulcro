@@ -3,6 +3,10 @@
 (defrecord PointInTime [app-state undoable can-collapse? reason])
 (defrecord History [entries limit])
 
+(defn now
+  "Generates a Javascript date for the current time"
+  [] (js/Date.))
+
 (defn new-point-in-time
   "Create a new point in time for history with the given state. New points in time, by default, are undoable and 
   non-collapsable."
