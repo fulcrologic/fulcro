@@ -1,5 +1,5 @@
 (ns untangled.test.events
-  (:require [untangled.test.dom]
+  (:require [untangled.test.dom :as d]
             [clojure.string :as str]))
 
 
@@ -10,17 +10,6 @@
 ; Test all of these events against a single component (i.e. a div) with a single
 ; ":on[Event]" handler function attached to all of the events that does something very simple, like
 ; changing an ":[event]ChangeSuccess" boolean from false to true.
-;
-; TODO:
-; Check existing libraries for a way to create event data.
-
-(defn hashmap-to-js-obj
-  "Converts a clojure hashmap to a javascript object."
-  [hashmap]
-  (->> hashmap
-       (map (fn [x] [(name (first x)) (last x)]))
-       (into {})
-       (clj->js)))
 
 
 (defn blur [x & {:keys [] :as evt-data}] (js/React.addons.TestUtils.Simulate.blur x (clj->js evt-data)))
@@ -70,25 +59,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom event simulations
 ;
-; TODO:
-; Provide some more powerful meta-functions
-;
-; Start with these three:
-; (click elem & :keys :vals)
-; (click elem :x 1 :y 2)
-; (send-keys elem "asdf" & more?)
-; (dbl-click elem ...)
-;
-;
-; Examples of usage:
-;
-;(click-button :label "Today" component)
-;(click-button :key "1" component)
-;(click-button "key" "whatever" component)
-;(click-button :class-name "" component)
-;(click-checkbox :data-boo "blah" component)
-;(send-input  )
-;(send-keys  )
+; TODO: (dbl-click elem ...)
 
 
 (defn str-to-keycode
@@ -105,33 +76,30 @@
 
 (defn send-key
   "
-  Simulates the series of events that occur when a user pressess a single key, which may be
-  modified with [shift].
-
-  - For non-modified (i.e. lowercase) keys, the event sequence is `keydown->keypress->keyup`.
-  - For modified (i.e. uppercase letters and keys such as !@#$ etc.), the event sequence is
-  `[shift-keydown]->keydown->keypress->keyup->[shift-keyup]`.
+  Simulates the series of events that occur when a user pressess a single key.
 
   Parameters:
   `element` A rendered HTML element, as generated with `untangled.test.dom/render-as-dom`.
   `key-str` A string representing the key that was pressed, i.e. \"a\" or \">\".
   "
   [element key-str]
+  (assert (d/is-rendered-element? element) "Argument must be a rendered DOM element.")
   (let [keycode (str-to-keycode key-str)
-        modifier (some #{keycode} '(16 17 18 91))
+        modifier (some #{keycode} '(16 17 18 91))           ; (shift ctrl alt meta)
         is-modifier? (not (nil? modifier))]
     (if is-modifier? (keyDown element :keyCode keycode :which keycode)
                      (keyPress element :keyCode keycode :which keycode))
 
-    ;; TODO? More fully modeled event simulation.
     ;; The above are the minimum events needed to emulate a keystroke.
-    ;; The full series of events generated is:
+    ;; More fully modeled event simulation is possible as follows:
+    ;
     ;(when is-modifier? (keyDown element :keyCode modifier :which modifier))
     ;(keyDown element :key key-str :keyCode keycode :which keycode)
     ;(keyPress element :keyCode keycode :which keycode)
     ;(keyUp element :keyCode keycode :which keycode)
     ;(when is-modifier? (keyUp element :keyCode modifier :which modifier))))
     ))
+
 
 (defn send-keys
   "
@@ -142,5 +110,4 @@
   `key-str` A string representing the keys that were pressed, i.e. \"aSdf\".
   "
   [element key-str]
-  (map #(send-key element key-str) (str/split key-str "")))
-
+  (dorun (map #(send-key element %) (str/split key-str ""))))
