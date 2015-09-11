@@ -14,9 +14,12 @@
   ([] (make-testreport []))
   ([initial-items]
    {
-    :id           (uuid/uuid-string (uuid/make-random-uuid))
+    :id         (uuid/uuid-string (uuid/make-random-uuid))
     :summary    ""
     :namespaces []
+    :passed     0
+    :failed     0
+    :error      0
     }
     )
   )
@@ -48,9 +51,7 @@
    :name       name
    :test-items []
    :status     :pending
-   :passed     0
-   :failed     0
-   :error      0})
+   })
 
 
 (defn item-path [item] [:test-items :id (:id item)])
@@ -67,12 +68,15 @@
 (c/defscomponent TestResult
                  :keyfn :id
                  [test-result context]
-                 (d/li {:className "test-result"}
-                       (d/div {:className "test-result"}
+                 (d/li {}
+                       (d/div {}
                               (if (:message test-result) (d/h3 {} (:message test-result)))
-                              (d/div {} (d/span {:className "test-result-title"} "Where: ") (d/span {} (:where test-result)))
-                              (d/div {} (d/span {:className "test-result-title"} "Actual: ") (d/span {} (:actual test-result)))
-                              (d/div {} (d/span {:className "test-result-title"} "Expected: ") (d/span {} (:expected test-result)))
+                              (d/table {} (d/tr {} (d/td {:className "test-result-title"} "In")
+                                                (d/td {:className "test-result"} (d/code {} (:where test-result))))
+                                       (d/tr {} (d/td {:className "test-result-title"} "Actual")
+                                             (d/td {:className "test-result"} (d/code {} (:actual test-result))))
+                                       (d/tr {} (d/td {:className "test-result-title"} "Expected")
+                                             (d/td {:className "test-result"} (d/code {} (:expected test-result)))))
                               )
                        )
                  )
@@ -97,34 +101,37 @@
                  :keyfn :name
                  [tests-by-namespace context]
                  (d/li {:className "test-item"}
-                       (d/div {:className "test-header"}
-                              (d/span {:className (itemclass (:status tests-by-namespace))} (:name tests-by-namespace))
+                       (d/div {:className "test-namespace"}
+                              (d/h2 {:className (itemclass (:status tests-by-namespace))} "Testing " (:name tests-by-namespace))
                               (d/ul {:className "test-list"}
                                     (map #(TestItem (item-path %) context) (:test-items tests-by-namespace))
                                     )
                               )
-                       (d/div {:className "test-count"}
-                              (d/span {}
-                                      (str "Ran " (count (:test-items tests-by-namespace)) " tests containing "
-                                           (+ (:passed tests-by-namespace) (:failed tests-by-namespace) (:error tests-by-namespace)) " assertions. "
-                                           (:passed tests-by-namespace) " passed " (:failed tests-by-namespace) " failed " (:error tests-by-namespace) " errors")
-                                      )
-                              ))
+                       )
                  )
 
 (c/defscomponent TestReport
                  :keyfn :id
                  [test-report context]
                  (d/section {:className "test-report"}
-                            (d/div {:className "test-header"}
-                                   (d/span {} "Test 2")
-                                   )
-                            (d/section {:className "main"}
-                                       (d/ul {:className "test-list"}
-                                             (map #(TestNamespace [:namespaces :name (:name %)] context) (:namespaces test-report))
-                                             )
-                                       )
 
+                            (d/ul {:className "test-list"}
+                                  (map #(TestNamespace [:namespaces :name (:name %)] context) (:namespaces test-report))
+                                  )
+
+                            (let [rollup-stats (reduce (fn [acc item]
+                                                         (let [counts [(:passed item) (:failed item) (:error item)
+                                                                       (+ (:passed item) (:failed item) (:error item))]]
+                                                           (map + acc counts))
+                                                         ) [0 0 0 0] (:namespaces test-report))]
+                              (cljs.pprint/pprint rollup-stats)
+                              (d/div {:className "test-count"}
+                                     (d/h2 {}
+                                             (str "Tested " (count (:namespaces test-report)) " namespaces containing "
+                                                  (nth rollup-stats 3) " assertions. "
+                                                  (nth rollup-stats 0) " passed " (nth rollup-stats 1) " failed " (nth rollup-stats 2) " errors")
+                                             )
+                                     ))
                             )
                  )
 

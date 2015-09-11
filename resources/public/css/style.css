@@ -1,23 +1,19 @@
 @import url(https://fonts.googleapis.com/css?family=Lato);
 @import url(https://fonts.googleapis.com/css?family=Cutive+Mono);
 
-.base-font
-{
-font-family: 'Lato' sans-serif;
-}
-
 .overlay {
-background-color: rgb(230,230,240);
-width: 194px;
+  background-color: rgb(230,230,240);
+  width: 194px;
 }
 
 .hidden {
-display:none;
+  display:none;
 }
 
 .test-report {
-display: block;
-font-size: 20pt;
+  font-family: 'Lato' sans-serif;
+  display: block;
+  font-size: 20pt;
 }
 
 .test-item {
@@ -25,32 +21,36 @@ font-size: 20pt;
    font-size: 13pt;
 }
 
+.test-namespace {
+  margin-top: 20px;
+  font-weight: 400;
+  display: block;
+  font-size: 18pt;
+}
+
 .test-header {
-   display: block;
-   font-size: 18pt;
+  font-weight: 700;
+  display: block;
+  font-size: 18pt;
 }
 
 .test-pending
 {
    color: gray;
-   font-family: 'Lato' sans-serif;
 }
 
 .test-passed
 {
    color: green;
-font-family: 'Lato' sans-serif;
 }
 
 .test-error
 {
    color: red;
-font-family: 'Lato' sans-serif;
 }
 
 .test-failed
 {
-font-family: 'Lato' sans-serif;
    color: red;
 }
 
@@ -63,20 +63,29 @@ list-style-type: none;
 {
    margin: 12px;
    font-size: 16px;
-   font-family: 'Cutive Mono', monospace;
 }
 
 .test-result-title
 {
+width: 100px;
    font-size: 16px;
-   font-family: 'Lato' sans-serif;
 }
 
 .test-count
 {
-   margin-top: 20px;
-   margin: 20px;
-   font-size: 16px;
-   font-family: 'Lato' sans-serif;
+   margin: 20px 0 20px 20px;
 }
 
+.test-report ul {
+  padding-left: 10px;
+  margin-bottom: 10px;
+}
+
+.test-report ul:empty {
+  display: none;
+}
+
+.test-report h2 {
+  font-size: 24px;
+  margin-bottom: 15px;
+}

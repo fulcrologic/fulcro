@@ -23,6 +23,8 @@
       (.fillRect ctx 0 0 16 16))
     (.toDataURL cvs)))
 
+
+
 (defn change-favicon-to-color [color]
   (let [icon (.getElementById js/document "favicon")]
     (set! (.-href icon) (color-favicon-data-url color))))
@@ -42,6 +44,8 @@
   ;(run-tests 'untangled.history-spec)
   ; (run-tests 'untangled.core-spec)
   )
+
+
 
 (test-suite dom-report 'untangled.test.dom-spec 'untangled.history-spec)
 ;(test-suite history-report 'untangled.history-spec)
