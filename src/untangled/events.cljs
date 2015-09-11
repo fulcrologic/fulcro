@@ -1,6 +1,7 @@
-(ns untangled.events)
+(ns untangled.events
+  (:require [untangled.logging :as logging]))
 
-(defn trigger 
+(defn trigger
   "Trigger custom event(s) on the parent of the current component. Parent components can capture an event from a 
   child component by including a map as the final argument of the call to the child's render function. For example,
   to capture a `:picked` event from a Calendar component:
@@ -20,6 +21,9 @@
   [context events]
   (doseq [evt (flatten (list events))
           listener-map (:event-listeners context)]
-    (if-let [listener (get listener-map evt)] (listener))
+    (if-let [listener (get listener-map evt)]
+      (if (fn? listener)
+        (listener)
+        (logging/log "ERROR: TRIGGERED EVENT HANDLER MUST BE A FUNCTION")))
     )
   )

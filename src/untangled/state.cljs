@@ -16,8 +16,6 @@
 
 (defn- find-first [pred coll] (first (filter pred coll)))
 
-(defn log [message] (.log js/console message))
-
 (defn data-path
   "Used by internal context tracking to correct the internal path to account for the inclusion of vectors as data structures 
   pointing to items in vectors."
@@ -29,7 +27,7 @@
               (if (sequential? path-ele)
                 (do
                   (if (not= 3 (count path-ele))
-                    (log "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY")
+                    (untangled.logging/log "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY")
                     (let [vector-key (first path-ele)
                           state-vector (get-in state (conj real-path vector-key))
                           lookup-function (second path-ele)
@@ -39,7 +37,7 @@
                       (if index
                         (conj real-path vector-key index)
                         (do
-                          (log "ERROR: NO ITEM FOUND AT DATA PATH")
+                          (untangled.logging/log "ERROR: NO ITEM FOUND AT DATA PATH")
                           (cljs.pprint/pprint path-seq)
                           real-path
                           )
