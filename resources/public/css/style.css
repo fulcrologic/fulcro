@@ -1,7 +1,16 @@
+@import url(https://fonts.googleapis.com/css?family=Lato);
+@import url(https://fonts.googleapis.com/css?family=Cutive+Mono);
+
+.base-font
+{
+font-family: 'Lato' sans-serif;
+}
+
 .overlay {
 background-color: rgb(230,230,240);
 width: 194px;
 }
+
 .hidden {
 display:none;
 }
@@ -12,27 +21,36 @@ font-size: 20pt;
 }
 
 .test-item {
-display: block;
-font-size: 15pt;
+   display: block;
+   font-size: 13pt;
+}
+
+.test-header {
+   display: block;
+   font-size: 18pt;
 }
 
 .test-pending
 {
    color: gray;
+   font-family: 'Lato' sans-serif;
 }
 
 .test-passed
 {
    color: green;
+font-family: 'Lato' sans-serif;
 }
 
 .test-error
 {
    color: red;
+font-family: 'Lato' sans-serif;
 }
 
 .test-failed
 {
+font-family: 'Lato' sans-serif;
    color: red;
 }
 
@@ -41,8 +59,24 @@ font-size: 15pt;
 list-style-type: none;
 }
 
-.test-detail
+.test-result
 {
-font-size: 16px;
+   margin: 12px;
+   font-size: 16px;
+   font-family: 'Cutive Mono', monospace;
+}
+
+.test-result-title
+{
+   font-size: 16px;
+   font-family: 'Lato' sans-serif;
+}
+
+.test-count
+{
+   margin-top: 20px;
+   margin: 20px;
+   font-size: 16px;
+   font-family: 'Lato' sans-serif;
 }
 

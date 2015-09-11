@@ -14,6 +14,7 @@
   ([] (make-testreport []))
   ([initial-items]
    {
+    :id           (uuid/uuid-string (uuid/make-random-uuid))
     :summary    ""
     :namespaces []
     }
@@ -43,7 +44,8 @@
 
 (defn make-tests-by-namespace
   [name]
-  {:name       name
+  {:id         (uuid/uuid-string (uuid/make-random-uuid))
+   :name       name
    :test-items []
    :status     :pending
    :passed     0
@@ -66,11 +68,11 @@
                  :keyfn :id
                  [test-result context]
                  (d/li {:className "test-result"}
-                       (d/div {:className "test-detail"}
+                       (d/div {:className "test-result"}
                               (if (:message test-result) (d/h3 {} (:message test-result)))
-                              (d/div {} (str "Where: " (:where test-result)))
-                              (d/div {} (str "Actual: "(:actual test-result)))
-                              (d/div {} (str "Expected: "(:expected test-result)))
+                              (d/div {} (d/span {:className "test-result-title"} "Where: ") (d/span {} (:where test-result)))
+                              (d/div {} (d/span {:className "test-result-title"} "Actual: ") (d/span {} (:actual test-result)))
+                              (d/div {} (d/span {:className "test-result-title"} "Expected: ") (d/span {} (:expected test-result)))
                               )
                        )
                  )
@@ -79,8 +81,8 @@
                  :keyfn :id
                  [test-item context]
                  (d/li {:className "test-item"}
-                       (d/div {:className "test-header"}
-                              (d/h3 {:className (itemclass (:status test-item))} (:name test-item))
+                       (d/div {}
+                              (d/span {:className (itemclass (:status test-item))} (:name test-item))
                               (d/ul {:className "test-list"}
                                     (map #(TestResult (result-path %) context) (:test-results test-item))
                                     )
@@ -92,38 +94,37 @@
                  )
 
 (c/defscomponent TestNamespace
-                 :keyfn :id
+                 :keyfn :name
                  [tests-by-namespace context]
                  (d/li {:className "test-item"}
-                       (d/div {:className "test-header" }
-                              (d/h3 {:className (itemclass (:status tests-by-namespace))} (:name tests-by-namespace))
+                       (d/div {:className "test-header"}
+                              (d/span {:className (itemclass (:status tests-by-namespace))} (:name tests-by-namespace))
                               (d/ul {:className "test-list"}
                                     (map #(TestItem (item-path %) context) (:test-items tests-by-namespace))
                                     )
                               )
-                       (d/div {:className "footer"}
-                              (d/span {:className "test-count"}
-                                      (d/strong {}
-                                                (str "Ran " (count (:test-items tests-by-namespace)) " tests containing "
-                                                     (+ (:passed tests-by-namespace) (:failed tests-by-namespace) (:error tests-by-namespace)) " assertions. "
-                                                     (:passed tests-by-namespace) " passed " (:failed tests-by-namespace) " failed " (:error tests-by-namespace) " errors")
-                                                ))
+                       (d/div {:className "test-count"}
+                              (d/span {}
+                                      (str "Ran " (count (:test-items tests-by-namespace)) " tests containing "
+                                           (+ (:passed tests-by-namespace) (:failed tests-by-namespace) (:error tests-by-namespace)) " assertions. "
+                                           (:passed tests-by-namespace) " passed " (:failed tests-by-namespace) " failed " (:error tests-by-namespace) " errors")
+                                      )
                               ))
                  )
 
 (c/defscomponent TestReport
+                 :keyfn :id
                  [test-report context]
-                 (let [cbb (qms/op-builder context)]
-                   (d/section {:className "test-report"}
-                              (d/header {:className "header"}
-                                        (d/h1 {} "Tests")
-                                        )
-                              (d/section {:className "main"}
-                                         (d/ul {:className "test-list"}
-                                               (map #(TestNamespace [:namespaces :name (:name %)] context) (:namespaces test-report))
-                                               )
-                                         )
+                 (d/section {:className "test-report"}
+                            (d/div {:className "test-header"}
+                                   (d/span {} "Test")
+                                   )
+                            (d/section {:className "main"}
+                                       (d/ul {:className "test-list"}
+                                             (map #(TestNamespace [:namespaces :name (:name %)] context) (:namespaces test-report))
+                                             )
+                                       )
 
-                              ))
+                            )
                  )
 

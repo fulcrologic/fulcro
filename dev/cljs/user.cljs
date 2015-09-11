@@ -7,7 +7,6 @@
             untangled.test.events-spec
             untangled.history-spec
             [cljs.tagged-literals :refer [*cljs-data-readers*]]
-            [untangled.test.html-test-report :as tr]
             untangled.state-spec
             smooth-test.report
             smooth-test.runner.browser
@@ -45,10 +44,12 @@
   ; (run-tests 'untangled.core-spec)
   )
 
-(test-suite test-report 'untangled.test.dom-spec)
+(test-suite dom-report 'untangled.test.dom-spec 'untangled.history-spec)
+;(test-suite history-report 'untangled.history-spec)
 
 (defn on-load []
-  (on-js-reload)
+  (dom-report)
+ ; (history-report)
   ; (run-all-tests)
   )
 
