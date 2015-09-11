@@ -11,12 +11,12 @@
             (assertions
               (-> (h/new-point-in-time "A") :undoable) => true
               ))
-  (behavior "default to not collapsable" 
-            (assertions 
+  (behavior "default to not collapsable"
+            (assertions
               (:can-collapse? (h/new-point-in-time "A")) => false
               ))
-  (behavior "can have a reason" 
-            (assertions 
+  (behavior "can have a reason"
+            (assertions
               (-> (h/new-point-in-time "A") (h/set-reason "because") :reason) => "because"
                         )))
 

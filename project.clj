@@ -9,6 +9,7 @@
                  [org.clojure/clojurescript "1.7.48"]
                  [smooth-test "0.1.0-SNAPSHOT"]
                  [differ "0.2.1"]
+                 [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  ]
 
   :source-paths ["src"]
@@ -27,4 +28,5 @@
                                :asset-path           "js/test/out"
                                :optimizations        :none}}]}
 
-  :figwheel {:nrepl-port 7888})
+  :figwheel {:css-dirs ["resources/public/css"]
+             :nrepl-port 7888})

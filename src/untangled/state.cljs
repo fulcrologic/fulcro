@@ -16,6 +16,35 @@
 
 (defn- find-first [pred coll] (first (filter pred coll)))
 
+(defn log [message] (.log js/console message))
+
+
+(defn resolve-data-path [state path-seq]
+  (reduce (fn [real-path path-ele]
+            (if (sequential? path-ele)
+              (do
+                (if (not= 3 (count path-ele))
+                  (log "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY")
+                  (let [vector-key (first path-ele)
+                        state-vector (get-in state (conj real-path vector-key))
+                        lookup-function (second path-ele)
+                        target-value (nth path-ele 2)
+                        index (->> (map-indexed vector state-vector) (find-first #(= target-value (lookup-function (second %)))) (first))
+                        ]
+                    (if index
+                      (conj real-path vector-key index)
+                      (do
+                        (log "ERROR: NO ITEM FOUND AT DATA PATH")
+                        (cljs.pprint/pprint path-seq)
+                        real-path
+                        )
+                      )
+                    )))
+              (conj real-path path-ele)
+              )
+            )
+          [] path-seq))
+
 (defn data-path
   "Used by internal context tracking to correct the internal path to account for the inclusion of vectors as data structures 
   pointing to items in vectors."
@@ -23,30 +52,8 @@
   (let [state @(-> context :application :app-state)
         path-seq (:scope context)
         ]
-    (reduce (fn [real-path path-ele]
-              (if (sequential? path-ele)
-                (do
-                  (if (not= 3 (count path-ele))
-                    (untangled.logging/log "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY")
-                    (let [vector-key (first path-ele)
-                          state-vector (get-in state (conj real-path vector-key))
-                          lookup-function (second path-ele)
-                          target-value (nth path-ele 2)
-                          index (->> (map-indexed vector state-vector) (find-first #(= target-value (lookup-function (second %)))) (first))
-                          ]
-                      (if index
-                        (conj real-path vector-key index)
-                        (do
-                          (untangled.logging/log "ERROR: NO ITEM FOUND AT DATA PATH")
-                          (cljs.pprint/pprint path-seq)
-                          real-path
-                          )
-                        )
-                      )))
-                (conj real-path path-ele)
-                )
-              )
-            [] path-seq)))
+    (resolve-data-path state path-seq)
+    ))
 
 (defn context-data
   "Extract the data for the component indicated by the given context."
