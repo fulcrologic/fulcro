@@ -14,17 +14,12 @@
     [untangled.test.assertions :refer [text-matches]]
     [untangled.test.dom :refer [node-contains-text? find-element render-as-dom]]
     [untangled.core :as core]
-
-    ))
+    )
+  )
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Fixtures
-
-
-
-
- 
 
 (def dumb-butt (d/button {:className "test-button" :data-foo "test-foo-data" :key "myid"} "derp."))
 (def sample-doc (d/div {}
@@ -45,7 +40,6 @@
                        ))
 (def dumb-div (d/div {}))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Tests
 
@@ -57,7 +51,7 @@
     "node-contains-text-spec"
     (sm/behavior "can do basic non-nested matching"
       (is (node-contains-text? "Hello World" (render-as-dom (d/div {} "Hello World"))))
-      (is (node-contains-text? "Hello" (render-as-dom (d/div {} "Helkslo World"))))
+      (is (node-contains-text? "Hello" (render-as-dom (d/div {} "Hello World"))))
       (is (node-contains-text? "o Wo" (render-as-dom (d/div {} "Hello World"))))
       )
     (sm/behavior "can find nested text"

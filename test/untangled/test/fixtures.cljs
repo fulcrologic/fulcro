@@ -16,6 +16,5 @@
                    (d/button {:onClick    (fn [evt] ((op (partial store-last-event (clj->js evt)))))
                               :className  "test-button"
                               :last-event (:last-event data)})))
-
-(def my-button-context (state/root-context (atom {:my-button {:data-count 0}})))
+(def my-button-context (state/root-context (atom {:top  {:my-button {:data-count 0}} :time (js/Date.)})))
 (def custom-button (Button :my-button my-button-context))

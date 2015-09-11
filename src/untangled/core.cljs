@@ -53,10 +53,7 @@
                          :time #inst "2015-09-09T22:31:48.759-00:00"})]
     (is (= [:top :namespaces 0] (translate-item-path app-state [:namespaces :name "untangled.test.dom-spec"])))
     (is (= [:top :namespaces 0 :test-items 0] (translate-item-path app-state [:namespaces :name "untangled.test.dom-spec" :test-items :id "xyz"]))))
-
   )
-
-
 
 (defrecord TestSuite
   [app-state dom-target history renderer test-item-path]

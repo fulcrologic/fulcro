@@ -10,6 +10,21 @@
 
 (declare TestItem)
 
+(defn color-favicon-data-url [color]
+  (let [cvs (.createElement js/document "canvas")]
+    (set! (.-width cvs) 16)
+    (set! (.-height cvs) 16)
+    (let [ctx (.getContext cvs "2d")]
+      (set! (.-fillStyle ctx) color)
+      (.fillRect ctx 0 0 16 16))
+    (.toDataURL cvs)))
+
+
+(defn change-favicon-to-color [color]
+  (let [icon (.getElementById js/document "favicon")]
+    (set! (.-href icon) (color-favicon-data-url color))))
+
+
 (defn make-testreport
   ([] (make-testreport []))
   ([initial-items]
@@ -124,13 +139,15 @@
                                                                        (+ (:passed item) (:failed item) (:error item))]]
                                                            (map + acc counts))
                                                          ) [0 0 0 0] (:namespaces test-report))]
-                              (cljs.pprint/pprint rollup-stats)
+                              (if (< 0 (+ (nth rollup-stats 1) (nth rollup-stats 2)))
+                                (change-favicon-to-color "#d00")
+                                (change-favicon-to-color "#0d0"))
                               (d/div {:className "test-count"}
                                      (d/h2 {}
-                                             (str "Tested " (count (:namespaces test-report)) " namespaces containing "
-                                                  (nth rollup-stats 3) " assertions. "
-                                                  (nth rollup-stats 0) " passed " (nth rollup-stats 1) " failed " (nth rollup-stats 2) " errors")
-                                             )
+                                           (str "Tested " (count (:namespaces test-report)) " namespaces containing "
+                                                (nth rollup-stats 3) " assertions. "
+                                                (nth rollup-stats 0) " passed " (nth rollup-stats 1) " failed " (nth rollup-stats 2) " errors")
+                                           )
                                      ))
                             )
                  )

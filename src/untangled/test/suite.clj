@@ -48,7 +48,8 @@
        )
      (cljs.core/defmethod cljs.test/report [~test-report-keyword :summary] [~'m]
        (let [~'stats {:passed (:pass ~'m) :failed (:fail ~'m) :error (:error ~'m)}]
-         (untangled.core/summary ~name ~'stats))
+         (untangled.core/summary ~name ~'stats)
+         )
        )
      )
   )
@@ -58,10 +59,12 @@
         test-report-keyword (keyword (str *ns* "/" name))
         target (str name)
         ]
-    `(do (cljs.core/defn ~name []
+    `(do
+       (cljs.core/defonce ~state-name (untangled.core/new-test-suite ~target))
+       (cljs.core/defn ~name []
            (cljs.test/run-tests (cljs.test/empty-env ~test-report-keyword) ~@test-namespaces)
+           (untangled.application/render ~state-name)
            )
-         (cljs.core/defonce ~state-name (untangled.core/new-test-suite ~target))
          (untangled.application/render ~state-name)
           ~@(define-test-methods state-name test-report-keyword)
          )
