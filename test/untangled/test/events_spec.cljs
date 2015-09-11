@@ -7,7 +7,7 @@
     [untangled.state :as state]
     [untangled.test.dom :as td]
     [untangled.test.events :as ev]
-    [untangled.test.fixtures :as f] ))
+    [untangled.test.fixtures :as f]))
 
 
 (deftest clicks
@@ -27,33 +27,45 @@
       (is (= 20 (.-clientX (last-event)))))))
 
 
-(defn setup-input []
+(defn evt-tracker-element [& {:keys [type prop]
+                              :or   {type d/input
+                                     prop (fn [evt] (.-keyCode evt))}}]
   (let [seqnc (atom [])
         input (td/render-as-dom
-                (d/input {:onKeyDown  (fn [evt] (swap! seqnc #(conj % (.-keyCode evt))))
-                          :onKeyPress (fn [evt] (swap! seqnc #(conj % (.-keyCode evt))))
-                          :onKeyUp    (fn [evt] (swap! seqnc #(conj % (.-keyCode evt))))}))]
+                (type {:onKeyDown  (fn [evt] (swap! seqnc #(conj % (prop evt))))
+                       :onKeyPress (fn [evt] (swap! seqnc #(conj % (prop evt))))
+                       :onKeyUp    (fn [evt] (swap! seqnc #(conj % (prop evt))))}))]
     [seqnc input]))
+
+
+(deftest double-clicks
+  (testing "Double click event"
+
+    (testing "is sent to the DOM"
+      (let [[seqnc input] (evt-tracker-element)]
+        (ev/doubleClick input "")
+        (is (= [] @seqnc))))
+    ))
 
 
 (deftest keys-sent
   (testing "send-keys"
 
     (testing "sends a single keystroke"
-      (let [[seqnc input] (setup-input)]
+      (let [[seqnc input] (evt-tracker-element)]
         (ev/send-keys input "a")
         (is (= [97] @seqnc))))
 
     (testing "sends a sequence of keystrokes"
-      (let [[seqnc input] (setup-input)]
+      (let [[seqnc input] (evt-tracker-element)]
         (ev/send-keys input "aA1!")
         (is (= [97 65 49 33] @seqnc))))
 
     (testing "does nothing when an empty string is provided"
-      (let [[seqnc input] (setup-input)]
+      (let [[seqnc input] (evt-tracker-element)]
         (ev/send-keys input "")
         (is (= [] @seqnc))))
 
     (testing "complains when the first argument is not a DOM element"
-        (is (thrown? js/Error (ev/send-keys {} "a") "- using goog.dom/isElement")))))
+      (is (thrown? js/Error (ev/send-keys {} "a") "- using goog.dom/isElement")))))
 

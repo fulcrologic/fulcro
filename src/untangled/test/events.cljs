@@ -111,3 +111,4 @@
   "
   [element key-str]
   (dorun (map #(send-key element %) (str/split key-str ""))))
+
