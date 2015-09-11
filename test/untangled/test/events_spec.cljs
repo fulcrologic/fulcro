@@ -7,11 +7,12 @@
     [untangled.state :as state]
     [untangled.test.dom :as td]
     [untangled.test.events :as ev]
-    [untangled.test.fixtures :as f]))
+    [untangled.test.fixtures :as f]
+    [untangled.core :as core]))
 
 
 (deftest clicks
-  (let [root-context (state/root-scope (atom {:button {:last-event nil}}))
+  (let [root-context (state/root-context (core/new-application nil {:button {:last-event nil}}))
         rendered-button (td/render-as-dom (f/Button :button root-context))
         get-state (fn [] (:button @(:app-state-atom root-context)))
         last-event (fn [] (:last-event (get-state)))]

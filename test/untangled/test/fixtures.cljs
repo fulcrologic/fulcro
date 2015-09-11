@@ -4,7 +4,8 @@
     [quiescent.dom :as d]
     [quiescent.core :include-macros true]
     [untangled.state :as state]
-    [untangled.test.dom :refer [render-as-dom]]))
+    [untangled.test.dom :refer [render-as-dom]]
+    [untangled.core :as core]))
 
 
 (def sample-doc
@@ -36,5 +37,5 @@
                               :className  "test-button"
                               :last-event (:last-event data)})))
 
-(def root-obj (state/root-scope (atom {:my-button {}})))
+(def root-obj (state/root-context (core/new-application nil {:my-button {}})))
 (def custom-button (render-as-dom (Button :my-button root-obj)))

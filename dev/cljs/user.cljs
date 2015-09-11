@@ -1,8 +1,8 @@
 (ns ^:figwheel-always cljs.user
   (:require-macros [cljs.test
                     :refer (is deftest run-tests testing)])
-  (:require ;untangled.test.dom-spec
-            ;untangled.test.events-spec
+  (:require untangled.test.dom-spec
+            untangled.test.events-spec
             untangled.history-spec
             untangled.state-spec
             smooth-test.report
@@ -41,7 +41,8 @@
 ;  )
 (defn run-all-tests []
   ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.history-spec)
-  (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.state-spec)
+  ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.state-spec)
+  (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.test.dom-spec)
   )
 
 (defn on-load []
