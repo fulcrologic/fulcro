@@ -59,13 +59,14 @@
 
 
 (defrecord TestSuite
-  [app-state dom-target history renderer is-undo test-runner test-level test-item-path]
-  IApplication
-  (render [this]
-    (q/render (Root @app-state this)
-              (.getElementById js/document dom-target)))
-  (force-refresh [this] (swap! app-state #(assoc % :time (js/Date.))))
-  (state-changed [this old-state new-state] (render this))
+  [app-state dom-target history renderer test-item-path]
+  untangled.application/Application
+  (render [this] (q/render (Root @app-state this) (.getElementById js/document dom-target)))
+  (force-refresh [this]
+    (swap! app-state #(assoc % :time (js/Date.)))
+    (untangled.application/render this)
+    )
+  (state-changed [this old-state new-state] (untangled.application/render this))
 
   ITest
   (set-test-result [this status] (let [translated-item-path (translate-item-path app-state @test-item-path)]
@@ -191,14 +192,10 @@
   - `:history n` : Set the history size. The default is 100.
   "
   [target]
-  (let [app (map->TestSuite {:app-state      (atom {:top (rc/make-testreport) :time (js/Date.)})
-                             :renderer       rc/TestReport
-                             :dom-target     target
-                             :test-item-path (atom [])
-                             :history        (atom (h/empty-history 1))
-                             :is-undo        (atom false)
-                             })]
-    (add-watch (:app-state app) ::render (fn [_ _ old-state new-state] (state-changed app old-state new-state)))
-    app
-    ))
+  (map->TestSuite {:app-state      (atom {:top (rc/make-testreport) :time (js/Date.)})
+                   :renderer       rc/TestReport
+                   :dom-target     target
+                   :test-item-path (atom [])
+                   :history        (atom (h/empty-history 1))
+                   }))
 

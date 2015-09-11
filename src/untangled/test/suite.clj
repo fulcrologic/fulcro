@@ -62,7 +62,7 @@
            (cljs.test/run-tests (cljs.test/empty-env ~test-report-keyword) ~@test-namespaces)
            )
          (cljs.core/defonce ~state-name (untangled.core/new-test-suite ~target))
-         (untangled.core/render ~state-name)
+         (untangled.application/render ~state-name)
           ~@(define-test-methods state-name test-report-keyword)
          )
         )

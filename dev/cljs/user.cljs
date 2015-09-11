@@ -4,7 +4,6 @@
                    [untangled.test.suite :refer [test-suite]])
   (:require untangled.test.dom-spec
             cljs.core
-            untangled.test.events-spec
             untangled.history-spec
             [cljs.tagged-literals :refer [*cljs-data-readers*]]
             untangled.state-spec
@@ -46,7 +45,7 @@
 
 (test-suite dom-report 'untangled.test.dom-spec 'untangled.history-spec)
 ;(test-suite history-report 'untangled.history-spec)
-
+ 
 (defn on-load []
   (dom-report)
  ; (history-report)
