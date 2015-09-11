@@ -1,7 +1,8 @@
 (ns untangled.test.dom-spec
   (:require-macros [untangled.component :as c]
                    [smooth-test.core :as sm]
-                   [cljs.test :refer (is deftest run-tests testing)])
+                   [cljs.test :refer (is deftest run-tests testing)]
+                   [untangled.test.suite :refer [test-suite]])
   (:require
     [cljs.test :refer [do-report]]
     [goog.dom :as gd]
@@ -12,6 +13,8 @@
     [untangled.test.fixtures :as f]
     [untangled.test.assertions :refer [text-matches]]
     [untangled.test.dom :refer [node-contains-text? find-element render-as-dom]]
+    [untangled.core :as core]
+
     ))
 
 
@@ -42,12 +45,11 @@
                        ))
 (def dumb-div (d/div {}))
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Tests
 
 ;; TODO: add assertions on argument types for get-dom-element and find-element
-
-
 
 (sm/specification
   "testing nested specs"
@@ -63,6 +65,8 @@
       (is (not (node-contains-text? "xyz" (render-as-dom (d/div {} (d/em {} "Hello World"))))))
       )
     ))
+
+
 
 ;(deftest render-as-dom-spec
 ;  (let [from-quiescent-component (render-as-dom dumb-butt)

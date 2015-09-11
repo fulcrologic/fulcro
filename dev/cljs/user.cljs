@@ -1,6 +1,7 @@
 (ns ^:figwheel-always cljs.user
   (:require-macros [cljs.test
-                    :refer (is deftest run-tests testing)])
+                    :refer (is deftest run-tests testing)]
+                   [untangled.test.suite :refer [test-suite]])
   (:require untangled.test.dom-spec
             cljs.core
             untangled.test.events-spec
@@ -38,15 +39,17 @@
 
 (defn run-all-tests []
   ;(run-tests (cljs.test/empty-env :untangled.test.report-components/browser)  'untangled.test.dom-spec)
-  (run-tests (cljs.test/empty-env)  'untangled.core)
+  ; (run-tests (cljs.test/empty-env)  'untangled.core)
   ;(run-tests 'untangled.test.events-spec)
   ;(run-tests 'untangled.history-spec)
   ; (run-tests 'untangled.core-spec)
   )
 
+(test-suite test-report 'untangled.test.dom-spec)
+
 (defn on-load []
-  (tr/on-js-reload)
-  (run-all-tests)
+  (on-js-reload)
+  ; (run-all-tests)
   )
 
 ;(defn pp [form] `(doto ~form (cljs.pprint/pprint)))
