@@ -117,7 +117,7 @@
                  [test-report context]
                  (d/section {:className "test-report"}
                             (d/div {:className "test-header"}
-                                   (d/span {} "Test")
+                                   (d/span {} "Test 2")
                                    )
                             (d/section {:className "main"}
                                        (d/ul {:className "test-list"}

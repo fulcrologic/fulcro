@@ -193,7 +193,7 @@
   "
   [target]
   (map->TestSuite {:app-state      (atom {:top (rc/make-testreport) :time (js/Date.)})
-                   :renderer       rc/TestReport
+                   :renderer       #(rc/TestReport %1 %2)
                    :dom-target     target
                    :test-item-path (atom [])
                    :history        (atom (h/empty-history 1))
