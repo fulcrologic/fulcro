@@ -4,6 +4,7 @@
                    )
   (:require [untangled.history :as h]
             [untangled.state :as state]
+            [untangled.logging :as logging]
             smooth-test.stub
             [cljs.test :refer [do-report]]
             [untangled.core :as core]
@@ -50,13 +51,13 @@
                              ))
                  (behavior "logs a console message (for debugging) if a inline vector is not a triple"
                            (provided "message indicates vector must have three elements"
-                                     (state/log msg) =1x=> (is (= "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY" msg))
+                                     (logging/log msg) =1x=> (is (= "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY" msg))
 
                                      (state/data-path context-with-bad-path)
                                      ))
                  (behavior "logs a console message (for debugging) if a inline vector refers to a missing value"
                            (provided "message indicates that no item was found, and includes the path that was searched"
-                                     (state/log msg) =1x=> (is (= "ERROR: NO ITEM FOUND AT DATA PATH" msg))
+                                     (logging/log msg) =1x=> (is (= "ERROR: NO ITEM FOUND AT DATA PATH" msg))
                                      (cljs.pprint/pprint path) =1x=> (is (= [:top :a [:b :k 3]] path))
 
                                      (state/data-path context-with-missing-data)

@@ -5,6 +5,7 @@
             ;untangled.test.events-spec
             untangled.history-spec
             untangled.state-spec
+            untangled.events-spec
             smooth-test.report
             smooth-test.runner.browser
             [cljs.test :as test :include-macros true :refer [report]]))
@@ -25,7 +26,7 @@
   (let [icon (.getElementById js/document "favicon")]
     (set! (.-href icon) (color-favicon-data-url color))))
 
-(defmethod report [::test/default :summary] [m]
+(defmethod report [:smooth-test.report/console :summary] [m]
   (println "\nRan" (:test m) "tests containing"
            (+ (:pass m) (:fail m) (:error m)) "assertions.")
   (println (:fail m) "failures," (:error m) "errors.")
@@ -41,7 +42,8 @@
 ;  )
 (defn run-all-tests []
   ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.history-spec)
-  (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.state-spec)
+  ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.state-spec)
+  (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.events-spec)
   )
 
 (defn on-load []
