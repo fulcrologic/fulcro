@@ -75,8 +75,10 @@
         old-state @state-atom
         history-entry (h/set-reason (h/new-point-in-time old-state undoable compressable) reason)]
     (swap! history-atom #(h/record % history-entry))
-    (swap! state-atom #(update-in % path operation))
-    (swap! state-atom #(assoc % :time (h/now)))
+    (swap! state-atom (fn [old-state]
+                        (-> old-state
+                            (assoc :time (h/now)) 
+                            (update-in path operation))))
     (app/state-changed application old-state @state-atom)
     ))
 
