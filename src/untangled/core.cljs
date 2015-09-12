@@ -1,7 +1,8 @@
 (ns untangled.core
   (:require [untangled.history :as h]
-            [untangled.application]
+            [untangled.application :refer [Application]]
             [untangled.test.report-components :as rc]
+            [untangled.test.dom :refer [render-as-dom]]
             [untangled.state :as qms]
             [quiescent.core :as q :include-macros true]
             )
@@ -148,14 +149,20 @@
   )
 
 (defrecord UntangledApplication
-  [app-state dom-target history renderer]
-  untangled.application/Application
-  (render [this] (q/render (Root @app-state this) (.getElementById js/document dom-target)))
+  [app-state dom-target history renderer test-mode]
+  Application
+  (render [this]
+    (if test-mode
+      (render-as-dom (Root @app-state this))
+      (q/render (Root @app-state this) (.getElementById js/document dom-target))))
   (force-refresh [this]
     (swap! app-state #(assoc % :time (js/Date.)))
     (untangled.application/render this)
     )
-  (state-changed [this old-state new-state] (untangled.application/render this)))
+  (state-changed [this old-state new-state] (untangled.application/render this))
+  (current-state [this] (-> @app-state :top))
+  (current-state [this subpath] (get-in (-> @app-state :top) subpath))
+  )
 
 (defn new-application
   "Create a new Untangled application with:
@@ -167,13 +174,18 @@
   
   - `:target DOM_ID`: Specifies the target DOM element. The default is 'app'
   - `:history n` : Set the history size. The default is 100.
+  - `:test-mode boolean`: Put the application in unit test mode. This causes render to return 
+  a disconnected DOM fragment instead of actually rendering to visible DOM. Thus, render will 
+  *return* the DOM fragment instead of side-effecting it onto the screen.
   "
-  [ui-render initial-state & {:keys [target history] :or {target "app" history 100}}]
+  [ui-render initial-state & {:keys [target history test-mode] :or {test-mode false target "app" history 100}}]
   (map->UntangledApplication {:app-state  (atom {:top initial-state :time (js/Date.)})
                               :renderer   ui-render
                               :dom-target target
                               :history    (atom (h/empty-history history))
+                              :test-mode test-mode
                               }))
+
 
 (defn new-test-suite
   "Create a new Untangled application with:

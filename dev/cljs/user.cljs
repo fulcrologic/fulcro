@@ -6,13 +6,15 @@
             cljs.core
             untangled.history-spec
             untangled.state-spec
-            untangled.events-spec
             smooth-test.report
             smooth-test.runner.browser
             [cljs.test :as test :include-macros true :refer [report]]))
 
 
-(test-suite dom-report 'untangled.test.dom-spec 'untangled.history-spec)
+(test-suite dom-report 
+            'untangled.test.dom-spec
+            'untangled.state-spec
+            'untangled.history-spec)
 ;(test-suite history-report 'untangled.history-spec)
 
 (defn on-load []

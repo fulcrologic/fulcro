@@ -1,5 +1,5 @@
 (ns untangled.test.events
-  (:require [untangled.test.dom]))
+  (:require [untangled.test.dom :as dom]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -90,3 +90,8 @@
 ;(send-keys  )
 
 
+(defn send-click [target-kind target-search dom]
+  (if-let [ele (dom/find-element target-kind target-search dom)]
+    (js/React.addons.TestUtils.Simulate.click ele)
+    )
+  )

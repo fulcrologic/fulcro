@@ -1,6 +1,7 @@
 (ns untangled.state
   (:require [untangled.events :as evt]
             cljs.pprint
+            [untangled.logging :as logging]
             [untangled.application :as app]
             [untangled.history :as h]))
 
@@ -16,15 +17,12 @@
 
 (defn- find-first [pred coll] (first (filter pred coll)))
 
-(defn log [message] (.log js/console message))
-
-
 (defn resolve-data-path [state path-seq]
   (reduce (fn [real-path path-ele]
             (if (sequential? path-ele)
               (do
                 (if (not= 3 (count path-ele))
-                  (log "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY")
+                  (logging/log "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY")
                   (let [vector-key (first path-ele)
                         state-vector (get-in state (conj real-path vector-key))
                         lookup-function (second path-ele)
@@ -34,7 +32,7 @@
                     (if index
                       (conj real-path vector-key index)
                       (do
-                        (log "ERROR: NO ITEM FOUND AT DATA PATH")
+                        (logging/log "ERROR: NO ITEM FOUND AT DATA PATH")
                         (cljs.pprint/pprint path-seq)
                         real-path
                         )
