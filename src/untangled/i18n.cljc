@@ -2,9 +2,14 @@
 
 #?(:cljs (set! js/tr identity))
 #?(:cljs (set! js/trc (fn [ctxt msg] msg)))
-#?(:cljs (set! js/trf (fn [fmt & args] fmt)))
+#?(:cljs
+   (set! js/trf
+         (fn [fmt argmap]
+           (let [formatter (js/IntlMessageFormat. fmt "en-US")]
+             (.format formatter (clj->js argmap))
+             ))))
 
-#?(:cljs (defn format-date 
+#?(:cljs (defn format-date
            "Format a date with an optional style. The default style is :short.
            
            Style can be one of:
@@ -16,13 +21,13 @@
            ([date style] (.toLocaleDateString date))
            ([date] (.toLocaleDateString date))
            ))
-#?(:cljs (defn format-number 
+#?(:cljs (defn format-number
            "Format a number with locale-specific separators (grouping digits, and correct marker for decimal point)"
            [number] number))
-#?(:cljs (defn format-currency 
+#?(:cljs (defn format-currency
            "Format a number as a currency (dropping digits that are insignificant in the current currency.)"
            [number] (.toPrecision number 2)))
-#?(:cljs (defn format-rounded-currency 
+#?(:cljs (defn format-rounded-currency
            "Round and format a number as a currency, according to the current currency's rules."
            [number] (.toPrecision (/ (.round (* 100 number)) 100.0) 2)))
 
