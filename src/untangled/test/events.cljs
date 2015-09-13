@@ -95,3 +95,22 @@
     (js/React.addons.TestUtils.Simulate.click ele)
     )
   )
+
+(defprotocol IEventDetector
+  (clear [this] "Clear all detected events.")
+  (saw? [this evt] "Returns true if this detector has seen the given event.")
+  (trigger-count [this evt] "Returns the number of times the event has been seen.")
+  )
+
+(defrecord EventDetector [events]
+  cljs.core/Fn
+  cljs.core/IFn
+  (-invoke [this evt] (swap! events #(update % evt inc)))
+  IEventDetector
+  (clear [this] (reset! events {}))
+  (saw? [this evt] (contains? @events evt))
+  (trigger-count [this evt] (or (get @events evt) 0))
+  )
+
+(defn event-detector [] (EventDetector. (atom {})))
+

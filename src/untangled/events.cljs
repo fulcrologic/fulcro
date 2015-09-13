@@ -23,7 +23,7 @@
           listener-map (:event-listeners context)]
     (if-let [listener (get listener-map evt)]
       (if (fn? listener)
-        (listener)
+        (listener evt)
         (logging/log "ERROR: TRIGGERED EVENT HANDLER MUST BE A FUNCTION")))
     )
   )

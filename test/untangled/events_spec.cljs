@@ -5,44 +5,54 @@
   (:require [untangled.events :as evts]
             smooth-test.stub
             [cljs.test :refer [do-report]]
+            [untangled.test.events :as evt]
             [untangled.logging :as logging])
   )
 
 (specification "An event trigger -- 'trigger' function"
-               (let [triggered (atom {})
-                     trigger-fn (fn [kw] (swap! triggered assoc kw true))
-                     context-single-listener {:event-listeners [{:a (partial trigger-fn :a)
-                                                                 :b (partial trigger-fn :b)
-                                                                 :c (partial trigger-fn :c)}]}
+               (let [detector (evt/event-detector)
+                     detector2 (evt/event-detector)
+                     context-single-listener {:event-listeners [{:a detector
+                                                                 :b detector
+                                                                 :c detector}]}
                      context-multi-listeners {:event-listeners (conj (:event-listeners context-single-listener)
-                                                                     {:a (partial trigger-fn :a1)
-                                                                      :b (partial trigger-fn :b1)})}
+                                                                     {:a detector2
+                                                                      :b detector2})}
                      context-invalid-listener {:event-listeners [{:a 5}]}
                      single-event :a
                      multi-events [:a :b :c]
                      ]
-                 (behavior "accepts a single event"
-                           (evts/trigger context-single-listener single-event)
+                 (behavior "includes the event name when it:"
+                           (behavior "accepts a single event"
+                                     (evt/clear detector)
 
-                           (is (:a @triggered))
+                                     (evts/trigger context-single-listener single-event)
 
-                           (swap! triggered {}))
-                 (behavior "accepts a list of events"
-                           (evts/trigger context-single-listener multi-events)
+                                     (is (-> detector (evt/saw? :a))))
+                           (behavior "accepts a list of events"
+                                     (evt/clear detector)
+                                     
+                                     (evts/trigger context-single-listener multi-events)
 
-                           (is (and (:a @triggered) (:b @triggered) (:c @triggered)))
+                                     (is (every? #(evt/saw? detector %) [:a :b :c]))
+                                     )
+                           (behavior "invokes each event function that is keyed to that event"
+                                     (evt/clear detector)
+                                     (evt/clear detector2)
+                                     (evts/trigger context-multi-listeners single-event)
 
-                           (swap! triggered {}))
-                 (behavior "invokes each event function that is keyed to that event"
-                           (evts/trigger context-multi-listeners single-event)
-
-                           (is (and (:a @triggered) (:a1 @triggered)))
-
-                           (swap! triggered {}))
+                                     (is (-> detector (evt/saw? :a)))
+                                     (is (-> detector2 (evt/saw? :a)))
+                                     ))
                  (behavior "works if no event handler is present for the given event"
+                           (evt/clear detector)
+                           (evt/clear detector2)
                            (evts/trigger context-multi-listeners multi-events)
 
-                           (is (and (:a @triggered) (:b @triggered) (:c @triggered) (:a1 @triggered) (:b1 @triggered))))
+                           (is (-> detector (evt/saw? :c)))
+                           (is (not (-> detector2 (evt/saw? :c))))
+
+                           )
                  (behavior "logs an error for debugging"
                            (provided "if handler is not a function"
                                      (logging/log msg) =1x=> (is (= "ERROR: TRIGGERED EVENT HANDLER MUST BE A FUNCTION" msg))
