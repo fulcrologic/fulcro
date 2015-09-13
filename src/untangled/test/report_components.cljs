@@ -1,12 +1,11 @@
 (ns ^:figwheel-always untangled.test.report-components
-  (:require [figwheel.client :as fw]
-            [quiescent.core :as q :include-macros true]
-            [quiescent.dom :as d]
-            [untangled.state :as qms]
-            [untangled.events :as evt]
-            [cljs-uuid-utils.core :as uuid]
-            )
-  (:require-macros [untangled.component :as c]))
+  (:require
+    [untangled.component :as c :include-macros true]
+    [untangled.state :as qms]
+    [untangled.events :as evt]
+    [cljs-uuid-utils.core :as uuid]
+    )
+  )
 
 (declare TestItem)
 
@@ -80,18 +79,19 @@
     (= status :failed) "test-failed")
   )
 
+(declare TestResult)
+
 (c/defscomponent TestResult
                  :keyfn :id
                  [test-result context]
-                 (d/li {}
-                       (d/div {}
-                              (if (:message test-result) (d/h3 {} (:message test-result)))
-                              (d/table {} (d/tr {} (d/td {:className "test-result-title"} "In")
-                                                (d/td {:className "test-result"} (d/code {} (:where test-result))))
-                                       (d/tr {} (d/td {:className "test-result-title"} "Actual")
-                                             (d/td {:className "test-result"} (d/code {} (:actual test-result))))
-                                       (d/tr {} (d/td {:className "test-result-title"} "Expected")
-                                             (d/td {:className "test-result"} (d/code {} (:expected test-result)))))
+                 (c/li {}
+                       (c/div {}
+                              (if (:message test-result) (c/h3 {} (:message test-result)))
+                              (c/table {} 
+                                       (c/tr {} (c/td {:className "test-result-title"} "Actual")
+                                             (c/td {:className "test-result"} (c/code {} (:actual test-result))))
+                                       (c/tr {} (c/td {:className "test-result-title"} "Expected")
+                                             (c/td {:className "test-result"} (c/code {} (:expected test-result)))))
                               )
                        )
                  )
@@ -99,13 +99,13 @@
 (c/defscomponent TestItem
                  :keyfn :id
                  [test-item context]
-                 (d/li {:className "test-item"}
-                       (d/div {}
-                              (d/span {:className (itemclass (:status test-item))} (:name test-item))
-                              (d/ul {:className "test-list"}
+                 (c/li {:className "test-item"}
+                       (c/div {}
+                              (c/span {:className (itemclass (:status test-item))} (:name test-item))
+                              (c/ul {:className "test-list"}
                                     (map #(TestResult (result-path %) context) (:test-results test-item))
                                     )
-                              (d/ul {:className "test-list"}
+                              (c/ul {:className "test-list"}
                                     (map #(TestItem (item-path %) context) (:test-items test-item))
                                     )
                               )
@@ -115,10 +115,10 @@
 (c/defscomponent TestNamespace
                  :keyfn :name
                  [tests-by-namespace context]
-                 (d/li {:className "test-item"}
-                       (d/div {:className "test-namespace"}
-                              (d/h2 {:className (itemclass (:status tests-by-namespace))} "Testing " (:name tests-by-namespace))
-                              (d/ul {:className "test-list"}
+                 (c/li {:className "test-item"}
+                       (c/div {:className "test-namespace"}
+                              (c/h2 {:className (itemclass (:status tests-by-namespace))} "Testing " (:name tests-by-namespace))
+                              (c/ul {:className "test-list"}
                                     (map #(TestItem (item-path %) context) (:test-items tests-by-namespace))
                                     )
                               )
@@ -128,9 +128,9 @@
 (c/defscomponent TestReport
                  :keyfn :id
                  [test-report context]
-                 (d/section {:className "test-report"}
+                 (c/section {:className "test-report"}
 
-                            (d/ul {:className "test-list"}
+                            (c/ul {:className "test-list"}
                                   (map #(TestNamespace [:namespaces :name (:name %)] context) (:namespaces test-report))
                                   )
 
@@ -142,8 +142,8 @@
                               (if (< 0 (+ (nth rollup-stats 1) (nth rollup-stats 2)))
                                 (change-favicon-to-color "#d00")
                                 (change-favicon-to-color "#0d0"))
-                              (d/div {:className "test-count"}
-                                     (d/h2 {}
+                              (c/div {:className "test-count"}
+                                     (c/h2 {}
                                            (str "Tested " (count (:namespaces test-report)) " namespaces containing "
                                                 (nth rollup-stats 3) " assertions. "
                                                 (nth rollup-stats 0) " passed " (nth rollup-stats 1) " failed " (nth rollup-stats 2) " errors")

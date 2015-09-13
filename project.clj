@@ -28,5 +28,6 @@
                                :asset-path           "js/test/out"
                                :optimizations        :none}}]}
 
-  :figwheel {:css-dirs ["resources/public/css"]
-             :nrepl-port 7888})
+  :figwheel {
+             :server-port 3450
+             :css-dirs ["resources/public/css"] })

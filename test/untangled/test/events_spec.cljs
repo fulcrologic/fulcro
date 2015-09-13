@@ -2,10 +2,11 @@
   (:require-macros [cljs.test :refer (is deftest testing)]
                    [smooth-test.core :refer (specification behavior provided assertions)]
                    )
-  (:require 
-            smooth-test.stub
-            [cljs.test :refer [do-report]]
-            [untangled.test.events :as evt])
+  (:require
+    smooth-test.stub
+    [cljs.test :refer [do-report]]
+    [untangled.test.events :as evt]
+    [cljs.test :as t])
   )
 
 (specification "Event Detector for detecting events"
@@ -31,5 +32,14 @@
                            (is (= 0 (-> detector (evt/trigger-count :other-event))))
                            (is (= 0 (-> detector (evt/trigger-count :some-event))))
                            (is (= 0 (-> detector (evt/trigger-count :my-event))))
+                           )
+                 (behavior "can act as a test assertion mechanism"
+                           ;; unfortunately we cannot mock testing functions, so this isn't a great test
+                           (evt/clear detector)
+                           (detector :boo)
+                           
+                           ;; make these wrong to see the failure output...TODO: make do-report mockable
+                           (evt/is-seen? detector :boo)
+                           (evt/is-trigger-count detector :boo 1)
                            )
                  ))
