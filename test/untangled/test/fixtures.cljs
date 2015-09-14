@@ -8,6 +8,20 @@
     [untangled.component :as c]))
 
 
+(defn evt-tracker-input [& {:keys [type prop]
+                            :or   {type "text"
+                                   prop (fn [evt] (.-keyCode evt))}}]
+  (let [seqnc (atom [])
+        handler (fn [evt] (swap! seqnc #(conj % (prop evt))))
+        input (render-as-dom
+                (c/input {:type       type
+                          :onClick    handler
+                          :onKeyDown  handler
+                          :onKeyPress handler
+                          :onKeyUp    handler}))]
+    [seqnc input]))
+
+
 (def sample-doc
   (render-as-dom
     (c/div {}

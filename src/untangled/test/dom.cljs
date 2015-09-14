@@ -73,6 +73,7 @@
                   selector (str/join ["[" attr "=" value "]"])]
               (or (.querySelector element selector) nil)))))
 
+
 (defn has-visible-text
   "A test assertion that uses find-element to process search-kind and search-param on the given dom, then
   asserts (cljs.test/is) that the given element has the given text."

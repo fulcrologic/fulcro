@@ -8,9 +8,10 @@
     [untangled.test.assertions :refer [text-matches]]
     [untangled.test.dom :as td]
     smooth-test.stub
-    [cljs.test :refer [do-report]]
+    [untangled.test.fixtures :as f]
     [untangled.test.events :as evt]
-    [untangled.component :as c])
+    [untangled.component :as c]
+    [untangled.core :as core])
   )
 
 (specification "Event Detector for detecting events"
@@ -41,63 +42,47 @@
                            ;; unfortunately we cannot mock testing functions, so this isn't a great test
                            (evt/clear detector)
                            (detector :boo)
-                           
+
                            ;; make these wrong to see the failure output...TODO: make do-report mockable
                            (evt/is-seen? detector :boo)
                            (evt/is-trigger-count detector :boo 1)
                            )
                  ))
 
-(defn evt-tracker-input [& {:keys [type prop]
-                            :or   {type "text"
-                                   prop (fn [evt] (.-keyCode evt))}}]
-  (let [seqnc (atom [])
-        input (td/render-as-dom
-                (c/input {:type type
-                          :onKeyDown  (fn [evt] (swap! seqnc #(conj % (prop evt))))
-                          :onKeyPress (fn [evt] (swap! seqnc #(conj % (prop evt))))
-                          :onKeyUp    (fn [evt] (swap! seqnc #(conj % (prop evt))))}))]
-    [seqnc input]))
 
+(specification "The click function"
+               (behavior "sends a click event"
+                         (let [[seqnc input] (f/evt-tracker-input :type "button" :prop (fn [_] true))]
+                           (evt/click input)
+                           (is (= [true] @seqnc))) )
 
-; TODO: Update this section with Tony's new code.
-;(specification "The click function"
-;               (let [root-context (state/root-context (core/new-application nil {:button {:last-event nil}}))
-;                     rendered-button (td/render-as-dom (f/Button :button root-context))
-;                     get-state (fn [] (:button @(:app-state-atom root-context)))
-;                     last-event (fn [] (:last-event (get-state)))]
-;
-;                 (behavior "sends a click event"
-;                           (is (nil? (last-event)))
-;                           (evt/click rendered-button)
-;                           (is (not (nil? (last-event)))))
-;
-;                 (behavior "allows caller to set event data values"
-;                           (evt/click rendered-button :clientX 20 :altKey true)
-;                           (is (= true (.-altKey (last-event))))
-;                           (is (= 20 (.-clientX (last-event)))))))
+               (behavior "allows caller to set event data values"
+                         (let [[seqnc input] (f/evt-tracker-input :type "button" :prop (fn [evt] evt))]
+                           (evt/click input :clientX 20 :altKey true)
+                           (is (= true (.-altKey (first @seqnc))))
+                           (is (= 20 (.-clientX (first @seqnc)))))))
 
 
 (specification "The double-click function"
                (behavior "is sent to the DOM"
-                         (let [[seqnc input] (evt-tracker-input)]
+                         (let [[seqnc input] (f/evt-tracker-input)]
                            (evt/doubleClick input "")
                            (is (= [] @seqnc)))))
 
 
 (specification "The send-keys function"
                (behavior "sends a single keystroke"
-                         (let [[seqnc input] (evt-tracker-input)]
+                         (let [[seqnc input] (f/evt-tracker-input)]
                            (evt/send-keys input "a")
                            (is (= [97] @seqnc))))
 
                (behavior "sends a sequence of keystrokes"
-                         (let [[seqnc input] (evt-tracker-input)]
+                         (let [[seqnc input] (f/evt-tracker-input)]
                            (evt/send-keys input "aA1!")
                            (is (= [97 65 49 33] @seqnc))))
 
                (behavior "does nothing when an empty string is provided"
-                         (let [[seqnc input] (evt-tracker-input)]
+                         (let [[seqnc input] (f/evt-tracker-input)]
                            (evt/send-keys input "")
                            (is (= [] @seqnc))))
 
