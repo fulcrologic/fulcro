@@ -13,7 +13,7 @@
             [cljs.test :as test :include-macros true :refer [report]]))
 
 
-(test-suite dom-report 
+(test-suite dom-report
             'untangled.test.dom-spec
             'untangled.state-spec
             'untangled.test.events-spec
