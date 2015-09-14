@@ -80,7 +80,7 @@
   [text-or-regex search-kind search-param dom]
   (if-let [ele (find-element search-kind search-param dom)]
     (if-not (node-contains-text? text-or-regex ele)
-      (t/do-report {:type :fail :actual (.-innerHTML ele) :expected text-or-regex})
+      (t/do-report {:type :fail :actual (gd/getTextContent ele) :expected text-or-regex})
       (t/do-report {:type :pass })
       )
     (t/do-report {:type     :error :message (str "Could not find element " search-kind search-param)
