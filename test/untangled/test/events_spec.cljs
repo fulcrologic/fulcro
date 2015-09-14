@@ -64,10 +64,16 @@
 
 
 (specification "The double-click function"
-               (behavior "is sent to the DOM"
-                         (let [[seqnc input] (f/evt-tracker-input)]
-                           (evt/doubleClick input "")
-                           (is (= [] @seqnc)))))
+               (behavior "sends a click event"
+                         (let [[seqnc input] (f/evt-tracker-input :type "button" :prop (fn [_] true))]
+                           (evt/doubleClick input)
+                           (is (= [true] @seqnc))) )
+
+               (behavior "allows caller to set event data values"
+                         (let [[seqnc input] (f/evt-tracker-input :type "button" :prop (fn [evt] evt))]
+                           (evt/doubleClick input :clientX 20 :altKey true)
+                           (is (= true (.-altKey (first @seqnc))))
+                           (is (= 20 (.-clientX (first @seqnc)))))))
 
 
 (specification "The send-keys function"
