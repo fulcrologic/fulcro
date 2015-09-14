@@ -8,8 +8,7 @@
                  [quiescent "0.2.0-RC1"]
                  [org.clojure/clojurescript "1.7.48"]
                  [smooth-test "0.1.0-SNAPSHOT"]
-                 [differ "0.2.1"]
-                 ]
+                 [differ "0.2.1"] ]
 
   :source-paths ["src"]
   

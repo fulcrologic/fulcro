@@ -33,16 +33,11 @@
     (change-favicon-to-color "#d00")
     (change-favicon-to-color "#0d0")))
 
-;(defn run-all-tests []
-;  ;(run-tests 'untangled.test.dom-spec)
-;  ;(run-tests 'untangled.test.events-spec)
-;  (run-tests 'untangled.history-spec)
-;  ;(run-tests 'untangled.core-spec)
-;  )
 (defn run-all-tests []
   ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.history-spec)
   ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.state-spec)
-  (run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.test.dom-spec)
+  ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.test.dom-spec)
+  ;(run-tests (cljs.test/empty-env :smooth-test.report/console) 'untangled.test.events-spec)
   )
 
 (defn on-load []
