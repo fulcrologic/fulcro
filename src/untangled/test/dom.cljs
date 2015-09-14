@@ -73,13 +73,14 @@
                   selector (str/join ["[" attr "=" value "]"])]
               (or (.querySelector element selector) nil)))))
 
+
 (defn has-visible-text
   "A test assertion that uses find-element to process search-kind and search-param on the given dom, then
   asserts (cljs.test/is) that the given element has the given text."
   [text-or-regex search-kind search-param dom]
   (if-let [ele (find-element search-kind search-param dom)]
     (if-not (node-contains-text? text-or-regex ele)
-      (t/do-report {:type :fail :actual (.-innerHTML ele) :expected text-or-regex})
+      (t/do-report {:type :fail :actual (gd/getTextContent ele) :expected text-or-regex})
       (t/do-report {:type :pass })
       )
     (t/do-report {:type     :error :message (str "Could not find element " search-kind search-param)
