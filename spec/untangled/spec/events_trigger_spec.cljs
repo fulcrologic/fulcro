@@ -1,9 +1,9 @@
 (ns untangled.spec.events-trigger-spec
   (:require-macros [cljs.test :refer (is deftest testing)]
-                   [smooth-test.core :refer (specification behavior provided assertions)]
+                   [smooth-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require [untangled.events :as evts]
-            smooth-test.stub
+            smooth-spec.stub
             [cljs.test :refer [do-report]]
             [untangled.test.events :as evt]
             [untangled.logging :as logging])

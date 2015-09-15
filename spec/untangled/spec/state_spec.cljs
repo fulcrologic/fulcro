@@ -1,12 +1,12 @@
 (ns untangled.spec.state-spec
   (:require-macros [cljs.test :refer (is deftest testing)]
-                   [smooth-test.core :refer (specification behavior provided assertions)]
+                   [smooth-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require [untangled.history :as h]
             [untangled.state :as state]
             [untangled.logging :as logging]
-            smooth-test.stub
             [cljs.test :refer [do-report]]
+            smooth-spec.stub
             [untangled.core :as core]
             [untangled.application :as app]
             [untangled.events :as evt])

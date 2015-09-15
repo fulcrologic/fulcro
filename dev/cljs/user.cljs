@@ -9,6 +9,7 @@
             untangled.spec.events-trigger-spec
             untangled.spec.history-spec
             untangled.spec.state-spec
+            untangled.spec.local-storage-io-spec
             [cljs.test :as test :include-macros true :refer [report]]))
 
 
@@ -19,6 +20,7 @@
             'untangled.spec.events-trigger-spec
             'untangled.spec.history-spec
             'untangled.spec.state-spec
+            'untangled.spec.local-storage-io-spec
             )
 
 

@@ -1,6 +1,6 @@
 (ns untangled.spec.core-spec
   (:require-macros [cljs.test :refer (is deftest run-tests testing)]
-                   [smooth-test.core :refer (specification behavior provided assertions)])
+                   [smooth-spec.core :refer (specification behavior provided assertions)])
   (:require [cljs.test :refer [do-report]]
             [untangled.core :refer [translate-item-path]]
             )
