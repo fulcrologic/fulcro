@@ -3,10 +3,15 @@
                    [smooth-test.core :refer (specification behavior provided assertions)]
                    )
   (:require
-    smooth-test.stub
+    [quiescent.core :include-macros true]
     [cljs.test :refer [do-report]]
+    [untangled.test.assertions :refer [text-matches]]
+    [untangled.test.dom :as td]
+    smooth-test.stub
+    [untangled.test.fixtures :as f]
     [untangled.test.events :as evt]
-    [cljs.test :as t])
+    [untangled.component :as c]
+    [untangled.core :as core])
   )
 
 (specification "Event Detector for detecting events"
@@ -37,9 +42,56 @@
                            ;; unfortunately we cannot mock testing functions, so this isn't a great test
                            (evt/clear detector)
                            (detector :boo)
-                           
+
                            ;; make these wrong to see the failure output...TODO: make do-report mockable
                            (evt/is-seen? detector :boo)
                            (evt/is-trigger-count detector :boo 1)
                            )
                  ))
+
+
+(specification "The click function"
+               (behavior "sends a click event"
+                         (let [[seqnc input] (f/evt-tracker-input :type "button" :prop (fn [_] true))]
+                           (evt/click input)
+                           (is (= [true] @seqnc))) )
+
+               (behavior "allows caller to set event data values"
+                         (let [[seqnc input] (f/evt-tracker-input :type "button" :prop (fn [evt] evt))]
+                           (evt/click input :clientX 20 :altKey true)
+                           (is (= true (.-altKey (first @seqnc))))
+                           (is (= 20 (.-clientX (first @seqnc)))))))
+
+
+(specification "The double-click function"
+               (behavior "sends a click event"
+                         (let [[seqnc input] (f/evt-tracker-input :type "button" :prop (fn [_] true))]
+                           (evt/doubleClick input)
+                           (is (= [true] @seqnc))) )
+
+               (behavior "allows caller to set event data values"
+                         (let [[seqnc input] (f/evt-tracker-input :type "button" :prop (fn [evt] evt))]
+                           (evt/doubleClick input :clientX 20 :altKey true)
+                           (is (= true (.-altKey (first @seqnc))))
+                           (is (= 20 (.-clientX (first @seqnc)))))))
+
+
+(specification "The send-keys function"
+               (behavior "sends a single keystroke"
+                         (let [[seqnc input] (f/evt-tracker-input)]
+                           (evt/send-keys input "a")
+                           (is (= [97] @seqnc))))
+
+               (behavior "sends a sequence of keystrokes"
+                         (let [[seqnc input] (f/evt-tracker-input)]
+                           (evt/send-keys input "aA1!")
+                           (is (= [97 65 49 33] @seqnc))))
+
+               (behavior "does nothing when an empty string is provided"
+                         (let [[seqnc input] (f/evt-tracker-input)]
+                           (evt/send-keys input "")
+                           (is (= [] @seqnc))))
+
+               (behavior "complains when the first argument is not a DOM element"
+                         (is (thrown? js/Error (evt/send-keys {} "a") "- using goog.dom/isElement"))))
+
