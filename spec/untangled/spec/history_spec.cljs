@@ -1,4 +1,4 @@
-(ns untangled.history-spec
+(ns untangled.spec.history-spec
   (:require-macros [cljs.test :refer (is deftest testing)]
                    [smooth-test.core :refer (specification behavior provided assertions)]
                    )

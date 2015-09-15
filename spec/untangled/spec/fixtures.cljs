@@ -1,4 +1,4 @@
-(ns untangled.test.fixtures
+(ns untangled.spec.fixtures
   (:require-macros [untangled.component :as cm])
   (:require
     [quiescent.core :include-macros true]

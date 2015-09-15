@@ -1,4 +1,4 @@
-(ns untangled.test.dom-spec
+(ns untangled.spec.dom-spec
   (:require-macros [smooth-test.core :refer (specification behavior provided assertions)]
                    [cljs.test :refer (is deftest run-tests testing)]
                    [untangled.test.suite :refer [test-suite]])
@@ -7,7 +7,7 @@
     [goog.dom :as gd]
     [quiescent.core :include-macros true]
     [untangled.test.assertions :refer [text-matches]]
-    [untangled.test.fixtures :as f]
+    [untangled.spec.fixtures :as f]
     [cljs.test :refer [do-report]]
     [untangled.test.dom :refer [node-contains-text?
                                 find-element
