@@ -60,7 +60,7 @@
 
   Returns a rendered HTML element or nil if no match is found.
   "
-  [element keyword value]
+  [keyword value element]
   (let [keyword-str (name keyword)]
     (cond
       (re-find #"-text$" keyword-str)
