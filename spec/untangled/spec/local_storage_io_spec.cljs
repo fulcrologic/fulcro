@@ -1,7 +1,8 @@
 (ns untangled.spec.local-storage-io-spec
   (:require-macros [cljs.test :refer (is deftest run-tests testing)]
-                   [smooth-spec.core :refer (specification behavior provided assertions with-timeline async)])
+                   [smooth-spec.core :refer (specification behavior provided assertions with-timeline async tick)])
   (:require [cljs.test :refer [do-report]]
+            [smooth-spec.async]
             [untangled.services.asyncio :as aio]
             [untangled.services.local-storage :as ls]
             [untangled.services.async-report :as ar]
@@ -14,7 +15,7 @@
     "with no simulated delay or simulated timeout"
     (behavior "save of a new item adds the item to local storage and returns the saved item with a generated id"
               (let [async-report (ar/new-async-report #() #() #())
-                    localio (ls/new-local-storage async-report 0 0)
+                    localio (ls/new-local-storage async-report 0)
                     state (atom [])
                     goodfn (fn [data] (reset! state data))
                     badfn (fn [error] (reset! state error))
@@ -29,7 +30,7 @@
               )
     (behavior "save updates an existing item and returns the saved item"
               (let [async-report (ar/new-async-report #() #() #())
-                    localio (ls/new-local-storage async-report 0 0)
+                    localio (ls/new-local-storage async-report 0)
                     state (atom [])
                     goodfn (fn [data] (reset! state data))
                     badfn (fn [error] (reset! state error))
@@ -46,7 +47,7 @@
               )
     (behavior "fetch returns a single saved item"
               (let [async-report (ar/new-async-report #() #() #())
-                    localio (ls/new-local-storage async-report 0 0)
+                    localio (ls/new-local-storage async-report 0)
                     state (atom [])
                     goodfn (fn [data] (reset! state data))
                     badfn (fn [error] (reset! state error))
@@ -61,7 +62,7 @@
               )
     (behavior "query returns a list of saved items"
               (let [async-report (ar/new-async-report #() #() #())
-                    localio (ls/new-local-storage async-report 0 0)
+                    localio (ls/new-local-storage async-report 0)
                     state (atom [])
                     goodfn (fn [data] (reset! state data))
                     badfn (fn [error] (reset! state error))
@@ -80,7 +81,7 @@
               )
     (behavior "delete deletes a single saved item"
               (let [async-report (ar/new-async-report #() #() #())
-                    localio (ls/new-local-storage async-report 0 0)
+                    localio (ls/new-local-storage async-report 0)
                     state (atom [])
                     goodfn (fn [data] (reset! state data))
                     badfn (fn [error] (reset! state error))
@@ -101,7 +102,7 @@
               )
     (behavior "fetch returns an error if the item is not found"
               (let [async-report (ar/new-async-report #() #() #())
-                    localio (ls/new-local-storage async-report 0 0)
+                    localio (ls/new-local-storage async-report 0)
                     state (atom [])
                     goodfn (fn [data] (reset! state data))
                     badfn (fn [error] (reset! state error))
@@ -117,7 +118,7 @@
               )
     (behavior "delete returns an error if the item is not found"
               (let [async-report (ar/new-async-report #() #() #())
-                    localio (ls/new-local-storage async-report 0 0)
+                    localio (ls/new-local-storage async-report 0)
                     state (atom [])
                     goodfn (fn [data] (reset! state data))
                     badfn (fn [error] (reset! state error))
@@ -133,7 +134,7 @@
               )
     (behavior "query returns an empty list if no data is found"
               (let [async-report (ar/new-async-report #() #() #())
-                    localio (ls/new-local-storage async-report 0 0)
+                    localio (ls/new-local-storage async-report 0)
                     state (atom [])
                     goodfn (fn [data] (reset! state data))
                     badfn (fn [error] (reset! state error))
@@ -146,26 +147,106 @@
               ))
   (behavior
     "with simulated delay"
-    (behavior "save sets the value after the timeout period has passed"
-              ;(with-timeline
-              ;
-              ;
-              ;
-              ;  )
+    (behavior "save calls the good callback after the timeout period has passed"
+              (with-timeline
+                (let [async-report (ar/new-async-report #() #() #())
+                      localio (ls/new-local-storage async-report 100)
+                      state (atom [])
+                      goodfn (fn [data] (reset! state data))
+                      badfn (fn [error] (reset! state error))
+                      ]
+                  (provided "when mocking setTimeout"
+                            (js/setTimeout f n) => (async n (f))
+                            (aio/save localio "testuri" goodfn badfn {:a 1})
+                            (behavior "nothing is called until after the simualed delay is passed"
+                                      (is (= @state []))
+                                      )
+                            (behavior "item is saved when simualed delay is passed"
+                                      (tick 100)
+                                      (is (= (:a @state) 1))
+                                      )
+                            )
+                  )
+                )
               )
-
+    (behavior "query calls the good callback after the timeout period has passed"
+              (with-timeline
+                (let [async-report (ar/new-async-report #() #() #())
+                      localio (ls/new-local-storage async-report 100)
+                      state (atom [])
+                      goodfn (fn [data] (reset! state data))
+                      badfn (fn [error] (reset! state error))
+                      ]
+                  (provided "when mocking setTimeout"
+                            (js/setTimeout f n) =5=> (async n (f))
+                            (aio/save localio "testuri" #() #() {:id "item1" :a 1})
+                            (tick 100)
+                            (aio/save localio "testuri" #() #() {:id "item2" :a 2})
+                            (tick 100)
+                            (aio/save localio "testuri" #() #() {:id "item3" :a 3})
+                            (tick 100)
+                            (aio/save localio "testuri" #() #() {:id "item4" :a 4})
+                            (tick 100)
+                            (aio/query localio "testuri" goodfn badfn)
+                            (behavior "nothing is called until after the simualed delay is passed"
+                                      (is (= @state []))
+                                      )
+                            (behavior "query has returend when simualed delay is passed"
+                                      (tick 100)
+                                      (is (= (count @state) 4))
+                                      )
+                            )
+                  )
+                )
+              )
+    (behavior "fetch calls the good callback after the timeout period has passed"
+              (with-timeline
+                (let [async-report (ar/new-async-report #() #() #())
+                      localio (ls/new-local-storage async-report 100)
+                      state (atom [])
+                      goodfn (fn [data] (reset! state data))
+                      badfn (fn [error] (reset! state error))
+                      ]
+                  (provided "when mocking setTimeout"
+                            (js/setTimeout f n) =2=> (async n (f))
+                            (aio/save localio "testuri" #() #() {:id "item1" :a 1})
+                            (tick 100)
+                            (aio/fetch localio "testuri" goodfn badfn "item1")
+                            (behavior "nothing is called until after the simualed delay is passed"
+                                      (is (= @state []))
+                                      )
+                            (behavior "fetch has happened when simualed delay is passed"
+                                      (tick 100)
+                                      (is (= (:a @state) 1))
+                                      )
+                            )
+                  )
+                )
+              )
+    (behavior "delete calls the good callback after the timeout period has passed"
+              (with-timeline
+                (let [async-report (ar/new-async-report #() #() #())
+                      localio (ls/new-local-storage async-report 100)
+                      state (atom [])
+                      goodfn (fn [data] (reset! state data))
+                      badfn (fn [error] (reset! state error))
+                      ]
+                  (provided "when mocking setTimeout"
+                            (js/setTimeout f n) =2=> (async n (f))
+                            (aio/save localio "testuri" #() #() {:id "item1" :a 1})
+                            (tick 100)
+                            (aio/delete localio "testuri" goodfn badfn "item1")
+                            (behavior "nothing is called until after the simualed delay is passed"
+                                      (is (= @state []))
+                                      )
+                            (behavior "item is deleted when simualed delay is passed"
+                                      (tick 100)
+                                      (is (= @state "item1"))
+                                      )
+                            )
+                  )
+                )
+              )
     )
-  ;(behavior "query has an error it times out"
-  ;          (is (= 1 2))
-  ;          )
-  ;(behavior "fetch has an error it times out"
-  ;          (is (= 1 2))
-  ;          )
-  ;(behavior "delete has an error it times out"
-  ;          (is (= 1 2))
-  ;          )
-  ;(behavior "save has an error it times out"
-  ;          (is (= 1 2))
-  ;          )
   )
 
