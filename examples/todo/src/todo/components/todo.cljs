@@ -105,7 +105,7 @@
                   (d/section {:className "todoapp"}
                              (d/header {:className "header"}
                                        (d/h1 {} "todos")
-                                       (text-input {:className "new-todo" :placeholder (trf "What needs to be done?" 1 2 3)}
+                                       (text-input {:className "new-todo" :placeholder (tr "What needs to be done?")}
                                                    (:new-item-label todo-list) (op add-item) (op cancel-add) set-new-item-label op)
                                        )
                              (d/section {:className "main"}

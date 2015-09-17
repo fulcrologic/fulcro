@@ -3,24 +3,26 @@
                     :refer (is deftest run-tests testing)]
                    [untangled.test.suite :refer [test-suite]])
   (:require cljs.core
-            untangled.spec.core-spec
-            untangled.spec.dom-spec
-            untangled.spec.events-spec
-            untangled.spec.events-trigger-spec
-            untangled.spec.history-spec
-            untangled.spec.state-spec
-            untangled.spec.local-storage-io-spec
+            untangled.core-spec
+            untangled.events-spec
+            untangled.history-spec
+            untangled.state-spec
+            untangled.i18n-spec
+            untangled.test.dom-spec
+            untangled.test.events-spec
+            untangled.services.local-storage-io-spec
             [cljs.test :as test :include-macros true :refer [report]]))
 
 
 (test-suite dom-report
-            'untangled.spec.core-spec
-            'untangled.spec.dom-spec
-            'untangled.spec.events-spec
-            'untangled.spec.events-trigger-spec
-            'untangled.spec.history-spec
-            'untangled.spec.state-spec
-            'untangled.spec.local-storage-io-spec
+            'untangled.core-spec
+            'untangled.events-spec
+            'untangled.history-spec
+            'untangled.state-spec
+            'untangled.i18n-spec
+            'untangled.test.dom-spec
+            'untangled.test.events-spec
+            'untangled.services.local-storage-io-spec
             )
 
 
@@ -28,3 +30,4 @@
   (dom-report)
   )
 
+(dom-report)

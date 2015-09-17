@@ -1,4 +1,4 @@
-(ns untangled.spec.events-trigger-spec
+(ns untangled.events-spec
   (:require-macros [cljs.test :refer (is deftest testing)]
                    [smooth-spec.core :refer (specification behavior provided assertions)]
                    )

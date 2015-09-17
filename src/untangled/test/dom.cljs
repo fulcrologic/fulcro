@@ -20,7 +20,7 @@
 
 (defn is-rendered-element?
   "Returns a boolean indicating whether the argument is an HTML element that has
-  been rendered to the DOM."                
+  been rendered to the DOM."
   [obj]
   (let [is-dom-element? (gd/isElement obj)
         is-react-element? (js/React.isValidElement obj)
@@ -43,6 +43,7 @@
           text (gd/getTextContent dom-node)]
       (.test regex text))))
 
+(defn tag-name [ele] (str/lower-case (.-tagName ele)))
 
 (defn find-element
   "
@@ -60,12 +61,12 @@
 
   Returns a rendered HTML element or nil if no match is found.
   "
-  [element keyword value]
+  [keyword value element]
   (let [keyword-str (name keyword)]
     (cond
       (re-find #"-text$" keyword-str)
       (let [tagname (str/lower-case (re-find #"^\w+" keyword-str))]
-        (gd/findNode element (fn [e] (and (node-contains-text? value e) (= tagname (str/lower-case (.-tagName e)))))))
+        (gd/findNode element (fn [e] (and (node-contains-text? value e) (= tagname (tag-name e))))))
       (= keyword :key) (.querySelector element (str/join ["[data-reactid$='$" value "'"]))
       (= keyword :class) (.querySelector element (str "." value))
       (= keyword :selector) (or (.querySelector element value) nil)
@@ -81,11 +82,30 @@
   (if-let [ele (find-element search-kind search-param dom)]
     (if-not (node-contains-text? text-or-regex ele)
       (t/do-report {:type :fail :actual (gd/getTextContent ele) :expected text-or-regex})
-      (t/do-report {:type :pass })
+      (t/do-report {:type :pass})
       )
-    (t/do-report {:type     :error :message (str "Could not find element " search-kind search-param)
+    (t/do-report {:type     :error :message (str "Could not find element " search-kind " " search-param)
                   :expected "DOM element" :actual "Nil"
                   })
     )
   )
 
+
+(defn has-selected-option [search-type search-value dom-with-select selected-value]
+  (if-let [ele (find-element search-type search-value dom-with-select)]
+    (if (= "select" (tag-name ele))
+      (let [selection (.-value ele)]
+        (if (= selection selected-value)
+          (t/do-report {:type :pass})
+          (t/do-report {:type :fail :actual selection :expected selected-value})
+          )
+        )
+      (t/do-report {:type     :error :message (str "Element at " search-type " " search-value " IS NOT a SELECT")
+                    :expected "select" :actual (tag-name ele)
+                    })
+      )
+    (t/do-report {:type     :error :message (str "Could not find a select element at " search-type " " search-value)
+                  :expected "DOM element" :actual "Nil"
+                  })
+    )
+  )
