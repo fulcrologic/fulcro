@@ -147,6 +147,7 @@
     (swap! app-state #(assoc % :time (js/Date.)))
     (untangled.application/render this)
     )
+  (top-context [this] (qms/new-sub-context (qms/root-context this) :top {}))
   (state-changed [this old-state new-state] (untangled.application/render this))
   (current-state [this] (-> @app-state :top))
   (current-state [this subpath] (get-in (-> @app-state :top) subpath))
