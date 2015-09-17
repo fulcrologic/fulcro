@@ -5,3 +5,4 @@
 (defn cl [form] `(doto ~form (js/console.log)))
 
 (alter-var-root #'*cljs-data-readers* assoc 'spy pp 'log cl)
+
