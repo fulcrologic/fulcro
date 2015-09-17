@@ -9,10 +9,11 @@
                  [org.clojure/clojurescript "1.7.48"]
                  [smooth-spec "0.1.0-SNAPSHOT"]
                  [differ "0.2.1"]
+                 [org.clojure/data.json "0.2.6"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  ]
 
-  :source-paths ["src"]
+  :source-paths ["src" "spec"]
   
   :plugins [[lein-cljsbuild "1.0.5"]
             [lein-figwheel "0.3.9"]]
