@@ -4,7 +4,7 @@
 #?(:cljs (set! js/trc (fn [ctxt msg] msg)))
 #?(:cljs
    (set! js/trf
-         (fn [fmt argmap]
+         (fn [fmt & {:keys [] :as argmap}]
            (let [formatter (js/IntlMessageFormat. fmt "en-US")]
              (.format formatter (clj->js argmap))
              ))))

@@ -7,6 +7,7 @@
             untangled.events-spec
             untangled.history-spec
             untangled.state-spec
+            untangled.i18n-spec
             untangled.test.dom-spec
             untangled.test.events-spec
             untangled.services.local-storage-io-spec
@@ -18,6 +19,7 @@
             'untangled.events-spec
             'untangled.history-spec
             'untangled.state-spec
+            'untangled.i18n-spec
             'untangled.test.dom-spec
             'untangled.test.events-spec
             'untangled.services.local-storage-io-spec
