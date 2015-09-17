@@ -107,7 +107,7 @@
   event handlers the child can trigger on the parent."
   ([context id handler-map]
    (cond-> (assoc context :scope (conj (:scope context) id))
-           handler-map (assoc :event-listeners handler-map)
+           handler-map (assoc :event-listeners (concat (:event-listeners context) handler-map))
            ))
   ([context id handler-map child-publish-set]
    (cond-> (new-sub-context context id handler-map)
@@ -153,3 +153,39 @@
   "Exactly equivalent to (partial context-operator context). See context-operator for details."
   [context]
   (partial context-operator context))
+
+(defn list-element-id 
+  "Construct a proper sub-element ID for a list in a component's state.
+  
+  Parameters:
+  - `current-component-data` The full data of the component being rendered
+  - `subcomponent-id` The keyword used to find the sub-list (which must be a vector) in the current component's state.
+  - `subelement-keyword` The keyword used within the list **items** that uniquely identifies that item. MUST exist and not change over time.
+  - `desired sub-element` An instance of an item (the entire item, not it's key) from the sublist
+  
+  Returns an Untangled ID that uniquely identifies the supplied item for the rendering system.
+  
+  For example, in the state:
+  
+       (def a { :k 1 :v 1 })
+       (def b { :k 1 :v 2 })
+       
+       ...
+       :state {
+            :list [ a b ]
+            }
+    
+  in the renderer:
+  
+       (defscomponent Thing [data context]
+         (let [element-id (partial list-element-id data :state :k)]
+            (ul {}
+               (map 
+                  (fn [item] (SubComponent (element-id item) context)) 
+                  (:items data))
+             )))
+  "
+  [current-component-data subcomponent-id subelement-keyword desired-subelement]
+  (let [subcomponent-data (get current-component-data subcomponent-id)
+        subelement-key (get desired-subelement subelement-keyword)]
+    [subcomponent-id subelement-keyword subelement-key]))

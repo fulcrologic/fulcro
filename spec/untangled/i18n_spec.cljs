@@ -3,13 +3,19 @@
                    [smooth-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require [untangled.history :as h]
-            [untangled.i18n :refer-macros [tr trf trc]]
+            [untangled.i18n :refer-macros [tr trf trc trlambda]]
             [cljs.test :refer [do-report]])
   )
 
 (specification "Base translation -- tr"
                (behavior "returns the string it is passed if there is no translation"
                          (is (= "Hello" (tr "Hello")))
+                         )
+               )
+
+(specification "Base translation lambda -- trlambda"
+               (behavior "returns a function, which when called, does the translation."
+                         (is (= "Hello" ((trlambda "Hello"))))
                          )
                )
 

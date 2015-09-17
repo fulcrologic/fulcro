@@ -158,10 +158,10 @@
           (:event-listeners (state/new-sub-context context :id [{:datePicked 'func}])) => [{:datePicked 'func}]
           ))
       (behavior
-        "clears the event map entries from the parent context"
+        "accumulates the event map entries from the parent context in vector (add-last) order"
         (let [parent-context (state/new-sub-context context :id [{:datePicked 'f1}])]
           (assertions
-            (:event-listeners (state/new-sub-context parent-context :id [{:datePicked 'func}])) => [{:datePicked 'func}]
+            (:event-listeners (state/new-sub-context parent-context :id [{:datePicked 'func}])) => [{:datePicked 'f1} {:datePicked 'func}]
             ))
         )
       (behavior
