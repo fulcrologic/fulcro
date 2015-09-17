@@ -1,4 +1,4 @@
-(ns untangled.spec.local-storage-io-spec
+(ns untangled.services.local-storage-io-spec
   (:require-macros [cljs.test :refer (is deftest run-tests testing)]
                    [smooth-spec.core :refer (specification behavior provided assertions with-timeline async tick)])
   (:require [cljs.test :refer [do-report]]

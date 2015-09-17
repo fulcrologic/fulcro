@@ -1,4 +1,4 @@
-(ns untangled.spec.state-spec
+(ns untangled.state-spec
   (:require-macros [cljs.test :refer (is deftest testing)]
                    [smooth-spec.core :refer (specification behavior provided assertions)]
                    )
