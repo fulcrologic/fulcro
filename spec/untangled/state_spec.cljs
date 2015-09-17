@@ -65,7 +65,8 @@
                  ))
 
 (specification "the context-data function"
-               (let [state {:a {:b [{:k 2} {:k 1}]}}
+               (let [state {:a {:form/locale "en-US"
+                                :b           [{:k 2 :v {:boo 22}} {:k 1}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
                      context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1]])
                      ]
@@ -74,6 +75,23 @@
                                      (state/data-path ctx) =1x=> [:top :a :b 1]
 
                                      (is (= (state/context-data context-with-sublist-path) {:k 1})))
+                           )
+                 (behavior "includes a copy of published parent data"
+                           (let [root (state/root-context the-application)
+                                 top (state/new-sub-context root :top [])
+                                 context1 (state/new-sub-context top :a [] #{:form/locale})
+                                 context2 (state/new-sub-context context1 [:b :k 2] [])
+                                 context3 (state/new-sub-context context2 :v [])
+                                 ]
+                             (assertions
+                               (-> context1 :to-publish) => #{:form/locale}
+                               (-> (state/context-data context1) :form/locale) => "en-US"
+                               (-> context2 :to-publish) => #{:form/locale}
+                               (-> (state/context-data context2) :form/locale) => "en-US"
+                               (-> context3 :to-publish) => #{:form/locale}
+                               (-> (state/context-data context3) :form/locale) => "en-US"
+                               )
+                             )
                            )))
 
 (specification "the update-in-context function"
@@ -124,20 +142,44 @@
                                                              )
                                                            )))))))
 
-(specification "the new-scope function"
-               (let [context (state/root-context "mock application")]
-                 (behavior "creates a new context representing one of its children's context"
-                           (behavior "with the proper new scope"
-                                     (assertions
-                                       (:scope (state/new-sub-context context :id {})) => [:id]
-                                       ))
-                           (behavior "and the additional event handlers"
-                                     (assertions
-                                       (:event-listeners (state/new-sub-context context :id [{:datePicked 'func}])) => [{:datePicked 'func}]
-                                       ))
-                           ))
+(specification
+  "the new-scope function"
+  (let [context (state/root-context "mock application")]
+    (behavior
+      "creates a new context representing one of its children's contexts"
+      (behavior
+        "with the proper new scope"
+        (assertions
+          (:scope (state/new-sub-context context :id {})) => [:id]
+          ))
+      (behavior
+        "sets the event handlers"
+        (assertions
+          (:event-listeners (state/new-sub-context context :id [{:datePicked 'func}])) => [{:datePicked 'func}]
+          ))
+      (behavior
+        "clears the event map entries from the parent context"
+        (let [parent-context (state/new-sub-context context :id [{:datePicked 'f1}])]
+          (assertions
+            (:event-listeners (state/new-sub-context parent-context :id [{:datePicked 'func}])) => [{:datePicked 'func}]
+            ))
+        )
+      (behavior
+        "can include a published state set"
+        (let [parent-context (state/new-sub-context context :id [] #{:form/locale})]
+          (is (= #{:form/locale} (:to-publish parent-context)))
+          ))
+      (behavior
+        "propagates the published state set from the parent context to the sub-context"
+        (let [parent-context (state/new-sub-context context :id [] #{:form/locale})
+              child-context (state/new-sub-context parent-context :other [])
+              ]
+          (is (= #{:form/locale} (:to-publish child-context)))
+          )
+        )
+      ))
 
-               )
+  )
 
 (specification "the contex-operator function"
                (behavior "generates a function"

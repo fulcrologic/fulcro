@@ -1,6 +1,7 @@
 (ns untangled.state
   (:require [untangled.events :as evt]
             cljs.pprint
+            [clojure.set :refer [union]]
             [untangled.logging :as logging]
             [untangled.application :as app]
             [untangled.history :as h]))
@@ -53,13 +54,34 @@
     (resolve-data-path state path-seq)
     ))
 
+(defn parent-data
+  "Find data with the given key recursively in parent(s) of the given context. 
+  Searches up in the context scopes until it finds data for the given key.
+  Returns nil if no such data can be found"
+  [context key]
+  (let [state-atom (-> context :application :app-state)]
+    (loop [parent-scope (vec (butlast (:scope context)))]
+      (let [path (conj (resolve-data-path @state-atom parent-scope) key)
+            value (get-in @state-atom path)]
+        (cond
+          (<= (count path) 1) nil
+          value value
+          :else (recur (vec (butlast parent-scope)))
+          ))))
+  )
+
 (defn context-data
-  "Extract the data for the component indicated by the given context."
+  "Extract the data for the component indicated by the given context. If the context indicates there is published
+  state from a parent, then that published state will be included in the data."
   [context]
   (let [state-atom (-> context :application :app-state)
         path (data-path context)
+        to-copy (-> context :to-publish)
+        extra-data (into {} (map #(vector % (parent-data context %)) to-copy))
         ]
-    (get-in @state-atom path)))
+    (cond->> (get-in @state-atom path)
+             (not-empty to-copy) (merge extra-data)
+             )))
 
 (defn update-in-context
   "Update the application state by applying the given operation to the state of the component implied by
@@ -75,7 +97,7 @@
     (swap! history-atom #(h/record % history-entry))
     (swap! state-atom (fn [old-state]
                         (-> old-state
-                            (assoc :time (h/now)) 
+                            (assoc :time (h/now))
                             (update-in path operation))))
     (app/state-changed application old-state @state-atom)
     ))
@@ -83,10 +105,14 @@
 (defn new-sub-context
   "Create a new context (scope) which represents a child's context. Also installs the given handler map as a list of
   event handlers the child can trigger on the parent."
-  [context id handler-map]
-  (cond-> (assoc context :scope (conj (:scope context) id))
-          handler-map (assoc :event-listeners (concat (:event-listeners context) handler-map))
-          )
+  ([context id handler-map]
+   (cond-> (assoc context :scope (conj (:scope context) id))
+           handler-map (assoc :event-listeners handler-map)
+           ))
+  ([context id handler-map child-publish-set]
+   (cond-> (new-sub-context context id handler-map)
+           child-publish-set (update :to-publish (partial union child-publish-set))
+           ))
   )
 
 (defn context-operator

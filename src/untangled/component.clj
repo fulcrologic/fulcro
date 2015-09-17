@@ -21,9 +21,10 @@
    For example:
  
          (defscomponent Widget
-           'A Widget'
+           \"A Widget\"
            :keyfn #(...)
            :on-render #(...)
+           :publish #{ :widget/local-state }
            [data app-state-atom op-builder]
            (some-child-components)
            )
@@ -71,14 +72,16 @@
    (let [[docstr forms] (extract-docstr forms)
          [options forms] (extract-opts forms)
          [argvec & body] forms
+         base-options (dissoc options :publish)
+         things-to-publish (set (:publish options))
          ]
      ; Create plumbing to an underlying quiescent component
      `(def ~name ~docstr
         ;; Def the quiescent construction function so users can create instances of the component that "close over"
         ;; the plumbing that extracts the application state and passes it to the real handler.
-        (let [real-handler# (quiescent.core/component (fn ~argvec ~@body) ~options)]
+        (let [real-handler# (quiescent.core/component (fn ~argvec ~@body) ~base-options)]
           (fn [id# context# & event-handlers#]
-            (let [new-context# (untangled.state/new-sub-context context# id# event-handlers#)
+            (let [new-context# (untangled.state/new-sub-context context# id# event-handlers# ~things-to-publish)
                   data# (untangled.state/context-data new-context#)]
               (real-handler# data# new-context#)
               ))))))
