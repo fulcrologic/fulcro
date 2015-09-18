@@ -2,7 +2,7 @@
   (:require [untangled.logging :as logging]))
 
 (defn trigger
-  "Trigger custom event(s) on the parent of the current component. Parent components can capture an event from a 
+  "Trigger custom event on the parent of the current component. Parent components can capture an event from a
   child component by including a map as the final argument of the call to the child's render function. For example,
   to capture a `:picked` event from a Calendar component:
   
@@ -20,12 +20,11 @@
          
   You may indicate that the event should bubble to all parents by including `:bubble true` as a named parameter.
   "
-  [context events & {:keys [bubble] :or {bubble false}}]
-  (doseq [evt (flatten (list events))
-          listener-map (if bubble (:event-listeners context) (list (last (:event-listeners context))))]
-    (if-let [listener (get listener-map evt)]
+  [context event & {:keys [bubble data] :or {bubble false data nil}}]
+  (doseq [listener-map (if bubble (:event-listeners context) (list (last (:event-listeners context))))]
+    (if-let [listener (get listener-map event)]
       (if (fn? listener)
-        (listener evt)
+        (listener event data)
         (logging/log "ERROR: TRIGGERED EVENT HANDLER MUST BE A FUNCTION")))
     )
   )
