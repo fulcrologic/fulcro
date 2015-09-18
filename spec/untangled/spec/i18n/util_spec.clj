@@ -17,12 +17,12 @@
 
 
 ;(specification "the write-cljs-translations-file function"
-;               (let [trans-map (u/map-po-to-translations "/Users/Dave/projects/survey/i18n/msgs/es_MX.po")
+;               (let [trans-map (u/map-po-to-translations "/Users/Dave/projects/survey/i18n/msgs/ja_JP.po")
 ;                     wrapped-code-str (u/wrap-with-swap :locale "es-MX"
 ;                                                        :translation trans-map)]
 ;                 (behavior "writes a file"
 ;                           (assertions
-;                             (u/write-cljs-translation-file "/Users/Dave/projects/survey/src/untangled/translations/es-MX.cljs" wrapped-code-str) => nil
+;                             (u/write-cljs-translation-file "/Users/Dave/projects/survey/src/untangled/translations/ja_JP.cljs" wrapped-code-str) => nil
 ;                             (slurp "/tmp/es-MX.cljs") => "(swap! some.atom-name\n\t#(assoc %\n\t\"es-MX\"\n\t{\"|A button with a click count: \" \"Un botón con un clic la cuenta:\", \"|\" \"\", \"|Click me\" \"Clic aquí\", \"|Happy!\" \"¡Feliz!\", \"|Sad :(\" \"Triste :(\", \"|here is a NEW STRING to translate!\" \"\", \"|A sub-component with local state.\" \"Un subcomponente de estado local.\", \"abbreviation for male gender|M\" \"H\", \"|Change my mood...\" \"Cambiar mi estado de ánimo…\", \"|Sub component below: ({swings, number} mood swings so far)\" \"Componente de sub abajo: ({columpios, número} hasta el momento de ánimo)\", \"|An input that is two-way bound:\" \"Límite de una entrada que es de dos vía:\"}\n))"
 ;                             )
 ;                           )))
