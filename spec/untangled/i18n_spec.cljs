@@ -3,14 +3,21 @@
                    [smooth-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require [untangled.history :as h]
+            [untangled.i18n :refer [current-locale]]
             [untangled.i18n :refer-macros [tr trf trc trlambda]]
             [cljs.test :refer [do-report]])
   )
+
+
+
 
 (specification "Base translation -- tr"
                (behavior "returns the string it is passed if there is no translation"
                          (is (= "Hello" (tr "Hello")))
                          )
+               (behavior "returns message key if current-locale is en-US")
+               (behavior "returns message key if no translation map is found for the locale")
+               (behavior "returns message key if translation is not found in the translation map")
                )
 
 (specification "Base translation lambda -- trlambda"

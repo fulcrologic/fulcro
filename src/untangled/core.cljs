@@ -5,7 +5,7 @@
             [untangled.test.dom :refer [render-as-dom]]
             [untangled.state :as qms]
             [quiescent.core :as q :include-macros true]
-            )
+            [untangled.i18n.core :as ic])
   (:require-macros [cljs.test :refer (is deftest run-tests testing)]))
 
 (defprotocol ITest
@@ -27,6 +27,8 @@
 
 (q/defcomponent Root
                 "The root renderer for Untangled. Not for direct use."
+                ;:on-mount (fn [... context] (add-watch ic/*loaded-translations* ::locale-loaded (.. do something to re-render ..)))
+                ;:on-unmount (fn []  (remove-watch ic/*loaded-translations* ::locale-loaded))
                 [state application]
                 (let [ui-render (:renderer application)
                       context (qms/root-context application)

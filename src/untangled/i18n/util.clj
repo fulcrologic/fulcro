@@ -29,7 +29,7 @@
   (let [trans-namespace (symbol (str "untangled.translations." locale))
         ns-decl (pp/write (list 'ns trans-namespace) :stream nil)
         trans-def (pp/write (list 'def 'translations translation) :stream nil)
-        swap-decl (pp/write (list 'swap! 'untangled.i18n.loaded-translations
+        swap-decl (pp/write (list 'swap! 'untangled.i18n.core/*loaded-translations*
                                   (list 'fn '[x] (list 'assoc 'x locale 'translations))) :stream nil)]
     (str/join "\n\n" [ns-decl trans-def swap-decl])))
 

@@ -1,6 +1,22 @@
-(ns untangled.i18n)
+(ns untangled.i18n
+  #?(:cljs (:require [untangled.i18n.core :as ic])))
 
-#?(:cljs (set! js/tr identity))
+#?(:cljs (defn current-locale [] @ic/*current-locale*))
+
+#?(:cljs (defn translations-for-locale [] (get @ic/*loaded-translations* (current-locale))))
+
+#?(:cljs (set! js/tr
+               (fn [msg]
+                 (let [msg-key (str "|" msg)
+                       translations (translations-for-locale)
+                       translation (get translations msg-key)]
+                   (cond
+                     (= (current-locale) "en-US") msg
+                     (empty? translation) msg
+                      :else translation)
+                   ))
+               ))
+
 #?(:cljs (set! js/trc (fn [ctxt msg] msg)))
 #?(:cljs
    (set! js/trf
@@ -31,6 +47,7 @@
            "Round and format a number as a currency, according to the current currency's rules."
            [number] (.toPrecision (/ (.round (* 100 number)) 100.0) 2)))
 
+
 #?(:clj (defmacro tr
           "Translate the given literal string. The argument MUST be a literal string so that it can be properly extracted
           for use in gettext message files as the message key. This macro throws a detailed assertion error if you
@@ -38,7 +55,16 @@
           variables)."
           [msg]
           (assert (string? msg) (str "In call to tr(" msg "). Argument MUST be a literal string, not a symbol or expression. Use trf for formatting."))
-          `(js/tr ~msg)))
+          `(js/tr
+
+             ; lookup translation
+             ; ... get the current-locale atom
+             ; ... find translations in loaded-translations atom
+             ; ... ... need to prepend a | before lookup
+             ; if found, return translation
+             ; else return engrish
+
+             ~msg)))
 
 #?(:clj (defmacro tr-unsafe
           "Look up the given message. UNSAFE: you can use a variable with this, and thus string extraction will NOT
