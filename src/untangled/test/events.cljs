@@ -9,7 +9,9 @@
   (saw? [this evt] "Returns true if this detector has seen the given event.")
   (trigger-count [this evt] "Returns the number of times the event has been seen.")
   (is-seen? [this evt] "A cljs.test assertion form of saw? with better output.")
-  (is-trigger-count [this evt cnt] "A cljs.test assertion form of checking trigger count with nice output."))
+  (is-trigger-count [this evt cnt] "A cljs.test assertion form of checking trigger count with nice output.")
+  (is-data-at [this evt n data] "A cljs.test assertion form of checking for event data on the n-th call")
+  )
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -97,7 +99,7 @@
   [element key-str]
   (assert (dom/is-rendered-element? element) "Argument must be a rendered DOM element.")
   (let [keycode (str-to-keycode key-str)
-        modifier (some #{keycode} '(16 17 18 91))           ; (shift ctrl alt meta)
+        modifier (some #{keycode} '(16 17 18 91))                               ; (shift ctrl alt meta)
         is-modifier? (not (nil? modifier))]
     (if is-modifier? (keyDown element :keyCode keycode :which keycode)
                      (keyPress element :keyCode keycode :which keycode))
@@ -128,11 +130,14 @@
 (defrecord EventDetector [events]
   cljs.core/Fn
   cljs.core/IFn
-  (-invoke [this evt] (swap! events #(update % evt inc)))
+  (-invoke [this evt data]
+    (swap! events #(update-in % [evt :count] inc))
+    (swap! events #(update-in % [evt :data] (fn [ed] (vec (concat ed [data])))))
+    )
   IEventDetector
   (clear [this] (reset! events {}))
   (saw? [this evt] (contains? @events evt))
-  (trigger-count [this evt] (or (get @events evt) 0))
+  (trigger-count [this evt] (get-in @events [evt :count] 0))
   (is-seen? [this evt] (if (saw? this evt)
                          (t/do-report {:type :pass})
                          (t/do-report {:type :fail :expected evt :actual "Event not seen"})
@@ -144,6 +149,20 @@
         (t/do-report {:type   :fail :expected (str "To see event '" evt "' " cnt " time(s).")
                       :actual (str "Saw event '" evt "' " seen " time(s).")})
         ))
+    )
+  (is-data-at [this evt n data]
+    (let [seen (trigger-count this evt)]
+      (if (>= seen n)
+        (let [evt-data (get-in @events [evt :data n])]
+          (if (= data evt-data)
+            (t/do-report {:type :pass})
+            (t/do-report {:type   :fail :expected (str "To see event data '" data "' for '" evt "' at " n "th call.")
+                          :actual (str "Saw event data '" evt-data "' for '" evt "'")})
+
+            ))
+        (t/do-report {:type   :fail :expected (str "To see event at '" evt "' " n " time(s).")
+                      :actual (str "Saw event '" evt "' only seen " seen " time(s).")}))
+      )
     )
   )
 
