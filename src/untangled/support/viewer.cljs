@@ -19,6 +19,7 @@
 
 (defn make-viewer [renderer history]
   {
+   :on-top           false
    :current-position 0                                      ; most recent...incremented numbers go back in time
    :renderer         renderer
    :seek-positions   (seek-positions history)
@@ -42,6 +43,7 @@
     viewer))
 
 (defn current-time [viewer] (get-in viewer [:seek-positions (:current-position viewer) :time]))
+(defn toggle-position [viewer] (update viewer :on-top not))
 
 (declare HistoryPlayer)
 
@@ -51,8 +53,9 @@
                  (let [op (state/op-builder context)
                        application (core/new-application (:renderer viewer) (current-app-state viewer) :view-only true)]
                    (c/div {:className "app"}
-                          (core/Root (current-app-state viewer) (dbg application))
-                          (c/div {:className "clearfix vcr-controls"}
+                          (core/Root (current-app-state viewer) application)
+                          (c/div {:className (str "clearfix vcr-controls" (if (:on-top viewer) " top" " bottom"))}
+                                 (c/button {:className "reposition" :onClick (op toggle-position)} (trf "Move to {position}" :position (if (:on-top viewer) (tr "Bottom") (tr "Top"))))
                                  (c/div {:className "container"}
                                         (c/button {:className "pull-left btn btn-default" :onClick (op previous-frame)} (c/span {:className "glyphicon glyphicon-step-backward"} ""))
                                         (c/div {:className "status-area pull-left"}

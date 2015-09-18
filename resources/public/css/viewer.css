@@ -1,10 +1,22 @@
-div.vcr-controls {
+.bottom {
     position: fixed;
     bottom: 0px;
+}
+
+.top {
+    position: fixed;
+    top: 0px;
+}
+
+.reposition {
+    float: right;
+}
+
+div.vcr-controls {
     left: 0px;
     height: 50pt;
     width: 100%;
-    opacity: 0.5;
+    opacity: 0.95;
     background-color: #f7f7f7;
     color: black;
     text-align: center;
