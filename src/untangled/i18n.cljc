@@ -40,6 +40,13 @@
           (assert (string? msg) (str "In call to tr(" msg "). Argument MUST be a literal string, not a symbol or expression. Use trf for formatting."))
           `(js/tr ~msg)))
 
+#?(:clj (defmacro tr-unsafe
+          "Look up the given message. UNSAFE: you can use a variable with this, and thus string extraction will NOT
+          happen for you. This means you have to use some other mechanism to make sure the string ends up in translation
+          files (such as manually calling tr on the various raw string values elsewhere in your program)"
+          [msg]
+          `(js/tr ~msg)))
+
 #?(:clj (defmacro trlambda
           "Translate the given literal string. The argument MUST be a literal string so that it can be properly extracted
           for use in gettext message files as the message key. This macro throws a detailed assertion error if you

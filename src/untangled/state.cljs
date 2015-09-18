@@ -83,6 +83,8 @@
              (not-empty to-copy) (merge extra-data)
              )))
 
+(defn get-application "Retrieve the top-level application for any given context" [context] (:application context))
+
 (defn update-in-context
   "Update the application state by applying the given operation to the state of the component implied by
   the given context. Think of this as a 'targeted' `swap!` where you don't have to know where the data is 

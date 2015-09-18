@@ -166,13 +166,15 @@
   - `:test-mode boolean`: Put the application in unit test mode. This causes render to return 
   a disconnected DOM fragment instead of actually rendering to visible DOM. Thus, render will 
   *return* the DOM fragment instead of side-effecting it onto the screen.
+  - `:view-only boolean`: Put the application in view-only mode. Used by support state viewer. Disables processing of op-builder functions.
   "
-  [ui-render initial-state & {:keys [target history test-mode] :or {test-mode false target "app" history 100}}]
+  [ui-render initial-state & {:keys [target history test-mode view-only] :or {test-mode false target "app" history 100 view-only false}}]
   (map->UntangledApplication {:app-state  (atom {:top initial-state :time (js/Date.)})
                               :renderer   ui-render
                               :dom-target target
                               :history    (atom (h/empty-history history))
                               :test-mode test-mode
+                              :view-only view-only
                               }))
 
 
