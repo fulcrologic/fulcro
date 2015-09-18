@@ -1,6 +1,5 @@
 (ns untangled.i18n.util
-  (:require [clojure.string :as str]
-            [clojure.data.json :as json]))
+  (:require [clojure.string :as str]))
 
 
 (defn get-file [fname] (slurp fname))
@@ -14,25 +13,42 @@
       msgid (assoc-in acc [:seen :id] msgid)
       translation (let [empty-seen {:context "" :id ""}
                         js-key (str (get-in acc [:seen :context]) "|" (get-in acc [:seen :id]))
-                        js-obj (assoc (:js-obj acc) js-key translation)]
-                    (assoc acc :js-obj js-obj :seen empty-seen))
+                        js-obj (assoc (:cljs-obj acc) js-key translation)]
+                    (assoc acc :cljs-obj js-obj :seen empty-seen))
       true acc)
     ))
 
 (defn map-po-to-translations [fname]
   (let [lines (str/split-lines (get-file fname))]
-    (:js-obj (reduce #(parse-po %1 %2)
-                     {:seen {:context "" :id ""} :js-obj {}} lines))
+    (:cljs-obj (reduce #(parse-po %1 %2)
+                       {:seen {:context "" :id "" :id-value-acc [] :trans-value-acc []} :cljs-obj {}} lines))
     ))
 
 (defn stringify-translations [translations]
-  (json/write-str translations))
-;(defn stringify-translations [translations]
-;  (let [trans-seq (vec (flatten (reduce #(into %1 [(str "\"" (first %2) "\"" ":") (str "\"" (second %2) "\"")]) [] translations)))
-;        wrapped-trans-seq (conj (vec (cons "{" trans-seq)) "}")]
-;    (str/join " " wrapped-trans-seq))
-;  )
+  (str translations))
 
-(defn write-js-translation-file [fname translations-string]
+(defn wrap-with-swap [& args]
+  (let [{:keys [atom-name locale translation] :or {atom-name "untangled.i18n.loaded-translations"}} args]
+    (format "(swap! %s\n\t#(assoc %%\n\t\"%s\"\n\t%s\n))" atom-name locale translation)))
+
+
+(defn write-cljs-translation-file [fname translations-string]
   (spit fname translations-string)
   )
+
+; TODO: below is the basis for multiline translation support, still needs implementation
+;
+;(let [fstring (slurp "/Users/Dave/projects/survey/i18n/msgs/fr_CA.po")
+;      trans-chunks (rest (clojure.string/split fstring #"(?ms)\n\n"))
+;      grouped-chunks (map clojure.string/split-lines trans-chunks)
+;      comment? #(re-matches #"^#.*" %)
+;      uncommented-chunks (map #(remove comment? %) grouped-chunks)
+;
+;      keyed-chunk #(reduce (fn [acc line]
+;                             (if (re-matches #"^msg.*" line) (conj acc [line])
+;                                                             (update-in acc [(dec (count acc))] conj line)))
+;                           [] %)
+;
+;      keyed-chunks (map keyed-chunk uncommented-chunks)
+;
+;      ] keyed-chunks)
