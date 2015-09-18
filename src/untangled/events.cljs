@@ -29,3 +29,22 @@
         (logging/log "ERROR: TRIGGERED EVENT HANDLER MUST BE A FUNCTION")))
     )
   )
+
+(defn enter-key?
+  "Return true if a DOM event was the enter key."
+  [evt]
+  (= 13 (.-keyCode evt)))
+
+(defn escape-key?
+  "Return true if a DOM event was the escape key."
+  [evt]
+  (= 27 (.-keyCode evt)))
+
+(defn text-value
+  "Returns the text value from an input change event."
+  [evt]
+  (try
+    (.-value (.-target evt))
+    (catch js/Object e (logging/warn "Event had no target when trying to pull text"))
+    )
+  )
