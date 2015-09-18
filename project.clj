@@ -9,7 +9,6 @@
                  [org.clojure/clojurescript "1.7.48"]
                  [smooth-spec "0.1.0-SNAPSHOT"]
                  [differ "0.2.1"]
-                 [org.clojure/data.json "0.2.6"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  ]
 
@@ -28,6 +27,17 @@
                                :recompile-dependents true
                                :asset-path           "js/test/out"
                                :optimizations        :none}}]}
+
+  :profiles {
+             :dev {
+                   :source-paths ["src" "test" "dev"]
+                   :repl-options {
+                                  :init-ns clj.user
+                                  :port 7001
+                                  }
+                   :env {:dev true }
+                   }
+             }
 
   :figwheel {
              :server-port 3450
