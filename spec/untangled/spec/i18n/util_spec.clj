@@ -16,50 +16,36 @@
 (def msgstr-line "msgstr \"Clic aquí\"")
 
 
-(specification "the write-cljs-translations-file function"
-               (let [trans-map (u/map-po-to-translations "/Users/Dave/projects/survey/i18n/msgs/es_MX.po")
-                     trans-str (u/stringify-translations trans-map)
-                     wrapped-code-str (u/wrap-with-swap :locale "es-MX"
-                                                        :translation trans-str
-                                                        :atom-name "some.atom-name")]
-                 (behavior "writes a file"
-                           (assertions
-                             (u/write-cljs-translation-file "/tmp/es-MX.js" wrapped-code-str) => nil
-                             (slurp "/tmp/es-MX.js") => "(swap! some.atom-name\n\t#(assoc %\n\t\"es-MX\"\n\t{\"|A button with a click count: \" \"Un botón con un clic la cuenta:\", \"|\" \"\", \"|Click me\" \"Clic aquí\", \"|Happy!\" \"¡Feliz!\", \"|Sad :(\" \"Triste :(\", \"|here is a NEW STRING to translate!\" \"\", \"|A sub-component with local state.\" \"Un subcomponente de estado local.\", \"abbreviation for male gender|M\" \"H\", \"|Change my mood...\" \"Cambiar mi estado de ánimo…\", \"|Sub component below: ({swings, number} mood swings so far)\" \"Componente de sub abajo: ({columpios, número} hasta el momento de ánimo)\", \"|An input that is two-way bound:\" \"Límite de una entrada que es de dos vía:\"}\n))"
-                             )
-                           )))
+;(specification "the write-cljs-translations-file function"
+;               (let [trans-map (u/map-po-to-translations "/Users/Dave/projects/survey/i18n/msgs/es_MX.po")
+;                     wrapped-code-str (u/wrap-with-swap :locale "es-MX"
+;                                                        :translation trans-map)]
+;                 (behavior "writes a file"
+;                           (assertions
+;                             (u/write-cljs-translation-file "/Users/Dave/projects/survey/src/untangled/translations/es-MX.cljs" wrapped-code-str) => nil
+;                             (slurp "/tmp/es-MX.cljs") => "(swap! some.atom-name\n\t#(assoc %\n\t\"es-MX\"\n\t{\"|A button with a click count: \" \"Un botón con un clic la cuenta:\", \"|\" \"\", \"|Click me\" \"Clic aquí\", \"|Happy!\" \"¡Feliz!\", \"|Sad :(\" \"Triste :(\", \"|here is a NEW STRING to translate!\" \"\", \"|A sub-component with local state.\" \"Un subcomponente de estado local.\", \"abbreviation for male gender|M\" \"H\", \"|Change my mood...\" \"Cambiar mi estado de ánimo…\", \"|Sub component below: ({swings, number} mood swings so far)\" \"Componente de sub abajo: ({columpios, número} hasta el momento de ánimo)\", \"|An input that is two-way bound:\" \"Límite de una entrada que es de dos vía:\"}\n))"
+;                             )
+;                           )))
+
 
 
 (specification "the wrap-with-swap function"
                (let [code-string (u/wrap-with-swap :locale "fr-CA" :translation "{\"fizz\" \"buzz\"}")
+                     re #"(?ms)^(\(ns untangled.translations.fr-CA\)).*"
+                     match (last (re-matches re code-string))]
+
+                 (behavior "emits code string that begins with a namespace delcaration"
+                           (assertions
+                             match => "(ns untangled.translations.fr-CA)")))
+
+               (let [code-string (u/wrap-with-swap :locale "fr-CA" :translation "{\"fizz\" \"buzz\"}")
                      re #"(?ms)^.*(untangled.i18n.loaded-translations).*"
                      match (last (re-matches re code-string))]
+
                  (behavior "emits code string with default :atom-name"
                            (assertions
-                             match => "untangled.i18n.loaded-translations")))
-               (let [code-string (u/wrap-with-swap :locale "fr-CA"
-                                                   :translation "{\"fizz\" \"buzz\"}"
-                                                   :atom-name "some.amazing.atom.name")
-                     re #"(?ms)^.*(some.amazing.atom.name).*"
-                     match (last (re-matches re code-string))]
-                 (behavior "emits code string with specific :atom-name"
-                          (assertions
-                            match => "some.amazing.atom.name"))))
+                             match => "untangled.i18n.loaded-translations"))))
 
-(specification "the stringify-translations function"
-               (behavior "generates string of clojure map"
-                         (assertions
-                           (u/stringify-translations {"fizz" "buzz"}) => "{\"fizz\" \"buzz\"}"))
-               (behavior "tolerates being passed an empty map"
-                         (assertions
-                           (u/stringify-translations {}) => "{}"
-                           ))
-               (behavior "wraps keys and values in {}"
-                         (assertions
-                           (re-find #"^\{" (u/stringify-translations {"fizz" "buzz"})) => "{"
-                           (re-find #"\}$" (u/stringify-translations {"fizz" "buzz"})) => "}"
-                           ))
-               )
 
 (specification "the map-po-to-translations function"
                (provided "when given a PO file"

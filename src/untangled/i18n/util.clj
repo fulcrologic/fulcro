@@ -1,5 +1,6 @@
 (ns untangled.i18n.util
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [clojure.pprint :as pp]))
 
 
 (defn get-file [fname] (slurp fname))
@@ -24,12 +25,13 @@
                        {:seen {:context "" :id "" :id-value-acc [] :trans-value-acc []} :cljs-obj {}} lines))
     ))
 
-(defn stringify-translations [translations]
-  (str translations))
-
-(defn wrap-with-swap [& args]
-  (let [{:keys [atom-name locale translation] :or {atom-name "untangled.i18n.loaded-translations"}} args]
-    (format "(swap! %s\n\t#(assoc %%\n\t\"%s\"\n\t%s\n))" atom-name locale translation)))
+(defn wrap-with-swap [& {:keys [locale translation]}]
+  (let [trans-namespace (symbol (str "untangled.translations." locale))
+        ns-decl (pp/write (list 'ns trans-namespace) :stream nil)
+        trans-def (pp/write (list 'def 'translations translation) :stream nil)
+        swap-decl (pp/write (list 'swap! 'untangled.i18n.loaded-translations
+                                  (list 'fn '[x] (list 'assoc 'x locale 'translations))) :stream nil)]
+    (str/join "\n\n" [ns-decl trans-def swap-decl])))
 
 
 (defn write-cljs-translation-file [fname translations-string]
