@@ -17,10 +17,12 @@
   
        (let [op (context-operator context do-thing :trigger :picked)]
          (d/button { :onClick op } \"Click me to generate :picked\"))
+         
+  You may indicate that the event should bubble to all parents by including `:bubble true` as a named parameter.
   "
-  [context events]
+  [context events & {:keys [bubble] :or {bubble false}}]
   (doseq [evt (flatten (list events))
-          listener-map (:event-listeners context)]
+          listener-map (if bubble (:event-listeners context) (list (last (:event-listeners context))))]
     (if-let [listener (get listener-map evt)]
       (if (fn? listener)
         (listener evt)

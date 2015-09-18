@@ -40,6 +40,15 @@
           (assert (string? msg) (str "In call to tr(" msg "). Argument MUST be a literal string, not a symbol or expression. Use trf for formatting."))
           `(js/tr ~msg)))
 
+#?(:clj (defmacro trlambda
+          "Translate the given literal string. The argument MUST be a literal string so that it can be properly extracted
+          for use in gettext message files as the message key. This macro throws a detailed assertion error if you
+          violate this restriction. See trf for generating translations that require formatting (e.g. construction from
+          variables)."
+          [msg]
+          (assert (string? msg) (str "In call to tr(" msg "). Argument MUST be a literal string, not a symbol or expression. Use trf for formatting."))
+          `#(js/tr ~msg)))
+
 #?(:clj (defmacro trc
           "Same as tr, but include a context message to the translator. This is recommended when asking for a
           translation to something vague.
