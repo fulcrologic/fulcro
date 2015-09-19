@@ -27,7 +27,7 @@
 
 (defn wrap-with-swap [& {:keys [locale translation]}]
   (let [trans-namespace (symbol (str "untangled.translations." locale))
-        ns-decl (pp/write (list 'ns trans-namespace) :stream nil)
+        ns-decl (pp/write (list 'ns trans-namespace (list :require 'untangled.i18n.core)) :stream nil)
         trans-def (pp/write (list 'def 'translations translation) :stream nil)
         swap-decl (pp/write (list 'swap! 'untangled.i18n.core/*loaded-translations*
                                   (list 'fn '[x] (list 'assoc 'x locale 'translations))) :stream nil)]
