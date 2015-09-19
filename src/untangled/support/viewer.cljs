@@ -28,18 +28,66 @@
 (defn at-beginning [viewer] (= (inc (:current-position viewer)) (count (:seek-positions viewer))))
 (defn at-end [viewer] (= (:current-position viewer) 0))
 
+(defn upcoming-reason [viewer]
+  (let [pos (max 0 (dec (:current-position viewer)))]
+    (get-in viewer [:seek-positions pos :point-in-time :reason])
+    )
+  )
+
+(defn prior-reason [viewer]
+  (let [pos (max (dec (count (:seek-positions viewer))) (inc (:current-position viewer)))]
+    (get-in viewer [:seek-positions pos :point-in-time :reason])
+    )
+  )
+
+(defn click-position-from-reason [reason]
+  (let [x (some-> reason :x)
+        y (some-> reason :y)]
+    (if (and x y)
+      (.offset (js/$ "#indicator") (clj->js {:top (- y 50) :left (- x 50)}))
+      )
+    ))
+
+(defn input-position-from-reason [reason]
+  (if-let [reactid (some-> reason :react-id)]
+    (if-let [ele (js/$ (str "input[data-reactid$='" reactid "']"))]
+      (let [pos (js->clj (.offset ele))
+            cpos (update pos "top" #(- % 30))
+            ]
+        (.offset (js/$ "#indicator") (clj->js cpos))
+        ))
+    nil
+    ))
+
+(defn kbd-from-reason [reason]
+  (if (and (= :browser-event (some-> reason :kind))
+           true
+           )
+    "" ""
+    ))
+
+
 (defn previous-frame
   "Move to the previous 'frame' of application state"
   [viewer]
   (if (not (at-beginning viewer))
-    (update viewer :current-position inc)
+    (do
+      (.offset (js/$ "#indicator") (clj->js {:top -100 :left -100}))
+      (input-position-from-reason (prior-reason viewer))
+      (click-position-from-reason (prior-reason viewer))
+      (update viewer :current-position inc))
     viewer))
 
 (defn next-frame
   "Move to the next 'frame' of application state"
   [viewer]
   (if (not (at-end viewer))
-    (update viewer :current-position dec)
+    (do
+      (.offset (js/$ "#indicator") (clj->js {:top -100 :left -100}))
+      (input-position-from-reason (upcoming-reason viewer))
+      (click-position-from-reason (upcoming-reason viewer))
+      (update viewer :current-position dec)
+      )
     viewer))
 
 (defn current-time [viewer] (get-in viewer [:seek-positions (:current-position viewer) :time]))

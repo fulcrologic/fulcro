@@ -117,6 +117,32 @@
            ))
   )
 
+(defn event-reason [evt]
+  (let [e (some-> evt (.-nativeEvent))]
+    (js/console.log e)
+    (if (instance? js/Event e)
+      (let [typ (.-type e)]
+        (js/console.log typ)
+        (cond-> {:kind :browser-event :type typ}
+                (= "input" typ) (merge {
+                                        :react-id    (some-> (.-target e) (.-attributes) (.getNamedItem "data-reactid") (.-value))
+                                        :input-value (some-> (.-target e) (.-value))
+                                        })
+                (= "click" typ) (merge {
+                                        :x            (.-x e)
+                                        :y            (.-y e)
+                                        :client-x     (.-clientX e)
+                                        :client-y     (.-clientY e)
+                                        :screen-x     (.-screenX e)
+                                        :screen-y     (.-screenY e)
+                                        :alt          (.-altKey e)
+                                        :ctrl         (.-ctrlKey e)
+                                        :meta         (.-metaKey e)
+                                        :shift        (.-shiftKey e)
+                                        :mouse-button (.-button e)
+                                        })))
+      nil)))
+
 (defn context-operator
   "Create a function that, when called, updates the app state localized to the given context. Think of this as a 
   constructor for targeted `swap!` functions.
@@ -130,8 +156,8 @@
   - `:undoable boolean`: Indicate that this state change is (or is not) undoable. Defaults to true.
   - `:compress boolean`: Indicate that this state change can be compressed (keeping only the most recent of adjacent
     compressable items in the state history). Defaults to false.
-  - `:trigger [evt-kw evt2-kw]`: Sets user-defined event(s) to be triggered (in the parent) when the
-  *generated* operation runs. E.g. `:trigger [:deleted :edited]`.  May be a list or single keyword.
+  - `:trigger evt-kw`: Sets user-defined event to be triggered (in the parent) when the
+  *generated* operation runs. E.g. `:trigger :deleted`.  May be a list or single keyword.
   - `:reason Reason`: When the *generated* operation runs, causes resulting application state change in history to
    include the stated (default) reason. The reason can be overridden by passing a :reason named parameter to the 
    generated function.
@@ -140,15 +166,19 @@
   
   Examples:
   
-  let [set-today (context-operator context set-to-today :trigger [:date-picked] :reason (Reason. \"Set date\"))]
+  let [set-today (context-operator context set-to-today :trigger :date-picked :reason \"Set date\")]
   ...
       (d/button { :onClick set-today } \"Today\")
       (d/button { :onClick (fn [] (set-today :reason \"Clicked 'Today'\")) } \"Today\"))
   "
   [context operation & {:keys [trigger reason undoable compress] :or {trigger false undoable true compress false}}]
-  (fn [& {:keys [reason trigger] :or {reason reason trigger trigger}}]
-    (if trigger (evt/trigger context trigger))
-    (update-in-context context operation undoable compress reason))
+  (fn [& args]
+    (let [evt-reason (event-reason (first args))
+          {:keys [reason trigger event] :or {reason reason trigger trigger event nil}} (drop-while #(not (keyword? %)) args)
+          reason (if reason reason evt-reason)
+          ]
+      (if trigger (evt/trigger context trigger))
+      (update-in-context context operation undoable compress reason)))
   )
 
 (defn op-builder
@@ -156,7 +186,7 @@
   [context]
   (partial context-operator context))
 
-(defn list-element-id 
+(defn list-element-id
   "Construct a proper sub-element ID for a list in a component's state.
   
   Parameters:

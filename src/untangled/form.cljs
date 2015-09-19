@@ -14,4 +14,4 @@
   Returns a function that can be used as an input onChange handler
   "
   [op f & args]
-  (fn [evt] ((apply op (partial f (evt/text-value evt)) args))))
+  (fn [evt] ((apply op (partial f (evt/text-value evt)) args) evt)))
