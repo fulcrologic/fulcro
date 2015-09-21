@@ -2,7 +2,7 @@
   (:require [untangled.logging :as logging]))
 
 (defn trigger
-  "Trigger custom event(s) on the parent of the current component. Parent components can capture an event from a 
+  "Trigger custom event on the parent of the current component. Parent components can capture an event from a
   child component by including a map as the final argument of the call to the child's render function. For example,
   to capture a `:picked` event from a Calendar component:
   
@@ -17,13 +17,33 @@
   
        (let [op (context-operator context do-thing :trigger :picked)]
          (d/button { :onClick op } \"Click me to generate :picked\"))
+         
+  You may indicate that the event should bubble to all parents by including `:bubble true` as a named parameter.
   "
-  [context events]
-  (doseq [evt (flatten (list events))
-          listener-map (:event-listeners context)]
-    (if-let [listener (get listener-map evt)]
+  [context event & {:keys [bubble data] :or {bubble false data nil}}]
+  (doseq [listener-map (if bubble (:event-listeners context) (list (last (:event-listeners context))))]
+    (if-let [listener (get listener-map event)]
       (if (fn? listener)
-        (listener evt)
+        (listener event data)
         (logging/log "ERROR: TRIGGERED EVENT HANDLER MUST BE A FUNCTION")))
+    )
+  )
+
+(defn enter-key?
+  "Return true if a DOM event was the enter key."
+  [evt]
+  (= 13 (.-keyCode evt)))
+
+(defn escape-key?
+  "Return true if a DOM event was the escape key."
+  [evt]
+  (= 27 (.-keyCode evt)))
+
+(defn text-value
+  "Returns the text value from an input change event."
+  [evt]
+  (try
+    (.-value (.-target evt))
+    (catch js/Object e (logging/warn "Event had no target when trying to pull text"))
     )
   )

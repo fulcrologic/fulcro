@@ -5,7 +5,7 @@
             [untangled.test.dom :refer [render-as-dom]]
             [untangled.state :as qms]
             [quiescent.core :as q :include-macros true]
-            )
+            [untangled.i18n.core :as ic])
   (:require-macros [cljs.test :refer (is deftest run-tests testing)]))
 
 (defprotocol ITest
@@ -27,6 +27,8 @@
 
 (q/defcomponent Root
                 "The root renderer for Untangled. Not for direct use."
+                ;:on-mount (fn [... context] (add-watch ic/*loaded-translations* ::locale-loaded (.. do something to re-render ..)))
+                ;:on-unmount (fn []  (remove-watch ic/*loaded-translations* ::locale-loaded))
                 [state application]
                 (let [ui-render (:renderer application)
                       context (qms/root-context application)
@@ -147,6 +149,7 @@
     (swap! app-state #(assoc % :time (js/Date.)))
     (untangled.application/render this)
     )
+  (top-context [this] (qms/new-sub-context (qms/root-context this) :top {}))
   (state-changed [this old-state new-state] (untangled.application/render this))
   (current-state [this] (-> @app-state :top))
   (current-state [this subpath] (get-in (-> @app-state :top) subpath))
@@ -165,13 +168,15 @@
   - `:test-mode boolean`: Put the application in unit test mode. This causes render to return 
   a disconnected DOM fragment instead of actually rendering to visible DOM. Thus, render will 
   *return* the DOM fragment instead of side-effecting it onto the screen.
+  - `:view-only boolean`: Put the application in view-only mode. Used by support state viewer. Disables processing of op-builder functions.
   "
-  [ui-render initial-state & {:keys [target history test-mode] :or {test-mode false target "app" history 100}}]
+  [ui-render initial-state & {:keys [target history test-mode view-only] :or {test-mode false target "app" history 100 view-only false}}]
   (map->UntangledApplication {:app-state  (atom {:top initial-state :time (js/Date.)})
                               :renderer   ui-render
                               :dom-target target
                               :history    (atom (h/empty-history history))
                               :test-mode test-mode
+                              :view-only view-only
                               }))
 
 

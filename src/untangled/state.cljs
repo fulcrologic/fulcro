@@ -1,6 +1,7 @@
 (ns untangled.state
   (:require [untangled.events :as evt]
             cljs.pprint
+            [clojure.set :refer [union]]
             [untangled.logging :as logging]
             [untangled.application :as app]
             [untangled.history :as h]))
@@ -53,13 +54,36 @@
     (resolve-data-path state path-seq)
     ))
 
+(defn parent-data
+  "Find data with the given key recursively in parent(s) of the given context. 
+  Searches up in the context scopes until it finds data for the given key.
+  Returns nil if no such data can be found"
+  [context key]
+  (let [state-atom (-> context :application :app-state)]
+    (loop [parent-scope (vec (butlast (:scope context)))]
+      (let [path (conj (resolve-data-path @state-atom parent-scope) key)
+            value (get-in @state-atom path)]
+        (cond
+          (<= (count path) 1) nil
+          value value
+          :else (recur (vec (butlast parent-scope)))
+          ))))
+  )
+
 (defn context-data
-  "Extract the data for the component indicated by the given context."
+  "Extract the data for the component indicated by the given context. If the context indicates there is published
+  state from a parent, then that published state will be included in the data."
   [context]
   (let [state-atom (-> context :application :app-state)
         path (data-path context)
+        to-copy (-> context :to-publish)
+        extra-data (into {} (map #(vector % (parent-data context %)) to-copy))
         ]
-    (get-in @state-atom path)))
+    (cond->> (get-in @state-atom path)
+             (not-empty to-copy) (merge extra-data)
+             )))
+
+(defn get-application "Retrieve the top-level application for any given context" [context] (:application context))
 
 (defn update-in-context
   "Update the application state by applying the given operation to the state of the component implied by
@@ -75,7 +99,7 @@
     (swap! history-atom #(h/record % history-entry))
     (swap! state-atom (fn [old-state]
                         (-> old-state
-                            (assoc :time (h/now)) 
+                            (assoc :time (h/now))
                             (update-in path operation))))
     (app/state-changed application old-state @state-atom)
     ))
@@ -83,11 +107,41 @@
 (defn new-sub-context
   "Create a new context (scope) which represents a child's context. Also installs the given handler map as a list of
   event handlers the child can trigger on the parent."
-  [context id handler-map]
-  (cond-> (assoc context :scope (conj (:scope context) id))
-          handler-map (assoc :event-listeners (concat (:event-listeners context) handler-map))
-          )
+  ([context id handler-map]
+   (cond-> (assoc context :scope (conj (:scope context) id))
+           handler-map (assoc :event-listeners (concat (:event-listeners context) handler-map))
+           ))
+  ([context id handler-map child-publish-set]
+   (cond-> (new-sub-context context id handler-map)
+           child-publish-set (update :to-publish (partial union child-publish-set))
+           ))
   )
+
+(defn event-reason [evt]
+  (let [e (some-> evt (.-nativeEvent))]
+    (js/console.log e)
+    (if (instance? js/Event e)
+      (let [typ (.-type e)]
+        (js/console.log typ)
+        (cond-> {:kind :browser-event :type typ}
+                (= "input" typ) (merge {
+                                        :react-id    (some-> (.-target e) (.-attributes) (.getNamedItem "data-reactid") (.-value))
+                                        :input-value (some-> (.-target e) (.-value))
+                                        })
+                (= "click" typ) (merge {
+                                        :x            (.-x e)
+                                        :y            (.-y e)
+                                        :client-x     (.-clientX e)
+                                        :client-y     (.-clientY e)
+                                        :screen-x     (.-screenX e)
+                                        :screen-y     (.-screenY e)
+                                        :alt          (.-altKey e)
+                                        :ctrl         (.-ctrlKey e)
+                                        :meta         (.-metaKey e)
+                                        :shift        (.-shiftKey e)
+                                        :mouse-button (.-button e)
+                                        })))
+      nil)))
 
 (defn context-operator
   "Create a function that, when called, updates the app state localized to the given context. Think of this as a 
@@ -102,8 +156,8 @@
   - `:undoable boolean`: Indicate that this state change is (or is not) undoable. Defaults to true.
   - `:compress boolean`: Indicate that this state change can be compressed (keeping only the most recent of adjacent
     compressable items in the state history). Defaults to false.
-  - `:trigger [evt-kw evt2-kw]`: Sets user-defined event(s) to be triggered (in the parent) when the
-  *generated* operation runs. E.g. `:trigger [:deleted :edited]`.  May be a list or single keyword.
+  - `:trigger evt-kw`: Sets user-defined event to be triggered (in the parent) when the
+  *generated* operation runs. E.g. `:trigger :deleted`.  May be a list or single keyword.
   - `:reason Reason`: When the *generated* operation runs, causes resulting application state change in history to
    include the stated (default) reason. The reason can be overridden by passing a :reason named parameter to the 
    generated function.
@@ -112,18 +166,58 @@
   
   Examples:
   
-  let [set-today (context-operator context set-to-today :trigger [:date-picked] :reason (Reason. \"Set date\"))]
+  let [set-today (context-operator context set-to-today :trigger :date-picked :reason \"Set date\")]
   ...
       (d/button { :onClick set-today } \"Today\")
       (d/button { :onClick (fn [] (set-today :reason \"Clicked 'Today'\")) } \"Today\"))
   "
   [context operation & {:keys [trigger reason undoable compress] :or {trigger false undoable true compress false}}]
-  (fn [& {:keys [reason trigger] :or {reason reason trigger trigger}}]
-    (if trigger (evt/trigger context trigger))
-    (update-in-context context operation undoable compress reason))
+  (fn [& args]
+    (let [evt-reason (event-reason (first args))
+          {:keys [reason trigger event] :or {reason reason trigger trigger event nil}} (drop-while #(not (keyword? %)) args)
+          reason (if reason reason evt-reason)
+          ]
+      (if trigger (evt/trigger context trigger))
+      (update-in-context context operation undoable compress reason)))
   )
 
 (defn op-builder
   "Exactly equivalent to (partial context-operator context). See context-operator for details."
   [context]
   (partial context-operator context))
+
+(defn list-element-id
+  "Construct a proper sub-element ID for a list in a component's state.
+  
+  Parameters:
+  - `current-component-data` The full data of the component being rendered
+  - `subcomponent-id` The keyword used to find the sub-list (which must be a vector) in the current component's state.
+  - `subelement-keyword` The keyword used within the list **items** that uniquely identifies that item. MUST exist and not change over time.
+  - `desired sub-element` An instance of an item (the entire item, not it's key) from the sublist
+  
+  Returns an Untangled ID that uniquely identifies the supplied item for the rendering system.
+  
+  For example, in the state:
+  
+       (def a { :k 1 :v 1 })
+       (def b { :k 1 :v 2 })
+       
+       ...
+       :state {
+            :list [ a b ]
+            }
+    
+  in the renderer:
+  
+       (defscomponent Thing [data context]
+         (let [element-id (partial list-element-id data :state :k)]
+            (ul {}
+               (map 
+                  (fn [item] (SubComponent (element-id item) context)) 
+                  (:items data))
+             )))
+  "
+  [current-component-data subcomponent-id subelement-keyword desired-subelement]
+  (let [subcomponent-data (get current-component-data subcomponent-id)
+        subelement-key (get desired-subelement subelement-keyword)]
+    [subcomponent-id subelement-keyword subelement-key]))

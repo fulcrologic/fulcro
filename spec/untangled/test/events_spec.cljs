@@ -1,13 +1,12 @@
 (ns untangled.test.events-spec
   (:require-macros [cljs.test :refer (is deftest testing)]
-                   [smooth-test.core :refer (specification behavior provided assertions)]
+                   [smooth-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require
     [quiescent.core :include-macros true]
     [cljs.test :refer [do-report]]
     [untangled.test.assertions :refer [text-matches]]
     [untangled.test.dom :as td]
-    smooth-test.stub
     [untangled.test.fixtures :as f]
     [untangled.test.events :as evt]
     [untangled.component :as c]
