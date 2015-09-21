@@ -18,17 +18,29 @@
 
 (defn- find-first [pred coll] (first (filter pred coll)))
 
+(defn checked-index [items index id-keyword value]
+    (let [index-valid? (> (count items) index)
+          proposed-item (if index-valid? (get items index) nil)
+         ]
+     (cond (and proposed-item
+                (= value (get proposed-item id-keyword))) index
+           :otherwise (->> (map-indexed vector items) (find-first #(= value (id-keyword (second %)))) (first))
+           )
+     )
+  )
+
 (defn resolve-data-path [state path-seq]
   (reduce (fn [real-path path-ele]
             (if (sequential? path-ele)
               (do
-                (if (not= 3 (count path-ele))
-                  (logging/log "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY")
+                (if (not= 4 (count path-ele))
+                  (logging/log "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 4-TUPLE KEY")
                   (let [vector-key (first path-ele)
                         state-vector (get-in state (conj real-path vector-key))
                         lookup-function (second path-ele)
                         target-value (nth path-ele 2)
-                        index (->> (map-indexed vector state-vector) (find-first #(= target-value (lookup-function (second %)))) (first))
+                        proposed-index (nth path-ele 3)
+                        index (checked-index state-vector proposed-index lookup-function target-value)
                         ]
                     (if index
                       (conj real-path vector-key index)
@@ -45,7 +57,7 @@
           [] path-seq))
 
 (defn data-path
-  "Used by internal context tracking to correct the internal path to account for the inclusion of vectors as data structures 
+  "Used by internal context tracking to correct the internal path to account for the inclusion of vectors as data structures
   pointing to items in vectors."
   [context]
   (let [state @(-> context :application :app-state)
@@ -55,7 +67,7 @@
     ))
 
 (defn parent-data
-  "Find data with the given key recursively in parent(s) of the given context. 
+  "Find data with the given key recursively in parent(s) of the given context.
   Searches up in the context scopes until it finds data for the given key.
   Returns nil if no such data can be found"
   [context key]
@@ -87,7 +99,7 @@
 
 (defn update-in-context
   "Update the application state by applying the given operation to the state of the component implied by
-  the given context. Think of this as a 'targeted' `swap!` where you don't have to know where the data is 
+  the given context. Think of this as a 'targeted' `swap!` where you don't have to know where the data is
   stored. This function also records the change in this state history with an optional associated Reason."
   [context operation undoable compressable reason]
   (let [application (-> context :application)
@@ -144,29 +156,29 @@
       nil)))
 
 (defn context-operator
-  "Create a function that, when called, updates the app state localized to the given context. Think of this as a 
+  "Create a function that, when called, updates the app state localized to the given context. Think of this as a
   constructor for targeted `swap!` functions.
-  
+
   Parameters:
   `context`: the target rendering context
   `operation`: A 1-arg function that takes the data at the context's path, and returns an updated version
-  
+
   Optional named parameters:
-  
+
   - `:undoable boolean`: Indicate that this state change is (or is not) undoable. Defaults to true.
   - `:compress boolean`: Indicate that this state change can be compressed (keeping only the most recent of adjacent
     compressable items in the state history). Defaults to false.
   - `:trigger evt-kw`: Sets user-defined event to be triggered (in the parent) when the
   *generated* operation runs. E.g. `:trigger :deleted`.  May be a list or single keyword.
   - `:reason Reason`: When the *generated* operation runs, causes resulting application state change in history to
-   include the stated (default) reason. The reason can be overridden by passing a :reason named parameter to the 
+   include the stated (default) reason. The reason can be overridden by passing a :reason named parameter to the
    generated function.
-  
+
   The trigger parameter indicates that the resulting function will trigger those abstract events on the parent.
-  
+
   Examples:
-  
-  let [set-today (context-operator context set-to-today :trigger :date-picked :reason \"Set date\")]
+
+  let [set-today (context-operator context set-to-today :trigger [:date-picked] :reason (Reason. \"Set date\"))]
   ...
       (d/button { :onClick set-today } \"Today\")
       (d/button { :onClick (fn [] (set-today :reason \"Clicked 'Today'\")) } \"Today\"))
@@ -188,36 +200,37 @@
 
 (defn list-element-id
   "Construct a proper sub-element ID for a list in a component's state.
-  
+
   Parameters:
   - `current-component-data` The full data of the component being rendered
   - `subcomponent-id` The keyword used to find the sub-list (which must be a vector) in the current component's state.
   - `subelement-keyword` The keyword used within the list **items** that uniquely identifies that item. MUST exist and not change over time.
   - `desired sub-element` An instance of an item (the entire item, not it's key) from the sublist
-  
+
   Returns an Untangled ID that uniquely identifies the supplied item for the rendering system.
-  
+
   For example, in the state:
-  
+
        (def a { :k 1 :v 1 })
        (def b { :k 1 :v 2 })
-       
+
        ...
        :state {
             :list [ a b ]
             }
-    
+
   in the renderer:
-  
+
        (defscomponent Thing [data context]
          (let [element-id (partial list-element-id data :state :k)]
             (ul {}
-               (map 
-                  (fn [item] (SubComponent (element-id item) context)) 
+               (map
+                  (fn [item] (SubComponent (element-id item) context))
                   (:items data))
              )))
   "
-  [current-component-data subcomponent-id subelement-keyword desired-subelement]
-  (let [subcomponent-data (get current-component-data subcomponent-id)
-        subelement-key (get desired-subelement subelement-keyword)]
-    [subcomponent-id subelement-keyword subelement-key]))
+  [current-component-data subcomponent-id subelement-keyword index]
+  (let [subelement (get-in current-component-data [subcomponent-id index])
+        subelement-key (get subelement subelement-keyword)
+        ]
+    [subcomponent-id subelement-keyword subelement-key index]))
