@@ -7,6 +7,7 @@
             [untangled.logging :as logging]
             [cljs.test :refer [do-report]]
             smooth-spec.stub
+            cljs.pprint
             [untangled.core :as core]
             [untangled.application :as app]
             [untangled.events :as evt])
@@ -37,9 +38,9 @@
                (let [state {:a {:b [{:k 2} {:k 1}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
                      scalar-path-context (assoc (state/root-context the-application) :scope [:top :a :b 0])
-                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1]])
+                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 0]])
                      context-with-bad-path (assoc (state/root-context the-application) :scope [:top :a [:b :k]])
-                     context-with-missing-data (assoc (state/root-context the-application) :scope [:top :a [:b :k 3]])
+                     context-with-missing-data (assoc (state/root-context the-application) :scope [:top :a [:b :k 3 0]])
                      ]
                  (behavior "leaves paths containing only scalar values alone"
                            (assertions
@@ -51,53 +52,57 @@
                              ))
                  (behavior "logs a console message (for debugging) if a inline vector is not a triple"
                            (provided "message indicates vector must have three elements"
-                                     (logging/log msg) =1x=> (is (= "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY" msg))
+                                     (logging/log msg) =1x=> (is (= "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 4-TUPLE KEY" msg))
 
                                      (state/data-path context-with-bad-path)
                                      ))
                  (behavior "logs a console message (for debugging) if a inline vector refers to a missing value"
                            (provided "message indicates that no item was found, and includes the path that was searched"
                                      (logging/log msg) =1x=> (is (= "ERROR: NO ITEM FOUND AT DATA PATH" msg))
-                                     (cljs.pprint/pprint path) =1x=> (is (= [:top :a [:b :k 3]] path))
+                                     (cljs.pprint/pprint path) =1x=> (is (= [:top :a [:b :k 3 0]] path))
 
                                      (state/data-path context-with-missing-data)
                                      ))
                  ))
 
-(specification "the context-data function"
+(specification "Rendering context"
                (let [state {:a {:form/locale "en-US"
                                 :b           [{:k 2 :v {:boo 22}} {:k 1}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
-                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1]])
+                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 1]])
                      ]
-                 (behavior "retrieves the data for the provided context"
+                 (behavior "context-data function retrieves the data for the provided context"
                            (provided "provided that data-path is a legal path"
                                      (state/data-path ctx) =1x=> [:top :a :b 1]
 
                                      (is (= (state/context-data context-with-sublist-path) {:k 1})))
                            )
-                 (behavior "includes a copy of published parent data"
-                           (let [root (state/root-context the-application)
-                                 top (state/new-sub-context root :top [])
-                                 context1 (state/new-sub-context top :a [] #{:form/locale})
-                                 context2 (state/new-sub-context context1 [:b :k 2] [])
-                                 context3 (state/new-sub-context context2 :v [])
-                                 ]
+                 (let [root (state/root-context the-application)
+                       top (state/new-sub-context root :top [])
+                       context1 (state/new-sub-context top :a [] #{:form/locale})
+                       context2 (state/new-sub-context context1 [:b :k 2 0] [])
+                       context3 (state/new-sub-context context2 :v [])
+                       ]
+                   (behavior "carries published data in the context"
                              (assertions
-                               (-> context1 :to-publish) => #{:form/locale}
+                               (:to-publish context1) => { :form/locale "en-US"}
+                               (:to-publish context2) => { :form/locale "en-US"}
+                               (:to-publish context3) => { :form/locale "en-US"}
+                               )
+                             )
+                   (behavior "context-data copies published parent data into extracted data"
+                             (assertions
                                (-> (state/context-data context1) :form/locale) => "en-US"
-                               (-> context2 :to-publish) => #{:form/locale}
                                (-> (state/context-data context2) :form/locale) => "en-US"
-                               (-> context3 :to-publish) => #{:form/locale}
                                (-> (state/context-data context3) :form/locale) => "en-US"
                                )
                              )
-                           )))
+                   )))
 
 (specification "the update-in-context function"
                (let [state {:a {:b [{:k 2} {:k 1 :v 0}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
-                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1]])
+                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 1]])
                      operation (fn [obj] (update obj :v inc))
                      tm (js/Date. 2000)
                      tm2 (js/Date. 3000)
@@ -164,21 +169,7 @@
             (:event-listeners (state/new-sub-context parent-context :id [{:datePicked 'func}])) => [{:datePicked 'f1} {:datePicked 'func}]
             ))
         )
-      (behavior
-        "can include a published state set"
-        (let [parent-context (state/new-sub-context context :id [] #{:form/locale})]
-          (is (= #{:form/locale} (:to-publish parent-context)))
-          ))
-      (behavior
-        "propagates the published state set from the parent context to the sub-context"
-        (let [parent-context (state/new-sub-context context :id [] #{:form/locale})
-              child-context (state/new-sub-context parent-context :other [])
-              ]
-          (is (= #{:form/locale} (:to-publish child-context)))
-          )
-        )
       ))
-
   )
 
 (specification "the contex-operator function"

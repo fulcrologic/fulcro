@@ -21,7 +21,7 @@
   (begin-specification [this spec] "Tests are reporting the start of a specification")
   (end-specification [this] "Tests are reporting the end of a specification")
   (begin-namespace [this name] "Tests are reporting the start of a namespace")
-  (push-test-item-path [this test-item] "Push a new test items onto the test item path")
+  (push-test-item-path [this test-item index] "Push a new test items onto the test item path")
   (pop-test-item-path [this] "Pops the last test item off of the test item path")
   )
 
@@ -40,10 +40,11 @@
   (loop [data (:top @app-state)
          path test-item-path
          result [:top]]
-    (if (empty? path) result
-                      (let [resolved-path (qms/resolve-data-path data (vector (take 3 path)))
-                            context-data (get-in data resolved-path)]
-                        (recur context-data (drop 3 path) (concat result resolved-path))))
+    (if (empty? path)
+      result
+      (let [resolved-path (qms/resolve-data-path data (vector (seq (take 4 path))))
+            context-data (get-in data resolved-path)]
+        (recur context-data (drop 4 path) (concat result resolved-path))))
     ))
 
 (defrecord TestSuite
@@ -62,20 +63,20 @@
                                      (if (> (count current-test-result-path) 1)
                                        (let [target (get-in @app-state current-test-result-path)
                                              current-status (:status target)]
-                                         (if (not (or (= current-status :error)(= current-status :failed)))
+                                         (if (not (or (= current-status :error) (= current-status :failed)))
                                            (swap! app-state #(assoc-in % (concat current-test-result-path [:status]) status)))
                                          (recur (drop-last 2 current-test-result-path)))))))
 
-  (push-test-item-path [this test-item] (swap! test-item-path #(conj % :test-items :id (:id test-item))))
+  (push-test-item-path [this test-item index] (swap! test-item-path #(conj % :test-items :id (:id test-item) index)))
 
-  (pop-test-item-path [this] (swap! test-item-path #(-> % (pop) (pop) (pop))))
+  (pop-test-item-path [this] (swap! test-item-path #(-> % (pop) (pop) (pop) (pop))))
 
   (begin-namespace [this name]
     (let [namespaces (get-in @app-state [:top :namespaces])
           namespace-index (first (keep-indexed (fn [idx val] (when (= (:name val) name) idx)) namespaces))
           name-space-location (if namespace-index namespace-index (count namespaces))
           ]
-      (reset! test-item-path [:namespaces :name name])
+      (reset! test-item-path [:namespaces :name name name-space-location])
       (swap! app-state #(assoc-in % [:top :namespaces name-space-location] (rc/make-tests-by-namespace name))))
     )
 
@@ -83,7 +84,7 @@
     (let [test-item (rc/make-testitem spec)
           test-items-count (count (get-in @app-state (concat (translate-item-path app-state @test-item-path) [:test-items])))]
       (swap! app-state #(assoc-in % (concat (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
-      (push-test-item-path this test-item)
+      (push-test-item-path this test-item test-items-count)
       )
     )
 
@@ -94,7 +95,7 @@
           parent-test-item (get-in @app-state (translate-item-path app-state @test-item-path))
           test-items-count (count (:test-items parent-test-item))]
       (swap! app-state #(assoc-in % (concat (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
-      (push-test-item-path this test-item)
+      (push-test-item-path this test-item test-items-count)
       )
     )
 
@@ -103,8 +104,8 @@
   (begin-provided [this provided]
     (let [test-item (rc/make-testitem provided)
           test-items-count (count (get-in @app-state (concat (translate-item-path app-state @test-item-path) [:test-items])))]
-    (swap! app-state #(assoc-in % (concat (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
-      (push-test-item-path this test-item)
+      (swap! app-state #(assoc-in % (concat (translate-item-path app-state @test-item-path) [:test-items test-items-count]) test-item))
+      (push-test-item-path this test-item test-items-count)
       )
     )
 
@@ -175,8 +176,8 @@
                               :renderer   ui-render
                               :dom-target target
                               :history    (atom (h/empty-history history))
-                              :test-mode test-mode
-                              :view-only view-only
+                              :test-mode  test-mode
+                              :view-only  view-only
                               }))
 
 

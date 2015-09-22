@@ -4,7 +4,7 @@
     [untangled.state :as qms]
     [untangled.events :as evt]
     [cljs-uuid-utils.core :as uuid]
-    )
+    [untangled.state :as state])
   )
 
 (declare TestItem)
@@ -68,8 +68,8 @@
    })
 
 
-(defn item-path [item] [:test-items :id (:id item)])
-(defn result-path [item] [:test-results :id (:id item)])
+(defn item-path [item index] [:test-items :id (:id item) index])
+(defn result-path [item index] [:test-results :id (:id item) index])
 
 (defn itemclass [status]
   (cond
@@ -102,12 +102,16 @@
                  (c/li {:className "test-item"}
                        (c/div {}
                               (c/span {:className (itemclass (:status test-item))} (:name test-item))
-                              (c/ul {:className "test-list"}
-                                    (map #(TestResult (result-path %) context) (:test-results test-item))
-                                    )
-                              (c/ul {:className "test-list"}
-                                    (map #(TestItem (item-path %) context) (:test-items test-item))
-                                    )
+                              (let [element-id (partial state/list-element-id test-item :test-results :id)]
+                                (c/ul {:className "test-list"}
+                                      (map-indexed (fn [idx item] (TestResult (element-id idx) context)) (:test-results test-item))
+                                      )
+                                )
+                              (let [element-id (partial state/list-element-id test-item :test-items :id)]
+                                (c/ul {:className "test-list"}
+                                      (map-indexed (fn [idx item] (TestItem (element-id idx) context)) (:test-items test-item))
+                                      )
+                                )
                               )
                        )
                  )
@@ -118,9 +122,11 @@
                  (c/li {:className "test-item"}
                        (c/div {:className "test-namespace"}
                               (c/h2 {:className (itemclass (:status tests-by-namespace))} "Testing " (:name tests-by-namespace))
-                              (c/ul {:className "test-list"}
-                                    (map #(TestItem (item-path %) context) (:test-items tests-by-namespace))
-                                    )
+                              (let [element-id (partial state/list-element-id tests-by-namespace :test-items :id)]
+                                (c/ul {:className "test-list"}
+                                      (map-indexed (fn [idx item] (TestItem (element-id idx) context)) (:test-items tests-by-namespace))
+                                      )
+                                )
                               )
                        )
                  )
@@ -129,11 +135,11 @@
                  :keyfn :id
                  [test-report context]
                  (c/section {:className "test-report"}
-
-                            (c/ul {:className "test-list"}
-                                  (map #(TestNamespace [:namespaces :name (:name %)] context) (:namespaces test-report))
-                                  )
-
+                            (let [element-id (partial state/list-element-id test-report :namespaces :name)]
+                              (c/ul {:className "test-list"}
+                                    (map-indexed (fn [idx item] (TestNamespace (element-id idx) context)) (:namespaces test-report))
+                                    )
+                              )
                             (let [rollup-stats (reduce (fn [acc item]
                                                          (let [counts [(:passed item) (:failed item) (:error item)
                                                                        (+ (:passed item) (:failed item) (:error item))]]
@@ -145,7 +151,7 @@
                               (c/div {:className "test-count"}
                                      (c/h2 {}
                                            (str "Tested " (count (:namespaces test-report)) " namespaces containing "
-                                                (nth rollup-stats 3) " assertions. "
+                                                 (nth rollup-stats 3) " assertions. "
                                                 (nth rollup-stats 0) " passed " (nth rollup-stats 1) " failed " (nth rollup-stats 2) " errors")
                                            )
                                      ))

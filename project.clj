@@ -5,7 +5,7 @@
             :url  "http://www.thenavisway.com"}
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [quiescent "0.2.0-RC1"]
+                 [quiescent "0.2.0-RC2"]
                  [org.clojure/clojurescript "1.7.48"]
                  [smooth-spec "0.1.0-SNAPSHOT"]
                  [differ "0.2.1"]
