@@ -19,14 +19,14 @@
 (defn- find-first [pred coll] (first (filter pred coll)))
 
 (defn checked-index [items index id-keyword value]
-    (let [index-valid? (> (count items) index)
-          proposed-item (if index-valid? (get items index) nil)
-         ]
-     (cond (and proposed-item
-                (= value (get proposed-item id-keyword))) index
-           :otherwise (->> (map-indexed vector items) (find-first #(= value (id-keyword (second %)))) (first))
-           )
-     )
+  (let [index-valid? (> (count items) index)
+        proposed-item (if index-valid? (get items index) nil)
+        ]
+    (cond (and proposed-item
+               (= value (get proposed-item id-keyword))) index
+          :otherwise (->> (map-indexed vector items) (find-first #(= value (id-keyword (second %)))) (first))
+          )
+    )
   )
 
 (defn resolve-data-path [state path-seq]
@@ -89,10 +89,9 @@
   (let [state-atom (-> context :application :app-state)
         path (data-path context)
         to-copy (-> context :to-publish)
-        extra-data (into {} (map #(vector % (parent-data context %)) to-copy))
         ]
     (cond->> (get-in @state-atom path)
-             (not-empty to-copy) (merge extra-data)
+             (not-empty to-copy) (merge to-copy)
              )))
 
 (defn get-application "Retrieve the top-level application for any given context" [context] (:application context))
@@ -116,25 +115,30 @@
     (app/state-changed application old-state @state-atom)
     ))
 
+(defn dbg [v] (cljs.pprint/pprint v) v)
+
 (defn new-sub-context
   "Create a new context (scope) which represents a child's context. Also installs the given handler map as a list of
-  event handlers the child can trigger on the parent."
+  event handlers the child can trigger on the parent.
+  
+  A new sub-context may also include data from the parent context. In this case, pass a set of attributes to publish as 
+  the last argument, and that state will be copied into the publish list of the new context."
   ([context id handler-map]
    (cond-> (assoc context :scope (conj (:scope context) id))
            handler-map (assoc :event-listeners (concat (:event-listeners context) handler-map))
            ))
   ([context id handler-map child-publish-set]
-   (cond-> (new-sub-context context id handler-map)
-           child-publish-set (update :to-publish (partial union child-publish-set))
-           ))
+   (let [data (get (context-data context) id)
+         published-data (reduce (fn [acc i] (assoc acc i (get data i))) {} child-publish-set)]
+     (cond-> (new-sub-context context id handler-map)
+             child-publish-set (update :to-publish (partial merge published-data))
+             )))
   )
 
 (defn event-reason [evt]
   (let [e (some-> evt (.-nativeEvent))]
-    (js/console.log e)
     (if (instance? js/Event e)
       (let [typ (.-type e)]
-        (js/console.log typ)
         (cond-> {:kind :browser-event :type typ}
                 (= "input" typ) (merge {
                                         :react-id    (some-> (.-target e) (.-attributes) (.getNamedItem "data-reactid") (.-value))

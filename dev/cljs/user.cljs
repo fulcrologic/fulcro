@@ -14,6 +14,8 @@
             [cljs.test :as test :include-macros true :refer [report]]))
 
 
+(enable-console-print!)
+
 (test-suite dom-report
             'untangled.core-spec
             'untangled.events-spec
