@@ -37,9 +37,9 @@
                (let [state {:a {:b [{:k 2} {:k 1}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
                      scalar-path-context (assoc (state/root-context the-application) :scope [:top :a :b 0])
-                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1]])
+                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 0]])
                      context-with-bad-path (assoc (state/root-context the-application) :scope [:top :a [:b :k]])
-                     context-with-missing-data (assoc (state/root-context the-application) :scope [:top :a [:b :k 3]])
+                     context-with-missing-data (assoc (state/root-context the-application) :scope [:top :a [:b :k 3 0]])
                      ]
                  (behavior "leaves paths containing only scalar values alone"
                            (assertions
@@ -51,14 +51,14 @@
                              ))
                  (behavior "logs a console message (for debugging) if a inline vector is not a triple"
                            (provided "message indicates vector must have three elements"
-                                     (logging/log msg) =1x=> (is (= "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 3-TUPLE KEY" msg))
+                                     (logging/log msg) =1x=> (is (= "ERROR: VECTOR BASED DATA ACCESS MUST HAVE A 4-TUPLE KEY" msg))
 
                                      (state/data-path context-with-bad-path)
                                      ))
                  (behavior "logs a console message (for debugging) if a inline vector refers to a missing value"
                            (provided "message indicates that no item was found, and includes the path that was searched"
                                      (logging/log msg) =1x=> (is (= "ERROR: NO ITEM FOUND AT DATA PATH" msg))
-                                     (cljs.pprint/pprint path) =1x=> (is (= [:top :a [:b :k 3]] path))
+                                     (cljs.pprint/pprint path) =1x=> (is (= [:top :a [:b :k 3 0]] path))
 
                                      (state/data-path context-with-missing-data)
                                      ))
@@ -80,7 +80,7 @@
                            (let [root (state/root-context the-application)
                                  top (state/new-sub-context root :top [])
                                  context1 (state/new-sub-context top :a [] #{:form/locale})
-                                 context2 (state/new-sub-context context1 [:b :k 2] [])
+                                 context2 (state/new-sub-context context1 [:b :k 2 0] [])
                                  context3 (state/new-sub-context context2 :v [])
                                  ]
                              (assertions
@@ -97,7 +97,7 @@
 (specification "the update-in-context function"
                (let [state {:a {:b [{:k 2} {:k 1 :v 0}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
-                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1]])
+                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 1]])
                      operation (fn [obj] (update obj :v inc))
                      tm (js/Date. 2000)
                      tm2 (js/Date. 3000)
