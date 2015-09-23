@@ -10,6 +10,7 @@
                  [smooth-spec "0.1.0-SNAPSHOT"]
                  [differ "0.2.1"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
+                 [lein-cljsbuild "1.0.5"]
                  ]
 
   :source-paths ["src" "spec"]
@@ -31,11 +32,13 @@
   :profiles {
              :dev {
                    :source-paths ["src" "test" "dev"]
+                   :dependencies [[leiningen "2.5.3"]
+                                  [leiningen-core "2.5.3"]]
                    :repl-options {
                                   :init-ns clj.user
-                                  :port 7001
+                                  :port    7001
                                   }
-                   :env {:dev true }
+                   :env          {:dev true}
                    }
              }
 
