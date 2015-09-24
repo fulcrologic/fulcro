@@ -81,6 +81,13 @@ Untangled ships with a leiningen plugin that conveniently:
 The leiningen plugin must be configured in your project.clj file.  Simply add `:plugins [untangled "0.1.0-SNAPSHOT"]` to the
 project.clj.
 
+The plugin is only supported on Unix/Linux systems.
+
+The i18n plugin requires that gettext tools are installed and available in your $PATH.
+On MAC OS install via homebrew:
+`brew install gettext`
+`brew link --force gettext`
+The link command is required because some software get confused if two of the same utilities are in the library path.
 
 ### leiningen plugin usage and translator workflow
 
@@ -88,7 +95,7 @@ Suppose that you have just finished an awesome new feature in your project. This
 strings to your UI, and you would like to have the new parts of your UI translated for international users. To extract
 your new strings for translation, run this command from the root of your project.
 
-`lein i18n extract`
+`lein i18n extract-i18n-strings`
 
 This will generate a new `messages.pot` in the `i18n/msgs` directory of your project. If you have existing translation
 files in your project (eg: `i18n/msgs/fr_CA.po`), these files will be updated with your new untranslated strings. Any
@@ -106,7 +113,7 @@ We now want to convert `*.po` translation files into a format that your project 
 see translations in the UI. Run the following command from the root of your project to deploy new translations into your
 project:
 
-`lein i18n deploy`
+`lein i18n deploy-translations`
 
 You now should be able to see the new translations in your app!
 

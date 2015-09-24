@@ -17,25 +17,24 @@
 
 (specification "the wrap-with-swap function"
                (let [code-string (u/wrap-with-swap :locale "fr-CA" :translation "{\"fizz\" \"buzz\"}")
-                     re #"(?ms)^(\(ns untangled.translations.fr-CA\)).*"
+                     re #"(?ms)^(\(ns untangled.translations.fr-CA).*"
                      match (last (re-matches re code-string))]
-
                  (behavior "emits code string that begins with a namespace delcaration"
                            (assertions
-                             match => "(ns untangled.translations.fr-CA)")))
+                             match => "(ns untangled.translations.fr-CA")))
 
                (let [code-string (u/wrap-with-swap :locale "fr-CA" :translation "{\"fizz\" \"buzz\"}")
-                     re #"(?ms)^.*(untangled.i18n.loaded-translations).*"
+                     re #"(?ms)^.*(untangled.i18n.core/\*loaded-translations\*).*"
                      match (last (re-matches re code-string))]
 
                  (behavior "emits code string with default :atom-name"
                            (assertions
-                             match => "untangled.i18n.loaded-translations"))))
+                             match => "untangled.i18n.core/*loaded-translations*"))))
 
 
 (specification "the map-po-to-translations function"
                (provided "when given a PO file"
-                         (u/get-file f) =3x=> po-file
+                         (slurp f) =3x=> po-file
                          (behavior "maps msgctxt|msgid to translated string"
                                    (assertions
                                      (get (u/map-po-to-translations po-file) "|Sad :(") => "Triste :("
@@ -100,6 +99,7 @@
                ;          )
                )
 
-; this made test-refresh work
-;(report/with-smooth-output (run-tests 'untangled.spec.i18n.util-spec))
+; this made test-refresh wor
+; k
+(report/with-smooth-output (run-tests 'untangled.spec.i18n.util-spec))
 
