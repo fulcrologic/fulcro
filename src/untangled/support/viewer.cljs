@@ -97,8 +97,8 @@
 
 (c/defscomponent HistoryPlayer
                  "A component to playback history"
-                 [viewer context]
-                 (let [op (state/op-builder context)
+                 [viewer]
+                 (let [op (state/op-builder viewer)
                        application (core/new-application (:renderer viewer) (current-app-state viewer) :view-only true)]
                    (c/div {:className "app"}
                           (core/Root (current-app-state viewer) application)

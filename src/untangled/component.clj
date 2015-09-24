@@ -72,14 +72,15 @@
   (let [[docstr forms] (extract-docstr forms)
         [options forms] (extract-opts forms)
         [argvec & body] forms
+        argname (first argvec)
         base-options (dissoc options :publish)
         things-to-publish (set (:publish options))
         ]
     ; Create plumbing to an underlying quiescent component
-    `(def ~name ~docstr
-       ;; Def the quiescent construction function so users can create instances of the component that "close over"
-       ;; the plumbing that extracts the application state and passes it to the real handler.
-       (let [real-handler# (quiescent.core/component (fn ~argvec ~@body) ~base-options)]
+    `(let [real-handler# (quiescent.core/component (fn [data# context#] (let [~argname (merge data# context#)] ~@body)) ~base-options)]
+       (def ~name ~docstr
+         ;; Def the quiescent construction function so users can create instances of the component that "close over"
+         ;; the plumbing that extracts the application state and passes it to the real handler.
          (fn [id# context# & event-handlers#]
            (let [new-context# (untangled.state/new-sub-context context# id# event-handlers# ~things-to-publish)
                  data# (untangled.state/context-data new-context#)]

@@ -10,9 +10,9 @@
   "Create a root context for a given Untangled Application (see untangled.core/new-application)."
   [app]
   {
-   :application     app
-   :scope           []
-   :event-listeners []
+   ::application     app
+   ::scope           []
+   ::event-listeners []
    }
   )
 
@@ -60,8 +60,8 @@
   "Used by internal context tracking to correct the internal path to account for the inclusion of vectors as data structures
   pointing to items in vectors."
   [context]
-  (let [state @(-> context :application :app-state)
-        path-seq (:scope context)
+  (let [state @(-> context ::application :app-state)
+        path-seq (::scope context)
         ]
     (resolve-data-path state path-seq)
     ))
@@ -71,8 +71,8 @@
   Searches up in the context scopes until it finds data for the given key.
   Returns nil if no such data can be found"
   [context key]
-  (let [state-atom (-> context :application :app-state)]
-    (loop [parent-scope (vec (butlast (:scope context)))]
+  (let [state-atom (-> context ::application :app-state)]
+    (loop [parent-scope (vec (butlast (::scope context)))]
       (let [path (conj (resolve-data-path @state-atom parent-scope) key)
             value (get-in @state-atom path)]
         (cond
@@ -86,7 +86,7 @@
   "Extract the data for the component indicated by the given context. If the context indicates there is published
   state from a parent, then that published state will be included in the data."
   [context]
-  (let [state-atom (-> context :application :app-state)
+  (let [state-atom (-> context ::application :app-state)
         path (data-path context)
         to-copy (-> context :to-publish)
         ]
@@ -94,14 +94,14 @@
              (not-empty to-copy) (merge to-copy)
              )))
 
-(defn get-application "Retrieve the top-level application for any given context" [context] (:application context))
+(defn get-application "Retrieve the top-level application for any given context" [context] (::application context))
 
 (defn update-in-context
   "Update the application state by applying the given operation to the state of the component implied by
   the given context. Think of this as a 'targeted' `swap!` where you don't have to know where the data is
   stored. This function also records the change in this state history with an optional associated Reason."
   [context operation undoable compressable reason]
-  (let [application (-> context :application)
+  (let [application (-> context ::application)
         state-atom (:app-state application)
         history-atom (:history application)
         path (data-path context)
@@ -124,8 +124,8 @@
   A new sub-context may also include data from the parent context. In this case, pass a set of attributes to publish as 
   the last argument, and that state will be copied into the publish list of the new context."
   ([context id handler-map]
-   (cond-> (assoc context :scope (conj (:scope context) id))
-           handler-map (assoc :event-listeners (concat (:event-listeners context) handler-map))
+   (cond-> (assoc context ::scope (conj (::scope context) id))
+           handler-map (assoc ::event-listeners (concat (::event-listeners context) handler-map))
            ))
   ([context id handler-map child-publish-set]
    (let [data (get (context-data context) id)

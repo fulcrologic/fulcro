@@ -21,7 +21,7 @@
   You may indicate that the event should bubble to all parents by including `:bubble true` as a named parameter.
   "
   [context event & {:keys [bubble data] :or {bubble false data nil}}]
-  (doseq [listener-map (if bubble (:event-listeners context) (list (last (:event-listeners context))))]
+  (doseq [listener-map (if bubble (:untangled.state/event-listeners context) (list (last (:untangled.state/event-listeners context))))]
     (if-let [listener (get listener-map event)]
       (if (fn? listener)
         (listener event data)

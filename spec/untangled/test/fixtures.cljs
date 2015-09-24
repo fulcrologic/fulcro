@@ -42,8 +42,8 @@
 
 (cm/defscomponent Button
                   "A button"
-                  [data context]
-                  (let [op (state/op-builder context)
+                  [data ]
+                  (let [op (state/op-builder data)
                         store-last-event (fn [evt input]
                                            (assoc input :last-event evt))]
 
