@@ -123,10 +123,11 @@
   event handlers the child can trigger on the parent.
   
   A new sub-context may also include data from the parent context. In this case, pass a set of attributes to publish as 
-  the last argument, and that state will be copied into the publish list of the new context."
+  the last argument, and that state will be copied into the publish list of the new context.
+  "
   ([context id handler-map]
    (cond-> (assoc context ::scope (conj (::scope context) id))
-           handler-map (assoc ::event-listeners (concat (::event-listeners context) handler-map))
+           handler-map (assoc ::event-listeners (conj (::event-listeners context) handler-map))
            ))
   ([context id handler-map child-publish-set]
    (let [data (get (context-data context) id)

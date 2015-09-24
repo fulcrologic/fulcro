@@ -125,6 +125,7 @@
                               (let [element-id (partial state/list-element-id tests-by-namespace :test-items :id)]
                                 (c/ul {:className "test-list"}
                                       (map-indexed (fn [idx item] (TestItem (element-id idx) tests-by-namespace)) (:test-items tests-by-namespace))
+                                      ;(build-list TestItem :test-items :id tests-by-namespace)
                                       )
                                 )
                               )

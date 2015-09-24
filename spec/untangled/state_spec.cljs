@@ -165,13 +165,13 @@
       (behavior
         "sets the event handlers"
         (assertions
-          (:untangled.state/event-listeners (state/new-sub-context context :id [{:datePicked 'func}])) => [{:datePicked 'func}]
+          (:untangled.state/event-listeners (state/new-sub-context context :id {:datePicked 'func})) => [{:datePicked 'func}]
           ))
       (behavior
         "accumulates the event map entries from the parent context in vector (add-last) order"
-        (let [parent-context (state/new-sub-context context :id [{:datePicked 'f1}])]
+        (let [parent-context (state/new-sub-context context :id {:datePicked 'f1})]
           (assertions
-            (:untangled.state/event-listeners (state/new-sub-context parent-context :id [{:datePicked 'func}])) => [{:datePicked 'f1} {:datePicked 'func}]
+            (:untangled.state/event-listeners (state/new-sub-context parent-context :id {:datePicked 'func})) => [{:datePicked 'f1} {:datePicked 'func}]
             ))
         )
       ))
