@@ -90,9 +90,9 @@
                        ]
                    (behavior "carries published data in the context"
                              (assertions
-                               (:to-publish context1) => { :form/locale "en-US"}
-                               (:to-publish context2) => { :form/locale "en-US"}
-                               (:to-publish context3) => { :form/locale "en-US"}
+                               (:untangled.state/to-publish context1) => { :form/locale "en-US"}
+                               (:untangled.state/to-publish context2) => { :form/locale "en-US"}
+                               (:untangled.state/to-publish context3) => { :form/locale "en-US"}
                                )
                              )
                    (behavior "context-data copies published parent data into extracted data"

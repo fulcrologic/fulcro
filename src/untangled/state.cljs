@@ -13,6 +13,7 @@
    ::application     app
    ::scope           []
    ::event-listeners []
+   ::to-publish {}
    }
   )
 
@@ -88,7 +89,7 @@
   [context]
   (let [state-atom (-> context ::application :app-state)
         path (data-path context)
-        to-copy (-> context :to-publish)
+        to-copy (-> context ::to-publish)
         ]
     (cond->> (get-in @state-atom path)
              (not-empty to-copy) (merge to-copy)
@@ -131,7 +132,7 @@
    (let [data (get (context-data context) id)
          published-data (reduce (fn [acc i] (assoc acc i (get data i))) {} child-publish-set)]
      (cond-> (new-sub-context context id handler-map)
-             child-publish-set (update :to-publish (partial merge published-data))
+             child-publish-set (update ::to-publish (partial merge published-data))
              )))
   )
 
