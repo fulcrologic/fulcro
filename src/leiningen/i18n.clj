@@ -88,8 +88,8 @@
    (puke "Bad you!"))
   ([project subtask]
    (case subtask
-     "extract" (extract-i18n-strings project)
-     "deploy" (deploy-translations project)
+     "extract-i18n-strings" (extract-i18n-strings project)
+     "deploy-translations" (deploy-translations project)
      (puke (str "Unrecognized subtask: " subtask)))))
 
 

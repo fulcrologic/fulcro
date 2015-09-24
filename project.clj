@@ -16,6 +16,7 @@
   :source-paths ["src" "spec"]
   
   :plugins [[lein-cljsbuild "1.0.5"]
+            [untangled "0.1.0-SNAPSHOT"]
             [lein-figwheel "0.3.9"]]
 
   :cljsbuild {:builds
