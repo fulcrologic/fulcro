@@ -81,9 +81,10 @@
        (def ~name ~docstr
          ;; Def the quiescent construction function so users can create instances of the component that "close over"
          ;; the plumbing that extracts the application state and passes it to the real handler.
-         (fn [id# context# & {:keys [event-handlers#]}]
+         (fn [id# context# & rest#]
            (let [old-context-stripped-of-data# (into {} (filter (fn [[k# v#]] (= "untangled.state" (namespace k#))) context#))
-                 new-context# (untangled.state/new-sub-context old-context-stripped-of-data# id# event-handlers# ~things-to-publish)
+                 param-map# (into {} (map vec (partition 2 rest#)))
+                 new-context# (untangled.state/new-sub-context old-context-stripped-of-data# id# (:event-listeners param-map#) ~things-to-publish)
                  data# (untangled.state/context-data new-context#)]
              (real-handler# data# new-context#)
              ))))))
