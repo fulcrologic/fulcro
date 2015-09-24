@@ -85,8 +85,11 @@ The plugin is only supported on Unix/Linux systems.
 
 The i18n plugin requires that gettext tools are installed and available in your $PATH.
 On MAC OS install via homebrew:
+
 `brew install gettext`
+
 `brew link --force gettext`
+
 The link command is required because some software get confused if two of the same utilities are in the library path.
 
 ### leiningen plugin usage and translator workflow
