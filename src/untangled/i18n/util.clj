@@ -37,8 +37,14 @@
   (spit fname translations-string)
   )
 
-; TODO: below is the basis for multiline translation support, still needs implementation
-;
+
+(defn group-chunks [line]
+  (reduce (fn [acc line]
+            (if (re-matches #"^msg.*" line)
+              (conj acc [line])
+              (update-in acc [(dec (count acc))] conj line)))
+          [] line))
+
 (defn group-translations [fname]
   (let [fstring (slurp fname)
         trans-chunks (rest (clojure.string/split fstring #"(?ms)\n\n"))
@@ -47,8 +53,9 @@
         uncommented-chunks (map #(remove comment? %) grouped-chunks)
 
         keyed-chunk #(reduce (fn [acc line]
-                               (if (re-matches #"^msg.*" line) (conj acc [line])
-                                                               (update-in acc [(dec (count acc))] conj line)))
+                               (if (re-matches #"^msg.*" line)
+                                 (conj acc [line])
+                                 (update-in acc [(dec (count acc))] conj line)))
                              [] %)
 
         keyed-chunks (map keyed-chunk uncommented-chunks)

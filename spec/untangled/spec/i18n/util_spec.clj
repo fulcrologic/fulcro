@@ -15,6 +15,11 @@
 (def msgid-line "msgid \"A button with a click count: \"")
 (def msgstr-line "msgstr \"Clic aquí\"")
 
+(specification "the group-chunks function"
+               (behavior "works great!"
+                         (assertions
+                           (u/group-chunks [msgid-line]) => [])))
+
 (specification "the group-translations function"
                (provided "when grouping translations"
                          (slurp some-file) =2x=> po-file
