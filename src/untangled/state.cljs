@@ -237,4 +237,12 @@
   (let [subelement (get-in current-component-data [subcomponent-id index])
         subelement-key (get subelement subelement-keyword)
         ]
+    (assert subelement-key (str "No value for key named " subelement-keyword " found in target object. Cannot create a UI list ID for it!"))
     [subcomponent-id subelement-keyword subelement-key index]))
+
+(defn transact!
+  [context f & options]
+  (let [op (op-builder context)]
+    ((apply op f options))
+    )
+  )

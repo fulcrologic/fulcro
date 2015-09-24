@@ -19,7 +19,7 @@
 
   :cljsbuild {:builds
               [{:id           "test"
-                :source-paths ["src" "dev" "spec"]
+                :source-paths ["src" "dev" "spec" ]
                 :figwheel     {:on-jsload "cljs.user/on-load"}
                 :compiler     {:main                 cljs.user
                                :output-to            "resources/public/js/test/test.js"

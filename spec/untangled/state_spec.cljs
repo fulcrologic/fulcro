@@ -35,12 +35,13 @@
                            )))
 
 (specification "data path conversion -- data-path function"
-               (let [state {:a {:b [{:k 2} {:k 1}]}}
+               (let [state {:a {:b [{:k 2} {:k 1} {:k 4}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
                      scalar-path-context (assoc (state/root-context the-application) :scope [:top :a :b 0])
                      context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 0]])
                      context-with-bad-path (assoc (state/root-context the-application) :scope [:top :a [:b :k]])
                      context-with-missing-data (assoc (state/root-context the-application) :scope [:top :a [:b :k 3 0]])
+                     context-with-stale-index (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 2]])
                      ]
                  (behavior "leaves paths containing only scalar values alone"
                            (assertions
@@ -63,6 +64,10 @@
 
                                      (state/data-path context-with-missing-data)
                                      ))
+                 (behavior "finds the correct object in a list that has an incorrect index suggestion"
+                           (assertions
+                             (state/data-path context-with-stale-index) => [:top :a :b 1]
+                           ))
                  ))
 
 (specification "Rendering context"
@@ -220,3 +225,8 @@
 
                                    (state/op-builder 'some-context)
                                    )))
+
+
+(specification "List element id"
+               (behavior "emits a warning if you supply a key name that does not exist in the actual data item."
+                         ))

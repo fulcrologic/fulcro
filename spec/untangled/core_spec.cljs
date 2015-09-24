@@ -7,7 +7,7 @@
   )
 
 (specification
-  "The translate-item-path function"
+  "The translate-item-path (function)"
   (let [app-state (atom {:top
                                {:summary    "",
                                 :namespaces [{:name "untangled.test.dom-spec", :test-items [{:id "xyz"}]}],
