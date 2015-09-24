@@ -21,26 +21,27 @@
                            (is (map? root-scope)))
                  (behavior "starts out with no event listeners"
                            (assertions
-                             (contains? root-scope :event-listeners) => true
-                             (empty? (root-scope :event-listeners)) => true
+                             (contains? root-scope :untangled.state/event-listeners) => true
+                             (empty? (root-scope :untangled.state/event-listeners)) => true
                              ))
                  (behavior "tracks the application"
                            (assertions
-                             (:application root-scope) => the-application
+                             (:untangled.state/application root-scope) => the-application
                              ))
                  (behavior "starts the scope at the top"
                            (assertions
-                             (:scope root-scope) => []
+                             (:untangled.state/scope root-scope) => []
                              )
                            )))
 
 (specification "data path conversion -- data-path function"
-               (let [state {:a {:b [{:k 2} {:k 1}]}}
+               (let [state {:a {:b [{:k 2} {:k 1} {:k 4}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
-                     scalar-path-context (assoc (state/root-context the-application) :scope [:top :a :b 0])
-                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 0]])
-                     context-with-bad-path (assoc (state/root-context the-application) :scope [:top :a [:b :k]])
-                     context-with-missing-data (assoc (state/root-context the-application) :scope [:top :a [:b :k 3 0]])
+                     scalar-path-context (assoc (state/root-context the-application) :untangled.state/scope [:top :a :b 0])
+                     context-with-sublist-path (assoc (state/root-context the-application) :untangled.state/scope [:top :a [:b :k 1 0]])
+                     context-with-bad-path (assoc (state/root-context the-application) :untangled.state/scope [:top :a [:b :k]])
+                     context-with-missing-data (assoc (state/root-context the-application) :untangled.state/scope [:top :a [:b :k 3 0]])
+                     context-with-stale-index (assoc (state/root-context the-application) :untangled.state/scope [:top :a [:b :k 1 2]])
                      ]
                  (behavior "leaves paths containing only scalar values alone"
                            (assertions
@@ -63,13 +64,17 @@
 
                                      (state/data-path context-with-missing-data)
                                      ))
+                 (behavior "finds the correct object in a list that has an incorrect index suggestion"
+                           (assertions
+                             (state/data-path context-with-stale-index) => [:top :a :b 1]
+                           ))
                  ))
 
 (specification "Rendering context"
                (let [state {:a {:form/locale "en-US"
                                 :b           [{:k 2 :v {:boo 22}} {:k 1}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
-                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 1]])
+                     context-with-sublist-path (assoc (state/root-context the-application) :untangled.state/scope [:top :a [:b :k 1 1]])
                      ]
                  (behavior "context-data function retrieves the data for the provided context"
                            (provided "provided that data-path is a legal path"
@@ -85,9 +90,9 @@
                        ]
                    (behavior "carries published data in the context"
                              (assertions
-                               (:to-publish context1) => { :form/locale "en-US"}
-                               (:to-publish context2) => { :form/locale "en-US"}
-                               (:to-publish context3) => { :form/locale "en-US"}
+                               (:untangled.state/to-publish context1) => { :form/locale "en-US"}
+                               (:untangled.state/to-publish context2) => { :form/locale "en-US"}
+                               (:untangled.state/to-publish context3) => { :form/locale "en-US"}
                                )
                              )
                    (behavior "context-data copies published parent data into extracted data"
@@ -102,7 +107,7 @@
 (specification "the update-in-context function"
                (let [state {:a {:b [{:k 2} {:k 1 :v 0}]}}
                      the-application (core/new-application nil state) ; NOTE: adds a :top key to the state
-                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1 1]])
+                     context-with-sublist-path (assoc (state/root-context the-application) :untangled.state/scope [:top :a [:b :k 1 1]])
                      operation (fn [obj] (update obj :v inc))
                      tm (js/Date. 2000)
                      tm2 (js/Date. 3000)
@@ -155,18 +160,18 @@
       (behavior
         "with the proper new scope"
         (assertions
-          (:scope (state/new-sub-context context :id {})) => [:id]
+          (:untangled.state/scope (state/new-sub-context context :id {})) => [:id]
           ))
       (behavior
         "sets the event handlers"
         (assertions
-          (:event-listeners (state/new-sub-context context :id [{:datePicked 'func}])) => [{:datePicked 'func}]
+          (:untangled.state/event-listeners (state/new-sub-context context :id [{:datePicked 'func}])) => [{:datePicked 'func}]
           ))
       (behavior
         "accumulates the event map entries from the parent context in vector (add-last) order"
         (let [parent-context (state/new-sub-context context :id [{:datePicked 'f1}])]
           (assertions
-            (:event-listeners (state/new-sub-context parent-context :id [{:datePicked 'func}])) => [{:datePicked 'f1} {:datePicked 'func}]
+            (:untangled.state/event-listeners (state/new-sub-context parent-context :id [{:datePicked 'func}])) => [{:datePicked 'f1} {:datePicked 'func}]
             ))
         )
       ))
@@ -220,3 +225,13 @@
 
                                    (state/op-builder 'some-context)
                                    )))
+
+
+(specification "context creation -- macro"
+               (behavior "merges context of component with the data in context-first order -- data wins")
+               (behavior "ensures that parent data is not propagated from parent to child")
+               )
+
+(specification "List element id"
+               (behavior "emits a warning if you supply a key name that does not exist in the actual data item."
+                         ))

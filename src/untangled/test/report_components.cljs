@@ -83,11 +83,11 @@
 
 (c/defscomponent TestResult
                  :keyfn :id
-                 [test-result context]
+                 [test-result]
                  (c/li {}
                        (c/div {}
                               (if (:message test-result) (c/h3 {} (:message test-result)))
-                              (c/table {} 
+                              (c/table {}
                                        (c/tr {} (c/td {:className "test-result-title"} "Actual")
                                              (c/td {:className "test-result"} (c/code {} (:actual test-result))))
                                        (c/tr {} (c/td {:className "test-result-title"} "Expected")
@@ -98,18 +98,18 @@
 
 (c/defscomponent TestItem
                  :keyfn :id
-                 [test-item context]
+                 [test-item]
                  (c/li {:className "test-item"}
                        (c/div {}
                               (c/span {:className (itemclass (:status test-item))} (:name test-item))
                               (let [element-id (partial state/list-element-id test-item :test-results :id)]
                                 (c/ul {:className "test-list"}
-                                      (map-indexed (fn [idx item] (TestResult (element-id idx) context)) (:test-results test-item))
+                                      (map-indexed (fn [idx item] (TestResult (element-id idx) test-item)) (:test-results test-item))
                                       )
                                 )
                               (let [element-id (partial state/list-element-id test-item :test-items :id)]
                                 (c/ul {:className "test-list"}
-                                      (map-indexed (fn [idx item] (TestItem (element-id idx) context)) (:test-items test-item))
+                                      (map-indexed (fn [idx item] (TestItem (element-id idx) test-item)) (:test-items test-item))
                                       )
                                 )
                               )
@@ -118,13 +118,13 @@
 
 (c/defscomponent TestNamespace
                  :keyfn :name
-                 [tests-by-namespace context]
+                 [tests-by-namespace]
                  (c/li {:className "test-item"}
                        (c/div {:className "test-namespace"}
                               (c/h2 {:className (itemclass (:status tests-by-namespace))} "Testing " (:name tests-by-namespace))
                               (let [element-id (partial state/list-element-id tests-by-namespace :test-items :id)]
                                 (c/ul {:className "test-list"}
-                                      (map-indexed (fn [idx item] (TestItem (element-id idx) context)) (:test-items tests-by-namespace))
+                                      (map-indexed (fn [idx item] (TestItem (element-id idx) tests-by-namespace)) (:test-items tests-by-namespace))
                                       )
                                 )
                               )
@@ -133,11 +133,11 @@
 
 (c/defscomponent TestReport
                  :keyfn :id
-                 [test-report context]
+                 [test-report]
                  (c/section {:className "test-report"}
                             (let [element-id (partial state/list-element-id test-report :namespaces :name)]
                               (c/ul {:className "test-list"}
-                                    (map-indexed (fn [idx item] (TestNamespace (element-id idx) context)) (:namespaces test-report))
+                                    (map-indexed (fn [idx item] (TestNamespace (element-id idx) test-report)) (:namespaces test-report))
                                     )
                               )
                             (let [rollup-stats (reduce (fn [acc item]
@@ -151,7 +151,7 @@
                               (c/div {:className "test-count"}
                                      (c/h2 {}
                                            (str "Tested " (count (:namespaces test-report)) " namespaces containing "
-                                                 (nth rollup-stats 3) " assertions. "
+                                                (nth rollup-stats 3) " assertions. "
                                                 (nth rollup-stats 0) " passed " (nth rollup-stats 1) " failed " (nth rollup-stats 2) " errors")
                                            )
                                      ))

@@ -13,10 +13,10 @@
 
 (specification "An event trigger -- 'trigger' function"
                (let [detector (evt/event-detector)
-                     context-single-listener {:event-listeners [{:a detector
+                     context-single-listener {:untangled.state/event-listeners [{:a detector
                                                                  :b detector
                                                                  :c detector}]}
-                     context-invalid-listener {:event-listeners [{:a 5}]}
+                     context-invalid-listener {:untangled.state/event-listeners [{:a 5}]}
                      single-event :a
                      ]
                  (behavior "includes the event for a single event"
@@ -63,7 +63,7 @@
                (let [state {:a {:form/locale "en-US"
                                 :b           [{:k 2 :v {:boo 22}} {:k 1}]}}
                      the-application (core/new-application nil state)           ; NOTE: adds a :top key to the state
-                     context-with-sublist-path (assoc (state/root-context the-application) :scope [:top :a [:b :k 1]])
+                     context-with-sublist-path (assoc (state/root-context the-application) :untangled.state/scope [:top :a [:b :k 1]])
                      detector (evt/event-detector)
                      leaf-detector (evt/event-detector)
                      root (state/root-context the-application)
