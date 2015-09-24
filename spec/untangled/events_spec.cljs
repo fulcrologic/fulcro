@@ -67,10 +67,10 @@
                      detector (evt/event-detector)
                      leaf-detector (evt/event-detector)
                      root (state/root-context the-application)
-                     top (state/new-sub-context root :top [])
-                     context1 (state/new-sub-context top :a [{:evt/boo detector}])
-                     context2 (state/new-sub-context context1 [:b :k 2] [{:evt/boo detector}])
-                     context3 (state/new-sub-context context2 :v [{:evt/boo leaf-detector}])
+                     top (state/new-sub-context root :top {})
+                     context1 (state/new-sub-context top :a {:evt/boo detector})
+                     context2 (state/new-sub-context context1 [:b :k 2] {:evt/boo detector})
+                     context3 (state/new-sub-context context2 :v {:evt/boo leaf-detector})
                      ]
                  (behavior "sends the event to the first parent only by default"
                            (evt/clear leaf-detector)
