@@ -227,6 +227,11 @@
                                    )))
 
 
+(specification "context creation -- macro"
+               (behavior "merges context of component with the data in context-first order -- data wins")
+               (behavior "ensures that parent data is not propagated from parent to child")
+               )
+
 (specification "List element id"
                (behavior "emits a warning if you supply a key name that does not exist in the actual data item."
                          ))
