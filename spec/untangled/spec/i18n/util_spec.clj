@@ -4,9 +4,9 @@
             [smooth-spec.core :refer (specification behavior provided assertions)]
             [smooth-spec.report :as report]
             ))
-
+(def po-file-with-embedded-newlines "# SOME DESCRIPTIVE TITLE.\n# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER\n# This file is) distributed under the same license as the PACKAGE package.\n# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n#\n#, fuzzy\nmsgid \"\"\nmsgstr \"\"\n\"Project-Id-Version: PACKAGE VERSION\\n\"\n\"Report-Msgid-Bugs-To: \\n\"\n\"POT-Creation-Date: 2015-09-24 14:28-0700\\n\"\n\"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n\"\n\"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n\"\n\"Language-Team: LANGUAGE <LL@li.org>\\n\"\n\"Language: \\n\"\n\"MIME-Version: 1.0\\n\"\n\"Content-Type: text/plain; charset=CHARSET\\n\"\n\"Content-Transfer-Encoding: 8bit\\n\"\n\n#: i18n/out/compiled.js:26732\nmsgctxt \"context for a multiline xlation\"\nmsgid \"\"\n\"line one\\n\"\n\"two\\n\"\n\"three\"\nmsgstr \"\"\n\"lina uno\\n\"\n\"dos\\n\"\n\"tres\"\n\n#: i18n/out/compiled.js:26732\nmsgid \"\"\n\"Select a language\\n\"\n\" to use\\n\"\n\"maybe\"\nmsgstr \"\"\n\"some xlated line\\n\"\n\" por uso\\n\"\n\"que?\"\n")
+(def malformed-po-file "# SOME DESCRIPTIVE TITLE.\n# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER\n# This file is) distributed under the same license as the PACKAGE package.\n# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n#\n#, fuzzy\nmsgid \"\"\nmsgstr \"\"\n\"Project-Id-Version: PACKAGE VERSION\\n\"\n\"Report-Msgid-Bugs-To: \\n\"\n\"POT-Creation-Date: 2015-09-24 14:28-0700\\n\"\n\"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n\"\n\"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n\"\n\"Language-Team: LANGUAGE <LL@li.org>\\n\"\n\"Language: \\n\"\n\"MIME-Version: 1.0\\n\"\n\"Content-Type: text/plain; charset=CHARSET\\n\"\n\"Content-Transfer-Encoding: 8bit\\n\"\n#: i18n/out/compiled.js:26732\nmsgctxt \"context for a multi~ xlation\"\nmsgid \"\"\n\"line one\\n\"\n\"two\\n\"\n\"three\"\nmsgstr \"\"\n\"lina uno\\n\"\n\"dos\\n\"\n\"tres\"\n#: i18n/out/compiled.js:26732\nmsgid \"\"\n\"Select a language\\n\"\n\" to use\\n\"\n\"maybe\"\nmsgstr \"\"\n\"some xlated line\\n\"\n\" por uso\\n\"\n\"que?\"\n")
 (def po-file "# SOME DESCRIPTIVE TITLE.\n# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER\n# This file is distributed under the same license as the PACKAGE package.\n# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n#\nmsgid \"\"\nmsgstr \"\"\n\"Project-Id-Version: \\n\"\n\"Report-Msgid-Bugs-To: \\n\"\n\"POT-Creation-Date: 2015-09-15 15:24-0700\\n\"\n\"PO-Revision-Date: 2015-09-15 15:30-0700\\n\"\n\"Language-Team: \\n\"\n\"MIME-Version: 1.0\\n\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Content-Transfer-Encoding: 8bit\\n\"\n\"X-Generator: Poedit 1.8.4\\n\"\n\"Last-Translator: \\n\"\n\"Plural-Forms: nplurals=2; plural=(n != 1);\\n\"\n\"Language: es_MX\\n\"\n\n#: i18n/survey.js:26344\nmsgid \"A sub-component with local state.\"\nmsgstr \"Un subcomponente de estado local.\"\n\n#: i18n/survey.js:26345\nmsgid \"Change my mood...\"\nmsgstr \"Cambiar mi estado de ánimo…\"\n\n#: i18n/survey.js:26345\nmsgid \"Happy!\"\nmsgstr \"¡Feliz!\"\n\n#: i18n/survey.js:26346\nmsgid \"Sad :(\"\nmsgstr \"Triste :(\"\n\n#: i18n/survey.js:26354\nmsgctxt \"abbreviation for male gender\"\nmsgid \"M\"\nmsgstr \"H\"\n\n#: i18n/survey.js:26355\nmsgid \"A button with a click count: \"\nmsgstr \"Un botón con un clic la cuenta:\"\n\n#: i18n/survey.js:26355\nmsgid \"Click me\"\nmsgstr \"Clic aquí\"\n\n#: i18n/survey.js:26356\nmsgid \"An input that is two-way bound:\"\nmsgstr \"Límite de una entrada que es de dos vía:\"\n\n#: i18n/survey.js:26358\nmsgid \"Sub component below: ({swings, number} mood swings so far)\"\nmsgstr \"Componente de sub abajo: ({columpios, número} hasta el momento de ánimo)\"\n")
-(def po-file-with-embedded-newlines "# SOME DESCRIPTIVE TITLE.\n# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER\n# This file is distributed under the same license as the PACKAGE package.\n# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n#\nmsgid \"\"\nmsgstr \"\"\n\"Project-Id-Version: \\n\"\n\"Report-Msgid-Bugs-To: \\n\"\n\"POT-Creation-Date: 2015-09-17 09:10-0700\\n\"\n\"PO-Revision-Date: 2015-09-17 09:12-0700\\n\"\n\"Language-Team: \\n\"\n\"MIME-Version: 1.0\\n\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Content-Transfer-Encoding: 8bit\\n\"\n\"X-Generator: Poedit 1.8.4\\n\"\n\"Last-Translator: \\n\"\n\"Plural-Forms: nplurals=2; plural=(n > 1);\\n\"\n\"Language: fr_CA\\n\"\n\n#: i18n/survey.js:26344\nmsgid \"A sub-component with local state.\"\nmsgstr \"\"\n\"some translation\\n\"\n\"with multiple lines\\n\"\n\"that I care about\"\n\n#: i18n/survey.js:26345\nmsgid \"Change my mood...\"\nmsgstr \"\"\n\n#: i18n/survey.js:26345\nmsgid \"Happy!\"\nmsgstr \"\"\n\n#: i18n/survey.js:26346\nmsgid \"Sad :(\"\nmsgstr \"\"\n\n#: i18n/survey.js:26354\nmsgid \"here is a NEW STRING to translate!\"\nmsgstr \"\"\n\n#: i18n/survey.js:26355\nmsgctxt \"abbreviation for male gender\"\nmsgid \"M\"\nmsgstr \"\"\n\n#: i18n/survey.js:26355\nmsgid \"A button with a click count: \"\nmsgstr \"\"\n\n#: i18n/survey.js:26356\nmsgid \"Click me\"\nmsgstr \"\"\n\n#: i18n/survey.js:26356\nmsgid \"An input that is two-way bound:\"\nmsgstr \"\"\n\n#: i18n/survey.js:26358\nmsgid \"Sub component below: ({swings, number} mood swings so far)\"\nmsgstr \"\"\n")
 (def empty-acc {:seen {:context "" :id ""} :cljs-obj {}})
 (def acc-with-id-and-ctx {:seen {:context "hey" :id "ho"} :cljs-obj {}})
 (def acc-with-id {:seen {:context "" :id "ho"} :cljs-obj {}})
@@ -14,6 +14,33 @@
 (def msgctxt-line "msgctxt \"abbreviation for male gender\"")
 (def msgid-line "msgid \"A button with a click count: \"")
 (def msgstr-line "msgstr \"Clic aquí\"")
+
+(specification "the group-translations function"
+               (provided "when grouping translations"
+                         (slurp some-file) =2x=> po-file
+
+                         (behavior "begins groups with msgid or msgctxt"
+                                   (assertions
+                                     (-> "some fname" u/group-translations (nth 4) first first (subs 0 7)) => "msgctxt"
+                                     (-> "some fname" u/group-translations first first first (subs 0 5)) => "msgid")))
+
+               (provided "when given a malformed po file string"
+                         (slurp some-file) =1x=> malformed-po-file
+
+                         (behavior "returns nil"
+                                   (assertions
+                                     (u/group-translations "some fname") => nil)))
+
+               (provided "when given a multi-line translation"
+                         (slurp some-file) =1x=> po-file-with-embedded-newlines
+
+                         (behavior "returns groups of translations"
+                                   (assertions
+                                     (first (u/group-translations "some fname")) =>
+                                     [["msgctxt \"context for a multiline xlation\""]
+                                      ["msgid \"\"" "\"line one\\n\"" "\"two\\n\"" "\"three\""]
+                                      ["msgstr \"\"" "\"lina uno\\n\"" "\"dos\\n\"" "\"tres\""]]))))
+
 
 (specification "the wrap-with-swap function"
                (let [code-string (u/wrap-with-swap :locale "fr-CA" :translation "{\"fizz\" \"buzz\"}")
@@ -41,7 +68,6 @@
                                      (get (u/map-po-to-translations po-file) "|A button with a click count: ") => "Un botón con un clic la cuenta:"
                                      (get (u/map-po-to-translations po-file) "|Click me") => "Clic aquí"
                                      ))))
-
 
 (specification "the parse-po function"
                (behavior "(when a translation contains embedded newlines)"

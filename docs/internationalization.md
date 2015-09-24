@@ -71,7 +71,7 @@ framework includes components for forms that can handle this complexity for you:
      
 ## Translation extraction and deployment
 
-### leiningen plugin installation
+### leiningen plugin installation and setup
 Untangled ships with a leiningen plugin that conveniently:
 
 - extracts strings into a messages template file (messages.pot)
@@ -91,6 +91,8 @@ On MAC OS install via homebrew:
 `brew link --force gettext`
 
 The link command is required because some software get confused if two of the same utilities are in the library path.
+
+Also, make sure that the project you are going to leverage the gettext against has a path 'i18n/msgs`
 
 ### leiningen plugin usage and translator workflow
 
