@@ -7,7 +7,7 @@ localization and internationalization solution that includes:
    - Use plain strings in your UI
    - The plain strings are extracted
    - Standard GNU utilities are used to build translation files
-   - Translations are complied to JS dependencies
+   - Translations are complied to cljs dependencies
 - Extensions to Gettext support:
    - Formatted messages
      - Output of localized numbers, dates, currency symbols
@@ -69,18 +69,46 @@ framework includes components for forms that can handle this complexity for you:
      (u/number-input :n context {:changed (fn [] (u/get-value (:n data))) })
      (u/date-input :start-date context { :changed (fn [] (u/get-value (:start-date data))) })
      
-## Extracting Strings for Translation
+## Translation extraction and deployment
 
-- Compile your app using :whitespace optimization only
-- Run xgettext on the resulting .js file
-- Send that .po file to the translator (or merge it with prior). See GNU Gettext for details
+### leiningen plugin installation
+Untangled ships with a leiningen plugin that conveniently:
 
-## Generating localized message files
+- extracts strings into a messages template file (messages.pot)
+- merges new strings from the template into existing locale-specific translation files (eg: ja_JP.po)
+- generates cljs files from locale-specific translations and installs them into your project
 
-- Convert the final translations (in .po format) to JavaScript using ...
+The leiningen plugin must be configured in your project.clj file.  Simply add `:plugins [untangled "0.1.0-SNAPSHOT"]` to the
+project.clj.
 
-## Install generated javascript translation code
+
+### leiningen plugin usage and translator workflow
+
+Suppose that you have just finished an awesome new feature in your project. This feature has added new untranslated
+strings to your UI, and you would like to have the new parts of your UI translated for international users. To extract
+your new strings for translation, run this command from the root of your project.
+
+`lein i18n extract`
+
+This will generate a new `messages.pot` in the `i18n/msgs` directory of your project. If you have existing translation
+files in your project (eg: `i18n/msgs/fr_CA.po`), these files will be updated with your new untranslated strings. Any
+existing translations in `fr_CA.po` will be preserved!
+
+The updated `fr_CA.po` file now needs to be sent off to your human translator, who will see the new untranslated
+strings in the file and produce the required translations. The translator will then send `fr_CA.po` file back to you,
+and you will need to replace `i18n/msgs/fr_CA.po` with the new version provided by the translator. If you need to add a
+new locale to the project (eg, we now want to add support for German), you will send the `i18n/msgs/messages.pot` file
+to the German translator, and they will provide you with a `de.po` file which you will add to the `i18n/msgs` directory.
+
+Now would be a good time to commit your new `*.po` files to version control.
+
+We now want to convert `*.po` translation files into a format that your project can load at runtime when a user needs to
+see translations in the UI. Run the following command from the root of your project to deploy new translations into your
+project:
+
+`lein i18n deploy`
+
+You now should be able to see the new translations in your app!
+
 
 ## Set Locale at run-time (auto-loads translations if available)
-
-
