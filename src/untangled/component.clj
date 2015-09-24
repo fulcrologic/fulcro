@@ -77,7 +77,7 @@
         things-to-publish (set (:publish options))
         ]
     ; Create plumbing to an underlying quiescent component
-    `(let [real-handler# (quiescent.core/component (fn [data# context#] (let [~argname (merge data# context#)] ~@body)) ~base-options)]
+    `(let [real-handler# (quiescent.core/component (fn [data# context#] (let [~argname (merge context# data#)] ~@body)) ~base-options)]
        (def ~name ~docstr
          ;; Def the quiescent construction function so users can create instances of the component that "close over"
          ;; the plumbing that extracts the application state and passes it to the real handler.

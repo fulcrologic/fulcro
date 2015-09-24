@@ -13,7 +13,7 @@
    ::application     app
    ::scope           []
    ::event-listeners []
-   ::to-publish {}
+   ::to-publish      {}
    }
   )
 
