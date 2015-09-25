@@ -21,7 +21,7 @@
 
   :cljsbuild {:builds
               [{:id           "test"
-                :source-paths ["src" "dev" "spec" ]
+                :source-paths ["src" "dev" "spec"  "checkouts/smooth-spec/src"]
                 :figwheel     {:on-jsload "cljs.user/on-load"}
                 :compiler     {:main                 cljs.user
                                :output-to            "resources/public/js/test/test.js"
@@ -32,7 +32,7 @@
 
   :profiles {
              :dev {
-                   :source-paths ["src" "test" "dev"]
+                   :source-paths ["src" "test" "dev" "checkouts/smooth-spec/src"]
                    :dependencies [[leiningen "2.5.3"]
                                   [leiningen-core "2.5.3"]]
                    :repl-options {
