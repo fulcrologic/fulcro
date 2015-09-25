@@ -1,5 +1,7 @@
 (ns untangled.application)
 
+(defrecord Transaction [old-state new-state reason])
+
 (defprotocol Application
   (render [this] "Render the current application state")
   (force-refresh [this] "Force a re-render of the current application state")
@@ -15,4 +17,6 @@
                  
                  (current-state application [:todolist :items])
                  ")
+  (add-transaction-listener [this listener]
+                            "Listener is a function that accepts a transaction as an argument")
   )
