@@ -15,10 +15,33 @@
 (def msgid-line "msgid \"A button with a click count: \"")
 (def msgstr-line "msgstr \"Clic aquí\"")
 
-(specification "the group-chunks function"
-               (behavior "works great!"
-                         (assertions
-                           (u/group-chunks [msgid-line]) => [])))
+(specification "the join-quoted-strings function"
+               (let [string ["msgctxt \"context for a multiline xlation\""]
+                     strings ["msgid \"\"" "\"line one\n\"" "\"two\n\"" "\"three\""]]
+                 (behavior "returns unquoted string from single string"
+                           (assertions
+                             (u/join-quoted-strings string) => "context for a multiline xlation"))
+                 (behavior "returns unquoted string from a vector of quoted strings"
+                           (assertions
+                             (u/join-quoted-strings strings) => "line one\ntwo\nthree"))
+                 ))
+
+(specification "the inline-strings function"
+               (let [grouped-chunk [["msgctxt \"context for a multiline xlation\""]
+                                    ["msgid \"\"" "\"line one\n\"" "\"two\n\"" "\"three\""]
+                                    ["msgstr \"\"" "\"lina uno\n\"" "\"dos\n\"" "\"tres\""]]
+                     mapped-translation (u/inline-strings {} grouped-chunk)]
+                 (behavior "keys content by :msgid, :msgctxt and :msgstr"
+                           (assertions
+                             (contains? mapped-translation :msgid) => true
+                             (contains? mapped-translation :msgctxt) => true
+                             (contains? mapped-translation :msgstr) => true))
+                 (behavior "collapses multiline subcomponent into a single value"
+                           (assertions
+                             (:msgctxt mapped-translation) => "context for a multiline xlation"
+                             (:msgid mapped-translation) => "line one\ntwo\nthree"
+                             (:msgstr mapped-translation) => "lina uno\ndos\ntres"))
+                 ))
 
 (specification "the group-translations function"
                (provided "when grouping translations"
@@ -45,6 +68,38 @@
                                      [["msgctxt \"context for a multiline xlation\""]
                                       ["msgid \"\"" "\"line one\\n\"" "\"two\\n\"" "\"three\""]
                                       ["msgstr \"\"" "\"lina uno\\n\"" "\"dos\\n\"" "\"tres\""]]))))
+
+
+(specification "the group-chunks function"
+               (behavior "when given an ungrouped translation chunk"
+                         (let [multiln-with-ctxt '("msgctxt \"context for a multiline xlation\""
+                                                    "msgid \"\""
+                                                    "\"line one\\n\""
+                                                    "\"two\\n\""
+                                                    "\"three\""
+                                                    "msgstr \"\""
+                                                    "\"lina uno\\n\""
+                                                    "\"dos\\n\""
+                                                    "\"tres\"")
+                               multiln-without-ctxt '("msgid \"\""
+                                                       "\"line one\\n\""
+                                                       "\"two\\n\""
+                                                       "\"three\""
+                                                       "msgstr \"\""
+                                                       "\"lina uno\\n\""
+                                                       "\"dos\\n\""
+                                                       "\"tres\"")
+                               grouped-with-ctxt (u/group-chunks multiln-with-ctxt)
+                               grouped-without-ctxt (u/group-chunks multiln-without-ctxt)
+                               ]
+                           (behavior "ends groups with msgstr"
+                                     (assertions
+                                       (-> grouped-without-ctxt reverse first first (subs 0 6)) => "msgstr"
+                                       (-> grouped-with-ctxt reverse first first (subs 0 6)) => "msgstr"))
+                           (behavior "begins groups with msgid or msgctxt"
+                                     (assertions
+                                       (-> grouped-without-ctxt first first (subs 0 5)) => "msgid"
+                                       (-> grouped-with-ctxt first first (subs 0 7)) => "msgctxt")))))
 
 
 (specification "the wrap-with-swap function"
@@ -129,6 +184,7 @@
                ;          (prn "ENDED PROVIDED")
                ;          )
                )
+
 
 ; this made test-refresh wor
 ; k

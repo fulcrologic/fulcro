@@ -34,16 +34,31 @@
     (str/join "\n\n" [ns-decl comment trans-def swap-decl])))
 
 (defn write-cljs-translation-file [fname translations-string]
-  (spit fname translations-string)
-  )
+  (spit fname translations-string))
 
+;["msgctxt \"context for a multiline xlation\""]
+;["msgid \"\"" "\"line one\n\"" "\"two\n\"" "\"three\""]
+;["msgstr \"\"" "\"lina uno\n\"" "\"dos\n\"" "\"tres\""]
 
-(defn group-chunks [line]
+(defn join-quoted-strings [strings]
+  (reduce (fn [acc quoted-string]
+            (str acc (last (re-matches #"(?ms)^.*\"(.*)\"" quoted-string)))) "" strings))
+
+(defn inline-strings [acc grouped-trans-chunk]
+  (reduce (fn [mapped-translation trans-subcomponent]
+            (let [key (->> trans-subcomponent first (re-matches #"^(msg[a-z]+) .*$") last keyword)
+                  value (join-quoted-strings trans-subcomponent)]
+              ;(pp/pprint key)
+              ;(pp/pprint trans-subcomponent)
+              ;(pp/pprint acc)
+              (assoc mapped-translation key value))) acc grouped-trans-chunk))
+
+(defn group-chunks [translation-chunk]
   (reduce (fn [acc line]
             (if (re-matches #"^msg.*" line)
               (conj acc [line])
               (update-in acc [(dec (count acc))] conj line)))
-          [] line))
+          [] translation-chunk))
 
 (defn group-translations [fname]
   (let [fstring (slurp fname)
@@ -51,13 +66,5 @@
         grouped-chunks (map clojure.string/split-lines trans-chunks)
         comment? #(re-matches #"^#.*" %)
         uncommented-chunks (map #(remove comment? %) grouped-chunks)
-
-        keyed-chunk #(reduce (fn [acc line]
-                               (if (re-matches #"^msg.*" line)
-                                 (conj acc [line])
-                                 (update-in acc [(dec (count acc))] conj line)))
-                             [] %)
-
-        keyed-chunks (map keyed-chunk uncommented-chunks)
-
-        ] (if (empty? keyed-chunks) nil keyed-chunks)))
+        keyed-chunks (map group-chunks uncommented-chunks)]
+    (if (empty? keyed-chunks) nil keyed-chunks)))
