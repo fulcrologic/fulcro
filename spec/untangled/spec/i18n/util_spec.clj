@@ -15,6 +15,14 @@
 (def msgid-line "msgid \"A button with a click count: \"")
 (def msgstr-line "msgstr \"Clic aquí\"")
 
+(specification "the map-translations funtion"
+               (provided "when a translation contains embedded newlines"
+                         (slurp some-file) =1x=> po-file-with-embedded-newlines
+                         (behavior "stores values at multiline keys"
+                                   (let [translations (u/map-translations "wat")]
+                                     (assertions
+                                       (contains? translations "|Select a language\n to use\nmaybe") => true)))))
+
 (specification "the join-quoted-strings function"
                (let [string ["msgctxt \"context for a multiline xlation\""]
                      strings ["msgid \"\"" "\"line one\n\"" "\"two\n\"" "\"three\""]]

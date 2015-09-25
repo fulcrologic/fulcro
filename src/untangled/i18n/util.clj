@@ -15,14 +15,12 @@
                         js-key (str (get-in acc [:seen :context]) "|" (get-in acc [:seen :id]))
                         js-obj (assoc (:cljs-obj acc) js-key translation)]
                     (assoc acc :cljs-obj js-obj :seen empty-seen))
-      true acc)
-    ))
+      true acc)))
 
 (defn map-po-to-translations [fname]
   (let [lines (str/split-lines (slurp fname))]
     (:cljs-obj (reduce #(parse-po %1 %2)
-                       {:seen {:context "" :id "" :id-value-acc [] :trans-value-acc []} :cljs-obj {}} lines))
-    ))
+                       {:seen {:context "" :id "" :id-value-acc [] :trans-value-acc []} :cljs-obj {}} lines))))
 
 (defn wrap-with-swap [& {:keys [locale translation]}]
   (let [trans-namespace (symbol (str "untangled.translations." locale))
@@ -36,13 +34,32 @@
 (defn write-cljs-translation-file [fname translations-string]
   (spit fname translations-string))
 
+; quick reference for the input to inline-strings
 ;["msgctxt \"context for a multiline xlation\""]
 ;["msgid \"\"" "\"line one\n\"" "\"two\n\"" "\"three\""]
 ;["msgstr \"\"" "\"lina uno\n\"" "\"dos\n\"" "\"tres\""]
 
+; multi-line translation parsing helper functions
+(defn group-chunks [translation-chunk]
+  (reduce (fn [acc line]
+            (if (re-matches #"^msg.*" line)
+              (conj acc [line])
+              (update-in acc [(dec (count acc))] conj line)))
+          [] translation-chunk))
+
 (defn join-quoted-strings [strings]
   (reduce (fn [acc quoted-string]
             (str acc (last (re-matches #"(?ms)^.*\"(.*)\"" quoted-string)))) "" strings))
+
+; multi-line translation parsing heavy lifters
+(defn group-translations [fname]
+  (let [fstring (slurp fname)
+        trans-chunks (rest (clojure.string/split fstring #"(?ms)\n\n"))
+        grouped-chunks (map clojure.string/split-lines trans-chunks)
+        comment? #(re-matches #"^#.*" %)
+        uncommented-chunks (map #(remove comment? %) grouped-chunks)
+        keyed-chunks (map group-chunks uncommented-chunks)]
+    (if (empty? keyed-chunks) nil keyed-chunks)))
 
 (defn inline-strings [acc grouped-trans-chunk]
   (reduce (fn [mapped-translation trans-subcomponent]
@@ -53,18 +70,14 @@
               ;(pp/pprint acc)
               (assoc mapped-translation key value))) acc grouped-trans-chunk))
 
-(defn group-chunks [translation-chunk]
-  (reduce (fn [acc line]
-            (if (re-matches #"^msg.*" line)
-              (conj acc [line])
-              (update-in acc [(dec (count acc))] conj line)))
-          [] translation-chunk))
-
-(defn group-translations [fname]
-  (let [fstring (slurp fname)
-        trans-chunks (rest (clojure.string/split fstring #"(?ms)\n\n"))
-        grouped-chunks (map clojure.string/split-lines trans-chunks)
-        comment? #(re-matches #"^#.*" %)
-        uncommented-chunks (map #(remove comment? %) grouped-chunks)
-        keyed-chunks (map group-chunks uncommented-chunks)]
-    (if (empty? keyed-chunks) nil keyed-chunks)))
+(defn map-translations [fname]
+  (let [translation-groups (group-translations fname)
+        mapped-translations (reduce (fn [trans-maps translation]
+                                      (conj trans-maps (inline-strings {} translation)))
+                                      [] translation-groups )]
+    (prn translation-groups)
+    (pp/pprint mapped-translations)
+    (reduce (fn [acc translation]
+              (assoc acc (str (:msgctxt translation) "|" (:msgid translation)) (:msgstr translation)))
+            {} mapped-translations)
+    ))
