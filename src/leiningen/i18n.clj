@@ -56,7 +56,7 @@
   (sh "mkdir" "-p" cljs-output-dir)
   (doseq [po (find-po-files msgs-dir-path)]
     (let [locale (clojure-ize-locale po)
-          translation-map (u/map-po-to-translations (po-path po))
+          translation-map (u/map-translations (po-path po))
           cljs-translations (u/wrap-with-swap :locale locale :translation translation-map)
           cljs-trans-path (str cljs-output-dir "/" locale ".cljs")]
       (u/write-cljs-translation-file cljs-trans-path cljs-translations))))

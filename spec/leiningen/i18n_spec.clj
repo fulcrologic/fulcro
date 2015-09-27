@@ -70,7 +70,4 @@
                            (assertions
                              (get-in i18n-build [:compiler :optimizations]) => :whitespace))))
 
-
-
-
-(report/with-smooth-output (run-tests 'leiningen.i18n-spec))
+;(report/with-smooth-output (run-tests 'leiningen.i18n-spec))
