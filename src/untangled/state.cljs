@@ -113,7 +113,7 @@
                         (-> old-state
                             (assoc :time (h/now))
                             (update-in path operation))))
-    (app/state-changed application old-state @state-atom)
+    (app/state-changed application (:top old-state) (:top @state-atom))
     ))
 
 (defn dbg [v] (cljs.pprint/pprint v) v)

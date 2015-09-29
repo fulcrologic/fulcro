@@ -1,6 +1,6 @@
 (ns untangled.core
   (:require [untangled.history :as h]
-            [untangled.application :refer [Application]]
+            [untangled.application :refer [Application Transaction]]
             [untangled.test.report-components :as rc]
             [untangled.test.dom :refer [render-as-dom]]
             [untangled.state :as qms]
@@ -140,7 +140,7 @@
   )
 
 (defrecord UntangledApplication
-  [app-state dom-target history renderer test-mode]
+  [app-state dom-target history renderer test-mode transaction-listeners]
   Application
   (render [this]
     (if test-mode
@@ -151,10 +151,13 @@
     (untangled.application/render this)
     )
   (top-context [this] (qms/new-sub-context (qms/root-context this) :top {}))
-  (state-changed [this old-state new-state] (untangled.application/render this))
+  (state-changed [this old-state new-state]
+    (doseq [listener @transaction-listeners]
+      (listener (Transaction. old-state new-state nil)))
+    (untangled.application/render this))
   (current-state [this] (-> @app-state :top))
   (current-state [this subpath] (get-in (-> @app-state :top) subpath))
-  )
+  (add-transaction-listener [this listener] (swap! transaction-listeners #(conj % listener))))
 
 (defn new-application
   "Create a new Untangled application with:
@@ -172,12 +175,13 @@
   - `:view-only boolean`: Put the application in view-only mode. Used by support state viewer. Disables processing of op-builder functions.
   "
   [ui-render initial-state & {:keys [target history test-mode view-only] :or {test-mode false target "app" history 100 view-only false}}]
-  (map->UntangledApplication {:app-state  (atom {:top initial-state :time (js/Date.)})
-                              :renderer   ui-render
-                              :dom-target target
-                              :history    (atom (h/empty-history history))
-                              :test-mode  test-mode
-                              :view-only  view-only
+  (map->UntangledApplication {:app-state             (atom {:top initial-state :time (js/Date.)})
+                              :transaction-listeners (atom [])
+                              :renderer              ui-render
+                              :dom-target            target
+                              :history               (atom (h/empty-history history))
+                              :test-mode             test-mode
+                              :view-only             view-only
                               }))
 
 
