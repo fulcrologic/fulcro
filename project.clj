@@ -6,7 +6,7 @@
 
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [quiescent "0.2.0-RC2"]
-                 [org.clojure/clojurescript "1.7.48"]
+                 [org.clojure/clojurescript "1.7.122"]
                  [smooth-spec "0.1.0-SNAPSHOT"]
                  [differ "0.2.1"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]

@@ -83,7 +83,7 @@
 
 (c/defscomponent TestResult
                  :keyfn :id
-                 [test-result]
+                 [test-result context]
                  (c/li {}
                        (c/div {}
                               (if (:message test-result) (c/h3 {} (:message test-result)))
@@ -98,18 +98,18 @@
 
 (c/defscomponent TestItem
                  :keyfn :id
-                 [test-item]
+                 [test-item context]
                  (c/li {:className "test-item"}
                        (c/div {}
                               (c/span {:className (itemclass (:status test-item))} (:name test-item))
                               (let [element-id (partial state/list-element-id test-item :test-results :id)]
                                 (c/ul {:className "test-list"}
-                                      (map-indexed (fn [idx item] (TestResult (element-id idx) test-item)) (:test-results test-item))
+                                      (map-indexed (fn [idx item] (TestResult (element-id idx) context)) (:test-results test-item))
                                       )
                                 )
                               (let [element-id (partial state/list-element-id test-item :test-items :id)]
                                 (c/ul {:className "test-list"}
-                                      (map-indexed (fn [idx item] (TestItem (element-id idx) test-item)) (:test-items test-item))
+                                      (map-indexed (fn [idx item] (TestItem (element-id idx) context)) (:test-items test-item))
                                       )
                                 )
                               )
@@ -118,13 +118,13 @@
 
 (c/defscomponent TestNamespace
                  :keyfn :name
-                 [tests-by-namespace]
+                 [tests-by-namespace context]
                  (c/li {:className "test-item"}
                        (c/div {:className "test-namespace"}
                               (c/h2 {:className (itemclass (:status tests-by-namespace))} "Testing " (:name tests-by-namespace))
                               (let [element-id (partial state/list-element-id tests-by-namespace :test-items :id)]
                                 (c/ul {:className "test-list"}
-                                      (map-indexed (fn [idx item] (TestItem (element-id idx) tests-by-namespace)) (:test-items tests-by-namespace))
+                                      (map-indexed (fn [idx item] (TestItem (element-id idx) context)) (:test-items tests-by-namespace))
                                       ;(build-list TestItem :test-items :id tests-by-namespace)
                                       )
                                 )
@@ -134,11 +134,11 @@
 
 (c/defscomponent TestReport
                  :keyfn :id
-                 [test-report]
+                 [test-report context]
                  (c/section {:className "test-report"}
                             (let [element-id (partial state/list-element-id test-report :namespaces :name)]
                               (c/ul {:className "test-list"}
-                                    (map-indexed (fn [idx item] (TestNamespace (element-id idx) test-report)) (:namespaces test-report))
+                                    (map-indexed (fn [idx item] (TestNamespace (element-id idx) context)) (:namespaces test-report))
                                     )
                               )
                             (let [rollup-stats (reduce (fn [acc item]
