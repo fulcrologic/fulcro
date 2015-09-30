@@ -90,6 +90,15 @@
     )
   )
 
+(defn has-element
+  "Same assertion as has-visible-text, but doesn't check the component's innerHTML. Uses find-element to
+  process search-kind and search-param on the given dom, then asserts that the returned element is not nil."
+  [search-kind search-param dom]
+  (if (find-element search-kind search-param dom)
+    (t/do-report {:type :pass})
+    (t/do-report {:type :error :message (str "Could not find element " search-kind " " search-param)
+                  :expected "DOM element" :actual "Nil"})))
+
 
 (defn has-selected-option [search-type search-value dom-with-select selected-value]
   (if-let [ele (find-element search-type search-value dom-with-select)]
