@@ -43,7 +43,7 @@
           text (gd/getTextContent dom-node)]
       (.test regex text))))
 
-(defn tag-name [ele] (str/lower-case (.-tagName ele)))
+(defn tag-name [ele] (some-> (.-tagName ele) (str/lower-case)))
 
 (defn find-element
   "
@@ -66,7 +66,9 @@
     (cond
       (re-find #"-text$" keyword-str)
       (let [tagname (str/lower-case (re-find #"^\w+" keyword-str))]
-        (gd/findNode element (fn [e] (and (node-contains-text? value e) (= tagname (tag-name e))))))
+        (if (and (node-contains-text? value element) (= tagname (tag-name element)))
+          element
+          (gd/findNode element (fn [e] (and (node-contains-text? value e) (= tagname (tag-name e)))))))
       (= keyword :key) (.querySelector element (str/join ["[data-reactid$='$" value "'"]))
       (= keyword :class) (.querySelector element (str "." value))
       (= keyword :selector) (or (.querySelector element value) nil)
@@ -96,7 +98,7 @@
   [search-kind search-param dom]
   (if (find-element search-kind search-param dom)
     (t/do-report {:type :pass})
-    (t/do-report {:type :error :message (str "Could not find element " search-kind " " search-param)
+    (t/do-report {:type     :error :message (str "Could not find element " search-kind " " search-param)
                   :expected "DOM element" :actual "Nil"})))
 
 
