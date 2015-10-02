@@ -3,7 +3,8 @@
             [leiningen.core.main :as lmain]
             [leiningen.cljsbuild :refer [cljsbuild]]
             [clojure.string :as str]
-            [untangled.i18n.util :as u]))
+            [untangled.i18n.util :as u]
+            [clojure.pprint :as pp]))
 
 (def compiled-js-path "i18n/out/compiled.js")
 (def msgs-dir-path "i18n/msgs")
@@ -63,6 +64,60 @@
   (lmain/warn msg)
   (lmain/abort))
 
+(defn gen-default-locale-ns [ns locale]
+  (let [def-lc-namespace (symbol (str ns ".default-locale"))
+        translation-require (list :require (symbol (str ns "." locale)) ['untangled.i18n.core :as 'i18n])
+        ns-decl (list 'ns def-lc-namespace translation-require)
+        reset-decl (list 'reset! 'i18n/*current-locale* locale)
+        swap-decl (list 'swap! 'i18n/*loaded-translations*
+                        (symbol (str "#(assoc % :" locale " " ns "." locale "/translations)")))]
+    (str/join "\n\n" [ns-decl reset-decl swap-decl])
+    ))
+
+(defn gen-locales-ns
+  "
+  Generates a code string that assists in dynamically loading translations when a user changes their locale. Uses the
+  leiningen project map to configure the code string's namespace as well as the output directory for locale modules.
+
+  Parameters:
+  * `project`: A leiningen project map
+  * `locales`: A list of locale strings
+
+  Returns a string of cljs code.
+  "
+  [project locales]
+  (let [locales-ns (-> project translation-namespace (str ".locales") symbol)
+        ns-decl (pp/write (list 'ns locales-ns
+                                (list :require
+                                      'goog.module
+                                      '[goog.module.ModuleManager :as module-manager]
+                                      '[untangled.i18n.core :as i18n])
+                                (list :import 'goog.module.ModuleManager)) :stream nil)
+        output-dir (:output-dir (:compiler (get-cljsbuild (get-in project [:cljsbuild :builds]))))
+        abs-module-path (str/join (interleave (repeat "/") (drop 2 (str/split output-dir #"/"))))
+        modules-map (reduce #(assoc %1 %2 (str abs-module-path "/" %2 ".js")) {} locales)
+        modules-def (pp/write (list 'defonce 'modules (symbol (str "#js")) modules-map) :stream nil)
+        mod-info-map (reduce #(assoc %1 %2 []) {} locales)
+        mod-info-def (list 'defonce 'module-info (symbol (str "#js")) mod-info-map)
+        loader-def (pp/write (list 'defonce (symbol "^:export")
+                                   'loader (list 'let ['loader (list 'goog.module.ModuleLoader.)]
+                                                 (list '.setLoader 'manager 'loader)
+                                                 (list '.setAllModuleInfo 'manager 'module-info)
+                                                 (list '.setModuleUris 'manager 'modules)
+                                                 'loader)) :pretty false :stream nil)
+        set-locale-def (list 'defn 'set-locale ['op 'l]
+                             (list 'js/console.log (list 'str "LOADING ALTERNATE LOCALE: " 'l))
+                             (list 'if (list 'exists? 'js/i18nDevMode)
+                                   (list 'do (list 'js/console.log (list 'str "LOADED ALTERNATE LOCALE in dev mode: " 'l))
+                                         (list 'reset! 'i18n/*current-locale* 'l)
+                                         (list (list 'op (symbol "#(assoc % :application/locale l)"))))
+                                   (list '.execOnLoad 'manager 'l
+                                         (list 'fn 'after-locale-load []
+                                               (list 'js/console.log (list 'str "LOADED ALTERNATE LOCALE: " 'l))
+                                               (list 'reset! 'i18n/*current-locale* 'l)
+                                               (list (list 'op (symbol "#(assoc % :application/locale l)")))))))]
+    (str/join "\n\n" [ns-decl modules-def mod-info-def loader-def set-locale-def])))
+
 (defn deploy-translations
   "This subtask converts translated .po files into locale-specific .cljs files for runtime string translation."
   [project]
@@ -71,9 +126,16 @@
         po-files (find-po-files msgs-dir-path)
         locales (map clojure-ize-locale po-files)
         default-lc (default-locale project)
-        default-lc-path (str output-dir "/" default-lc ".cljs")
-        default-lc-content (u/wrap-with-swap :namespace trans-ns :locale default-lc :translation {})]
+        default-lc-translation-path (str output-dir "/" default-lc ".cljs")
+        default-lc-translations (u/wrap-with-swap :namespace trans-ns :locale default-lc :translation {})
+        locales-code-string (gen-locales-ns project locales)
+        locales-path (str output-dir "/locales.cljs")
+        default-locale-code-string (gen-default-locale-ns trans-ns default-lc)
+        default-locale-path (str output-dir "/default-locale.cljs")]
     (sh "mkdir" "-p" output-dir)
+    (u/write-cljs-translation-file default-locale-path default-locale-code-string)
+
+    ; convert each .po to .cljs and write to disk
     (doseq [po po-files]
       (let [locale (clojure-ize-locale po)
             translation-map (u/map-translations (po-path po))
@@ -81,8 +143,16 @@
                                 :namespace trans-ns :locale locale :translation translation-map)
             cljs-trans-path (str output-dir "/" locale ".cljs")]
         (u/write-cljs-translation-file cljs-trans-path cljs-translations)))
-    (if (some #{default-lc} locales) :noop
-                                     (u/write-cljs-translation-file default-lc-path default-lc-content))))
+
+    ; if we have a .po file for the default locale already, go ahead and write the locales code to disk...
+    (if (some #{default-lc} locales)
+      (u/write-cljs-translation-file locales-path locales-code-string)
+      ; else, write an empty .po file for the default locale
+      ; as well as locales code that now includes the default locale
+      (let [locales (conj locales default-lc)
+            locales-code-string (gen-locales-ns project locales)]
+        (u/write-cljs-translation-file locales-path locales-code-string)
+        (u/write-cljs-translation-file default-lc-translation-path default-lc-translations)))))
 
 (defn extract-i18n-strings
   "This subtask extracts strings from your cljs files that should be translated."

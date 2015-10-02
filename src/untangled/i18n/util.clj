@@ -13,12 +13,13 @@
         swap-decl (pp/write (list 'swap! 'untangled.i18n.core/*loaded-translations*
                                   (list 'fn '[x] (list 'assoc 'x locale 'translations))) :stream nil)
         goog-module-decl (pp/write (list 'if (list 'exists? 'js/i18nDevMode)
-                                      :noop
-                                      (list '-> 'goog.module.ModuleManager '.getInstance (list '.setLoaded locale))) :stream nil)]
+                                         :noop
+                                         (list '-> 'goog.module.ModuleManager '.getInstance (list '.setLoaded locale))) :stream nil)]
     (str/join "\n\n" [ns-decl comment trans-def swap-decl goog-module-decl])))
 
 (defn write-cljs-translation-file [fname translations-string]
   (spit fname translations-string))
+
 
 
 ; po file parsing helpers

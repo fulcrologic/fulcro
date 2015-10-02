@@ -2,7 +2,6 @@
   (:require [clojure.test :refer (is deftest run-tests testing do-report)]
             [smooth-spec.core :refer (specification behavior provided assertions)]
             [leiningen.i18n-spec-fixtures :as fixture]
-            [smooth-spec.report :as report]
             [clojure.java.shell :refer [sh]]
             [leiningen.i18n :as e]))
 
@@ -19,20 +18,20 @@
                            (assertions
                              (e/default-locale
                                {:untangled-i18n {:default-locale "es-MX"}}) => "es-MX"))
+
                  (behavior "defaults to untangled.translations"
                            (assertions
-                             (e/default-locale {}) => "en-US"))
-                 )
+                             (e/default-locale {}) => "en-US")))
 
   (specification "the translation-namespace function"
                  (behavior "returns the namespace configured in the project"
                            (assertions
                              (e/translation-namespace
                                {:untangled-i18n {:translation-namespace 'i18n}}) => 'i18n))
+
                  (behavior "defaults to untangled.translations"
                            (assertions
-                             (e/translation-namespace {}) => 'untangled.translations))
-                 )
+                             (e/translation-namespace {}) => 'untangled.translations)))
 
   (specification "the find-po-files function"
                  (provided "when no files are found"
@@ -71,8 +70,7 @@
                  (behavior "returns a path string to the translation-namespace in src"
                            (assertions
                              (e/cljs-output-dir 'i18n) => "src/i18n"
-                             (e/cljs-output-dir 'i18n.some.more-namespace) => "src/i18n/some/more-namespace"))
-                           ))
+                             (e/cljs-output-dir 'i18n.some.more-namespace) => "src/i18n/some/more-namespace"))))
 
 (specification "the cljsbuild-prod-build? function"
                (behavior "returns false if :id is not \"production\""
@@ -98,4 +96,68 @@
                            (assertions
                              (get-in i18n-build [:compiler :optimizations]) => :whitespace))))
 
-;(report/with-smooth-output (run-tests 'leiningen.i18n-spec))
+(specification
+  "the gen-locales-ns function"
+  (provided
+    "when given a project file, emits a code string"
+    (e/translation-namespace project) => "survey.i18n"
+    (e/get-cljsbuild whatever) => {:compiler {:output-dir "res/pub/js/compiled/out"}}
+    (let [code-string (e/gen-locales-ns {} '("fc-KY"))]
+
+      (behavior
+        "that begins with configurable namespace declaration"
+        (assertions
+          (last (re-matches #"(?ms)^\((ns\n survey.i18n.locales).*" code-string)) => "ns\n survey.i18n.locales"))
+
+      (behavior
+        "that contains a javascript map of locales to corresponding .js files in the output directory"
+        (assertions
+          (last (re-matches #"(?ms).*(\{\"fc-KY\" \"/js/compiled/out/fc-KY.js\"\}).*"
+                            code-string)) => "{\"fc-KY\" \"/js/compiled/out/fc-KY.js\"}")
+        (behavior
+          "which is then def-once'd to the modules symbol"
+          (assertions
+            (last (re-matches #"(?ms).*(\(defonce modules #js).*" code-string)) => "(defonce modules #js")))
+
+      (behavior
+        "that contains a javascript map of locales to an empty vector"
+        (assertions
+          (last (re-matches #"(?ms).*(\{\"fc-KY\" \[\]\}).*"
+                            code-string)) => "{\"fc-KY\" []}")
+        (behavior
+          "which is then def-once'd to the module-info symbol"
+          (assertions
+            (last (re-matches #"(?ms).*(\(defonce module-info #js).*"
+                              code-string)) => "(defonce module-info #js")))
+
+      (behavior "that creates a defonce with ^:export annotation for goog's ModuleLoader"
+                (assertions
+                  (last (re-matches #"(?ms).*(\(defonce \^:export loader \().*" code-string)) => "(defonce ^:export loader ("))
+      (behavior "that defines a set-locale function"
+                (assertions
+                  (last (re-matches #"(?ms).*(\(defn set-locale).*" code-string)) => "(defn set-locale")))))
+
+(specification
+  "the gen-default-locale-ns function"
+  (behavior
+    "when given a namespace and a default locale, emits a code string"
+    (let [code-string (e/gen-default-locale-ns 'survey.i18n "fc-KY")]
+
+      (behavior
+        "that begins with a configurable namespace declaration"
+        (assertions
+          (last (re-matches #"(?ms)^(\(ns survey\.i18n\.default-locale).*" code-string)) => "(ns survey.i18n.default-locale")
+
+        (behavior "which contains a :require of the default locale translation file"
+                  (assertions
+                    (last (re-matches #"(?ms).*(\(:require survey\.i18n\.fc-KY).*" code-string)) => "(:require survey.i18n.fc-KY")))
+
+      (behavior "that contains a reset on the *current-locale* atom"
+                (assertions
+                  (last (re-matches #"(?ms).*\n(\(reset!.*\"fc-KY\"\)).*" code-string)) => "(reset! i18n/*current-locale* \"fc-KY\")"))
+
+      (behavior "that contains a swap on the *loaded-translations* atom"
+                (assertions
+                  (last (re-matches #"(?ms).*(\(swap!.*translations\)\)).*"
+                                    code-string)) => "(swap! i18n/*loaded-translations* #(assoc % :fc-KY survey.i18n.fc-KY/translations))")))))
+
