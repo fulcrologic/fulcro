@@ -13,14 +13,14 @@
                  [lein-cljsbuild "1.1.0"]
                  ]
 
-  :source-paths ["src" "spec" ]
-  
+  :source-paths ["src" "spec"]
+
   :plugins [[lein-cljsbuild "1.1.0"]
             [lein-figwheel "0.4.0"]]
 
   :cljsbuild {:builds
               [{:id           "test"
-                :source-paths ["src" "dev" "spec" ]
+                :source-paths ["src" "dev" "spec"]
                 :figwheel     {:on-jsload "cljs.user/on-load"}
                 :compiler     {:main                 cljs.user
                                :output-to            "resources/public/js/test/test.js"
@@ -31,7 +31,7 @@
 
   :profiles {
              :dev {
-                   :source-paths ["src" "test" "dev" ]
+                   :source-paths ["src" "test" "dev"]
                    :dependencies [[leiningen "2.5.3"]
                                   [leiningen-core "2.5.3"]]
                    :repl-options {
@@ -44,4 +44,4 @@
 
   :figwheel {
              :server-port 3450
-             :css-dirs ["resources/public/css"] })
+             :css-dirs    ["resources/public/css"]})
