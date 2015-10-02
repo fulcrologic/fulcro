@@ -7,8 +7,21 @@
 
 (def compiled-js-path "i18n/out/compiled.js")
 (def msgs-dir-path "i18n/msgs")
-(def cljs-output-dir "src/untangled/translations")
 (def messages-pot-path (str msgs-dir-path "/messages.pot"))
+
+(defn cljs-output-dir [namespace]
+  (let [path-from-namespace (str/replace (str namespace) #"\." "/")]
+    (str "src/" path-from-namespace)))
+
+(defn translation-namespace [project]
+  (if-let [ns (get-in project [:untangled-i18n :translation-namespace])]
+    ns
+    (symbol 'untangled.translations)))
+
+(defn default-locale [project]
+  (if-let [locale (get-in project [:untangled-i18n :default-locale])]
+    locale
+    "en-US"))
 
 (defn find-po-files [msgs-dir-path]
   (filter #(.endsWith % ".po")
@@ -53,13 +66,23 @@
 (defn deploy-translations
   "This subtask converts translated .po files into locale-specific .cljs files for runtime string translation."
   [project]
-  (sh "mkdir" "-p" cljs-output-dir)
-  (doseq [po (find-po-files msgs-dir-path)]
-    (let [locale (clojure-ize-locale po)
-          translation-map (u/map-translations (po-path po))
-          cljs-translations (u/wrap-with-swap :locale locale :translation translation-map)
-          cljs-trans-path (str cljs-output-dir "/" locale ".cljs")]
-      (u/write-cljs-translation-file cljs-trans-path cljs-translations))))
+  (let [trans-ns (translation-namespace project)
+        output-dir (cljs-output-dir trans-ns)
+        po-files (find-po-files msgs-dir-path)
+        locales (map clojure-ize-locale po-files)
+        default-lc (default-locale project)
+        default-lc-path (str output-dir "/" default-lc ".cljs")
+        default-lc-content (u/wrap-with-swap :namespace trans-ns :locale default-lc :translation {})]
+    (sh "mkdir" "-p" output-dir)
+    (doseq [po po-files]
+      (let [locale (clojure-ize-locale po)
+            translation-map (u/map-translations (po-path po))
+            cljs-translations (u/wrap-with-swap
+                                :namespace trans-ns :locale locale :translation translation-map)
+            cljs-trans-path (str output-dir "/" locale ".cljs")]
+        (u/write-cljs-translation-file cljs-trans-path cljs-translations)))
+    (if (some #{default-lc} locales) :noop
+                                     (u/write-cljs-translation-file default-lc-path default-lc-content))))
 
 (defn extract-i18n-strings
   "This subtask extracts strings from your cljs files that should be translated."

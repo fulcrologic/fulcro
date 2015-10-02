@@ -6,13 +6,33 @@
             [clojure.java.shell :refer [sh]]
             [leiningen.i18n :as e]))
 
+
 (let [which "which"
       xg "xgettext"
       mc "msgcat"
       ls "ls"
       dir "dir"
-      po-dir "de.po\nfoofah.txt\ntldr.md\nja_JP.po"
-      ]
+      po-dir "de.po\nfoofah.txt\ntldr.md\nja_JP.po"]
+
+  (specification "the default-locale function"
+                 (behavior "returns the default-locale configured in the project"
+                           (assertions
+                             (e/default-locale
+                               {:untangled-i18n {:default-locale "es-MX"}}) => "es-MX"))
+                 (behavior "defaults to untangled.translations"
+                           (assertions
+                             (e/default-locale {}) => "en-US"))
+                 )
+
+  (specification "the translation-namespace function"
+                 (behavior "returns the namespace configured in the project"
+                           (assertions
+                             (e/translation-namespace
+                               {:untangled-i18n {:translation-namespace 'i18n}}) => 'i18n))
+                 (behavior "defaults to untangled.translations"
+                           (assertions
+                             (e/translation-namespace {}) => 'untangled.translations))
+                 )
 
   (specification "the find-po-files function"
                  (provided "when no files are found"
@@ -26,6 +46,7 @@
                            (behavior "returns a list of the po files"
                                      (assertions
                                        (e/find-po-files dir) => '("de.po" "ja_JP.po")))))
+
 
   (specification "the gettext-missing? function"
                  (provided "when xgettext and msgcat are installed"
@@ -44,7 +65,14 @@
                            (sh which xg) =1x=> {:exit 0}
                            (sh which mc) =1x=> {:exit 1}
                            (behavior "returns true"
-                                     (assertions (e/gettext-missing?) => true)))))
+                                     (assertions (e/gettext-missing?) => true))))
+
+  (specification "the cljs-output-dir function"
+                 (behavior "returns a path string to the translation-namespace in src"
+                           (assertions
+                             (e/cljs-output-dir 'i18n) => "src/i18n"
+                             (e/cljs-output-dir 'i18n.some.more-namespace) => "src/i18n/some/more-namespace"))
+                           ))
 
 (specification "the cljsbuild-prod-build? function"
                (behavior "returns false if :id is not \"production\""
