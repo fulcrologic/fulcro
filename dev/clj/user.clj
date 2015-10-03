@@ -6,7 +6,7 @@
 
 (defn run-all-tests []
   (report/with-smooth-output (run-tests 'leiningen.i18n-spec))
-  (report/with-smooth-output (run-tests 'untangled.i18n.util-spec))
+  ;(report/with-smooth-output (run-tests 'untangled.i18n.util-spec))
   )
 
 (run-all-tests)

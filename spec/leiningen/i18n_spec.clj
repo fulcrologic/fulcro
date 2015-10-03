@@ -161,3 +161,17 @@
                   (last (re-matches #"(?ms).*(\(swap!.*translations\)\)).*"
                                     code-string)) => "(swap! i18n/*loaded-translations* #(assoc % :fc-KY survey.i18n.fc-KY/translations))")))))
 
+(specification "the lookup-modules function"
+               (behavior "returns a suggested :main module in the map")
+               (behavior "returns locale modules in the map"
+                         (assertions
+                           (:fc-KY (e/lookup-modules
+                                     {:compiler {:output-dir "res/pub/js/comp/out"}}
+                                     '("en-US" "fc-KY") 'survey.i18n)) => {:output-to "res/pub/js/comp/out/fc-KY.js", :entries #{"survey.i18n.fc-KY"}}
+                           ))
+               (behavior "returns empty map when :modules key exists"
+                         (assertions
+                           (e/lookup-modules {:compiler {:modules {}}} '() 'survey.i18n) => {}
+                           )))
+
+
