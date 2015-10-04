@@ -74,14 +74,27 @@
     (str/join "\n\n" [ns-decl reset-decl swap-decl])
     ))
 
-(defn lookup-modules [build locales ns]
-  (if (-> build :compiler (contains? :modules))
-    ""
-    (let [output-dir (:output-dir (:compiler build))
-          modules-map (reduce #(assoc %1 (keyword %2) {:output-to (str output-dir "/" %2 ".js")
-                                                       :entries #{(str ns "." %2)}}) {} locales)]
-      modules-map)
-    ))
+(defn lookup-modules [project locales]
+  (let [ns (translation-namespace project)
+        build (get-cljsbuild (get-in project [:cljsbuild :builds]))
+        ]
+    (if (-> build :compiler (contains? :modules))
+      nil
+      (let [output-dir (:output-dir (:compiler build))
+            js-file #(str output-dir "/" % ".js")
+            name (:name project)
+            main-name (str name ".main")
+            main {:output-to (js-file name)
+                  :entries   #{main-name}}
+            modules (reduce #(assoc %1
+                              (keyword %2) {:output-to (js-file %2)
+                                            :entries   #{(str ns "." %2)}}) {} locales)
+            modules-with-main (assoc modules :main main)]
+        (-> build
+            (update-in [:compiler] dissoc :main)
+            (assoc-in [:compiler :modules] modules-with-main)
+            (assoc-in [:compiler :optimizations] :advanced))
+        ))))
 
 (defn gen-locales-ns
   "
@@ -141,14 +154,18 @@
         locales-code-string (gen-locales-ns project locales)
         locales-path (str output-dir "/locales.cljs")
         default-locale-code-string (gen-default-locale-ns trans-ns default-lc)
-        default-locale-path (str output-dir "/default-locale.cljs")
-        prod-build (get-cljsbuild (get-in project [:cljsbuild :builds]))
-        modules-message (lookup-modules prod-build locales-inc-default)]
-    (lmain/warn modules-message)
+        default-locale-path (str output-dir "/default-locale.cljs")]
     (sh "mkdir" "-p" output-dir)
     (u/write-cljs-translation-file default-locale-path default-locale-code-string)
+    (if (some #{default-lc} locales)
+      (u/write-cljs-translation-file locales-path locales-code-string)
+      ; else, write an empty .po file for the default locale
+      ; as well as locales code that now includes the default locale
+      (let [locales-code-string (gen-locales-ns project locales-inc-default)]
+        (u/write-cljs-translation-file locales-path locales-code-string)
+        (u/write-cljs-translation-file default-lc-translation-path default-lc-translations)))
+    (lmain/warn "Configured project for default locale:" default-lc)
 
-    ; convert each .po to .cljs and write to disk
     (doseq [po po-files]
       (let [locale (clojure-ize-locale po)
             translation-map (u/map-translations (po-path po))
@@ -158,13 +175,17 @@
         (u/write-cljs-translation-file cljs-trans-path cljs-translations)))
 
     ; if we have a .po file for the default locale already, go ahead and write the locales code to disk...
-    (if (some #{default-lc} locales)
-      (u/write-cljs-translation-file locales-path locales-code-string)
-      ; else, write an empty .po file for the default locale
-      ; as well as locales code that now includes the default locale
-      (let [locales-code-string (gen-locales-ns project locales-inc-default)]
-        (u/write-cljs-translation-file locales-path locales-code-string)
-        (u/write-cljs-translation-file default-lc-translation-path default-lc-translations)))))
+    (lmain/warn "Deployed translations for the following locales:" locales)
+
+    (if-let [modules-map (lookup-modules project locales-inc-default)]
+      (do (lmain/warn
+            "
+            No :modules configuration detected for dynamically loading translations!
+            Your production cljsbuild should look something like this:
+            ")
+          (lmain/warn (pp/write modules-map :stream nil)
+                      "
+                      ")))))
 
 (defn extract-i18n-strings
   "This subtask extracts strings from your cljs files that should be translated."
