@@ -42,11 +42,11 @@
                            (assertions
                              (u/join-quoted-strings strings) => "line one\ntwo\nthree"))))
 
-(specification "the inline-strings function"
+(specification "the map-translation-components function"
                (let [grouped-chunk [["msgctxt \"context for a multiline xlation\""]
                                     ["msgid \"\"" "\"line one\n\"" "\"two\n\"" "\"three\""]
                                     ["msgstr \"\"" "\"lina uno\n\"" "\"dos\n\"" "\"tres\""]]
-                     mapped-translation (u/inline-strings {} grouped-chunk)]
+                     mapped-translation (u/map-translation-components {} grouped-chunk)]
                  (behavior "keys content by :msgid, :msgctxt and :msgstr"
                            (assertions
                              (contains? mapped-translation :msgid) => true

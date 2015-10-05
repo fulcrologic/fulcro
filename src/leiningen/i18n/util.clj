@@ -6,8 +6,6 @@
   (let [path-from-namespace (str/replace (str namespace) #"\." "/")]
     (str "src/" path-from-namespace)))
 
-
-
 (defn default-locale [project]
   (if-let [locale (get-in project [:untangled-i18n :default-locale])]
     locale

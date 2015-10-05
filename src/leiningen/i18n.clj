@@ -18,7 +18,17 @@
   (lmain/warn msg)
   (lmain/abort))
 
-(defn configure-i18n-build [build]
+(defn configure-i18n-build
+  "
+  Create an in-memory clsjbuild configuration.
+
+  Parameters:
+  * `build` - a [:cljsbuild :builds] map
+
+  Returns a new cljsbuild configuration that will ensure all cljs is compiled into a single JS file, from which we will
+  extract translatable strings.
+  "
+  [build]
   (let [compiler-config (assoc (:compiler build) :output-dir "i18n/out"
                                                  :optimizations :whitespace
                                                  :output-to compiled-js-path)]
@@ -26,7 +36,17 @@
 
 
 
-(defn lookup-modules [project locales]
+(defn lookup-modules
+  "
+  Check if the production cljs build contains a :modules configuration map.
+
+  Parameters:
+  * `project` - a leiningen project map
+  * `locales` - a list of locale strings
+
+  If the production cljs build has :modules, return nil, else return the suggested :modules configuration.
+  "
+  [project locales]
   (let [ns (util/translation-namespace project)
         build (util/get-cljsbuild (get-in project [:cljsbuild :builds]))
         ]
@@ -45,8 +65,7 @@
         (-> build
             (update-in [:compiler] dissoc :main)
             (assoc-in [:compiler :modules] modules-with-main)
-            (assoc-in [:compiler :optimizations] :advanced))
-        ))))
+            (assoc-in [:compiler :optimizations] :advanced))))))
 
 (defn deploy-translations
   "This subtask converts translated .po files into locale-specific .cljs files for runtime string translation."
@@ -123,5 +142,3 @@
      "extract-strings" (extract-strings project)
      "deploy-translations" (deploy-translations project)
      (puke (str "Unrecognized subtask: " subtask)))))
-
-

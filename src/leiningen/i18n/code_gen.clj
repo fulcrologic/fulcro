@@ -3,7 +3,16 @@
             [clojure.pprint :as pp]
             [leiningen.i18n.util :as util]))
 
-(defn wrap-with-swap [& {:keys [locale translation namespace]}]
+(defn wrap-with-swap
+  "Wrap a translation map with supporting clojurescript code
+
+  Parameters:
+  * `locale` - the locale which this translation targets
+  * `translation` - a clojurescript map of translations
+  * `namespace` - the namespace in which to load the translations
+
+  Returns a string of clojurescript code."
+  [& {:keys [locale translation namespace]}]
   (let [trans-namespace (symbol (str namespace "." locale))
         ns-decl (pp/write (list 'ns trans-namespace
                                 (list :require 'untangled.i18n.core)
@@ -20,15 +29,22 @@
 (defn write-cljs-translation-file [fname translations-string]
   (spit fname translations-string))
 
-(defn gen-default-locale-ns [ns locale]
+(defn gen-default-locale-ns
+  "Generate clojurescript code which initially loads translations for the project's default locale.
+
+  Parameters:
+  * `ns` - the namespace in which to load this code
+  * `locale` - the default locale of the project
+
+  Returns a string of clojurescript code."
+  [ns locale]
   (let [def-lc-namespace (symbol (str ns ".default-locale"))
         translation-require (list :require (symbol (str ns "." locale)) ['untangled.i18n.core :as 'i18n])
         ns-decl (list 'ns def-lc-namespace translation-require)
         reset-decl (list 'reset! 'i18n/*current-locale* locale)
         swap-decl (list 'swap! 'i18n/*loaded-translations*
                         (symbol (str "#(assoc % :" locale " " ns "." locale "/translations)")))]
-    (str/join "\n\n" [ns-decl reset-decl swap-decl])
-    ))
+    (str/join "\n\n" [ns-decl reset-decl swap-decl])))
 
 (defn gen-locales-ns
   "
@@ -39,8 +55,7 @@
   * `project`: A leiningen project map
   * `locales`: A list of locale strings
 
-  Returns a string of cljs code.
-  "
+  Returns a string of cljs code."
   [project locales]
   (let [locales-ns (-> project util/translation-namespace (str ".locales") symbol)
         ns-decl (pp/write (list 'ns locales-ns
