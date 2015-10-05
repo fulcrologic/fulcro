@@ -1,12 +1,13 @@
-(ns untangled.spec.i18n.util-spec
+(ns leiningen.i18n.parse-po-spec
   (:require [clojure.test :refer (is deftest run-tests testing do-report)]
-            [untangled.i18n.util :as u]
             [smooth-spec.core :refer (specification behavior provided assertions)]
-            [smooth-spec.report :as report]
-            ))
+            [leiningen.i18n.parse-po :as u]))
+
 (def po-file-with-embedded-newlines "# SOME DESCRIPTIVE TITLE.\n# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER\n# This file is) distributed under the same license as the PACKAGE package.\n# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n#\n#, fuzzy\nmsgid \"\"\nmsgstr \"\"\n\"Project-Id-Version: PACKAGE VERSION\\n\"\n\"Report-Msgid-Bugs-To: \\n\"\n\"POT-Creation-Date: 2015-09-24 14:28-0700\\n\"\n\"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n\"\n\"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n\"\n\"Language-Team: LANGUAGE <LL@li.org>\\n\"\n\"Language: \\n\"\n\"MIME-Version: 1.0\\n\"\n\"Content-Type: text/plain; charset=CHARSET\\n\"\n\"Content-Transfer-Encoding: 8bit\\n\"\n\n#: i18n/out/compiled.js:26732\nmsgctxt \"context for a multiline xlation\"\nmsgid \"\"\n\"line one\\n\"\n\"two\\n\"\n\"three\"\nmsgstr \"\"\n\"lina uno\\n\"\n\"dos\\n\"\n\"tres\"\n\n#: i18n/out/compiled.js:26732\nmsgid \"\"\n\"Select a language\\n\"\n\" to use\\n\"\n\"maybe\"\nmsgstr \"\"\n\"some xlated line\\n\"\n\" por uso\\n\"\n\"que?\"\n")
 (def malformed-po-file "# SOME DESCRIPTIVE TITLE.\n# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER\n# This file is) distributed under the same license as the PACKAGE package.\n# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n#\n#, fuzzy\nmsgid \"\"\nmsgstr \"\"\n\"Project-Id-Version: PACKAGE VERSION\\n\"\n\"Report-Msgid-Bugs-To: \\n\"\n\"POT-Creation-Date: 2015-09-24 14:28-0700\\n\"\n\"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n\"\n\"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n\"\n\"Language-Team: LANGUAGE <LL@li.org>\\n\"\n\"Language: \\n\"\n\"MIME-Version: 1.0\\n\"\n\"Content-Type: text/plain; charset=CHARSET\\n\"\n\"Content-Transfer-Encoding: 8bit\\n\"\n#: i18n/out/compiled.js:26732\nmsgctxt \"context for a multi~ xlation\"\nmsgid \"\"\n\"line one\\n\"\n\"two\\n\"\n\"three\"\nmsgstr \"\"\n\"lina uno\\n\"\n\"dos\\n\"\n\"tres\"\n#: i18n/out/compiled.js:26732\nmsgid \"\"\n\"Select a language\\n\"\n\" to use\\n\"\n\"maybe\"\nmsgstr \"\"\n\"some xlated line\\n\"\n\" por uso\\n\"\n\"que?\"\n")
 (def po-file "# SOME DESCRIPTIVE TITLE.\n# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER\n# This file is distributed under the same license as the PACKAGE package.\n# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n#\nmsgid \"\"\nmsgstr \"\"\n\"Project-Id-Version: \\n\"\n\"Report-Msgid-Bugs-To: \\n\"\n\"POT-Creation-Date: 2015-09-15 15:24-0700\\n\"\n\"PO-Revision-Date: 2015-09-15 15:30-0700\\n\"\n\"Language-Team: \\n\"\n\"MIME-Version: 1.0\\n\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Content-Transfer-Encoding: 8bit\\n\"\n\"X-Generator: Poedit 1.8.4\\n\"\n\"Last-Translator: \\n\"\n\"Plural-Forms: nplurals=2; plural=(n != 1);\\n\"\n\"Language: es_MX\\n\"\n\n#: i18n/survey.js:26344\nmsgid \"A sub-component with local state.\"\nmsgstr \"Un subcomponente de estado local.\"\n\n#: i18n/survey.js:26345\nmsgid \"Change my mood...\"\nmsgstr \"Cambiar mi estado de ánimo…\"\n\n#: i18n/survey.js:26345\nmsgid \"Happy!\"\nmsgstr \"¡Feliz!\"\n\n#: i18n/survey.js:26346\nmsgid \"Sad :(\"\nmsgstr \"Triste :(\"\n\n#: i18n/survey.js:26354\nmsgctxt \"abbreviation for male gender\"\nmsgid \"M\"\nmsgstr \"H\"\n\n#: i18n/survey.js:26355\nmsgid \"A button with a click count: \"\nmsgstr \"Un botón con un clic la cuenta:\"\n\n#: i18n/survey.js:26355\nmsgid \"Click me\"\nmsgstr \"Clic aquí\"\n\n#: i18n/survey.js:26356\nmsgid \"An input that is two-way bound:\"\nmsgstr \"Límite de una entrada que es de dos vía:\"\n\n#: i18n/survey.js:26358\nmsgid \"Sub component below: ({swings, number} mood swings so far)\"\nmsgstr \"Componente de sub abajo: ({columpios, número} hasta el momento de ánimo)\"\n")
+
+
 
 (specification "the map-translations funtion"
                (provided "when a translation contains single-line translations"
@@ -14,7 +15,6 @@
                          (let [translations (u/map-translations "wat")
                                xlation-with-ctxt (get translations "abbreviation for male gender|M")
                                xlation-without-ctxt (get translations "|A sub-component with local state.")]
-                           (clojure.pprint/pprint translations)
                            (behavior "stores the translation without context"
                                      (assertions
                                        xlation-without-ctxt => "Un subcomponente de estado local."))
@@ -42,11 +42,11 @@
                            (assertions
                              (u/join-quoted-strings strings) => "line one\ntwo\nthree"))))
 
-(specification "the inline-strings function"
+(specification "the map-translation-components function"
                (let [grouped-chunk [["msgctxt \"context for a multiline xlation\""]
                                     ["msgid \"\"" "\"line one\n\"" "\"two\n\"" "\"three\""]
                                     ["msgstr \"\"" "\"lina uno\n\"" "\"dos\n\"" "\"tres\""]]
-                     mapped-translation (u/inline-strings {} grouped-chunk)]
+                     mapped-translation (u/map-translation-components {} grouped-chunk)]
                  (behavior "keys content by :msgid, :msgctxt and :msgstr"
                            (assertions
                              (contains? mapped-translation :msgid) => true
@@ -115,21 +115,4 @@
                                        (-> grouped-with-ctxt first first (subs 0 7)) => "msgctxt")))))
 
 
-(specification "the wrap-with-swap function"
-               (let [code-string (u/wrap-with-swap :locale "fr-CA" :translation "{\"fizz\" \"buzz\"}")
-                     re #"(?ms)^(\(ns untangled.translations.fr-CA).*"
-                     match (last (re-matches re code-string))]
-                 (behavior "emits code string that begins with a namespace delcaration"
-                           (assertions
-                             match => "(ns untangled.translations.fr-CA")))
 
-               (let [code-string (u/wrap-with-swap :locale "fr-CA" :translation "{\"fizz\" \"buzz\"}")
-                     re #"(?ms)^.*(untangled.i18n.core/\*loaded-translations\*).*"
-                     match (last (re-matches re code-string))]
-
-                 (behavior "emits code string with default :atom-name"
-                           (assertions
-                             match => "untangled.i18n.core/*loaded-translations*"))))
-
-; this made test-refresh work
-;(report/with-smooth-output (run-tests 'untangled.spec.i18n.util-spec))
