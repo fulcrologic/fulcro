@@ -118,6 +118,7 @@
                                 (list :import 'goog.module.ModuleManager)) :stream nil)
         output-dir (:output-dir (:compiler (get-cljsbuild (get-in project [:cljsbuild :builds]))))
         abs-module-path (str/join (interleave (repeat "/") (drop 2 (str/split output-dir #"/"))))
+        manager-def (list 'defonce 'manager (list 'module-manager/getInstance))
         modules-map (reduce #(assoc %1 %2 (str abs-module-path "/" %2 ".js")) {} locales)
         modules-def (pp/write (list 'defonce 'modules (symbol (str "#js")) modules-map) :stream nil)
         mod-info-map (reduce #(assoc %1 %2 []) {} locales)
@@ -139,7 +140,7 @@
                                                (list 'js/console.log (list 'str "LOADED ALTERNATE LOCALE: " 'l))
                                                (list 'reset! 'i18n/*current-locale* 'l)
                                                (list (list 'op (symbol "#(assoc % :application/locale l)")))))))]
-    (str/join "\n\n" [ns-decl modules-def mod-info-def loader-def set-locale-def])))
+    (str/join "\n\n" [ns-decl manager-def modules-def mod-info-def loader-def set-locale-def])))
 
 (defn deploy-translations
   "This subtask converts translated .po files into locale-specific .cljs files for runtime string translation."
