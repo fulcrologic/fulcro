@@ -143,24 +143,23 @@
 (defn deploy-translations
   "This subtask converts translated .po files into locale-specific .cljs files for runtime string translation."
   [project]
-  (let [trans-ns (translation-namespace project)
+  (let [replace-hyphen #(str/replace % #"-" "_")
+        trans-ns (translation-namespace project)
         output-dir (cljs-output-dir trans-ns)
         po-files (find-po-files msgs-dir-path)
         default-lc (default-locale project)
         locales (map clojure-ize-locale po-files)
         locales-inc-default (conj locales default-lc)
-        default-lc-translation-path (str output-dir "/" default-lc ".cljs")
+        default-lc-translation-path (str output-dir "/" (replace-hyphen default-lc) ".cljs")
         default-lc-translations (u/wrap-with-swap :namespace trans-ns :locale default-lc :translation {})
         locales-code-string (gen-locales-ns project locales)
         locales-path (str output-dir "/locales.cljs")
         default-locale-code-string (gen-default-locale-ns trans-ns default-lc)
-        default-locale-path (str output-dir "/default-locale.cljs")]
+        default-locale-path (str output-dir "/default_locale.cljs")]
     (sh "mkdir" "-p" output-dir)
     (u/write-cljs-translation-file default-locale-path default-locale-code-string)
     (if (some #{default-lc} locales)
       (u/write-cljs-translation-file locales-path locales-code-string)
-      ; else, write an empty .po file for the default locale
-      ; as well as locales code that now includes the default locale
       (let [locales-code-string (gen-locales-ns project locales-inc-default)]
         (u/write-cljs-translation-file locales-path locales-code-string)
         (u/write-cljs-translation-file default-lc-translation-path default-lc-translations)))
@@ -171,10 +170,9 @@
             translation-map (u/map-translations (po-path po))
             cljs-translations (u/wrap-with-swap
                                 :namespace trans-ns :locale locale :translation translation-map)
-            cljs-trans-path (str output-dir "/" locale ".cljs")]
+            cljs-trans-path (str output-dir "/" (replace-hyphen locale) ".cljs")]
         (u/write-cljs-translation-file cljs-trans-path cljs-translations)))
 
-    ; if we have a .po file for the default locale already, go ahead and write the locales code to disk...
     (lmain/warn "Deployed translations for the following locales:" locales)
 
     (if-let [modules-map (lookup-modules project locales-inc-default)]
