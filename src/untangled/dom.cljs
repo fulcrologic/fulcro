@@ -42,3 +42,9 @@
   "Toggles the (boolean) state of the `checked` attribute of an input element."
   [input]
   (update input :checked not))
+
+
+(defn text-value
+  "Returns the text value from an input change event"
+  [evt]
+  (.-value (.-target evt)))
