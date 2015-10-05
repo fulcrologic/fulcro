@@ -100,7 +100,7 @@ Suppose that you have just finished an awesome new feature in your project. This
 strings to your UI, and you would like to have the new parts of your UI translated for international users. To extract
 your new strings for translation, run this command from the root of your project.
 
-`lein i18n extract-i18n-strings`
+`lein i18n extract-strings`
 
 This will generate a new `messages.pot` in the `i18n/msgs` directory of your project. If you have existing translation
 files in your project (eg: `i18n/msgs/fr_CA.po`), these files will be updated with your new untranslated strings. Any

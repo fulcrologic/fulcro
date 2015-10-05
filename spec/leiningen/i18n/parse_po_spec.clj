@@ -1,8 +1,7 @@
-(ns untangled.i18n.util-spec
+(ns leiningen.i18n.parse-po-spec
   (:require [clojure.test :refer (is deftest run-tests testing do-report)]
-            [untangled.i18n.util :as u]
             [smooth-spec.core :refer (specification behavior provided assertions)]
-            [leiningen.i18n :as i]))
+            [leiningen.i18n.parse-po :as u]))
 
 (def po-file-with-embedded-newlines "# SOME DESCRIPTIVE TITLE.\n# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER\n# This file is) distributed under the same license as the PACKAGE package.\n# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n#\n#, fuzzy\nmsgid \"\"\nmsgstr \"\"\n\"Project-Id-Version: PACKAGE VERSION\\n\"\n\"Report-Msgid-Bugs-To: \\n\"\n\"POT-Creation-Date: 2015-09-24 14:28-0700\\n\"\n\"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n\"\n\"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n\"\n\"Language-Team: LANGUAGE <LL@li.org>\\n\"\n\"Language: \\n\"\n\"MIME-Version: 1.0\\n\"\n\"Content-Type: text/plain; charset=CHARSET\\n\"\n\"Content-Transfer-Encoding: 8bit\\n\"\n\n#: i18n/out/compiled.js:26732\nmsgctxt \"context for a multiline xlation\"\nmsgid \"\"\n\"line one\\n\"\n\"two\\n\"\n\"three\"\nmsgstr \"\"\n\"lina uno\\n\"\n\"dos\\n\"\n\"tres\"\n\n#: i18n/out/compiled.js:26732\nmsgid \"\"\n\"Select a language\\n\"\n\" to use\\n\"\n\"maybe\"\nmsgstr \"\"\n\"some xlated line\\n\"\n\" por uso\\n\"\n\"que?\"\n")
 (def malformed-po-file "# SOME DESCRIPTIVE TITLE.\n# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER\n# This file is) distributed under the same license as the PACKAGE package.\n# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.\n#\n#, fuzzy\nmsgid \"\"\nmsgstr \"\"\n\"Project-Id-Version: PACKAGE VERSION\\n\"\n\"Report-Msgid-Bugs-To: \\n\"\n\"POT-Creation-Date: 2015-09-24 14:28-0700\\n\"\n\"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n\"\n\"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n\"\n\"Language-Team: LANGUAGE <LL@li.org>\\n\"\n\"Language: \\n\"\n\"MIME-Version: 1.0\\n\"\n\"Content-Type: text/plain; charset=CHARSET\\n\"\n\"Content-Transfer-Encoding: 8bit\\n\"\n#: i18n/out/compiled.js:26732\nmsgctxt \"context for a multi~ xlation\"\nmsgid \"\"\n\"line one\\n\"\n\"two\\n\"\n\"three\"\nmsgstr \"\"\n\"lina uno\\n\"\n\"dos\\n\"\n\"tres\"\n#: i18n/out/compiled.js:26732\nmsgid \"\"\n\"Select a language\\n\"\n\" to use\\n\"\n\"maybe\"\nmsgstr \"\"\n\"some xlated line\\n\"\n\" por uso\\n\"\n\"que?\"\n")
@@ -115,28 +114,5 @@
                                        (-> grouped-without-ctxt first first (subs 0 5)) => "msgid"
                                        (-> grouped-with-ctxt first first (subs 0 7)) => "msgctxt")))))
 
-(specification "the wrap-with-swap function emits a code string"
-               (let [code-string (u/wrap-with-swap :namespace 'i18n :locale "fr-CA" :translation "{\"fizz\" \"buzz\"}")
-                     import-re #"(?ms).*\(:import.*(goog.module.ModuleManager).*"
-                     ns-re #"(?ms)^(\(ns i18n.fr-CA).*"
-                     import-match (last (re-matches import-re code-string))
-                     ns-match (last (re-matches ns-re code-string))]
-                 (behavior "that begins with a namespace delcaration"
-                           (assertions
-                             ns-match => "(ns i18n.fr-CA"))
-                 (behavior "which also imports goog's ModuleManager."
-                           (assertions
-                             import-match => "goog.module.ModuleManager")))
 
-               (let [code-string (u/wrap-with-swap :locale "fr-CA" :translation "{\"fizz\" \"buzz\"}")
-                     module-re #"(?ms).*(\(-> goog.module.ModuleManager \.getInstance \(\.setLoaded \"fr-CA\"\)\)).*"
-                     module-match (last (re-matches module-re code-string))
-                     atom-re #"(?ms)^.*(untangled.i18n.core/\*loaded-translations\*).*"
-                     atom-match (last (re-matches atom-re code-string))]
-                 (behavior "that ends with a default :atom-name"
-                           (assertions
-                             atom-match => "untangled.i18n.core/*loaded-translations*"))
-                 (behavior "and also a call to ModuleManager.setLoaded"
-                           (assertions
-                             module-match => "(-> goog.module.ModuleManager .getInstance (.setLoaded \"fr-CA\"))"))))
 
