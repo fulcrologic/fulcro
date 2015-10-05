@@ -112,6 +112,7 @@
         ns-decl (pp/write (list 'ns locales-ns
                                 (list :require
                                       'goog.module
+                                      'goog.module.ModuleLoader
                                       '[goog.module.ModuleManager :as module-manager]
                                       '[untangled.i18n.core :as i18n])
                                 (list :import 'goog.module.ModuleManager)) :stream nil)
