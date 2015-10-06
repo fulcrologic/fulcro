@@ -12,6 +12,8 @@
             untangled.test.dom-spec
             untangled.test.events-spec
             untangled.services.local-storage-io-spec
+            smooth-spec.async
+            smooth-spec.stub
             [cljs.test :as test :include-macros true :refer [report]]))
 
 

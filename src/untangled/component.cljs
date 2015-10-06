@@ -146,11 +146,12 @@
   (assert renderer "renderer is required.")
   (assert list-key "list-key is required.")
   (assert item-key "item-key is required.")
-  (let [items (get context list-key)
+  (let [state (state/context-data context)
+        items (get state list-key)
         events (keys event-listeners)
         listener-ctor (fn [evt item] ((get event-listeners evt) item))
         item-listeners (fn [item] (into {} (cljs.core/map (fn [e] (vector e (listener-ctor e item))) events)))
-        state (state/context-data context)]
+        ]
     (keep-indexed (fn [idx item]
                     (if (or (not filter-fn) (and filter-fn (filter-fn item)))
                       (let [args (cond-> [(state/list-element-id state list-key item-key idx) context]

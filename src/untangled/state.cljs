@@ -248,3 +248,5 @@
     ((apply op f options))
     )
   )
+
+(defn set! [context k v & options] (apply transact! context #(assoc % k v) options))
