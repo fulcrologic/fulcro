@@ -1,4 +1,4 @@
-(defproject untangled "0.2.0-SNAPSHOT"
+(defproject untangled "0.1.1"
   :description "An opinionated data model for use with (and following) the sensibilities of Quiescent."
   :url ""
   :license {:name "NAVIS"
@@ -7,7 +7,7 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [quiescent "0.2.0-RC2"]
                  [org.clojure/clojurescript "1.7.122"]
-                 [smooth-spec "0.1.0-SNAPSHOT"]
+                 [smooth-spec "0.1.0"]
                  [differ "0.2.1"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [lein-cljsbuild "1.1.0"]
