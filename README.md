@@ -9,7 +9,7 @@ web applications:
    - Rarely need core.async! Much less complexity.
 - Immutable data, with *no need* for embedded/hidden local state
 - Interfacing to React via Quiescent for a *referentially transparent* rendering model.
-- A data model similar to Om, but much simpler to manage
+- A data model similar to Om
 - A custom component event model for localized component communication
 - Unit testing tools, including:
    - Event simulation
