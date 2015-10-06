@@ -1,0 +1,6 @@
+#!/bin/bash
+cd ~/projects/untangled
+rm checkouts/*
+rmdir checkouts
+perl -pi.bak -e 's|"checkouts/[^/][^/]*/src"||g' project.clj
+rm project.clj.bak

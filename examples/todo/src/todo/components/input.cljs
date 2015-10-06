@@ -5,7 +5,7 @@
     )
   )
 
-(defn text-input [attrs value-to-render enter-key-callback cancel-callback value-setter callback-builder]
+(defn text-input [attrs value-to-render enter-key-callback cancel-callback value-setter op]
   (d/input (merge {:type      "text"
                    :value     value-to-render
                    :onKeyDown (fn [evt] (cond
@@ -14,7 +14,7 @@
                                                                 (.blur (.-target evt)))
                                           )
                                 )
-                   :onChange  (fn [evt] ((callback-builder (partial value-setter (text-value evt)))))
+                   :onChange  (fn [evt] ((op (partial value-setter (text-value evt)) :compress true)))
                    } attrs))
   )
 

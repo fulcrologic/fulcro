@@ -43,7 +43,7 @@
                  "A Todo item"
                  :keyfn :id
                  [data context]
-                 (let [op (state/op-builder context)
+                 (let [op (partial state/context-operator context)
                        delete-me #(evt/trigger context [:delete-me])] ; triggering an event that has no local state chg
                    (d/li {:className (item-class data)}
                          (d/div {:className "view"}

@@ -1,10 +1,31 @@
-(ns untangled.i18n)
+(ns untangled.i18n
+  #?(:cljs (:require [untangled.i18n.core :as ic])))
 
-#?(:cljs (set! js/tr identity))
+#?(:cljs (defn current-locale [] @ic/*current-locale*))
+
+#?(:cljs (defn translations-for-locale [] (get @ic/*loaded-translations* (current-locale))))
+
+#?(:cljs (set! js/tr
+               (fn [msg]
+                 (let [msg-key (str "|" msg)
+                       translations (translations-for-locale)
+                       translation (get translations msg-key)]
+                   (cond
+                     (= (current-locale) "en-US") msg
+                     (empty? translation) msg
+                      :else translation)
+                   ))
+               ))
+
 #?(:cljs (set! js/trc (fn [ctxt msg] msg)))
-#?(:cljs (set! js/trf (fn [fmt & args] fmt)))
+#?(:cljs
+   (set! js/trf
+         (fn [fmt & {:keys [] :as argmap}]
+           (let [formatter (js/IntlMessageFormat. fmt "en-US")]
+             (.format formatter (clj->js argmap))
+             ))))
 
-#?(:cljs (defn format-date 
+#?(:cljs (defn format-date
            "Format a date with an optional style. The default style is :short.
            
            Style can be one of:
@@ -16,15 +37,16 @@
            ([date style] (.toLocaleDateString date))
            ([date] (.toLocaleDateString date))
            ))
-#?(:cljs (defn format-number 
+#?(:cljs (defn format-number
            "Format a number with locale-specific separators (grouping digits, and correct marker for decimal point)"
            [number] number))
-#?(:cljs (defn format-currency 
+#?(:cljs (defn format-currency
            "Format a number as a currency (dropping digits that are insignificant in the current currency.)"
            [number] (.toPrecision number 2)))
-#?(:cljs (defn format-rounded-currency 
+#?(:cljs (defn format-rounded-currency
            "Round and format a number as a currency, according to the current currency's rules."
            [number] (.toPrecision (/ (.round (* 100 number)) 100.0) 2)))
+
 
 #?(:clj (defmacro tr
           "Translate the given literal string. The argument MUST be a literal string so that it can be properly extracted
@@ -33,7 +55,32 @@
           variables)."
           [msg]
           (assert (string? msg) (str "In call to tr(" msg "). Argument MUST be a literal string, not a symbol or expression. Use trf for formatting."))
+          `(js/tr
+
+             ; lookup translation
+             ; ... get the current-locale atom
+             ; ... find translations in loaded-translations atom
+             ; ... ... need to prepend a | before lookup
+             ; if found, return translation
+             ; else return engrish
+
+             ~msg)))
+
+#?(:clj (defmacro tr-unsafe
+          "Look up the given message. UNSAFE: you can use a variable with this, and thus string extraction will NOT
+          happen for you. This means you have to use some other mechanism to make sure the string ends up in translation
+          files (such as manually calling tr on the various raw string values elsewhere in your program)"
+          [msg]
           `(js/tr ~msg)))
+
+#?(:clj (defmacro trlambda
+          "Translate the given literal string. The argument MUST be a literal string so that it can be properly extracted
+          for use in gettext message files as the message key. This macro throws a detailed assertion error if you
+          violate this restriction. See trf for generating translations that require formatting (e.g. construction from
+          variables)."
+          [msg]
+          (assert (string? msg) (str "In call to tr(" msg "). Argument MUST be a literal string, not a symbol or expression. Use trf for formatting."))
+          `#(js/tr ~msg)))
 
 #?(:clj (defmacro trc
           "Same as tr, but include a context message to the translator. This is recommended when asking for a

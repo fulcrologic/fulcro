@@ -1,0 +1,8 @@
+#!/bin/bash
+cd ~/projects/untangled/
+mkdir checkouts
+cd checkouts
+ln -s ../../smooth-spec .
+cd ..
+perl -pi.bak -e 's|[]]| "checkouts/smooth-spec/src"]| if m/source-paths.*dev/ && !m/checkouts/;' project.clj
+rm project.clj.bak

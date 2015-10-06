@@ -1,3 +1,4 @@
+checkouts
 examples/calendar/src/quiescent_model
 .DS_Store
 compiled
@@ -9,6 +10,7 @@ classes
 out
 target
 .lein-deps-sum
+.lein-failures
 .lein-repl-history
 .lein-plugins/
 .repl

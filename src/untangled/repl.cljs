@@ -4,30 +4,26 @@
             ))
 
 (defonce current-focus (atom []))
-(defonce *ui-state* (atom nil))
-(defonce *undo-history* (atom nil))
+(defonce *current-application* (atom nil))
 
-(defn follow-app-state!
-  "Define the app state atom that you wish to debug/watch via the Untangled REPL tools. The argument should be
-  the atom that holds your application state. If your app supports undo, then you can enable the history analysis tools
-  by also passing the undo-atom."
-  ([state-atom] (reset! *ui-state* state-atom))
-  ([state-atom undo-atom]
-   (reset! *ui-state* state-atom)
-   (reset! *undo-history* undo-atom)))
+(defn follow-application!
+  "Define the application that you wish to debug/watch via the Untangled REPL tools. The argument should be
+  the application you created with new-application."
+  [application]
+  (reset! *current-application* application))
 
 (defn app-state
   "Returns the atom that is currently the focus of Untangled's REPL tools."
-  [] @*ui-state*)
+  [] (:app-state @*current-application*))
 
 (defn undo-history
   "Returns the atom that is currently tracking the undo history for the application. Used to enable state diff support."
-  [] @*undo-history*)
+  [] (->> @(:history @*current-application*) :entries (map #(:app-state %)) vec))
 
 (defn check-focus
   "Verify that the current focus makes sense in the app state."
   []
-  (if (nil? (get-in (app-state) @current-focus))
+  (if (nil? (get-in @(app-state) @current-focus))
     (cljs.pprint/pprint "WARNING: No data exists at the current focus!")
     )
   )
@@ -83,15 +79,15 @@
   ([nsteps nsteps-end]
    (if (nil? (undo-history))
      (println "No undo history available.")
-     (if (< (count @(undo-history)) nsteps)
+     (if (< (count (undo-history)) nsteps)
        (cljs.pprint/pprint "Not enough history")
-       (let [old-state (get-in (nth @(undo-history) (dec nsteps)) @current-focus)
+       (let [old-state (get-in (nth (undo-history) (dec nsteps)) @current-focus)
              end-state (if (= 0 nsteps-end)
                          (get-in @(app-state) @current-focus)
-                         (get-in (nth @(undo-history) (dec nsteps-end)) @current-focus)
+                         (get-in (nth (undo-history) (dec nsteps-end)) @current-focus)
                          )
              ]
-         (if (not= old-state end-state)
+         (if (not (identical? old-state end-state))
            (cljs.pprint/pprint (differ/diff old-state end-state)))
          )
        ))
@@ -102,12 +98,12 @@
    state nsteps ago vs the current state, or two old versions (both specified as the number of steps back in history)."
   ([nsteps] (vdiff nsteps 0))
   ([nsteps nsteps-end]
-   (if (< (count @(undo-history)) nsteps)
+   (if (< (count (undo-history)) nsteps)
      (cljs.pprint/pprint "Not enough history")
-     (let [old-state (get-in (nth @(undo-history) (dec nsteps)) @current-focus)
+     (let [old-state (get-in (nth (undo-history) (dec nsteps)) @current-focus)
            end-state (if (= 0 nsteps-end)
                        (get-in @(app-state) @current-focus)
-                       (get-in (nth @(undo-history) (dec nsteps-end)) @current-focus)
+                       (get-in (nth (undo-history) (dec nsteps-end)) @current-focus)
                        )
            ]
        (if (not= old-state end-state)
@@ -119,7 +115,7 @@
            ))
        )
      )
-    ""
+   ""
     ))
 
 (defn evolution
@@ -140,7 +136,7 @@
   evolve in response to interactions with the world. The output is that of `diff`."
   [turn-on]
   (if turn-on
-    (add-watch (app-state) ::auto-trigger (fn [_ _ old-state new-state] (diff 1)))
+    (add-watch (app-state) ::auto-trigger (fn [_ _ old-state new-state] (vdiff 1)))
     (remove-watch (app-state) ::auto-trigger)
     )
   turn-on
