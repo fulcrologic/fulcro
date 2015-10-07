@@ -6,7 +6,16 @@
     [quiescent.core :include-macros true]
     [untangled.state :as state]))
 
-; You can use quiescent.dom directly, but these helpers make IntelliJ work better (otherwise they show up as undefined 
+;;;; !!!!!!!!!!!!!!!  WARNING  !!!!!!!!!!!!!!!!!!!
+;;;; If you add functions to this file, be aware
+;;;; that `map` and possibly other core fns will
+;;;; be shadowed by the fns below!
+;;;; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+;(enable-console-print!)
+;(defn dbg [x] (cljs.pprint/pprint x) x)
+
+; You can use quiescent.dom directly, but these helpers make IntelliJ work better (otherwise they show up as undefined
 ; because a macro makes them
 (defn a [attrs & children] (apply d/a attrs children))
 (defn abbr [attrs & children] (apply d/abbr attrs children))
@@ -68,7 +77,6 @@
 (defn li [attrs & children] (apply d/li attrs children))
 (defn link [attrs & children] (apply d/link attrs children))
 (defn main [attrs & children] (apply d/main attrs children))
-(defn map [attrs & children] (apply d/map attrs children))
 (defn mark [attrs & children] (apply d/mark attrs children))
 (defn menu [attrs & children] (apply d/menu attrs children))
 (defn menuitem [attrs & children] (apply d/menuitem attrs children))
@@ -161,3 +169,34 @@
                       ))
                   items)
     ))
+
+(defn render-mapped-list
+  "Applies renderer over 'orderable' map-of-maps.
+
+  Required Positional Parameters:
+  - `renderer`:      A defscomponent render fn.
+  - `data`:          Data (as provided to defscomponent).
+  - `context`:       Context (as provided to defscomponent).
+  - `target-key`:    The key in `data` to reach sub-maps.
+  - `sort-by-keyfn`: A fn much like `sort-by`'s keyfn.
+
+  Optional Keyword Parameters:
+  - `filter-fn`:     A filter fn to be applied to sub-maps.  Defaults to `identity`.
+  - `comparator`:    A comparator to change sort order.  Defaults to `compare`.
+  "
+  [renderer data context target-key sort-by-keyfn
+   & {:keys [filter-fn comparator]
+      :or   {filter-fn  identity
+             comparator compare}}]
+  {:pre [(every? (comp not nil?) [renderer data context target-key sort-by-keyfn])
+         (every? map? [data (get data target-key)])
+         (every? fn? [renderer filter-fn])
+         (or (keyword? sort-by-keyfn) (fn? sort-by-keyfn))]}
+  (let [sub-context (state/new-sub-context context target-key {})
+        render-sub-context-for (fn [child-key] (renderer child-key sub-context))
+        target-map (get data target-key)
+        ks (->> target-map
+                (filter (fn [[_k v]] (filter-fn v)))
+                (sort-by (fn [[_k v]] (sort-by-keyfn v)) comparator)
+                (cljs.core/map first))]
+    (cljs.core/map render-sub-context-for ks)))

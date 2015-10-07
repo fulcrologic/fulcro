@@ -1,18 +1,22 @@
 (ns untangled.component-spec
   (:require-macros [cljs.test :refer (is deftest testing)]
-                   [smooth-spec.core :refer (specification behavior provided assertions)]
+                   [smooth-spec.core :refer (specification behavior component provided assertions)]
                    )
   (:require
-    [untangled.state :as state]
     [untangled.logging :as logging]
     [cljs.test :refer [do-report]]
     smooth-spec.stub
     cljs.pprint
-    [untangled.component :as c]
+    [untangled.component :as c :include-macros true]
     [untangled.core :as core]
-    [untangled.application :as app]
-    [untangled.events :as evt])
+    [untangled.events :as evt]
+    [untangled.state :as state]
+    [untangled.application :as a]
+    [goog.dom :as dom])
   )
+
+;(enable-console-print!)
+;(defn dbg [x] (cljs.pprint/pprint x) x)
 
 (defn fake-renderer [id context & args] {:id id :args args})
 
@@ -39,3 +43,81 @@
                  (behavior "embeds the correct key for each element in the renderer when elements are filtered"))
                )
 
+
+
+(defn make-container []
+  {:title     "Hi there"
+   :order     :ascending
+   :filter-by identity
+   :items     {:k1  {:key :k1 :value "Hi 1" :rank 1}
+               :k9  {:key :k9 :value "Hi nine" :rank 9}
+               :k29 {:key :k29 :value "OHAI twenty-nine" :rank 29}
+               :k5  {:key :k5 :value "Hi 5" :rank 5}}})
+
+(c/defscomponent
+  Item
+  "an item"
+  :keyfn :key
+  [data context]
+  (c/div {:className "item"} (:value data)))
+
+(c/defscomponent
+  Container
+  "A container"
+  [data context]
+  (c/div {:className "container"}
+         (c/span {} (:title data))
+         "stuff to do..."
+         (c/render-mapped-list Item data context :items :rank
+                               :filter-fn (:filter-by data)
+                               :comparator (case (:order data)
+                                             :ascending compare
+                                             :descending (comp - compare)
+                                             compare))))
+
+;; "Borrowed" from Jozef Wagner:  https://groups.google.com/forum/#!topic/clojure/unHrE3amqNs
+(defn nodelist->seq
+  "Converts nodelist to (not lazy) seq."
+  [nl]
+  (let [result-seq (map #(.item nl %) (range (.-length nl)))]
+    (doall result-seq)))
+
+(defn gather-items []
+  (nodelist->seq (dom/getElementsByClass "item")))
+
+(defn contents-of-items
+  ([] (contents-of-items (gather-items)))
+  ([items] (map #(.-textContent %) items)))
+
+(specification "Container component"
+               (component "via render-mapped-list"
+                          (let [renderer #(Container %1 %2)
+                                app-state (make-container)
+                                new-cont (core/new-application renderer app-state :target "test-app")
+                                context (a/top-context new-cont)
+                                transact! (partial state/transact! context)]
+                            (behavior "renders sorted values in a depth-one nested map"
+                                      (dom/removeChildren (dom/getElement "test-app"))
+                                      (a/render new-cont)
+                                      (is (= (contents-of-items)
+                                             ["Hi 1"
+                                              "Hi 5"
+                                              "Hi nine"
+                                              "OHAI twenty-nine"])))
+                            (behavior "supports changing sort order **Non-deterministic unless used in test mode**"
+                                      (transact! (fn [cont] (assoc cont :order :descending)))
+                                      (is (= (contents-of-items)
+                                             ["OHAI twenty-nine"
+                                              "Hi nine"
+                                              "Hi 5"
+                                              "Hi 1"]))
+                                      ; Return to the beginning state.
+                                      (transact! (fn [cont] (assoc cont :order :ascending))))
+                            (behavior "supports changing filter **Non-deterministic unless used in test mode**"
+                                      (transact! (fn [cont] (assoc cont
+                                                              :filter-by #(< 4 (count (:value %))))))
+                                      (is (= (contents-of-items)
+                                             ["Hi nine"
+                                              "OHAI twenty-nine"]))
+                                      ; Return to the beginning state.
+                                      (transact! (fn [cont] (assoc cont :filter-by identity)))))))

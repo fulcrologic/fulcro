@@ -89,3 +89,7 @@ width: 100px;
   font-size: 24px;
   margin-bottom: 15px;
 }
+
+#test-app {
+    display: none;
+}
