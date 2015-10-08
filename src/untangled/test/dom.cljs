@@ -101,6 +101,19 @@
     (t/do-report {:type     :error :message (str "Could not find element " search-kind " " search-param)
                   :expected "DOM element" :actual "Nil"})))
 
+(defn has-attribute-value [attr attr-value search-kind search-param dom]
+  "Doc string"
+  (if-let [ele (find-element search-kind search-param dom)]
+    (if (= (get-attribute ele attr) attr-value)
+      (t/do-report {:type :pass})
+      (t/do-report {:type :fail :actual (get-attribute ele attr) :expected attr-value})
+      )
+    (t/do-report {:type     :error :message (str "Could not find element " search-kind " " search-param)
+                  :expected "DOM element" :actual "Nil"})))
+
+(defn has-class []
+
+  )
 
 (defn has-selected-option [search-type search-value dom-with-select selected-value]
   (if-let [ele (find-element search-type search-value dom-with-select)]
