@@ -1,7 +1,6 @@
 (ns untangled.core
   (:require [untangled.history :as h]
             [untangled.application :refer [Application Transaction]]
-            [untangled.test.report-components :as rc]
             [untangled.test.dom :refer [render-as-dom]]
             [untangled.state :as qms]
             [quiescent.core :as q :include-macros true]
