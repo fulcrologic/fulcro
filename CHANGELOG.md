@@ -11,7 +11,8 @@
 (suite-name)
 ```
 - BREAKING CHANGE: Modified the rendering such that an external rendering loop is used. Added centralized rendering. 
-This makes it possible to test React render updates on real DOM without triggering re-renders.
+This makes it possible to test React render updates on real DOM without triggering re-renders. (test-suite renderer is
+based on state changes so that the two can co-exist).
     - PORTING NOTE:
 ```
 (ns myapp.core
