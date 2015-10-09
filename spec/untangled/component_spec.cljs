@@ -104,8 +104,9 @@
                                               "Hi 5"
                                               "Hi nine"
                                               "OHAI twenty-nine"])))
-                            (behavior "supports changing sort order **Non-deterministic unless used in test mode**"
+                            (behavior "supports changing sort order"
                                       (transact! (fn [cont] (assoc cont :order :descending)))
+                                      (a/render new-cont)
                                       (is (= (contents-of-items)
                                              ["OHAI twenty-nine"
                                               "Hi nine"
@@ -113,9 +114,10 @@
                                               "Hi 1"]))
                                       ; Return to the beginning state.
                                       (transact! (fn [cont] (assoc cont :order :ascending))))
-                            (behavior "supports changing filter **Non-deterministic unless used in test mode**"
+                            (behavior "supports changing filter"
                                       (transact! (fn [cont] (assoc cont
                                                               :filter-by #(< 4 (count (:value %))))))
+                                      (a/render new-cont)
                                       (is (= (contents-of-items)
                                              ["Hi nine"
                                               "OHAI twenty-nine"]))

@@ -3,7 +3,7 @@
                   [smooth-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require [cljs.test :refer [do-report]]
-            [untangled.core :as core :refer [translate-item-path]]
+            [untangled.test.suite :refer [translate-item-path]]
             )
   )
 

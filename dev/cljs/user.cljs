@@ -1,8 +1,7 @@
 (ns ^:figwheel-always cljs.user
-  (:require-macros [cljs.test
-                    :refer (is deftest run-tests testing)]
-                   [untangled.test.suite :refer [test-suite]])
+  (:require-macros [cljs.test :refer (is deftest run-tests testing)])
   (:require cljs.core
+            [untangled.test.suite :as ts :include-macros true]
             untangled.core-spec
             untangled.events-spec
             untangled.history-spec
@@ -17,7 +16,7 @@
             [cljs.test :as test :include-macros true :refer [report]]))
 
 
-(test-suite dom-report
+(ts/test-suite dom-report
             'untangled.core-spec
             'untangled.component-spec
             'untangled.events-spec
