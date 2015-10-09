@@ -5,7 +5,8 @@
             [untangled.test.dom :refer [render-as-dom]]
             [untangled.state :as qms]
             [quiescent.core :as q :include-macros true]
-            [untangled.i18n.core :as ic])
+            [untangled.i18n.core :as ic]
+            [untangled.application :as app])
   (:require-macros [cljs.test :refer (is deftest run-tests testing)]))
 
 (q/defcomponent Root
@@ -34,7 +35,7 @@
   (state-changed [this old-state new-state]
     (doseq [listener @transaction-listeners]
       (listener (Transaction. old-state new-state nil)))
-    (untangled.application/render this))
+    )
   (current-state [this] (-> @app-state :top))
   (current-state [this subpath] (get-in (-> @app-state :top) subpath))
   (add-transaction-listener [this listener] (swap! transaction-listeners #(conj % listener))))
@@ -63,5 +64,3 @@
                               :test-mode             test-mode
                               :view-only             view-only
                               }))
-
-
