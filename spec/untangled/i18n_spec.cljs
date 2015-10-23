@@ -2,8 +2,7 @@
   (:require-macros [cljs.test :refer (is deftest testing are)]
                    [smooth-spec.core :refer (specification behavior provided assertions)]
                    )
-  (:require [untangled.history :as h]
-            [untangled.i18n :refer [current-locale]]
+  (:require [untangled.i18n :refer [current-locale]]
             [untangled.i18n :refer-macros [tr trf trc trlambda]]
             [cljs.test :refer [do-report]])
   )

@@ -1,6 +1,7 @@
 (ns untangled.dom
   (:require [clojure.string :as str]
-            [cljs-uuid-utils.core :as uuid]))
+            [cljs-uuid-utils.core :as uuid]
+            [untangled.logging :as logging]))
 
 
 
@@ -27,24 +28,11 @@
     (str/join " " [always-classes when-true])
     (str/join " " [always-classes when-false])))
 
-
-(defn toggle
-  "Toggles the (boolean) state of an arbitrary state key.
-
-  Params:
-  `state-key` : A key within the component state.
-  `state`     : The map containing the current state of a component.
-  "
-  [state-key state] (update state state-key not))
-
-
-(defn toggle-checked
-  "Toggles the (boolean) state of the `checked` attribute of an input element."
-  [input]
-  (update input :checked not))
-
-
 (defn text-value
-  "Returns the text value from an input change event"
+  "Returns the text value from an input change event."
   [evt]
-  (.-value (.-target evt)))
+  (try
+    (.-value (.-target evt))
+    (catch js/Object e (logging/warn "Event had no target when trying to pull text"))
+    )
+  )

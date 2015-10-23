@@ -1,5 +1,4 @@
-(ns untangled.test.suite
-  )
+(ns untangled.test.suite)
 
 
 (defn define-test-methods [name test-report-keyword]
@@ -68,13 +67,13 @@
     `(do
        (cljs.core/defonce ~state-name (untangled.test.suite/new-test-suite ~target))
        (cljs.core/defn ~name []
-           (cljs.test/run-tests (cljs.test/empty-env ~test-report-keyword) ~@test-namespaces)
-           (untangled.application/render ~state-name)
-           )
-         (untangled.application/render ~state-name)
-          ~@(define-test-methods state-name test-report-keyword)
+         (cljs.test/run-tests (cljs.test/empty-env ~test-report-keyword) ~@test-namespaces)
+         (untangled.test.suite/render-tests ~state-name)
          )
-        )
+       (untangled.test.suite/render-tests ~state-name)
+       ~@(define-test-methods state-name test-report-keyword)
+       )
     )
+  )
 
 

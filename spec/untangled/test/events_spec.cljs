@@ -3,14 +3,12 @@
                    [smooth-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require
-    [quiescent.core :include-macros true]
     [cljs.test :refer [do-report]]
     [untangled.test.assertions :refer [text-matches]]
     [untangled.test.dom :as td]
     [untangled.test.fixtures :as f]
     [untangled.test.events :as evt]
-    [untangled.component :as c]
-    [untangled.core :as core])
+    )
   )
 
 (specification "Event Detector for detecting events"
