@@ -1,16 +1,14 @@
 (ns ^:figwheel-always untangled.test.suite
   (:require
-    [untangled.component :as c :include-macros true]
-    [untangled.state :as qms]
-    [untangled.core :as core]
-    [untangled.events :as evt]
+    [om.dom :as dom]
+    [goog.dom :as gdom]
+    [om.next :as om :refer-macros [defui]]
     [cljs-uuid-utils.core :as uuid]
-    [untangled.state :as state]
-    [untangled.history :as h]
-    [quiescent.core :as q])
+    [untangled.state :as state])
   )
 
 (defprotocol ITest
+  (render-tests [this] "Render the test results to the DOM")
   (set-test-result [this status] "Set the pass/fail/error result of a test")
   (pass [this] "Tests are reporting that they passed")
   (fail [this detail] "Tests are reporting that they failed, with additional details")
@@ -35,7 +33,7 @@
          result [:top]]
     (if (empty? path)
       result
-      (let [resolved-path (qms/resolve-data-path data (vector (seq (take 4 path))))
+      (let [resolved-path (state/resolve-data-path data (vector (seq (take 4 path))))
             context-data (get-in data resolved-path)]
         (recur context-data (drop 4 path) (concat result resolved-path))))
     ))
@@ -129,104 +127,103 @@
       ))
   )
 
-(c/defscomponent TestResult
-                 :keyfn :id
-                 [test-result context]
-                 (c/li {}
-                       (c/div {}
-                              (if (:message test-result) (c/h3 {} (:message test-result)))
-                              (c/table {}
-                                       (c/tr {} (c/td {:className "test-result-title"} "Actual")
-                                             (c/td {:className "test-result"} (c/code {} (:actual test-result))))
-                                       (c/tr {} (c/td {:className "test-result-title"} "Expected")
-                                             (c/td {:className "test-result"} (c/code {} (:expected test-result)))))
-                              )
-                       )
-                 )
-
-(c/defscomponent TestItem
-                 :keyfn :id
-                 [test-item context]
-                 (c/li {:className "test-item "}
-                       (c/div {:className (filter-class test-item)}
-                              (c/span {:className (itemclass (:status test-item))} (:name test-item))
-                              (let [element-id (partial state/list-element-id test-item :test-results :id)]
-                                (c/ul {:className "test-list"}
-                                      (map-indexed (fn [idx item] (TestResult (element-id idx) context)) (:test-results test-item))
-                                      )
-                                )
-                              (let [element-id (partial state/list-element-id test-item :test-items :id)]
-                                (c/ul {:className "test-list"}
-                                      (map-indexed (fn [idx item] (TestItem (element-id idx) context)) (:test-items test-item))
-                                      )
-                                )
-                              )
-                       )
-                 )
-
-(c/defscomponent TestNamespace
-                 :keyfn :name
-                 [tests-by-namespace context]
-                 (let [folded? (:folded? tests-by-namespace)]
-                   (c/li {:className "test-item"}
-                         (c/div {:className "test-namespace"
-                                 :onClick   (fn [] (state/transact! context #(update % :folded? not)))
-                                 }
-                                (c/h2 {:className (itemclass (:status tests-by-namespace))} "Testing " (:name tests-by-namespace))
-                                (let [element-id (partial state/list-element-id tests-by-namespace :test-items :id)]
-                                  (c/ul {:className (if folded? "hidden" "test-list")}
-                                        (map-indexed (fn [idx item] (TestItem (element-id idx) context)) (:test-items tests-by-namespace))
-                                        ;(build-list TestItem :test-items :id tests-by-namespace)
-                                        )
+(defui TestResult
+       Object
+       (render [this]
+               (let [test-result-data (om/props this)]
+                 (dom/li nil
+                         (dom/div nil
+                                  (if (:message test-result-data) (dom/h3 nil (:message test-result-data)))
+                                  (dom/table nil
+                                             (dom/tr nil (dom/td #js {:className "test-result-title"} "Actual")
+                                                     (dom/td #js {:className "test-result"} (dom/code nil (:actual test-result-data))))
+                                             (dom/tr nil (dom/td #js {:className "test-result-title"} "Expected")
+                                                     (dom/td #js {:className "test-result"} (dom/code nil (:expected test-result-data)))))
                                   )
-                                )
                          ))
-                 )
+               ))
 
-(c/defscomponent TestReport
-                 :keyfn :id
-                 :publish #{:report/filter}
-                 [test-report context]
-                 (c/section {:className "test-report"}
-                            (c/div {:name "filters" :className "filter-controls"}
-                                   (c/label {:htmlFor "filters"} "Filter: ")
-                                   (c/a {:className (if (= (:report/filter test-report) :all) "selected" "") :onClick (fn [] (state/transact! context #(assoc % :report/filter :all)))} "All")
-                                   (c/a {:className (if (= (:report/filter test-report) :manual) "selected" "") :onClick (fn [] (state/transact! context #(assoc % :report/filter :manual)))} "Manual")
-                                   (c/a {:className (if (= (:report/filter test-report) :failed) "selected" "") :onClick (fn [] (state/transact! context #(assoc % :report/filter :failed)))} "Failed"))
-                            (let [element-id (partial state/list-element-id test-report :namespaces :name)]
-                              (c/ul {:className "test-list"}
-                                    (map-indexed (fn [idx item] (TestNamespace (element-id idx) context)) (:namespaces test-report))
-                                    )
-                              )
-                            (let [rollup-stats (reduce (fn [acc item]
-                                                         (let [counts [(:passed item) (:failed item) (:error item)
-                                                                       (+ (:passed item) (:failed item) (:error item))]]
-                                                           (map + acc counts))
-                                                         ) [0 0 0 0] (:namespaces test-report))]
-                              (if (< 0 (+ (nth rollup-stats 1) (nth rollup-stats 2)))
-                                (change-favicon-to-color "#d00")
-                                (change-favicon-to-color "#0d0"))
-                              (c/div {:className "test-count"}
-                                     (c/h2 {}
-                                           (str "Tested " (count (:namespaces test-report)) " namespaces containing "
-                                                (nth rollup-stats 3) " assertions. "
-                                                (nth rollup-stats 0) " passed " (nth rollup-stats 1) " failed " (nth rollup-stats 2) " errors")
-                                           )
-                                     ))
+(def test-result (om/factory TestResult {:key-fn :id}))
+
+(declare test-item)
+
+(defui TestItem
+       Object
+       (render [this]
+               (let [test-item-data (om/props this)
+                     filter (:report/filter test-item-data)
+                     ]
+                 (dom/li #js {:className "test-item "}
+                         (dom/div #js {:className (filter-class test-item-data)}
+                                  (dom/span #js {:className (itemclass (:status test-item-data))} (:name test-item-data))
+                                  (dom/ul #js {:className "test-list"} (mapv test-result (:test-results test-item-data)))
+                                  (dom/ul #js {:className "test-list"} (mapv (comp test-item #(assoc % :report/filter filter)) (:test-items test-item-data)))
+                                  )
+                         ))))
+
+(def test-item (om/factory TestItem {:key-fn :id}))
+
+(defui TestNamespace
+       Object
+       (getInitialState [this] {:folded? false})
+       (render
+         [this]
+         (let [folded? (-> (om/get-state this) :folded?)
+               tests-by-namespace (om/props this)
+               filter (:report/filter tests-by-namespace)
+               ]
+           (dom/li #js {:className "test-item"}
+                   (dom/div #js {:className "test-namespace"
+                                 :onClick   #(om/update-state! this update :folded? not)
+                                 }
+                            (dom/h2 #js {:className (itemclass (:status tests-by-namespace))} "Testing " (:name tests-by-namespace))
+                            (dom/ul #js {:className (if folded? "hidden" "test-list")}
+                                    (mapv (comp test-item #(assoc % :report/filter filter)) (:test-items tests-by-namespace)))
                             )
-                 )
+                   ))))
 
-(defrecord TestSuite
-  [app-state dom-target history renderer test-item-path]
-  untangled.application/Application
-  (render [this] (q/render (core/Root @app-state this) (.getElementById js/document dom-target)))
-  (force-refresh [this]
-    (swap! app-state #(assoc % :time (js/Date.)))
-    (untangled.application/render this)
-    )
-  (state-changed [this old-state new-state] (untangled.application/render this))
+(def test-namespace (om/factory TestNamespace {:key-fn :name}))
 
+(defui TestReport
+       static om/IQuery
+       (query [this] [:top])
+       Object
+       (getInitialState [this] {:report/filter :all})
+       (render [this]
+               (println (om/props this))
+               (let [test-report-data (-> (om/props this) :top)
+                     current-filter (-> (om/get-state this) :report/filter)]
+                 (dom/section #js {:className "test-report"}
+                              (dom/div #js {:name "filters" :className "filter-controls"}
+                                       (dom/label #js {:htmlFor "filters"} "Filter: ")
+                                       (dom/a #js {:className (if (= (:report/filter test-report-data) :all) "selected" "")
+                                                   :onClick   #(om/set-state! this :all)} "All")
+                                       (dom/a #js {:className (if (= (:report/filter test-report-data) :manual) "selected" "")
+                                                   :onClick   #(om/set-state! this :manual)} "Manual")
+                                       (dom/a #js {:className (if (= (:report/filter test-report-data) :failed) "selected" "")
+                                                   :onClick   #(om/set-state! this :failed)} "Failed"))
+                              (dom/ul #js {:className "test-list"} (mapv (comp test-namespace #(assoc % :report/filter current-filter))
+                                                                         (:namespaces test-report-data)))
+                              (let [rollup-stats (reduce (fn [acc item]
+                                                           (let [counts [(:passed item) (:failed item) (:error item)
+                                                                         (+ (:passed item) (:failed item) (:error item))]]
+                                                             (map + acc counts))
+                                                           ) [0 0 0 0] (:namespaces test-report-data))]
+                                (if (< 0 (+ (nth rollup-stats 1) (nth rollup-stats 2)))
+                                  (change-favicon-to-color "#d00")
+                                  (change-favicon-to-color "#0d0"))
+                                (dom/div #js {:className "test-count"}
+                                         (dom/h2 nil
+                                                 (str "Tested " (count (:namespaces test-report-data)) " namespaces containing "
+                                                      (nth rollup-stats 3) " assertions. "
+                                                      (nth rollup-stats 0) " passed " (nth rollup-stats 1) " failed " (nth rollup-stats 2) " errors")
+                                                 )
+                                         ))
+                              ))))
+
+(defrecord TestSuite [app-state dom-target reconciler renderer test-item-path]
   ITest
+  (render-tests [this] (om/add-root! reconciler renderer (gdom/getElement dom-target)))
   (set-test-result [this status] (let [translated-item-path (translate-item-path app-state @test-item-path)]
                                    (loop [current-test-result-path translated-item-path]
                                      (if (> (count current-test-result-path) 1)
@@ -322,6 +319,15 @@
       ))
   )
 
+(enable-console-print!)
+(defn om-read [{:keys [state]} key _] {:value (get @state key)})
+(defmulti om-write om/dispatch)
+(defmethod om-write 'filter-all [{:keys [state]} _ _] (swap! state assoc :report/filter :all))
+(defmethod om-write 'filter-failed [{:keys [state]} _ _] (swap! state assoc :report/filter :failed))
+(defmethod om-write 'filter-manual [{:keys [state]} _ _] (swap! state assoc :report/filter :manual))
+
+(def test-parser (om/parser {:read om-read :mutate om-write}))
+
 (defn new-test-suite
   "Create a new Untangled application with:
 
@@ -336,9 +342,10 @@
   - `:history n` : Set the history size. The default is 100.
   "
   [target]
-  (map->TestSuite {:app-state      (atom {:top (make-testreport) :time (js/Date.)})
-                   :renderer       #(TestReport %1 %2)
-                   :dom-target     target
-                   :test-item-path (atom [])
-                   :history        (atom (h/empty-history 1))
-                   }))
+  (let [state (atom {:top (make-testreport) :time (js/Date.)})]
+    (map->TestSuite {:app-state      state
+                     :reconciler     (om/reconciler {:state state :parser test-parser})
+                     :renderer       TestReport
+                     :dom-target     target
+                     :test-item-path (atom [])
+                     })))
