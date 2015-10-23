@@ -190,6 +190,7 @@
        Object
        (getInitialState [this] {:report/filter :all})
        (render [this]
+               (println (om/props this))
                (let [test-report-data (-> (om/props this) :top)
                      current-filter (-> (om/get-state this) :report/filter)]
                  (dom/section #js {:className "test-report"}
@@ -318,7 +319,8 @@
       ))
   )
 
-(defn om-read [{:keys [state]} key _] (get @state key))
+(enable-console-print!)
+(defn om-read [{:keys [state]} key _] {:value (get @state key)})
 (defmulti om-write om/dispatch)
 (defmethod om-write 'filter-all [{:keys [state]} _ _] (swap! state assoc :report/filter :all))
 (defmethod om-write 'filter-failed [{:keys [state]} _ _] (swap! state assoc :report/filter :failed))

@@ -1,5 +1,4 @@
 (ns untangled.test.fixtures
-  (:require-macros [untangled.component :as cm])
   (:require
     [untangled.test.dom :refer [render-as-dom]]
     [om.next :as om :refer-macros [defui]]
