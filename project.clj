@@ -11,12 +11,12 @@
                  [org.omcljs/om "1.0.0-alpha9"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [lein-cljsbuild "1.1.0"]
+                 [figwheel-sidecar "0.4.1" :scope "provided"]
                  ]
 
   :source-paths ["src" "spec" ]
 
-  :plugins [[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.4.1"]]
+  :plugins [[lein-cljsbuild "1.1.0"]]
 
   :cljsbuild {:builds
               [{:id           "test"

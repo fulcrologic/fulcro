@@ -3,15 +3,16 @@
 
 (ra/start-figwheel!
   {:figwheel-options {}
-   :build-ids ["dev"]
-   :all-builds
-   [{:id "dev"
-     :figwheel true
-     :source-paths ["src" ];"checkouts/om/src/main"  ]
-     :compiler {:main 'om-tutorial.core
-                :asset-path "js"
-                :output-to "resources/public/js/main.js"
-                :output-dir "resources/public/js"
-                :verbose true}}]})
+   :build-ids ["test"]
+   :all-builds[{:id           "test"
+                :source-paths ["src" "dev" "spec" ]
+                :figwheel     {:on-jsload "cljs.user/on-load"}
+                :compiler     {:main                 'cljs.user
+                               :output-to            "resources/public/js/test/test.js"
+                               :output-dir           "resources/public/js/test/out"
+                               :recompile-dependents true
+                               :asset-path           "js/test/out"
+                               :optimizations        :none}}]
+   })
 
 (ra/cljs-repl)
