@@ -197,11 +197,11 @@
                               (dom/div #js {:name "filters" :className "filter-controls"}
                                        (dom/label #js {:htmlFor "filters"} "Filter: ")
                                        (dom/a #js {:className (if (= (:report/filter test-report-data) :all) "selected" "")
-                                                   :onClick   #(om/set-state! this :all)} "All")
+                                                   :onClick   #(om/set-state! this {:report/filter :all})} "All")
                                        (dom/a #js {:className (if (= (:report/filter test-report-data) :manual) "selected" "")
-                                                   :onClick   #(om/set-state! this :manual)} "Manual")
+                                                   :onClick   #(om/set-state! this {:report/filter :manual})} "Manual")
                                        (dom/a #js {:className (if (= (:report/filter test-report-data) :failed) "selected" "")
-                                                   :onClick   #(om/set-state! this :failed)} "Failed"))
+                                                   :onClick   #(om/set-state! this {:report/filter :failed})} "Failed"))
                               (dom/ul #js {:className "test-list"} (mapv (comp test-namespace #(assoc % :report/filter current-filter))
                                                                          (:namespaces test-report-data)))
                               (let [rollup-stats (reduce (fn [acc item]
