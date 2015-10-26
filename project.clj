@@ -16,7 +16,9 @@
 
   :source-paths ["src" "spec" ]
 
-  :plugins [[lein-cljsbuild "1.1.0"]]
+  :plugins [[lein-cljsbuild "1.1.0"]
+            [lein-figwheel "0.4.1"]
+            ]
 
   :cljsbuild {:builds
               [{:id           "test"

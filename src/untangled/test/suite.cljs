@@ -190,17 +190,16 @@
        Object
        (getInitialState [this] {:report/filter :all})
        (render [this]
-               (println (om/props this))
                (let [test-report-data (-> (om/props this) :top)
                      current-filter (-> (om/get-state this) :report/filter)]
                  (dom/section #js {:className "test-report"}
                               (dom/div #js {:name "filters" :className "filter-controls"}
                                        (dom/label #js {:htmlFor "filters"} "Filter: ")
-                                       (dom/a #js {:className (if (= (:report/filter test-report-data) :all) "selected" "")
+                                       (dom/a #js {:className (if (= current-filter :all) "selected" "")
                                                    :onClick   #(om/set-state! this {:report/filter :all})} "All")
-                                       (dom/a #js {:className (if (= (:report/filter test-report-data) :manual) "selected" "")
+                                       (dom/a #js {:className (if (= current-filter :manual) "selected" "")
                                                    :onClick   #(om/set-state! this {:report/filter :manual})} "Manual")
-                                       (dom/a #js {:className (if (= (:report/filter test-report-data) :failed) "selected" "")
+                                       (dom/a #js {:className (if (= current-filter :failed) "selected" "")
                                                    :onClick   #(om/set-state! this {:report/filter :failed})} "Failed"))
                               (dom/ul #js {:className "test-list"} (mapv (comp test-namespace #(assoc % :report/filter current-filter))
                                                                          (:namespaces test-report-data)))
