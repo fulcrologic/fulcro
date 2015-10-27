@@ -4,15 +4,19 @@
             [untangled.test.suite :as ts :include-macros true]
             untangled.i18n-spec
             untangled.services.local-storage-io-spec
+            untangled.test.dom-spec
             smooth-spec.async
+            untangled.test.events-spec
             smooth-spec.stub
             [cljs.test :as test :include-macros true :refer [report]]))
 
 
 (ts/test-suite dom-report
-            'untangled.i18n-spec
-            'untangled.services.local-storage-io-spec
-            )
+               'untangled.test.dom-spec
+               'untangled.test.events-spec
+               'untangled.i18n-spec
+               'untangled.services.local-storage-io-spec
+               )
 
 (defn on-load []
   (dom-report)

@@ -10,11 +10,13 @@
                  [differ "0.2.1"]
                  [org.omcljs/om "1.0.0-alpha9"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
+                 [figwheel-sidecar "0.4.1" :scope "provided"]
                  [lein-cljsbuild "1.1.0"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]
+                 [cljsjs/react-with-addons "0.14.0-1" :scope "test"]
                  ]
 
-  :source-paths ["src" "spec" ]
+  :source-paths ["src" "spec"]
 
   :plugins [[lein-cljsbuild "1.1.0"]
             [lein-figwheel "0.4.1"]
@@ -22,7 +24,7 @@
 
   :cljsbuild {:builds
               [{:id           "test"
-                :source-paths ["src" "dev" "spec" ]
+                :source-paths ["src" "dev" "spec"]
                 :figwheel     {:on-jsload "cljs.user/on-load"}
                 :compiler     {:main                 cljs.user
                                :output-to            "resources/public/js/test/test.js"
@@ -33,7 +35,7 @@
 
   :profiles {
              :dev {
-                   :source-paths ["src" "test" "dev" ]
+                   :source-paths ["src" "test" "dev"]
                    :dependencies [[leiningen "2.5.3"]
                                   [leiningen-core "2.5.3"]]
                    :repl-options {
