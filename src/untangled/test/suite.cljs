@@ -155,9 +155,14 @@
                      ]
                  (dom/li #js {:className "test-item "}
                          (dom/div #js {:className (filter-class test-item-data)}
-                                  (dom/span #js {:className (itemclass (:status test-item-data))} (:name test-item-data))
-                                  (dom/ul #js {:className "test-list"} (mapv test-result (:test-results test-item-data)))
-                                  (dom/ul #js {:className "test-list"} (mapv (comp test-item #(assoc % :report/filter filter)) (:test-items test-item-data)))
+                                  (dom/span #js {:className (itemclass (:status test-item-data))}
+                                            (:name test-item-data))
+                                  (dom/ul #js {:className "test-list"}
+                                          (mapv test-result
+                                                (:test-results test-item-data)))
+                                  (dom/ul #js {:className "test-list"}
+                                          (mapv (comp test-item #(assoc % :report/filter filter))
+                                                (:test-items test-item-data)))
                                   )
                          ))))
 
@@ -172,12 +177,16 @@
                folded? (:folded? tests-by-namespace)
                toggle-folded! (:toggle-folded! tests-by-namespace)]
            (dom/li #js {:className "test-item"}
-                   (dom/div #js {:className "test-namespace"
-                                 :onClick   toggle-folded!}
-                            (dom/h2 #js {:className (itemclass (:status tests-by-namespace))}
-                                    "Testing " (:name tests-by-namespace))
+                   (dom/div #js {:className "test-namespace"}
+                            (dom/a #js {:href "#"
+                                        :style #js {:text-decoration "none"} ;; TODO: refactor to css
+                                        :onClick   toggle-folded!}
+                                   (dom/h2 #js {:className (itemclass (:status tests-by-namespace))}
+                                           (if folded? \u25BA \u25BC)
+                                           "Testing " (:name tests-by-namespace)))
                             (dom/ul #js {:className (if folded? "hidden" "test-list")}
-                                    (mapv (comp test-item #(assoc % :report/filter filter)) (:test-items tests-by-namespace)))
+                                    (mapv (comp test-item #(assoc % :report/filter filter))
+                                          (:test-items tests-by-namespace)))
                             )
                    ))))
 
@@ -192,28 +201,32 @@
                      test-report-data (-> props :top)
                      current-filter (-> props :report/filter)
                      folded-namespaces (-> props :folded/namespaces)
-                     toggle-folded! (fn [n] #(om/transact! this `[(~'toggle-folded ~{:name n})]))]
+                     make-toggle-fn (fn [n] #(om/transact! this `[(~'toggle-folded ~{:name n})]))]
                  (dom/section #js {:className "test-report"}
                               (dom/div #js {:name "filters" :className "filter-controls"}
                                        (dom/label #js {:htmlFor "filters"} "Filter: ")
                                        (dom/a #js {:className (if (= current-filter :all) "selected" "")
-                                                   :onClick   #(om/transact! this '[(filter-all)])} "All")
+                                                   :onClick   #(om/transact! this '[(filter-all)])}
+                                              "All")
                                        (dom/a #js {:className (if (= current-filter :manual) "selected" "")
-                                                   :onClick   #(om/transact! this '[(filter-manual)])} "Manual")
+                                                   :onClick   #(om/transact! this '[(filter-manual)])}
+                                              "Manual")
                                        (dom/a #js {:className (if (= current-filter :failed) "selected" "")
-                                                   :onClick   #(om/transact! this '[(filter-failed)])} "Failed"))
+                                                   :onClick   #(om/transact! this '[(filter-failed)])}
+                                              "Failed"))
                               (dom/ul #js {:className "test-list"} (mapv (comp test-namespace
                                                                                #(assoc %
                                                                                        :report/filter current-filter
-                                                                                       :toggle-folded! (toggle-folded! (:name %))
+                                                                                       :toggle-folded! (make-toggle-fn (:name %))
                                                                                        :folded? (contains? folded-namespaces (:name %))
                                                                                        ))
                                                                          (:namespaces test-report-data)))
                               (let [rollup-stats (reduce (fn [acc item]
                                                            (let [counts [(:passed item) (:failed item) (:error item)
                                                                          (+ (:passed item) (:failed item) (:error item))]]
-                                                             (map + acc counts))
-                                                           ) [0 0 0 0] (:namespaces test-report-data))]
+                                                             (map + acc counts)
+                                                             ))
+                                                         [0 0 0 0] (:namespaces test-report-data))]
                                 (if (< 0 (+ (nth rollup-stats 1) (nth rollup-stats 2)))
                                   (change-favicon-to-color "#d00")
                                   (change-favicon-to-color "#0d0"))
