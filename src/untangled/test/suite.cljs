@@ -165,18 +165,17 @@
 
 (defui TestNamespace
        Object
-       (getInitialState [this] {:folded? false})
        (render
          [this]
-         (let [folded? (-> (om/get-state this) :folded?)
-               tests-by-namespace (om/props this)
+         (let [tests-by-namespace (om/props this)
                filter (:report/filter tests-by-namespace)
-               ]
+               folded? (:folded? tests-by-namespace)
+               toggle-folded! (:toggle-folded! tests-by-namespace)]
            (dom/li #js {:className "test-item"}
                    (dom/div #js {:className "test-namespace"
-                                 :onClick   #(om/update-state! this update :folded? not)
-                                 }
-                            (dom/h2 #js {:className (itemclass (:status tests-by-namespace))} "Testing " (:name tests-by-namespace))
+                                 :onClick   toggle-folded!}
+                            (dom/h2 #js {:className (itemclass (:status tests-by-namespace))}
+                                    "Testing " (:name tests-by-namespace))
                             (dom/ul #js {:className (if folded? "hidden" "test-list")}
                                     (mapv (comp test-item #(assoc % :report/filter filter)) (:test-items tests-by-namespace)))
                             )
@@ -186,22 +185,29 @@
 
 (defui TestReport
        static om/IQuery
-       (query [this] [:top])
+       (query [this] [:top :report/filter :folded/namespaces])
        Object
-       (getInitialState [this] {:report/filter :all})
        (render [this]
-               (let [test-report-data (-> (om/props this) :top)
-                     current-filter (-> (om/get-state this) :report/filter)]
+               (let [props (om/props this)
+                     test-report-data (-> props :top)
+                     current-filter (-> props :report/filter)
+                     folded-namespaces (-> props :folded/namespaces)
+                     toggle-folded! (fn [n] #(om/transact! this `[(~'toggle-folded ~{:name n})]))]
                  (dom/section #js {:className "test-report"}
                               (dom/div #js {:name "filters" :className "filter-controls"}
                                        (dom/label #js {:htmlFor "filters"} "Filter: ")
                                        (dom/a #js {:className (if (= current-filter :all) "selected" "")
-                                                   :onClick   #(om/set-state! this {:report/filter :all})} "All")
+                                                   :onClick   #(om/transact! this '[(filter-all)])} "All")
                                        (dom/a #js {:className (if (= current-filter :manual) "selected" "")
-                                                   :onClick   #(om/set-state! this {:report/filter :manual})} "Manual")
+                                                   :onClick   #(om/transact! this '[(filter-manual)])} "Manual")
                                        (dom/a #js {:className (if (= current-filter :failed) "selected" "")
-                                                   :onClick   #(om/set-state! this {:report/filter :failed})} "Failed"))
-                              (dom/ul #js {:className "test-list"} (mapv (comp test-namespace #(assoc % :report/filter current-filter))
+                                                   :onClick   #(om/transact! this '[(filter-failed)])} "Failed"))
+                              (dom/ul #js {:className "test-list"} (mapv (comp test-namespace
+                                                                               #(assoc %
+                                                                                       :report/filter current-filter
+                                                                                       :toggle-folded! (toggle-folded! (:name %))
+                                                                                       :folded? (contains? folded-namespaces (:name %))
+                                                                                       ))
                                                                          (:namespaces test-report-data)))
                               (let [rollup-stats (reduce (fn [acc item]
                                                            (let [counts [(:passed item) (:failed item) (:error item)
@@ -324,6 +330,11 @@
 (defmethod om-write 'filter-all [{:keys [state]} _ _] (swap! state assoc :report/filter :all))
 (defmethod om-write 'filter-failed [{:keys [state]} _ _] (swap! state assoc :report/filter :failed))
 (defmethod om-write 'filter-manual [{:keys [state]} _ _] (swap! state assoc :report/filter :manual))
+(defmethod om-write 'toggle-folded [{:keys [state]} _ {new-ns :name}]
+  {:action #(swap! state update :folded/namespaces (fn [nss]
+                                                     ((if (nss new-ns) disj conj) nss new-ns)))
+   :value [:folded/namespaces]}
+  )
 
 (def test-parser (om/parser {:read om-read :mutate om-write}))
 
@@ -341,7 +352,10 @@
   - `:history n` : Set the history size. The default is 100.
   "
   [target]
-  (let [state (atom {:top (make-testreport) :time (js/Date.)})]
+  (let [state (atom {:top (make-testreport)
+                     :report/filter :all
+                     :folded/namespaces #{}
+                     :time (js/Date.)})]
     (map->TestSuite {:app-state      state
                      :reconciler     (om/reconciler {:state state :parser test-parser})
                      :renderer       TestReport

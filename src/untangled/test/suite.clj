@@ -65,7 +65,7 @@
         target (str name)
         ]
     `(do
-       (def ~state-name (untangled.test.suite/new-test-suite ~target))
+       (cljs.core/defonce ~state-name (untangled.test.suite/new-test-suite ~target))
        (cljs.core/defn ~name []
          (cljs.test/run-tests (cljs.test/empty-env ~test-report-keyword) ~@test-namespaces)
          (untangled.test.suite/render-tests ~state-name)
