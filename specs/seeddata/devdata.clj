@@ -1,7 +1,7 @@
 (ns seeddata.devdata
   (:require 
     [seeddata.auth :as a]
-    [util.seed :as s]
+    [untangled.util.seed :as s]
     [datomic.api :as d]
     )
   )

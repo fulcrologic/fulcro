@@ -1,4 +1,4 @@
-(ns util.logging
+(ns untangled.util.logging
   (:require
     [taoensso.timbre :as t]
     )

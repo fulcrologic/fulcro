@@ -2,9 +2,9 @@
   (:require [clojure.string :as s]
             [datomic.api :as d]
             [io.rkn.conformity :as c]
-            [util.namespace :as n]
+            [untangled.util.namespace :as n]
             [taoensso.timbre :as t]
-            [util.logging :as l]
+            [untangled.util.logging :as l]
             [clojure.tools.namespace.find :refer [find-namespaces]]
             [clojure.java.classpath :refer [classpath]]
             )

@@ -1,5 +1,5 @@
 (ns seeddata.auth
-  (:require [util.seed :as s]
+  (:require [untangled.util.seed :as s]
             [datomic.api :as d]
             [crypto.password.pbkdf2 :as password]
 
@@ -7,7 +7,7 @@
   (import java.util.UUID)
   )
 (defn gen-realm [realmpk accountid accountname userids]
-  (util.seed/generate-entity {
+  (s/generate-entity {
                               :db/id              realmpk
                               :realm/account-id   accountid
                               :realm/account-name accountname
@@ -15,7 +15,7 @@
                               })
   )
 (defn gen-user [userid username password email is-active validation-code]
-  (util.seed/generate-entity {
+  (s/generate-entity {
                               :db/id                  userid
                               :user/user-id           username
                               :user/password          (password/encrypt password)
@@ -25,7 +25,7 @@
                               })
   )
 (defn gen-application [pk app-id name component]
-  (util.seed/generate-entity {
+  (s/generate-entity {
                               :db/id                      pk
                               :application/application-id app-id
                               :application/name           name
@@ -33,7 +33,7 @@
                               })
   )
 (defn gen-software-entitlement [sw-entitlement-pk kind permission]
-  (util.seed/generate-entity {
+  (s/generate-entity {
                               :db/id                     sw-entitlement-pk
                               :software-entitlement/kind kind
                               :entitlement/permission    permission
@@ -41,7 +41,7 @@
   )
 
 (defn gen-property-group [pk name properties]
-  (util.seed/generate-entity {
+  (s/generate-entity {
                               :db/id pk
                               :property-group/name name
                               :property-group/property properties
@@ -50,25 +50,25 @@
 
 (defn gen-property-entitlement
   [prop-entitlement-pk kind  permission]
-  (util.seed/generate-entity {
+  (s/generate-entity {
                               :db/id                     prop-entitlement-pk
                               :property-entitlement/kind kind
                               :entitlement/permission    permission
                               })
   )
 (defn gen-authorization-role [auth-role-pk name]
-  (util.seed/generate-entity {
+  (s/generate-entity {
                               :db/id                   auth-role-pk
                               :authorization-role/name name
                               })
   )
 (defn gen-component [component-pk name]
-  (util.seed/generate-entity {
+  (s/generate-entity {
                               :db/id          component-pk
                               :component/name name
                               }))
 (defn gen-subscription [subscription-pk name]
-  (util.seed/generate-entity {
+  (s/generate-entity {
                               :db/id             subscription-pk
                               :subscription/name name
                               })

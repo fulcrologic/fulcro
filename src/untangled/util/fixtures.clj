@@ -1,4 +1,4 @@
-(ns util.fixtures
+(ns untangled.util.fixtures
   (:require
     [datomic.api :as d]
     [com.stuartsierra.component :as component]

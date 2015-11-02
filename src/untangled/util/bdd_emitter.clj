@@ -1,4 +1,4 @@
-(ns util.bdd-emitter
+(ns untangled.util.bdd-emitter
   (:require [midje.emission.plugins.util :as util]
             [midje.data.fact :as fact]
             [midje.emission.plugins.default :as default]

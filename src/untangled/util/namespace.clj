@@ -1,4 +1,4 @@
-(ns util.namespace
+(ns untangled.util.namespace
   (:require [clojure.string :as s]
             [datomic.api :as d]
             [io.rkn.conformity :as c]
@@ -6,7 +6,6 @@
             [clojure.tools.namespace.find :refer [find-namespaces]]
             [clojure.java.classpath :refer [classpath]]
             )
-  (:use midje.sweet)
   )
 
 (defn namespace-name [n] (str n))

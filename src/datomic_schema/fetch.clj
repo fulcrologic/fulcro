@@ -4,9 +4,7 @@
     [datomic.api :as d]
     [datomic-schema.migration :as m]
     [clojure.string :as str]
-    )
-  (:use midje.sweet)
-  )
+    ))
 
 (defn- get-entity-from-attribute [key]
   (keyword (subs (first (str/split (str key) #"/")) 1))

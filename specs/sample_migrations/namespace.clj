@@ -1,4 +1,4 @@
-(ns util.namespace
+(ns sample-migrations.namespace
   (:require [clojure.string :as s]
             [datomic.api :as d]
             [io.rkn.conformity :as c]

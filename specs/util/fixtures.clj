@@ -2,14 +2,14 @@
   (:require
     [datomic.api :as d]
     [com.stuartsierra.component :as component]
-    datahub.components.database
-    datahub.components.rest-routes
-    datahub.components.handler
-    datahub.system
+    #_datahub.components.database
+    #_datahub.components.rest-routes
+    #_datahub.components.handler
+    #_datahub.system
     )
   )
 
-(defn db-fixture
+#_(defn db-fixture
   "Create a test fixture version (in-memory database) of a database. Such a
   database will be auto-migrated to the current version of the schema in the
   given (optional) namespace, and the
@@ -41,7 +41,7 @@
      (try ~form (finally (component/stop ~varname))))
   )
 
-(defn web-fixture
+#_(defn web-fixture
   "Create a test handler fixture and start the component for testing.
   "
   [rest-routes]
@@ -50,7 +50,7 @@
     )
   )
 
-(defmacro with-web-fixture
+#_(defmacro with-web-fixture
   "
   Set up the handler component, start the component, run the given form
   and stop the component after the form was run.
@@ -67,7 +67,7 @@
                            ))))
   )
 
-(defmacro with-system
+#_(defmacro with-system
   "Create and start a complete web server using the config/test-config, make said system
   available as varname, run the given forms, and then shut down the server. Used for running
   full-blown integration tests."

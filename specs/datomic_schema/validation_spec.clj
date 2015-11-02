@@ -3,8 +3,8 @@
     [datomic-schema.validation :as v]
     [datomic.api :as d]
     [seeddata.auth :as a]
-    [util.seed :as s]
-    [util.fixtures :refer [with-db-fixture]]
+    [untangled.util.seed :as s]
+    [untangled.util.fixtures :refer [with-db-fixture]]
     [resources.datomic-schema.validation-schema.initial]
     )
   (:use midje.sweet)
