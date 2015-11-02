@@ -1,6 +1,6 @@
 ;; Name YOUR namespace as follows: datahub.migrations.YYYYMMDDHHmm-description 
 ;; This means your filename will be: src/datahub/migrations/YYYYMMDDHHmm_description (note the underscore)
-(ns datahub.migrations.template
+(ns sample-migrations.migrations.template
   (:require [datomic-schema.schema :as s])
   )
 

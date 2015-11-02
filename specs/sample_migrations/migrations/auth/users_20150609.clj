@@ -1,4 +1,4 @@
-(ns datahub.migrations.auth.users-20150609
+(ns sample-migrations.migrations.auth.users-20150609
   (:require [datomic-schema.schema :as s]
             [datomic-schema.migration :as m]
             [datomic.api :as d])

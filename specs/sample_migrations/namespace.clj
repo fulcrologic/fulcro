@@ -1,4 +1,4 @@
-(ns datahub.namespace
+(ns util.namespace
   (:require [clojure.string :as s]
             [datomic.api :as d]
             [io.rkn.conformity :as c]
