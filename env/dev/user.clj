@@ -9,7 +9,7 @@
     [datomic-helpers :refer [to-transaction to-schema-transaction ext]]
     )
   (:use
-    [datomic-schema.migration :only [dump-schema dump-entity] :rename {
+    [untangled.datomic-schema.migration :only [dump-schema dump-entity] :rename {
                                                                      dump-schema s
                                                                      dump-entity e
                                                                      }]

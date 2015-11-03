@@ -1,6 +1,6 @@
-(ns datomic-schema.fetch-spec
+(ns untangled.datomic-schema.fetch-spec
   (:require
-    [datomic-schema.fetch :as rest]
+    [untangled.datomic-schema.fetch :as rest]
     [datomic.api :as d]
     [seeddata.auth :as a]
     [untangled.util.seed :as s]

@@ -60,7 +60,7 @@
 ; CLASSPATH.
 ;
 ; Additionally, there are database functions you must install into your schema. See
-; `datomic-schema.core-schema-definitions` for the code that installs the two transactor functions `ensure-version`
+; `untangled.datomic-schema.core-schema-definitions` for the code that installs the two transactor functions `ensure-version`
 ; and `constrained-transaction`.
 
 (defn entity-has-attribute?

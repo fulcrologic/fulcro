@@ -1,6 +1,6 @@
-(ns datomic-schema.schema-spec
+(ns untangled.datomic-schema.schema-spec
   (:require
-    [datomic-schema.schema :as s]
+    [untangled.datomic-schema.schema :as s]
     [datomic.api :as d]
     )
   (:use midje.sweet))

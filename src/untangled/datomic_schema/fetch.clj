@@ -2,7 +2,7 @@
   (:require
     clojure.set
     [datomic.api :as d]
-    [datomic-schema.migration :as m]
+    [untangled.datomic-schema.migration :as m]
     [clojure.string :as str]
     ))
 
@@ -115,10 +115,10 @@
                                                            :constraint/definitive true}}
                                           :doc \"entity-doc\" }}}"
   (let [datomic-database (d/db datomic-connection)
-        map-results (build-entity-representations untangled.datomic-database)
+        map-results (build-entity-representations datomic-database)
         entites (apply dissoc (first map-results) [:constraint])
         definitive (second map-results)
-        entities-with-attached-extensions (add-entity-extensions untangled.datomic-database entites)]
+        entities-with-attached-extensions (add-entity-extensions datomic-database entites)]
     {:entities entities-with-attached-extensions :definitive definitive}
     )
   )

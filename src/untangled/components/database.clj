@@ -2,8 +2,8 @@
   (:require [com.stuartsierra.component :as component]
             [datomic.api :as datomic]
             [taoensso.timbre :refer [info fatal]]
-            [datomic-schema.migration :as m]
-            [datomic-schema.core-schema-definitions :as sc]
+            [untangled.datomic-schema.migration :as m]
+            [untangled.datomic-schema.core-schema-definitions :as sc]
             untangled.database
             )
   (:import (untangled.database Database)))

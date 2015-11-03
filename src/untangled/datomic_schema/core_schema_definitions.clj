@@ -1,9 +1,9 @@
 (ns untangled.datomic-schema.core-schema-definitions
-  (:require [datomic-schema.schema :as s]
+  (:require [untangled.datomic-schema.schema :as s]
             [datomic.api :as d]
             [taoensso.timbre :refer [debug info fatal error]]
             [io.rkn.conformity :as c]
-            [datomic-schema.validation :as v])
+            [untangled.datomic-schema.validation :as v])
   )
 
 ;; defines the constraints schema and ensures that the database has these defined
@@ -25,10 +25,10 @@
                             ))
                   ;; Database function that does referential integrity checks within the transactor. Pass
                   ;; the transaction data to this function.
-                  (s/with-require [[datomic-schema.validation :as v]]
+                  (s/with-require [[untangled.datomic-schema.validation :as v]]
                                   (s/dbfn constrained-transaction [db transaction] :db.part/user
                                           (let [result (d/with db transaction)]
-                                            (datomic-schema.validation/validate-transaction result false)
+                                            (untangled.datomic-schema.validation/validate-transaction result false)
                                             transaction
                                             )
                                           )

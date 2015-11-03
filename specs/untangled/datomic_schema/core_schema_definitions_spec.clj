@@ -1,6 +1,6 @@
-(ns datomic-schema.core-schema-definitions-spec
+(ns untangled.datomic-schema.core-schema-definitions-spec
   (:require
-    [datomic-schema.validation :as v]
+    [untangled.datomic-schema.validation :as v]
     [datomic.api :as d]
     [seeddata.auth :as a]
     [untangled.util.seed :as s]

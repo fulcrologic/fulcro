@@ -1,8 +1,8 @@
-(ns datomic-schema.migration-spec
+(ns untangled.datomic-schema.migration-spec
   (:require [taoensso.timbre :refer [fatal]]
             [untangled.util.namespace :as n]
             [untangled.util.logging :as l]
-            [datomic-schema.migration :as m])
+            [untangled.datomic-schema.migration :as m])
   (:use midje.sweet)
   )
 
