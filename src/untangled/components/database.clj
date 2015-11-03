@@ -24,7 +24,7 @@
 (defrecord DatabaseComponent [name url migrate-on-start drop-on-stop connection seed-function migration-ns seed-result]
   Database
   (get-connection [this] connection)
-  (get-info [this] {:name name :url url :seed-resilt seed-result :schema-package migration-ns})
+  (get-info [this] {:name name :url url :seed-result seed-result :schema-package migration-ns})
   component/Lifecycle
   (start [this]
     (let [created (datomic/create-database url)
