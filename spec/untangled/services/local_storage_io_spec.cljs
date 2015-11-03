@@ -2,6 +2,7 @@
   (:require-macros [cljs.test :refer (is deftest run-tests testing)]
                    [smooth-spec.core :refer (specification behavior provided assertions with-timeline async tick)])
   (:require [cljs.test :refer [do-report]]
+            smooth-spec.stub
             [smooth-spec.async]
             [untangled.services.asyncio :as aio]
             [untangled.services.local-storage :as ls]
@@ -28,6 +29,7 @@
                   )
                 )
               )
+    
     (behavior "save updates an existing item and returns the saved item"
               (let [async-report (ar/new-async-report #() #() #())
                     localio (ls/new-local-storage async-report 0)

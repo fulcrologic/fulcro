@@ -1,22 +1,25 @@
-(defproject untangled "0.1.1"
+(defproject untangled "0.3.0-SNAPSHOT"
   :description "An opinionated data model for use with (and following) the sensibilities of Quiescent."
   :url ""
   :license {:name "NAVIS"
             :url  "http://www.thenavisway.com"}
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [quiescent "0.2.0-RC2"]
                  [org.clojure/clojurescript "1.7.122"]
-                 [smooth-spec "0.1.0"]
+                 [smooth-spec "0.1.1-SNAPSHOT"]
                  [differ "0.2.1"]
+                 [org.omcljs/om "1.0.0-alpha9"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [lein-cljsbuild "1.1.0"]
+                 [figwheel-sidecar "0.4.1" :scope "provided"]
+                 [figwheel-sidecar "0.4.1" :scope "provided"]
+                 [cljsjs/react-with-addons "0.14.0-1" :scope "test"]
                  ]
 
   :source-paths ["src" "spec"]
 
   :plugins [[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.4.0"]]
+            [lein-figwheel "0.4.1"]
+            ]
 
   :cljsbuild {:builds
               [{:id           "test"
@@ -32,8 +35,6 @@
   :profiles {
              :dev {
                    :source-paths ["src" "test" "dev"]
-                   :dependencies [[leiningen "2.5.3"]
-                                  [leiningen-core "2.5.3"]]
                    :repl-options {
                                   :init-ns clj.user
                                   :port    7001
