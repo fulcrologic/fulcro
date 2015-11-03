@@ -16,8 +16,7 @@
     )
   )
 
-;; HACK!!!!!
-#_(facts :integration "datomic.schema - fetch-schema returns a configuration with"
+(facts :integration "datomic.schema - fetch-schema returns a configuration with"
        (against-background
          [
           (around :contents (let [c (:connection dbcomp)

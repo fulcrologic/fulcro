@@ -19,8 +19,7 @@
     )
   )
 
-;; HACK!!!!!
-#_(facts :integration "ensure-version Datomic function"
+(facts :integration "ensure-version Datomic function"
        (against-background
          [
           (around :facts (with-db-fixture dbcomp ?form
@@ -55,9 +54,7 @@
          )
        )
 
-
-;; HACK!!!!!
-#_(facts :integration "constrained-transaction Datomic function"
+(facts :integration "constrained-transaction Datomic function"
        (against-background
          [
           (around :facts (with-db-fixture dbcomp ?form
