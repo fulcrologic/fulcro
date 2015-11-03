@@ -46,7 +46,7 @@
     A Database if resolution was successful, or nil is not found.
     ")
   (find-database
-    ^Database [this & args]
+    ^Database [this args]
     "
     Find a database given some arbitrary arguments, which are defined by the specfic resolver.
 

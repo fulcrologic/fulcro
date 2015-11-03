@@ -6,3 +6,4 @@ target
 .nrepl*
 *.log
 datahub.log*
+pom.xml

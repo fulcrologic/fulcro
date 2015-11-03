@@ -1,0 +1,3 @@
+lein jar
+lein pom
+lein localrepo install -p pom.xml target/untangled-datomic-helpers-0.1.0-SNAPSHOT.jar untangled-datomic-helpers 0.1.0-SNAPSHOT
