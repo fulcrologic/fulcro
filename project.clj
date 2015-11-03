@@ -15,11 +15,12 @@
                  ]
 
   :source-paths ["src"]
+  :test-paths ["specs"]
 
   :profiles
   {
    :dev {
-         :source-paths ["env/dev" "src" "specs"]
+         :source-paths ["env/dev"]
          :repl-options {
                        :init-ns user
                        }
