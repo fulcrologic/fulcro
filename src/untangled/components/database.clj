@@ -29,14 +29,11 @@
   (start [this]
     (let [created (datomic/create-database url)
           c (datomic/connect url)]
-
-
-      (if migrate-on-start (do
-                             (info "Ensuring core schema is defined")
-                             (run-core-schema c)
-                             (info "Running migrations on" name)
-                             (run-migrations migration-ns name c)
-                             ))
+      (when migrate-on-start
+        (info "Ensuring core schema is defined")
+        (run-core-schema c)
+        (info "Running migrations on" name)
+        (run-migrations migration-ns name c))
       (try
         (cond-> (assoc this :connection c)
                 (and created seed-function) (assoc :seed-result (do
