@@ -22,6 +22,5 @@
          :source-paths ["env/dev" "src" "specs"]
          :repl-options {
                        :init-ns user
-                       :port 7001
                        }
          }})

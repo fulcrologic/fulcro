@@ -10,25 +10,23 @@
   (:use midje.sweet)
   )
 
-(defn- user-entity-id [conn email]
-  (d/q '[:find ?e . :in $ ?v :where [?e :user/email ?v]] (d/db conn) email))
-
-(defn- seed-validation [conn]
-  (let [entities (concat
-                   (a/create-base-user-and-realm)
-                   [[:db/add :tempid/user1 :user/realm :tempid/realm1] [:db/add :tempid/user2 :user/realm :tempid/realm1]]
-                   [(s/generate-entity {:db/id            :tempid/prop-entitlement
-                                        :entitlement/kind :entitlement.kind/property
-                                        })
-                    (s/generate-entity {:db/id            :tempid/comp-entitlement
-                                        :entitlement/kind :entitlement.kind/component
-                                        })
-                    ]
-                   )
-        ]
-    (s/link-and-load-seed-data conn entities)
-    )
-  )
+(facts "as-set"
+       (fact "converts scalars to singular sets"
+             (v/as-set 1) => #{1}
+             )
+       (fact "converts lists to sets"
+             (v/as-set '(1 2 2)) => #{1 2}
+             )
+       (fact "converts vectors to sets"
+             (v/as-set [1 2 2]) => #{1 2}
+             )
+       (fact "leaves sets as sets"
+             (v/as-set #{1 2}) => #{1 2}
+             )
+       (fact "throws an exception if passed a map"
+             (v/as-set {:a 1}) => (throws #"does not work on maps")
+             )
+       )
 
 (facts "Attribute derivation"
        (against-background
