@@ -11,7 +11,6 @@
                  [org.omcljs/om "1.0.0-alpha9"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]
-                 [lein-cljsbuild "1.1.0"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]
                  [cljsjs/react-with-addons "0.14.0-1" :scope "test"]
                  ]
@@ -36,8 +35,6 @@
   :profiles {
              :dev {
                    :source-paths ["src" "test" "dev"]
-                   :dependencies [[leiningen "2.5.3"]
-                                  [leiningen-core "2.5.3"]]
                    :repl-options {
                                   :init-ns clj.user
                                   :port    7001
