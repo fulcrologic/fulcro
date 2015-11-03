@@ -72,7 +72,7 @@
     )
   )
 
-(defn- replace-id [entity idmap value]
+(defn replace-id [entity idmap value]
   (cond 
     (and (keyword? value) (value idmap)) (value idmap)
     (set? value) (into #{} (map (partial replace-id entity idmap) value))

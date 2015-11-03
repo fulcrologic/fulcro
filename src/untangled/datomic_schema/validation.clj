@@ -240,6 +240,79 @@
     :else #{v}
     ))
 
+(defn- is-reference-attribute-valid?
+  "
+  Determine, given the constraints on an attribute (which includes the targeted entity(ies)), if the given entity has
+  a valid value for that attribute.
+
+  Parameters:
+  `db` - The database to validate against
+  `entity` - The entity (or eid) to validate
+  `constraint` - The database constraint to validate (as returned by reference-constraint-for-attribute)
+  "
+  [db entity constraint]
+  (let [entity (ensure-entity db entity)
+        source-attr (:constraint/attribute constraint)
+        targetids (as-set (source-attr entity))
+        target-attr (:constraint/references constraint)
+        allowed-values (:constraint/with-values constraint)
+        value-incorrect? (fn [entity attr allowed-values]
+                           (let [value (attr entity)]
+                             (not ((set allowed-values) value))
+                             )
+                           )
+        error-msg (fn [msg entity attr target] {:source entity :reason msg :target-attr attr :target target})
+        ]
+    (some #(cond
+            (not (entity-has-attribute? db % target-attr)) (error-msg "Target attribute is missing" entity target-attr %)
+            (and allowed-values
+                 (value-incorrect? % target-attr allowed-values)) (error-msg "Target attribute has incorrect value"
+                                                                             entity target-attr %)
+            :else false)
+          targetids)
+    )
+  )
+
+(defn invalid-references
+  "
+  Returns all of the references *out* of the given entity that are invalid according to the schema's constraints. Returns
+  nil if all references are valid.
+
+  Parameters:
+  `db` : The database that defines the schema
+  `e` : The entity or entity ID to check
+  "
+  [db e]
+  (let [entity (ensure-entity db e)
+        attributes (keys entity)
+        get-constraint (fn [attr] (reference-constraint-for-attribute db attr))
+        drop-empty (partial filter identity)
+        constraints-to-check (drop-empty (map get-constraint attributes))
+        check-attribute (partial is-reference-attribute-valid? db entity)
+        problems (drop-empty (map check-attribute constraints-to-check))
+        ]
+    (if (empty? problems) nil problems)
+    ))
+
+
+
+(defn definitive-attributes
+  "
+  Returns a set of attributes (e.g. :user/email) that define the 'kinds' of entities in the specified database.
+  When such an attribute appears on an entity, it implies that entity is allowed to be treated as-if it has
+  the 'kind' of that attribute's namespace (e.g. the presence of :user/email on an entity implies that
+  the entity has kind 'user').
+
+  Such attributes are marked as :definitive in the schema.
+  "
+  [db]
+  (set (map :db/ident (d/q '[:find [(pull ?e [:db/ident]) ...]
+                             :where
+                             [?e :db/valueType _]
+                             [?e :constraint/definitive true]
+                             ] db)))
+  )
+
 (defn entity-types
   "Given a db and an entity, this function determines all of the types that the given entity conforms to (by scanning
   for attributes on the entity that have the :definitive markers in the schema.
