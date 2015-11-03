@@ -1,4 +1,4 @@
-(ns datomic-schema.migration
+(ns untangled.datomic-schema.migration
   (:require [clojure.string :as s]
             [datomic.api :as d]
             [io.rkn.conformity :as c]

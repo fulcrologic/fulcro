@@ -1,4 +1,4 @@
-(ns datomic-schema.schema
+(ns untangled.datomic-schema.schema
   (:require
    [datomic.api :as d]
    [datomic.function :as df]))

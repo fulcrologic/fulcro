@@ -1,4 +1,4 @@
-(ns datomic-schema.validation
+(ns untangled.datomic-schema.validation
   (:require
     [clojure.set :as s]
     [datomic.api :as d]

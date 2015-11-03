@@ -1,4 +1,4 @@
-(ns datomic-schema.core-schema-definitions
+(ns untangled.datomic-schema.core-schema-definitions
   (:require [datomic-schema.schema :as s]
             [datomic.api :as d]
             [taoensso.timbre :refer [debug info fatal error]]
