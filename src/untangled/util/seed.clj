@@ -3,7 +3,6 @@
     [datomic.api :as d]
     [taoensso.timbre :as timbre]
     )
-  (:use midje.sweet)
   )
 
 (defmacro generate-entity
