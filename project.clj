@@ -6,7 +6,7 @@
 
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "1.7.122"]
-                 [smooth-spec "0.1.1-SNAPSHOT"]
+                 [untangled-spec "0.1.1"]
                  [differ "0.2.1"]
                  [org.omcljs/om "1.0.0-alpha14"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
