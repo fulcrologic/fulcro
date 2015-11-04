@@ -8,7 +8,7 @@
                  [org.clojure/clojurescript "1.7.122"]
                  [smooth-spec "0.1.1-SNAPSHOT"]
                  [differ "0.2.1"]
-                 [org.omcljs/om "1.0.0-alpha9"]
+                 [org.omcljs/om "1.0.0-alpha14"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]
