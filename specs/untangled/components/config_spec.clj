@@ -87,16 +87,17 @@
        (facts :focused "new-config"
               (fact :focused "returns a stuartsierra component"
                     (satisfies? component/Lifecycle (cfg/new-config)) => true
-                    )
-              (fact :focused ".start loads the config"
-                    (.start (cfg/new-config)) => (contains {:config ..cfg..})
-                    (provided
-                      (cfg/load-config anything) => ..cfg..)
-                    )
-              (fact :focused ".stop removes the config"
-                    (-> (cfg/new-config) .start .stop :config) => nil
-                    (provided
-                      (cfg/load-config anything) => anything)
+
+                    (fact :focused ".start loads the config"
+                          (.start (cfg/new-config)) => (contains {:config ..cfg..})
+                          (provided
+                            (cfg/load-config anything) => ..cfg..)
+                          )
+                    (fact :focused ".stop removes the config"
+                          (-> (cfg/new-config) .start .stop :config) => nil
+                          (provided
+                            (cfg/load-config anything) => anything)
+                          )
                     )
               )
        (facts :focused :integration "smoke test with component/system"
