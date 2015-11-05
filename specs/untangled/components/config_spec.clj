@@ -83,7 +83,7 @@
     (map->App {})
     [:config]))
 
-(facts :focused "untangled.config.component"
+(facts :focused "untangled.components.config"
        (facts :focused "new-config"
               (fact :focused "returns a stuartsierra component"
                     (satisfies? component/Lifecycle (cfg/new-config)) => true
@@ -100,7 +100,7 @@
                           )
                     )
               )
-       (facts :focused :integration "smoke test with component/system"
+       (facts :focused "new-config can be injected through a system-map"
               (-> (component/system-map
                     :config (cfg/new-config)
                     :app (new-app))
