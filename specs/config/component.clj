@@ -24,12 +24,12 @@
               (fact :focused ".start loads the config"
                     (.start (new-config)) => (contains {:config ..cfg..})
                     (provided
-                      (#'cfg/load-config anything) => ..cfg..)
+                      (cfg/load-config anything) => ..cfg..)
                     )
               (fact :focused ".stop removes the config"
                     (-> (new-config) .start .stop :config) => nil
                     (provided
-                      (#'cfg/load-config anything) => anything)
+                      (cfg/load-config anything) => anything)
                     )
               )
        (facts :focused :integration "smoke test with component/system"
@@ -38,6 +38,6 @@
                     :app (new-app))
                   .start :app :config :config) => {:foo :bar}
               (provided
-                (#'cfg/load-config anything) => {:foo :bar})
+                (cfg/load-config anything) => {:foo :bar})
               )
        )
