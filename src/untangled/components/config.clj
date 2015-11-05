@@ -1,8 +1,7 @@
-(ns untangled.config.core
+(ns untangled.components.config
   (:require [com.stuartsierra.component :as component]
             [clojure.java.classpath :as cp]
-            [clojure.java.io :as io]
-            ))
+            [clojure.java.io :as io]))
 
 (defn- get-system-prop [prop-name]
   (System/getProperty prop-name))
@@ -35,3 +34,16 @@
         props (get-props (or cfg-file props-path))
         defaults (get-defaults defaults-path)]
     (deep-merge defaults props)))
+
+(defrecord Config [config defaults-path props-path sys-prop]
+  component/Lifecycle
+  (start [this]
+    (let [config (load-config this)]
+      (assoc this :config config)))
+  (stop [this]
+    (assoc this :config nil)))
+
+(defn new-config [& [props-path defaults-path sys-prop]]
+  (map->Config {:defaults-path defaults-path
+                :props-path props-path
+                :sys-prop sys-prop}))
