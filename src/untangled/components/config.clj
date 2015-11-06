@@ -14,10 +14,12 @@
     (apply merge-with deep-merge xs)
     (last xs)))
 
-(defn- find-file [^String file-path]
+(defn- find-file 
+  "Finds a file in the resources (via classpath) and returns the path to that file on disk."
+  [^String file-path]
   (if (.startsWith file-path "/")
     file-path
-    (-> file-path io/resource io/file str)))
+    (-> file-path io/resource io/file .getAbsolutePath)))
 
 (def ^:private fallback-props-path "/usr/local/etc/config.edn")
 (defn- get-props [path]

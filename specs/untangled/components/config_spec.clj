@@ -38,8 +38,7 @@
               )
        (facts :focused "find-file"
               (fact :focused "looks up the argument in the classpath"
-                    (#'cfg/find-file "defaults.edn")
-                    => "/Users/Anthony/projects/untangled-datomic-helpers/resources/defaults.edn"
+                    (#'cfg/find-file "defaults.edn") => #"resources/defaults.edn$"
                     )
               (fact :focused "or returns its argument if its an absolute path"
                     (#'cfg/find-file "/foo/bar") => "/foo/bar"
@@ -66,7 +65,7 @@
               (fact :focused "or if path is nil, uses a default path"
                     (#'cfg/get-defaults nil) => ..defaults..
                     (provided
-                      (slurp "/Users/Anthony/projects/untangled-datomic-helpers/resources/defaults.edn") => (str ..defaults..))
+                      (slurp #"resources/defaults\.edn$") => (str ..defaults..))
                     )
               )
        )
