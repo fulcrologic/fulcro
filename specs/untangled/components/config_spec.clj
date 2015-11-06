@@ -13,9 +13,9 @@
                     (provided
                       (#'cfg/get-defaults nil) => {:a {:b {:c :d}
                                                        :e {:z :v}}}
-                      (#'cfg/get-props nil)    => {:a {:b {:c :f
-                                                           :u :y}
-                                                       :e 13}}
+                      (#'cfg/get-props nil) => {:a {:b {:c :f
+                                                        :u :y}
+                                                    :e 13}}
                       ))
               (fact :focused "can take a prop path argument"
                     (cfg/load-config {:props-path "/foo/bar"})
@@ -36,12 +36,21 @@
                       )
                     )
               )
-       (facts :focused "find-file"
-              (fact :focused "looks up the argument in the classpath"
-                    (#'cfg/find-file "resources/defaults.edn") => #"resources/defaults.edn$"
+       (facts :focused "load-edn"
+              (fact :focused "returns nil if absolute file is not found"
+                    (#'cfg/load-edn "/garbage") => nil
                     )
-              (fact :focused "or returns its argument if its an absolute path"
-                    (#'cfg/find-file "/foo/bar") => "/foo/bar"
+              (fact :focused "returns nil if relative file is not on classpath"
+                    (#'cfg/load-edn "garbage") => nil
+                    )
+              (fact :focused "can load edn from the classpath"
+                    (#'cfg/load-edn "resources/defaults.edn") => {:some-key :some-default-val}
+                    )
+              (fact :integration :focused "can load edn from the disk"
+                    (let [tmp-file (java.io.File/createTempFile "data-file" ".edn")
+                          _ (spit tmp-file "{:a 1}")
+                          full-path (.getAbsolutePath tmp-file)]
+                      (#'cfg/load-edn full-path)) => {:a 1}
                     )
               )
        (facts :focused "get-props"
