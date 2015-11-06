@@ -1,40 +1,44 @@
 (ns untangled.components.config-spec
   (:require [com.stuartsierra.component :as component]
             [untangled.components.config :as cfg])
-  (:use midje.sweet))
+  (:use midje.sweet)
+  (:import (java.io File)))
+
+(defn with-tmp-edn-file
+  "Creates a temporary edn file with stringified `contents`,
+   calls `f` with its absolute path,
+   and returns the result after deleting the file."
+  [contents f]
+  (let [tmp-file (File/createTempFile "tmp-file" ".edn")
+        _ (spit tmp-file (str contents))
+        abs-path (.getAbsolutePath tmp-file)
+        res (f abs-path)]
+    (.delete tmp-file) res))
 
 (facts :focused "untangled.config"
        (facts :focused "load-config"
-              (fact :focused "recursively merges props into defaults"
+              (fact :focused "recursively merges config into defaults"
                     (cfg/load-config {}) => {:a {:b {:c :f
                                                      :u :y}
                                                  :e 13}}
-
                     (provided
                       (#'cfg/get-defaults nil) => {:a {:b {:c :d}
                                                        :e {:z :v}}}
-                      (#'cfg/get-props nil) => {:a {:b {:c :f
-                                                        :u :y}
-                                                    :e 13}}
-                      ))
+                      (#'cfg/get-config nil) => {:a {:b {:c :f
+                                                         :u :y}
+                                                     :e 13}}))
               (fact :focused "can take a prop path argument"
-                    (cfg/load-config {:props-path "/foo/bar"})
-                    => {:foo :qux}
-
+                    (cfg/load-config {:config-path "/foo/bar"}) => {:foo :qux}
                     (provided
                       (#'cfg/get-defaults nil) => {:foo :qux}
-                      (#'cfg/get-props "/foo/bar") => {}
+                      (#'cfg/get-config "/foo/bar") => {}
                       )
                     )
               (fact :focused "can take a defaults path argument"
-                    (cfg/load-config {:defaults-path "/foo/bar"})
-                    => {:foo :bar}
-
+                    (cfg/load-config {:defaults-path "/foo/bar"}) => {:foo :bar}
                     (provided
                       (#'cfg/get-defaults "/foo/bar") => {:foo :qux}
-                      (#'cfg/get-props nil) => {:foo :bar}
-                      )
-                    )
+                      (#'cfg/get-config nil) => {:foo :bar}))
               )
        (facts :focused "load-edn"
               (fact :focused "returns nil if absolute file is not found"
@@ -44,47 +48,51 @@
                     (#'cfg/load-edn "garbage") => nil
                     )
               (fact :focused "can load edn from the classpath"
-                    (#'cfg/load-edn "resources/defaults.edn") => {:some-key :some-default-val}
+                    (#'cfg/load-edn "resources/defaults.edn")
+                    => (contains {:some-key :some-default-val})
                     )
               (fact :integration :focused "can load edn from the disk"
-                    (let [tmp-file (java.io.File/createTempFile "data-file" ".edn")
-                          _ (spit tmp-file "{:a 1}")
-                          full-path (.getAbsolutePath tmp-file)]
-                      (#'cfg/load-edn full-path)) => {:a 1}
-                    )
+                    (with-tmp-edn-file {:foo :bar} #'cfg/load-edn)
+                    => {:foo :bar})
+              (fact :integration :focused "can load edn with symbols"
+                    (with-tmp-edn-file {:sym 'sym} #'cfg/load-edn)
+                    => {:sym 'sym})
               )
-       (facts :focused "get-props"
+       (facts :focused "get-config"
               (fact :focused "takes in a path, finds the file at that path and should return a clojure map"
-                    (#'cfg/get-props "/foobar") => ..props..
+                    (#'cfg/get-config "/foobar") => ..config..
                     (provided
-                      (slurp "/foobar") => (str ..props..))
+                      (#'cfg/load-edn "/foobar") => ..config..)
                     )
               (fact :focused "or if path is nil, uses a default path"
-                    (#'cfg/get-props nil) => ..props..
+                    (#'cfg/get-config nil) => ..config..
                     (provided
-                      (slurp "/usr/local/etc/config.edn") => (str ..props..))
+                      (#'cfg/load-edn cfg/fallback-config-path) => ..config..)
+                    )
+              (fact :focused "if path doesn't exist on fs, it throws an ex-info"
+                    (#'cfg/get-config "/should/fail") => (throws clojure.lang.ExceptionInfo)
                     )
               )
        (facts :focused "get-defaults"
               (fact :focused "takes in a path, finds the file at that path and should return a clojure map"
                     (#'cfg/get-defaults "/foobar") => ..defaults..
                     (provided
-                      (slurp "/foobar") => (str ..defaults..))
+                      (#'cfg/load-edn "/foobar") => ..defaults..)
                     )
               (fact :focused "or if path is nil, uses a default path"
                     (#'cfg/get-defaults nil) => ..defaults..
                     (provided
-                      (slurp #"resources/defaults\.edn$") => (str ..defaults..))
+                      (#'cfg/load-edn cfg/fallback-defaults-path) => ..defaults..)
                     )
+              (fact :focused "if path doesn't exist on fs, it throws an ex-info"
+                    (#'cfg/get-defaults "/should/fail") => (throws clojure.lang.ExceptionInfo))
               )
        )
 
-(defrecord App [config]
+(defrecord App []
   component/Lifecycle
-  (start [this]
-    (assoc this :config config))
-  (stop [this]
-    this))
+  (start [this] this)
+  (stop [this] this))
 
 (defn new-app []
   (component/using
