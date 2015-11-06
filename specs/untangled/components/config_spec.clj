@@ -38,7 +38,7 @@
               )
        (facts :focused "find-file"
               (fact :focused "looks up the argument in the classpath"
-                    (#'cfg/find-file "defaults.edn") => #"resources/defaults.edn$"
+                    (#'cfg/find-file "resources/defaults.edn") => #"resources/defaults.edn$"
                     )
               (fact :focused "or returns its argument if its an absolute path"
                     (#'cfg/find-file "/foo/bar") => "/foo/bar"
@@ -88,7 +88,7 @@
                     (satisfies? component/Lifecycle (cfg/new-config)) => true
 
                     (fact :focused ".start loads the config"
-                          (.start (cfg/new-config)) => (contains {:config ..cfg..})
+                          (.start (cfg/new-config)) => (contains {:value ..cfg..})
                           (provided
                             (cfg/load-config anything) => ..cfg..)
                           )
@@ -103,7 +103,7 @@
               (-> (component/system-map
                     :config (cfg/new-config)
                     :app (new-app))
-                  .start :app :config :config) => {:foo :bar}
+                  .start :app :config :value) => {:foo :bar}
               (provided
                 (cfg/load-config anything) => {:foo :bar})
               )
