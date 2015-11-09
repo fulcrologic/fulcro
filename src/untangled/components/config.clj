@@ -1,7 +1,8 @@
 (ns untangled.components.config
   (:require [com.stuartsierra.component :as component]
             [clojure.java.classpath :as cp]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [com.rpl.specter :refer [transform walker]])
   (:import (java.io File)))
 
 (defn- get-system-prop [prop-name]
@@ -44,23 +45,31 @@
 (def ^:private get-defaults
   (get-with-fallback fallback-defaults-path))
 
+(defn- resolve-symbol [sym]
+  {:pre [(namespace sym)]
+   :post [(not (nil? %))]}
+  (or (resolve sym)
+      (do (-> sym namespace symbol require)
+          (resolve sym))))
+
 (defn load-config
   "Entry point for config loading, pass it a map with k-v pairs indicating where
    it should look for configuration in case things are not found.
    Eg:
    - sys-prop indicates the name of the system property that will contain the path to the config file, eg: '-Dconfig=...'
-     defaults to 'config'
+   defaults to 'config'
    - config-path is the default location of the config file in case there was no system property passed in,
-     defaults to `fallback-config-path`
+   defaults to `fallback-config-path`
    - defaults-path is the location of the defaults config file, it is overriden by the config file,
-     defaults to `fallback-defaults-path`
+   defaults to `fallback-defaults-path`
    "
   ([] (load-config {}))
   ([{:keys [sys-prop config-path defaults-path]}]
    (let [cfg-file (get-system-prop (or sys-prop "config"))
          config (get-config (or cfg-file config-path))
          defaults (get-defaults defaults-path)]
-     (deep-merge defaults config))))
+     (->> (deep-merge defaults config)
+          (transform (walker symbol?) resolve-symbol)))))
 
 (defrecord Config [config defaults-path config-path sys-prop]
   component/Lifecycle
