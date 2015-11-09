@@ -11,15 +11,14 @@
   )
 
 (defn check-migration-conformity [connection migrations]
-  (let [rv #{}]
+  (let [nonconforming-migs (atom #{})]
     (doseq [migration migrations
-            nm (keys migration)]
-      (if (c/conforms-to? (d/db connection) nm)
-        (do (timbre/info "Verified that database conforms to migration: " nm) (conj rv true))
-        (do (timbre/warn "Database does NOT conform to migration: " nm) (conj rv false))
+            migration-name (keys migration)]
+      (if-not (c/conforms-to? (d/db connection) migration-name)
+        (swap! nonconforming-migs conj migration-name)
         )
       )
-    (if (= rv #{true}) true false)
+    @nonconforming-migs
     )
 
   )
@@ -31,8 +30,7 @@
              ["-h" "--help" "Print this help." :default false :flag true]
              ["-l" "--list-dbs" "List databases that can be migrated." :default false]
              ["-m" "--migrate" "Apply migrations to a database." :default false]
-             ["-s" "--migration-status" "Check a whether a database has all possible migrations." :default false]
-             ["-d" "--dry-run-migration" "Report which migrations would be applied to a database" :default false])
+             ["-s" "--migration-status" "Check a whether a database has all possible migrations." :default false])
         argument (single-arg opts)]
     (if-not argument
       (timbre/fatal "Only one argument at a time is supported.")
@@ -40,9 +38,12 @@
             nspace (:migration-ns db-config)
             connection (d/connect (:url db-config))
             migrations (m/all-migrations nspace)]
-        (cond (:dry-run-migration opts) (clojure.pprint/pprint banner)
+        (cond
               (:migrate opts) (m/migrate connection nspace)
-              (:migration-status opts) (check-migration-conformity connection migrations)
+              (:migration-status opts) (let [migs (check-migration-conformity connection migrations)]
+                                         (if (empty? migs)
+                                           (timbre/info "Database conforms to all migrations.")
+                                           (timbre/warn "Database does not conform to these migrations: " migs)))
               )))
     )
-  (System/exit 0))
+  #_(System/exit 0))
