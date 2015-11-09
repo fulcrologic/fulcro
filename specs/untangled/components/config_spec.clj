@@ -40,6 +40,7 @@
                       (#'cfg/get-defaults "/foo/bar") => {:foo :qux}
                       (#'cfg/get-config nil) => {:foo :bar}))
               )
+
        (facts :focused "load-edn"
               (fact :focused "returns nil if absolute file is not found"
                     (#'cfg/load-edn "/garbage") => nil
@@ -58,6 +59,7 @@
                     (with-tmp-edn-file {:sym 'sym} #'cfg/load-edn)
                     => {:sym 'sym})
               )
+
        (facts :focused "get-config"
               (fact :focused "takes in a path, finds the file at that path and should return a clojure map"
                     (#'cfg/get-config "/foobar") => ..config..
@@ -73,6 +75,7 @@
                     (#'cfg/get-config "/should/fail") => (throws clojure.lang.ExceptionInfo)
                     )
               )
+
        (facts :focused "get-defaults"
               (fact :focused "takes in a path, finds the file at that path and should return a clojure map"
                     (#'cfg/get-defaults "/foobar") => ..defaults..
@@ -103,7 +106,6 @@
        (facts :focused "new-config"
               (fact :focused "returns a stuartsierra component"
                     (satisfies? component/Lifecycle (cfg/new-config)) => true
-
                     (fact :focused ".start loads the config"
                           (.start (cfg/new-config)) => (contains {:value ..cfg..})
                           (provided
@@ -116,6 +118,7 @@
                           )
                     )
               )
+
        (facts :focused "new-config can be injected through a system-map"
               (-> (component/system-map
                     :config (cfg/new-config)

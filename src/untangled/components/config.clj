@@ -25,7 +25,11 @@
       (-> file-path slurp read-string))
     (some-> file-path io/resource .openStream slurp read-string)))
 
-(defn- get-with-fallback [fallback]
+(defn- get-with-fallback
+  "Builds a fn with a fallback in case the fn is called with a nil argument.
+   Calls load-edn on the path or the fallback,
+   and throws an ex-info instead of returning nil"
+  [fallback]
   (fn [path]
     (or (-> path (or fallback) load-edn)
         (throw (ex-info "please provide a valid file on your file-system"
@@ -41,6 +45,16 @@
   (get-with-fallback fallback-defaults-path))
 
 (defn load-config
+  "Entry point for config loading, pass it a map with k-v pairs indicating where
+   it should look for configuration in case things are not found.
+   Eg:
+   - sys-prop indicates the name of the system property that will contain the path to the config file, eg: '-Dconfig=...'
+     defaults to 'config'
+   - config-path is the default location of the config file in case there was no system property passed in,
+     defaults to `fallback-config-path`
+   - defaults-path is the location of the defaults config file, it is overriden by the config file,
+     defaults to `fallback-defaults-path`
+   "
   ([] (load-config {}))
   ([{:keys [sys-prop config-path defaults-path]}]
    (let [cfg-file (get-system-prop (or sys-prop "config"))
