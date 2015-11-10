@@ -43,12 +43,12 @@
                                                    :v [0 "d"]
                                                    :s #{'clojure.core/symbol}}
                       (#'cfg/get-config nil) => {}))
-              (fact "can take a prop path argument"
+              (fact "passes config path to get-config"
                     (cfg/load-config {:config-path "/foo/bar"}) => {}
                     (provided
                       (#'cfg/get-defaults nil) => {}
                       (#'cfg/get-config "/foo/bar") => {}))
-              (fact "can take a defaults path argument"
+              (fact "passes defaults-path to get-defaults"
                     (cfg/load-config {:defaults-path "/foo/bar"}) => {}
                     (provided
                       (#'cfg/get-defaults "/foo/bar") => {}
