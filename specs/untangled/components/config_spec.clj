@@ -57,7 +57,10 @@
        (facts "resolve-symbol"
               (fact "requires if necessary"
                     (#'cfg/resolve-symbol 'util.dont-require-me/stahp)
-                    => #'util.dont-require-me/stahp)
+                    => false
+                    (provided
+                      (resolve 'util.dont-require-me/stahp) => false
+                      (require 'util.dont-require-me) => anything))
               (fact "fails if require fails"
                     (#'cfg/resolve-symbol 'srsly/not-a-var)
                     => (throws java.io.FileNotFoundException))
