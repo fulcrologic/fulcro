@@ -38,7 +38,8 @@
 
 (facts :focused "DatabaseComponent"
        (facts :focused "implements Database"
-              #_TODO)
+              (satisfies? untangled.database/Database
+                          (db/build-database "a-db-name")))
        (fact :focused "implements component/Lifecycle"
              (satisfies? component/Lifecycle
                          (db/build-database "a-db-name"))
