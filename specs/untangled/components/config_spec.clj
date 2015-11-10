@@ -28,6 +28,12 @@
                       (#'cfg/get-config nil) => {:a {:b {:c :f
                                                          :u :y}
                                                      :e 13}}))
+              (fact "crashes if no default is found"
+                    (cfg/load-config {}) => (throws ExceptionInfo))
+              (fact "crashes if no config is found"
+                    (cfg/load-config {}) => (throws ExceptionInfo)
+                    (provided
+                      (#'cfg/get-defaults nil) => {}))
               (fact "recursively resolves symbols using resolve-symbol"
                     (cfg/load-config {}) => {:a {:b {:c #'clojure.core/symbol}}
                                              :v [0 "d"]
@@ -87,7 +93,7 @@
                     (provided
                       (#'cfg/load-edn cfg/fallback-config-path) => ..config..))
               (fact "if path doesn't exist on fs, it throws an ex-info"
-                    (#'cfg/get-config "/should/fail") => (throws ExceptionInfo)))
+                    (#'cfg/get-config "/should/fail") => (throws ExceptionInfo #"please provide a valid file on your file-system")))
 
        (facts "get-defaults"
               (fact "takes in a path, finds the file at that path and should return a clojure map"
@@ -99,7 +105,7 @@
                     (provided
                       (#'cfg/load-edn cfg/fallback-defaults-path) => ..defaults..))
               (fact "if path doesn't exist on fs, it throws an ex-info"
-                    (#'cfg/get-defaults "/should/fail") => (throws ExceptionInfo))))
+                    (#'cfg/get-defaults "/should/fail") => (throws ExceptionInfo #"please provide a valid file on your file-system"))))
 
 (defrecord App []
   component/Lifecycle
