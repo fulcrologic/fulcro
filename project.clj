@@ -12,6 +12,7 @@
                  [com.taoensso/timbre "3.4.0"]
                  [org.clojure/java.classpath "0.2.2"]
                  [crypto-password "0.1.3"]
+                 [com.rpl/specter "0.8.0"]
                  ]
 
   :source-paths ["src"]
