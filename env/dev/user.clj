@@ -10,6 +10,9 @@
     [clojure.repl :refer [doc source]]
     [datomic.api :as d]
     [datomic-helpers :refer [to-transaction to-schema-transaction ext]]
+    [untangled-spec.report :as report]
+    [clojure.test :refer [run-tests]]
+    util.cli-spec
     )
   (:use
     midje.repl
@@ -32,5 +35,12 @@
     (= opt :all)   (autotest :filter (complement :nothing))
     (= opt :unit)  (autotest :filter (complement :integration))
     (keyword? opt) (autotest :filter opt)
+    )
+  )
+
+(defn run-all-tests []
+  (report/with-untangled-output
+    (run-tests 'util.cli-spec
+               )
     )
   )

@@ -11,12 +11,15 @@
                  [com.stuartsierra/component "0.2.3"]
                  [com.taoensso/timbre "3.4.0"]
                  [org.clojure/java.classpath "0.2.2"]
+                 [untangled-spec "0.1.1"]
                  [crypto-password "0.1.3"]
                  [com.rpl/specter "0.8.0"]
                  ]
 
   :source-paths ["src"]
   :test-paths ["specs"]
+
+  :test-refresh {:report  untangled-spec.report/untangled-report}
 
   :profiles
   {
