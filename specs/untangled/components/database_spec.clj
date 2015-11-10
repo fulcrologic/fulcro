@@ -6,17 +6,21 @@
 
 (def default-db-name :db1)
 (def default-db-url "db1-url")
+(def default-schema "schema.default")
 (defn make-config [m]
-  {:dbs {default-db-name (merge {:url default-db-url} m)}})
+  {:dbs {default-db-name (merge {:url default-db-url
+                                 :schema default-schema}
+                                m)}})
 
 (def default-config
-  (make-config {:drop-on-stop true}))
+  (make-config {:auto-drop true}))
 
 (def migrate-config
-  (make-config {:migrate-on-start true}))
+  (make-config {:auto-migrate true}))
 
+(def seed-result :a-tree!)
 (def seed-config
-  (make-config {:seed-function (fn [_] :a-tree!)}))
+  (make-config {:seed-function (fn [_] seed-result)}))
 
 (defn start-system
   ([] (start-system default-config))
@@ -41,7 +45,7 @@
              => true
              (fact :focused ".start loads the component"
                    (-> (start-system) :db keys)
-                   => (contains #{:url :drop-on-stop :config})
+                   => (contains #{:config})
                    (provided
                      (datomic.api/create-database default-db-url) => anything
                      (datomic.api/connect default-db-url) => anything))
@@ -54,7 +58,7 @@
                      (#'db/run-migrations anything anything anything) => anything))
              (fact :focused ".start runs seed-function if it needs to"
                    (-> (start-system seed-config) :db :seed-result)
-                   => :a-tree!
+                   => seed-result
                    (provided
                      (datomic.api/create-database default-db-url) => anything
                      (datomic.api/connect default-db-url) => anything
