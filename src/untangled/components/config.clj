@@ -66,12 +66,12 @@
   ([] (load-config {}))
   ([{:keys [sys-prop config-path defaults-path]}]
    (let [cfg-file (get-system-prop (or sys-prop "config"))
-         config (get-config (or cfg-file config-path))
-         defaults (get-defaults defaults-path)]
+         defaults (get-defaults defaults-path)
+         config (get-config (or cfg-file config-path))]
      (->> (deep-merge defaults config)
           (transform (walker symbol?) resolve-symbol)))))
 
-(defrecord Config [config defaults-path config-path sys-prop]
+(defrecord Config [value defaults-path config-path sys-prop]
   component/Lifecycle
   (start [this]
     (let [config (load-config this)]

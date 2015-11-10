@@ -16,9 +16,9 @@
         res (f abs-path)]
     (.delete tmp-file) res))
 
-(facts :focused "untangled.config"
-       (facts :focused "load-config"
-              (fact :focused "recursively merges config into defaults"
+(facts "untangled.config"
+       (facts "load-config"
+              (fact "recursively merges config into defaults"
                     (cfg/load-config {}) => {:a {:b {:c :f
                                                      :u :y}
                                                  :e 13}}
@@ -28,7 +28,7 @@
                       (#'cfg/get-config nil) => {:a {:b {:c :f
                                                          :u :y}
                                                      :e 13}}))
-              (fact :focused "recursively resolves symbols using resolve-symbol"
+              (fact "recursively resolves symbols using resolve-symbol"
                     (cfg/load-config {}) => {:a {:b {:c #'clojure.core/symbol}}
                                              :v [0 "d"]
                                              :s #{#'clojure.core/symbol}}
@@ -37,68 +37,68 @@
                                                    :v [0 "d"]
                                                    :s #{'clojure.core/symbol}}
                       (#'cfg/get-config nil) => {}))
-              (fact :focused "can take a prop path argument"
+              (fact "can take a prop path argument"
                     (cfg/load-config {:config-path "/foo/bar"}) => {}
                     (provided
                       (#'cfg/get-defaults nil) => {}
                       (#'cfg/get-config "/foo/bar") => {}))
-              (fact :focused "can take a defaults path argument"
+              (fact "can take a defaults path argument"
                     (cfg/load-config {:defaults-path "/foo/bar"}) => {}
                     (provided
                       (#'cfg/get-defaults "/foo/bar") => {}
                       (#'cfg/get-config nil) => {})))
 
-       (facts :focused "resolve-symbol"
-              (fact :focused "requires if necessary"
+       (facts "resolve-symbol"
+              (fact "requires if necessary"
                     (#'cfg/resolve-symbol 'util.dont-require-me/stahp)
                     => #'util.dont-require-me/stahp)
-              (fact :focused "fails if require fails"
+              (fact "fails if require fails"
                     (#'cfg/resolve-symbol 'srsly/not-a-var)
                     => (throws java.io.FileNotFoundException))
-              (fact :focused "fails if not found in the namespace after requiring"
+              (fact "fails if not found in the namespace after requiring"
                     (#'cfg/resolve-symbol 'util.dont-require-me/invalid)
                     => (throws AssertionError #"not \(nil"))
-              (fact :focused "must be namespaced, throws otherwise"
+              (fact "must be namespaced, throws otherwise"
                     (#'cfg/resolve-symbol 'invalid)
                     => (throws AssertionError #"namespace")))
 
-       (facts :focused "load-edn"
-              (fact :focused "returns nil if absolute file is not found"
+       (facts "load-edn"
+              (fact "returns nil if absolute file is not found"
                     (#'cfg/load-edn "/garbage") => nil)
-              (fact :focused "returns nil if relative file is not on classpath"
+              (fact "returns nil if relative file is not on classpath"
                     (#'cfg/load-edn "garbage") => nil)
-              (fact :focused "can load edn from the classpath"
+              (fact "can load edn from the classpath"
                     (#'cfg/load-edn "resources/defaults.edn")
                     => (contains {:some-key :some-default-val}))
-              (fact :integration :focused "can load edn from the disk"
+              (fact :integration "can load edn from the disk"
                     (with-tmp-edn-file {:foo :bar} #'cfg/load-edn)
                     => {:foo :bar})
-              (fact :integration :focused "can load edn with symbols"
+              (fact :integration "can load edn with symbols"
                     (with-tmp-edn-file {:sym 'sym} #'cfg/load-edn)
                     => {:sym 'sym}))
 
-       (facts :focused "get-config"
-              (fact :focused "takes in a path, finds the file at that path and should return a clojure map"
+       (facts "get-config"
+              (fact "takes in a path, finds the file at that path and should return a clojure map"
                     (#'cfg/get-config "/foobar") => ..config..
                     (provided
                       (#'cfg/load-edn "/foobar") => ..config..))
-              (fact :focused "or if path is nil, uses a default path"
+              (fact "or if path is nil, uses a default path"
                     (#'cfg/get-config nil) => ..config..
                     (provided
                       (#'cfg/load-edn cfg/fallback-config-path) => ..config..))
-              (fact :focused "if path doesn't exist on fs, it throws an ex-info"
+              (fact "if path doesn't exist on fs, it throws an ex-info"
                     (#'cfg/get-config "/should/fail") => (throws ExceptionInfo)))
 
-       (facts :focused "get-defaults"
-              (fact :focused "takes in a path, finds the file at that path and should return a clojure map"
+       (facts "get-defaults"
+              (fact "takes in a path, finds the file at that path and should return a clojure map"
                     (#'cfg/get-defaults "/foobar") => ..defaults..
                     (provided
                       (#'cfg/load-edn "/foobar") => ..defaults..))
-              (fact :focused "or if path is nil, uses a default path"
+              (fact "or if path is nil, uses a default path"
                     (#'cfg/get-defaults nil) => ..defaults..
                     (provided
                       (#'cfg/load-edn cfg/fallback-defaults-path) => ..defaults..))
-              (fact :focused "if path doesn't exist on fs, it throws an ex-info"
+              (fact "if path doesn't exist on fs, it throws an ex-info"
                     (#'cfg/get-defaults "/should/fail") => (throws ExceptionInfo))))
 
 (defrecord App []
@@ -111,20 +111,20 @@
     (map->App {})
     [:config]))
 
-(facts :focused "untangled.components.config"
-       (facts :focused "new-config"
-              (fact :focused "returns a stuartsierra component"
+(facts "untangled.components.config"
+       (facts "new-config"
+              (fact "returns a stuartsierra component"
                     (satisfies? component/Lifecycle (cfg/new-config)) => true
-                    (fact :focused ".start loads the config"
+                    (fact ".start loads the config"
                           (.start (cfg/new-config)) => (contains {:value ..cfg..})
                           (provided
                             (cfg/load-config anything) => ..cfg..))
-                    (fact :focused ".stop removes the config"
+                    (fact ".stop removes the config"
                           (-> (cfg/new-config) .start .stop :config) => nil
                           (provided
                             (cfg/load-config anything) => anything))))
 
-       (facts :focused "new-config can be injected through a system-map"
+       (facts "new-config can be injected through a system-map"
               (-> (component/system-map
                     :config (cfg/new-config)
                     :app (new-app))
