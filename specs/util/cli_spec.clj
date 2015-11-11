@@ -76,6 +76,14 @@
                )
 
 (specification "check-migration-conformity"
+               (provided "when database conforms to migration"
+                         (d/db _) => :db
+                         (c/conforms-to? _ _) => true
+                         (behavior "retuns an empty set"
+                                   (assertions
+                                     (cli/check-migration-conformity :db migrations false) => #{}
+                                     ))
+                         )
                (provided "when database does not conform to a migration"
                          (d/db _) => :db
                          (c/conforms-to? _ _) => false
