@@ -77,7 +77,7 @@
               (fact "returns nil if relative file is not on classpath"
                     (#'cfg/load-edn "garbage") => nil)
               (fact "can load edn from the classpath"
-                    (#'cfg/load-edn "resources/defaults.edn")
+                    (#'cfg/load-edn "resources/config/defaults.edn")
                     => (contains {:some-key :some-default-val}))
               (fact :integration "can load edn from the disk"
                     (with-tmp-edn-file {:foo :bar} #'cfg/load-edn)

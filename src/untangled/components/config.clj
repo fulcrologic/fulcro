@@ -41,7 +41,7 @@
 (def ^:private get-config
   (get-with-fallback fallback-config-path))
 
-(def fallback-defaults-path "defaults.edn")
+(def fallback-defaults-path "config/defaults.edn")
 (def ^:private get-defaults
   (get-with-fallback fallback-defaults-path))
 
