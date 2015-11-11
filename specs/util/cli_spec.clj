@@ -97,7 +97,7 @@
                          (cli/single-arg _) => '([:migrate s])
                          (mig/migrate _ _) => nil
                          (cd/run-core-schema _) => nil
-                       a  (behavior "applies core-schema"
+                         (behavior "applies core-schema"
                                    (assertions
                                      (cli/main-handler {} ["--migrate" "s"]) => nil
                                      )))

@@ -42,12 +42,10 @@
         argument (single-arg (select-keys opts [:list-dbs :migrate :migration-status :help]))]
     (if-not argument
       (do (fatal "Only one argument at a time is supported.") (println banner))
-      (let [_ (println "IN LET")
-            db-config (get config (keyword (second (first argument))))
+      (let [db-config (get config (keyword (second (first argument))))
             nspace (:schema db-config)
             connection (if db-config (d/connect (:url db-config)))
             migrations (m/all-migrations nspace)]
-        (println "OUT LET")
         (cond (:list-dbs opts) (info "Available databases configured for migration:\n" (mapv name (keys config)))
               (:migrate opts) (do (cd/run-core-schema connection)
                                   (m/migrate connection nspace))
