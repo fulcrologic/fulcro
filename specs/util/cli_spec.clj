@@ -4,6 +4,7 @@
             [taoensso.timbre :as timbre]
             [datomic.api :as d]
             [untangled.datomic-schema.migration :as mig]
+            [untangled.components.database :as cd]
             [io.rkn.conformity :as c]
             [untangled-spec.core :refer [specification provided behavior assertions]]))
 
@@ -92,6 +93,14 @@
                          ))
 
 (specification "main-handler"
+               (provided "when passed the --migrate option"
+                         (cli/single-arg _) => '([:migrate s])
+                         (mig/migrate _ _) => nil
+                         (cd/run-core-schema _) => nil
+                       a  (behavior "applies core-schema"
+                                   (assertions
+                                     (cli/main-handler {} ["--migrate" "s"]) => nil
+                                     )))
                (provided "when passed mutually-exclusive options"
                          (cli/fatal _) =2x=> _
                          (cli/single-arg _) =2x=> nil

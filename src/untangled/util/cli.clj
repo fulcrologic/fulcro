@@ -3,6 +3,7 @@
             [datomic.api :as d]
             [io.rkn.conformity :as c]
             [taoensso.timbre :as timbre]
+            [untangled.components.database :as cd]
             [untangled.datomic-schema.migration :as m]))
 
 (defmacro make-fn [m]
@@ -25,9 +26,9 @@
   (reduce (fn [nonconforming-migrations mig]
             (let [[migration] (keys mig)]
               (if-not (c/conforms-to? (d/db connection) migration)
-               (conj nonconforming-migrations (if verbose mig migration))
-               nonconforming-migrations
-               ))
+                (conj nonconforming-migrations (if verbose mig migration))
+                nonconforming-migrations
+                ))
             ) #{} migrations))
 
 (defn main-handler [config args]
@@ -41,12 +42,15 @@
         argument (single-arg (select-keys opts [:list-dbs :migrate :migration-status :help]))]
     (if-not argument
       (do (fatal "Only one argument at a time is supported.") (println banner))
-      (let [db-config (get config (keyword (second (first argument))))
+      (let [_ (println "IN LET")
+            db-config (get config (keyword (second (first argument))))
             nspace (:schema db-config)
             connection (if db-config (d/connect (:url db-config)))
             migrations (m/all-migrations nspace)]
+        (println "OUT LET")
         (cond (:list-dbs opts) (info "Available databases configured for migration:\n" (mapv name (keys config)))
-              (:migrate opts) (m/migrate connection nspace)
+              (:migrate opts) (do (cd/run-core-schema connection)
+                                  (m/migrate connection nspace))
               (:migration-status opts) (let [migs (check-migration-conformity connection migrations (:verbose opts))]
                                          (if (empty? migs)
                                            (timbre/info "Database conforms to all migrations!")

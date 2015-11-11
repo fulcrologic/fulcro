@@ -7,7 +7,7 @@
             untangled.database)
   (:import (untangled.database Database)))
 
-(defn- run-core-schema [conn]
+(defn run-core-schema [conn]
   (info "Applying core schema to database.")
   (doseq []
     (sc/ensure-constraints-conform conn)
