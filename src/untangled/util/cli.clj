@@ -52,7 +52,4 @@
               (:migration-status opts) (let [migs (check-migration-conformity connection migrations (:verbose opts))]
                                          (if (empty? migs)
                                            (timbre/info "Database conforms to all migrations!")
-                                           (timbre/warn "Database does NOT conform to these migrations: " migs)))
-              ))))
-  ; TODO: really exit here?
-  #_(System/exit 0))
+                                           (timbre/warn "Database does NOT conform to these migrations: " migs))))))))
