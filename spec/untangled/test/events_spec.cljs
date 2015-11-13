@@ -1,6 +1,6 @@
 (ns untangled.test.events-spec
   (:require-macros [cljs.test :refer (is deftest testing)]
-                   [smooth-spec.core :refer (specification behavior provided assertions)]
+                   [untangled-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require
     [cljs.test :refer [do-report]]
@@ -10,6 +10,7 @@
     [untangled.test.events :as evt]
     )
   )
+
 
 (specification "Event Detector for detecting events"
                (let [detector (evt/event-detector)]
