@@ -1,9 +1,9 @@
 (ns untangled.services.local-storage-io-spec
   (:require-macros [cljs.test :refer (is deftest run-tests testing)]
-                   [smooth-spec.core :refer (specification behavior provided assertions with-timeline async tick)])
+                   [untangled-spec.core :refer (specification behavior provided assertions with-timeline async tick)])
   (:require [cljs.test :refer [do-report]]
-            smooth-spec.stub
-            [smooth-spec.async]
+            untangled-spec.stub
+            [untangled-spec.async]
             [untangled.services.asyncio :as aio]
             [untangled.services.local-storage :as ls]
             [untangled.services.async-report :as ar]

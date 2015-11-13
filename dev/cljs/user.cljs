@@ -5,9 +5,9 @@
             untangled.i18n-spec
             untangled.services.local-storage-io-spec
             untangled.test.dom-spec
-            smooth-spec.async
+            untangled-spec.async
             untangled.test.events-spec
-            smooth-spec.stub
+            untangled-spec.stub
             [cljs.test :as test :include-macros true :refer [report]]))
 
 
