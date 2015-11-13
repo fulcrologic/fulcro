@@ -36,35 +36,35 @@
             (untangled.util.logging/info anything anything anything) => nil
             )
 
-(facts :focused "DatabaseComponent"
-       (facts :focused "implements Database"
+(facts "DatabaseComponent"
+       (facts "implements Database"
               (satisfies? untangled.database/Database
                           (db/build-database "a-db-name")))
-       (fact :focused "implements component/Lifecycle"
+       (fact "implements component/Lifecycle"
              (satisfies? component/Lifecycle
                          (db/build-database "a-db-name"))
              => true
-             (fact :focused ".start loads the component"
+             (fact ".start loads the component"
                    (-> (start-system) :db keys)
                    => (contains #{:config})
                    (provided
                      (datomic.api/create-database default-db-url) => anything
                      (datomic.api/connect default-db-url) => anything))
-             (fact :focused ".start can migrate if configured to"
+             (fact ".start can migrate if configured to"
                    (start-system migrate-config) => truthy
                    (provided
                      (datomic.api/create-database default-db-url) => anything
                      (datomic.api/connect default-db-url) => anything
                      (#'db/run-core-schema anything) => anything
                      (#'db/run-migrations anything anything anything) => anything))
-             (fact :focused ".start runs seed-function if it needs to"
+             (fact ".start runs seed-function if it needs to"
                    (-> (start-system seed-config) :db :seed-result)
                    => seed-result
                    (provided
                      (datomic.api/create-database default-db-url) => anything
                      (datomic.api/connect default-db-url) => anything
                      ))
-             (fact :focused ".stop stops the component"
+             (fact ".stop stops the component"
                    (-> (start-system) .stop :db :connection) => nil
                    (provided
                      (datomic.api/create-database anything) => anything

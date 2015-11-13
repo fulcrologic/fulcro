@@ -3,7 +3,6 @@
     [clojure.set :as s]
     [datomic.api :as d]
     )
-  (:use midje.sweet)
   )
 
 ; # Custom Validation of Datomic Transactions
