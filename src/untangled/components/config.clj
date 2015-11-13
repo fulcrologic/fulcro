@@ -34,7 +34,7 @@
   (fn [path]
     (or (-> path (or fallback) load-edn)
         (throw (ex-info "please provide a valid file on your file-system"
-                        {:path path
+                        {:path     path
                          :fallback fallback})))))
 
 (def fallback-config-path "/usr/local/etc/config.edn")
@@ -46,7 +46,7 @@
   (get-with-fallback fallback-defaults-path))
 
 (defn- resolve-symbol [sym]
-  {:pre [(namespace sym)]
+  {:pre  [(namespace sym)]
    :post [(not (nil? %))]}
   (or (resolve sym)
       (do (-> sym namespace symbol require)
@@ -79,7 +79,18 @@
   (stop [this]
     (assoc this :value nil)))
 
-(defn new-config [& [config-path defaults-path sys-prop]]
+(defn new-config
+  "Create a new configuration component. Said component will load the application defaults from defaults.edn (using
+   the classpath), the look for an override file in EITHER /usr/local/etc/config.edn or the file specified via
+   the `config` system property and merge anything it finds there over
+   top of the defaults.
+
+   This function can override a number of the above defaults with the parameters:
+   - `config-path`: The location of the disk-based configuration file (instead of /usr/local/etc/config.edn).
+   - `defaults-path`: To override the built-in app config `config/defaults.edn`. This can be a relative path (classpath-based loading)
+   - `sys-prop`: Can be used to override the system property name that users can use to specify an alternate config file. Defaults to `config`
+   "
+  [& [config-path defaults-path sys-prop]]
   (map->Config {:defaults-path defaults-path
                 :config-path   config-path
                 :sys-prop      sys-prop}))
