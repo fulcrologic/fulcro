@@ -1,4 +1,4 @@
-(defproject untangled-datomic-helpers "0.1.0-SNAPSHOT"
+(defproject untangled-datomic-helpers "0.1.1"
   :description "Support for Datomic, including extensions to schema validation and tracked Datomic schema migrations."
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0"]
@@ -11,11 +11,15 @@
                  [com.stuartsierra/component "0.2.3"]
                  [com.taoensso/timbre "3.4.0"]
                  [org.clojure/java.classpath "0.2.2"]
+                 [untangled-spec "0.1.1"]
                  [crypto-password "0.1.3"]
+                 [com.rpl/specter "0.8.0"]
                  ]
 
   :source-paths ["src"]
   :test-paths ["specs"]
+
+  :test-refresh {:report  untangled-spec.report/untangled-report}
 
   :profiles
   {
