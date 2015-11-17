@@ -8,15 +8,20 @@
 (def default-db-url "db1-url")
 (def default-schema "schema.default")
 (defn make-config [m]
-  {:dbs {default-db-name (merge {:url default-db-url
-                                 :schema default-schema}
-                                m)}})
+  {:datomic {:dbs {default-db-name (merge {:url    default-db-url
+                                  :schema default-schema}
+                                 m)}}})
 
 (def default-config
   (make-config {:auto-drop true}))
 
-(def migrate-config
+(def migrate-specfic-config
   (make-config {:auto-migrate true}))
+
+(def migrate-all-config
+  (let [config-sans-migrate (update-in migrate-specfic-config [:datomic :dbs default-db-name] dissoc :auto-migrate)]
+    (assoc-in config-sans-migrate
+              [:datomic :auto-migrate] true)))
 
 (def seed-result :a-tree!)
 (def seed-config
@@ -50,8 +55,15 @@
                    (provided
                      (datomic.api/create-database default-db-url) => anything
                      (datomic.api/connect default-db-url) => anything))
-             (fact ".start can migrate if configured to"
-                   (start-system migrate-config) => truthy
+             (fact ".start can auto-migrate if configured for all databases"
+                   (start-system migrate-all-config) => truthy
+                   (provided
+                     (datomic.api/create-database default-db-url) => anything
+                     (datomic.api/connect default-db-url) => anything
+                     (#'db/run-core-schema anything) => anything
+                     (#'db/run-migrations anything anything anything) => anything))
+             (fact ".start can auto-migrate if configured for a specific database"
+                   (start-system migrate-specfic-config) => truthy
                    (provided
                      (datomic.api/create-database default-db-url) => anything
                      (datomic.api/connect default-db-url) => anything
