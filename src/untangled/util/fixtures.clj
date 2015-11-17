@@ -18,11 +18,11 @@
         uri "datomic:mem://db-fixture"
         db (untangled.components.database/build-database db-key)]
     (d/delete-database uri)
-    (component/start (assoc db :config {:value {:dbs {db-key
-                                                      (cond-> {:url uri :auto-drop true}
-                                                              migration-ns (assoc :auto-migrate true :schema migration-ns)
-                                                              seed-fn (assoc :seed-function seed-fn))
-                                                      }}}))
+    (component/start (assoc db :config {:value {:datomic {:dbs {db-key
+                                                       (cond-> {:url uri :auto-drop true}
+                                                               migration-ns (assoc :auto-migrate true :schema migration-ns)
+                                                               seed-fn (assoc :seed-function seed-fn))
+                                                       }}}}))
     ))
 
 (defmacro with-db-fixture
