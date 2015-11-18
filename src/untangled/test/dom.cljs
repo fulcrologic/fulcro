@@ -32,7 +32,7 @@
 (defn render-as-dom
   "Creates a DOM element from a React component."
   [component]
-  (.getDOMNode (js/React.addons.TestUtils.renderIntoDocument component)))
+  (js/ReactDOM.findDOMNode (js/React.addons.TestUtils.renderIntoDocument component)))
 
 
 (defn node-contains-text?
