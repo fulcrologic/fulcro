@@ -21,9 +21,9 @@
   Database
   (get-connection [this] (:connection this))
   (get-db-config [this]
-    (let [config (-> this :config :value)
+    (let [config (-> this :config :value :datomic)
           db-config (-> config :dbs db-name)]
-      (assert (:dbs config)
+      (assert (-> config :dbs)
               "Missing :dbs of app config.")
       (assert (:url db-config)
               (str db-name " has no URL in dbs of app config."))
