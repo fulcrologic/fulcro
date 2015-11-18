@@ -16,14 +16,13 @@
   [db-key & {:keys [migration-ns seed-fn]}]
   (let [
         uri "datomic:mem://db-fixture"
-        db (untangled.components.database/build-database
-             db-key {:dbs {db-key
-                           (cond-> {:url uri :auto-drop true }
-                             migration-ns (assoc :auto-migrate true :schema migration-ns)
-                             seed-fn      (assoc :seed-on-start seed-fn))
-                            }})]
+        db (untangled.components.database/build-database db-key)]
     (d/delete-database uri)
-    (component/start db)
+    (component/start (assoc db :config {:value {:dbs {db-key
+                                                      (cond-> {:url uri :auto-drop true}
+                                                              migration-ns (assoc :auto-migrate true :schema migration-ns)
+                                                              seed-fn (assoc :seed-function seed-fn))
+                                                      }}}))
     ))
 
 (defmacro with-db-fixture
@@ -33,7 +32,7 @@
 
   Returns the result of the form.
   "
-  [varname form & {:keys [migrations seed-fn] :or { :migrations nil :seed-fn nil } }]
+  [varname form & {:keys [migrations seed-fn] :or {:migrations nil :seed-fn nil}}]
   `(let [~varname (db-fixture :mockdb :migration-ns ~migrations :seed-fn ~seed-fn)]
      (try ~form (finally (component/stop ~varname))))
   )

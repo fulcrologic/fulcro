@@ -4,6 +4,11 @@
     )
   )
 
+(defn info
+  "See [fatal]"
+  [& msgs]
+  (t/info msgs))
+
 (defn fatal
   "
   A mock-able wrapper for the timbre logging library. This helps us verify that certain critical logging messages
