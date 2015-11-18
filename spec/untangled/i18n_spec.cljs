@@ -1,6 +1,6 @@
 (ns untangled.i18n-spec
   (:require-macros [cljs.test :refer (is deftest testing are)]
-                   [smooth-spec.core :refer (specification behavior provided assertions)]
+                   [untangled-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require [untangled.i18n :refer [current-locale]]
             [untangled.i18n :refer-macros [tr trf trc trlambda]]

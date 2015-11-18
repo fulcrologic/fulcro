@@ -1,5 +1,5 @@
 (ns untangled.test.dom-spec
-  (:require-macros [smooth-spec.core :refer (specification behavior provided assertions)]
+  (:require-macros [untangled-spec.core :refer (specification behavior provided assertions)]
                    [cljs.test :refer (is deftest run-tests testing)]
                    [untangled.test.suite :refer [test-suite]])
   (:require
