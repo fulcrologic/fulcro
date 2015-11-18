@@ -8,11 +8,11 @@
                  [org.clojure/clojurescript "1.7.122"]
                  [untangled-spec "0.1.1"]
                  [differ "0.2.1"]
-                 [org.omcljs/om "1.0.0-alpha19" :exclusions [cljsjs/react]]
+                 [org.omcljs/om "1.0.0-alpha22" :exclusions [cljsjs/react]]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]
-                 [cljsjs/react-with-addons "0.14.0-1" :scope "test"]]
+                 [cljsjs/react-with-addons "0.14.0-1"]]
 
   :source-paths ["src" "spec"]
 
