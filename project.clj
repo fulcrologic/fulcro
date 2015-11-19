@@ -12,7 +12,7 @@
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]
-                 [cljsjs/react-with-addons "0.14.0-1"]]
+                 [cljsjs/react-with-addons "0.14.0-1" :scope "test"]]
 
   :source-paths ["src" "spec"]
 

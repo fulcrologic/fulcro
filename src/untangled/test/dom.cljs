@@ -4,6 +4,10 @@
             [goog.dom :as gd]
             goog.dom.classlist))
 
+(defn- report-addons-dependency-error [e]
+  (if (>= (.indexOf (.-message e) "TestUtils") 0)
+    (println (str "Error: Untangled DOM tests require React.addons as a dependency in your project."))
+    e))
 
 (defn get-attribute
   "
@@ -32,7 +36,8 @@
 (defn render-as-dom
   "Creates a DOM element from a React component."
   [component]
-  (js/ReactDOM.findDOMNode (js/React.addons.TestUtils.renderIntoDocument component)))
+  (js/ReactDOM.findDOMNode (try (js/React.addons.TestUtils.renderIntoDocument component)
+                                (catch js/TypeError e (report-addons-dependency-error e)))))
 
 
 (defn node-contains-text?
