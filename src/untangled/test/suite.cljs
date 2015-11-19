@@ -135,10 +135,11 @@
                          (dom/div nil
                                   (if (:message test-result-data) (dom/h3 nil (:message test-result-data)))
                                   (dom/table nil
-                                             (dom/tr nil (dom/td #js {:className "test-result-title"} "Actual")
-                                                     (dom/td #js {:className "test-result"} (dom/code nil (:actual test-result-data))))
-                                             (dom/tr nil (dom/td #js {:className "test-result-title"} "Expected")
-                                                     (dom/td #js {:className "test-result"} (dom/code nil (:expected test-result-data)))))
+                                             (dom/tbody
+                                               (dom/tr nil (dom/td #js {:className "test-result-title"} "Actual")
+                                                       (dom/td #js {:className "test-result"} (dom/code nil (:actual test-result-data))))
+                                               (dom/tr nil (dom/td #js {:className "test-result-title"} "Expected")
+                                                       (dom/td #js {:className "test-result"} (dom/code nil (:expected test-result-data))))))
                                   )
                          ))
                ))
@@ -184,8 +185,6 @@
                                    (dom/h2 #js {:className (itemclass (:status tests-by-namespace))}
                                            (if folded? \u25BA \u25BC)
                                            " Testing " (:name tests-by-namespace)))
-
-                            (println (:name tests-by-namespace) " : " folded?)
                             (dom/ul #js {:className (if folded? "hidden" "test-list")}
                                     (mapv (comp test-item #(assoc % :report/filter filter))
                                           (:test-items tests-by-namespace)))
