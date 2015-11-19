@@ -135,15 +135,16 @@
                          (dom/div nil
                                   (if (:message test-result-data) (dom/h3 nil (:message test-result-data)))
                                   (dom/table nil
-                                             (dom/tr nil (dom/td #js {:className "test-result-title"} "Actual")
-                                                     (dom/td #js {:className "test-result"} (dom/code nil (:actual test-result-data))))
-                                             (dom/tr nil (dom/td #js {:className "test-result-title"} "Expected")
-                                                     (dom/td #js {:className "test-result"} (dom/code nil (:expected test-result-data)))))
+                                             (dom/tbody
+                                               (dom/tr nil (dom/td #js {:className "test-result-title"} "Actual")
+                                                       (dom/td #js {:className "test-result"} (dom/code nil (:actual test-result-data))))
+                                               (dom/tr nil (dom/td #js {:className "test-result-title"} "Expected")
+                                                       (dom/td #js {:className "test-result"} (dom/code nil (:expected test-result-data))))))
                                   )
                          ))
                ))
 
-(def test-result (om/factory TestResult {:key-fn :id}))
+(def test-result (om/factory TestResult {:keyfn :id}))
 
 (declare test-item)
 
@@ -166,7 +167,7 @@
                                   )
                          ))))
 
-(def test-item (om/factory TestItem {:key-fn :id}))
+(def test-item (om/factory TestItem {:keyfn :id}))
 
 (defui TestNamespace
        Object
@@ -179,18 +180,18 @@
            (dom/li #js {:className "test-item"}
                    (dom/div #js {:className "test-namespace"}
                             (dom/a #js {:href "#"
-                                        :style #js {:text-decoration "none"} ;; TODO: refactor to css
+                                        :style #js {:textDecoration "none"} ;; TODO: refactor to css
                                         :onClick   toggle-folded!}
                                    (dom/h2 #js {:className (itemclass (:status tests-by-namespace))}
                                            (if folded? \u25BA \u25BC)
-                                           "Testing " (:name tests-by-namespace)))
+                                           " Testing " (:name tests-by-namespace)))
                             (dom/ul #js {:className (if folded? "hidden" "test-list")}
                                     (mapv (comp test-item #(assoc % :report/filter filter))
                                           (:test-items tests-by-namespace)))
                             )
                    ))))
 
-(def test-namespace (om/factory TestNamespace {:key-fn :name}))
+(def test-namespace (om/factory TestNamespace {:keyfn :name}))
 
 (defui TestReport
        static om/IQuery
@@ -201,7 +202,7 @@
                      test-report-data (-> props :top)
                      current-filter (-> props :report/filter)
                      folded-namespaces (-> props :folded/namespaces)
-                     make-toggle-fn (fn [n] #(om/transact! this `[(~'toggle-folded ~{:name n})]))]
+                     make-toggle-fn (fn [n] #(om/transact! this `[(~'toggle-folded {:ns-name ~n})]))]
                  (dom/section #js {:className "test-report"}
                               (dom/div #js {:name "filters" :className "filter-controls"}
                                        (dom/label #js {:htmlFor "filters"} "Filter: ")
@@ -343,9 +344,9 @@
 (defmethod om-write 'filter-all [{:keys [state]} _ _] (swap! state assoc :report/filter :all))
 (defmethod om-write 'filter-failed [{:keys [state]} _ _] (swap! state assoc :report/filter :failed))
 (defmethod om-write 'filter-manual [{:keys [state]} _ _] (swap! state assoc :report/filter :manual))
-(defmethod om-write 'toggle-folded [{:keys [state]} _ {new-ns :name}]
+(defmethod om-write 'toggle-folded [{:keys [state]} _ {:keys [ns-name]}]
   {:action #(swap! state update :folded/namespaces (fn [nss]
-                                                     ((if (nss new-ns) disj conj) nss new-ns)))
+                                                     ((if (nss ns-name) disj conj) nss ns-name)))
    :value [:folded/namespaces]}
   )
 
