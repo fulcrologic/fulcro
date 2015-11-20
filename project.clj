@@ -1,4 +1,4 @@
-(defproject untangled "0.3.2"
+(defproject untangled "0.4.0"
   :description "An opinionated data model for use with (and following) the sensibilities of Quiescent."
   :url ""
   :license {:name "NAVIS"
@@ -9,8 +9,7 @@
                  [untangled-spec "0.1.1"]
                  [differ "0.2.1"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [org.omcljs/om "1.0.0-alpha22" :scope "test"]
-                 [untangled-spec "0.1.2-SNAPSHOT" :scope "test"]
+                 [untangled-spec "0.2.0" :scope "test"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]]
 
   :source-paths ["src" "spec"]
