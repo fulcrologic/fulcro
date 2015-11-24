@@ -26,24 +26,16 @@
       (-> file-path slurp read-string))
     (some-> file-path io/resource .openStream slurp read-string)))
 
-(defn- get-with-fallback
-  "Builds a fn with a fallback in case the fn is called with a nil argument.
-   Calls load-edn on the path or the fallback,
-   and throws an ex-info instead of returning nil"
-  [fallback]
-  (fn [path]
-    (or (-> path (or fallback) load-edn)
-        (throw (ex-info "please provide a valid file on your file-system"
-                        {:path     path
-                         :fallback fallback})))))
+(defn- open-config-file
+  "Calls load-edn on `file-path`,
+   and throws an ex-info if that failed."
+  [file-path]
+  (or (some-> file-path load-edn)
+      (throw (ex-info "please provide a valid file on your file-system"
+                      {:file-path file-path}))))
 
-(def fallback-config-path "/usr/local/etc/config.edn")
-(def ^:private get-config
-  (get-with-fallback fallback-config-path))
-
-(def fallback-defaults-path "config/defaults.edn")
-(def ^:private get-defaults
-  (get-with-fallback fallback-defaults-path))
+(def ^:private get-defaults open-config-file)
+(def ^:private get-config   open-config-file)
 
 (defn- resolve-symbol [sym]
   {:pre  [(namespace sym)]
@@ -56,22 +48,18 @@
   "Entry point for config loading, pass it a map with k-v pairs indicating where
    it should look for configuration in case things are not found.
    Eg:
-   - sys-prop indicates the name of the system property that will contain the path to the config file, eg: '-Dconfig=...'
-   defaults to 'config'
-   - config-path is the default location of the config file in case there was no system property passed in,
-   defaults to `fallback-config-path`
-   - defaults-path is the location of the defaults config file, it is overriden by the config file,
-   defaults to `fallback-defaults-path`
+   - config-path is the location of the config file in case there was no system property
+   - defaults-path is the location of the defaults config file, it is overriden by the config file
    "
   ([] (load-config {}))
-  ([{:keys [sys-prop config-path defaults-path]}]
-   (let [cfg-file (get-system-prop (or sys-prop "config"))
-         defaults (get-defaults defaults-path)
-         config (get-config (or cfg-file config-path))]
+  ([{:keys [config-path defaults-path]}]
+   {:pre [(if config-path (.startsWith config-path "/") true)]}
+   (let [defaults (get-defaults (or defaults-path              "config/defaults.edn"))
+         config   (get-config   (or (get-system-prop "config") config-path))]
      (->> (deep-merge defaults config)
           (transform (walker symbol?) resolve-symbol)))))
 
-(defrecord Config [value defaults-path config-path sys-prop]
+(defrecord Config [value defaults-path config-path]
   component/Lifecycle
   (start [this]
     (let [config (load-config this)]
@@ -80,17 +68,16 @@
     (assoc this :value nil)))
 
 (defn new-config
-  "Create a new configuration component. Said component will load the application defaults from defaults.edn (using
-   the classpath), the look for an override file in EITHER /usr/local/etc/config.edn or the file specified via
-   the `config` system property and merge anything it finds there over
-   top of the defaults.
+  "Create a new configuration component. It will load the application defaults from config/defaults.edn
+   (using the classpath), then look for an override file in either:
+   1) the file specified via the `config` system property
+   2) the file at `config-path`
+   and merge anything it finds there over top of the defaults.
 
    This function can override a number of the above defaults with the parameters:
-   - `config-path`: The location of the disk-based configuration file (instead of /usr/local/etc/config.edn).
+   - `config-path`: The location of the disk-based configuration file.
    - `defaults-path`: To override the built-in app config `config/defaults.edn`. This can be a relative path (classpath-based loading)
-   - `sys-prop`: Can be used to override the system property name that users can use to specify an alternate config file. Defaults to `config`
    "
-  [& [config-path defaults-path sys-prop]]
+  [config-path & [defaults-path]]
   (map->Config {:defaults-path defaults-path
-                :config-path   config-path
-                :sys-prop      sys-prop}))
+                :config-path   config-path}))
