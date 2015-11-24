@@ -70,12 +70,7 @@
                       (#'cfg/get-config "/foo/bar") => {}))
               (fact "config-path must be an absolute pathj"
                     (cfg/load-config {:config-path "not/abs/path"})
-                    => (throws AssertionError #"startsWith.*\/"))
-              (fact "passes defaults-path to get-defaults"
-                    (cfg/load-config {:defaults-path "/foo/bar"}) => {}
-                    (provided
-                      (#'cfg/get-defaults "/foo/bar") => {}
-                      (#'cfg/get-config nil) => {})))
+                    => (throws AssertionError #"startsWith.*\/")))
 
        (facts "resolve-symbol"
               (fact "requires if necessary"

@@ -49,17 +49,16 @@
    it should look for configuration in case things are not found.
    Eg:
    - config-path is the location of the config file in case there was no system property
-   - defaults-path is the location of the defaults config file, it is overriden by the config file
    "
   ([] (load-config {}))
-  ([{:keys [config-path defaults-path]}]
+  ([{:keys [config-path]}]
    {:pre [(if config-path (.startsWith config-path "/") true)]}
-   (let [defaults (get-defaults (or defaults-path              "config/defaults.edn"))
+   (let [defaults (get-defaults "config/defaults.edn")
          config   (get-config   (or (get-system-prop "config") config-path))]
      (->> (deep-merge defaults config)
           (transform (walker symbol?) resolve-symbol)))))
 
-(defrecord Config [value defaults-path config-path]
+(defrecord Config [value config-path]
   component/Lifecycle
   (start [this]
     (let [config (load-config this)]
@@ -76,8 +75,6 @@
 
    This function can override a number of the above defaults with the parameters:
    - `config-path`: The location of the disk-based configuration file.
-   - `defaults-path`: To override the built-in app config `config/defaults.edn`. This can be a relative path (classpath-based loading)
    "
-  [config-path & [defaults-path]]
-  (map->Config {:defaults-path defaults-path
-                :config-path   config-path}))
+  [config-path]
+  (map->Config {:config-path config-path}))
