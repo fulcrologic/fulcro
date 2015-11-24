@@ -16,6 +16,11 @@
                  [com.rpl/specter "0.8.0"]
                  ]
 
+  :repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-release"
+                              :sign-releases false}
+                  "snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"
+                               :sign-releases false}]]
+
   :source-paths ["src"]
   :test-paths ["specs"]
 
