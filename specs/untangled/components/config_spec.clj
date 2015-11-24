@@ -19,30 +19,36 @@
 (def defaults-path "config/defaults.edn")
 
 (facts "untangled.config"
+       (fact "defaults file is always used to provide missing values"
+             (cfg/load-config {}) => {:a :b
+                                      :c :d}
+             (provided
+               (#'cfg/get-defaults defaults-path) => {:a :b}
+               (#'cfg/get-config nil) => {:c :d}))
+       (fact "looks for system property -Dconfig"
+             (cfg/load-config {}) => {:k :v}
+             (provided
+               (#'cfg/get-defaults defaults-path) => {}
+               (#'cfg/get-system-prop "config") => ..file..
+               (#'cfg/get-config ..file..) => {:k :v}))
+       (fact "config file overrides defaults"
+             (cfg/load-config {}) => {:a {:b {:c :f
+                                              :u :y}
+                                          :e 13}}
+             (provided
+               (#'cfg/get-defaults defaults-path) => {:a {:b {:c :d}
+                                                          :e {:z :v}}}
+               (#'cfg/get-config nil) => {:a {:b {:c :f
+                                                  :u :y}
+                                              :e 13}}))
+
        (facts "load-config"
-              (fact "recursively merges config into defaults"
-                    (cfg/load-config {}) => {:a {:b {:c :f
-                                                     :u :y}
-                                                 :e 13}}
-                    (provided
-                      (#'cfg/get-defaults defaults-path) => {:a {:b {:c :d}
-                                                                 :e {:z :v}}}
-                      (#'cfg/get-config nil) => {:a {:b {:c :f
-                                                         :u :y}
-                                                     :e 13}}))
               (fact "crashes if no default is found"
                     (cfg/load-config {}) => (throws ExceptionInfo))
               (fact "crashes if no config is found"
                     (cfg/load-config {}) => (throws ExceptionInfo)
                     (provided
                       (#'cfg/get-defaults defaults-path) => {}))
-              (fact "looks for system property -Dconfig"
-                    (cfg/load-config {}) => {:k :v}
-                    (provided
-                      (#'cfg/get-defaults defaults-path) => {}
-                      (#'cfg/get-system-prop "config") => ..file..
-                      (#'cfg/get-config ..file..) => {:k :v}))
-              ;(get-config (or (get-system-prop "config") config-path))
               (fact "falls back to `config-path`"
                     (cfg/load-config {:config-path "/some/path"}) => {:k :v}
                     (provided
