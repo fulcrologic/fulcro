@@ -12,10 +12,13 @@
                  [untangled-spec "0.2.0" :scope "test"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]]
 
-  :repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-release"
-                              :sign-releases false}
-                  "snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"
-                               :sign-releases false}]]
+  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
+                 ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]]
+
+  :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-release"
+                                     :sign-releases false}]
+                        ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"
+                                      :sign-releases false}]]
 
   :source-paths ["src" "spec"]
 
