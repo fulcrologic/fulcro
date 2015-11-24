@@ -16,38 +16,61 @@
         res (f abs-path)]
     (.delete tmp-file) res))
 
+(def defaults-path "config/defaults.edn")
+
 (facts "untangled.config"
+       (fact "defaults file is always used to provide missing values"
+             (cfg/load-config {}) => {:a :b
+                                      :c :d}
+             (provided
+               (#'cfg/get-defaults defaults-path) => {:a :b}
+               (#'cfg/get-config nil) => {:c :d}))
+       (fact "looks for system property -Dconfig"
+             (cfg/load-config {}) => {:k :v}
+             (provided
+               (#'cfg/get-defaults defaults-path) => {}
+               (#'cfg/get-system-prop "config") => ..file..
+               (#'cfg/get-config ..file..) => {:k :v}))
+       (fact "config file overrides defaults"
+             (cfg/load-config {}) => {:a {:b {:c :f
+                                              :u :y}
+                                          :e 13}}
+             (provided
+               (#'cfg/get-defaults defaults-path) => {:a {:b {:c :d}
+                                                          :e {:z :v}}}
+               (#'cfg/get-config nil) => {:a {:b {:c :f
+                                                  :u :y}
+                                              :e 13}}))
+
        (facts "load-config"
-              (fact "recursively merges config into defaults"
-                    (cfg/load-config {}) => {:a {:b {:c :f
-                                                     :u :y}
-                                                 :e 13}}
-                    (provided
-                      (#'cfg/get-defaults nil) => {:a {:b {:c :d}
-                                                       :e {:z :v}}}
-                      (#'cfg/get-config nil) => {:a {:b {:c :f
-                                                         :u :y}
-                                                     :e 13}}))
               (fact "crashes if no default is found"
                     (cfg/load-config {}) => (throws ExceptionInfo))
               (fact "crashes if no config is found"
                     (cfg/load-config {}) => (throws ExceptionInfo)
                     (provided
-                      (#'cfg/get-defaults nil) => {}))
+                      (#'cfg/get-defaults defaults-path) => {}))
+              (fact "falls back to `config-path`"
+                    (cfg/load-config {:config-path "/some/path"}) => {:k :v}
+                    (provided
+                      (#'cfg/get-defaults defaults-path) => {}
+                      (#'cfg/get-config "/some/path") => {:k :v}))
               (fact "recursively resolves symbols using resolve-symbol"
                     (cfg/load-config {}) => {:a {:b {:c #'clojure.core/symbol}}
                                              :v [0 "d"]
                                              :s #{#'clojure.core/symbol}}
                     (provided
-                      (#'cfg/get-defaults nil) => {:a {:b {:c 'clojure.core/symbol}}
-                                                   :v [0 "d"]
-                                                   :s #{'clojure.core/symbol}}
+                      (#'cfg/get-defaults defaults-path) => {:a {:b {:c 'clojure.core/symbol}}
+                                                             :v [0 "d"]
+                                                             :s #{'clojure.core/symbol}}
                       (#'cfg/get-config nil) => {}))
-              (fact "passes config path to get-config"
+              (fact "passes config-path to get-config"
                     (cfg/load-config {:config-path "/foo/bar"}) => {}
                     (provided
-                      (#'cfg/get-defaults nil) => {}
+                      (#'cfg/get-defaults defaults-path) => {}
                       (#'cfg/get-config "/foo/bar") => {}))
+              (fact "config-path must be an absolute pathj"
+                    (cfg/load-config {:config-path "not/abs/path"})
+                    => (throws AssertionError #"startsWith.*\/"))
               (fact "passes defaults-path to get-defaults"
                     (cfg/load-config {:defaults-path "/foo/bar"}) => {}
                     (provided
@@ -86,29 +109,17 @@
                     (with-tmp-edn-file {:sym 'sym} #'cfg/load-edn)
                     => {:sym 'sym}))
 
-       (facts "get-config"
+       (facts "open-config-file"
               (fact "takes in a path, finds the file at that path and should return a clojure map"
-                    (#'cfg/get-config "/foobar") => ..config..
+                    (#'cfg/open-config-file "/foobar") => ..config..
                     (provided
                       (#'cfg/load-edn "/foobar") => ..config..))
               (fact "or if path is nil, uses a default path"
-                    (#'cfg/get-config nil) => ..config..
-                    (provided
-                      (#'cfg/load-edn cfg/fallback-config-path) => ..config..))
+                    (#'cfg/open-config-file nil)
+                    => (throws ExceptionInfo #"provide a valid file"))
               (fact "if path doesn't exist on fs, it throws an ex-info"
-                    (#'cfg/get-config "/should/fail") => (throws ExceptionInfo #"please provide a valid file on your file-system")))
-
-       (facts "get-defaults"
-              (fact "takes in a path, finds the file at that path and should return a clojure map"
-                    (#'cfg/get-defaults "/foobar") => ..defaults..
-                    (provided
-                      (#'cfg/load-edn "/foobar") => ..defaults..))
-              (fact "or if path is nil, uses a default path"
-                    (#'cfg/get-defaults nil) => ..defaults..
-                    (provided
-                      (#'cfg/load-edn cfg/fallback-defaults-path) => ..defaults..))
-              (fact "if path doesn't exist on fs, it throws an ex-info"
-                    (#'cfg/get-defaults "/should/fail") => (throws ExceptionInfo #"please provide a valid file on your file-system"))))
+                    (#'cfg/get-config "/should/fail")
+                    => (throws ExceptionInfo #"provide a valid file"))))
 
 (defrecord App []
   component/Lifecycle
@@ -123,19 +134,19 @@
 (facts "untangled.components.config"
        (facts "new-config"
               (fact "returns a stuartsierra component"
-                    (satisfies? component/Lifecycle (cfg/new-config)) => true
+                    (satisfies? component/Lifecycle (cfg/new-config "w/e")) => true
                     (fact ".start loads the config"
-                          (.start (cfg/new-config)) => (contains {:value ..cfg..})
+                          (.start (cfg/new-config "mocked-out")) => (contains {:value ..cfg..})
                           (provided
                             (cfg/load-config anything) => ..cfg..))
                     (fact ".stop removes the config"
-                          (-> (cfg/new-config) .start .stop :config) => nil
+                          (-> (cfg/new-config "mocked-out") .start .stop :config) => nil
                           (provided
                             (cfg/load-config anything) => anything))))
 
        (facts "new-config can be injected through a system-map"
               (-> (component/system-map
-                    :config (cfg/new-config)
+                    :config (cfg/new-config "mocked-out")
                     :app (new-app))
                   .start :app :config :value) => {:foo :bar}
               (provided
