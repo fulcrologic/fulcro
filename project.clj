@@ -1,4 +1,4 @@
-(defproject untangled-datomic-helpers "0.2.1"
+(defproject untangled-datomic-helpers "0.2.2"
   :description "Support for Datomic, including extensions to schema validation and tracked Datomic schema migrations."
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0"]
