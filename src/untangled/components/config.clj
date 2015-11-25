@@ -6,6 +6,7 @@
   (:import (java.io File)))
 
 (defn- get-system-prop [prop-name]
+  {:post [(if % (.startsWith % "/") true)]}
   (System/getProperty prop-name))
 
 (defn- deep-merge [& xs]
@@ -52,7 +53,6 @@
    "
   ([] (load-config {}))
   ([{:keys [config-path]}]
-   {:pre [(if config-path (.startsWith config-path "/") true)]}
    (let [defaults (get-defaults "config/defaults.edn")
          config   (get-config   (or (get-system-prop "config") config-path))]
      (->> (deep-merge defaults config)

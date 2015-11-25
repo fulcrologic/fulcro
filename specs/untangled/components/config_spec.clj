@@ -19,18 +19,22 @@
 (def defaults-path "config/defaults.edn")
 
 (facts "untangled.config"
-       (fact "defaults file is always used to provide missing values"
-             (cfg/load-config {}) => {:a :b
-                                      :c :d}
-             (provided
-               (#'cfg/get-defaults defaults-path) => {:a :b}
-               (#'cfg/get-config nil) => {:c :d}))
        (fact "looks for system property -Dconfig"
              (cfg/load-config {}) => {:k :v}
              (provided
                (#'cfg/get-defaults defaults-path) => {}
                (#'cfg/get-system-prop "config") => ..file..
                (#'cfg/get-config ..file..) => {:k :v}))
+       (fact "does not fail when returning nil"
+             (#'cfg/get-system-prop "config") => nil)
+       (fact "fails if the -Dconfig file is not an absolute path"
+             (#'cfg/get-system-prop "user.name") => (throws AssertionError))
+       (fact "defaults file is always used to provide missing values"
+             (cfg/load-config {}) => {:a :b
+                                      :c :d}
+             (provided
+               (#'cfg/get-defaults defaults-path) => {:a :b}
+               (#'cfg/get-config nil) => {:c :d}))
        (fact "config file overrides defaults"
              (cfg/load-config {}) => {:a {:b {:c :f
                                               :u :y}
@@ -68,9 +72,9 @@
                     (provided
                       (#'cfg/get-defaults defaults-path) => {}
                       (#'cfg/get-config "/foo/bar") => {}))
-              (fact "config-path must be an absolute pathj"
+              (fact "config-path can be a relative path"
                     (cfg/load-config {:config-path "not/abs/path"})
-                    => (throws AssertionError #"startsWith.*\/")))
+                    => (throws ExceptionInfo #"provide a valid file")))
 
        (facts "resolve-symbol"
               (fact "requires if necessary"
