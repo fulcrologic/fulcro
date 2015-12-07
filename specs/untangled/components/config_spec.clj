@@ -149,4 +149,10 @@
                     :app (new-app))
                   .start :app :config :value) => {:foo :bar}
               (provided
-                (cfg/load-config anything) => {:foo :bar})))
+                (cfg/load-config anything) => {:foo :bar}))
+
+       (facts "raw-config creates a config with the passed value"
+              (-> (component/system-map
+                  :config (cfg/raw-config {:some :config})
+                  :app (new-app))
+                  .start :app :config :value) => {:some :config}))

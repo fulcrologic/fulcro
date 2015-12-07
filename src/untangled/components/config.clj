@@ -61,7 +61,7 @@
 (defrecord Config [value config-path]
   component/Lifecycle
   (start [this]
-    (let [config (load-config this)]
+    (let [config (or value (load-config config-path))]
       (assoc this :value config)))
   (stop [this]
     (assoc this :value nil)))
@@ -78,3 +78,8 @@
    "
   [config-path]
   (map->Config {:config-path config-path}))
+
+(defn raw-config
+  "Creates a configuration component using the value passed in,
+   it will NOT look for any config files."
+  [value] (map->Config {:value value}))
