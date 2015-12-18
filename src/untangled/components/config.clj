@@ -17,7 +17,7 @@
     (apply merge-with deep-merge xs)
     (last xs)))
 
-(defn- load-edn
+(defn load-edn
   "If given a relative path, looks on classpath (via class loader) for the file, reads the content as EDN, and returns it.
   If the path is an absolute path, it reads it as EDN and returns that.
   If the resource is not found, returns nil."

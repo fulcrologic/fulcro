@@ -99,71 +99,69 @@
         (#'cfg/resolve-symbol 'srsly/not-a-var) =throws=> (java.io.FileNotFoundException #"")))
     (behavior "TODO: when =throws=> can catch AssertionError... fails if not found in the namespace after requiring"
       #_(assertions
-        (#'cfg/resolve-symbol 'util.dont-require-me/invalid) =throws=> (AssertionError #"not \(nil")))
+          (#'cfg/resolve-symbol 'util.dont-require-me/invalid) =throws=> (AssertionError #"not \(nil")))
     (behavior "TODO: when =throws=> can catch AssertionError... must be namespaced, throws otherwise"
       #_(assertions
-        (#'cfg/resolve-symbol 'invalid) =throws=> (AssertionError #"namespace"))))
+          (#'cfg/resolve-symbol 'invalid) =throws=> (AssertionError #"namespace"))))
 
-  #_(facts "load-edn"
-      (fact "returns nil if absolute file is not found"
-        (#'cfg/load-edn "/garbage") => nil)
-      (fact "returns nil if relative file is not on classpath"
-        (#'cfg/load-edn "garbage") => nil)
-      (fact "can load edn from the classpath"
-        (#'cfg/load-edn "resources/config/defaults.edn")
-        => (contains {:some-key :some-default-val}))
-      (fact :integration "can load edn from the disk"
-        (with-tmp-edn-file {:foo :bar} #'cfg/load-edn)
-        => {:foo :bar})
-      (fact :integration "can load edn with symbols"
-        (with-tmp-edn-file {:sym 'sym} #'cfg/load-edn)
-        => {:sym 'sym}))
+  (component "load-edn"
+    (behavior "returns nil if absolute file is not found"
+      (assertions (#'cfg/load-edn "/garbage") => nil))
+    (behavior "returns nil if relative file is not on classpath"
+      (assertions (#'cfg/load-edn "garbage") => nil))
+    (behavior "can load edn from the classpath"
+      (assertions (:some-key (#'cfg/load-edn "resources/config/defaults.edn")) => :some-default-val))
+    (behavior :integration "can load edn from the disk"
+      (assertions (with-tmp-edn-file {:foo :bar} #'cfg/load-edn) => {:foo :bar}))
+    (behavior :integration "can load edn with symbols"
+      (assertions (with-tmp-edn-file {:sym 'sym} #'cfg/load-edn) => {:sym 'sym})))
 
-  #_(facts "open-config-file"
-      (fact "takes in a path, finds the file at that path and should return a clojure map"
-        (#'cfg/open-config-file "/foobar") => ..config..
-        (provided
-          (#'cfg/load-edn "/foobar") => ..config..))
-      (fact "or if path is nil, uses a default path"
-        (#'cfg/open-config-file nil)
-        => (throws ExceptionInfo #"provide a valid file"))
-      (fact "if path doesn't exist on fs, it throws an ex-info"
-        (#'cfg/get-config "/should/fail")
-        => (throws ExceptionInfo #"provide a valid file")))
+  (component "open-config-file"
+    (behavior "takes in a path, finds the file at that path and should return a clojure map"
+      (when-mocking
+        (cfg/load-edn "/foobar") => "42"
+        (assertions
+          (#'cfg/open-config-file "/foobar") => "42")))
+    (behavior "or if path is nil, uses a default path"
+      (assertions
+        (#'cfg/open-config-file nil) =throws=> (ExceptionInfo #"provide a valid file")))
+    (behavior "if path doesn't exist on fs, it throws an ex-info"
+      (assertions
+        (#'cfg/get-config "/should/fail") =throws=> (ExceptionInfo #"provide a valid file")))))
 
-  (defrecord App []
-    component/Lifecycle
-    (start [this] this)
-    (stop [this] this)))
+(defrecord App []
+  component/Lifecycle
+  (start [this] this)
+  (stop [this] this))
 
 (defn new-app []
   (component/using
     (map->App {})
     [:config]))
 
-#_(facts "untangled.components.config"
-    (facts "new-config"
-      (fact "returns a stuartsierra component"
-        (satisfies? component/Lifecycle (cfg/new-config "w/e")) => true
-        (fact ".start loads the config"
-          (.start (cfg/new-config "mocked-out")) => (contains {:value ..cfg..})
-          (provided
-            (cfg/load-config anything) => ..cfg..))
-        (fact ".stop removes the config"
-          (-> (cfg/new-config "mocked-out") .start .stop :config) => nil
-          (provided
-            (cfg/load-config anything) => anything))))
+(specification "untangled.components.config"
+  (component "new-config"
+    (behavior "returns a stuartsierra component"
+      (assertions (satisfies? component/Lifecycle (cfg/new-config "w/e")) => true)
+      (behavior ".start loads the config"
+        (when-mocking
+          (cfg/load-config _) => "42"
+          (assertions (:value (.start (cfg/new-config "mocked-out"))) => "42")))
+      (behavior ".stop removes the config"
+        (when-mocking
+          (cfg/load-config _) => "wateva"
+          (assertions (-> (cfg/new-config "mocked-out") .start .stop :config) => nil)))))
 
-    (facts "new-config can be injected through a system-map"
-      (-> (component/system-map
-            :config (cfg/new-config "mocked-out")
-            :app (new-app))
-        .start :app :config :value) => {:foo :bar}
-      (provided
-        (cfg/load-config anything) => {:foo :bar}))
+  (behavior "new-config can be injected through a system-map"
+    (when-mocking
+      (cfg/load-config _) => {:foo :bar}
+      (assertions
+        (-> (component/system-map
+              :config (cfg/new-config "mocked-out")
+              :app (new-app)) .start :app :config :value) => {:foo :bar})))
 
-    (facts "raw-config creates a config with the passed value"
-      (-> (component/system-map
-            :config (cfg/raw-config {:some :config})
-            :app (new-app))
-        .start :app :config :value) => {:some :config}))
+  (behavior "raw-config creates a config with the passed value"
+    (assertions (-> (component/system-map
+                      :config (cfg/raw-config {:some :config})
+                      :app (new-app))
+                  .start :app :config :value) => {:some :config})))
