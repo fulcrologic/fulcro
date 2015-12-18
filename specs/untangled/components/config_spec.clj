@@ -1,4 +1,4 @@
-(ns ^:focused untangled.components.config-spec
+(ns untangled.components.config-spec
   (:require [com.stuartsierra.component :as component]
             [untangled.components.config :as cfg]
             [untangled-spec.core :refer [specification
