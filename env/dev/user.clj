@@ -12,7 +12,7 @@
     [datomic-helpers :refer [to-transaction to-schema-transaction ext]]
     [untangled-spec.report :as report]
     [clojure.test :refer [run-tests]]
-    util.cli-spec
+    untangled.components.config-spec
     )
   #_(:use
     midje.repl
@@ -38,7 +38,7 @@
     )
   )
 
-#_(defn run-all-tests []
+(defn run-all-tests []
   (report/with-untangled-output
     (run-tests
       'untangled.components.config-spec)))

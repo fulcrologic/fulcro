@@ -35,8 +35,8 @@
       (throw (ex-info "please provide a valid file on your file-system"
                       {:file-path file-path}))))
 
-(def ^:private get-defaults open-config-file)
-(def ^:private get-config   open-config-file)
+(def  get-defaults open-config-file)
+(def  get-config   open-config-file)
 
 (defn- resolve-symbol [sym]
   {:pre  [(namespace sym)]

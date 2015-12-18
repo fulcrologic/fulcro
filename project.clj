@@ -27,7 +27,10 @@
   :source-paths ["src"]
   :test-paths ["specs"]
 
-  :test-refresh {:report untangled-spec.report/untangled-report}
+  :test-refresh {:report untangled-spec.report/untangled-report
+                 :changes-only true}
+
+  :test-selectors {:focused :focused}
 
   :profiles
   {
