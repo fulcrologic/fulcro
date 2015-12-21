@@ -70,10 +70,10 @@
     :otherwise (assert false "Invalid entry in data to link. Must be list or map")
     )
   )
-
+(defn dbg [x] (println :DEBUG x) x)
 (defn replace-id [entity idmap value]
   (cond
-    (and (keyword? value) (value idmap)) (value idmap)
+    (and (keyword? value) (get idmap value nil)) (get idmap value)
     (set? value) (into #{} (map (partial replace-id entity idmap) value))
     (vector? value) (into [] (map (partial replace-id entity idmap) value))
     :otherwise (do
@@ -92,7 +92,6 @@
   Returns an updated entity that has the correct temporary IDs.
   "
   [idmap entity]
-  (println :idmap idmap :entity entity)
   (cond
     (map? entity) (reduce (fn [e k]
                             (let [existing-value (k e)

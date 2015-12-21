@@ -129,9 +129,11 @@
       => [:db/add :..id.. :user/parent [2]]))
 
   (behavior "throws an AssertionError if the idmap does not contain the id"
-    #_(assertions
-      (s/assign-ids {} [:db/add :tempid/this :user/parent [:tempid/that]])
-      =throws=> (AssertionError #"Missing ID :tempid/this"))))
+    (assertions
+      ;; TODO: assertions does not like this ONE throws.  Try this in an "is", and you will see we do indeed throw.
+      (s/assign-ids {} [:db/add :tempid/this :user/parent :tempid/that]) =throws=> (AssertionError #"Missing ID :tempid/this")
+      ;; =throws=> works fine here
+      (s/assign-ids {} {:other/thing #{:tempid/thing :tempid/other} :user/name "Tony"}) =throws=> (AssertionError #"Mssing ID :tempid/thing"))))
 
 (specification "linking entities"
   (behavior "does not accept a map as an argument"
