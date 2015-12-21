@@ -36,8 +36,8 @@
   (behavior "does not fail when returning nil"
     (assertions
       (#'cfg/get-system-prop "config") => nil))
-  (behavior "TODO: when =throws=> can catch AssertionError... fails if the -Dconfig file is not an absolute path"
-    #_(assertions (#'cfg/get-system-prop "user.name") =throws=> (AssertionError #"")))
+  (behavior "fails if the -Dconfig file is not an absolute path"
+    (assertions (#'cfg/get-system-prop "user.name") =throws=> (AssertionError #"")))
   (behavior "defaults file is always used to provide missing values"
     (when-mocking
       (cfg/get-defaults defaults-path) => {:a :b}
@@ -97,11 +97,11 @@
     (behavior "fails if require fails"
       (assertions
         (#'cfg/resolve-symbol 'srsly/not-a-var) =throws=> (java.io.FileNotFoundException #"")))
-    (behavior "TODO: when =throws=> can catch AssertionError... fails if not found in the namespace after requiring"
-      #_(assertions
+    (behavior "if not found in the namespace after requiring"
+      (assertions
           (#'cfg/resolve-symbol 'util.dont-require-me/invalid) =throws=> (AssertionError #"not \(nil")))
-    (behavior "TODO: when =throws=> can catch AssertionError... must be namespaced, throws otherwise"
-      #_(assertions
+    (behavior "must be namespaced, throws otherwise"
+      (assertions
           (#'cfg/resolve-symbol 'invalid) =throws=> (AssertionError #"namespace"))))
 
   (component "load-edn"
