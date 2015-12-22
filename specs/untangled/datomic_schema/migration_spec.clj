@@ -28,27 +28,21 @@
           (m/all-migrations "my.crap") => '()))))
 
   (behavior "skips generation and complains if the 'transactions' function is missing."
-    ;; Punting here.  Won't work because load-namespaces gathers ns's from disk.
-    (do
-      (remove-ns 'my.crap.A)
-      (create-ns 'my.crap.A))
     (when-mocking
-      ;; TODO:  Not really sure here.
-      ;(n/namespace-name :..migration1..) => "my.crap.A"
-      ;(n/load-namespaces "my.crap") => ['my.crap.A]
-      ;(ns-resolve 'mig1 'transactions) => nil
-      (logger/fatal #"Missing" #"my\.crap\.A") => :ignored
+      (n/namespace-name _) => "my.crap.A"
+      (n/load-namespaces "my.crap") => ['my.crap.A]
+      (ns-resolve _ _) => nil
+      (logger/fatal _ _) => :ignored
 
       (assertions
         (m/all-migrations "my.crap") => '())))
 
   (behavior "skips the migration and reports an error if the 'transactions' function fails to return a list of lists"
     (when-mocking
-      ;; TODO:  Dunno.
-      ;(n/namespace-name :..migration1..) => "my.crap.A"
-      ;(n/load-namespaces "my.crap") => [:..migration1..]
-      ;(ns-resolve :..migration1.. 'transactions) => (fn [] [{}])
-      ;(logger/fatal #"Transaction function failed to return a list of transactions!" :..migration1..) => :ignored
+      (n/namespace-name :..migration1..) => "my.crap.A"
+      (n/load-namespaces "my.crap") => [:..migration1..]
+      (ns-resolve :..migration1.. 'transactions) => (fn [] [{}])
+      (logger/fatal _ _) => :ignored
       (assertions
         (m/all-migrations "my.crap") => '())))
 
