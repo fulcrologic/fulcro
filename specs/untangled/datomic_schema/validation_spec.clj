@@ -44,18 +44,16 @@
     (assertions
       (v/as-set {:a 1}) =throws=> (AssertionError #"does not work on maps"))))
 
-(with-db-fixture dbcomp
-  (let [c (:connection dbcomp)
-        db (d/db c)
-        id-map (-> dbcomp :seed-result)
-        realm-id (:tempid/realm1 id-map)
-        user1id (:tempid/user1 id-map)
-        user2id (:tempid/user2 id-map)
-        compe-id (:tempid/comp-entitlement id-map)
-        prope-id (:tempid/prop-entitlement id-map)]
-
-    (specification "Attribute derivation"
-
+(specification "Attribute derivation"
+  (with-db-fixture dbcomp
+    (let [c        (:connection dbcomp)
+          db       (d/db c)
+          id-map   (-> dbcomp :seed-result)
+          realm-id (:tempid/realm1 id-map)
+          user1id  (:tempid/user1 id-map)
+          user2id  (:tempid/user2 id-map)
+          compe-id (:tempid/comp-entitlement id-map)
+          prope-id (:tempid/prop-entitlement id-map)]
       (behavior "foreign-attributes can find the allowed foreign attributes for an entity type"
         (assertions
           (v/foreign-attributes db :user) => #{:authorization-role/name}) ; see schema in initial.clj )
@@ -87,25 +85,24 @@
             (v/definitive-attributes db) => #{:user/user-id :realm/account-id}))
 
         (behavior "entity-types finds all of the types that a given entity conforms to"
-          (let [new-db (:db-after (d/with db [[:db/add user1id :realm/account-id "boo"]]))
+          (let [new-db     (:db-after (d/with db [[:db/add user1id :realm/account-id "boo"]]))
                 user-realm (d/entity new-db user1id)]
             (assertions
-              (v/entity-types new-db user-realm) => #{:user :realm}))))))
+              (v/entity-types new-db user-realm) => #{:user :realm})))))
 
-  :migrations "resources.datomic-schema.validation-schema"
-  :seed-fn seed-validation)
+    :migrations "resources.datomic-schema.validation-schema"
+    :seed-fn seed-validation))
 
-(with-db-fixture dbcomp
-  (let [c (:connection dbcomp)
-        db (d/db c)
-        id-map (-> dbcomp :seed-result)
-        realm-id (:tempid/realm1 id-map)
-        user1id (:tempid/user1 id-map)
-        user2id (:tempid/user2 id-map)
-        compe-id (:tempid/comp-entitlement id-map)
-        prope-id (:tempid/prop-entitlement id-map)]
-    (specification "Validation"
-
+(specification "Validation"
+  (with-db-fixture dbcomp
+    (let [c        (:connection dbcomp)
+          db       (d/db c)
+          id-map   (-> dbcomp :seed-result)
+          realm-id (:tempid/realm1 id-map)
+          user1id  (:tempid/user1 id-map)
+          user2id  (:tempid/user2 id-map)
+          compe-id (:tempid/comp-entitlement id-map)
+          prope-id (:tempid/prop-entitlement id-map)]
       (component "reference-constraint-for-attribute"
         (behavior "returns nil for non-constrained attributes"
           (assertions
@@ -138,14 +135,14 @@
       (component "entities-in-tx"
         (behavior "finds the resolved temporary entity IDs and real IDs in a transaction"
           (let [newuser-tempid (d/tempid :db.part/user)
-                datoms [[:db/add newuser-tempid :user/email "sample"] [:db/add user2id :user/email "sample2"]]
-                result (d/with db datoms)
+                datoms         [[:db/add newuser-tempid :user/email "sample"] [:db/add user2id :user/email "sample2"]]
+                result         (d/with db datoms)
                 newuser-realid (d/resolve-tempid (:db-after result) (:tempids result) newuser-tempid)]
             (assertions
               (v/entities-in-tx result true) => #{newuser-realid user2id})))
 
         (behavior "can optionally elide entities that were completely removed"
-          (let [email (:user/email (d/entity db user1id))
+          (let [email  (:user/email (d/entity db user1id))
                 datoms [[:db.fn/retractEntity prope-id] [:db/retract user1id :user/email email]]
                 result (d/with db datoms)]
             (assertions
@@ -224,7 +221,7 @@
         (behavior
           "throws an invalid reference exception when the transaction causes an existing reference to become invalid by changing the targeted attribute value"
           (let [valid-db (:db-after (d/with db [[:db/add user1id :user/property-entitlement prope-id]]))
-                new-db (d/with valid-db [[:db/add user1id :user/property-entitlement compe-id]])]
+                new-db   (d/with valid-db [[:db/add user1id :user/property-entitlement compe-id]])]
             (assertions
               (v/validate-transaction new-db) =throws=> (ExceptionInfo #"Invalid References" #(re-find #"incorrect value" (-> % ex-data :problems first :reason)))
               (v/validate-transaction new-db) =throws=> (ExceptionInfo #"Invalid References" #(= :entitlement/kind (-> % ex-data :problems first :target-attr))))))
@@ -233,10 +230,10 @@
           "throws an invalid attribute exception when an entity affected by the transaction ends up with a disallowed attribute"
           (let [new-db (d/with db [[:db/add user1id :subscription/name "boo"]])]
             (assertions
-              (v/validate-transaction new-db true) =throws=> (ExceptionInfo #"Invalid Attribute")))))))
+              (v/validate-transaction new-db true) =throws=> (ExceptionInfo #"Invalid Attribute"))))))
 
-  :migrations "resources.datomic-schema.validation-schema"
-  :seed-fn seed-validation)
+    :migrations "resources.datomic-schema.validation-schema"
+    :seed-fn seed-validation))
 
 ;; IMPORTANT NOTE: These NON-integration tests are a bit heavy (as they have to muck about with the internals of the function
 ;; under test quite a bit); however, they are the only way to prove that both paths of validation (optimistic and
@@ -262,7 +259,7 @@
         @(v/vtransact "conn" []) =throws=> (ExecutionException #"Validation failed"))))
 
   (behavior "optimistically applies changes via the transactor while enforcing version known at peer"
-    (let [tx-data [[:db/add 1 :blah 2]]
+    (let [tx-data            [[:db/add 1 :blah 2]]
           optimistic-version 1]
       (when-mocking
         (d/db _) => "db"
@@ -276,9 +273,9 @@
         (v/vtransact :connection tx-data))))
 
   (behavior "completes if the optimistic update succeeds"
-    (let [tx-data [[:db/add 1 :blah 2]]
+    (let [tx-data            [[:db/add 1 :blah 2]]
           optimistic-version 1
-          transact-result (future [])]
+          transact-result    (future [])]
       (when-mocking
         (d/db _) => "db"
         (d/basis-t _) => optimistic-version
@@ -288,10 +285,10 @@
         (assertions (v/vtransact "connection" tx-data) => transact-result))))
 
   (behavior "reverts to a pessimistic application in the transactor if optimistic update fails"
-    (let [tx-data [[:db/add 1 :blah 2]]
+    (let [tx-data            [[:db/add 1 :blah 2]]
           optimistic-version 1
-          tx-result-1 (future (throw ex-info "Bad Version"))
-          tx-result-2 (future [])]
+          tx-result-1        (future (throw ex-info "Bad Version"))
+          tx-result-2        (future [])]
       (when-mocking
         (d/db conn) => "db"
         (d/basis-t db) => optimistic-version
@@ -308,10 +305,10 @@
         (assertions (v/vtransact "connection" tx-data) => tx-result-2))))
 
   (with-db-fixture dbcomp
-    (let [c (:connection dbcomp)
-          db (d/db c)
-          id-map (-> dbcomp :seed-result)
-          user1id (:tempid/user1 id-map)
+    (let [c           (:connection dbcomp)
+          db          (d/db c)
+          id-map      (-> dbcomp :seed-result)
+          user1id     (:tempid/user1 id-map)
           bad-attr-tx [[:db/add user1id :subscription/name "data"]]]
 
       (behavior "succeeds against a real database"
