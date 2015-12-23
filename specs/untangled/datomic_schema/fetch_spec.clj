@@ -1,74 +1,125 @@
 (ns untangled.datomic-schema.fetch-spec
   (:require
     [untangled.datomic-schema.fetch :as rest]
-    [datomic.api :as d]
     [seeddata.auth :as a]
-    [untangled.util.seed :as s]
     [untangled.util.fixtures :refer [with-db-fixture]]
     [resources.datomic-schema.rest-schema.initial]
-    )
-  (:use midje.sweet)
-  )
+    [untangled-spec.core :refer [specification
+                                 assertions
+                                 when-mocking
+                                 component
+                                 behavior]]
+    [clojure.test :refer :all]))
 
 (defn- seed-rest [conn]
-  (let [entities (a/create-base-user-and-realm)]
+  (a/create-base-user-and-realm))
 
-    )
-  )
+(specification
+  ;; TODO: ^:integration
+  "datomic.schema - fetch-schema returns a configuration with"
+  (with-db-fixture dbcomp
 
-(facts :integration "datomic.schema - fetch-schema returns a configuration with"
-       (against-background
-         [
-          (around :contents (let [c (:connection dbcomp)
-                               id-map (-> dbcomp :seed-result)
-                               schema-representations (rest/fetch-schema c)
-                               ] ?form))
-          (around :contents (with-db-fixture dbcomp ?form
-                                             :migrations "resources.datomic-schema.rest-schema"
-                                             :seed-fn seed-rest))
-          ]
+    (let [c                      (:connection dbcomp)
+          id-map                 (-> dbcomp :seed-result)
+          schema-representations (rest/fetch-schema c)]
 
-         (fact :integration "finds entity doc"
-               (-> schema-representations :entities :realm :doc) => "realm entity doc"
-               )
-         (fact :integration "finds type db.type/string"
-               (-> schema-representations :entities :realm :attributes :realm/realm-name :db/valueType) => :db.type/string
-               )
-         (fact :integration "finds type :db.type/ref"
-               (-> schema-representations :entities :realm :attributes :realm/user :db/valueType) => :db.type/ref
-               )
-         (fact :integration "adds foreign-attribute to entity"
-               (-> schema-representations  :entities :component :attributes :realm/realm-id :db/valueType ) => :db.type/string
-               )
-         (fact :integration "adds a second foreign-attribute to entity"
-               (-> schema-representations  :entities :component :attributes :realm/realm-name :db/valueType ) => :db.type/string
-               )
-         (fact :integration "finds :db.cardinality/many on a reference that contains a many relationship"
-               (-> schema-representations :entities :realm :attributes :realm/user :db/cardinality) => :db.cardinality/many
-               )
-         (fact :integration "finds :db.cardinality/one on a reference that contains a one relationship"
-               (-> schema-representations :entities :user :attributes :user/realm :db/cardinality) => :db.cardinality/one
-               )
-         (fact :integration "finds :db/doc"
-               (-> schema-representations :entities :realm :attributes :realm/realm-id :db/doc) => "realm-id-doc"
-               )
-         (fact :integration "will not find :db/doc where none exists"
-               (-> schema-representations :entities :subscription :attributes :subscription/name :db/doc) => ""
-               )
-         (fact :integration "will not find :rest/entity-doc where none exists"
-               (-> schema-representations :entities :realm :attributes :realm/realm-name :rest/entity-doc) => nil
-               )
-         (fact :integration "finds :constraint/definitive"
-               (-> schema-representations :entities :realm :attributes :realm/realm-id :constraint/definitive) => true
-               )
-         (fact :integration "will not find :constraint/definitive"
-               (-> schema-representations :entities :realm :attributes :realm/realm-name :constraint/definitive) => nil
-               )
-         (fact :integration "will build definitive list"
-               (-> schema-representations :definitive) => [:subscription/name :component/name :realm/realm-id :user/user-id]
-               )
-         (fact :integration "finds :constraint/unpublished"
-               (-> schema-representations :entities :user :attributes :user/password :constraint/unpublished) => true
-               )
-         )
-       )
+      (behavior
+        ;; TODO: ^:integration
+        "finds entity doc"
+        (assertions
+          (-> schema-representations :entities :realm :doc)
+          => "realm entity doc"))
+
+      (behavior
+        ;; TODO: ^:integration
+        "finds type db.type/string"
+        (assertions
+          (-> schema-representations :entities :realm :attributes :realm/realm-name :db/valueType)
+          => :db.type/string))
+
+      (behavior
+        ;; TODO: ^:integration
+        "finds type :db.type/ref"
+        (assertions
+          (-> schema-representations :entities :realm :attributes :realm/user :db/valueType)
+          => :db.type/ref))
+
+      (behavior
+        ;; TODO: ^:integration
+        "adds foreign-attribute to entity"
+        (assertions
+          (-> schema-representations :entities :component :attributes :realm/realm-id :db/valueType)
+          => :db.type/string))
+
+      (behavior
+        ;; TODO: ^:integration
+        "adds a second foreign-attribute to entity"
+        (assertions
+          (-> schema-representations :entities :component :attributes :realm/realm-name :db/valueType)
+          => :db.type/string))
+
+      (behavior
+        ;; TODO: ^:integration
+        "finds :db.cardinality/many on a reference that contains a many relationship"
+        (assertions
+          (-> schema-representations :entities :realm :attributes :realm/user :db/cardinality)
+          => :db.cardinality/many))
+
+      (behavior
+        ;; TODO: ^:integration
+        "finds :db.cardinality/one on a reference that contains a one relationship"
+        (assertions
+          (-> schema-representations :entities :user :attributes :user/realm :db/cardinality)
+          => :db.cardinality/one))
+
+      (behavior
+        ;; TODO: ^:integration
+        "finds :db/doc"
+        (assertions
+          (-> schema-representations :entities :realm :attributes :realm/realm-id :db/doc)
+          => "realm-id-doc"))
+
+      (behavior
+        ;; TODO: ^:integration
+        "will not find :db/doc where none exists"
+        (assertions
+          (-> schema-representations :entities :subscription :attributes :subscription/name :db/doc)
+          => ""))
+
+      (behavior
+        ;; TODO: ^:integration
+        "will not find :rest/entity-doc where none exists"
+        (assertions
+          (-> schema-representations :entities :realm :attributes :realm/realm-name :rest/entity-doc)
+          => nil))
+
+      (behavior
+        ;; TODO: ^:integration
+        "finds :constraint/definitive"
+        (assertions
+          (-> schema-representations :entities :realm :attributes :realm/realm-id :constraint/definitive)
+          => true))
+
+      (behavior
+        ;; TODO: ^:integration
+        "will not find :constraint/definitive"
+        (assertions
+          (-> schema-representations :entities :realm :attributes :realm/realm-name :constraint/definitive)
+          => nil))
+
+      (behavior
+        ;; TODO: ^:integration
+        "will build definitive list"
+        (assertions
+          (-> schema-representations :definitive)
+          => [:subscription/name :component/name :realm/realm-id :user/user-id]))
+
+      (behavior
+        ;; TODO: ^:integration
+        "finds :constraint/unpublished"
+        (assertions
+          (-> schema-representations :entities :user :attributes :user/password :constraint/unpublished)
+          => true)))
+
+    :migrations "resources.datomic-schema.rest-schema"
+    :seed-fn seed-rest))

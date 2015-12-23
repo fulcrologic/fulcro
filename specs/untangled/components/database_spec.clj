@@ -1,16 +1,21 @@
 (ns untangled.components.database-spec
   (:require [com.stuartsierra.component :as component]
             [untangled.components.config :as cfg]
-            [untangled.components.database :as db])
-  (:use midje.sweet))
+            [clojure.test :refer :all]
+            [untangled-spec.core :refer [specification
+                                         assertions
+                                         when-mocking
+                                         component
+                                         behavior]]
+            [untangled.components.database :as db]))
 
 (def default-db-name :db1)
 (def default-db-url "db1-url")
 (def default-schema "schema.default")
 (defn make-config [m]
   {:datomic {:dbs {default-db-name (merge {:url    default-db-url
-                                  :schema default-schema}
-                                 m)}}})
+                                           :schema default-schema}
+                                     m)}}})
 
 (def default-config
   (make-config {:auto-drop true}))
@@ -21,7 +26,7 @@
 (def migrate-all-config
   (let [config-sans-migrate (update-in migrate-specfic-config [:datomic :dbs default-db-name] dissoc :auto-migrate)]
     (assoc-in config-sans-migrate
-              [:datomic :auto-migrate] true)))
+      [:datomic :auto-migrate] true)))
 
 (def seed-result :a-tree!)
 (def seed-config
@@ -34,52 +39,54 @@
      (-> (component/system-map
            :config (cfg/new-config {})
            :db (db/build-database default-db-name))
-         .start))))
+       .start))))
 
-(background (untangled.util.logging/info anything)                   => nil
-            (untangled.util.logging/info anything anything)          => nil
-            (untangled.util.logging/info anything anything anything) => nil
-            )
+(specification "DatabaseComponent"
 
-(facts "DatabaseComponent"
-       (facts "implements Database"
-              (satisfies? untangled.database/Database
-                          (db/build-database "a-db-name")))
-       (fact "implements component/Lifecycle"
-             (satisfies? component/Lifecycle
-                         (db/build-database "a-db-name"))
-             => true
-             (fact ".start loads the component"
-                   (-> (start-system) :db keys)
-                   => (contains #{:config})
-                   (provided
-                     (datomic.api/create-database default-db-url) => anything
-                     (datomic.api/connect default-db-url) => anything))
-             (fact ".start can auto-migrate if configured for all databases"
-                   (start-system migrate-all-config) => truthy
-                   (provided
-                     (datomic.api/create-database default-db-url) => anything
-                     (datomic.api/connect default-db-url) => anything
-                     (#'db/run-core-schema anything) => anything
-                     (#'db/run-migrations anything anything anything) => anything))
-             (fact ".start can auto-migrate if configured for a specific database"
-                   (start-system migrate-specfic-config) => truthy
-                   (provided
-                     (datomic.api/create-database default-db-url) => anything
-                     (datomic.api/connect default-db-url) => anything
-                     (#'db/run-core-schema anything) => anything
-                     (#'db/run-migrations anything anything anything) => anything))
-             (fact ".start runs seed-function if it needs to"
-                   (-> (start-system seed-config) :db :seed-result)
-                   => seed-result
-                   (provided
-                     (datomic.api/create-database default-db-url) => anything
-                     (datomic.api/connect default-db-url) => anything
-                     ))
-             (fact ".stop stops the component"
-                   (-> (start-system) .stop :db :connection) => nil
-                   (provided
-                     (datomic.api/create-database anything) => anything
-                     (datomic.api/connect anything) => anything
-                     (datomic.api/delete-database anything) => anything)))
-       )
+  (behavior "implements Database"
+    (assertions
+      (satisfies? untangled.database/Database (db/build-database "a-db-name")) => true))
+
+  (behavior "implements component/Lifecycle"
+    (assertions
+      (satisfies? component/Lifecycle (db/build-database "a-db-name")) => true))
+
+  (behavior ".start loads the component"
+    (when-mocking
+      (datomic.api/create-database default-db-url) => true
+      (datomic.api/connect default-db-url) => true
+      (assertions
+        (some #(= :config %) (-> (start-system) :db keys)) => true)))
+
+  (behavior ".start can auto-migrate if configured for all databases"
+    (when-mocking
+      (datomic.api/create-database default-db-url) => true
+      (datomic.api/connect default-db-url) => true
+      (db/run-core-schema anything) => true
+      (db/run-migrations anything anything anything) => true
+      (assertions
+        (if (start-system migrate-all-config) true) => true)))
+
+  (behavior ".start can auto-migrate if configured for a specific database"
+    (when-mocking
+      (datomic.api/create-database default-db-url) => true
+      (datomic.api/connect default-db-url) => true
+      (db/run-core-schema anything) => true
+      (db/run-migrations anything anything anything) => true
+      (assertions
+        (if (start-system migrate-specfic-config) true) => true)))
+
+  (behavior ".start runs seed-function if it needs to"
+    (when-mocking
+      (datomic.api/create-database default-db-url) => true
+      (datomic.api/connect default-db-url) => true
+      (assertions
+        (-> (start-system seed-config) :db :seed-result) => seed-result)))
+
+  (behavior ".stop stops the component"
+    (when-mocking
+      (datomic.api/create-database anything) => true
+      (datomic.api/connect anything) => true
+      (datomic.api/delete-database anything) => true
+      (assertions
+        (-> (start-system) .stop :db :connection) => nil))))

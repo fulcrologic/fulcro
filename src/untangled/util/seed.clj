@@ -37,7 +37,7 @@
 
 (defn is-tempid-keyword? [v] (and (keyword? v) (some-> v namespace (.startsWith "tempid"))))
 
-(defn assign-temp-id 
+(defn assign-temp-id
   "Scans item (which may be a map of attributes or a datomic :db/add list) for
   an ID field with a keyword namespaced within tempid (e.g.
   :tempid.boo/myid) as a value. If found, it requests a new temporary ID from
@@ -70,10 +70,10 @@
     :otherwise (assert false "Invalid entry in data to link. Must be list or map")
     )
   )
-
+(defn dbg [x] (println :DEBUG x) x)
 (defn replace-id [entity idmap value]
-  (cond 
-    (and (keyword? value) (value idmap)) (value idmap)
+  (cond
+    (and (keyword? value) (get idmap value nil)) (get idmap value)
     (set? value) (into #{} (map (partial replace-id entity idmap) value))
     (vector? value) (into [] (map (partial replace-id entity idmap) value))
     :otherwise (do
@@ -83,7 +83,7 @@
     )
   )
 
-(defn assign-ids 
+(defn assign-ids
   "Replaces any references to temporary IDs that exist in idmap with the actual
   tempid.
 
@@ -91,9 +91,9 @@
 
   Returns an updated entity that has the correct temporary IDs.
   "
-  [idmap entity] 
-  (cond 
-    (map? entity) (reduce (fn [e k] 
+  [idmap entity]
+  (cond
+    (map? entity) (reduce (fn [e k]
                             (let [existing-value (k e)
                                   new-value (replace-id entity idmap existing-value)]
                               (assoc e k new-value))
@@ -123,11 +123,11 @@
     )
   )
 
-(defn link-and-load-seed-data 
+(defn link-and-load-seed-data
   "Links the given data (by temp IDs), and loads it into the database. This
   function returns a map from user-generated :tempid/... IDs to the read IDs
   that were used by the database.
-  
+
   The datoms may be in map or list form (a list of lists, or a list of maps),
   and you can use generate-entities on the maps for better debugging support.
   "
