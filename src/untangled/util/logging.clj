@@ -45,33 +45,53 @@
   "
   [& msgs] (t/info msgs))
 
-(defn make-gelf-transport [host port]
-  (let [config (-> (GelfConfiguration. (InetSocketAddress. host port)) (.transport GelfTransports/UDP))
-        transport (GelfTransports/create config)]
-    transport))
-
-(def gelf-levels {:warn  GelfMessageLevel/WARNING
-                  :info  GelfMessageLevel/INFO
+(def gelf-levels {:info  GelfMessageLevel/INFO
+                  :warn  GelfMessageLevel/WARNING
                   :error GelfMessageLevel/ERROR
                   :fatal GelfMessageLevel/CRITICAL})
 
-(defn gelf-appender [host port]
-  (let [tranport (make-gelf-transport host port)]
-    {:enabled?       true
-     :async?         false
-     :min-level      nil
-     :rate-limit     nil
-     :output-fn      :inherit
-     :gelf-transport tranport
-     :gelf-levels    gelf-levels
+(defn make-gelf-transport
+  "Make a new GelfTransport object, capable of sending a GelfMessage to a remote server.
 
-     :fn             (fn [data]
-                       (let [{:keys [appender msg_ level hostname_]} data
-                             gelf-transport (:gelf-transport appender)
-                             log-level (get-in appender [:gelf-levels level])
-                             gelf-message (-> (GelfMessageBuilder. @msg_ @hostname_)
-                                            (.level log-level) .build)]
-                         (.send gelf-transport gelf-message)))}))
+  Parameters:
+  *`host` - An IP address or hostname string of the remote logging server.
+  *`port` - The TCP or UDP port on which the server listens.
+  *`protocol` - Use :tcp or :udp transport to send messages.
+
+  Returns a new GelfTransport object."
+  [host port protocol]
+  (let [protocols {:udp GelfTransports/UDP :tcp GelfTransports/TCP}
+        transport (protocol protocols)
+        config (-> (GelfConfiguration. (InetSocketAddress. host port)) (.transport transport))]
+    (GelfTransports/create config)))
+
+(defn gelf-appender
+  "A timbre appender capable of sending gelf messages to a remote host.
+
+  Parameters:
+  *`gelf-server` - An IP address or hostname string of the remote logging server.
+  *`port` - the TCP or UDP port on which the server listens.
+  *`protocol` - OPTIONAL, Use :tcp or :udp (default) transport to send messages.
+
+  Returns a map, where :fn is the function timbre will call with a log message."
+  ([gelf-server port] (gelf-appender gelf-server port :udp))
+  ([gelf-server port protocol]
+   (let [tranport (make-gelf-transport gelf-server port protocol)]
+     {:enabled?       true
+      :async?         false
+      :min-level      nil
+      :rate-limit     nil
+      :output-fn      :inherit
+      :gelf-transport tranport
+      :gelf-levels    gelf-levels
+
+      :fn             (fn [data]
+                        (let [{:keys [appender msg_ level hostname_]} data
+                              gelf-transport (:gelf-transport appender)
+                              log-level (get-in appender [:gelf-levels level])
+                              gelf-message (-> (GelfMessageBuilder. @msg_ @hostname_)
+                                             (.level log-level) .build)]
+                          (.send gelf-transport gelf-message)))})))
 
 
 (comment
