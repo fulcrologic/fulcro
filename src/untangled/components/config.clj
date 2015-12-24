@@ -6,7 +6,6 @@
   (:import (java.io File)))
 
 (defn- get-system-prop [prop-name]
-  {:post [(if % (.startsWith % "/") true)]}
   (System/getProperty prop-name))
 
 (defn- deep-merge [& xs]
@@ -31,7 +30,9 @@
   "Calls load-edn on `file-path`,
    and throws an ex-info if that failed."
   [file-path]
-  (or (some-> file-path load-edn)
+  (or (when-let [cfg (some-> file-path load-edn)]
+        (println "Using config:" file-path)
+        cfg)
       (throw (ex-info "please provide a valid file on your file-system"
                       {:file-path file-path}))))
 
@@ -61,7 +62,7 @@
 (defrecord Config [value config-path]
   component/Lifecycle
   (start [this]
-    (let [config (or value (load-config config-path))]
+    (let [config (or value (load-config {:config-path config-path}))]
       (assoc this :value config)))
   (stop [this]
     (assoc this :value nil)))
