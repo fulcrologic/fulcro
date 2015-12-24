@@ -60,6 +60,7 @@
 
   Returns a new GelfTransport object."
   [host port protocol]
+  {:pre [(or (= :udp protocol) (= :tcp protocol))]}
   (let [protocols {:udp GelfTransports/UDP :tcp GelfTransports/TCP}
         transport (protocol protocols)
         config (-> (GelfConfiguration. (InetSocketAddress. host port)) (.transport transport))]
