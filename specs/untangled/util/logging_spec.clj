@@ -6,6 +6,13 @@
            (org.graylog2.gelfclient GelfMessageLevel)))
 
 (specification "timbre-to-gelf-level"
+  (behavior "maps timbre's level to corresponding gelf level"
+    (assertions
+      (l/timbre-to-gelf-level :fatal) => GelfMessageLevel/CRITICAL ;; gelf doesn't have FATAL
+      (l/timbre-to-gelf-level :info) => GelfMessageLevel/INFO
+      (l/timbre-to-gelf-level :warning) => GelfMessageLevel/WARNING
+      (l/timbre-to-gelf-level :error) => GelfMessageLevel/ERROR))
+
   (behavior "responds with GelfMessageLevel/WARNING to an unrecognized timbre level"
     (assertions (l/timbre-to-gelf-level :OMGBBQ) => GelfMessageLevel/WARNING)))
 
