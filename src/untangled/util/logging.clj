@@ -45,10 +45,12 @@
   "
   [& msgs] (t/info msgs))
 
-(def gelf-levels {:info  GelfMessageLevel/INFO
-                  :warn  GelfMessageLevel/WARNING
-                  :error GelfMessageLevel/ERROR
-                  :fatal GelfMessageLevel/CRITICAL})
+(defn timbre-to-gelf-level [level]
+  (let [gelf-levels {:info  GelfMessageLevel/INFO
+                     :warn  GelfMessageLevel/WARNING
+                     :error GelfMessageLevel/ERROR
+                     :fatal GelfMessageLevel/CRITICAL}]
+    (get gelf-levels level GelfMessageLevel/WARNING)))
 
 (defn make-gelf-transport
   "Make a new GelfTransport object, capable of sending a GelfMessage to a remote server.
@@ -84,12 +86,11 @@
       :rate-limit     nil
       :output-fn      :inherit
       :gelf-transport tranport
-      :gelf-levels    gelf-levels
 
       :fn             (fn [data]
                         (let [{:keys [appender msg_ level hostname_]} data
                               gelf-transport (:gelf-transport appender)
-                              log-level (get-in appender [:gelf-levels level])
+                              log-level (timbre-to-gelf-level level)
                               gelf-message (-> (GelfMessageBuilder. @msg_ @hostname_)
                                              (.level log-level) .build)]
                           (.send gelf-transport gelf-message)))})))
@@ -99,7 +100,7 @@
 
   (t/merge-config! {:appenders {:gelf (gelf-appender "10.9.2.25" 12201) ;; add the gelf-appender
                                 ;:println {:enabled? false} ;; console logging will still happen,
-                                                            ;; so we could disable the default appender this way
+                                ;; so we could disable the default appender this way
                                 }})
 
   (t/warn "GEM-133: testing gelf appender for timbre")

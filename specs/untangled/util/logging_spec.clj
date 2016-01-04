@@ -2,7 +2,12 @@
   (:require [clojure.test :refer :all]
             [untangled-spec.core :refer [specification assertions when-mocking component behavior]]
             [untangled.util.logging :as l])
-  (:import (org.graylog2.gelfclient.transport GelfUdpTransport GelfTcpTransport)))
+  (:import (org.graylog2.gelfclient.transport GelfUdpTransport GelfTcpTransport)
+           (org.graylog2.gelfclient GelfMessageLevel)))
+
+(specification "timbre-to-gelf-level"
+  (behavior "responds with GelfMessageLevel/WARNING to an unrecognized timbre level"
+    (assertions (l/timbre-to-gelf-level :OMGBBQ) => GelfMessageLevel/WARNING)))
 
 (specification "make-gelf-transport"
   (behavior "can specify the transport protocol"
