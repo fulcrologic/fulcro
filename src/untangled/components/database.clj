@@ -4,6 +4,7 @@
             [untangled.util.logging :refer [info fatal]]
             [untangled.datomic-schema.migration :as m]
             [untangled.datomic-schema.core-schema-definitions :as sc]
+            [datomic-toolbox.core :as dt]
             untangled.database)
   (:import (untangled.database Database)))
 
@@ -16,6 +17,11 @@
 (defn- run-migrations [migration-ns kw conn]
   (info "Applying migrations " migration-ns "to" kw "database.")
   (m/migrate conn migration-ns))
+
+(defn load-datomic-toolbox-helpers [db-url]
+  (dt/configure! {:uri db-url :partition :db.part/user})
+  (dt/install-migration-schema)
+  (dt/run-migrations "datomic-toolbox-schemas"))
 
 (defrecord DatabaseComponent [db-name connection seed-result config]
   Database
@@ -51,6 +57,7 @@
         (info "Ensuring core schema is defined")
         (run-core-schema c)
         (info "Running migrations on" db-name)
+        (load-datomic-toolbox-helpers url)
         (run-migrations migration-ns db-name c))
       (try
         (cond-> (assoc this :connection c)
