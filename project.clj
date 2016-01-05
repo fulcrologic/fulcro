@@ -6,6 +6,7 @@
                  [io.rkn/conformity "0.3.4" :exclusions [com.datomic/datomic-free]]
                  [datomic-helpers "1.0.0"]
                  [org.clojure/tools.namespace "0.2.10"]
+                 [org.graylog2/gelfclient "1.0.0"]
                  [commons-codec "1.6"]
                  [com.stuartsierra/component "0.2.3"]
                  [com.taoensso/timbre "4.1.4"]

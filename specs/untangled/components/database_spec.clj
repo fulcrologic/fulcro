@@ -38,6 +38,7 @@
    (with-redefs [cfg/load-config (fn [_] cfg)]
      (-> (component/system-map
            :config (cfg/new-config {})
+           :logger {}
            :db (db/build-database default-db-name))
        .start))))
 

@@ -36,8 +36,6 @@
   (behavior "does not fail when returning nil"
     (assertions
       (#'cfg/get-system-prop "config") => nil))
-  (behavior "fails if the -Dconfig file is not an absolute path"
-    (assertions (#'cfg/get-system-prop "user.name") =throws=> (AssertionError #"")))
   (behavior "defaults file is always used to provide missing values"
     (when-mocking
       (cfg/get-defaults defaults-path) => {:a :b}
