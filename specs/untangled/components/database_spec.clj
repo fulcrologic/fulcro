@@ -7,7 +7,8 @@
                                          when-mocking
                                          component
                                          behavior]]
-            [untangled.components.database :as db]))
+            [untangled.components.database :as db]
+            [datomic-toolbox.core :as dt]))
 
 (def default-db-name :db1)
 (def default-db-url "db1-url")
@@ -61,6 +62,8 @@
 
   (behavior ".start can auto-migrate if configured for all databases"
     (when-mocking
+      (dt/install-migration-schema) => true
+      (dt/run-migrations _) => true
       (datomic.api/create-database default-db-url) => true
       (datomic.api/connect default-db-url) => true
       (db/run-core-schema anything) => true
@@ -70,6 +73,8 @@
 
   (behavior ".start can auto-migrate if configured for a specific database"
     (when-mocking
+      (dt/install-migration-schema) => true
+      (dt/run-migrations _) => true
       (datomic.api/create-database default-db-url) => true
       (datomic.api/connect default-db-url) => true
       (db/run-core-schema anything) => true

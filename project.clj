@@ -14,7 +14,8 @@
                  [untangled-spec "0.2.4" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
                  [crypto-password "0.1.3" :scope "test"]
                  [midje "1.8.2" :scope "test" :exclusions [org.clojure/clojure joda-time clj-time]]
-                 [com.rpl/specter "0.8.0"]]
+                 [com.rpl/specter "0.8.0"]
+                 [democracyworks/datomic-toolbox "2.0.0" :exclusions [com.datomic/datomic-pro]]]
 
   :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
                  ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]]

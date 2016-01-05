@@ -34,15 +34,14 @@
 (specification
   ;; TODO:  ^:integration
   "ensure-version Datomic function"
-
   (with-db-fixture dbcomp
 
-    (let [c        (:connection dbcomp)
-          db       (d/db c)
-          id-map   (-> dbcomp :seed-result)
+    (let [c (:connection dbcomp)
+          db (d/db c)
+          id-map (-> dbcomp :seed-result)
           realm-id (:tempid/realm1 id-map)
-          user1id  (:tempid/user1 id-map)
-          user2id  (:tempid/user2 id-map)]
+          user1id (:tempid/user1 id-map)
+          user2id (:tempid/user2 id-map)]
 
       (behavior
         ;; TODO: ^:integration
@@ -63,13 +62,17 @@
         (assertions
           (user-entity-id c "user1@example.net") => user1id)
 
-        (let [t1  (d/basis-t db)
+        (let [t1 (d/basis-t db)
               db2 @(d/transact c [[:db/add user1id :user/email "updated@email.com"]])]
           (assertions
             @(d/transact c [[:ensure-version t1] [:db/add user1id :user/email "updated@email.net"]])
             =throws=> (ExecutionException #"does not match")
             (user-entity-id c "updated@email.net") => nil
-            (user-entity-id c "updated@email.com") => user1id))))
+            (user-entity-id c "updated@email.com") => user1id)))
+
+      (behavior
+        "datomic-toolbox database functions are installed."
+        (doall (map #(is (contains? (d/touch (d/entity db %)) :db/fn)) [:transact :assert-empty :assert-equal]))))
 
     :migrations "resources.datomic-schema.validation-schema"
     :seed-fn seed-validation))
@@ -79,12 +82,12 @@
   "constrained-transaction Datomic function"
   (with-db-fixture dbcomp
 
-    (let [c        (:connection dbcomp)
-          db       (d/db c)
-          id-map   (-> dbcomp :seed-result)
+    (let [c (:connection dbcomp)
+          db (d/db c)
+          id-map (-> dbcomp :seed-result)
           realm-id (:tempid/realm1 id-map)
-          user1id  (:tempid/user1 id-map)
-          user2id  (:tempid/user2 id-map)]
+          user1id (:tempid/user1 id-map)
+          user2id (:tempid/user2 id-map)]
 
       (behavior "calls validate-transaction WITHOUT attribute check"
         (let [tx-data [:db/add user1id :user/email "updated@email.net"]]

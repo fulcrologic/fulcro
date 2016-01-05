@@ -19,8 +19,8 @@
   "datomic.schema - fetch-schema returns a configuration with"
   (with-db-fixture dbcomp
 
-    (let [c                      (:connection dbcomp)
-          id-map                 (-> dbcomp :seed-result)
+    (let [c (:connection dbcomp)
+          id-map (-> dbcomp :seed-result)
           schema-representations (rest/fetch-schema c)]
 
       (behavior
