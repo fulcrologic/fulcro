@@ -21,9 +21,9 @@
   Database
   (get-connection [this] (:connection this))
   (get-db-config [this]
-    (let [config (-> this :config :value)
+    (let [config (-> this :config :value :datomic)
           db-config (-> config :dbs db-name)]
-      (assert (:dbs config)
+      (assert (-> config :dbs)
               "Missing :dbs of app config.")
       (assert (:url db-config)
               (str db-name " has no URL in dbs of app config."))
@@ -70,7 +70,9 @@
 (defn build-database
   "Build a database component. If you specify a config, then none will be injected. If you do not, then this component
   will expect there to be a `:config` component to inject."
-  ([database-key config] (map->DatabaseComponent {:db-name database-key :config {:value config}}))
+  ([database-key config]
+   (map->DatabaseComponent {:db-name database-key
+                            :config {:value {:datomic config}}}))
   ([database-key]
    (component/using
      (map->DatabaseComponent {:db-name database-key})
