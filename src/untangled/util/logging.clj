@@ -94,15 +94,3 @@
                               gelf-message (-> (GelfMessageBuilder. @msg_ @hostname_)
                                              (.level log-level) .build)]
                           (.send gelf-transport gelf-message)))})))
-
-
-(comment
-
-  (t/merge-config! {:appenders {:gelf (gelf-appender "10.9.2.25" 12201) ;; add the gelf-appender
-                                ;:println {:enabled? false} ;; console logging will still happen,
-                                ;; so we could disable the default appender this way
-                                }})
-
-  (t/warn "GEM-133: testing gelf appender for timbre")
-
-  )

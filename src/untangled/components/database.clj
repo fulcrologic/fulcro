@@ -76,5 +76,5 @@
   ([database-key]
    (component/using
      (map->DatabaseComponent {:db-name database-key})
-     [:config])))
+     [:config :logger])))
 

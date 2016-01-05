@@ -1,4 +1,4 @@
-(ns ^:focused untangled.util.logging-spec
+(ns untangled.util.logging-spec
   (:require [clojure.test :refer :all]
             [untangled-spec.core :refer [specification assertions when-mocking component behavior]]
             [untangled.util.logging :as l])
