@@ -27,8 +27,6 @@
         migration-spaces
         (filter migration? (n/load-namespaces migration-namespace))
 
-        _ (clojure.pprint/pprint [(format "all-migrations migration-spaces (%s):" migration-namespace) migration-spaces])
-
         transactions
         (fn [nspace]
           (if-let [tfunc (ns-resolve nspace 'transactions)]

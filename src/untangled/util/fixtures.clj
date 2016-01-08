@@ -3,8 +3,7 @@
     [datomic.api :as d]
     [com.stuartsierra.component :as component]
     untangled.components.database
-    )
-  )
+    [untangled.components.logger :refer [start-logging! reset-logging!]]))
 
 (defn db-fixture
   "Create a test fixture version (in-memory database) of a database. Such a
@@ -13,17 +12,16 @@
   given seed-fn will be run as part of the database startup (see the database
   component in datahub for details on seeding).
   "
-  [db-key & {:keys [migration-ns seed-fn]}]
+  [db-key & {:keys [migration-ns seed-fn log-level]}]
   (let [
         uri "datomic:mem://db-fixture"
-        db (untangled.components.database/build-database db-key)]
+        db  (untangled.components.database/build-database db-key)]
     (d/delete-database uri)
+    (start-logging! nil nil log-level)
     (component/start (assoc db :config {:value {:datomic {:dbs {db-key
-                                                       (cond-> {:url uri :auto-drop true}
-                                                               migration-ns (assoc :auto-migrate true :schema migration-ns)
-                                                               seed-fn (assoc :seed-function seed-fn))
-                                                       }}}}))
-    ))
+                                                                (cond-> {:url uri :auto-drop true}
+                                                                  migration-ns (assoc :auto-migrate true :schema migration-ns)
+                                                                  seed-fn (assoc :seed-function seed-fn))}}}}))))
 
 (defmacro with-db-fixture
   "
@@ -32,7 +30,9 @@
 
   Returns the result of the form.
   "
-  [varname form & {:keys [migrations seed-fn] :or {:migrations nil :seed-fn nil}}]
-  `(let [~varname (db-fixture :mockdb :migration-ns ~migrations :seed-fn ~seed-fn)]
-     (try ~form (finally (component/stop ~varname))))
+  [varname form & {:keys [migrations seed-fn log-level] :or {log-level :fatal}}]
+  `(let [~varname (db-fixture :mockdb :migration-ns ~migrations :seed-fn ~seed-fn :log-level ~log-level)]
+     (try ~form (finally
+                  (component/stop ~varname)
+                  (reset-logging!))))
   )

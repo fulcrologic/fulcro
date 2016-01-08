@@ -3,18 +3,24 @@
             [taoensso.timbre :as t]
             [untangled.util.logging :as l]))
 
+(defn start-logging! [host port level]
+  (if (and host port)
+        (t/merge-config! {:level level :appenders {:gelf (l/gelf-appender host port)}})
+        (t/set-level! level)))
+
+(defn reset-logging! []
+  (t/set-config! t/example-config))
+
 (defrecord Logger [config]
   component/Lifecycle
 
   (start [this]
     (let [{:keys [host port level] :or {level :debug} :as logging-config} (-> this :config :value :logging)]
-      (if (and host port)
-        (t/merge-config! {:level level :appenders {:gelf (l/gelf-appender host port)}})
-        (t/set-level! level))
+      (start-logging! host port level)
       this))
 
   (stop [this]
-    (t/set-config! t/example-config)
+    (reset-logging!)
     this))
 
 (defn build-logger []

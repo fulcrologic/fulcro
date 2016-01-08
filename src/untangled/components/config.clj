@@ -30,9 +30,7 @@
   "Calls load-edn on `file-path`,
    and throws an ex-info if that failed."
   [file-path]
-  (or (when-let [cfg (some-> file-path load-edn)]
-        (println "Using config:" file-path)
-        cfg)
+  (or (some-> file-path load-edn)
       (throw (ex-info "please provide a valid file on your file-system"
                       {:file-path file-path}))))
 
