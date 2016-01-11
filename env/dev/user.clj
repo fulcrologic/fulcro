@@ -10,7 +10,7 @@
     [clojure.repl :refer [doc source]]
     [datomic.api :as d]
     [datomic-helpers :refer [to-transaction to-schema-transaction ext]]
-    [untangled-spec.reporters.terminal :as report]
+    ;[untangled-spec.reporters.terminal :as report]
     [clojure.test :refer [run-tests]]
     untangled.components.config-spec
     )
@@ -38,7 +38,7 @@
     )
   )
 
-(defn run-all-tests []
+#_(defn run-all-tests []
   (report/with-untangled-output
     (run-tests
       'untangled.components.config-spec)))
