@@ -11,7 +11,7 @@
                  [com.stuartsierra/component "0.2.3"]
                  [com.taoensso/timbre "4.1.4"]
                  [org.clojure/java.classpath "0.2.2"]
-                 [untangled-spec "0.2.4" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
+                 [untangled-spec "0.3.0" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
                  [crypto-password "0.1.3" :scope "test"]
                  [midje "1.8.2" :scope "test" :exclusions [org.clojure/clojure joda-time clj-time]]
                  [com.rpl/specter "0.8.0"]
@@ -29,7 +29,7 @@
   :source-paths ["src"]
   :test-paths ["specs"]
 
-  :test-refresh {:report untangled-spec.report/untangled-report
+  :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
                  :changes-only true}
 
   :test-selectors {:focused :focused}
