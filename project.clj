@@ -6,10 +6,9 @@
 
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "1.7.122"]
-                 [untangled-spec "0.1.1"]
                  [differ "0.2.1"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [untangled-spec "0.2.0" :scope "test"]
+                 [untangled-spec "0.3.1-SNAPSHOT" :scope "test"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]]
 
   :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
@@ -23,7 +22,7 @@
   :source-paths ["src" "spec"]
 
   :plugins [[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.4.1"]]
+            [lein-figwheel "0.5.0-3"]]
 
   :cljsbuild {:builds
               [{:id           "test"
