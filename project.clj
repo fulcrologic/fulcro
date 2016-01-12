@@ -28,6 +28,7 @@
 
   :source-paths ["src"]
   :test-paths ["specs"]
+  :resource-paths ["src" "resources"]
 
   :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
                  :changes-only true}
