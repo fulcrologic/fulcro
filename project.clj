@@ -30,7 +30,7 @@
             [lein-figwheel "0.5.0-3"]]
 
   :doo {:build "automated-tests"
-        :paths {:karma "xvfb-run node_modules/karma/bin/karma"}}
+        :paths {:karma "node_modules/karma/bin/karma"}}
 
   :cljsbuild {:builds
               [{:id           "test"
