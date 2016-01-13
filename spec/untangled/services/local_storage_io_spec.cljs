@@ -29,7 +29,7 @@
                   )
                 )
               )
-    
+
     (behavior "save updates an existing item and returns the saved item"
               (let [async-report (ar/new-async-report #() #() #())
                     localio (ls/new-local-storage async-report 0)
@@ -94,7 +94,7 @@
                 (aio/save localio "testuri" #() #() {:id "item4" :a 4})
                 (aio/delete localio "testuri" goodfn badfn "item3")
                 (assertions
-                  @state = "item3"
+                  @state => "item3"
                   )
                 (aio/query localio "testuri" goodfn badfn)
                 (assertions

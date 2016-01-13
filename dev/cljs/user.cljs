@@ -1,21 +1,16 @@
 (ns ^:figwheel-always cljs.user
-  (:require-macros [cljs.test :refer (is deftest run-tests testing)])
+  ;(:require-macros [cljs.test :refer (is deftest run-tests testing)])
   (:require cljs.core
             untangled.i18n-spec
             untangled.services.local-storage-io-spec
             untangled-spec.async
             untangled-spec.stub
-            [untangled-spec.dom.suite :as ts :include-macros true]
+            untangled.tests-to-run
+            [untangled-spec.reporters.suite :refer-macros [deftest-all-suite]]
             [cljs.test :as test :include-macros true :refer [report]]))
 
+(deftest-all-suite spec-report #"untangled.*-spec")
 
-(ts/test-suite dom-report
-               'untangled.i18n-spec
-               'untangled.services.local-storage-io-spec
-               )
+(def on-load spec-report)
 
-(defn on-load []
-  (dom-report)
-  )
-
-(dom-report)
+(spec-report)
