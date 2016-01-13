@@ -13,6 +13,7 @@
                  [figwheel-sidecar "0.4.1" :scope "provided"]]
 
   :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
+                 ["snapshots" "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"]
                  ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]]
 
   :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-release"
