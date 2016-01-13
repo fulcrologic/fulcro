@@ -23,3 +23,4 @@ examples/calendar/resources/public/js/specs
 examples/todo/src/quiescent_model
 node_modules
 resources/private/js
+resources/public/js/test

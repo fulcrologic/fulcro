@@ -1,5 +1,6 @@
 @import url(https://fonts.googleapis.com/css?family=Lato);
 @import url(https://fonts.googleapis.com/css?family=Cutive+Mono);
+@import url(edn.css);
 
 .overlay {
     background-color: rgb(230, 230, 240);

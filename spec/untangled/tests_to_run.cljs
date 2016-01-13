@@ -1,7 +1,7 @@
 (ns untangled.tests-to-run
   (:require
     untangled.services.local-storage-io-spec
-            untangled.i18n-spec))
+    untangled.i18n-spec))
 
 ;********************************************************************************
 ; IMPORTANT:

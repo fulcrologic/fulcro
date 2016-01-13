@@ -10,7 +10,8 @@
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [untangled-spec "0.3.1-SNAPSHOT" :scope "test"]
-                 [figwheel-sidecar "0.4.1" :scope "provided"]]
+                 [org.omcljs/om "1.0.0-alpha28" :scope "test"]
+                 [figwheel-sidecar "0.5.0-3" :scope "provided"]]
 
   :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
                  ["snapshots" "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"]
@@ -29,18 +30,10 @@
             [lein-figwheel "0.5.0-3"]]
 
   :doo {:build "automated-tests"
-        :paths {:karma "xvfb-run node_modules/.bin/karma"}}
+        :paths {:karma "xvfb-run node_modules/karma/bin/karma"}}
 
   :cljsbuild {:builds
-              [{:id           "automated-tests"
-                :source-paths ["spec" "src"]
-                :compiler     {:output-to     "resources/private/js/unit-tests.js"
-                               :main          untangled.all-tests
-                               :output-dir           "resources/private/js/out"
-                               :asset-path           "js/out"
-                               :optimizations :none
-                               }}
-               {:id           "test"
+              [{:id           "test"
                 :source-paths ["src" "dev" "spec"]
                 :figwheel     {:on-jsload "cljs.user/on-load"}
                 :compiler     {:main                 cljs.user
@@ -48,7 +41,15 @@
                                :output-dir           "resources/public/js/test/out"
                                :recompile-dependents true
                                :asset-path           "js/test/out"
-                               :optimizations        :none}}]}
+                               :optimizations        :none}}
+               {:id           "automated-tests"
+                :source-paths ["spec" "src"]
+                :compiler     {:output-to     "resources/private/js/unit-tests.js"
+                               :main          untangled.all-tests
+                               :output-dir    "resources/private/js/out"
+                               :asset-path    "js/out"
+                               :optimizations :none
+                               }}]}
 
   :profiles {
              :dev {
