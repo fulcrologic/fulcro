@@ -1,5 +1,7 @@
 (ns untangled.tests-to-run
-  (:require untangled.services.local-storage-io-spec
+  (:require
+    yahoo.intl-messageformat-with-locales
+    untangled.services.local-storage-io-spec
             untangled.i18n-spec))
 
 ;********************************************************************************

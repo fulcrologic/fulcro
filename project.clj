@@ -5,8 +5,9 @@
             :url  "http://www.thenavisway.com"}
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.122"]
+                 [org.clojure/clojurescript "1.7.228"]
                  [differ "0.2.1"]
+                 [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [untangled-spec "0.3.1-SNAPSHOT" :scope "test"]
                  [figwheel-sidecar "0.4.1" :scope "provided"]]
@@ -19,13 +20,26 @@
                         ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"
                                       :sign-releases false}]]
 
+  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
   :source-paths ["src" "spec"]
 
-  :plugins [[lein-cljsbuild "1.1.0"]
+  :plugins [[lein-cljsbuild "1.1.2"]
+            [lein-doo "0.1.6"]
             [lein-figwheel "0.5.0-3"]]
 
+  :doo {:build "automated-tests"
+        :paths {:karma "node_modules/.bin/karma"}}
+
   :cljsbuild {:builds
-              [{:id           "test"
+              [{:id           "automated-tests"
+                :source-paths ["spec" "src"]
+                :compiler     {:output-to     "resources/private/js/unit-tests.js"
+                               :main          untangled.all-tests
+                               :output-dir           "resources/private/js/out"
+                               :asset-path           "js/out"
+                               :optimizations :none
+                               }}
+               {:id           "test"
                 :source-paths ["src" "dev" "spec"]
                 :figwheel     {:on-jsload "cljs.user/on-load"}
                 :compiler     {:main                 cljs.user
