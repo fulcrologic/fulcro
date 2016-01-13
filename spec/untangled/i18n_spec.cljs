@@ -3,6 +3,7 @@
                    [untangled-spec.core :refer (specification behavior provided assertions)]
                    )
   (:require [untangled.i18n :refer [current-locale]]
+            yahoo.intl-messageformat-with-locales
             [untangled.i18n :refer-macros [tr trf trc trlambda]]
             [cljs.test :refer [do-report]])
   )
