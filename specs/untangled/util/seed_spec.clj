@@ -60,35 +60,15 @@
 
       (assertions
         (s/assign-temp-id {} {:db/id :tempid.boo/thing :a/boo "hello"})
-        => {:tempid.boo/thing :..id..}))))
+        => {:tempid.boo/thing :..id..})))
+  (behavior "Handles tempid assignment in recursive maps"
+    (when-mocking
+      (d/tempid :db.part/user) => :..id..
 
-(specification "replacing ids"
-  (behavior "replaces a tempid keyword value with the actual tempid"
-    (assertions
-      (s/replace-id {} {:tempid/thing 22} :tempid/thing) => 22))
-
-  (behavior "replaces a vector containing tempid keyword values with a vector that has the actual tempids"
-    (assertions
-      (s/replace-id {} {:tempid/thing 22 :tempid/other 42} [:tempid/thing :tempid/other])
-      =fn=> (fn [v]
-              (and
-                (vector? v)
-                (= v [22 42])))))
-
-  (behavior "replaces a set containing tempid keyword values with a set that has the actual tempids"
-    (assertions
-      (s/replace-id {} {:tempid/thing 22 :tempid/other 42} #{:tempid/thing :tempid/other})
-      => #{22 42}))
-
-  (behavior "does not replace scalar values that are not keyed in the map"
-    (assertions
-      (s/replace-id {} {:tempid/thing 22 :tempid/other 42} :boo) => :boo
-      (s/replace-id {} {:tempid/thing 22 :tempid/other 42} "hello") => "hello"
-      (s/replace-id {} {:tempid/thing 22 :tempid/other 42} 43) => 43
-      (s/replace-id {} {:tempid/thing 22 :tempid/other 42} 4/3) => 4/3
-      (s/replace-id {} {:tempid/thing 22 :tempid/other 42} [1 2 3]) => [1 2 3]
-      (s/replace-id {} {:tempid/thing 22 :tempid/other 42} #{5 4 3}) => #{3 4 5}
-      (s/replace-id {} {:tempid/thing 22 :tempid/other 42} {:k1 5 :k2 3}) => {:k1 5 :k2 3})))
+      (assertions
+        (s/assign-temp-id {} {:db/id :tempid.boo/thing :nested-thing {:db/id :tempid/blah :a/boo "hello"}})
+        => {:tempid.boo/thing :..id.. :tempid/blah :..id..}))
+    ))
 
 (specification "Assigning ids in an entity"
   (behavior "throws an AssertionError if a tempid keyword is referred to that is not in the ID map"
