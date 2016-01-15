@@ -2,8 +2,7 @@
   (:require
     [datomic.api :as d]
     [taoensso.timbre :as timbre]
-    )
-  )
+    [clojure.walk :as walk]))
 
 (defmacro generate-entity
   "Generate a ready-to-link datomic object. The object data can take the form
@@ -31,9 +30,7 @@
   "
   [obj]
   (let [f *file*]
-    (with-meta obj (assoc (meta &form) :file f))
-    )
-  )
+    (with-meta obj (assoc (meta &form) :file f))))
 
 (defn is-tempid-keyword? [v] (and (keyword? v) (some-> v namespace (.startsWith "tempid"))))
 
@@ -53,35 +50,27 @@
   "
   [id-map item]
   (cond
-    (map? item)  (if-let [id (keyword (:db/id item))]
-                  (if (.startsWith (namespace id) "tempid")
-                    (do
-                      (assert (not (contains? id-map id)) (str "Entity uses a duplicate ID: " (meta item)))
-                      (assoc id-map id (d/tempid :db.part/user))
-                      )
-                    id-map)
-                  id-map
-                  )
-    (sequential? item) (let [id (nth item 1)]
-                         (if (and (.startsWith (namespace id) "tempid") (not (contains? id-map id)))
-                           (assoc id-map id (d/tempid :db.part/user))
-                           id-map)
-                         )
-    :otherwise (assert false "Invalid entry in data to link. Must be list or map")
-    )
-  )
-(defn dbg [x] (println :DEBUG x) x)
-(defn replace-id [entity idmap value]
+    (map? item) (let [new-id-mappings (atom id-map)]
+                  (walk/prewalk #(if-let [id (and (map? %) (keyword? (:db/id %)) (.startsWith (namespace (:db/id %)) "tempid") (:db/id %))]
+                                  (let [tempid (d/tempid :db.part/user)]
+                                    (assert (not (contains? @new-id-mappings id)) (str "Entity uses a duplicate ID: " (meta item)))
+                                    (swap! new-id-mappings assoc id tempid)
+                                    (assoc % :db/id tempid))
+                                  %) item)
+                  @new-id-mappings)
+    (sequential? item)
+    (let [id (nth item 1)]
+      (if (and (.startsWith (namespace id) "tempid") (not (contains? id-map id)))
+        (assoc id-map id (d/tempid :db.part/user))
+        id-map))
+    :otherwise (assert false "Invalid entry in data to link. Must be list or map")))
+
+(defn replace-id [idmap entity value]
   (cond
-    (and (keyword? value) (get idmap value nil)) (get idmap value)
-    (set? value) (into #{} (map (partial replace-id entity idmap) value))
-    (vector? value) (into [] (map (partial replace-id entity idmap) value))
+    (and (is-tempid-keyword? value) (get idmap value nil)) (get idmap value)
     :otherwise (do
                  (assert (not (is-tempid-keyword? value)) (str "Missing ID " value " for entity " entity (meta entity)))
-                 value
-                 )
-    )
-  )
+                 value)))
 
 (defn assign-ids
   "Replaces any references to temporary IDs that exist in idmap with the actual
@@ -92,18 +81,7 @@
   Returns an updated entity that has the correct temporary IDs.
   "
   [idmap entity]
-  (cond
-    (map? entity) (reduce (fn [e k]
-                            (let [existing-value (k e)
-                                  new-value (replace-id entity idmap existing-value)]
-                              (assoc e k new-value))
-                            )
-                          entity (keys entity))
-    (sequential? entity) (map (partial replace-id entity idmap) entity)
-    )
-  )
-
-
+  (walk/prewalk (partial replace-id idmap entity) entity))
 
 (defn link-entities
   "Walks the given entities (list, set, vector) and:
@@ -116,12 +94,10 @@
   Returns a list of entities with their IDs properly linked.
   "
   [e]
-  (assert (not (map?  e)) "Argument must be a list, set, or vector")
+  (assert (not (map? e)) "Argument must be a list, set, or vector")
   (let [tempids (reduce assign-temp-id {} (seq e))]
-    { :items (for [entry e] (assign-ids tempids entry))
-      :tempids tempids }
-    )
-  )
+    {:items   (for [entry e] (assign-ids tempids entry))
+     :tempids tempids}))
 
 (defn link-and-load-seed-data
   "Links the given data (by temp IDs), and loads it into the database. This
@@ -132,12 +108,9 @@
   and you can use generate-entities on the maps for better debugging support.
   "
   [conn datoms]
-  (let [link              (link-entities datoms)
-        linked-data       (:items link)
-        assigned-tempids  (:tempids link)
-        result            @(d/transact conn linked-data)
-        realid-map        (:tempids result)
-        ]
-      (reduce (fn [a k] (assoc a k (d/resolve-tempid (d/db conn) realid-map (k a))))  assigned-tempids (keys  assigned-tempids))
-    )
-  )
+  (let [link (link-entities datoms)
+        linked-data (:items link)
+        assigned-tempids (:tempids link)
+        result @(d/transact conn linked-data)
+        realid-map (:tempids result)]
+    (reduce (fn [a k] (assoc a k (d/resolve-tempid (d/db conn) realid-map (k a)))) assigned-tempids (keys assigned-tempids))))
