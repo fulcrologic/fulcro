@@ -1,7 +1,7 @@
 ;; Name YOUR namespace as follows: datahub.migrations.YYYYMMDDHHmm-description 
 ;; This means your filename will be: src/datahub/migrations/YYYYMMDDHHmm_description (note the underscore)
 (ns sample-migrations.migrations.template
-  (:require [untangled.datomic-schema.schema :as s])
+  (:require [untangled.server.database.schema :as s])
   )
 
 ;; THIS FILE WILL NEVER RUN. The migration system ignores anything in *.template namespaces.
@@ -27,11 +27,11 @@
      :db/valueType :db.type/string, 
      :db/cardinality :db.cardinality/one
      }]
-   ;; transaction 2: The untangled.datomic-schema library can be used to generate transactions.
+   ;; transaction 2: The untangled.server.database library can be used to generate transactions.
    (s/generate-schema 
      [(s/schema user ;; An easy way to create a set of attributes under the same conceptual entity name
                 (s/fields 
-                  [username :string] ;; see untangled.datomic-schema docs
+                  [username :string] ;; see untangled.server.database docs
                   [email :string :unique-identity]
                   [status :enum [:active :pending]]
                   )

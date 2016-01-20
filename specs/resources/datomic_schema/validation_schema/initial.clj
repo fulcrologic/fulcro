@@ -1,7 +1,7 @@
 (ns resources.datomic-schema.validation-schema.initial
   (:require
-    [untangled.datomic-schema.schema :as s]
-    [untangled.datomic-schema.migration :as m]
+    [untangled.server.database.schema :as s]
+    [untangled.server.database.migration :as m]
     )
   )
 

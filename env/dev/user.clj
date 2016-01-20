@@ -12,11 +12,11 @@
     [datomic-helpers :refer [to-transaction to-schema-transaction ext]]
     ;[untangled-spec.reporters.terminal :as report]
     [clojure.test :refer [run-tests]]
-    untangled.components.config-spec
+    untangled.server.components.config-spec
     )
   #_(:use
     midje.repl
-    [untangled.datomic-schema.migration :only [dump-schema dump-entity] :rename {
+    [untangled.server.database.migration :only [dump-schema dump-entity] :rename {
                                                                                  dump-schema s
                                                                                  dump-entity e
                                                                                  }]
@@ -41,5 +41,5 @@
 #_(defn run-all-tests []
   (report/with-untangled-output
     (run-tests
-      'untangled.components.config-spec)))
+      'untangled.server.components.config-spec)))
 

@@ -1,7 +1,7 @@
 (ns resources.datomic-schema.rest-schema.initial
-  (:require [untangled.datomic-schema.schema :as s]
+  (:require [untangled.server.database.schema :as s]
             [datomic.api :as d]
-            [untangled.datomic-schema.migration :as m])
+            [untangled.server.database.migration :as m])
   )
 
 (defn transactions []
