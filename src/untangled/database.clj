@@ -9,7 +9,7 @@
     "Get the config for this database, usually based on the database's name")
   )
 
-(defprotocol DatabaseResolver
+#_(defprotocol DatabaseResolver
   "
   # DatabaseResolver
 
