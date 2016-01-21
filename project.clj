@@ -1,4 +1,4 @@
-(defproject untangled-server "0.3.0-SNAPSHOT"
+(defproject untangled-server "0.3.1-SNAPSHOT"
   :description "Support for Datomic, including extensions to schema validation and tracked Datomic schema migrations."
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
@@ -7,6 +7,7 @@
                  [datomic-helpers "1.0.0"]
                  [org.clojure/tools.namespace "0.2.10"]
                  [org.graylog2/gelfclient "1.0.0"]
+                 [org.omcljs/om "1.0.0-alpha29-SNAPSHOT"]
                  [commons-codec "1.6"]
                  [com.stuartsierra/component "0.2.3"]
                  [com.taoensso/timbre "4.1.4"]
@@ -17,7 +18,8 @@
                  [democracyworks/datomic-toolbox "2.0.0" :exclusions [com.datomic/datomic-pro]]]
 
   :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
-                 ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]]
+                 ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]
+                 ["snapshots" "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"]]
 
   :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-release"
                                      :snapshots     false
