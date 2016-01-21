@@ -5,8 +5,7 @@
                                          assertions
                                          when-mocking
                                          component
-                                         behavior]]
-            [clojure.test :refer :all]))
+                                         behavior]]))
 
 (specification "all-migrations"
   (behavior "INTEGRATION - finds migrations that are in the correct package and ignores the template"
