@@ -1,10 +1,10 @@
-(ns untangled.server.database.migration
+(ns untangled.server.impl.database.migration
   (:require [clojure.string :as s]
             [datomic.api :as d]
             [io.rkn.conformity :as c]
-            [untangled.server.namespace :as n]
+            [untangled.server.impl.util :as n]
             [taoensso.timbre :as t]
-            [untangled.server.logging :as l]
+            [untangled.server.impl.logging :as l]
             [clojure.tools.namespace.find :refer [find-namespaces]]
             [clojure.java.classpath :refer [classpath]]))
 

@@ -1,4 +1,4 @@
-(ns untangled.server.database.validation
+(ns untangled.server.impl.database.validation
   (:require
     [clojure.set :as s]
     [datomic.api :as d]
@@ -26,7 +26,7 @@
 ; be on a "User". We call these attributes "definitive" (their presences define the "type" of the entity).
 ;
 ; Note that if you allow a foreign attribute  on an entity (e.g. :account/name on "user") and that
-; foreign attribute is also definitive, then by placing both on an entity you're conferring that additional 
+; foreign attribute is also definitive, then by placing both on an entity you're conferring that additional
 ; "type" on that entity (it is now an "account" and a "user"). This has additional validation implications
 ; (e.g. it can now be referred to by things that can refer to an account and a user). Conversely, removing
 ; such an attribute could cause validation to fail if such a removal would remove a "type" that other
@@ -59,7 +59,7 @@
 ; CLASSPATH.
 ;
 ; Additionally, there are database functions you must install into your schema. See
-; `untangled.server.database.core-schema-definitions` for the code that installs the two transactor functions `ensure-version`
+; `untangled.server.impl.database.core-schema-definitions` for the code that installs the two transactor functions `ensure-version`
 ; and `constrained-transaction`.
 
 (defn entity-has-attribute?

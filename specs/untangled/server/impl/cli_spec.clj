@@ -1,10 +1,10 @@
-(ns untangled.server.cli-spec
-  (:require [untangled.server.cli :as cli]
+(ns untangled.server.impl.cli-spec
+  (:require [untangled.server.impl.cli :as cli]
             [clojure.test :as t :refer (are is deftest with-test run-tests testing do-report)]
             [taoensso.timbre :as timbre]
             [datomic.api :as d]
-            [untangled.server.database.migration :as mig]
-            [untangled.server.components.database :as cd]
+            [untangled.server.impl.database.migration :as mig]
+            [untangled.server.impl.components.database :as cd]
             [io.rkn.conformity :as c]
             [untangled-spec.core :refer [specification provided behavior assertions]]))
 

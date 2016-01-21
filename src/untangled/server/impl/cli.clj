@@ -1,10 +1,10 @@
-(ns untangled.server.cli
+(ns untangled.server.impl.cli
   (:require [clojure.tools.cli :refer [cli]]
             [datomic.api :as d]
             [io.rkn.conformity :as c]
             [taoensso.timbre :as timbre]
-            [untangled.server.components.database :as cd]
-            [untangled.server.database.migration :as m]))
+            [untangled.server.impl.components.database :as cd]
+            [untangled.server.impl.database.migration :as m]))
 
 (defmacro make-fn [m]
   `(fn [& args#]

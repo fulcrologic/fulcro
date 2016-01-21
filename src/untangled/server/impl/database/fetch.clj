@@ -1,8 +1,8 @@
-(ns untangled.server.database.fetch
+(ns untangled.server.impl.database.fetch
   (:require
     clojure.set
     [datomic.api :as d]
-    [untangled.server.database.migration :as m]
+    [untangled.server.impl.database.migration :as m]
     [clojure.string :as str]
     ))
 

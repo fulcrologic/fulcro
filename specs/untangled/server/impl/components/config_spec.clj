@@ -1,6 +1,6 @@
-(ns untangled.server.components.config-spec
+(ns untangled.server.impl.components.config-spec
   (:require [com.stuartsierra.component :as component]
-            [untangled.server.components.config :as cfg]
+            [untangled.server.impl.components.config :as cfg]
             [untangled-spec.core :refer [specification
                                          assertions
                                          when-mocking
@@ -137,7 +137,7 @@
     (map->App {})
     [:config]))
 
-(specification "untangled.server.components.config"
+(specification "untangled.server.impl.components.config"
   (component "new-config"
     (behavior "returns a stuartsierra component"
       (assertions (satisfies? component/Lifecycle (cfg/new-config "w/e")) => true)

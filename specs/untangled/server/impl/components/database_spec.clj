@@ -1,13 +1,13 @@
-(ns untangled.server.components.database-spec
+(ns untangled.server.impl.components.database-spec
   (:require [com.stuartsierra.component :as component]
-            [untangled.server.components.config :as cfg]
+            [untangled.server.impl.components.config :as cfg]
             [clojure.test :refer :all]
             [untangled-spec.core :refer [specification
                                          assertions
                                          when-mocking
                                          component
                                          behavior]]
-            [untangled.server.components.database :as db]
+            [untangled.server.impl.components.database :as db]
             [datomic-toolbox.core :as dt]))
 
 (def default-db-name :db1)
@@ -47,7 +47,7 @@
 
   (behavior "implements Database"
     (assertions
-      (satisfies? untangled.server.database.protocols/Database (db/build-database "a-db-name")) => true))
+      (satisfies? untangled.server.impl.database.protocols/Database (db/build-database "a-db-name")) => true))
 
   (behavior "implements component/Lifecycle"
     (assertions

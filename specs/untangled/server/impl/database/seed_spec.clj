@@ -1,7 +1,7 @@
-(ns untangled.server.database.seed-spec
+(ns untangled.server.impl.database.seed-spec
   (:require
     [datomic.api :as d]
-    [untangled.server.database.seed :as s]
+    [untangled.server.impl.database.seed :as s]
     [untangled-spec.core :refer [specification
                                  assertions
                                  when-mocking

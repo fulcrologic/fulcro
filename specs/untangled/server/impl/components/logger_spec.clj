@@ -1,14 +1,14 @@
-(ns untangled.server.components.logger-spec
+(ns untangled.server.impl.components.logger-spec
   (:require [clojure.test :refer :all]
             [taoensso.timbre :as t]
-            [untangled.server.components.logger :as l]
+            [untangled.server.impl.components.logger :as l]
             [untangled-spec.core :refer [specification
                                          assertions
                                          when-mocking
                                          component
                                          behavior]]
             [com.stuartsierra.component :as component]
-            [untangled.server.components.config :as cfg]))
+            [untangled.server.impl.components.config :as cfg]))
 
 (defn- start-system [log-config]
   (.start (component/system-map

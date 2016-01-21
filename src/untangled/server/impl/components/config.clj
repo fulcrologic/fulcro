@@ -1,4 +1,4 @@
-(ns untangled.server.components.config
+(ns untangled.server.impl.components.config
   (:require [com.stuartsierra.component :as component]
             [clojure.java.classpath :as cp]
             [clojure.java.io :as io]

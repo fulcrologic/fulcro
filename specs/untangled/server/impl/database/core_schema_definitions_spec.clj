@@ -1,10 +1,10 @@
-(ns untangled.server.database.core-schema-definitions-spec
+(ns untangled.server.impl.database.core-schema-definitions-spec
   (:require
-    [untangled.server.database.validation :as v]
+    [untangled.server.impl.database.validation :as v]
     [datomic.api :as d]
     [seeddata.auth :as a]
-    [untangled.server.database.seed :as s]
-    [untangled.server.database.fixtures :refer [with-db-fixture]]
+    [untangled.server.impl.database.seed :as s]
+    [untangled.server.impl.database.fixtures :refer [with-db-fixture]]
     [resources.datomic-schema.validation-schema.initial]
     [untangled-spec.core :refer [specification
                                  assertions

@@ -1,4 +1,4 @@
-(ns untangled.server.namespace
+(ns untangled.server.impl.util
   (:require
     [clojure.tools.namespace.find :refer [find-namespaces]]
     [clojure.java.classpath :refer [classpath]]))

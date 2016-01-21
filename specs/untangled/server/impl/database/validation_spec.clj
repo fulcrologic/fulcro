@@ -1,12 +1,12 @@
-(ns untangled.server.database.validation-spec
+(ns untangled.server.impl.database.validation-spec
   (:require
-    [untangled.server.database.validation :as v]
+    [untangled.server.impl.database.validation :as v]
     [clojure.test :refer :all]
     [untangled-spec.core :refer [specification assertions when-mocking component behavior]]
     [datomic.api :as d]
     [seeddata.auth :as a]
-    [untangled.server.database.seed :as s]
-    [untangled.server.database.fixtures :refer [with-db-fixture]]
+    [untangled.server.impl.database.seed :as s]
+    [untangled.server.impl.database.fixtures :refer [with-db-fixture]]
     [resources.datomic-schema.validation-schema.initial]
     )
   (:import (clojure.lang ExceptionInfo)

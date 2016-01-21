@@ -1,7 +1,7 @@
-(ns untangled.server.components.logger
+(ns untangled.server.impl.components.logger
   (:require [com.stuartsierra.component :as component]
             [taoensso.timbre :as t]
-            [untangled.server.logging :as l]))
+            [untangled.server.impl.logging :as l]))
 
 (defn start-logging! [host port level]
   (if (and host port)

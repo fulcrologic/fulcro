@@ -1,4 +1,4 @@
-(ns untangled.server.logging
+(ns untangled.server.impl.logging
   (:require [taoensso.timbre :as t])
   (:import (org.graylog2.gelfclient
              GelfConfiguration

@@ -1,8 +1,8 @@
-(ns untangled.server.database.migration-spec
+(ns untangled.server.impl.database.migration-spec
   (:require [taoensso.timbre :refer [fatal]]
-            [untangled.server.namespace :as n]
-            [untangled.server.database.migration :as m]
-            [untangled.server.logging :as logger]
+            [untangled.server.impl.util :as n]
+            [untangled.server.impl.database.migration :as m]
+            [untangled.server.impl.logging :as logger]
             [untangled-spec.core :refer [specification
                                          assertions
                                          when-mocking

@@ -1,6 +1,6 @@
 (ns sample-migrations.migrations.auth.users-20150609
-  (:require [untangled.server.database.schema :as s]
-            [untangled.server.database.migration :as m]
+  (:require [untangled.server.impl.database.schema :as s]
+            [untangled.server.impl.database.migration :as m]
             [datomic.api :as d])
   )
 

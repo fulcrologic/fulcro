@@ -1,4 +1,4 @@
-(ns untangled.server.database.seed
+(ns untangled.server.impl.database.seed
   (:require
     [datomic.api :as d]
     [taoensso.timbre :as timbre]

@@ -1,9 +1,9 @@
-(ns untangled.server.database.fixtures
+(ns untangled.server.impl.database.fixtures
   (:require
     [datomic.api :as d]
     [com.stuartsierra.component :as component]
-    untangled.server.components.database
-    [untangled.server.components.logger :refer [start-logging! reset-logging!]]))
+    untangled.server.impl.components.database
+    [untangled.server.impl.components.logger :refer [start-logging! reset-logging!]]))
 
 (defn db-fixture
   "Create a test fixture version (in-memory database) of a database. Such a
@@ -15,7 +15,7 @@
   [db-key & {:keys [migration-ns seed-fn log-level]}]
   (let [
         uri "datomic:mem://db-fixture"
-        db  (untangled.server.components.database/build-database db-key)]
+        db  (untangled.server.impl.components.database/build-database db-key)]
     (d/delete-database uri)
     (start-logging! nil nil log-level)
     (component/start (assoc db :config {:value {:datomic {:dbs {db-key

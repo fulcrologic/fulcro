@@ -1,6 +1,6 @@
-(ns untangled.server.database.schema-spec
+(ns untangled.server.impl.database.schema-spec
   (:require
-    [untangled.server.database.schema :as s]
+    [untangled.server.impl.database.schema :as s]
     [untangled-spec.core :refer [specification behavior assertions]]))
 
 (specification "Generate Schema generates"

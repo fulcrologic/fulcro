@@ -1,12 +1,12 @@
-(ns untangled.server.components.database
+(ns untangled.server.impl.components.database
   (:require [com.stuartsierra.component :as component]
             [datomic.api :as datomic]
-            [untangled.server.logging :refer [info fatal]]
-            [untangled.server.database.migration :as m]
-            [untangled.server.database.core-schema-definitions :as sc]
+            [untangled.server.impl.logging :refer [info fatal]]
+            [untangled.server.impl.database.migration :as m]
+            [untangled.server.impl.database.core-schema-definitions :as sc]
             [datomic-toolbox.core :as dt]
-            untangled.server.database.protocols)
-  (:import (untangled.server.database.protocols Database)))
+            untangled.server.impl.database.protocols)
+  (:import (untangled.server.impl.database.protocols Database)))
 
 (defn run-core-schema [conn]
   (info "Applying core schema to database.")

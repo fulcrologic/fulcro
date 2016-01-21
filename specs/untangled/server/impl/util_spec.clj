@@ -1,6 +1,6 @@
-(ns untangled.server.namespace-spec
+(ns untangled.server.impl.util-spec
   (:require [untangled-spec.core :refer [specification assertions]]
-            [untangled.server.namespace :as n]
+            [untangled.server.impl.util :as n]
             [taoensso.timbre :refer [debug info fatal error]]
             [clojure.tools.namespace.find :refer [find-namespaces]]
             [clojure.java.classpath :refer [classpath]]))

@@ -1,7 +1,7 @@
-(ns untangled.server.logging-spec
+(ns untangled.server.impl.logging-spec
   (:require [clojure.test :refer :all]
             [untangled-spec.core :refer [specification assertions when-mocking component behavior]]
-            [untangled.server.logging :as l])
+            [untangled.server.impl.logging :as l])
   (:import (org.graylog2.gelfclient.transport GelfUdpTransport GelfTcpTransport)
            (org.graylog2.gelfclient GelfMessageLevel)))
 

@@ -1,5 +1,5 @@
 (ns seeddata.auth
-  (:require [untangled.server.database.seed :as s]
+  (:require [untangled.server.impl.database.seed :as s]
             [datomic.api :as d])
   (import java.util.UUID))
 

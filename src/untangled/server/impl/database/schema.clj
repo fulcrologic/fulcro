@@ -1,4 +1,4 @@
-(ns untangled.server.database.schema
+(ns untangled.server.impl.database.schema
   (:require
    [datomic.api :as d]
    [datomic.function :as df]))
@@ -94,12 +94,12 @@
    ([schema {:keys [gen-all? index-all?] :as opts}]
    (reduce (partial schema->datomic opts) [] schema)))
 
-(defmacro with-require 
+(defmacro with-require
   "A macro to be used with dbfn in order to add 'require'
   list to the function for using external libraries within
   database functions. For example:
-  
-  
+
+
        (with-require [datahub.validation [clojure.string :as s]]
          (dbfn ...))
   "

@@ -1,8 +1,8 @@
-(ns untangled.server.database.fetch-spec
+(ns untangled.server.impl.database.fetch-spec
   (:require
-    [untangled.server.database.fetch :as rest]
+    [untangled.server.impl.database.fetch :as rest]
     [seeddata.auth :as a]
-    [untangled.server.database.fixtures :refer [with-db-fixture]]
+    [untangled.server.impl.database.fixtures :refer [with-db-fixture]]
     [resources.datomic-schema.rest-schema.initial]
     [untangled-spec.core :refer [specification
                                  assertions
