@@ -4,7 +4,6 @@
             [io.rkn.conformity :as c]
             [untangled.server.impl.util :as n]
             [taoensso.timbre :as t]
-            [untangled.server.impl.logging :as l]
             [clojure.tools.namespace.find :refer [find-namespaces]]
             [clojure.java.classpath :refer [classpath]]))
 
@@ -32,7 +31,7 @@
           (if-let [tfunc (ns-resolve nspace 'transactions)]
             (tfunc)
             (do
-              (l/fatal "Missing 'transactions' function in " (n/namespace-name nspace))
+              (t/fatal "Missing 'transactions' function in " (n/namespace-name nspace))
               nil)))
 
         entry
@@ -41,7 +40,7 @@
             (if (contains-lists? txn)
               (vector (migration-keyword nspace) {:txes txn})
               (do
-                (l/fatal "Transaction function failed to return a list of transactions!" nspace)
+                (t/fatal "Transaction function failed to return a list of transactions!" nspace)
                 []))
             []))
 

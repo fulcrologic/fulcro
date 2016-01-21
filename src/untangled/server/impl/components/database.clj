@@ -1,7 +1,7 @@
 (ns untangled.server.impl.components.database
   (:require [com.stuartsierra.component :as component]
             [datomic.api :as datomic]
-            [untangled.server.impl.logging :refer [info fatal]]
+            [taoensso.timbre :refer [info fatal]]
             [untangled.server.impl.database.migration :as m]
             [untangled.server.impl.database.core-schema-definitions :as sc]
             [datomic-toolbox.core :as dt]

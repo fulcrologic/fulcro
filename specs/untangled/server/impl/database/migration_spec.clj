@@ -1,8 +1,6 @@
 (ns untangled.server.impl.database.migration-spec
-  (:require [taoensso.timbre :refer [fatal]]
-            [untangled.server.impl.util :as n]
+  (:require [untangled.server.impl.util :as n]
             [untangled.server.impl.database.migration :as m]
-            [untangled.server.impl.logging :as logger]
             [untangled-spec.core :refer [specification
                                          assertions
                                          when-mocking
@@ -32,7 +30,6 @@
       (n/namespace-name _) => "my.crap.A"
       (n/load-namespaces "my.crap") => ['my.crap.A]
       (ns-resolve _ _) => nil
-      (logger/fatal _ _) => :ignored
 
       (assertions
         (m/all-migrations "my.crap") => '())))
@@ -42,7 +39,6 @@
       (n/namespace-name :..migration1..) => "my.crap.A"
       (n/load-namespaces "my.crap") => [:..migration1..]
       (ns-resolve :..migration1.. 'transactions) => (fn [] [{}])
-      (logger/fatal _ _) => :ignored
       (assertions
         (m/all-migrations "my.crap") => '())))
 
