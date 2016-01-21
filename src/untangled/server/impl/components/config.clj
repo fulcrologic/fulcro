@@ -65,20 +65,6 @@
   (stop [this]
     (assoc this :value nil)))
 
-(defn new-config
-  "Create a new configuration component. It will load the application defaults from config/defaults.edn
-   (using the classpath), then look for an override file in either:
-   1) the file specified via the `config` system property
-   2) the file at `config-path`
-   and merge anything it finds there over top of the defaults.
 
-   This function can override a number of the above defaults with the parameters:
-   - `config-path`: The location of the disk-based configuration file.
-   "
-  [config-path]
-  (map->Config {:config-path config-path}))
 
-(defn raw-config
-  "Creates a configuration component using the value passed in,
-   it will NOT look for any config files."
-  [value] (map->Config {:value value}))
+

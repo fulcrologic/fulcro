@@ -25,9 +25,4 @@
     )
   )
 
-(defn make-web-server []
-  (component/using
-    (map->WebServer {})
-    [:handler :config]
-    )
-  )
+

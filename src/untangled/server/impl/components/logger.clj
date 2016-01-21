@@ -23,7 +23,4 @@
     (reset-logging!)
     this))
 
-(defn build-logger []
-  (component/using
-    (map->Logger {})
-    [:config]))
+

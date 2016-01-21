@@ -1,5 +1,11 @@
 (ns untangled.server.core
-  (:require [datomic.api :as d]))
+  (:require [datomic.api :as d]
+            [untangled.server.impl.components.web-server :as web-server]
+            [untangled.server.impl.components.logger :as logger]
+            [untangled.server.impl.components.handler :as handler]
+            [untangled.server.impl.components.database :as database]
+            [untangled.server.impl.components.config :as config]
+            [com.stuartsierra.component :as component]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -64,3 +70,59 @@
       #(if-let [tid (get inverter %)]
         tid %)
       x)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Public API's
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn make-web-server []
+  (component/using
+    (web-server/map->WebServer {})
+    [:handler :config]
+    )
+  )
+
+(defn build-logger []
+  (component/using
+    (logger/map->Logger {})
+    [:config]))
+
+(defn build-handler
+  "Build a web request handler.
+
+  Parameters:
+  - `api-parser`: An Om AST Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
+  "
+  [api-parser ]
+  (component/using
+    (handler/map->Handler {:api-parser api-parser})
+    [:survey-database :authorizer :logger :config]))
+
+(defn build-database
+  "Build a database component. If you specify a config, then none will be injected. If you do not, then this component
+  will expect there to be a `:config` component to inject."
+  ([database-key config]
+   (database/map->DatabaseComponent {:db-name database-key
+                            :config {:value {:datomic config}}}))
+  ([database-key]
+   (component/using
+     (database/map->DatabaseComponent {:db-name database-key})
+     [:config :logger])))
+
+(defn raw-config
+  "Creates a configuration component using the value passed in,
+   it will NOT look for any config files."
+  [value] (config/map->Config {:value value}))
+
+(defn new-config
+  "Create a new configuration component. It will load the application defaults from config/defaults.edn
+   (using the classpath), then look for an override file in either:
+   1) the file specified via the `config` system property
+   2) the file at `config-path`
+   and merge anything it finds there over top of the defaults.
+
+   This function can override a number of the above defaults with the parameters:
+   - `config-path`: The location of the disk-based configuration file.
+   "
+  [config-path]
+  (config/map->Config {:config-path config-path}))
