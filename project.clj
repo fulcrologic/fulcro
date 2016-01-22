@@ -1,11 +1,11 @@
-(defproject untangled "0.4.0"
-  :description "An opinionated data model for use with (and following) the sensibilities of Quiescent."
+(defproject untangled-client "0.1.0-SNAPSHOT"
+  :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "NAVIS"
             :url  "http://www.thenavisway.com"}
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.122"]
+                 [org.clojure/clojurescript "1.7.228"]
                  [untangled-spec "0.1.1"]
                  [differ "0.2.1"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
@@ -14,8 +14,8 @@
 
   :source-paths ["src" "spec"]
 
-  :plugins [[lein-cljsbuild "1.1.0"]
-            [lein-figwheel "0.4.1"]]
+  :plugins [[lein-cljsbuild "1.1.2"]
+            [lein-figwheel "0.5.0-3"]]
 
   :cljsbuild {:builds
               [{:id           "test"
