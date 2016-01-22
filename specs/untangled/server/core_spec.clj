@@ -1,4 +1,4 @@
-(ns ^:focused untangled.server.core-spec
+(ns untangled.server.core-spec
   (:require [untangled.server.core :as core]
             [untangled-spec.core :refer [specification behavior provided component assertions]]))
 
@@ -14,7 +14,5 @@
     (core/make-untangled-server :parser 'cymbal) =throws=> (AssertionError #"")
     "requires that :components be a map"
     (core/make-untangled-server :parser #() :components [1 2 3]) =throws=> (AssertionError #"")
-    "requires that :parser-injections be a vector"
-    (core/make-untangled-server :parser #() :parser-injections {}) =throws=> (AssertionError #"")
-
-    ))
+    "throws an exception if injections are not keywords"
+    (core/make-untangled-server :parser #() :parser-injections [:a :x 'sym]) =throws=> (AssertionError #"")))
