@@ -8,6 +8,11 @@
                  [org.clojure/tools.namespace "0.2.10"]
                  [org.graylog2/gelfclient "1.0.0"]
                  [org.omcljs/om "1.0.0-alpha29-SNAPSHOT"]
+                 [http-kit "2.1.19"]
+                 [environ "1.0.0"]
+                 [bidi "1.21.1"]
+                 [ring/ring-defaults "0.1.5"]
+                 [bk/ring-gzip "0.1.1"]
                  [commons-codec "1.6"]
                  [com.stuartsierra/component "0.2.3"]
                  [com.taoensso/timbre "4.1.4"]
@@ -31,7 +36,7 @@
   :test-paths ["specs"]
   :resource-paths ["src" "resources"]
 
-  :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
+  :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
                  :changes-only true}
 
   :test-selectors {:focused :focused}

@@ -9,7 +9,7 @@
     [ring.util.response :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
     [taoensso.timbre :as timbre]
-    [untangled.database :as db]))
+    [untangled.server.impl.components.database :as db]))
 
 (def routes
   ["" {"/" :index
@@ -75,7 +75,7 @@
     (wrap-not-modified)
     (wrap-gzip)))
 
-(defrecord Handler [all-routes survey-database api-parser config]
+#_(defrecord Handler [all-routes survey-database api-parser config]
   component/Lifecycle
   (start [component]
     (timbre/info "Creating web server handler.")

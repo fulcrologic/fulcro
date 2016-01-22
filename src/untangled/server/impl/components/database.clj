@@ -30,21 +30,21 @@
     (let [config (-> this :config :value :datomic)
           db-config (-> config :dbs db-name)]
       (assert (-> config :dbs)
-              "Missing :dbs of app config.")
+        "Missing :dbs of app config.")
       (assert (:url db-config)
-              (str db-name " has no URL in dbs of app config."))
+        (str db-name " has no URL in dbs of app config."))
       (assert (:schema db-config)
-              (str db-name " has no Schema in dbs of app config."))
+        (str db-name " has no Schema in dbs of app config."))
       (-> db-config
-          (clojure.set/rename-keys {:schema :migration-ns
-                                    :auto-drop :drop-on-stop})
-          (assoc :migrate-on-start (boolean
-                                     (or (:auto-migrate config)
-                                         (:auto-migrate db-config)))))))
+        (clojure.set/rename-keys {:schema    :migration-ns
+                                  :auto-drop :drop-on-stop})
+        (assoc :migrate-on-start (boolean
+                                   (or (:auto-migrate config)
+                                     (:auto-migrate db-config)))))))
   (get-info [this]
     (let [{:keys [url seed-result migration-ns]} this]
-      {:name db-name :url url
-       :seed-result seed-result
+      {:name           db-name :url url
+       :seed-result    seed-result
        :schema-package migration-ns}))
 
   component/Lifecycle

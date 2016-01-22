@@ -2,6 +2,8 @@
   (:require [com.stuartsierra.component :as component]
             [untangled.server.impl.components.config :as cfg]
             [clojure.test :refer :all]
+            [untangled.server.core :refer [new-config
+                                           build-database]]
             [untangled-spec.core :refer [specification
                                          assertions
                                          when-mocking
@@ -38,20 +40,20 @@
   ([cfg]
    (with-redefs [cfg/load-config (fn [_] cfg)]
      (-> (component/system-map
-           :config (cfg/new-config {})
+           :config (new-config {})
            :logger {}
-           :db (db/build-database default-db-name))
+           :db (build-database default-db-name))
        .start))))
 
 (specification "DatabaseComponent"
 
   (behavior "implements Database"
     (assertions
-      (satisfies? untangled.server.impl.database.protocols/Database (db/build-database "a-db-name")) => true))
+      (satisfies? untangled.server.impl.database.protocols/Database (build-database "a-db-name")) => true))
 
   (behavior "implements component/Lifecycle"
     (assertions
-      (satisfies? component/Lifecycle (db/build-database "a-db-name")) => true))
+      (satisfies? component/Lifecycle (build-database "a-db-name")) => true))
 
   (behavior ".start loads the component"
     (when-mocking

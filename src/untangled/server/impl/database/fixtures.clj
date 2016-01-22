@@ -2,7 +2,8 @@
   (:require
     [datomic.api :as d]
     [com.stuartsierra.component :as component]
-    untangled.server.impl.components.database
+    [untangled.server.impl.components.database :as udb]
+    [untangled.server.core :refer [build-database]]
     [untangled.server.impl.components.logger :refer [start-logging! reset-logging!]]))
 
 (defn db-fixture
@@ -15,7 +16,7 @@
   [db-key & {:keys [migration-ns seed-fn log-level]}]
   (let [
         uri "datomic:mem://db-fixture"
-        db  (untangled.server.impl.components.database/build-database db-key)]
+        db  (build-database db-key)]
     (d/delete-database uri)
     (start-logging! nil nil log-level)
     (component/start (assoc db :config {:value {:datomic {:dbs {db-key
@@ -36,3 +37,19 @@
                   (component/stop ~varname)
                   (reset-logging!))))
   )
+
+#_(defn db-fixture-defs [fixture parser]
+  "Given a db-fixture and an om parser, returns a map keyed by:
+    `connection`: a connection to the fixture's db
+    `parse`: a partially applied call to parser with an environment containing the connection (call it with query to parse)
+    `seeded-tempid-map`: return value of seed-link-and-load-data
+    `get-id`: give it a temp-id from seeded data, return the real id from `seeded-tempid-map`"
+
+  (let [connection (udb/get-connection fixture)
+        parse (partial parser {:connection connection})
+        tempid-map (:seed-result (udb/get-info fixture))
+        get-id (partial get tempid-map)]
+    {:connection        connection
+     :parse             parse
+     :seeded-tempid-map tempid-map
+     :get-id            get-id}))

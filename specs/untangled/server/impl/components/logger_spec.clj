@@ -1,7 +1,7 @@
 (ns untangled.server.impl.components.logger-spec
   (:require [clojure.test :refer :all]
             [taoensso.timbre :as t]
-            [untangled.server.impl.components.logger :as l]
+            [untangled.server.core :as l]
             [untangled-spec.core :refer [specification
                                          assertions
                                          when-mocking
@@ -13,7 +13,7 @@
 (defn- start-system [log-config]
   (.start (component/system-map
             :logger (l/build-logger)
-            :config (cfg/raw-config {:logging log-config}))))
+            :config (l/raw-config {:logging log-config}))))
 
 (specification "Logger"
   (component "when stopping a system that has been started"

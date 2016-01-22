@@ -87,7 +87,7 @@
     (logger/map->Logger {})
     [:config]))
 
-(defn build-handler
+#_(defn build-handler
   "Build a web request handler.
 
   Parameters:

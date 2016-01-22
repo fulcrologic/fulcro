@@ -1,6 +1,7 @@
 (ns untangled.server.impl.components.config-spec
   (:require [com.stuartsierra.component :as component]
             [untangled.server.impl.components.config :as cfg]
+            [untangled.server.core :refer [new-config raw-config] ]
             [untangled-spec.core :refer [specification
                                          assertions
                                          when-mocking
@@ -140,26 +141,26 @@
 (specification "untangled.server.impl.components.config"
   (component "new-config"
     (behavior "returns a stuartsierra component"
-      (assertions (satisfies? component/Lifecycle (cfg/new-config "w/e")) => true)
+      (assertions (satisfies? component/Lifecycle (new-config "w/e")) => true)
       (behavior ".start loads the config"
         (when-mocking
           (cfg/load-config _) => "42"
-          (assertions (:value (.start (cfg/new-config "mocked-out"))) => "42")))
+          (assertions (:value (.start (new-config "mocked-out"))) => "42")))
       (behavior ".stop removes the config"
         (when-mocking
           (cfg/load-config _) => "wateva"
-          (assertions (-> (cfg/new-config "mocked-out") .start .stop :config) => nil)))))
+          (assertions (-> (new-config "mocked-out") .start .stop :config) => nil)))))
 
   (behavior "new-config can be injected through a system-map"
     (when-mocking
       (cfg/load-config _) => {:foo :bar}
       (assertions
         (-> (component/system-map
-              :config (cfg/new-config "mocked-out")
+              :config (new-config "mocked-out")
               :app (new-app)) .start :app :config :value) => {:foo :bar})))
 
   (behavior "raw-config creates a config with the passed value"
     (assertions (-> (component/system-map
-                      :config (cfg/raw-config {:some :config})
+                      :config (raw-config {:some :config})
                       :app (new-app))
                   .start :app :config :value) => {:some :config})))
