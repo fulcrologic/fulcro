@@ -1,5 +1,5 @@
-(defproject untangled "0.4.1-SNAPSHOT"
-  :description "An opinionated data model for use with (and following) the sensibilities of Quiescent."
+(defproject untangled-client "0.1.0-SNAPSHOT"
+  :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "NAVIS"
             :url  "http://www.thenavisway.com"}
