@@ -1,7 +1,7 @@
 (ns resources.datomic-schema.validation-schema.initial
   (:require
-    [untangled.datomic-schema.schema :as s]
-    [untangled.datomic-schema.migration :as m]
+    [untangled.server.impl.database.schema :as s]
+    [untangled.server.impl.database.migration :as m]
     )
   )
 
@@ -15,8 +15,8 @@
                       references-to-attr (fn [db attr eid]
                                            (datomic.api/q '[:find [?e2 ...]
                                                             :in $ ?target ?eid
-                                                            :where [?e2 ?v ?eid] 
-                                                            [?e :db/ident ?v] 
+                                                            :where [?e2 ?v ?eid]
+                                                            [?e :db/ident ?v]
                                                             [?e :constraint/references ?target]] db attr eid)
                                            )
                       refs     (clojure.core/mapcat #(references-to-attr db % eid) attrs)
@@ -53,10 +53,10 @@
                     [is-active  :boolean]
                     [validation-code :string]
                     [property-entitlement :ref :many
-                     { :references :entitlement/kind 
-                      :with-values #{:entitlement.kind/property-group 
+                     { :references :entitlement/kind
+                      :with-values #{:entitlement.kind/property-group
                                      :entitlement.kind/property
-                                     :entitlement.kind/all-properties } 
+                                     :entitlement.kind/all-properties }
                       }
                      ]
                     [authorization-role :ref :many]
@@ -92,7 +92,7 @@
                     [kind :enum [:all-properties :all-components :property :property-group
                                  :component :application] ]
                     ;; a property, propgroup, component, or application
-                    [target :ref :one] 
+                    [target :ref :one]
                     [target-property :uuid]
 
                     ;; Limits are ONLY used when kind is property-related, can

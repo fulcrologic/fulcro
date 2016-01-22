@@ -1,12 +1,12 @@
 (ns seeddata.devdata
-  (:require 
+  (:require
     [seeddata.auth :as a]
-    [untangled.util.seed :as s]
+    [untangled.server.impl.database.seed :as s]
     [datomic.api :as d]
     )
   )
 
-(defn sample [conn] 
+(defn sample [conn]
   (let [entities (a/create-base-user-and-realm)
         linked-data (:items (s/link-entities entities))]
     @(d/transact conn linked-data)

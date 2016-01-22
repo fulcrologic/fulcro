@@ -1,7 +1,7 @@
-;; Name YOUR namespace as follows: datahub.migrations.YYYYMMDDHHmm-description 
+;; Name YOUR namespace as follows: datahub.migrations.YYYYMMDDHHmm-description
 ;; This means your filename will be: src/datahub/migrations/YYYYMMDDHHmm_description (note the underscore)
 (ns sample-migrations.migrations.template
-  (:require [untangled.datomic-schema.schema :as s])
+  (:require [untangled.server.impl.database.schema :as s])
   )
 
 ;; THIS FILE WILL NEVER RUN. The migration system ignores anything in *.template namespaces.
@@ -11,27 +11,27 @@
 (defn transactions []
   [ ;; YOUR transactions function in YOUR namespace MUST return a list of transactions (list of lists)
    ;; transaction 1: transactions themselves are lists of maps (or lists of lists). See Datomic docs.
-   [{ 
-     :db/index true, 
-     :db.install/_attribute :db.part/db, 
-     :db/id #db/id[:db.part/db], 
-     :db/ident :user/boogey, 
-     :db/valueType :db.type/string, 
+   [{
+     :db/index true,
+     :db.install/_attribute :db.part/db,
+     :db/id #db/id[:db.part/db],
+     :db/ident :user/boogey,
+     :db/valueType :db.type/string,
      :db/cardinality :db.cardinality/one
      }
     {
-     :db/index true, 
-     :db.install/_attribute :db.part/db, 
-     :db/id #db/id[:db.part/db], 
-     :db/ident :user/other, 
-     :db/valueType :db.type/string, 
+     :db/index true,
+     :db.install/_attribute :db.part/db,
+     :db/id #db/id[:db.part/db],
+     :db/ident :user/other,
+     :db/valueType :db.type/string,
      :db/cardinality :db.cardinality/one
      }]
-   ;; transaction 2: The untangled.datomic-schema library can be used to generate transactions.
-   (s/generate-schema 
+   ;; transaction 2: The untangled.server.impl.database library can be used to generate transactions.
+   (s/generate-schema
      [(s/schema user ;; An easy way to create a set of attributes under the same conceptual entity name
-                (s/fields 
-                  [username :string] ;; see untangled.datomic-schema docs
+                (s/fields
+                  [username :string] ;; see untangled.server.impl.database docs
                   [email :string :unique-identity]
                   [status :enum [:active :pending]]
                   )
