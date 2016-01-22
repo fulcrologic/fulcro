@@ -72,7 +72,7 @@
       x)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Public API's
+;; Component Constructor Functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn make-web-server []
@@ -87,23 +87,24 @@
     (logger/map->Logger {})
     [:config]))
 
-#_(defn build-handler
-  "Build a web request handler.
+(defn build-handler
+    "Build a web request handler.
 
-  Parameters:
-  - `api-parser`: An Om AST Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
-  "
-  [api-parser ]
-  (component/using
-    (handler/map->Handler {:api-parser api-parser})
-    [:survey-database :authorizer :logger :config]))
+    Parameters:
+    - `api-parser`: An Om AST Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
+    - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
+    "
+    [api-parser injections]
+    (component/using
+      (handler/map->Handler {:api-parser api-parser})
+      (concat [:logger :config] injections)))
 
 (defn build-database
   "Build a database component. If you specify a config, then none will be injected. If you do not, then this component
   will expect there to be a `:config` component to inject."
   ([database-key config]
    (database/map->DatabaseComponent {:db-name database-key
-                            :config {:value {:datomic config}}}))
+                                     :config  {:value {:datomic config}}}))
   ([database-key]
    (component/using
      (database/map->DatabaseComponent {:db-name database-key})
@@ -126,3 +127,39 @@
    "
   [config-path]
   (config/map->Config {:config-path config-path}))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Server Construction
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn make-untangled-server
+  "Make a new untangled server.
+
+  Parameters:
+  *`config-path`        OPTIONAL, a string of the path to your configuration file on disk.
+                        The system property -Dconfig=/path/to/conf can also be passed in from the jvm.
+
+  *`components`         OPTIONAL, a map of Sierra component instances keyed by their desired names in the overall system component.
+                        These additional components will merged with the untangled-server components to compose a new system component.
+
+  *`parser`             REQUIRED, an om parser function for parsing requests made of the server
+
+  *`parser-injections`  a vector of keywords which represent components which will be injected into the handler component,
+                        and made available to your parser.
+
+  Returns a Sierra system component.
+  "
+  [& {:keys [config-path components parser parser-injections]}]
+  {:pre [(some-> parser fn?)
+         (or (nil? components) (map? components))
+         (or (nil? parser-injections) (vector? parser-injections))]}
+  ;; build config with config-path, add to system map
+  ;; build handler with parser-injections AND parser AND database connections, add to system map
+  ;; from config component, (in :dbs), construct database components and add to system map
+  ;; merge user-provided :components into system map
+  ;; return component/system-map call on our merged system map
+  true
+
+
+  )

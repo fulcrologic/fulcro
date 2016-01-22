@@ -26,7 +26,6 @@
    :headers {"Content-Type" "application/transit+json"}
    :body    data})
 
-;; FIXME: Move to untangled datomic helpers
 (defn raise-response
   "For om mutations, converts {'my/mutation {:result {...}}} to {'my/mutation {...}}"
   [resp]
@@ -65,9 +64,9 @@
 (defn wrap-connection [handler conn api-parser authorizer config]
   (fn [req] (handler (assoc req :parser api-parser :datomic-connection conn :authorizer authorizer :config config))))
 
-(defn handler [api-parser conn authorizer config]
+(defn handler [api-parser connections authorizer config]
   ;; NOTE: ALL resources served via wrap-resources (from the public subdirectory). The BIDI route maps / -> index.html
-  (-> (wrap-connection route-handler conn api-parser authorizer config)
+  (-> (wrap-connection route-handler connections api-parser authorizer config)
     (middleware/wrap-transit-params)
     (middleware/wrap-transit-response)
     (wrap-resource "public")
@@ -75,13 +74,13 @@
     (wrap-not-modified)
     (wrap-gzip)))
 
-#_(defrecord Handler [all-routes survey-database api-parser config]
+(defrecord Handler [all-routes survey-database api-parser config]
   component/Lifecycle
   (start [component]
     (timbre/info "Creating web server handler.")
-    (let [conn (db/get-connection survey-database)
+    (let [connections ;(db/get-connection survey-database) ...connections will be a map of each database name to a (d/connect uri)
           authorizer (:authorizer component)
-          req-handler (handler api-parser conn authorizer (:value config))]
+          req-handler (handler api-parser connections authorizer (:value config))]
       (assoc component :api-parser api-parser :all-routes req-handler)))
   (stop [component] component
     (timbre/info "Tearing down web server handler.")
