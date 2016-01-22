@@ -2,7 +2,7 @@
   (:require
     [datomic.api :as d]
     [com.stuartsierra.component :as component]
-    [untangled.server.impl.components.database :as udb]
+    [untangled.server.impl.database.protocols :as udb]
     [untangled.server.core :refer [build-database]]
     [untangled.server.impl.components.logger :refer [start-logging! reset-logging!]]))
 
@@ -38,7 +38,7 @@
                   (reset-logging!))))
   )
 
-#_(defn db-fixture-defs [fixture parser]
+(defn db-fixture-defs [fixture parser]
   "Given a db-fixture and an om parser, returns a map keyed by:
     `connection`: a connection to the fixture's db
     `parse`: a partially applied call to parser with an environment containing the connection (call it with query to parse)

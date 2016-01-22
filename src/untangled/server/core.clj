@@ -78,26 +78,12 @@
 (defn make-web-server []
   (component/using
     (web-server/map->WebServer {})
-    [:handler :config]
-    )
-  )
+    [:handler :config]))
 
 (defn build-logger []
   (component/using
     (logger/map->Logger {})
     [:config]))
-
-(defn build-handler
-    "Build a web request handler.
-
-    Parameters:
-    - `api-parser`: An Om AST Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
-    - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
-    "
-    [api-parser injections]
-    (component/using
-      (handler/map->Handler {:api-parser api-parser})
-      (concat [:logger :config] injections)))
 
 (defn build-database
   "Build a database component. If you specify a config, then none will be injected. If you do not, then this component
@@ -145,21 +131,18 @@
 
   *`parser`             REQUIRED, an om parser function for parsing requests made of the server
 
-  *`parser-injections`  a vector of keywords which represent components which will be injected into the handler component,
-                        and made available to your parser.
+  *`parser-injections`  a vector of keywords which represent components which will be injected as the om parsing env.
 
   Returns a Sierra system component.
   "
-  [& {:keys [config-path components parser parser-injections]}]
+  [& {:keys [config-path components parser parser-injections] :or {config-path "/usr/local/etc/untangled.edn"}}]
   {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))
-         (or (nil? parser-injections) (vector? parser-injections))]}
-  ;; build config with config-path, add to system map
-  ;; build handler with parser-injections AND parser AND database connections, add to system map
-  ;; from config component, (in :dbs), construct database components and add to system map
-  ;; merge user-provided :components into system map
-  ;; return component/system-map call on our merged system map
-  true
-
-
-  )
+         (or (nil? parser-injections) (every? keyword? parser-injections))]}
+  (let [handler (handler/build-handler parser parser-injections)
+        built-in-components [:config (new-config config-path)
+                             :logger (build-logger)
+                             :handler handler
+                             :server (make-web-server)]
+        all-components (flatten (concat built-in-components components))]
+    (apply component/system-map all-components)))
