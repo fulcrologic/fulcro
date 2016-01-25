@@ -1,21 +1,23 @@
-(require '[figwheel-sidecar.repl :as r]
-         '[figwheel-sidecar.repl-api :as ra])
+(require '[figwheel-sidecar.repl-api :as ra])
 
-(ra/start-figwheel!
+(def figwheel-config
   {:figwheel-options {
-                      :server-port 3450
+                      :server-port 3050
                       :css-dirs    ["resources/public/css"]
                       }
-   :build-ids        ["test"]
-   :all-builds       [{:id           "test"
-                       :source-paths ["src" "dev" "spec"]
-                       :figwheel     {:on-jsload "cljs.user/on-load"}
-                       :compiler     {:main                 'cljs.user
-                                      :output-to            "resources/public/js/test/test.js"
-                                      :output-dir           "resources/public/js/test/out"
-                                      :recompile-dependents true
-                                      :asset-path           "js/test/out"
-                                      :optimizations        :none}}]
+   :all-builds       (figwheel-sidecar.repl/get-project-cljs-builds)
    })
 
-(ra/cljs-repl)
+(defn start-figwheel
+  "Start Figwheel on the given builds."
+  [build-ids]
+  (let [build-ids (if (empty? build-ids) ["test"] build-ids)]
+    (println "STARTING FIGWHEEL ON BUILDS: " build-ids)
+    (ra/start-figwheel! (assoc figwheel-config :build-ids build-ids))
+    (ra/cljs-repl)))
+
+(def props (System/getProperties))
+
+(start-figwheel
+  (cond-> []
+    (contains? props "test") (conj "test")))
