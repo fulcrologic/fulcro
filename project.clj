@@ -1,5 +1,5 @@
-(defproject untangled-server "0.3.1-SNAPSHOT"
-  :description "Support for Datomic, including extensions to schema validation and tracked Datomic schema migrations."
+(defproject untangled-server "0.4.0-SNAPSHOT"
+  :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
                  [com.datomic/datomic-pro "0.9.5206" :exclusions [joda-time] :scope "provided"]
