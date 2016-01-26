@@ -157,7 +157,7 @@
           tid-maps (reduce (fn [acc db-name]
                              (let [sd (ps/datomic-id->tempid (get seed-data db-name))
                                    db (get this db-name)
-                                   conn (:connection db)
+                                   conn (:connection db)    ; why not udb/get-connection here?
                                    tempid-map (seed/link-and-load-seed-data conn sd)]
                                (conj acc tempid-map)))
                      [] dbs-to-seed)
@@ -165,9 +165,7 @@
                                (if (< (count maps) 2)
                                  true
                                  (let [all-keys (map (comp set keys) maps)
-                                       ;_ (throw (ex-info "all-keys" {:all-keys all-keys}))
                                        pairs (combo/combinations all-keys 2)
-                                       ;_ (throw (ex-info "pairs" {:pairs pairs}))
                                        empty-pair? (fn [[ks1 ks2]]
                                                      (empty? (clojure.set/intersection ks1 ks2)))]
                                    (every? empty-pair? pairs))))]

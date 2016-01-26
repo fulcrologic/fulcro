@@ -31,11 +31,9 @@
 
 (defn api-read [{:keys [db query]} k params]
   ;(throw (ex-info "" {:db db}))
-  (let [conn (:connection db)
-        bleh {:value (vec (flatten (d/q `[:find (~'pull ?e ~query) :where [?e :old-one/madness]] (d/db conn))))}]
-    (prn :bleh bleh)
+  (let [conn (:connection db)]
     (case k
-      :old-one bleh)))
+      :old-one {:value (vec (flatten (d/q `[:find (~'pull ?e ~query) :where [?e :old-one/madness]] (d/db conn))))})))
 
 (def test-server
   (core/make-untangled-test-server

@@ -128,7 +128,6 @@
                         t)
                       (finally
                         (.stop app+)))]
-      (prn :resp+ response+)
       (cond
         (and (not on-error) (instance? Throwable response+)) (throw response+)
 
@@ -140,10 +139,6 @@
               extracted-response+ (rewrite-tempids extracted-response
                                                    (clojure.set/map-invert datoid-map)
                                                    integer?)]
-          (clojure.pprint/pprint [:extracted-response+ {:got extracted-response+
-                                                        :exp response}])
-          (clojure.pprint/pprint [:extracted-tempids {:got extracted-tempids
-                                                      :exp om-tids}])
           (assertions
             "Server response should contain remappings for all om.tempid's in data/server-tx"
             extracted-tempids => om-tids

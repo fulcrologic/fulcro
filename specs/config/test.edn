@@ -3,11 +3,11 @@
                                     :auto-migrate  true
                                     :auto-drop     true}
                  :protocol-support-2 {:url           "datomic:mem://protocol-support-2"
-                                    :schema        "migrations"
-                                    :auto-migrate  true
-                                    :auto-drop     true}
+                                      :schema        "migrations"
+                                      :auto-migrate  true
+                                      :auto-drop     true}
                  :protocol-support-3 {:url           "datomic:mem://protocol-support-3"
-                                    :schema        "migrations"
-                                    :auto-migrate  true
-                                    :auto-drop     true}}
+                                      :schema        "migrations"
+                                      :auto-migrate  true
+                                      :auto-drop     true}}
            }}
