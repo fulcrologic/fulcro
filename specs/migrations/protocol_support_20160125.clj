@@ -9,9 +9,9 @@
                  (s/fields
                    [name :string]
                    [madness :double]
-                   [cultists :ref :many]
+                   [followers :ref :many]
                    ))
-       (s/schema cultist
+       (s/schema follower
                  (s/fields
                    [name :string]
                    [devotion :double]
