@@ -1,4 +1,4 @@
-(ns untangled.server.impl.database.protocols)
+(ns untangled.server.protocols)
 
 (defprotocol Database
   (get-connection [this] "Get a connection to this database" )

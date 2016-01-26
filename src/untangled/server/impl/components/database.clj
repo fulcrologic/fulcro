@@ -5,7 +5,7 @@
             [untangled.server.impl.database.migration :as m]
             [untangled.server.impl.database.core-schema-definitions :as sc]
             [datomic-toolbox.core :as dt]
-            [untangled.server.impl.database.protocols :refer [Database]]))
+            [untangled.server.protocols :refer [Database]]))
 
 (defn run-core-schema [conn]
   (info "Applying core schema to database.")

@@ -49,7 +49,7 @@
 
   (behavior "implements Database"
     (assertions
-      (satisfies? untangled.server.impl.database.protocols/Database (build-database "a-db-name")) => true))
+      (satisfies? untangled.server.protocols/Database (build-database "a-db-name")) => true))
 
   (behavior "implements component/Lifecycle"
     (assertions
