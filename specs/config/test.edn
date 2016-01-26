@@ -1,0 +1,4 @@
+{:datomic {:dbs {:protocol-support {:url           "datomic:mem://protocol-support"
+                                    :schema        "migrations"
+                                    :auto-migrate  true
+                                    :auto-drop     true}}}}

@@ -86,7 +86,7 @@
     (assert (every? (set (keys component)) injected-keys) (str "You asked to inject " injected-keys " but one or more of those components do not exist."))
     (let [om-parsing-env (select-keys component injected-keys)
           req-handler (handler api-parser om-parsing-env)]
-      (assoc component :api-parser api-parser :all-routes req-handler)))
+      (assoc component :api-parser api-parser :all-routes req-handler :env om-parsing-env)))
   (stop [component] component
     (timbre/info "Tearing down web server handler.")
     (assoc component :all-routes nil))

@@ -5,10 +5,7 @@
     [datomic.api :as d]
     [om.next.server :as om]
     [om.tempid :as t]
-    #_[survey.api.mutations :as mut]
-    #_[survey.api.survey :as sur]
     [untangled-spec.core :refer [specification behavior provided component assertions]]
-    [untangled.database :as udb]
     [untangled.util.fixtures :as fixture]
     [untangled.util.seed :as seed]
     [untangled.server.impl.components.handler :as h]))
@@ -107,16 +104,7 @@
     (for [[k v] m]
       [(f k) v])))
 
-;; * whole server passed in
-;; * -OR- [do not need the network part] (survey/make-test-server ...)
-;; *      - hack into startup via component we add (to seed data)
-;; *      - rename test-server-response to check-server-response
-;; * change config to point at test edn
-;; * start
-;; * seed data :: map keyed by database name --> components in (system) server
-;; * for each db, get connection, call link-n-load
-;; * env comes from select-keys on component
-(defn test-server-response
+(defn check-server-response
   "`data/server-tx` can has :om.tempid/* & :datomic.id/*.
    - :datomic.id/* should be seeded in `data/seed-data`
    `data/seed-data` can has :datomic.id/*
@@ -124,60 +112,35 @@
 
    see assertions inside for what is being tested
    "
-  [{:keys [server-tx seed-data migrations response] :as data} & {:keys [config on-success on-error prepare-server-tx]}]
-  ;; 0  - :seed-data :datomic.id/* -> :tempid/*
-  ;; 1  - link-and-load-seed-data -> tempid-map
-  ;; 2  - resolve-ids :server-tx tempid-map -> $server-tx
-  ;; 3  - $om.tempids from :server-tx
-  ;; 4  - survey.components.handler/api-handler $server-tx -> $response
-  ;; 5  - resolve-ids $response tempid-map -> $real-response
-  ;; @1 - assert $real-response tempids contains all $om.tempids
-  ;; @2 - assert $real-response = (data :response)
-  (fixture/with-db-fixture
-    db-fixture
-    (let [conn (udb/get-connection db-fixture)
-          tempid-map (:seed-result (udb/get-info db-fixture))
-          ;_ (clojure.pprint/pprint [:tempid-map tempid-map])
+  [app {:keys [server-tx seed-data migrations response] :as data} & {:keys [on-success on-error prepare-server-tx]}]
+  (let [app+ (.start app)
+        tempid-map (get-in app+ [:seeder :seed-result])
+        {:keys [api-parser env]} (:handler app+)
+        datoid-map (map-keys #(set-namespace % "datomic.id") tempid-map)
+        prepare-server-tx+ (if prepare-server-tx
+                             #(prepare-server-tx % (partial get datoid-map))
+                             identity)
+        server-tx+ (prepare-server-tx+ (rewrite-tempids server-tx datoid-map datomic-id?))]
+    (let [response+ (try
+                      (h/api-handler api-parser env server-tx+)
+                      (catch Throwable t
+                        (when on-error (on-error t))
+                        t))]
+      (cond
+        (and (not on-error) (instance? Throwable response+)) (throw response+)
 
-          ;; server-tx references existing things under :datomic.id/*
-          ;; tempid-map contains mappings from :tempid/* -> #id
-          datoid-map (map-keys #(set-namespace % "datomic.id") tempid-map)
-          ;_ (clojure.pprint/pprint [:datoid-map datoid-map])
-          prepare-server-tx+ (if prepare-server-tx
-                               #(prepare-server-tx % (partial get datoid-map))
-                               identity)
-          server-tx+ (prepare-server-tx+ (rewrite-tempids server-tx datoid-map datomic-id?))
-          ;_ (clojure.pprint/pprint [:server-tx+ server-tx+])
-          parser (om/parser {:read sur/api-read :mutate mut/apimutate})
-          auth (.start (auth/map->Authorizer {}))]
-      (let [response+ (try                                  ;parse :server-tx
-                        ;; FIXME: Injections from application need to be configurable
-                        (h/api-handler parser {:authorizer auth :survey-database db-fixture} server-tx+)
-                        (catch Throwable t
-                          (when on-error (on-error t))
-                          t))]
-        (cond
-          (and (not on-error) (instance? Throwable response+)) (throw response+)
+        (instance? Throwable response+) response+
 
-          (instance? Throwable response+) response+
+        :else
+        (let [om-tids (collect-om-tempids server-tx+)
+              [extracted-response extracted-tempids] (extract-tempids response+)
+              extracted-response+ (rewrite-tempids extracted-response
+                                                   (clojure.set/map-invert datoid-map)
+                                                   integer?)]
+          (assertions
+            "Server response should contain remappings for all om.tempid's in data/server-tx"
+            extracted-tempids => om-tids
 
-          :else
-          (let [om-tids (collect-om-tempids server-tx+)
-                ;_ (clojure.pprint/pprint [:om-tids om-tids])
-                [extracted-response extracted-tempids] (extract-tempids response+)
-                ;_ (clojure.pprint/pprint [:extracted-tempids extracted-tempids])
-                ;_ (clojure.pprint/pprint [:extracted-response extracted-response])
-                extracted-response+ (rewrite-tempids extracted-response
-                                      (clojure.set/map-invert datoid-map)
-                                      integer?)]
-            (assertions
-              "Server response should contain remappings for all om.tempid's in data/server-tx"
-              extracted-tempids => om-tids
-
-              "Server response should match data/response"
-              extracted-response+ => response)
-            (when on-success (on-success extracted-response+))))))
-    :migrations migrations
-    ;; link-and-load-seed-data turns :tempids into datomic ids,
-    ;; so we first convert :datomic.id/* into :tempid/*
-    :seed-fn #(seed/link-and-load-seed-data % (datomic-id->tempid seed-data))))
+            "Server response should match data/response"
+            extracted-response+ => response)
+          (when on-success (on-success extracted-response+)))))))

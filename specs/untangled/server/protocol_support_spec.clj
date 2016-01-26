@@ -2,31 +2,35 @@
   (:require
     [datomic.api :as d]
     [untangled.server.protocol-support :as ps]
+    [untangled.server.core :as core]
+    [om.next.server :as om]
+    [untangled.components.database :refer [build-database]]
+    [untangled.server.impl.database.protocols :as udb]
     [untangled-spec.core :refer
      [specification behavior provided component assertions]]
-    [untangled.util.fixtures :as fixture]
-    [untangled.database :as udb]
-    [survey.localized-strings :as ls]
-    [survey.seeding :as seed]
-    [survey.survey-data :as sd]
-    [survey.survey-initial-fetch-protocol :as sifp]
     ))
 
 (def protocol-support-data
-  {:migrations "survey.migrations"
-   :seed-data  [(seed/make-survey :datomic.id/survey0 "Survey Zero")
-                (seed/make-range-question :datomic.id/question1 "Foo" 1 42)]
-   :server-tx  '[(survey/add-question {:survey-id :datomic.id/survey0
-                                       :template-id :datomic.id/question1
-                                       :instance-id :om.tempid/inst-id0
-                                       :rank 1.618})
-                 {:surveys [:artifact/display-title]}]
+  {:seed-data  []
+   :server-tx  '[{:surveys [:artifact/display-title]}]
    :response   {'survey/add-question {},
                 :surveys
                 [{:artifact/display-title
                   [{:db/id :datomic.id/survey0-label
                     :language/locale :language.locale/en,
                     :localized-string/value "Survey Zero"}]}]}})
+
+(defn api-read [{:keys [db query]} k params]
+  ;(throw (ex-info "" {:db db}))
+  (let [conn (:connection db)]
+    (d/q `[:find (~'pull ?e ~query) :where [?e :old-one/cultists]] (d/db conn))))
+
+(def test-server
+  (core/make-untangled-test-server
+    :parser (om/parser {:read api-read})
+    :parser-injections #{:db}
+    :components {:db (build-database :protocol-support)}
+    :protocol-data protocol-support-data))
 
 (specification "test server response"
   (component "helper functions"
@@ -57,10 +61,8 @@
           #{:om.tempid/inst-id0}]))
 
   (behavior "test server response w/ protocol data"
-    (ps/test-server-response protocol-support-data))
-
-  (behavior "test server response w/ `raw-seed-data` protocol data"
-    (ps/test-server-response sd/raw-seed-data-protocol-support-data)))
+    ;[& {:keys [parser parser-injections components protocol-data]}]
+    (ps/check-server-response test-server protocol-support-data)))
 
 (specification "rewrite-tempids"
   (behavior "rewrites tempids according to the supplied map"

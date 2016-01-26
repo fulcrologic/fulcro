@@ -1,12 +1,14 @@
 (ns untangled.server.core
   (:require [datomic.api :as d]
+            [untangled.server.protocol-support :as ps]
+            [untangled.server.impl.database.seed :as seed]
+            [untangled.server.impl.database.protocols :as udb]
             [untangled.server.impl.components.web-server :as web-server]
             [untangled.server.impl.components.logger :as logger]
             [untangled.server.impl.components.handler :as handler]
             [untangled.server.impl.components.database :as database]
             [untangled.server.impl.components.config :as config]
             [com.stuartsierra.component :as component]))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mutation Helpers
@@ -144,5 +146,39 @@
                              :logger (build-logger)
                              :handler handler
                              :server (make-web-server)]
+        all-components (flatten (concat built-in-components components))]
+    (apply component/system-map all-components)))
+
+(defrecord Seeder [seed-data seed-result]
+  component/Lifecycle
+  (start [this]
+    (let [dbs-to-seed (keys seed-data)
+          tid-maps (reduce (fn [acc db-name]
+                             (let [sd (ps/datomic-id->tempid (get seed-data db-name))
+                                   db (get this db-name)
+                                   conn (udb/get-connection db)
+                                   tempid-map (seed/link-and-load-seed-data conn sd)]
+                               (conj acc tempid-map)))
+                           [] dbs-to-seed)
+          disjoint? (comp empty? clojure.set/intersection)]
+      (assert (disjoint? tid-maps))
+      (assoc this :seed-result (apply merge tid-maps))))
+  (stop [this]
+    ;; You can't stop the seeder!
+    this))
+
+(defn make-seeder [seed-data]
+  (component/using
+    (map->Seeder {:seed-data seed-data})
+    (vec (keys seed-data))))
+
+(defn make-untangled-test-server
+  [& {:keys [parser parser-injections components protocol-data]}]
+  (let [handler (handler/build-handler parser parser-injections)
+        seeder (make-seeder (:seed-data protocol-data))
+        built-in-components [:config (new-config "config/test.edn")
+                             :logger (build-logger)
+                             :handler handler
+                             :seeder seeder]
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
