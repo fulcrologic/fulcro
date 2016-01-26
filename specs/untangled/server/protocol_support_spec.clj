@@ -6,31 +6,54 @@
     [om.next.server :as om]
     [untangled.components.database :refer [build-database]]
     [untangled.server.impl.database.protocols :as udb]
+    [clojure.test :refer [is]]
     [untangled-spec.core :refer
      [specification behavior provided component assertions]]
-    ))
+    )
+  (:import (clojure.lang ExceptionInfo)))
+
+(defn make-old-one [id name madness]
+  {:db/id id
+   :old-one/name name
+   :old-one/madness madness})
 
 (def protocol-support-data
-  {:seed-data  []
-   :server-tx  '[{:surveys [:artifact/display-title]}]
-   :response   {'survey/add-question {},
-                :surveys
-                [{:artifact/display-title
-                  [{:db/id :datomic.id/survey0-label
-                    :language/locale :language.locale/en,
-                    :localized-string/value "Survey Zero"}]}]}})
+  {:seed-data {:db [(make-old-one :datomic.id/cthulhu "UNSPEAKABLE" 13.37)]}
+   :server-tx [{:old-one [:old-one/name]}]
+   :response {:old-one [{:old-one/name "UNSPEAKABLE"}]}})
+
+(def bad-protocol-support-data
+  {:seed-data {:db [(make-old-one :datomic.id/cthulhu "UNSPEAKABLE" 13.37)]
+               :db2 [(make-old-one :datomic.id/cthulhu "UNSPEAKABLE" 13.37)]
+               :db3 [(make-old-one :datomic.id/yog-sothoth "UNSPEAKABLE" 13.37)]}
+   :server-tx [{:old-one [:old-one/name]}]
+   :response {:old-one [{:old-one/name "UNSPEAKABLE"}]}})
 
 (defn api-read [{:keys [db query]} k params]
   ;(throw (ex-info "" {:db db}))
-  (let [conn (:connection db)]
-    (d/q `[:find (~'pull ?e ~query) :where [?e :old-one/cultists]] (d/db conn))))
+  (let [conn (:connection db)
+        bleh {:value (vec (flatten (d/q `[:find (~'pull ?e ~query) :where [?e :old-one/madness]] (d/db conn))))}]
+    (prn :bleh bleh)
+    (case k
+      :old-one bleh)))
 
 (def test-server
   (core/make-untangled-test-server
     :parser (om/parser {:read api-read})
     :parser-injections #{:db}
     :components {:db (build-database :protocol-support)}
-    :protocol-data protocol-support-data))
+    :protocol-data protocol-support-data
+    ))
+
+(def bad-test-server
+  (core/make-untangled-test-server
+    :parser (om/parser {:read api-read})
+    :parser-injections #{:db :db2 :db3}
+    :components {:db (build-database :protocol-support)
+                 :db2 (build-database :protocol-support-2)
+                 :db3 (build-database :protocol-support-3)}
+    :protocol-data bad-protocol-support-data
+    ))
 
 (specification "test server response"
   (component "helper functions"
@@ -61,8 +84,12 @@
           #{:om.tempid/inst-id0}]))
 
   (behavior "test server response w/ protocol data"
-    ;[& {:keys [parser parser-injections components protocol-data]}]
-    (ps/check-server-response test-server protocol-support-data)))
+    (ps/check-server-response test-server protocol-support-data))
+  (behavior "test server response w/ bad protocol data"
+    (assertions
+      (ps/check-server-response bad-test-server bad-protocol-support-data)
+      =throws=> (ExceptionInfo #"" (fn [e]
+                                     (is (instance? AssertionError (.getCause e))))))))
 
 (specification "rewrite-tempids"
   (behavior "rewrites tempids according to the supplied map"

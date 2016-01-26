@@ -14,6 +14,6 @@
        (s/schema cultist
                  (s/fields
                    [name :string]
-                   [madness :double]
+                   [devotion :double]
                    ))
        ])])
