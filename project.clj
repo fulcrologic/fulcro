@@ -11,6 +11,7 @@
                  [http-kit "2.1.19"]
                  [environ "1.0.0"]
                  [bidi "1.21.1"]
+                 [com.navis/common "0.1.17"]
                  [ring/ring-defaults "0.1.5"]
                  [bk/ring-gzip "0.1.1"]
                  [commons-codec "1.6"]
