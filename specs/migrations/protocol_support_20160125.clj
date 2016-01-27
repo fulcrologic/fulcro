@@ -1,6 +1,6 @@
 (ns migrations.protocol-support-20160125
-  (:require [untangled.server.impl.database.schema :as s]
-            [untangled.server.impl.database.migration :as m]
+  (:require [untangled.datomic.impl.schema :as s]
+            [untangled.datomic.impl.migration :as m]
             [datomic.api :as d]))
 
 (defn transactions []

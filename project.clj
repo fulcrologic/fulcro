@@ -1,4 +1,4 @@
-(defproject untangled-server "0.4.0-SNAPSHOT"
+(defproject untangled-server "0.4.1-SNAPSHOT"
   :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
@@ -19,9 +19,9 @@
                  [com.taoensso/timbre "4.1.4"]
                  [org.clojure/java.classpath "0.2.2"]
                  [untangled-spec "0.3.1" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
+                 [navis/untangled-datomic "0.4.0-SNAPSHOT"]
                  [crypto-password "0.1.3" :scope "test"]
-                 [com.rpl/specter "0.8.0"]
-                 [democracyworks/datomic-toolbox "2.0.0" :exclusions [com.datomic/datomic-pro]]]
+                 [com.rpl/specter "0.8.0"]]
 
   :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
                  ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]

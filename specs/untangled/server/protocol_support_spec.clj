@@ -5,8 +5,8 @@
     [untangled.server.core :as core]
     [om.next.server :as om]
     [untangled.components.database :refer [build-database]]
-    [untangled.server.impl.database.protocols :as udb]
-    [untangled.server.core :refer [resolve-ids]]
+    [untangled.datomic.protocols :as udb]
+    [untangled.datomic.core :refer [resolve-ids]]
     [clojure.test :refer [is]]
     [untangled-spec.core :refer
      [specification behavior provided component assertions]]
