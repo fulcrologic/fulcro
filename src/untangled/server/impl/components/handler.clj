@@ -21,10 +21,16 @@
   (assoc (resource-response (str "index.html") {:root "public"})
     :headers {"Content-Type" "text/html"}))
 
-(defn generate-response [data & [status]]
-  {:status  (or status 200)
-   :headers {"Content-Type" "application/transit+json"}
-   :body    data})
+(defn generate-response
+  "Generate a response containing status code, headers, and body.
+  The content type will always be 'application/transit+json',
+  and this function will assert if otherwise."
+  [{:keys [status body headers] :or {status 200}}]
+  {:pre [(not (contains? headers "Content-Type"))
+         (and (>= status 100) (< status 600))]}
+  {:status  status
+   :headers (merge headers {"Content-Type" "application/transit+json"})
+   :body    body})
 
 (defn raise-response
   "For om mutations, converts {'my/mutation {:result {...}}} to {'my/mutation {...}}"
@@ -35,8 +41,6 @@
               (assoc acc k v)))
     {} resp))
 
-(defn api-handler [parser env query] (raise-response (parser env query)))
-
 (defn api
   "The /api Request handler. The incoming request will have a database connection, parser, and error handler
   already injected. This function should be fairly static, in that it calls the parser, and if the parser
@@ -44,11 +48,14 @@
   an exception, then it calls the injected error handler with the request and the exception. Thus,
   you can define the handling of all API requests via system injection at startup."
   [{:keys [transit-params parser env] :as req}]
-  (try
-    (generate-response {:query-response (api-handler parser env transit-params)})
-    (catch Throwable e
-      (timbre/error "API error." e)
-      (generate-response {:error (ex-data e)}))))
+  (generate-response
+   (try
+     {:body {:query-response (raise-response (parser env transit-params))}}
+     (catch clojure.lang.ExceptionInfo e
+       (ex-data e))
+     (catch Throwable e
+       {:status 500
+        :body e}))))
 
 (defn route-handler [req]
   (let [match (bidi/match-route routes (:uri req)
@@ -62,7 +69,7 @@
 (defn wrap-connection
   "Ring middleware function that invokes the general handler with the parser and parsing environgment on the request."
   [handler api-parser om-parsing-env]
-  (fn [req] (handler (assoc req :parser api-parser :env om-parsing-env))))
+  (fn [req] (handler (assoc req :parser api-parser :env (assoc om-parsing-env :request req)))))
 
 (defn handler
   "Create a web request handler that sends all requests through an Om parser. The om-parsing-env of the parses
