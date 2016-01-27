@@ -9,7 +9,9 @@
     [ring.util.response :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
     [taoensso.timbre :as timbre]
-    [untangled.server.impl.components.database :as db]))
+    [om.next.impl.parser :as omp]
+    [untangled.server.impl.components.database :as db])
+  (:import (clojure.lang ExceptionInfo)))
 
 (def routes
   ["" {"/" :index
@@ -49,13 +51,18 @@
   you can define the handling of all API requests via system injection at startup."
   [{:keys [transit-params parser env] :as req}]
   (generate-response
-   (try
-     {:body {:query-response (raise-response (parser env transit-params))}}
-     (catch clojure.lang.ExceptionInfo e
-       (ex-data e))
-     (catch Throwable e
-       {:status 500
-        :body e}))))
+    (try
+      {:body {:query-response (raise-response (parser env transit-params))}}
+      (catch ExceptionInfo e
+        ;; TODO: pull let def into a helper function somewhere else
+        (let [client-tx (clojure.walk/prewalk #(if (map? %) (dissoc % :params) %) (omp/expr->ast transit-params))]
+          (timbre/error "Client transaction (params elided for security) failed: " client-tx)
+          ;; TODO: Assert that ex-data has the right stuff
+          (ex-data e)))
+      (catch Throwable e
+        (timbre/fatal "Unexpected internal error" e)
+        {:status 500
+         :body   e}))))
 
 (defn route-handler [req]
   (let [match (bidi/match-route routes (:uri req)
