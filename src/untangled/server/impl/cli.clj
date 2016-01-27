@@ -3,8 +3,8 @@
             [datomic.api :as d]
             [io.rkn.conformity :as c]
             [taoensso.timbre :as timbre]
-            [untangled.server.impl.components.database :as cd]
-            [untangled.server.impl.database.migration :as m]))
+            [untangled.datomic.impl.components.database :as cd]
+            [untangled.datomic.impl.migration :as m]))
 
 (defmacro make-fn [m]
   `(fn [& args#]

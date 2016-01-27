@@ -16,7 +16,7 @@
     )
   #_(:use
     midje.repl
-    [untangled.server.impl.database.migration :only [dump-schema dump-entity] :rename {
+    [untangled.datomic.impl.migration :only [dump-schema dump-entity] :rename {
                                                                                  dump-schema s
                                                                                  dump-entity e
                                                                                  }]

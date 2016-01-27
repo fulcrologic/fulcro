@@ -9,7 +9,7 @@
     [ring.util.response :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
     [taoensso.timbre :as timbre]
-    [untangled.server.impl.components.database :as db]))
+    [untangled.datomic.impl.components.database :as db]))
 
 (def routes
   ["" {"/" :index
