@@ -6,8 +6,6 @@
     [om.next.server :as om]
     [om.tempid :as t]
     [untangled-spec.core :refer [specification behavior provided component assertions]]
-    [untangled.util.fixtures :as fixture]
-    [untangled.util.seed :as seed]
     [untangled.server.impl.components.handler :as h]))
 
 (defn set-namespace [kw new-ns]

@@ -5,6 +5,7 @@
                  [com.datomic/datomic-pro "0.9.5206" :exclusions [joda-time] :scope "provided"]
                  [io.rkn/conformity "0.3.4" :exclusions [com.datomic/datomic-free]]
                  [datomic-helpers "1.0.0"]
+                 [org.clojure/math.combinatorics "0.1.1"]
                  [org.clojure/tools.namespace "0.2.10"]
                  [org.graylog2/gelfclient "1.0.0"]
                  [org.omcljs/om "1.0.0-alpha29-SNAPSHOT"]
