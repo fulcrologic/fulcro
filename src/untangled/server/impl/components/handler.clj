@@ -8,8 +8,7 @@
     [ring.middleware.gzip :refer [wrap-gzip]]
     [ring.util.response :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
-    [taoensso.timbre :as timbre]
-    [untangled.datomic.impl.components.database :as db]))
+    [taoensso.timbre :as timbre]))
 
 (def routes
   ["" {"/" :index

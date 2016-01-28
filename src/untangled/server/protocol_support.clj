@@ -1,10 +1,6 @@
 (ns untangled.server.protocol-support
   (:require
     [clojure.walk :as walk]
-    [com.navis.common.components.authorization :as auth]
-    [datomic.api :as d]
-    [om.next.server :as om]
-    [om.tempid :as t]
     [untangled-spec.core :refer [specification behavior provided component assertions]]
     [untangled.server.impl.components.handler :as h]))
 
@@ -24,11 +20,6 @@
 (def tempid?
   "Is the given keyword a seed data tempid keyword (namespaced to `tempid`)?"
   (namespace-match-generator "tempid"))
-
-(defn datomic-id->tempid [stuff]
-  (walk/postwalk #(if (datomic-id? %)
-                   (set-namespace % "tempid") %)
-    stuff))
 
 (defn walk+state [f x & [init-state]]
   (let [state (atom (or init-state {}))]

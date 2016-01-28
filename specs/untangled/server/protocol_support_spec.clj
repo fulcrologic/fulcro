@@ -4,9 +4,9 @@
     [untangled.server.protocol-support :as ps]
     [untangled.server.core :as core]
     [om.next.server :as om]
-    [untangled.components.database :refer [build-database]]
+    [untangled.datomic.core :refer [resolve-ids build-database]]
+    [untangled.datomic.test-helpers :refer [make-seeder]]
     [untangled.datomic.protocols :as udb]
-    [untangled.datomic.core :refer [resolve-ids]]
     [clojure.test :refer [is]]
     [untangled-spec.core :refer
      [specification behavior provided component assertions]]
@@ -75,37 +75,32 @@
   (core/make-untangled-test-server
     :parser (om/parser {:read api-read})
     :parser-injections #{:db}
-    :components {:db (build-database :protocol-support)}
-    :protocol-data protocol-support-data
+    :components {:db     (build-database :protocol-support)
+                 :seeder (make-seeder (:seed-data protocol-support-data))}
+
     ))
 
 (def bad-test-server
   (core/make-untangled-test-server
     :parser (om/parser {:read api-read})
     :parser-injections #{:db :db2 :db3}
-    :components {:db (build-database :protocol-support)
-                 :db2 (build-database :protocol-support-2)
-                 :db3 (build-database :protocol-support-3)}
-    :protocol-data bad-protocol-support-data
-    ))
+    :components {:db     (build-database :protocol-support)
+                 :db2    (build-database :protocol-support-2)
+                 :db3    (build-database :protocol-support-3)
+                 :seeder (make-seeder (:seed-data bad-protocol-support-data))}))
 
 (def mutate-test-server
   (core/make-untangled-test-server
     :parser (om/parser {:read api-read :mutate mutate})
     :parser-injections #{:db}
-    :components {:db (build-database :protocol-support)}
-    :protocol-data mutate-protocol-support-data
-    ))
+    :components {:db     (build-database :protocol-support)
+                 :seeder (make-seeder (:seed-data mutate-protocol-support-data))}))
 
 (specification "test server response"
   (component "helper functions"
     (assertions
       "set-namespace :datomic.id/* -> :tempid/*"
       (ps/set-namespace :datomic.id/asdf "tempid") => :tempid/asdf
-
-      "datomic-id->tempid"
-      (ps/datomic-id->tempid [{:id :datomic.id/asdf :foo :om.id/asdf} {:datomic.id/asdf :id}])
-      => [{:id :tempid/asdf :foo :om.id/asdf} {:tempid/asdf :id}]
 
       "collect-om-tempids"
       (ps/collect-om-tempids [{:id :om.tempid/qwack :foo :om.tempid/asdf} {:datomic.id/asdf :id}])
