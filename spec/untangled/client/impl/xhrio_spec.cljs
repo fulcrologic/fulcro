@@ -5,7 +5,14 @@
     [cljs.test :refer [is deftest testing async]])
   (:import [goog.net XhrIo EventType]))
 
-(deftest XhrIo-Testing
+;; This test requires that you allow cross-origin resource sharing in your browser. This is disabled by default.
+;; Install this plugin for Google Chrome before running this test, or it will crash the test suite:
+
+;; https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi?hl=en
+
+;; NOTE: This will DISABLE critical security features of your browser. Handle with care. Disable before browsing the web.
+
+#_(deftest XhrIo-Testing
   (testing "Runs ok when receiving a valid response"
     (async done
       (let [net (XhrIo.)
