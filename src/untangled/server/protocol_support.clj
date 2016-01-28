@@ -1,13 +1,7 @@
 (ns untangled.server.protocol-support
   (:require
     [clojure.walk :as walk]
-    [com.navis.common.components.authorization :as auth]
-    [datomic.api :as d]
-    [om.next.server :as om]
-    [om.tempid :as t]
     [untangled-spec.core :refer [specification behavior provided component assertions]]
-    [untangled.util.fixtures :as fixture]
-    [untangled.util.seed :as seed]
     [untangled.server.impl.components.handler :as h]))
 
 (defn set-namespace [kw new-ns]
@@ -125,30 +119,22 @@
                              identity)
         server-tx+ (prepare-server-tx+ (rewrite-tempids server-tx datoid-map datomic-id?))]
     (let [response+ (try
-                      (h/api-handler api-parser env server-tx+)
-                      (catch Throwable t
-                        (when on-error (on-error t))
-                        t)
+                      (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body :query-response)
                       (finally
                         (.stop app+)))]
-      (cond
-        (and (not on-error) (instance? Throwable response+)) (throw response+)
 
-        (instance? Throwable response+) response+
+      (let [om-tids (collect-om-tempids server-tx+)
+            [extracted-response extracted-tempids] (extract-tempids response+)
+            extracted-response+ (rewrite-tempids extracted-response
+                                  (clojure.set/map-invert datoid-map)
+                                  integer?)
+            extracted-response* (rewrite-tempids extracted-response+
+                                  (clojure.set/map-invert extracted-tempids)
+                                  integer?)]
+        (assertions
+          "Server response should contain remappings for all om.tempid's in data/server-tx"
+          (set (keys extracted-tempids)) => om-tids
 
-        :else
-        (let [om-tids (collect-om-tempids server-tx+)
-              [extracted-response extracted-tempids] (extract-tempids response+)
-              extracted-response+ (rewrite-tempids extracted-response
-                                                   (clojure.set/map-invert datoid-map)
-                                                   integer?)
-              extracted-response* (rewrite-tempids extracted-response+
-                                    (clojure.set/map-invert extracted-tempids)
-                                    integer?)]
-          (assertions
-            "Server response should contain remappings for all om.tempid's in data/server-tx"
-            (set (keys extracted-tempids)) => om-tids
-
-            "Server response should match data/response"
-            extracted-response* => response)
-          (when on-success (on-success extracted-response+)))))))
+          "Server response should match data/response"
+          extracted-response* => response)
+        (when on-success (on-success extracted-response+))))))

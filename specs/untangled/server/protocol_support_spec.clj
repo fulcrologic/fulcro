@@ -125,9 +125,9 @@
              "Survey Zero"}]}
           {:om.tempid/inst-id0 17592186045460}]))
 
-  #_(behavior "test server response w/ protocol data"
+  (behavior "test server response w/ protocol data"
     (ps/check-server-response test-server protocol-support-data))
-  #_(behavior "test server response w/ bad protocol data"
+  (behavior "test server response w/ bad protocol data"
     (assertions
       (ps/check-server-response bad-test-server bad-protocol-support-data)
       =throws=> (AssertionError #"seed data tempids must have no overlap")))

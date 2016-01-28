@@ -9,8 +9,7 @@
     [ring.util.response :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
     [taoensso.timbre :as timbre]
-    [om.next.impl.parser :as omp]
-    [untangled.server.impl.components.database :as db])
+    [untangled.server.impl.util :as util])
   (:import (clojure.lang ExceptionInfo)))
 
 (def routes
@@ -22,6 +21,12 @@
 (defn index [req]
   (assoc (resource-response (str "index.html") {:root "public"})
     :headers {"Content-Type" "text/html"}))
+
+
+(defn error->response [error]
+  (timbre/fatal "Unexpected internal error" error)
+  {:status 500
+   :body   error})
 
 (defn generate-response
   "Generate a response containing status code, headers, and body.
@@ -54,15 +59,16 @@
     (try
       {:body {:query-response (raise-response (parser env transit-params))}}
       (catch ExceptionInfo e
-        ;; TODO: pull let def into a helper function somewhere else
-        (let [client-tx (clojure.walk/prewalk #(if (map? %) (dissoc % :params) %) (omp/expr->ast transit-params))]
+        (let [client-tx (util/strip-parameters transit-params)
+              valid-response-keys #{:status :body :headers}
+              parser-ex-data (ex-data e)]
+
           (timbre/error "Client transaction (params elided for security) failed: " client-tx)
-          ;; TODO: Assert that ex-data has the right stuff
-          (ex-data e)))
+          (if (every? valid-response-keys (keys parser-ex-data))
+            parser-ex-data
+            (error->response e))))
       (catch Throwable e
-        (timbre/fatal "Unexpected internal error" e)
-        {:status 500
-         :body   e}))))
+        (error->response e)))))
 
 (defn route-handler [req]
   (let [match (bidi/match-route routes (:uri req)
