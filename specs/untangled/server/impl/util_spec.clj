@@ -1,5 +1,5 @@
 (ns untangled.server.impl.util-spec
-  (:require [untangled-spec.core :refer [specification assertions]]
+  (:require [untangled-spec.core :refer [specification behavior assertions]]
             [untangled.server.impl.util :as n]
             [taoensso.timbre :refer [debug info fatal error]]
             [clojure.tools.namespace.find :refer [find-namespaces]]
@@ -13,4 +13,14 @@
     (n/load-namespaces "resources.load-namespace") => ['resources.load-namespace.load-namespaces]
     "will not accept a partial package name as a prefix"
     (n/load-namespaces "resources.load-namespac") => []))
+
+(specification "strip-parameters"
+  (behavior "removes all parameters from"
+    (assertions
+      "parameterized prop reads"
+      (n/strip-parameters `[(:some/key {:arg :foo})]) => [:some/key]
+      "parameterized join reads"
+      (n/strip-parameters `[({:some/key [:sub/key]} {:arg :foo})]) => [{:some/key [:sub/key]}]
+      "paremeterized mutations"
+      (n/strip-parameters ['(fire-missiles! {:arg :foo})]) => '[fire-missiles!])))
 
