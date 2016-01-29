@@ -1,8 +1,7 @@
 (ns ^:focused untangled.server.impl.components.handler-spec
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
             [untangled.server.impl.components.handler :as h]
-            [om.next.server :as om]
-            [taoensso.timbre :as timbre])
+            [om.next.server :as om])
   (:import (clojure.lang ExceptionInfo)))
 
 (specification "generate-response"
@@ -20,12 +19,16 @@
                                         :bar' (throw (ex-info "Oops'" {:status 402 :body "quite an error"}))
                                         :baz (throw (IllegalArgumentException.)))})
 
-        parser (om/parser {:read my-read})
+        my-mutate (fn [_ key _] {:action (condp = key
+                                           'foo (fn [] "success")
+                                           'bar (fn [] (throw (ex-info "Oops" {:my :bad})))
+                                           'bar' (fn [] (throw (ex-info "Oops'" {:status 402 :body "quite an error"})))
+                                           'baz (fn [] (throw (IllegalArgumentException.))))})
+
+        parser (om/parser {:read my-read :mutate my-mutate})
         parse-result (fn [query] (h/api {:parser parser :transit-params query}))]
 
-    (provided "that has not been prepared for transit"
-      (h/generate-response api-resp) => api-resp
-
+    (behavior "for Om reads"
       (behavior "for a valid request"
         (behavior "returns a query response"
           (let [result (parse-result [:foo])]
@@ -54,6 +57,45 @@
 
         (behavior "when the parser does not generate the error"
           (let [result (parse-result [:baz])]
+            (assertions
+              "returns a 500 http status code."
+              (:status result) => 500
+
+              "returns exception data in the response body."
+              (:body result) =fn=> (partial instance? IllegalArgumentException))))))
+
+    (behavior "for Om mutates"
+      (behavior "for a valid request"
+        (behavior "returns a query response"
+          (let [result (parse-result ['(foo)])]
+            (assertions
+              "with a body containing the expected parse result."
+              (:body result) => {:query-response {'foo "success"}}))))
+
+      (behavior "for an invalid request"
+        (behavior "when the parser generates an expected error"
+          (let [result (parse-result ['(bar')])]
+            (assertions
+              "result"
+              result => nil
+
+              "returns a status code."
+              (:status result) =fn=> (complement nil?)
+
+              "returns body if provided."
+              (:body result) => "quite an error")))
+
+        (behavior "when the parser generates an unexpected error"
+          (let [result (parse-result ['(bar)])]
+            (assertions
+              "returns a 500 http status code."
+              (:status result) => 500
+
+              "contains an exception in the response body."
+              (:body result) =fn=> (partial instance? ExceptionInfo))))
+
+        (behavior "when the parser does not generate the error"
+          (let [result (parse-result ['(baz)])]
             (assertions
               "returns a 500 http status code."
               (:status result) => 500

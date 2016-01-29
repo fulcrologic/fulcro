@@ -24,7 +24,8 @@
       (n/strip-parameters `[({:some/key [:sub/key]} {:arg :foo})]) => [{:some/key [:sub/key]}]
 
       "nested parameterized join reads"
-      (n/strip-parameters `[{:some/key [({:sub/key [:sub.sub/key]} {:arg :foo})]}]) => [{:some/key [{:sub/key [:sub.sub/key]}]}]
+      (n/strip-parameters
+        `[{:some/key [({:sub/key [:sub.sub/key]} {:arg :foo})]}]) => [{:some/key [{:sub/key [:sub.sub/key]}]}]
 
       "multiple parameterized reads"
       (n/strip-parameters

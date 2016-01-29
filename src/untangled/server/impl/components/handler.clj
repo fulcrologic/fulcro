@@ -32,9 +32,10 @@
   "Generate a response containing status code, headers, and body.
   The content type will always be 'application/transit+json',
   and this function will assert if otherwise."
-  [{:keys [status body headers] :or {status 200}}]
+  [{:keys [status body headers] :or {status 200} :as input}]
   {:pre [(not (contains? headers "Content-Type"))
          (and (>= status 100) (< status 600))]}
+  (timbre/info "Generate Response: " input)
   {:status  status
    :headers (merge headers {"Content-Type" "application/transit+json"})
    :body    body})
@@ -48,6 +49,11 @@
               (assoc acc k v)))
     {} resp))
 
+(defn handle-parser-errors [parse-result]
+  (let [contains-mutations-errors? (some (fn [[_ {:keys [om.next/error]}]] (some? error)) parse-result)]
+
+    ))
+
 (defn api
   "The /api Request handler. The incoming request will have a database connection, parser, and error handler
   already injected. This function should be fairly static, in that it calls the parser, and if the parser
@@ -55,20 +61,19 @@
   an exception, then it calls the injected error handler with the request and the exception. Thus,
   you can define the handling of all API requests via system injection at startup."
   [{:keys [transit-params parser env] :as req}]
-  (generate-response
-    (try
-      {:body {:query-response (raise-response (parser env transit-params))}}
-      (catch ExceptionInfo e
-        (let [client-tx (util/strip-parameters transit-params)
-              valid-response-keys #{:status :body :headers}
-              parser-ex-data (ex-data e)]
+  (try
+    {:body {:query-response (raise-response (parser env transit-params))}}
+    (catch ExceptionInfo e
+      (let [client-tx (util/strip-parameters transit-params)
+            valid-response-keys #{:status :body :headers}
+            parser-ex-data (ex-data e)]
 
-          (timbre/error "Client transaction (params elided for security) failed: " client-tx)
-          (if (every? valid-response-keys (keys parser-ex-data))
-            parser-ex-data
-            (error->response e))))
-      (catch Throwable e
-        (error->response e)))))
+        (timbre/error "Client transaction (params elided for security) failed: " client-tx)
+        (if (every? valid-response-keys (keys parser-ex-data))
+          parser-ex-data
+          (error->response e))))
+    (catch Exception e
+      (error->response e))))
 
 (defn route-handler [req]
   (let [match (bidi/match-route routes (:uri req)
@@ -76,7 +81,7 @@
     (case (:handler match)
       ;; explicit handling of / as index.html. wrap-resources does the rest
       :index (index req)
-      :api (api req)
+      :api (generate-response (api req))
       req)))
 
 (defn wrap-connection

@@ -1,4 +1,4 @@
-(defproject untangled-server "0.4.0-SNAPSHOT"
+(defproject untangled-server "0.4.1-SNAPSHOT"
   :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
