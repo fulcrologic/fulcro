@@ -30,8 +30,11 @@
   [ex]
   {:pre [(instance? Exception ex)]}
   (let [message (.getMessage ex)
-        type (str (type ex))]
-    {:type type :message message}))
+        type (str (type ex))
+        serialized-data {:type type :message message}]
+    (if (instance? ExceptionInfo ex)
+      (assoc serialized-data :data (ex-data ex))
+      serialized-data)))
 
 (defn unknow-error->response [error]
   (let [serialized-data (serialize-exception error)]
