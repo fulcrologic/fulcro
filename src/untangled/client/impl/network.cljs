@@ -32,9 +32,15 @@
     ;; Implies:  request was sent.
     ;; *Always* called if completed (even in the face of network errors).
     ;; Used to detect errors.
-    (if (zero? (.getStatus xhr-io))
-      (@error-callback {:type :network})
-      (@error-callback (cljs.reader/read-string (.getResponseText xhr-io)))))
+    (letfn [(log-and-dispatch-error [str error] (log/error str) (@error-callback error))]
+
+      (if (zero? (.getStatus xhr-io))
+        (log-and-dispatch-error
+          (str "UNTANGLED NETWORK ERROR: No connection established.")
+          {:type :network})
+        (log-and-dispatch-error
+          (str "SERVER ERROR CODE: " (.getStatus xhr-io))
+          (ct/read (t/reader) (.getResponseText xhr-io))))))
 
   UntangledNetwork
   (send [this edn ok err {:keys [headers]}]
@@ -52,7 +58,7 @@
                           :valid-data-callback (atom nil)
                           :error-callback      (atom nil)})]
     (events/listen xhrio (.-SUCCESS EventType) #(response-ok rv))
-    (events/listen xhrio (.-COMPLETE EventType) #(response-error rv))
+    (events/listen xhrio (.-ERROR EventType) #(response-error rv))
     rv))
 
 
