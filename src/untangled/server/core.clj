@@ -70,7 +70,9 @@
   *`components`         OPTIONAL, a map of Sierra component instances keyed by their desired names in the overall system component.
                         These additional components will merged with the untangled-server components to compose a new system component.
 
-  *`parser`             REQUIRED, an om parser function for parsing requests made of the server
+  *`parser`             REQUIRED, an om parser function for parsing requests made of the server. To report errors, the
+                        parser must throw an ExceptionInfo with a map with keys `:status`, `:headers`, and `:body`.
+                        This map will be converted into the response sent to the client.
 
   *`parser-injections`  a vector of keywords which represent components which will be injected as the om parsing env.
 

@@ -8,8 +8,8 @@
     [ring.middleware.gzip :refer [wrap-gzip]]
     [ring.util.response :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
-    [taoensso.timbre :as timbre]
-    [untangled.datomic.impl.components.database :as db]))
+    [taoensso.timbre :as timbre] )
+  (:import (clojure.lang ExceptionInfo)))
 
 (def routes
   ["" {"/" :index
@@ -21,10 +21,30 @@
   (assoc (resource-response (str "index.html") {:root "public"})
     :headers {"Content-Type" "text/html"}))
 
-(defn generate-response [data & [status]]
-  {:status  (or status 200)
-   :headers {"Content-Type" "application/transit+json"}
-   :body    data})
+(defn error->response [error]
+  {:status 500
+   :body   error})
+
+(defn untangled-api-error-response
+  "Determines if ex-data from ExceptionInfo has headers matching the Untangled Server API.
+   Returns ex-map if the ex-data matches the API, otherwise returns the whole exception."
+  [ex]
+  (let [valid-response-keys #{:status :headers :body}
+        ex-map (ex-data ex)]
+    (if (every? valid-response-keys (keys ex-map))
+      ex-map
+      (error->response ex))))
+
+(defn process-errors [error]
+  (cond
+    (instance? ExceptionInfo error) (untangled-api-error-response error)
+    (instance? Exception error) (error->response error)
+    :else {:status 400 :body error}))
+
+(defn valid-response? [result]
+  (and
+    (not (instance? Exception result))
+    (not (some (fn [[_ {:keys [om.next/error]}]] (some? error)) result))))
 
 (defn raise-response
   "For om mutations, converts {'my/mutation {:result {...}}} to {'my/mutation {...}}"
@@ -35,8 +55,6 @@
               (assoc acc k v)))
     {} resp))
 
-(defn api-handler [parser env query] (raise-response (parser env query)))
-
 (defn api
   "The /api Request handler. The incoming request will have a database connection, parser, and error handler
   already injected. This function should be fairly static, in that it calls the parser, and if the parser
@@ -44,11 +62,23 @@
   an exception, then it calls the injected error handler with the request and the exception. Thus,
   you can define the handling of all API requests via system injection at startup."
   [{:keys [transit-params parser env] :as req}]
-  (try
-    (generate-response {:query-response (api-handler parser env transit-params)})
-    (catch Throwable e
-      (timbre/error "API error." e)
-      (generate-response {:error (ex-data e)}))))
+  (let [parse-result (try (raise-response (parser env transit-params))
+                          (catch Exception e (timbre/error "Parser error:" (.getStackTrace e)) e))]
+    (if (valid-response? parse-result)
+      {:status 200 :body parse-result}
+      (process-errors parse-result))))
+
+(defn generate-response
+  "Generate a response containing status code, headers, and body.
+  The content type will always be 'application/transit+json',
+  and this function will assert if otherwise."
+  [{:keys [status body headers] :or {status 200} :as input}]
+  {:pre [(not (contains? headers "Content-Type"))
+         (and (>= status 100) (< status 600))]}
+  (timbre/info "Generate Response: " input)
+  {:status  status
+   :headers (merge headers {"Content-Type" "application/transit+json"})
+   :body    body})
 
 (defn route-handler [req]
   (let [match (bidi/match-route routes (:uri req)
@@ -56,13 +86,13 @@
     (case (:handler match)
       ;; explicit handling of / as index.html. wrap-resources does the rest
       :index (index req)
-      :api (api req)
+      :api (generate-response (api req))
       req)))
 
 (defn wrap-connection
   "Ring middleware function that invokes the general handler with the parser and parsing environgment on the request."
   [handler api-parser om-parsing-env]
-  (fn [req] (handler (assoc req :parser api-parser :env om-parsing-env))))
+  (fn [req] (handler (assoc req :parser api-parser :env (assoc om-parsing-env :request req)))))
 
 (defn handler
   "Create a web request handler that sends all requests through an Om parser. The om-parsing-env of the parses
