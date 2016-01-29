@@ -1,13 +1,8 @@
 (ns untangled.server.core
-  (:require [datomic.api :as d]
-            [untangled.server.protocol-support :as ps]
-            [untangled.datomic.impl.seed :as seed]
-            [untangled.datomic.protocols :as udb]
-            [untangled.server.impl.components.web-server :as web-server]
+  (:require [untangled.server.impl.components.web-server :as web-server]
             [untangled.server.impl.components.logger :as logger]
             [untangled.server.impl.components.handler :as handler]
             [untangled.server.impl.components.config :as config]
-            [clojure.math.combinatorics :as combo]
             [com.stuartsierra.component :as component]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -90,42 +85,12 @@
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
 
-(defrecord Seeder [seed-data seed-result]
-  component/Lifecycle
-  (start [this]
-    (let [dbs-to-seed (keys seed-data)
-          tid-maps (reduce (fn [acc db-name]
-                             (let [sd (ps/datomic-id->tempid (get seed-data db-name))
-                                   db (get this db-name)
-                                   conn (.get-connection db)
-                                   tempid-map (seed/link-and-load-seed-data conn sd)]
-                               (conj acc tempid-map)))
-                     [] dbs-to-seed)
-          pairwise-disjoint? (fn [maps]
-                               (if (< (count maps) 2)
-                                 true
-                                 (let [all-keys (map (comp set keys) maps)
-                                       pairs (combo/combinations all-keys 2)
-                                       empty-pair? (fn [[ks1 ks2]]
-                                                     (empty? (clojure.set/intersection ks1 ks2)))]
-                                   (every? empty-pair? pairs))))]
-      (assoc this :seed-result (and (pairwise-disjoint? tid-maps) (apply merge tid-maps)))))
-  (stop [this]
-    ;; You can't stop the seeder!
-    this))
-
-(defn make-seeder [seed-data]
-  (component/using
-    (map->Seeder {:seed-data seed-data})
-    (vec (keys seed-data))))
-
 (defn make-untangled-test-server
-  [& {:keys [parser parser-injections components protocol-data]}]
+  "Make sure to inject a :seeder component in the group of components that you pass in!"
+  [& {:keys [parser parser-injections components]}]
   (let [handler (handler/build-handler parser parser-injections)
-        seeder (make-seeder (:seed-data protocol-data))
         built-in-components [:config (new-config "config/test.edn")
                              :logger (build-logger)
-                             :handler handler
-                             :seeder seeder]
+                             :handler handler]
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))

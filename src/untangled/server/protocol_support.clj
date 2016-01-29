@@ -21,11 +21,6 @@
   "Is the given keyword a seed data tempid keyword (namespaced to `tempid`)?"
   (namespace-match-generator "tempid"))
 
-(defn datomic-id->tempid [stuff]
-  (walk/postwalk #(if (datomic-id? %)
-                   (set-namespace % "tempid") %)
-    stuff))
-
 (defn walk+state [f x & [init-state]]
   (let [state (atom (or init-state {}))]
     (clojure.walk/postwalk
