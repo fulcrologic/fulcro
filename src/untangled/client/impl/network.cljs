@@ -10,30 +10,38 @@
   (:import [goog.net XhrIo EventType]))
 
 (defprotocol UntangledNetwork
-  (send [this edn ok-callback error-callback] [this edn ok-callback error-callback options] "Send method, transmits EDN to the server and gets
-   an EDN response. Calls result-callback with that response, or a map with key `:error` on errors. optional options
-   may include `:headers`, but you may NOT override content type."))
+  (send [this edn ok-callback error-callback] [this edn ok-callback error-callback options]
+    "Send method, transmits EDN to the server and gets an EDN response. Calls result-callback with that response,
+    or a map with key `:error` on errors. optional options may include `:headers`, but you may NOT override content
+    type."))
 
 (defprotocol IXhrIOCallbacks
-  (response-ok [this] "Called by XHRIO on OK")
-  (request-complete [this] "Called by XHRIO on COMPLETE"))
+  (response-ok [this] "Called by XhrIo on OK")
+  (response-error [this] "Called by XhrIo on ERROR"))
+
+(defn parse-response [xhr-io]
+  (ct/read (t/reader) (.getResponseText xhr-io)))
 
 (defrecord Network [xhr-io url error-callback valid-data-callback]
   IXhrIOCallbacks
   (response-ok [this]
     ;; Implies:  everything went well and we have a good response
     ;; (i.e., got a 200).
-    (let [{:keys [query-response error]} (ct/read (t/reader) (.getResponseText (:xhr-io this)))]
-      (when (and error @error-callback) (@error-callback error))
-      ; TODO: Survey server error handler
+    (let [query-response (parse-response xhr-io)]
       (when (and query-response @valid-data-callback) (@valid-data-callback query-response))))
 
-  (request-complete [this]
+  (response-error [this]
     ;; Implies:  request was sent.
     ;; *Always* called if completed (even in the face of network errors).
     ;; Used to detect errors.
-    (when (and (not (.isSuccess (:xhr-io this))) @error-callback)
-      (@error-callback {:type :network})))
+    (letfn [(log-and-dispatch-error [str error] (log/error str) (@error-callback error))]
+      (if (zero? (.getStatus xhr-io))
+        (log-and-dispatch-error
+          (str "UNTANGLED NETWORK ERROR: No connection established.")
+          {:type :network})
+        (log-and-dispatch-error
+          (str "SERVER ERROR CODE: " (.getStatus xhr-io))
+          (parse-response xhr-io)))))
 
   UntangledNetwork
   (send [this edn ok err {:keys [headers]}]
@@ -51,7 +59,7 @@
                           :valid-data-callback (atom nil)
                           :error-callback      (atom nil)})]
     (events/listen xhrio (.-SUCCESS EventType) #(response-ok rv))
-    (events/listen xhrio (.-COMPLETE EventType) #(request-complete rv))
+    (events/listen xhrio (.-ERROR EventType) #(response-error rv))
     rv))
 
 
