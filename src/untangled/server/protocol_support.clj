@@ -119,7 +119,7 @@
                              identity)
         server-tx+ (prepare-server-tx+ (rewrite-tempids server-tx datoid-map datomic-id?))]
     (let [response+ (try
-                      (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body :query-response)
+                      (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
                       (finally
                         (.stop app+)))]
 

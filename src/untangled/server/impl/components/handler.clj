@@ -22,11 +22,53 @@
   (assoc (resource-response (str "index.html") {:root "public"})
     :headers {"Content-Type" "text/html"}))
 
-
 (defn error->response [error]
-  (timbre/fatal "Unexpected internal error" error)
   {:status 500
    :body   error})
+
+(defn untangled-api-error-response
+  "Determines if ex-data from ExceptionInfo has headers matching the Untangled Server API.
+   Returns ex-map if the ex-data matches the API, otherwise returns the whole exception."
+  [ex]
+  ;; TODO: logging?
+  (let [valid-response-keys #{:status :headers :body}
+        ex-map (ex-data ex)]
+    (if (every? valid-response-keys (keys ex-map))
+      ex-map
+      (error->response ex))))
+
+(defn process-errors [error]
+  (cond
+    (instance? ExceptionInfo error) (untangled-api-error-response error)
+    (instance? Exception error) (error->response error)
+    :else {:status 400 :body error}))
+
+(defn valid-response? [result]
+  (and
+    (not (instance? Exception result))
+    (not (some (fn [[_ {:keys [om.next/error]}]] (some? error)) result))))
+
+(defn raise-response
+  "For om mutations, converts {'my/mutation {:result {...}}} to {'my/mutation {...}}"
+  [resp]
+  (reduce (fn [acc [k v]]
+            (if (and (symbol? k) (not (nil? (:result v))))
+              (assoc acc k (:result v))
+              (assoc acc k v)))
+    {} resp))
+
+(defn api
+  "The /api Request handler. The incoming request will have a database connection, parser, and error handler
+  already injected. This function should be fairly static, in that it calls the parser, and if the parser
+  does not throw and exception it wraps the return value in a transit response. If the parser throws
+  an exception, then it calls the injected error handler with the request and the exception. Thus,
+  you can define the handling of all API requests via system injection at startup."
+  [{:keys [transit-params parser env] :as req}]
+  (let [parse-result (try (raise-response (parser env transit-params))
+                          (catch Exception e (timbre/error "Parser error:" (.getStackTrace e)) e))]
+    (if (valid-response? parse-result)
+      {:status 200 :body parse-result}
+      (process-errors parse-result))))
 
 (defn generate-response
   "Generate a response containing status code, headers, and body.
@@ -39,41 +81,6 @@
   {:status  status
    :headers (merge headers {"Content-Type" "application/transit+json"})
    :body    body})
-
-(defn raise-response
-  "For om mutations, converts {'my/mutation {:result {...}}} to {'my/mutation {...}}"
-  [resp]
-  (reduce (fn [acc [k v]]
-            (if (and (symbol? k) (not (nil? (:result v))))
-              (assoc acc k (:result v))
-              (assoc acc k v)))
-    {} resp))
-
-(defn handle-parser-errors [parse-result]
-  (let [contains-mutations-errors? (some (fn [[_ {:keys [om.next/error]}]] (some? error)) parse-result)]
-
-    ))
-
-(defn api
-  "The /api Request handler. The incoming request will have a database connection, parser, and error handler
-  already injected. This function should be fairly static, in that it calls the parser, and if the parser
-  does not throw and exception it wraps the return value in a transit response. If the parser throws
-  an exception, then it calls the injected error handler with the request and the exception. Thus,
-  you can define the handling of all API requests via system injection at startup."
-  [{:keys [transit-params parser env] :as req}]
-  (try
-    {:body {:query-response (raise-response (parser env transit-params))}}
-    (catch ExceptionInfo e
-      (let [client-tx (util/strip-parameters transit-params)
-            valid-response-keys #{:status :body :headers}
-            parser-ex-data (ex-data e)]
-
-        (timbre/error "Client transaction (params elided for security) failed: " client-tx)
-        (if (every? valid-response-keys (keys parser-ex-data))
-          parser-ex-data
-          (error->response e))))
-    (catch Exception e
-      (error->response e))))
 
 (defn route-handler [req]
   (let [match (bidi/match-route routes (:uri req)
