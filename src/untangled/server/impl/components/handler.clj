@@ -8,7 +8,7 @@
     [ring.middleware.gzip :refer [wrap-gzip]]
     [ring.util.response :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
-    [taoensso.timbre :as timbre] )
+    [taoensso.timbre :as timbre])
   (:import (clojure.lang ExceptionInfo)))
 
 (def routes
@@ -21,11 +21,24 @@
   (assoc (resource-response (str "index.html") {:root "public"})
     :headers {"Content-Type" "text/html"}))
 
-(defn error->response [error]
-  {:status 500
-   :body   error})
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; API Helper Functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn untangled-api-error-response
+(defn serialize-exception
+  "Convert exception data to string form for network transit."
+  [ex]
+  {:pre [(instance? Exception ex)]}
+  (let [message (.getMessage ex)
+        type (str (type ex))]
+    {:type type :message message}))
+
+(defn unknow-error->response [error]
+  (let [serialized-data (serialize-exception error)]
+    {:status 500
+     :body   serialized-data}))
+
+(defn parser-read-error->response
   "Determines if ex-data from ExceptionInfo has headers matching the Untangled Server API.
    Returns ex-map if the ex-data matches the API, otherwise returns the whole exception."
   [ex]
@@ -33,13 +46,26 @@
         ex-map (ex-data ex)]
     (if (every? valid-response-keys (keys ex-map))
       ex-map
-      (error->response ex))))
+      (unknow-error->response ex))))
+
+(defn parser-mutate-error->response
+  [mutation-result]
+  (let [raise-error-data (fn [item]
+                           (if (and (map? item) (contains? item :om.next/error))
+                             (let [exception-data (serialize-exception (get-in item [:om.next/error]))]
+                               (assoc item :om.next/error exception-data))
+                             item))
+        mutation-errors (clojure.walk/prewalk raise-error-data mutation-result)]
+
+    {:status 400 :body mutation-errors}))
 
 (defn process-errors [error]
-  (cond
-    (instance? ExceptionInfo error) (untangled-api-error-response error)
-    (instance? Exception error) (error->response error)
-    :else {:status 400 :body error}))
+  (let [error-response (cond
+                         (instance? ExceptionInfo error) (parser-read-error->response error)
+                         (instance? Exception error) (unknow-error->response error)
+                         :else (parser-mutate-error->response error))]
+    (timbre/error "Parser error:\n" (with-out-str (clojure.pprint/pprint error-response)))
+    error-response))
 
 (defn valid-response? [result]
   (and
@@ -62,8 +88,7 @@
   an exception, then it calls the injected error handler with the request and the exception. Thus,
   you can define the handling of all API requests via system injection at startup."
   [{:keys [transit-params parser env] :as req}]
-  (let [parse-result (try (raise-response (parser env transit-params))
-                          (catch Exception e (timbre/error "Parser error:" (.getStackTrace e)) e))]
+  (let [parse-result (try (raise-response (parser env transit-params)) (catch Exception e e))]
     (if (valid-response? parse-result)
       {:status 200 :body parse-result}
       (process-errors parse-result))))
@@ -75,10 +100,13 @@
   [{:keys [status body headers] :or {status 200} :as input}]
   {:pre [(not (contains? headers "Content-Type"))
          (and (>= status 100) (< status 600))]}
-  (timbre/info "Generate Response: " input)
   {:status  status
    :headers (merge headers {"Content-Type" "application/transit+json"})
    :body    body})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Handler Code
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn route-handler [req]
   (let [match (bidi/match-route routes (:uri req)
@@ -119,8 +147,7 @@
       (assoc component :api-parser api-parser :all-routes req-handler :env om-parsing-env)))
   (stop [component] component
     (timbre/info "Tearing down web server handler.")
-    (assoc component :all-routes nil))
-  )
+    (assoc component :all-routes nil)))
 
 (defn build-handler
   "Build a web request handler.
@@ -133,5 +160,4 @@
   (component/using
     (map->Handler {:api-parser    api-parser
                    :injected-keys injections})
-    (vec (into #{:logger :config} injections))
-    ))
+    (vec (into #{:logger :config} injections))))
