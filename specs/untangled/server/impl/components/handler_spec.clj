@@ -65,7 +65,7 @@
               (:status result) => 500
 
               "contains an exception in the response body."
-              (:body result) =fn=> (partial instance? ExceptionInfo))))
+              (:body result) => {:type "class clojure.lang.ExceptionInfo" :message "Oops" :data {:my :bad}})))
 
         (behavior "when the parser does not generate the error"
           (let [result (parse-result [:baz])]
@@ -74,7 +74,7 @@
               (:status result) => 500
 
               "returns exception data in the response body."
-              (:body result) =fn=> (partial instance? IllegalArgumentException))))))
+              (:body result) => {:type "class java.lang.IllegalArgumentException", :message nil})))))
 
     (behavior "for Om mutates"
       (behavior "for a valid request"
@@ -85,12 +85,23 @@
               (:body result) => {'foo "success"}))))
 
       (behavior "for invalid requests (where one or more mutations fail)"
-        (let [results [(parse-result ['(bar')])
-                       (parse-result ['(bar)])
-                       (parse-result ['(baz)])]]
+        (let [bar-result (parse-result ['(bar')])
+              bar'-result (parse-result ['(bar)])
+              baz-result (parse-result ['(baz)])]
 
           (behavior "returns a status code of 400."
-            (doall (map #(is (= 400 (:status %))) results)))
+            (doall (map #(is (= 400 (:status %))) [bar'-result bar-result baz-result])))
 
           (behavior "returns failing mutation result in the body."
-            (doall (map #(is (instance? Exception (-> % :body vals first :om.next/error))) results))))))))
+            (letfn [(get-error [result] (-> result :body vals first :om.next/error))]
+              (assertions
+                (get-error bar-result) => {:type    "class clojure.lang.ExceptionInfo",
+                                           :message "Oops'",
+                                           :data    {:status 402, :body "quite an error"}}
+
+                (get-error bar'-result) => {:type    "class clojure.lang.ExceptionInfo",
+                                            :message "Oops",
+                                            :data    {:my :bad}}
+
+                (get-error baz-result) => {:type    "class java.lang.IllegalArgumentException",
+                                           :message nil}))))))))
