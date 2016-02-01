@@ -19,6 +19,7 @@ target
 .idea
 *.iml
 .lein-env
+.cljs_rhino_repl
 examples/calendar/resources/public/js/specs
 examples/todo/src/quiescent_model
 node_modules
