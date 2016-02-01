@@ -57,9 +57,13 @@
                    :source-paths ["src" "test" "dev"]
                    :repl-options {
                                   :init-ns clj.user
+                                  :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]
                                   :port    7001
                                   }
                    :env          {:dev true}
+                   :dependencies [[figwheel-sidecar "0.5.0-3"]
+                                  [com.cemerick/piggieback "0.2.1"]
+                                  [org.clojure/tools.nrepl "0.2.12"]]
                    }
              }
 
