@@ -101,35 +101,38 @@
 
    see assertions inside for what is being tested
    "
-  [app {:keys [server-tx seed-data migrations response] :as data} & {:keys [on-success on-error prepare-server-tx]}]
-  (let [app+ (.start app)
-        tempid-map (get-in app+ [:seeder :seed-result])
-        _ (when-not tempid-map
-            (.stop app+)
-            (assert false "seed data tempids must have no overlap"))
-        {:keys [api-parser env]} (:handler app+)
-        datoid-map (map-keys #(set-namespace % "datomic.id") tempid-map)
-        prepare-server-tx+ (if prepare-server-tx
-                             #(prepare-server-tx % (partial get datoid-map))
-                             identity)
-        server-tx+ (prepare-server-tx+ (rewrite-tempids server-tx datoid-map datomic-id?))]
-    (let [response+ (try
-                      (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
-                      (finally
-                        (.stop app+)))]
+  [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx]}]
+  (let [started-app (.start app)]
+    (try
+      (let [tempid-map (get-in started-app [:seeder :seed-result])
+            _ (when-not tempid-map
+                (.stop started-app)
+                (assert false "seed data tempids must have no overlap"))
+            {:keys [api-parser env]} (:handler started-app)
+            datomic-tid->rid (map-keys #(set-namespace % "datomic.id") tempid-map)
+            prepare-server-tx+ (if prepare-server-tx
+                                 #(prepare-server-tx % (partial get datomic-tid->rid))
+                                 identity)
+            server-tx+ (prepare-server-tx+ (rewrite-tempids server-tx datomic-tid->rid datomic-id?))
+            server-response (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
+            om-tids (collect-om-tempids server-tx+)
+            [response-without-tempid-remaps om-tempid->datomic-id] (extract-tempids server-response)
+            response-to-check (-> response-without-tempid-remaps
+                                       (rewrite-tempids
+                                         (clojure.set/map-invert datomic-tid->rid)
+                                         integer?)
+                                       (rewrite-tempids
+                                         (clojure.set/map-invert om-tempid->datomic-id)
+                                         integer?))]
 
-      (let [om-tids (collect-om-tempids server-tx+)
-            [extracted-response extracted-tempids] (extract-tempids response+)
-            extracted-response+ (rewrite-tempids extracted-response
-                                  (clojure.set/map-invert datoid-map)
-                                  integer?)
-            extracted-response* (rewrite-tempids extracted-response+
-                                  (clojure.set/map-invert extracted-tempids)
-                                  integer?)]
         (assertions
           "Server response should contain remappings for all om.tempid's in data/server-tx"
-          (set (keys extracted-tempids)) => om-tids
+          (set (keys om-tempid->datomic-id)) => om-tids
 
           "Server response should match data/response"
-          extracted-response* => response)
-        (when on-success (on-success extracted-response+))))))
+          response-to-check => response)
+
+        (when on-success (on-success env response-to-check)))
+
+      (finally
+        (.stop started-app)))))

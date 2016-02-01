@@ -6,41 +6,37 @@
     [om.next.server :as om]
     [untangled.datomic.core :refer [resolve-ids build-database]]
     [untangled.datomic.test-helpers :refer [make-seeder]]
-    [untangled.datomic.protocols :as udb]
     [clojure.test :refer [is]]
-    [untangled-spec.core :refer
-     [specification behavior provided component assertions]]
-    )
-  (:import (clojure.lang ExceptionInfo)))
+    [untangled-spec.core :refer [specification behavior provided component assertions]]))
 
 (defn make-old-one [id name madness]
-  {:db/id id
-   :old-one/name name
+  {:db/id           id
+   :old-one/name    name
    :old-one/madness madness})
 
 (def protocol-support-data
   {:seed-data {:db [(make-old-one :datomic.id/cthulhu "UNSPEAKABLE 1" 13.37)]}
    :server-tx [{:old-one [:old-one/name]}]
-   :response {:old-one [{:old-one/name "UNSPEAKABLE 1"}]}})
+   :response  {:old-one [{:old-one/name "UNSPEAKABLE 1"}]}})
 
 (def bad-protocol-support-data
-  {:seed-data {:db [(make-old-one :datomic.id/cthulhu "UNSPEAKABLE 2" 13.37)]
+  {:seed-data {:db  [(make-old-one :datomic.id/cthulhu "UNSPEAKABLE 2" 13.37)]
                :db2 [(make-old-one :datomic.id/cthulhu "UNSPEAKABLE" 13.37)]
                :db3 [(make-old-one :datomic.id/yog-sothoth "UNSPEAKABLE" 13.37)]}
    :server-tx [{:old-one [:old-one/name]}]
-   :response {:old-one [{:old-one/name "UNSPEAKABLE 2"}]}})
+   :response  {:old-one [{:old-one/name "UNSPEAKABLE 2"}]}})
 
 (def mutate-protocol-support-data
   {:seed-data {:db [(make-old-one :datomic.id/cthlulu "lululululu" 3.14159)]}
-   :server-tx '[(old-one/add-follower {:old-one-id :datomic.id/cthlulu
-                                       :follower-id :om.tempid/follower1
-                                       :follower-name "Follower Won"
+   :server-tx '[(old-one/add-follower {:old-one-id        :datomic.id/cthlulu
+                                       :follower-id       :om.tempid/follower1
+                                       :follower-name     "Follower Won"
                                        :follower-devotion 42.0})
                 {:old-one [:old-one/name :old-one/followers :db/id]}]
-   :response {'old-one/add-follower {}
-              :old-one [{:old-one/name "lululululu",
-                         :old-one/followers [{:db/id :om.tempid/follower1}]
-                         :db/id :datomic.id/cthlulu}]}})
+   :response  {'old-one/add-follower {}
+               :old-one              [{:old-one/name      "lululululu",
+                                       :old-one/followers [{:db/id :om.tempid/follower1}]
+                                       :db/id             :datomic.id/cthlulu}]}})
 
 (defn api-read [{:keys [db query]} k params]
   ;(throw (ex-info "" {:db db}))
@@ -56,8 +52,8 @@
                      follower-tid (d/tempid :db.part/user)
                      omids->tempids {follower-id follower-tid}]
                  (try
-                   (let [tx-data [{:db/id follower-tid
-                                   :follower/name follower-name
+                   (let [tx-data [{:db/id             follower-tid
+                                   :follower/name     follower-name
                                    :follower/devotion follower-devotion}
                                   [:db/add old-one-id :old-one/followers follower-tid]]
                          tempids->realids (:tempids @(d/transact connection tx-data))
@@ -112,12 +108,12 @@
       "extract-tempids"
       (ps/extract-tempids {'survey/add-question {:tempids {:om.tempid/inst-id0 17592186045460}},
                            :surveys
-                           [{:artifact/display-title
-                             "Survey Zero"}]})
+                                                [{:artifact/display-title
+                                                  "Survey Zero"}]})
       => [{'survey/add-question {},
            :surveys
-           [{:artifact/display-title
-             "Survey Zero"}]}
+                                [{:artifact/display-title
+                                  "Survey Zero"}]}
           {:om.tempid/inst-id0 17592186045460}]))
 
   (behavior "test server response w/ protocol data"
