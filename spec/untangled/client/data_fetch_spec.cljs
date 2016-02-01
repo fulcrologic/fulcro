@@ -3,10 +3,10 @@
     [untangled.client.data-fetch :as df]
     [untangled.client.impl.data-fetch :as dfi]
     [untangled.client.impl.util :as util]
-    [om.next :as om :refer-macros [defui]])
-  (:require-macros
-    [cljs.test :refer [is are]]
-    [untangled-spec.core :refer [specification behavior assertions provided component when-mocking]]))
+    [om.next :as om :refer-macros [defui]]
+    [cljs.test :refer-macros [is are]]
+    [untangled-spec.core :refer-macros
+     [specification behavior assertions provided component when-mocking]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
