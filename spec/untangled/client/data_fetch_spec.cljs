@@ -127,7 +127,7 @@
         reconciler (om/reconciler {:state      state-tree
                                    :merge-tree util/deep-merge
                                    :parser     (om/parser {:read (constantly nil)})})
-        _ (om/mock-root reconciler PanelRoot)
+        _ (om/add-root! reconciler PanelRoot "invisible-specs")
         state (om/app-state reconciler)]
 
     (when-mocking
