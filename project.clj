@@ -10,7 +10,7 @@
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [untangled-spec "0.3.1-SNAPSHOT" :scope "test"]
-                 [org.omcljs/om "1.0.0-alpha28" :scope "test"]
+                 [org.omcljs/om "1.0.0-alpha30" :scope "test"]
                  [figwheel-sidecar "0.5.0-3" :scope "provided"]]
 
   :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]

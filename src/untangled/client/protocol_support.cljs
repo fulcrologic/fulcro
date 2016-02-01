@@ -7,10 +7,7 @@
     [untangled.client.impl.om-plumbing :as plumbing]
     [untangled.client.core :as core]
     [untangled.client.logging :as log]
-    [om.tempid :refer [TempId]]))
-
-(defn is-om-tempid? [val]
-  (= TempId (type val)))
+    [om.tempid :as omt]))
 
 (defn tempid?
   "Is the given keyword a seed data tempid keyword (namespaced to `tempid`)?"
@@ -78,7 +75,7 @@
       (behavior "trigger correct state transitions"
         (parse ui-tx)
         (check-delta (rewrite-tempids @state (set/map-invert tempid-map)
-                                      is-om-tempid?)
+                                      omt/tempid?)
                      optimistic-delta)))))
 
 (defn check-server-tx
@@ -96,7 +93,7 @@
             plumbing/filter-loads-and-fallbacks
             plumbing/strip-ui
             (rewrite-tempids (set/map-invert tempid-map)
-                             is-om-tempid?))
+                             omt/tempid?))
         => server-tx))))
 
 (defn check-response
