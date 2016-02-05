@@ -13,7 +13,7 @@
                  [org.omcljs/om "1.0.0-alpha30" :scope "test"]
                  [figwheel-sidecar "0.5.0-3" :scope "provided"]]
 
-  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]]
+  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/release"]]
 
   :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
                                      :sign-releases false}]
