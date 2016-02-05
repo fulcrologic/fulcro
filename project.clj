@@ -7,7 +7,7 @@
                  [org.clojure/math.combinatorics "0.1.1"]
                  [org.clojure/tools.namespace "0.2.10"]
                  [org.graylog2/gelfclient "1.0.0"]
-                 [org.omcljs/om "1.0.0-alpha29-SNAPSHOT"]
+                 [org.omcljs/om "1.0.0-alpha30"]
                  [http-kit "2.1.19"]
                  [environ "1.0.0"]
                  [bidi "1.21.1"]
@@ -19,7 +19,7 @@
                  [com.taoensso/timbre "4.1.4"]
                  [org.clojure/java.classpath "0.2.2"]
                  [untangled-spec "0.3.1" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
-                 [navis/untangled-datomic "0.4.1-SNAPSHOT" :scope "test"]
+                 [navis/untangled-datomic "0.4.1" :scope "test"]
                  [crypto-password "0.1.3" :scope "test"]
                  [com.rpl/specter "0.8.0"]]
 
