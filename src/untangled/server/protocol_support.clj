@@ -108,7 +108,7 @@
   (let [started-app (.start app)]
     (try
       (let [tempid-map (get-in started-app [:seeder :seed-result])
-            _ (when-not tempid-map
+            _ (when-not (= :disjoint tempid-map)
                 (.stop started-app)
                 (assert false "seed data tempids must have no overlap"))
             {:keys [api-parser env]} (:handler started-app)
