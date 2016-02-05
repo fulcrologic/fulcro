@@ -36,25 +36,51 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (specification "Data states"
-  (let [ready-marker (dfi/ready-state
+  (behavior "are properly initialized."
+    (is (df/data-state? (dfi/make-data-state :ready)))
+    (try (dfi/make-data-state :invalid-key)
+         (catch :default e
+           (is (= (.-message e) "INVALID DATA STATE TYPE: :invalid-key")))))
+
+  (behavior "can by identified by type."
+    (is (df/ready? (dfi/make-data-state :ready)))
+    (is (df/failed? (dfi/make-data-state :failed)))
+    (is (df/loading? (dfi/make-data-state :loading)))
+
+    (is (not (df/ready? (dfi/make-data-state :failed))))
+    (is (not (df/failed? "foo")))))
+
+(specification "Processed ready states"
+  (let [ready-marker-1 (dfi/ready-state
                        :ident [:item/by-id 1]
                        :field :comments
                        :without #{:author}
-                       :query (om/focus-query (om/get-query Item) [:comments]))]
+                       :query (om/focus-query (om/get-query Item) [:comments]))
+        ready-marker-2 (dfi/ready-state
+                         :ident [:item/by-id 1]
+                         :field :comments
+                         :without #{:username}
+                         :query (om/focus-query (om/get-query Item) [:comments]))
+        ready-marker-3 (dfi/ready-state
+                         :ident [:item/by-id 1]
+                         :field :comments
+                         :without #{}
+                         :query (om/focus-query (om/get-query Item) [:comments]))
+        ]
 
-    (behavior "are properly initialized."
-      (is (df/data-state? ready-marker))
-      (try (dfi/make-data-state :invalid-key)
-           (catch :default e
-             (is (= (.-message e) "INVALID DATA STATE TYPE: :invalid-key")))))
 
-    (behavior "can by identified by type."
-      (is (df/ready? ready-marker))
-      (is (df/failed? (dfi/make-data-state :failed)))
-      (is (df/loading? (dfi/make-data-state :loading)))
+    (assertions
+      "remove the :without portion of the query on joins"
+      (:untangled.client.impl.data-fetch/query ready-marker-1) => [{:comments [:db/id :title]}]
 
-      (is (not (df/ready? (dfi/make-data-state :failed))))
-      (is (not (df/failed? "foo"))))))
+      "remove the :without portion of the query on props"
+      (:untangled.client.impl.data-fetch/query ready-marker-2) => [{:comments [:db/id :title {:author [:db/id :name]}]}]
+
+      ;ready-marker => {:untangled.client.impl.data-fetch/type     :ready
+      ;                 :untangled.client.impl.data-fetch/ident    [:item/by-id 1]
+      ;                 :untangled.client.impl.data-fetch/field    :comments
+      ;                 :untangled.client.impl.data-fetch/callback nil}
+      )))
 
 (specification "Lazy loading"
   (component "Loading a field within a component"
