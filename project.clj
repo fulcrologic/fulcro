@@ -23,14 +23,12 @@
                  [crypto-password "0.1.3" :scope "test"]
                  [com.rpl/specter "0.8.0"]]
 
-  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"]
-                 ["snapshot" "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"]
-                 ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]]
+  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"]]
 
   :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
                                      :snapshots     false
                                      :sign-releases false}]
-                        ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"
+                        ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshots"
                                       :sign-releases false}]]
 
   :source-paths ["src"]
