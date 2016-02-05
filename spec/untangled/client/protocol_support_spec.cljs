@@ -38,4 +38,4 @@
                         :pre-response-state {:thing/by-id {}}
                         :merge-delta {[:thing/by-id 0] {:thing 1}}}]
     (behavior "check-response"
-      (ps/check-response silly-protocol))))
+      (ps/check-response-from-server silly-protocol))))
