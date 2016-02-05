@@ -1,9 +1,22 @@
 (ns untangled.client.logging
   (:require cljs.pprint
             [om.next :refer [*logger*]]
-            [goog.log :as glog]))
+            [goog.log :as glog]
+            [goog.debug.Logger.Level :as level]))
 
 ; TODO: A function to set logging level
+
+(defn set-level [log-level]
+  "Takes a keyword (:all, :debug, :info, :warn, :error, :none) and changes the log level accordingly.
+  Note that the log levels are listed from least restrictive level to most restrictive."
+  (.setLevel *logger*
+    (case log-level
+      :all (level/getPredefinedLevel "ALL")
+      :debug (level/getPredefinedLevel "DEBUG")
+      :info (level/getPredefinedLevel "INFO")
+      :warn (level/getPredefinedLevel "WARN")
+      :error (level/getPredefinedLevel "ERROR")
+      :none (level/getPredefinedLevel "NONE"))))
 
 (defn value-message
   "Include a pretty-printed cljs value as a string with the given text message."
