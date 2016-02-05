@@ -1,4 +1,4 @@
-(defproject untangled-client "0.1.0-SNAPSHOT"
+(defproject untangled-client "0.4.1"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "NAVIS"
@@ -9,21 +9,20 @@
                  [differ "0.2.1"]
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [untangled-spec "0.3.1-SNAPSHOT" :scope "test"]
-                 [org.omcljs/om "1.0.0-alpha28" :scope "test"]
+                 [untangled-spec "0.3.1" :scope "test"]
+                 [org.omcljs/om "1.0.0-alpha30" :scope "test"]
                  [figwheel-sidecar "0.5.0-3" :scope "provided"]]
 
-  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
-                 ["snapshots" "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"]
-                 ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]]
+  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]]
 
-  :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-release"
+  :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
                                      :sign-releases false}]
-                        ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"
+                        ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshots"
                                       :sign-releases false}]]
 
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
   :source-paths ["src" "spec"]
+  :resource-paths ["src" "resources"]
 
   :plugins [[lein-cljsbuild "1.1.2"]
             [lein-doo "0.1.6"]
@@ -55,10 +54,14 @@
              :dev {
                    :source-paths ["src" "test" "dev"]
                    :repl-options {
-                                  :init-ns clj.user
-                                  :port    7001
+                                  :init-ns          clj.user
+                                  :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]
+                                  :port             7001
                                   }
                    :env          {:dev true}
+                   :dependencies [[figwheel-sidecar "0.5.0-3"]
+                                  [com.cemerick/piggieback "0.2.1"]
+                                  [org.clojure/tools.nrepl "0.2.12"]]
                    }
              }
 

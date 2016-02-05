@@ -1,3 +1,3 @@
 lein pom
 lein jar
-lein localrepo install -p pom.xml target/untangled-0.4.0.jar untangled 0.4.0
+lein localrepo install -p pom.xml target/untangled-client-0.4.0-SNAPSHOT.jar untangled-client 0.4.0-SNAPSHOT
