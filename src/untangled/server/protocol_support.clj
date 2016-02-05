@@ -93,19 +93,22 @@
     (for [[k v] m]
       [(f k) v])))
 
-(defn check-server-response
-  "`data/server-tx` can has :om.tempid/* & :datomic.id/*.
-   - :datomic.id/* should be seeded in `data/seed-data`
-   `data/seed-data` can has :datomic.id/*
-   `data/response` can has :datomic.id/*
+(defn check-response-to-client
+  "Tests that the server responds to a client transaction as specificied by the passed-in protocol data.
+   See Protocol Testing README.
 
-   see assertions inside for what is being tested
-   "
+  1. `app`: an instance of UntangledServer injected with a `Seeder` component. See Protocl Testing README.
+  2. `data`: a map with `server-tx`, the transaction sent from the client to execute on the server, and `response`,
+  the expected return value when the server runs the transaction
+  3. Optional named parameters
+  `on-success`: a function of 2 arguments, taking the parsing environment and the server response for extra validation.
+  `prepare-server-tx`: allows you to modify the transaction recevied from the client before running it, using the
+  seed result to remap seeded tempids."
   [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx]}]
   (let [started-app (.start app)]
     (try
       (let [tempid-map (get-in started-app [:seeder :seed-result])
-            _ (when-not tempid-map
+            _ (when-not (= :disjoint tempid-map)
                 (.stop started-app)
                 (assert false "seed data tempids must have no overlap"))
             {:keys [api-parser env]} (:handler started-app)
@@ -118,12 +121,12 @@
             om-tids (collect-om-tempids server-tx+)
             [response-without-tempid-remaps om-tempid->datomic-id] (extract-tempids server-response)
             response-to-check (-> response-without-tempid-remaps
-                                       (rewrite-tempids
-                                         (clojure.set/map-invert datomic-tid->rid)
-                                         integer?)
-                                       (rewrite-tempids
-                                         (clojure.set/map-invert om-tempid->datomic-id)
-                                         integer?))]
+                                (rewrite-tempids
+                                  (clojure.set/map-invert datomic-tid->rid)
+                                  integer?)
+                                (rewrite-tempids
+                                  (clojure.set/map-invert om-tempid->datomic-id)
+                                  integer?))]
 
         (assertions
           "Server response should contain remappings for all om.tempid's in data/server-tx"

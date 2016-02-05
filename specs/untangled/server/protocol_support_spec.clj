@@ -117,13 +117,13 @@
           {:om.tempid/inst-id0 17592186045460}]))
 
   (behavior "test server response w/ protocol data"
-    (ps/check-server-response test-server protocol-support-data))
+    (ps/check-response-to-client test-server protocol-support-data))
   (behavior "test server response w/ bad protocol data"
     (assertions
-      (ps/check-server-response bad-test-server bad-protocol-support-data)
+      (ps/check-response-to-client bad-test-server bad-protocol-support-data)
       =throws=> (AssertionError #"seed data tempids must have no overlap")))
   (behavior "test server response w/ mutate protocol data"
-    (ps/check-server-response mutate-test-server mutate-protocol-support-data)))
+    (ps/check-response-to-client mutate-test-server mutate-protocol-support-data)))
 
 (specification "rewrite-tempids"
   (behavior "rewrites tempids according to the supplied map"
