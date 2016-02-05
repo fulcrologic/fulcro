@@ -1,4 +1,4 @@
-(defproject navis/untangled-server "0.4.2-SNAPSHOT"
+(defproject navis/untangled-server "0.4.2"
   :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
@@ -11,7 +11,7 @@
                  [http-kit "2.1.19"]
                  [environ "1.0.0"]
                  [bidi "1.21.1"]
-                 [com.navis/common "0.1.17"]
+                 [com.navis/common "0.1.21"]
                  [ring/ring-defaults "0.1.5"]
                  [bk/ring-gzip "0.1.1"]
                  [commons-codec "1.6"]
@@ -23,11 +23,11 @@
                  [crypto-password "0.1.3" :scope "test"]
                  [com.rpl/specter "0.8.0"]]
 
-  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
-                 ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]
-                 ["snapshots" "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"]]
+  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"]
+                 ["snapshot" "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"]
+                 ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]]
 
-  :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-release"
+  :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
                                      :snapshots     false
                                      :sign-releases false}]
                         ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"
