@@ -13,13 +13,11 @@
                  [org.omcljs/om "1.0.0-alpha30" :scope "test"]
                  [figwheel-sidecar "0.5.0-3" :scope "provided"]]
 
-  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]
-                 ["snapshots" "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"]
-                 ["third-party" "https://artifacts.buehner-fry.com/artifactory/internal-3rdparty"]]
+  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]]
 
-  :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-release"
+  :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
                                      :sign-releases false}]
-                        ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/internal-snapshots"
+                        ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshots"
                                       :sign-releases false}]]
 
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
@@ -56,9 +54,9 @@
              :dev {
                    :source-paths ["src" "test" "dev"]
                    :repl-options {
-                                  :init-ns clj.user
+                                  :init-ns          clj.user
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]
-                                  :port    7001
+                                  :port             7001
                                   }
                    :env          {:dev true}
                    :dependencies [[figwheel-sidecar "0.5.0-3"]
