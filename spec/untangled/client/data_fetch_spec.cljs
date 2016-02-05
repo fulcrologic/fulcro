@@ -12,8 +12,12 @@
 ;;; SETUP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defui Person
+  static om/IQuery (query [_] [:db/id :username :name])
+  static om/Ident (ident [_ props] [:person/id (:db/id props)]))
+
 (defui Comment
-  static om/IQuery (query [this] [:db/id :title])
+  static om/IQuery (query [this] [:db/id :title {:author (om/get-query Person)}])
   static om/Ident (ident [this props] [:comments/id (:db/id props)]))
 
 (defui Item
@@ -34,8 +38,8 @@
 (specification "Data states"
   (let [ready-marker (dfi/ready-state
                        :ident [:item/by-id 1]
-                       :field
-                       :comments
+                       :field :comments
+                       :without #{:author}
                        :query (om/focus-query (om/get-query Item) [:comments]))]
 
     (behavior "are properly initialized."
@@ -64,7 +68,8 @@
                                     (behavior "includes the component's ident."
                                       (is (= [:item/by-id 10] (:ident params))))
                                     (behavior "focuses the query to the specified field."
-                                      (is (= [{:comments [:db/id :title]}] (:query params))))
+                                      (is (= [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
+                                            (:query params))))
                                     (behavior "includes the parameters."
                                       (is (= {:sort :by-name} (:params params))))
                                     (behavior "includes the subquery exclusions."
