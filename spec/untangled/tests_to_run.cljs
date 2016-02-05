@@ -7,6 +7,7 @@
     untangled.client.data-fetch-spec
     untangled.client.mutations-spec
     untangled.client.impl.om-plumbing-spec
+    untangled.client.logging-spec
     untangled.client.impl.xhrio-spec
     untangled.i18n-spec))
 
