@@ -51,36 +51,27 @@
     (is (not (df/failed? "foo")))))
 
 (specification "Processed ready states"
-  (let [ready-marker-1 (dfi/ready-state
-                       :ident [:item/by-id 1]
-                       :field :comments
-                       :without #{:author}
-                       :query (om/focus-query (om/get-query Item) [:comments]))
-        ready-marker-2 (dfi/ready-state
-                         :ident [:item/by-id 1]
-                         :field :comments
-                         :without #{:username}
-                         :query (om/focus-query (om/get-query Item) [:comments]))
-        ready-marker-3 (dfi/ready-state
-                         :ident [:item/by-id 1]
-                         :field :comments
-                         :without #{}
-                         :query (om/focus-query (om/get-query Item) [:comments]))
-        ]
+  (let [make-ready-marker (fn [without-set]
+                            (dfi/ready-state
+                              :ident [:item/by-id 1]
+                              :field :comments
+                              :without without-set
+                              :query (om/focus-query (om/get-query Item) [:comments])))
+
+        without-join (make-ready-marker #{:author})
+        without-prop (make-ready-marker #{:username})
+        without-multi-prop (make-ready-marker #{:db/id})]
 
 
     (assertions
       "remove the :without portion of the query on joins"
-      (:untangled.client.impl.data-fetch/query ready-marker-1) => [{:comments [:db/id :title]}]
+      (dfi/data-query without-join) => [{[:item/by-id 1] [{:comments [:db/id :title]}]}]
 
       "remove the :without portion of the query on props"
-      (:untangled.client.impl.data-fetch/query ready-marker-2) => [{:comments [:db/id :title {:author [:db/id :name]}]}]
+      (dfi/data-query without-prop) => [{[:item/by-id 1] [{:comments [:db/id :title {:author [:db/id :name]}]}]}]
 
-      ;ready-marker => {:untangled.client.impl.data-fetch/type     :ready
-      ;                 :untangled.client.impl.data-fetch/ident    [:item/by-id 1]
-      ;                 :untangled.client.impl.data-fetch/field    :comments
-      ;                 :untangled.client.impl.data-fetch/callback nil}
-      )))
+      "remove the :without portion when keyword appears in multiple places in the query"
+      (dfi/data-query without-multi-prop) => [{[:item/by-id 1] [{:comments [:title {:author [:username :name]}]}]}])))
 
 (specification "Lazy loading"
   (component "Loading a field within a component"
