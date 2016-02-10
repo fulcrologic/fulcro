@@ -81,6 +81,7 @@
                 :send       (fn [tx cb]
                               (server-send (assoc app :reconciler @rec-atom) tx cb))
                 :migrate    tempid-migrate
+                :normalize  true
                 :merge-tree (comp impl/sweep-missing util/deep-merge)
                 :parser     parser}
         rec (om/reconciler config)]
