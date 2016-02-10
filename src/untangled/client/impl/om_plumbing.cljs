@@ -22,10 +22,13 @@
       (let [top-level-prop (nil? query)
             key (or (:ast key) dkey)
             by-ident? (om/ident? key)
+            union? (map? query)
             data (if by-ident? (get-in @state key) (get @state key))]
-        {:value (if top-level-prop
-                  data
-                  (om/db->tree query data @state))}))))
+        {:value
+         (cond
+           union? (get (om/db->tree [{dkey query}] @state @state) dkey)
+           top-level-prop data
+           :else (om/db->tree query data @state))}))))
 
 (defn write-entry-point [env k params]
   (try
