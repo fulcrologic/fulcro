@@ -1,0 +1,44 @@
+(ns untangled.client.impl.protocol-support
+  (:require
+    [untangled-spec.core :refer-macros [assertions]]
+    [om.next :as om :refer-macros [defui]]
+    [om.dom :as dom]
+    [untangled.client.core :as core]))
+
+(defn tempid?
+  "Is the given keyword a seed data tempid keyword (namespaced to `tempid`)?"
+  [kw] (and (keyword? kw) (= "om.tempid" (namespace kw))))
+
+(defn rewrite-tempids
+  "Rewrite tempid keywords in the given state using the tid->rid map. Leaves the keyword alone if the map
+   does not contain an entry for it."
+  [state tid->rid & [pred]]
+  (clojure.walk/prewalk #(if ((or pred tempid?) %)
+                          (get tid->rid % %) %)
+    state))
+
+(defn check-delta
+  "Checks that `new-state` includes the `delta`, where `delta` is a map keyed by data path (as in get-in). The
+   values of `delta` are literal values to verify at that path (nil means the path should be missing)."
+  [new-state delta]
+  (if (empty? delta)
+    (throw (ex-info "Cannot have empty :merge-delta"
+             {:new-state new-state}))
+    (doseq [[key-path value] delta]
+      (assertions
+        (get-in new-state key-path) => value))))
+
+(defn allocate-tempids [tx]
+  (let [allocated-ids (atom #{})]
+    (clojure.walk/prewalk
+      (fn [v] (when (tempid? v) (swap! allocated-ids conj v)) v)
+      tx)
+    (into {} (map #(vector % (om/tempid)) @allocated-ids))))
+
+(defui Root
+  static om/IQuery (query [this] [:fake])
+  Object (render [this] (dom/div nil "if you see this something is wrong")))
+
+(defn init-testing []
+  (-> (core/new-untangled-client :started-callback #() :networking #())
+    (core/mount Root "invisible-specs")))

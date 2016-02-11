@@ -3,10 +3,9 @@
     [om.next :as om]
     [untangled.client.impl.om-plumbing :as impl]
     [untangled.i18n.core :as i18n]
-    [cljs.core.async :as async])
-  (:require-macros
-    [cljs.test :refer [is are]]
-    [untangled-spec.core :refer [specification behavior assertions provided component when-mocking]]))
+    [cljs.core.async :as async]
+    [untangled-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
+    [cljs.test :refer-macros [is are]]))
 
 (specification "Local read can"
   (let [state (atom {:top-level    :top-level-value
