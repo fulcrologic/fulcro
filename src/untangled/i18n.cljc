@@ -21,15 +21,15 @@
 #?(:cljs
    (set! js/trf
          (fn [fmt & {:keys [] :as argmap}]
-           (let [formatter (js/IntlMessageFormat. fmt "en-US")]
+           (let [formatter (js/IntlMessageFormat. fmt (current-locale))]
              (.format formatter (clj->js argmap))
              ))))
 
 #?(:cljs (defn format-date
            "Format a date with an optional style. The default style is :short.
-           
+
            Style can be one of:
-           
+
            - :short E.g. 3/4/2015
            - :medium E.g. Mar 4, 2015
            - :long E.g. March 4, 2015
@@ -85,17 +85,17 @@
 #?(:clj (defmacro trc
           "Same as tr, but include a context message to the translator. This is recommended when asking for a
           translation to something vague.
-          
+
           For example:
-          
+
                  (tr \"M\")
-           
+
           is the same as asking a translator to translate the letter 'M'.
-          
+
           Using:
-          
+
                  (trc \"abbreviation for male gender\" \"M\")
-          
+
           lets the translator know what you want. Of course, the msg key is the default language value (US English)
           "
           [context msg]
@@ -106,9 +106,9 @@
           "Translate a format string, then use it to format a message with the given arguments. The format MUST be a literal
           string for extraction by gettext. The arguments should be keyword/value pairs that will match the embedded
           items to format.
-          
+
           (trf \"{name} owes {amount, currency)\" :name who :amount amt)
-          
+
           The format string is an ICU message format. See FormatJS for details.
           "
           [format & args]
