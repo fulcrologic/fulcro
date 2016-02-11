@@ -92,18 +92,20 @@
 (defn initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
-  [{:keys [started-callback] :as app} initial-state root-component dom-id]
+  [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node]
   (let [queue (async/chan 1024)
         rc (async/chan)
-        networking (net/make-untangled-network "/api")
         parser (om/parser {:read impl/read-local :mutate impl/write-entry-point})
         initial-app (assoc app :queue queue :response-channel rc :parser parser :mounted? true
                                :networking networking)
         rec (generate-reconciler initial-app initial-state parser)
-        completed-app (assoc initial-app :reconciler rec)]
-
+        completed-app (assoc initial-app :reconciler rec)
+        node (if (string? dom-id-or-node)
+               (gdom/getElement dom-id-or-node)
+               dom-id-or-node)]
     (initialize-internationalization rec)
     (start-network-sequential-processing completed-app)
-    (om/add-root! rec root-component (gdom/getElement dom-id))
-    (started-callback completed-app)
+    (om/add-root! rec root-component node)
+    (when started-callback
+      (started-callback completed-app))
     completed-app))

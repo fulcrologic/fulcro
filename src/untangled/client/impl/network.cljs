@@ -62,4 +62,12 @@
     (events/listen xhrio (.-ERROR EventType) #(response-error rv))
     rv))
 
+(defrecord MockNetwork []
+  UntangledNetwork
+  (send [this edn ok err {:keys [headers]}]
+    (log/info "Ignored (mock) Network request " edn))
+  (send [this post-data ok-callback error-callback] (send this post-data ok-callback error-callback {})))
+
+(defn mock-network [] (MockNetwork.))
+
 
