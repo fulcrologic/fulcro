@@ -26,7 +26,8 @@
 
   :plugins [[lein-cljsbuild "1.1.2"]
             [lein-doo "0.1.6"]
-            [lein-figwheel "0.5.0-3"]]
+            [lein-figwheel "0.5.0-3"]
+            [com.jakemccrary/lein-test-refresh "0.13.0"]]
 
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
