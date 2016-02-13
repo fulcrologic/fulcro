@@ -33,7 +33,7 @@
 (defn write-entry-point [env k params]
   (try
     (m/mutate env k params)
-    (catch js/Error e (log/error (str "Mutation " k " failed with exception") e))))
+    (catch :default e (log/error (str "Mutation " k " failed with exception") e))))
 
 (defn resolve-tempids [state tid->rid]
   "Replaces all om-tempids in app-state with the ids returned by the server."
