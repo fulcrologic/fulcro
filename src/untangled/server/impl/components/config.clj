@@ -64,9 +64,4 @@
   (start [this]
     (let [config (or value (load-config {:config-path config-path}))]
       (assoc this :value config)))
-  (stop [this]
-    (assoc this :value nil)))
-
-
-
-
+  (stop [this] this))
