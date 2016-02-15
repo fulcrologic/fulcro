@@ -31,9 +31,16 @@
            :else (om/db->tree query data @state))}))))
 
 (defn write-entry-point [env k params]
-  (try
-    (m/mutate env k params)
-    (catch js/Error e (log/error (str "Mutation " k " failed with exception") e))))
+  (let [rv (m/mutate env k params)
+        action (:action rv)]
+    (if action
+      (assoc rv :action (fn [env k params]
+                          (try
+                            (action env k params)
+                            (catch :default e
+                              (log/error (str "Mutation " k " failed with exception") e)
+                              (throw e)))))
+      rv)))
 
 (defn resolve-tempids [state tid->rid]
   "Replaces all om-tempids in app-state with the ids returned by the server."

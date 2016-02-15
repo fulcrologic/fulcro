@@ -1,4 +1,4 @@
-(ns untangled.i18n
+(ns  untangled.i18n
   #?(:cljs (:require [untangled.i18n.core :as ic])))
 
 #?(:cljs (defn current-locale [] @ic/*current-locale*))
