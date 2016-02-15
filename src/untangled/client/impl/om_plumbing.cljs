@@ -33,15 +33,18 @@
 (defn write-entry-point [env k params]
   (let [rv (try
              (m/mutate env k params)
-             (m/post-mutate env k params)
              (catch :default e
                (log/error (str "Mutation " k " failed with exception") e)
                nil))
         action (:action rv)]
     (if action
-      (assoc rv :action (fn [env k params]
+      (assoc rv :action (fn []
                           (try
-                            (action env k params)
+                            (let [action-result (action env k params)]
+                              (try
+                                (m/post-mutate env k params)
+                                (catch :default e (log/error (str "Post mutate failed on dispatch to " k))))
+                              action-result)
                             (catch :default e
                               (log/error (str "Mutation " k " failed with exception") e)
                               (throw e)))))
