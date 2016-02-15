@@ -52,6 +52,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmulti mutate om/dispatch)
+(defmulti post-mutate om/dispatch)
+
+(defmethod post-mutate :default [env k p] nil)
 
 (defmethod mutate 'app/load [{:keys [state]} _ {:keys [root field query params without callback ident]}]
   {:remote true

@@ -33,6 +33,7 @@
 (defn write-entry-point [env k params]
   (let [rv (try
              (m/mutate env k params)
+             (m/post-mutate env k params)
              (catch :default e
                (log/error (str "Mutation " k " failed with exception") e)
                nil))
