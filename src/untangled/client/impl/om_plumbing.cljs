@@ -31,7 +31,11 @@
            :else (om/db->tree query data @state))}))))
 
 (defn write-entry-point [env k params]
-  (let [rv (m/mutate env k params)
+  (let [rv (try
+             (m/mutate env k params)
+             (catch :default e
+               (log/error (str "Mutation " k " failed with exception") e)
+               nil))
         action (:action rv)]
     (if action
       (assoc rv :action (fn [env k params]
