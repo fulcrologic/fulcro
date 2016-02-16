@@ -52,17 +52,22 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmulti mutate om/dispatch)
+(defmulti post-mutate om/dispatch)
 
-(defmethod mutate 'app/load [{:keys [state]} _ {:keys [root field query params without callback]}]
+(defmethod post-mutate :default [env k p] nil)
+
+(defmethod mutate 'app/load [{:keys [state]} _ {:keys [root field query params without callback ident]}]
   {:remote true
-   :action (fn [] (df/mark-ready
-                    :state state
-                    :root root
-                    :field field
-                    :query query
-                    :params params
-                    :without without
-                    :callback callback))})
+   :action (fn []
+             (df/mark-ready
+               :state state
+               :root root
+               :field field
+               :ident ident
+               :query query
+               :params params
+               :without without
+               :callback callback))})
 
 (defmethod mutate 'app/clear-error [{:keys [state]} _ _]
   {:action #(swap! state assoc :last-error nil)})
