@@ -23,4 +23,7 @@
     (reset-logging!)
     this))
 
-
+(defrecord TestLogger [config]
+  component/Lifecycle
+  (start [this] this)
+  (stop [this] this))
