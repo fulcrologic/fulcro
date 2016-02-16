@@ -112,8 +112,10 @@
                                  (let [cb (:callback params)]
                                    (is (fn? cb))
                                    (is (= "foo" (cb)))))
-                               (behavior "bases the query on the ident."
-                                 (is (= [{[:item/id 99] (om/get-query Item)}] (:query params)))))
+                               (behavior "includes the ident in the data state."
+                                 (is (= [:item/id 99] (:ident params))))
+                               (behavior "includes the query joined to the ident."
+                                 (is (= (om/get-query Item) (:query params)))))
 
       (df/load-singleton 'reconciler (om/get-query Item)
         :ident [:item/id 99]
