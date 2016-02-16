@@ -20,7 +20,7 @@
   (response-error [this] "Called by XhrIo on ERROR"))
 
 (defn parse-response [xhr-io]
-  (ct/read (t/reader) (.getResponseText xhr-io)))
+  (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))}}) (.getResponseText xhr-io)))
 
 (defrecord Network [xhr-io url error-callback valid-data-callback]
   IXhrIOCallbacks
