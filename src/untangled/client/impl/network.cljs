@@ -20,7 +20,7 @@
   (response-error [this] "Called by XhrIo on ERROR"))
 
 (defn parse-response [xhr-io]
-  (ct/read (t/reader) (.getResponseText xhr-io)))
+  (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))}}) (.getResponseText xhr-io)))
 
 (defrecord Network [xhr-io url error-callback valid-data-callback]
   IXhrIOCallbacks
@@ -61,5 +61,13 @@
     (events/listen xhrio (.-SUCCESS EventType) #(response-ok rv))
     (events/listen xhrio (.-ERROR EventType) #(response-error rv))
     rv))
+
+(defrecord MockNetwork []
+  UntangledNetwork
+  (send [this edn ok err {:keys [headers]}]
+    (log/info "Ignored (mock) Network request " edn))
+  (send [this post-data ok-callback error-callback] (send this post-data ok-callback error-callback {})))
+
+(defn mock-network [] (MockNetwork.))
 
 

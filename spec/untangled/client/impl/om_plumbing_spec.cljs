@@ -3,17 +3,20 @@
     [om.next :as om]
     [untangled.client.impl.om-plumbing :as impl]
     [untangled.i18n.core :as i18n]
-    [cljs.core.async :as async])
-  (:require-macros
-    [cljs.test :refer [is are]]
-    [untangled-spec.core :refer [specification behavior assertions provided component when-mocking]]))
+    [cljs.core.async :as async]
+    [untangled-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
+    [cljs.test :refer-macros [is are]]))
 
 (specification "Local read can"
-  (let [state (atom {:top-level  :top-level-value
-                     :join       {:sub-key-1 [:item/by-id 1]
-                                  :sub-key-2 :sub-value-2}
-                     :item/by-id {1 {:survey/title "Howdy!" :survey/description "More stuff"}}
-                     :settings   {:tags nil}})
+  (let [state (atom {:top-level    :top-level-value
+                     :union-join   [:panel :a]
+                     :union-join-2 [:dashboard :b]
+                     :join         {:sub-key-1 [:item/by-id 1]
+                                    :sub-key-2 :sub-value-2}
+                     :item/by-id   {1 {:survey/title "Howdy!" :survey/description "More stuff"}}
+                     :settings     {:tags nil}
+                     :dashboard    {:b {:x 2 :y 1}}
+                     :panel        {:a {:x 1 :n 4}}})
         parser (partial (om/parser {:read impl/read-local}) {:state state})]
 
     (reset! i18n/*current-locale* "en-US")
@@ -22,11 +25,15 @@
       "read the app locale"
       (parser [:app/locale]) => {:app/locale "en-US"}
 
-      "read top-level queries"
-      {:top-level :top-level-value} => (parser [:top-level])
+      "read top-level properties"
+      (parser [:top-level]) => {:top-level :top-level-value}
 
       "read nested queries"
-      {:join {:sub-key-2 :sub-value-2}} => (parser [{:join [:sub-key-2]}])
+      (parser [{:join [:sub-key-2]}]) => {:join {:sub-key-2 :sub-value-2}}
+
+      "read union queries"
+      (parser [{:union-join {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join {:x 1 :n 4}}
+      (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join-2 {:x 2 :y 1}}
 
       "read queries with references"
       (parser [{:join [{:sub-key-1 [:survey/title :survey/description]}]}]) =>

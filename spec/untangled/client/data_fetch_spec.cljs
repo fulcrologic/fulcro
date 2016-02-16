@@ -12,8 +12,12 @@
 ;;; SETUP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defui Person
+  static om/IQuery (query [_] [:db/id :username :name])
+  static om/Ident (ident [_ props] [:person/id (:db/id props)]))
+
 (defui Comment
-  static om/IQuery (query [this] [:db/id :title])
+  static om/IQuery (query [this] [:db/id :title {:author (om/get-query Person)}])
   static om/Ident (ident [this props] [:comments/id (:db/id props)]))
 
 (defui Item
@@ -32,25 +36,42 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (specification "Data states"
-  (let [ready-marker (dfi/ready-state
-                       :ident [:item/by-id 1]
-                       :field
-                       :comments
-                       :query (om/focus-query (om/get-query Item) [:comments]))]
+  (behavior "are properly initialized."
+    (is (df/data-state? (dfi/make-data-state :ready)))
+    (try (dfi/make-data-state :invalid-key)
+         (catch :default e
+           (is (= (.-message e) "INVALID DATA STATE TYPE: :invalid-key")))))
 
-    (behavior "are properly initialized."
-      (is (df/data-state? ready-marker))
-      (try (dfi/make-data-state :invalid-key)
-           (catch :default e
-             (is (= (.-message e) "INVALID DATA STATE TYPE: :invalid-key")))))
+  (behavior "can by identified by type."
+    (is (df/ready? (dfi/make-data-state :ready)))
+    (is (df/failed? (dfi/make-data-state :failed)))
+    (is (df/loading? (dfi/make-data-state :loading)))
 
-    (behavior "can by identified by type."
-      (is (df/ready? ready-marker))
-      (is (df/failed? (dfi/make-data-state :failed)))
-      (is (df/loading? (dfi/make-data-state :loading)))
+    (is (not (df/ready? (dfi/make-data-state :failed))))
+    (is (not (df/failed? "foo")))))
 
-      (is (not (df/ready? (dfi/make-data-state :failed))))
-      (is (not (df/failed? "foo"))))))
+(specification "Processed ready states"
+  (let [make-ready-marker (fn [without-set]
+                            (dfi/ready-state
+                              :ident [:item/by-id 1]
+                              :field :comments
+                              :without without-set
+                              :query (om/focus-query (om/get-query Item) [:comments])))
+
+        without-join (make-ready-marker #{:author})
+        without-prop (make-ready-marker #{:username})
+        without-multi-prop (make-ready-marker #{:db/id})]
+
+
+    (assertions
+      "remove the :without portion of the query on joins"
+      (dfi/data-query without-join) => [{[:item/by-id 1] [{:comments [:db/id :title]}]}]
+
+      "remove the :without portion of the query on props"
+      (dfi/data-query without-prop) => [{[:item/by-id 1] [{:comments [:db/id :title {:author [:db/id :name]}]}]}]
+
+      "remove the :without portion when keyword appears in multiple places in the query"
+      (dfi/data-query without-multi-prop) => [{[:item/by-id 1] [{:comments [:title {:author [:username :name]}]}]}])))
 
 (specification "Lazy loading"
   (component "Loading a field within a component"
@@ -64,7 +85,8 @@
                                     (behavior "includes the component's ident."
                                       (is (= [:item/by-id 10] (:ident params))))
                                     (behavior "focuses the query to the specified field."
-                                      (is (= [{:comments [:db/id :title]}] (:query params))))
+                                      (is (= [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
+                                            (:query params))))
                                     (behavior "includes the parameters."
                                       (is (= {:sort :by-name} (:params params))))
                                     (behavior "includes the subquery exclusions."

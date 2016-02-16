@@ -1,4 +1,4 @@
-(defproject untangled-client "0.4.1"
+(defproject untangled-client "0.4.2"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "NAVIS"
@@ -9,15 +9,18 @@
                  [differ "0.2.1"]
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [untangled-spec "0.3.1" :scope "test"]
+                 [untangled-spec "0.3.2" :scope "test"]
                  [org.omcljs/om "1.0.0-alpha30" :scope "test"]
                  [figwheel-sidecar "0.5.0-3" :scope "provided"]]
 
-  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/internal-release"]]
+  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/release"]]
 
-  :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
+  :deploy-repositories [["releases" {:id            "central"
+                                     :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
+                                     :snapshots     false
                                      :sign-releases false}]
-                        ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshots"
+                        ["snapshots" {:id            "snapshots"
+                                      :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshots"
                                       :sign-releases false}]]
 
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
@@ -26,7 +29,8 @@
 
   :plugins [[lein-cljsbuild "1.1.2"]
             [lein-doo "0.1.6"]
-            [lein-figwheel "0.5.0-3"]]
+            [lein-figwheel "0.5.0-3"]
+            [com.jakemccrary/lein-test-refresh "0.13.0"]]
 
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
@@ -60,6 +64,7 @@
                                   }
                    :env          {:dev true}
                    :dependencies [[figwheel-sidecar "0.5.0-3"]
+                                  [binaryage/devtools "0.5.2"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [org.clojure/tools.nrepl "0.2.12"]]
                    }

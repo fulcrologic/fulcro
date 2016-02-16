@@ -5,7 +5,7 @@
      :refer-macros [with-methods]]
     [untangled.client.mutations :as mut]))
 
-(specification "Client Protocol Testing (NEEDS SPEC)"
+(specification "Client Protocol Testing"
   (behavior "with-methods macro runs body with extra multi methods"
     (do (defmulti my-multi (fn [x] x))
         (defmethod my-multi 'minus [x] (dec x))
