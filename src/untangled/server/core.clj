@@ -90,7 +90,6 @@
   [& {:keys [parser parser-injections components]}]
   (let [handler (handler/build-handler parser parser-injections)
         built-in-components [:config (new-config "config/test.edn")
-                             :logger (build-logger)
                              :handler handler]
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
