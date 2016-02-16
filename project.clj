@@ -15,9 +15,12 @@
 
   :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/release"]]
 
-  :deploy-repositories [["releases" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
+  :deploy-repositories [["releases" {:id            "central"
+                                     :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
+                                     :snapshots     false
                                      :sign-releases false}]
-                        ["snapshots" {:url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshots"
+                        ["snapshots" {:id            "snapshots"
+                                      :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshots"
                                       :sign-releases false}]]
 
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
