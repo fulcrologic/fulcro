@@ -3,7 +3,8 @@
     [untangled.server.impl.protocol-support :as impl]
     [clojure.walk :as walk]
     [untangled-spec.core :refer [specification behavior provided component assertions]]
-    [untangled.server.impl.components.handler :as h]))
+    [untangled.server.impl.components.handler :as h]
+    [taoensso.timbre :as timbre]))
 
 (defn check-response-to-client
   "Tests that the server responds to a client transaction as specificied by the passed-in protocol data.
@@ -20,6 +21,7 @@
   (let [started-app (.start app)]
     (try
       (let [tempid-map (get-in started-app [:seeder :seed-result])
+            _ (timbre/debug :tempid-map tempid-map)
             _ (when (= :disjoint tempid-map)
                 (.stop started-app)
                 (assert false "seed data tempids must have no overlap"))
@@ -30,6 +32,7 @@
                                  identity)
             server-tx+ (prepare-server-tx+ (impl/rewrite-tempids server-tx datomic-tid->rid impl/datomic-id?))
             server-response (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
+            _ (timbre/debug :server-response server-response)
             om-tids (impl/collect-om-tempids server-tx+)
             [response-without-tempid-remaps om-tempid->datomic-id] (impl/extract-tempids server-response)
             response-to-check (-> response-without-tempid-remaps
@@ -38,7 +41,8 @@
                                   integer?)
                                 (impl/rewrite-tempids
                                   (clojure.set/map-invert om-tempid->datomic-id)
-                                  integer?))]
+                                  integer?))
+            _ (timbre/debug :response-to-check response-to-check)]
 
         (assertions
           "Server response should contain remappings for all om.tempid's in data/server-tx"
