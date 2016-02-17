@@ -1,29 +1,33 @@
-(ns  untangled.i18n
-  #?(:cljs (:require [untangled.i18n.core :as ic])))
+(ns untangled.i18n
+  #?(:cljs (:require
+             [untangled.i18n.core :as ic]
+             [untangled.client.logging :as log])))
 
 #?(:cljs (defn current-locale [] @ic/*current-locale*))
 
 #?(:cljs (defn translations-for-locale [] (get @ic/*loaded-translations* (current-locale))))
 
 #?(:cljs (set! js/tr
-               (fn [msg]
-                 (let [msg-key (str "|" msg)
-                       translations (translations-for-locale)
-                       translation (get translations msg-key)]
-                   (cond
-                     (= (current-locale) "en-US") msg
-                     (empty? translation) msg
-                      :else translation)
-                   ))
+           (fn [msg]
+             (let [msg-key (str "|" msg)
+                   translations (translations-for-locale)
+                   translation (get translations msg-key)]
+               (cond
+                 (= (current-locale) "en-US") msg
+                 (empty? translation) msg
+                 :else translation)
                ))
+           ))
 
 #?(:cljs (set! js/trc (fn [ctxt msg] msg)))
 #?(:cljs
    (set! js/trf
-         (fn [fmt & {:keys [] :as argmap}]
-           (let [formatter (js/IntlMessageFormat. fmt (current-locale))]
-             (.format formatter (clj->js argmap))
-             ))))
+     (fn [fmt & {:keys [] :as argmap}]
+       (try
+         (let [formatter (js/IntlMessageFormat. fmt (current-locale))]
+           (.format formatter (clj->js argmap)))
+         (catch :default e (log/error "Failed to format " fmt " args: " argmap " exception: " e)
+                           "???")))))
 
 #?(:cljs (defn format-date
            "Format a date with an optional style. The default style is :short.
