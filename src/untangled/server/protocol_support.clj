@@ -20,17 +20,16 @@
   [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx]}]
   (let [started-app (.start app)]
     (try
-      (let [tempid-map (get-in started-app [:seeder :seed-result])
-            _ (timbre/debug :tempid-map tempid-map)
-            _ (when (= :disjoint tempid-map)
+      (let [datomic-tid->rid (get-in started-app [:seeder :seed-result])
+            _ (timbre/debug :tempid-map datomic-tid->rid)
+            _ (when (= :disjoint datomic-tid->rid)
                 (.stop started-app)
                 (assert false "seed data tempids must have no overlap"))
             {:keys [api-parser env]} (:handler started-app)
-            datomic-tid->rid (impl/map-keys #(impl/set-namespace % "datomic.id") tempid-map)
             prepare-server-tx+ (if prepare-server-tx
                                  #(prepare-server-tx % (partial get datomic-tid->rid))
                                  identity)
-            server-tx+ (prepare-server-tx+ (impl/rewrite-tempids server-tx datomic-tid->rid impl/datomic-id?))
+            server-tx+ (prepare-server-tx+ (impl/rewrite-tempids server-tx datomic-tid->rid))
             server-response (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
             _ (timbre/debug :server-response server-response)
             om-tids (impl/collect-om-tempids server-tx+)

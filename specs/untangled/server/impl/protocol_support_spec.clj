@@ -4,9 +4,6 @@
 
 (specification "helper functions"
   (assertions
-    "set-namespace :datomic.id/* -> :tempid/*"
-    (ips/set-namespace :datomic.id/asdf "tempid") => :tempid/asdf
-
     "collect-om-tempids"
     (ips/collect-om-tempids [{:id :om.tempid/qwack :foo :om.tempid/asdf} {:datomic.id/asdf :id}])
     => #{:om.tempid/qwack :om.tempid/asdf}
@@ -28,13 +25,13 @@
 (specification "rewrite-tempids"
   (behavior "rewrites tempids according to the supplied map"
     (assertions
-      (ips/rewrite-tempids {:k :tempid/a} {:tempid/a 42}) => {:k 42}
-      (ips/rewrite-tempids {:k {:db/id :tempid/a}} {:tempid/a 42}) => {:k {:db/id 42}}
-      (ips/rewrite-tempids {:k [{:db/id :tempid/a}]} {:tempid/a 42}) => {:k [{:db/id 42}]}))
+      (ips/rewrite-tempids {:k :datomic.id/a} {:datomic.id/a 42}) => {:k 42}
+      (ips/rewrite-tempids {:k {:db/id :datomic.id/a}} {:datomic.id/a 42}) => {:k {:db/id 42}}
+      (ips/rewrite-tempids {:k [{:db/id :datomic.id/a}]} {:datomic.id/a 42}) => {:k [{:db/id 42}]}))
   (behavior "ignores keywords that are not tempids in mapping"
     (assertions
       (ips/rewrite-tempids {:k :a} {:a 42}) => {:k :a}))
   (behavior "leaves tempids in place if map entry is missing"
     (assertions
-      (ips/rewrite-tempids {:k :tempid/a} {}) => {:k :tempid/a}
-      (ips/rewrite-tempids {:k [{:db/id :tempid/a}]} {}) => {:k [{:db/id :tempid/a}]})))
+      (ips/rewrite-tempids {:k :datomic.id/a} {}) => {:k :datomic.id/a}
+      (ips/rewrite-tempids {:k [{:db/id :datomic.id/a}]} {}) => {:k [{:db/id :datomic.id/a}]})))

@@ -17,10 +17,6 @@
 (def om-tempid?
   (namespace-match-generator "om.tempid"))
 
-(def tempid?
-  "Is the given keyword a seed data tempid keyword (namespaced to `tempid`)?"
-  (namespace-match-generator "tempid"))
-
 (defn walk+state [f x & [init-state]]
   (let [state (atom (or init-state {}))]
     (clojure.walk/postwalk
@@ -42,7 +38,7 @@
    Leaves the keyword alone if the map does not contain an entry for it.
    Only considers things that match `prefix-p` or tempid?"
   [state tid->rid & [prefix-p]]
-  (walk/prewalk #(if ((or prefix-p tempid?) %)
+  (walk/prewalk #(if ((or prefix-p datomic-id?) %)
                   (get tid->rid % %) %)
     state))
 

@@ -27,8 +27,8 @@
    :response  {:old-one [{:old-one/name "UNSPEAKABLE 2"}]}})
 
 (def mutate-protocol-support-data
-  {:seed-data {:db [(make-old-one :datomic.id/cthlulu "lululululu" 3.14159)]}
-   :server-tx '[(old-one/add-follower {:old-one-id        :datomic.id/cthlulu
+  {:seed-data {:db [(make-old-one :datomic.id/cthulhu "lululululu" 3.14159)]}
+   :server-tx '[(old-one/add-follower {:old-one-id        :datomic.id/cthulhu
                                        :follower-id       :om.tempid/follower1
                                        :follower-name     "Follower Won"
                                        :follower-devotion 42.0})
@@ -36,7 +36,7 @@
    :response  {'old-one/add-follower {}
                :old-one              [{:old-one/name      "lululululu",
                                        :old-one/followers [{:db/id :om.tempid/follower1}]
-                                       :db/id             :datomic.id/cthlulu}]}})
+                                       :db/id             :datomic.id/cthulhu}]}})
 
 (defn api-read [{:keys [db query]} k params]
   ;(throw (ex-info "" {:db db}))
@@ -96,10 +96,9 @@
   (behavior "test server response w/ protocol data"
     (ps/check-response-to-client test-server protocol-support-data))
   (behavior "test server response w/ bad protocol data"
-    ;; TODO: implementation changed to check for :disjoint keyword, see protocol-support line 111
-    #_(assertions
-        (ps/check-response-to-client bad-test-server bad-protocol-support-data)
-        =throws=> (AssertionError #"seed data tempids must have no overlap")))
+    (assertions
+      (ps/check-response-to-client bad-test-server bad-protocol-support-data)
+      =throws=> (AssertionError #"seed data tempids must have no overlap")))
   (behavior "test server response w/ mutate protocol data"
     (ps/check-response-to-client mutate-test-server mutate-protocol-support-data)))
 
