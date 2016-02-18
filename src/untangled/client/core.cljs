@@ -2,7 +2,9 @@
   (:require
     [om.next :as om]
     [untangled.client.impl.application :as app]
-    [untangled.client.impl.network :as net]))
+    [untangled.client.impl.network :as net]
+    [untangled.client.logging :as log]
+    [untangled.dom :as udom]))
 
 (declare map->Application)
 
@@ -27,8 +29,9 @@
       (do (refresh this) this)
       (app/initialize this initial-state root-component dom-id-or-node)))
 
-  (refresh [this] (when (om/mounted? (om/app-root reconciler))
-                    (om/force-root-render! reconciler))))
+  (refresh [this]
+    (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :react-key on your Root and embed that as :key in your top-level DOM element")
+    (swap! (om/app-state reconciler) assoc :react-key (udom/unique-key))))
 
 (defn new-untangled-test-client
   "A test client that has no networking. Useful for UI testing with a real Untangled app container."
