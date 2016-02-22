@@ -32,6 +32,11 @@
     (logger/map->Logger {})
     [:config]))
 
+(defn build-test-logger []
+  (component/using
+    (logger/map->TestLogger {})
+    [:config]))
+
 (defn raw-config
   "Creates a configuration component using the value passed in,
    it will NOT look for any config files."
@@ -90,7 +95,7 @@
   [& {:keys [parser parser-injections components]}]
   (let [handler (handler/build-handler parser parser-injections)
         built-in-components [:config (new-config "config/test.edn")
-                             :logger (build-logger)
+                             :logger (build-test-logger)
                              :handler handler]
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))

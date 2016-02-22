@@ -21,10 +21,12 @@
   If the path is an absolute path, it reads it as EDN and returns that.
   If the resource is not found, returns nil."
   [^String file-path]
-  (if (.startsWith file-path "/")
-    (when (-> file-path io/file .exists)
-      (-> file-path slurp read-string))
-    (some-> file-path io/resource .openStream slurp read-string)))
+  (let [?edn-file (io/file file-path)]
+    (if-let [edn-file (and (.isAbsolute ?edn-file)
+                           (.exists ?edn-file)
+                           (io/file file-path))]
+      (-> edn-file slurp read-string)
+      (some-> file-path io/resource .openStream slurp read-string))))
 
 (defn- open-config-file
   "Calls load-edn on `file-path`,
@@ -62,9 +64,4 @@
   (start [this]
     (let [config (or value (load-config {:config-path config-path}))]
       (assoc this :value config)))
-  (stop [this]
-    (assoc this :value nil)))
-
-
-
-
+  (stop [this] this))
