@@ -1,4 +1,4 @@
-(defproject navis/untangled-server "0.4.3"
+(defproject navis/untangled-server "0.4.4"
   :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
@@ -19,7 +19,7 @@
                  [com.taoensso/timbre "4.1.4"]
                  [org.clojure/java.classpath "0.2.2"]
                  [untangled-spec "0.3.3" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
-                 [navis/untangled-datomic "0.4.2" :scope "test"]
+                 [navis/untangled-datomic "0.4.3" :scope "test"]
                  [crypto-password "0.1.3" :scope "test"]
                  [com.rpl/specter "0.8.0"]]
 
