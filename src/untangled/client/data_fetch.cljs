@@ -38,7 +38,7 @@
   (let []
     (om/transact! comp-or-reconciler [(list 'app/load
                                         {:ident    ident
-                                         :query    (if (om/ident? ident) [{ident query}] query)
+                                         :query    query
                                          :params   params
                                          :without  without
                                          :callback callback})])))
