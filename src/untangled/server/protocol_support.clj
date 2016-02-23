@@ -2,6 +2,7 @@
   (:require
     [untangled.server.impl.protocol-support :as impl]
     [clojure.walk :as walk]
+    [om.tempid :as omt]
     [untangled-spec.core :refer [specification behavior provided component assertions]]
     [untangled.server.impl.components.handler :as h]
     [taoensso.timbre :as timbre]))
@@ -26,26 +27,39 @@
                 (.stop started-app)
                 (assert false "seed data tempids must have no overlap"))
             {:keys [api-parser env]} (:handler started-app)
+            om-tids (impl/collect-om-tempids server-tx)
             prepare-server-tx+ (if prepare-server-tx
-                                 #(prepare-server-tx % (partial get datomic-tid->rid))
+                                 #(prepare-server-tx % datomic-tid->rid)
                                  identity)
-            server-tx+ (prepare-server-tx+ (impl/rewrite-tempids server-tx datomic-tid->rid))
+            [server-tx+ real-omt->fake-omt] (-> (impl/rewrite-tempids server-tx datomic-tid->rid)
+                                                impl/rewrite-om-tempids
+                                                (update 0 prepare-server-tx+))
+            _ (timbre/debug :server-tx server-tx+)
             server-response (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
             _ (timbre/debug :server-response server-response)
-            om-tids (impl/collect-om-tempids server-tx+)
             [response-without-tempid-remaps om-tempid->datomic-id] (impl/extract-tempids server-response)
             response-to-check (-> response-without-tempid-remaps
-                                (impl/rewrite-tempids
-                                  (clojure.set/map-invert datomic-tid->rid)
-                                  integer?)
-                                (impl/rewrite-tempids
-                                  (clojure.set/map-invert om-tempid->datomic-id)
-                                  integer?))
-            _ (timbre/debug :response-to-check response-to-check)]
+                                  ;;datomic rid->tid
+                                  (impl/rewrite-tempids
+                                    (clojure.set/map-invert datomic-tid->rid)
+                                    integer?)
+                                  ;;datomic-tid -> om-tempid
+                                  (impl/rewrite-tempids
+                                    (clojure.set/map-invert om-tempid->datomic-id)
+                                    integer?)
+                                  ;; om-tempid -> fake-om-tempid
+                                  (impl/rewrite-tempids
+                                    real-omt->fake-omt
+                                    omt/tempid?))
+            _ (timbre/debug :response-to-check response-to-check)
+            om-tempids-to-check (impl/rewrite-tempids
+                                  (set (keys om-tempid->datomic-id))
+                                  real-omt->fake-omt
+                                  omt/tempid?)]
 
         (assertions
           "Server response should contain remappings for all om.tempid's in data/server-tx"
-          (set (keys om-tempid->datomic-id)) => om-tids
+          om-tempids-to-check => om-tids
 
           "Server response should match data/response"
           response-to-check => response)

@@ -72,9 +72,7 @@
     :parser (om/parser {:read api-read})
     :parser-injections #{:db}
     :components {:db     (build-database :protocol-support)
-                 :seeder (make-seeder (:seed-data protocol-support-data))}
-
-    ))
+                 :seeder (make-seeder (:seed-data protocol-support-data))}))
 
 (def bad-test-server
   (core/make-untangled-test-server
@@ -100,5 +98,5 @@
       (ps/check-response-to-client bad-test-server bad-protocol-support-data)
       =throws=> (AssertionError #"seed data tempids must have no overlap")))
   (behavior "test server response w/ mutate protocol data"
-    (ps/check-response-to-client mutate-test-server mutate-protocol-support-data)))
-
+    (ps/check-response-to-client mutate-test-server mutate-protocol-support-data))
+  (behavior "test server response "))
