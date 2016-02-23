@@ -4,6 +4,7 @@
     [clojure.walk :as walk]
     [om.tempid :as omt]
     [untangled-spec.core :refer [specification behavior provided component assertions]]
+    [clojure.test]
     [untangled.server.impl.components.handler :as h]
     [taoensso.timbre :as timbre]))
 
@@ -56,7 +57,8 @@
                                   (set (keys om-tempid->datomic-id))
                                   real-omt->fake-omt
                                   omt/tempid?)]
-
+        (clojure.test/do-report {:type :begin-manual :string (str "expected om tempids: " om-tids)})
+        (clojure.test/do-report {:type :end-manual :string (str "expected om tempids: " om-tids)})
         (assertions
           "Server response should contain remappings for all om.tempid's in data/server-tx"
           om-tempids-to-check => om-tids
