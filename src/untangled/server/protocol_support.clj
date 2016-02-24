@@ -66,7 +66,7 @@
           "Server response should match data/response"
           response-to-check => response)
 
-        (when on-success (on-success env response-to-check)))
+        (when on-success (on-success env response-to-check datomic-tid->rid)))
 
       (finally
         (.stop started-app)))))
