@@ -21,7 +21,7 @@
                                            :foo 5}
                         :ui-tx '[(inc-thing)]
                         :optimistic-delta {[:thing] (ps/with-behavior "it appends the last thing +1" [0 1])
-                                           [:foo] (ps/with-behavior "foo=bar" 5)}}
+                                           [:foo] 5}}
         inc-thing-fn (fn [{:keys [state]} _ _]
                        (swap! state update :thing #(conj % (inc (last %)))))]
     (behavior "check-optimistic-update"

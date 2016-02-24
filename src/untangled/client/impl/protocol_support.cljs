@@ -1,6 +1,6 @@
 (ns untangled.client.impl.protocol-support
   (:require
-    [untangled-spec.core :refer-macros [assertions]]
+    [untangled-spec.core :refer-macros [assertions behavior]]
     [om.next :as om :refer-macros [defui]]
     [om.dom :as dom]
     [untangled.client.core :as core]))
@@ -27,12 +27,9 @@
     (doseq [[key-path value] delta]
       (let [behavior-string (:cps/behavior value)
             value (or (:cps/value value) value)]
-        (when behavior-string
-          (cljs.test/do-report {:type :begin-behavior :string behavior-string}))
-        (assertions
-          (get-in new-state key-path) => value)
-        (when behavior-string
-          (cljs.test/do-report {:type   :end-behavior :string behavior-string}))))))
+        (behavior behavior-string
+          (assertions
+            (get-in new-state key-path) => value))))))
 
 (defn with-behavior [behavior-string value]
   {:cps/value value
