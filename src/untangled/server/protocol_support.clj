@@ -78,3 +78,5 @@
 
       (finally
         (.stop started-app)))))
+
+(defn with-behavior [_ value] value)
