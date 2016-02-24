@@ -25,8 +25,18 @@
     (throw (ex-info "Cannot have empty :merge-delta"
              {:new-state new-state}))
     (doseq [[key-path value] delta]
-      (assertions
-        (get-in new-state key-path) => value))))
+      (let [behavior-string (:cps/behavior value)
+            value (or (:cps/value value) value)]
+        (when behavior-string
+          (cljs.test/do-report {:type :begin-behavior :string behavior-string}))
+        (assertions
+          (get-in new-state key-path) => value)
+        (when behavior-string
+          (cljs.test/do-report {:type   :end-behavior :string behavior-string}))))))
+
+(defn with-behavior [behavior-string value]
+  {:cps/value value
+   :cps/behavior behavior-string})
 
 (defn allocate-tempids [tx]
   (let [allocated-ids (atom #{})]

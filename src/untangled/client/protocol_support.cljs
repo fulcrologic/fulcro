@@ -62,3 +62,5 @@
         (impl/check-delta @state merge-delta)
         (assertions
           @state => pre-response-state)))))
+
+(def with-behavior impl/with-behavior)
