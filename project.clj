@@ -19,13 +19,14 @@
                  [com.taoensso/timbre "4.1.4"]
                  [org.clojure/java.classpath "0.2.2"]
                  [untangled-spec "0.3.3" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
-                 [navis/untangled-datomic "0.4.3-SNAPSHOT" :scope "test"]
+                 [navis/untangled-datomic "0.4.4-SNAPSHOT" :scope "test"]
                  [crypto-password "0.1.3" :scope "test"]
                  [com.rpl/specter "0.8.0"]]
 
   :plugins [[com.jakemccrary/lein-test-refresh "0.13.0"]]
 
-  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/release"]]
+  :repositories [["releases" {:url "https://artifacts.buehner-fry.com/artifactory/release"
+                              :update :always}]]
 
   :deploy-repositories [["releases" {:id            "central"
                                      :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"

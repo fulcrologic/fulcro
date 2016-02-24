@@ -22,13 +22,14 @@
   [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx]}]
   (let [started-app (.start app)]
     (try
-      (let [datomic-tid->rid (get-in started-app [:seeder :seed-result])
-            _ (timbre/debug :tempid-map datomic-tid->rid)
-            _ (when (= :disjoint datomic-tid->rid)
+      (let [seeder-result (get-in started-app [:seeder :seed-result])
+            _ (timbre/debug :seeder-result seeder-result)
+            _ (when (= :disjoint seeder-result)
                 (.stop started-app)
                 (assert false "seed data tempids must have no overlap"))
-            {:keys [api-parser env]} (:handler started-app)
-            om-tids (impl/collect-om-tempids server-tx)
+
+            datomic-tid->rid (apply merge (vals seeder-result))
+            _ (timbre/debug :datomic-tid->rid datomic-tid->rid)
             prepare-server-tx+ (if prepare-server-tx
                                  #(prepare-server-tx % datomic-tid->rid)
                                  identity)
@@ -36,6 +37,8 @@
                                                 impl/rewrite-om-tempids
                                                 (update 0 prepare-server-tx+))
             _ (timbre/debug :server-tx server-tx+)
+
+            {:keys [api-parser env]} (:handler started-app)
             server-response (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
             _ (timbre/debug :server-response server-response)
             [response-without-tempid-remaps om-tempid->datomic-id] (impl/extract-tempids server-response)
@@ -56,7 +59,9 @@
             om-tempids-to-check (impl/rewrite-tempids
                                   (set (keys om-tempid->datomic-id))
                                   real-omt->fake-omt
-                                  omt/tempid?)]
+                                  omt/tempid?)
+            om-tids (impl/collect-om-tempids server-tx)]
+
         (clojure.test/do-report {:type :begin-manual :string (str "expected om tempids: " om-tids)})
         (clojure.test/do-report {:type :end-manual :string (str "expected om tempids: " om-tids)})
         (assertions
@@ -66,7 +71,11 @@
           "Server response should match data/response"
           response-to-check => response)
 
-        (when on-success (on-success env response-to-check datomic-tid->rid)))
+        (when on-success
+          (let [env+seed-result (reduce (fn [env [db-name seed-result]]
+                                          (assoc-in env [db-name :seed-result] seed-result))
+                                        env seeder-result)]
+            (on-success env+seed-result response-to-check))))
 
       (finally
         (.stop started-app)))))

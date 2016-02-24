@@ -6,6 +6,7 @@
     [om.next.server :as om]
     [untangled.datomic.core :refer [resolve-ids build-database]]
     [untangled.datomic.test-helpers :refer [make-seeder]]
+    [untangled.datomic.protocols :as udb]
     [clojure.test :refer [is]]
     [untangled-spec.core :refer [specification behavior provided component assertions]]))
 
@@ -99,7 +100,9 @@
       =throws=> (AssertionError #"seed data tempids must have no overlap")))
   (behavior "test server response w/ mutate protocol data"
     (ps/check-response-to-client mutate-test-server mutate-protocol-support-data
-                                 :on-success (fn [env resp seed-result]
+                                 :on-success (fn [env resp]
                                                (assertions
                                                  (keys env) => [:db]
-                                                 (keys seed-result) => [:datomic.id/cthulhu])))))
+                                                 "seed data is put inside each database"
+                                                 (keys (:seed-result (udb/get-info (:db env))))
+                                                 => [:datomic.id/cthulhu])))))

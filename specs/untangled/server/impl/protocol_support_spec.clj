@@ -9,9 +9,6 @@
     (ips/collect-om-tempids [{:id :om.tempid/qwack :foo :om.tempid/asdf} {:datomic.id/asdf :id}])
     => #{:om.tempid/qwack :om.tempid/asdf}
 
-    "map-keys"
-    (ips/map-keys inc (zipmap (range 3) (range 3))) => {1 0, 2 1, 3 2}
-
     "extract-tempids"
     (ips/extract-tempids {'survey/add-question {:tempids {:om.tempid/inst-id0 17592186045460}},
                           :surveys
