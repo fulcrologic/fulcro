@@ -10,7 +10,7 @@
 
 (defn check-response-to-client
   "Tests that the server responds to a client transaction as specificied by the passed-in protocol data.
-   See Protocol Testing README.
+  See Protocol Testing README.
 
   1. `app`: an instance of UntangledServer injected with a `Seeder` component. See Protocl Testing README.
   2. `data`: a map with `server-tx`, the transaction sent from the client to execute on the server, and `response`,
@@ -62,12 +62,11 @@
                                   omt/tempid?)
             om-tids (impl/collect-om-tempids server-tx)]
 
-        (clojure.test/do-report {:type :begin-manual :string (str "expected om tempids: " om-tids)})
-        (clojure.test/do-report {:type :end-manual :string (str "expected om tempids: " om-tids)})
-        (assertions
-          "Server response should contain remappings for all om.tempid's in data/server-tx"
-          om-tempids-to-check => om-tids
+        (behavior (str "Server response should contain tempid remappings for: " om-tids)
+          (assertions
+            om-tempids-to-check => om-tids))
 
+        (assertions
           "Server response should match data/response"
           response-to-check => response)
 
