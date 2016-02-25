@@ -1,4 +1,4 @@
-(defproject untangled-client "0.4.4-SNAPSHOT"
+(defproject navis/untangled-client "0.4.4-SNAPSHOT"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "NAVIS"
@@ -20,7 +20,7 @@
                                      :snapshots     false
                                      :sign-releases false}]
                         ["snapshots" {:id            "snapshots"
-                                      :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshots"
+                                      :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshot"
                                       :sign-releases false}]]
 
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
