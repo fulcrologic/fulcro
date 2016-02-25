@@ -167,9 +167,9 @@
   - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
   - `extra-routes`: *IN FLUX*, but currently a map from uri path to a fn of type :: req -> env -> res
   "
-  [api-parser injections extra-routes]
+  [api-parser injections & [extra-routes]]
   (component/using
     (map->Handler {:api-parser    api-parser
                    :injected-keys injections
-                   :extra-routes  extra-routes})
+                   :extra-routes  (or extra-routes {})})
     (vec (into #{:logger :config} injections))))
