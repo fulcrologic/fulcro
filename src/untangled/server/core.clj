@@ -76,13 +76,15 @@
 
   *`parser-injections`  a vector of keywords which represent components which will be injected as the om parsing env.
 
+  *`extra-routes`       *IN FLUX*, but currently a map from uri path to a fn of type :: req -> env -> res
+
   Returns a Sierra system component.
   "
-  [& {:keys [config-path components parser parser-injections] :or {config-path "/usr/local/etc/untangled.edn"}}]
+  [& {:keys [config-path components parser parser-injections extra-routes] :or {config-path "/usr/local/etc/untangled.edn"}}]
   {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))
          (or (nil? parser-injections) (every? keyword? parser-injections))]}
-  (let [handler (handler/build-handler parser parser-injections)
+  (let [handler (handler/build-handler parser parser-injections extra-routes)
         built-in-components [:config (new-config config-path)
                              :logger (build-logger)
                              :handler handler
