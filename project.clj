@@ -33,7 +33,7 @@
                                      :snapshots     false
                                      :sign-releases false}]
                         ["snapshots" {:id            "snapshots"
-                                      :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshots"
+                                      :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshot"
                                       :sign-releases false}]]
 
   :source-paths ["src"]
