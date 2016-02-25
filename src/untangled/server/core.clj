@@ -95,7 +95,7 @@
 (defn make-untangled-test-server
   "Make sure to inject a :seeder component in the group of components that you pass in!"
   [& {:keys [parser parser-injections components]}]
-  (let [handler (handler/build-handler parser parser-injections)
+  (let [handler (handler/build-handler parser parser-injections nil)
         built-in-components [:config (new-config "config/test.edn")
                              :logger (build-test-logger)
                              :handler handler]
