@@ -5,9 +5,6 @@
     [clojure.stacktrace :refer (print-stack-trace)]
     [clojure.tools.namespace.repl :refer [disable-reload! refresh clear]]
     [clojure.repl :refer [doc source]]
-    [datomic.api :as d]
-    [datomic-helpers :refer [to-transaction to-schema-transaction ext]]
-    ;[untangled-spec.rorters.terminal :as report]
     [clojure.test :refer [run-tests]]
     untangled.server.impl.components.config-spec
     ))
