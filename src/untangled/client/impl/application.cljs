@@ -103,6 +103,7 @@
         node (if (string? dom-id-or-node)
                (gdom/getElement dom-id-or-node)
                dom-id-or-node)]
+    (js/console.log "initialized: " dom-id-or-node " on " node " with root " root-component)
     (initialize-internationalization rec)
     (start-network-sequential-processing completed-app)
     (om/add-root! rec root-component node)
