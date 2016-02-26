@@ -10,11 +10,12 @@
 
 (defui ^:once SupportViewerRoot
   static om/IQuery
-  (query [this] [:react-key :current-position :client-time :frames])
+  (query [this] [:react-key :current-position :client-time :frames :position])
   Object
   (render [this]
-    (let [{:keys [react-key current-position client-time frames] :or {react-key "ROOT"}} (om/props this)]
-      (dom/div #js {:key react-key :className "history-controls"}
+    (let [{:keys [react-key current-position client-time frames position] :or {react-key "ROOT"}} (om/props this)]
+      (dom/div #js {:key react-key :className (str "history-controls " (name position))}
+        (dom/button #js {:onClick #(om/transact! this '[(support-viewer/toggle-position)])} (tr "<===>"))
         (dom/button #js {:onClick #(om/transact! this '[(support-viewer/step-back)])} (tr "<Back"))
         (dom/button #js {:onClick #(om/transact! this '[(support-viewer/step-forward)])} (tr "Forward>"))
         (dom/hr nil)
@@ -56,6 +57,7 @@
                                     :support     (atom (core/new-untangled-client
                                                          :initial-state {:history          history
                                                                          :application      app
+                                                                         :position        :controls-left
                                                                          :client-time      (js/Date.)
                                                                          :frames           (inc max-idx)
                                                                          :current-position max-idx}
@@ -77,4 +79,12 @@
 (defmethod m/mutate 'support-viewer/step-forward [{:keys [state]} k params] {:action #(history-step state inc)})
 
 (defmethod m/mutate 'support-viewer/step-back [{:keys [state]} k params] {:action #(history-step state dec)})
+
+(defmethod m/mutate 'support-viewer/toggle-position [{:keys [state]} k params]
+  {:action (fn []
+             (let [{:keys [position]} @state
+                   new-position (cond
+                                  (= :controls-left position) :controls-right
+                                  :else :controls-left)]
+               (swap! state assoc :position new-position)))})
 
