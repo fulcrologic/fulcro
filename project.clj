@@ -23,7 +23,7 @@
                  [crypto-password "0.1.3" :scope "test"]
                  [com.rpl/specter "0.8.0"]]
 
-  :plugins [[com.jakemccrary/lein-test-refresh "0.13.0"]]
+  :plugins [[com.jakemccrary/lein-test-refresh "0.14.0"]]
 
   :repositories [["releases" {:url "https://artifacts.buehner-fry.com/artifactory/release"
                               :update :always}]]
