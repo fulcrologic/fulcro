@@ -1,5 +1,6 @@
 (ns untangled.server.protocol-support-spec
   (:require
+    [taoensso.timbre :as timbre]
     [datomic.api :as d]
     [untangled.server.protocol-support :as ps]
     [untangled.server.core :as core]
@@ -59,11 +60,11 @@
                                   [:db/add old-one-id :old-one/followers follower-tid]]
                          tempids->realids (:tempids @(d/transact connection tx-data))
                          omids->realids (resolve-ids (d/db connection) omids->tempids tempids->realids)]
-                     (println (str "Added follower: " omids->realids))
+                     (timbre/debug (str "Added follower: " omids->realids))
 
                      {:tempids omids->realids})
                    (catch Throwable e
-                     (println "Failed to add follower" e)
+                     (timbre/debug "Failed to add follower" e)
                      (throw e)))))}
     :else
     (throw (ex-info "Bad you!" {}))))
