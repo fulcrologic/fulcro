@@ -12,10 +12,9 @@
   (:import (clojure.lang ExceptionInfo)))
 
 (def routes
-  ["" {"/" :index
-       "/api"
-           {:get  {[""] :api}
-            :post {[""] :api}}}])
+  ["" {"/"    :index
+       "/api" {:get  {[""] :api}
+               :post {[""] :api}}}])
 
 (defn index [req]
   (assoc (resource-response (str "index.html") {:root "public"})
@@ -125,11 +124,12 @@
   [handler api-parser om-parsing-env]
   (fn [req] (handler (assoc req :parser api-parser :env (assoc om-parsing-env :request req)))))
 
-(defn wrap-extra-routes [handler extra-routes om-parsing-env]
+(defn wrap-extra-routes [dflt-handler {:keys [routes handlers] :or {routes ["" {}] handlers {}}} om-parsing-env]
   (fn [{:keys [uri] :as req}]
-    (if-let [route-fn (get extra-routes uri)]
-      (route-fn req om-parsing-env)
-      (handler req))))
+    (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
+      (if-let [bidi-handler (get handlers (:handler match))]
+        (bidi-handler req om-parsing-env match)
+        (dflt-handler req)))))
 
 (defn handler
   "Create a web request handler that sends all requests through an Om parser. The om-parsing-env of the parses

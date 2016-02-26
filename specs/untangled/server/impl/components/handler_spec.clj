@@ -105,3 +105,49 @@
 
                 (get-error baz-result) => {:type    "class java.lang.IllegalArgumentException",
                                            :message nil}))))))))
+
+(specification "handler constructor"
+  (behavior "takes an extra-routes map containing bidi :routes & :handlers"
+    (let [make-handler (fn [extra-routes] (h/handler (constantly nil) {} extra-routes))
+          run #(%1 %2)]
+      (assertions
+        (-> {:routes   ["test" :test]
+             :handlers {:test (fn [req env match]
+                                {:body "test"
+                                 :status 200})}}
+            (make-handler)
+            (run {:uri "test"}))
+        => {:body "test"
+            :headers {"Content-Type" "application/octet-stream"}
+            :status 200}
+
+        "handler functions get passed the bidi match as an arg"
+        (-> {:routes   ["" {["test/" :id] :test-with-params}]
+             :handlers {:test-with-params (fn [req env match]
+                                            {:body (:id (:route-params match))
+                                             :status 200})}}
+            (make-handler)
+            (run {:uri "test/foo"}))
+        => {:body "foo"
+            :status 200
+            :headers {"Content-Type" "application/octet-stream"}}
+
+        "also dispatches on :request-method"
+        (-> {:routes   ["/" {["test/" :id] {:post :test-post}}]
+             :handlers {:test-post (fn [req env match]
+                                     {:body "post"
+                                      :status 200})}}
+            (make-handler)
+            (run {:uri "/test/foo"
+                  :request-method :post}))
+        => {:body "post"
+            :headers {"Content-Type" "application/octet-stream"}
+            :status 200}
+
+        "can take an empty map & still work"
+        (-> {}
+            make-handler
+            (run {:uri "/"})
+            (dissoc :body))
+        => {:headers {"Content-Type" "text/html"}
+            :status 200}))))
