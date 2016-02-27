@@ -11,7 +11,8 @@
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [untangled-spec "0.3.3" :scope "test"]
                  [org.omcljs/om "1.0.0-alpha31-SNAPSHOT" :scope "test"]
-                 [figwheel-sidecar "0.5.0-3" :scope "provided"]]
+                 [figwheel-sidecar "0.5.0-3" :scope "provided"]
+                 [camel-snake-kebab "0.3.2"]]
 
   :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/release"]]
 
@@ -25,12 +26,14 @@
 
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
   :source-paths ["src" "spec"]
+  :test-paths ["spec"]
+  :test-refresh {:report untangled-spec.reporters.terminal/untangled-report}
   :resource-paths ["src" "resources"]
 
   :plugins [[lein-cljsbuild "1.1.2"]
             [lein-doo "0.1.6"]
             [lein-figwheel "0.5.0-3"]
-            [com.jakemccrary/lein-test-refresh "0.13.0"]]
+            [com.jakemccrary/lein-test-refresh "0.14.0"]]
 
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
