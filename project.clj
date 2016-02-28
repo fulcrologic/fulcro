@@ -9,12 +9,13 @@
                  [differ "0.2.1"]
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [untangled-spec "0.3.3" :scope "test"]
+                 [untangled-spec "0.3.4-SNAPSHOT" :scope "test"]
                  [org.omcljs/om "1.0.0-alpha31-SNAPSHOT" :scope "test"]
                  [figwheel-sidecar "0.5.0-3" :scope "provided"]
                  [camel-snake-kebab "0.3.2"]]
 
-  :repositories [["releases" "https://artifacts.buehner-fry.com/artifactory/release"]]
+  :repositories [["releases" {:url "https://artifacts.buehner-fry.com/artifactory/release"
+                              :update :always}]]
 
   :deploy-repositories [["releases" {:id            "central"
                                      :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-release"
@@ -24,6 +25,7 @@
                                       :url           "https://artifacts.buehner-fry.com/artifactory/navis-maven-snapshot"
                                       :sign-releases false}]]
 
+  :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
   :source-paths ["src" "spec"]
   :test-paths ["spec"]
