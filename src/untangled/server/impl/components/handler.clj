@@ -131,26 +131,17 @@
         (bidi-handler req om-parsing-env match)
         (dflt-handler req)))))
 
-(defn ?wrap-resource [handler dir config]
-  (if (or (-> config :dev :src-links (= true))
-          (-> config :dev (= true)))
-    (do (timbre/debug (str "serving resources/" dir)
-                      "due to config :dev" (:dev config))
-      (wrap-resource handler dir))
-    handler))
-
 (defn handler
   "Create a web request handler that sends all requests through an Om parser. The om-parsing-env of the parses
   will include any components that were injected into the handler.
 
   Returns a function that handles requests."
-  [api-parser om-parsing-env extra-routes config]
+  [api-parser om-parsing-env extra-routes]
   ;; NOTE: ALL resources served via wrap-resources (from the public subdirectory). The BIDI route maps / -> index.html
   (-> (wrap-connection route-handler api-parser om-parsing-env)
     (middleware/wrap-transit-params)
     (middleware/wrap-transit-response)
     (wrap-resource "public")
-    (?wrap-resource "source" config)
     (wrap-extra-routes extra-routes om-parsing-env)
     (wrap-content-type)
     (wrap-not-modified)
@@ -161,9 +152,8 @@
   (start [component]
     (timbre/info "Creating web server handler.")
     (assert (every? (set (keys component)) injected-keys) (str "You asked to inject " injected-keys " but one or more of those components do not exist."))
-    (let [config (:config component)
-          om-parsing-env (select-keys component injected-keys)
-          req-handler (handler api-parser om-parsing-env extra-routes (:value config))]
+    (let [om-parsing-env (select-keys component injected-keys)
+          req-handler (handler api-parser om-parsing-env extra-routes)]
       (assoc component :api-parser api-parser :all-routes req-handler :env om-parsing-env)))
   (stop [component] component
     (timbre/info "Tearing down web server handler.")
