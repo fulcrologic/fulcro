@@ -72,7 +72,7 @@
   "Remove items from a query (AST) that have a key listed in the elision-set"
   [{:keys [key] :as ast} elision-set]
   (when-not (contains? elision-set key)
-    (update ast :children (fn [c] (keep #(elide-ast-nodes % elision-set) c)))))
+    (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-set) c))))))
 
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
