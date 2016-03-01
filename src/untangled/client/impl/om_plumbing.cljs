@@ -1,5 +1,6 @@
 (ns untangled.client.impl.om-plumbing
   (:require [om.next :as om]
+            [om.next.impl.parser :as op]
             [untangled.i18n.core :as i18n]
             [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
@@ -91,17 +92,19 @@
 (defn- is-ui-query-fragment? [kw]
   (when (keyword? kw) (some->> kw namespace (re-find #"^ui(?:\.|$)"))))
 
-(defn- remove-ui-query-fragments [v]
-  (->> v
-    (remove is-ui-query-fragment?)
-    (remove #(when (list? %)
-              (-> % first is-ui-query-fragment?)))
-    vec))
-
 (defn strip-ui
   "Returns a new query with fragments beginning with `ui` removed."
   [query]
-  (clojure.walk/prewalk #(if (vector? %) (remove-ui-query-fragments %) %) query))
+  (let [ast (om/query->ast query)
+        drop-ui-children (fn drop-ui-children [ast-node]
+                           (assoc ast-node :children
+                                           (reduce (fn [acc n]
+                                                     (if (is-ui-query-fragment? (:dispatch-key n))
+                                                       acc
+                                                       (conj acc (drop-ui-children n))
+                                                       )
+                                                     ) [] (:children ast-node))))]
+    (om/ast->query (drop-ui-children ast))))
 
 (def nf ::not-found)
 

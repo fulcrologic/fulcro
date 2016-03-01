@@ -161,7 +161,6 @@
                                    :parser     (om/parser {:read (constantly nil)})})
         _ (om/add-root! reconciler PanelRoot "invisible-specs")
         state (om/app-state reconciler)]
-
     (when-mocking
       (om/get-query c) => item-query
       (om/get-ident c) => (case c
