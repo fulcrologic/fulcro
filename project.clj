@@ -36,6 +36,8 @@
   :test-paths ["specs"]
   :resource-paths ["src" "resources"]
 
+  :jvm-opts ["-server" "-Xmx1024m" "-Xms512m" "-XX:-OmitStackTraceInFastThrow"]
+
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
                  :changes-only true}
 
