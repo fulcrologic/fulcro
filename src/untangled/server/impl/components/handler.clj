@@ -1,12 +1,15 @@
 (ns untangled.server.impl.components.handler
   (:require
+    [clojure.set :as set]
+    [clojure.java.io :as io]
     [bidi.bidi :as bidi]
     [com.stuartsierra.component :as component]
     [ring.middleware.resource :refer [wrap-resource]]
     [ring.middleware.content-type :refer [wrap-content-type]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
     [ring.middleware.gzip :refer [wrap-gzip]]
-    [ring.util.response :refer [response file-response resource-response]]
+    [ring.util.response :refer [resource-response]]
+    [ring.util.response :as rsp :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
     [taoensso.timbre :as timbre])
   (:import (clojure.lang ExceptionInfo)))
@@ -117,12 +120,15 @@
       ;; explicit handling of / as index.html. wrap-resources does the rest
       :index (index req)
       :api (generate-response (api req))
-      req)))
+      nil)))
 
 (defn wrap-connection
   "Ring middleware function that invokes the general handler with the parser and parsing environgment on the request."
-  [handler api-parser om-parsing-env]
-  (fn [req] (handler (assoc req :parser api-parser :env (assoc om-parsing-env :request req)))))
+  [handler route-handler api-parser om-parsing-env]
+  (fn [req]
+    (if-let [res (route-handler (assoc req :parser api-parser :env (assoc om-parsing-env :request req)))]
+      res
+      (handler req))))
 
 (defn wrap-extra-routes [dflt-handler {:keys [routes handlers] :or {routes ["" {}] handlers {}}} om-parsing-env]
   (fn [{:keys [uri] :as req}]
@@ -131,33 +137,71 @@
         (bidi-handler req om-parsing-env match)
         (dflt-handler req)))))
 
+(defn not-found-handler []
+  (fn [req]
+    {:status 404
+     :headers {"Content-Type" "text/html"}
+     :body (io/file (io/resource "public/not-found.html"))}))
+
 (defn handler
   "Create a web request handler that sends all requests through an Om parser. The om-parsing-env of the parses
   will include any components that were injected into the handler.
 
   Returns a function that handles requests."
-  [api-parser om-parsing-env extra-routes]
+  [api-parser om-parsing-env extra-routes pre-hook fallback-hook]
   ;; NOTE: ALL resources served via wrap-resources (from the public subdirectory). The BIDI route maps / -> index.html
-  (-> (wrap-connection route-handler api-parser om-parsing-env)
-    (middleware/wrap-transit-params)
-    (middleware/wrap-transit-response)
-    (wrap-resource "public")
-    (wrap-extra-routes extra-routes om-parsing-env)
-    (wrap-content-type)
-    (wrap-not-modified)
-    (wrap-gzip)))
+  (-> (not-found-handler)
+      (fallback-hook)
+      (wrap-connection route-handler api-parser om-parsing-env)
+      (middleware/wrap-transit-params)
+      (middleware/wrap-transit-response)
+      (wrap-resource "public")
+      (wrap-extra-routes extra-routes om-parsing-env)
+      (pre-hook)
+      ;;TODO: wrap-decode-url
+      (wrap-content-type)
+      (wrap-not-modified)
+      (wrap-gzip)))
 
-(defrecord Handler [all-routes api-parser injected-keys extra-routes]
+(defprotocol IHandler
+  (set-pre-hook! [this pre-hook] "sets the handler before any important handlers are run")
+  (get-pre-hook [this] "gets the current pre-hook handler")
+  (set-fallback-hook! [this fallback-hook] "sets the fallback handler in case nothing else returned")
+  (get-fallback-hook [this] "gets the current fallback-hook handler"))
+
+(defrecord Handler [stack api-parser injected-keys extra-routes pre-hook fallback-hook]
   component/Lifecycle
   (start [component]
+    (assert (every? (set (keys component)) injected-keys)
+            (str "You asked to inject " injected-keys
+                 " but " (set/difference injected-keys (set (keys component)))
+                 " do not exist."))
     (timbre/info "Creating web server handler.")
-    (assert (every? (set (keys component)) injected-keys) (str "You asked to inject " injected-keys " but one or more of those components do not exist."))
     (let [om-parsing-env (select-keys component injected-keys)
-          req-handler (handler api-parser om-parsing-env extra-routes)]
-      (assoc component :api-parser api-parser :all-routes req-handler :env om-parsing-env)))
-  (stop [component] component
+          req-handler (handler api-parser om-parsing-env extra-routes
+                               @pre-hook @fallback-hook)]
+      (reset! stack req-handler)
+      (assoc component :env om-parsing-env
+             :all-routes (fn [req] (@stack req)))))
+  (stop [component]
     (timbre/info "Tearing down web server handler.")
-    (assoc component :all-routes nil)))
+    (assoc component :all-routes nil :stack nil :pre-hook nil :fallback-hook nil))
+
+  IHandler
+  (set-pre-hook! [this new-pre-hook]
+                (reset! pre-hook new-pre-hook)
+                (reset! stack
+                        (handler api-parser (select-keys this injected-keys)
+                                 extra-routes @pre-hook @fallback-hook))
+                this)
+  (get-pre-hook [this] @pre-hook)
+  (set-fallback-hook! [this new-fallback-hook]
+                     (reset! fallback-hook new-fallback-hook)
+                     (reset! stack
+                             (handler api-parser (select-keys this injected-keys)
+                                      extra-routes @pre-hook @fallback-hook))
+                     this)
+  (get-fallback-hook [this] @fallback-hook))
 
 (defn build-handler
   "Build a web request handler.
@@ -167,9 +211,12 @@
   - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
   - `extra-routes`: *IN FLUX*, but currently a map from uri path to a fn of type :: req -> env -> res
   "
-  [api-parser injections & [extra-routes]]
+  [api-parser injections & {:keys [extra-routes]}]
   (component/using
     (map->Handler {:api-parser    api-parser
                    :injected-keys injections
+                   :stack         (atom nil)
+                   :pre-hook      (atom identity)
+                   :fallback-hook (atom identity)
                    :extra-routes  (or extra-routes {})})
     (vec (into #{:logger :config} injections))))

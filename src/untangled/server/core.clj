@@ -80,11 +80,13 @@
 
   Returns a Sierra system component.
   "
-  [& {:keys [config-path components parser parser-injections extra-routes] :or {config-path "/usr/local/etc/untangled.edn"}}]
+  [& {:keys [config-path components parser parser-injections extra-routes]
+      :or {config-path "/usr/local/etc/untangled.edn"}}]
   {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))
          (or (nil? parser-injections) (every? keyword? parser-injections))]}
-  (let [handler (handler/build-handler parser parser-injections extra-routes)
+  (let [handler (handler/build-handler parser parser-injections
+                                       :extra-routes extra-routes)
         built-in-components [:config (new-config config-path)
                              :logger (build-logger)
                              :handler handler
@@ -95,7 +97,7 @@
 (defn make-untangled-test-server
   "Make sure to inject a :seeder component in the group of components that you pass in!"
   [& {:keys [parser parser-injections components]}]
-  (let [handler (handler/build-handler parser parser-injections nil)
+  (let [handler (handler/build-handler parser parser-injections)
         built-in-components [:config (new-config "config/test.edn")
                              :logger (build-test-logger)
                              :handler handler]

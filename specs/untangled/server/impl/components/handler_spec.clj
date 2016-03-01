@@ -2,6 +2,7 @@
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
             [clojure.test :refer [is]]
             [untangled.server.impl.components.handler :as h]
+            [com.stuartsierra.component :as component]
             [om.next.server :as om])
   (:import (clojure.lang ExceptionInfo)))
 
@@ -106,10 +107,10 @@
                 (get-error baz-result) => {:type    "class java.lang.IllegalArgumentException",
                                            :message nil}))))))))
 
-(specification "handler constructor"
+(def run #(%1 %2))
+(specification "the handler"
   (behavior "takes an extra-routes map containing bidi :routes & :handlers"
-    (let [make-handler (fn [extra-routes] (h/handler (constantly nil) {} extra-routes))
-          run #(%1 %2)]
+    (let [make-handler (fn [extra-routes] (h/handler (constantly nil) {} extra-routes identity identity))]
       (assertions
         (-> {:routes   ["test" :test]
              :handlers {:test (fn [req env match]
@@ -150,4 +151,40 @@
             (run {:uri "/"})
             (dissoc :body))
         => {:headers {"Content-Type" "text/html"}
-            :status 200}))))
+            :status 200})))
+
+  (behavior "calling (get/set)-(pre/fallback)-hook can modify the ring handler stack"
+    (letfn [(make-test-system []
+              (.start (component/system-map
+                        :config {}
+                        :logger {}
+                        :handler (h/build-handler (constantly nil) {}))))]
+      (assertions
+        "the pre-hook which can short-circuit before the extra-routes, wrap-resource, or /api"
+        (let [{:keys [handler]} (make-test-system)]
+          (h/set-pre-hook! handler (fn [h]
+                                     (fn [req] {:status 200
+                                                :headers {"Content-Type" "text/text"}
+                                                :body "pre-hook"})))
+
+          (:body ((:all-routes handler) {})))
+        => "pre-hook"
+
+        "the fallback hook will only get called if all other handlers do nothing"
+        (let [{:keys [handler]} (make-test-system)]
+          (h/set-fallback-hook! handler (fn [h]
+                                          (fn [req] {:status 200
+                                                     :headers {"Content-Type" "text/text"}
+                                                     :body "fallback-hook"})))
+          (:body ((:all-routes handler) {:uri "/i/should/fail"})))
+        => "fallback-hook"
+
+        "get-(pre/fallback)-hook returns whatever hook is currently installed"
+        (let [{:keys [handler]} (make-test-system)]
+          (h/set-pre-hook! handler (fn [h] '_))
+          (h/get-pre-hook handler))
+        =fn=> #(= '_ (%1 nil))
+        (let [{:keys [handler]} (make-test-system)]
+          (h/set-fallback-hook! handler (fn [h] '_))
+          (h/get-fallback-hook handler))
+        =fn=> #(= '_ (%1 nil))))))
