@@ -347,7 +347,3 @@ through to these raw components so they can still act on application state.
 Remember that React rules, however, still apply: Components don't re-render unless their state changes. So if you do
 raw rendering within some sub-tree of the UI, be sure that tracked state changes will cause appropriate re-rendering
 when needed.
-
-## License
-
-Copyright © 2015 NAVIS All Rights Reserved
