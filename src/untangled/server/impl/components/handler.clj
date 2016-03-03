@@ -139,9 +139,9 @@
 
 (defn not-found-handler []
   (fn [req]
-    {:status 404
+    {:status  404
      :headers {"Content-Type" "text/html"}
-     :body (io/file (io/resource "public/not-found.html"))}))
+     :body    (io/file (io/resource "public/not-found.html"))}))
 
 (defn handler
   "Create a web request handler that sends all requests through an Om parser. The om-parsing-env of the parses
@@ -151,17 +151,17 @@
   [api-parser om-parsing-env extra-routes pre-hook fallback-hook]
   ;; NOTE: ALL resources served via wrap-resources (from the public subdirectory). The BIDI route maps / -> index.html
   (-> (not-found-handler)
-      (fallback-hook)
-      (wrap-connection route-handler api-parser om-parsing-env)
-      (middleware/wrap-transit-params)
-      (middleware/wrap-transit-response)
-      (wrap-resource "public")
-      (wrap-extra-routes extra-routes om-parsing-env)
-      (pre-hook)
-      ;;TODO: wrap-decode-url
-      (wrap-content-type)
-      (wrap-not-modified)
-      (wrap-gzip)))
+    (fallback-hook)
+    (wrap-connection route-handler api-parser om-parsing-env)
+    (middleware/wrap-transit-params)
+    (middleware/wrap-transit-response)
+    (wrap-resource "public")
+    (wrap-extra-routes extra-routes om-parsing-env)
+    (pre-hook)
+    ;;TODO: wrap-decode-url
+    (wrap-content-type)
+    (wrap-not-modified)
+    (wrap-gzip)))
 
 (defprotocol IHandler
   (set-pre-hook! [this pre-hook] "sets the handler before any important handlers are run")
@@ -173,34 +173,34 @@
   component/Lifecycle
   (start [component]
     (assert (every? (set (keys component)) injected-keys)
-            (str "You asked to inject " injected-keys
-                 " but " (set/difference injected-keys (set (keys component)))
-                 " do not exist."))
+      (str "You asked to inject " injected-keys
+        " but " (set/difference injected-keys (set (keys component)))
+        " do not exist."))
     (timbre/info "Creating web server handler.")
     (let [om-parsing-env (select-keys component injected-keys)
           req-handler (handler api-parser om-parsing-env extra-routes
-                               @pre-hook @fallback-hook)]
+                        @pre-hook @fallback-hook)]
       (reset! stack req-handler)
       (assoc component :env om-parsing-env
-             :all-routes (fn [req] (@stack req)))))
+                       :all-routes (fn [req] (@stack req)))))
   (stop [component]
     (timbre/info "Tearing down web server handler.")
     (assoc component :all-routes nil :stack nil :pre-hook nil :fallback-hook nil))
 
   IHandler
   (set-pre-hook! [this new-pre-hook]
-                (reset! pre-hook new-pre-hook)
-                (reset! stack
-                        (handler api-parser (select-keys this injected-keys)
-                                 extra-routes @pre-hook @fallback-hook))
-                this)
+    (reset! pre-hook new-pre-hook)
+    (reset! stack
+      (handler api-parser (select-keys this injected-keys)
+        extra-routes @pre-hook @fallback-hook))
+    this)
   (get-pre-hook [this] @pre-hook)
   (set-fallback-hook! [this new-fallback-hook]
-                     (reset! fallback-hook new-fallback-hook)
-                     (reset! stack
-                             (handler api-parser (select-keys this injected-keys)
-                                      extra-routes @pre-hook @fallback-hook))
-                     this)
+    (reset! fallback-hook new-fallback-hook)
+    (reset! stack
+      (handler api-parser (select-keys this injected-keys)
+        extra-routes @pre-hook @fallback-hook))
+    this)
   (get-fallback-hook [this] @fallback-hook))
 
 (defn build-handler
@@ -219,4 +219,4 @@
                    :pre-hook      (atom identity)
                    :fallback-hook (atom identity)
                    :extra-routes  (or extra-routes {})})
-    (vec (into #{:logger :config} injections))))
+    (vec (into #{:config} injections))))

@@ -1,6 +1,5 @@
 (ns untangled.server.core
   (:require [untangled.server.impl.components.web-server :as web-server]
-            [untangled.server.impl.components.logger :as logger]
             [untangled.server.impl.components.handler :as handler]
             [untangled.server.impl.components.config :as config]
             [com.stuartsierra.component :as component]))
@@ -26,16 +25,6 @@
   (component/using
     (web-server/map->WebServer {})
     [:handler :config]))
-
-(defn build-gelf-logger []
-  (component/using
-    (logger/map->GelfLogger {})
-    [:config]))
-
-(defn build-test-logger []
-  (component/using
-    (logger/map->TestLogger {})
-    [:config]))
 
 (defn raw-config
   "Creates a configuration component using the value passed in,
@@ -98,7 +87,6 @@
   [& {:keys [parser parser-injections components]}]
   (let [handler (handler/build-handler parser parser-injections)
         built-in-components [:config (new-config "test.edn")
-                             :logger (build-test-logger)
                              :handler handler]
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
