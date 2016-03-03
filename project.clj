@@ -9,7 +9,7 @@
                  [differ "0.2.1"]
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [untangled-spec "0.3.4" :scope "test"]
+                 [navis/untangled-spec "0.3.4" :scope "test"]
                  [org.omcljs/om "1.0.0-alpha30" :scope "test"]
                  [figwheel-sidecar "0.5.0-3" :scope "provided"]
                  [camel-snake-kebab "0.3.2"]]
