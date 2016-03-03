@@ -8,11 +8,11 @@
                                          component
                                          behavior]]
             [com.stuartsierra.component :as component]
-            [untangled.server.impl.components.config :as cfg]))
+            [taoensso.timbre.appenders.3rd-party.gelf :as cfg]))
 
 (defn- start-system [log-config]
   (.start (component/system-map
-            :logger (l/build-logger)
+            :logger (l/build-gelf-logger)
             :config (l/raw-config {:logging log-config}))))
 
 (specification "Logger"

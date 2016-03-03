@@ -27,9 +27,9 @@
     (web-server/map->WebServer {})
     [:handler :config]))
 
-(defn build-logger []
+(defn build-gelf-logger []
   (component/using
-    (logger/map->Logger {})
+    (logger/map->GelfLogger {})
     [:config]))
 
 (defn build-test-logger []
@@ -88,7 +88,6 @@
   (let [handler (handler/build-handler parser parser-injections
                                        :extra-routes extra-routes)
         built-in-components [:config (new-config config-path)
-                             :logger (build-logger)
                              :handler handler
                              :server (make-web-server)]
         all-components (flatten (concat built-in-components components))]

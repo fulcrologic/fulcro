@@ -1,21 +1,21 @@
 (ns untangled.server.impl.components.logger
   (:require [com.stuartsierra.component :as component]
             [taoensso.timbre :as t]
-            [untangled.server.impl.logging :as l]))
+            [taoensso.timbre.appenders.3rd-party.gelf :as l]))
 
 (defn start-logging! [host port level]
   (if (and host port)
-        (t/merge-config! {:level level :appenders {:gelf (l/gelf-appender host port)}})
-        (t/set-level! level)))
+    (t/merge-config! {:level level :appenders {:gelf (l/gelf-appender host port)}})
+    (t/set-level! level)))
 
 (defn reset-logging! []
   (t/set-config! t/example-config))
 
-(defrecord Logger [config]
+(defrecord GelfLogger [config]
   component/Lifecycle
 
   (start [this]
-    (let [{:keys [host port level] :or {level :debug} :as logging-config} (-> this :config :value :logging)]
+    (let [{:keys [host port level] :or {level :debug}} (-> this :config :value :logging)]
       (start-logging! host port level)
       this))
 

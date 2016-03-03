@@ -1,11 +1,9 @@
-# Datomic Support
+# Untangled Server
 
-This is a library of Datomic support functions, including the following:
-
-- Support for additional schema validations (opt-in)
-- Utility functions for querying schema
-- 
+Library providing a pre-rolled web server for Untangled web applications.
 
 ## License
 
 Copyright © 2015 NAVIS
+
+The MIT License (MIT)
