@@ -14,7 +14,7 @@
                  [com.stuartsierra/component "0.2.3"]
                  [com.taoensso/timbre "4.3.1"]
                  [org.clojure/java.classpath "0.2.2"]
-                 [navis/untangled-spec "0.3.4" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
+                 [navis/untangled-spec "0.3.5" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
                  [navis/untangled-datomic "0.4.4" :scope "test"]
                  [com.datomic/datomic-free "0.9.5206" :scope "test" :exclusions [joda-time]]
                  [org.graylog2/gelfclient "1.3.1" :scope "provided"]
