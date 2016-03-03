@@ -11,8 +11,9 @@
 
 (defn start-figwheel
   "Start Figwheel on the given builds."
-  [build-ids]
-  (let [build-ids (if (empty? build-ids) ["test"] build-ids)]
-    (println "STARTING FIGWHEEL ON BUILDS: " build-ids)
-    (ra/start-figwheel! (assoc figwheel-config :build-ids build-ids))
-    (ra/cljs-repl)))
+  ([] (start-figwheel []))
+  ([build-ids]
+   (let [build-ids (if (empty? build-ids) ["test"] build-ids)]
+     (println "STARTING FIGWHEEL ON BUILDS: " build-ids)
+     (ra/start-figwheel! (assoc figwheel-config :build-ids build-ids))
+     (ra/cljs-repl))))

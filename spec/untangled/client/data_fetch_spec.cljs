@@ -71,7 +71,15 @@
       (dfi/data-query without-prop) => [{[:item/by-id 1] [{:comments [:db/id :title {:author [:db/id :name]}]}]}]
 
       "remove the :without portion when keyword appears in multiple places in the query"
-      (dfi/data-query without-multi-prop) => [{[:item/by-id 1] [{:comments [:title {:author [:username :name]}]}]}])))
+      (dfi/data-query without-multi-prop) => [{[:item/by-id 1] [{:comments [:title {:author [:username :name]}]}]}]))
+
+  (behavior "can elide top-level keys from the query"
+    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name})]
+      (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
+
+  (behavior "can include parameters when eliding top-level keys from the query"
+    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:x 1})]
+      (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state))))))
 
 (specification "Lazy loading"
   (component "Loading a field within a component"
@@ -153,7 +161,6 @@
                                    :parser     (om/parser {:read (constantly nil)})})
         _ (om/add-root! reconciler PanelRoot "invisible-specs")
         state (om/app-state reconciler)]
-
     (when-mocking
       (om/get-query c) => item-query
       (om/get-ident c) => (case c

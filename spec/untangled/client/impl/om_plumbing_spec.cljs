@@ -111,7 +111,12 @@
       "removes keywords with a ui namespace"
       (impl/strip-ui q1) => result
       "removes keywords with a ui.{something} namespace"
-      (impl/strip-ui q2) => result)))
+      (impl/strip-ui q2) => result))
+
+  (let [query '[(app/x {:ui/boo 23})]]
+    (assertions
+      "does not remove ui prefixed data from parameters"
+      (impl/strip-ui query) => query)))
 
 (specification "sweep-missing"
   (behavior "props"

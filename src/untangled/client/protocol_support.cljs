@@ -52,13 +52,15 @@
   `pre-response-state`: normalized state prior to receiving `response`
   `server-tx`: the transaction originally sent to the server, yielding `response`
   `merge-delta`: the delta between `pre-response-state` and its integration with `response`"
-  [{:keys [response pre-response-state server-tx merge-delta]}]
-  (component "Server response"
+  [{:keys [response pre-response-state ui-tx merge-delta]}]
+  (component "Server response merged with app state"
     (let [{:keys [reconciler]} (impl/init-testing)
           state (om/app-state reconciler)]
       (reset! state pre-response-state)
-      (om/merge! reconciler response server-tx)
+      (om/merge! reconciler response ui-tx)
       (if merge-delta
         (impl/check-delta @state merge-delta)
         (assertions
           @state => pre-response-state)))))
+
+(def with-behavior impl/with-behavior)

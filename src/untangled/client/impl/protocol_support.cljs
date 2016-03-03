@@ -1,6 +1,6 @@
 (ns untangled.client.impl.protocol-support
   (:require
-    [untangled-spec.core :refer-macros [assertions]]
+    [untangled-spec.core :refer-macros [assertions behavior]]
     [om.next :as om :refer-macros [defui]]
     [om.dom :as dom]
     [untangled.client.core :as core]))
@@ -25,8 +25,15 @@
     (throw (ex-info "Cannot have empty :merge-delta"
              {:new-state new-state}))
     (doseq [[key-path value] delta]
-      (assertions
-        (get-in new-state key-path) => value))))
+      (let [behavior-string (:cps/behavior value)
+            value (or (:cps/value value) value)]
+        (behavior behavior-string
+          (assertions
+            (get-in new-state key-path) => value))))))
+
+(defn with-behavior [behavior-string value]
+  {:cps/value value
+   :cps/behavior behavior-string})
 
 (defn allocate-tempids [tx]
   (let [allocated-ids (atom #{})]
