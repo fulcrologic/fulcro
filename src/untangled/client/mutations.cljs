@@ -1,5 +1,6 @@
 (ns untangled.client.mutations
   (:require [om.next :as om]
+            [untangled.dom :refer [unique-key]]
             [untangled.client.impl.data-fetch :as df]
             [untangled.i18n.core :as i18n]
             [untangled.client.logging :as log]))
@@ -72,8 +73,10 @@
 (defmethod mutate 'app/clear-error [{:keys [state]} _ _]
   {:action #(swap! state assoc :last-error nil)})
 
-(defmethod mutate 'app/change-locale [_ _ {:keys [lang]}]
-  (reset! i18n/*current-locale* lang))
+(defmethod mutate 'app/change-locale [{:keys [state]} _ {:keys [lang]}]
+  {:action (fn []
+             (reset! i18n/*current-locale* lang)
+             (swap! state assoc :react-key (unique-key)))})
 
 (defmethod mutate 'tx/fallback [env _ {:keys [action execute] :as params}]
   (if execute
