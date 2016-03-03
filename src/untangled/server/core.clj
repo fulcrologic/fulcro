@@ -1,6 +1,5 @@
 (ns untangled.server.core
   (:require [untangled.server.impl.components.web-server :as web-server]
-            [untangled.server.impl.components.logger :as logger]
             [untangled.server.impl.components.handler :as handler]
             [untangled.server.impl.components.config :as config]
             [com.stuartsierra.component :as component]))
@@ -26,16 +25,6 @@
   (component/using
     (web-server/map->WebServer {})
     [:handler :config]))
-
-(defn build-logger []
-  (component/using
-    (logger/map->Logger {})
-    [:config]))
-
-(defn build-test-logger []
-  (component/using
-    (logger/map->TestLogger {})
-    [:config]))
 
 (defn raw-config
   "Creates a configuration component using the value passed in,
@@ -76,15 +65,18 @@
 
   *`parser-injections`  a vector of keywords which represent components which will be injected as the om parsing env.
 
+  *`extra-routes`       *IN FLUX*, but currently a map from uri path to a fn of type :: req -> env -> res
+
   Returns a Sierra system component.
   "
-  [& {:keys [config-path components parser parser-injections] :or {config-path "/usr/local/etc/untangled.edn"}}]
+  [& {:keys [config-path components parser parser-injections extra-routes]
+      :or {config-path "/usr/local/etc/untangled.edn"}}]
   {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))
          (or (nil? parser-injections) (every? keyword? parser-injections))]}
-  (let [handler (handler/build-handler parser parser-injections)
+  (let [handler (handler/build-handler parser parser-injections
+                                       :extra-routes extra-routes)
         built-in-components [:config (new-config config-path)
-                             :logger (build-logger)
                              :handler handler
                              :server (make-web-server)]
         all-components (flatten (concat built-in-components components))]
@@ -94,8 +86,7 @@
   "Make sure to inject a :seeder component in the group of components that you pass in!"
   [& {:keys [parser parser-injections components]}]
   (let [handler (handler/build-handler parser parser-injections)
-        built-in-components [:config (new-config "config/test.edn")
-                             :logger (build-test-logger)
+        built-in-components [:config (new-config "test.edn")
                              :handler handler]
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))

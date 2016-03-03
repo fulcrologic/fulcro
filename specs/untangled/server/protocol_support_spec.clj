@@ -1,11 +1,13 @@
 (ns untangled.server.protocol-support-spec
   (:require
+    [taoensso.timbre :as timbre]
     [datomic.api :as d]
     [untangled.server.protocol-support :as ps]
     [untangled.server.core :as core]
     [om.next.server :as om]
     [untangled.datomic.core :refer [resolve-ids build-database]]
     [untangled.datomic.test-helpers :refer [make-seeder]]
+    [untangled.datomic.protocols :as udb]
     [clojure.test :refer [is]]
     [untangled-spec.core :refer [specification behavior provided component assertions]]))
 
@@ -58,11 +60,11 @@
                                   [:db/add old-one-id :old-one/followers follower-tid]]
                          tempids->realids (:tempids @(d/transact connection tx-data))
                          omids->realids (resolve-ids (d/db connection) omids->tempids tempids->realids)]
-                     (println (str "Added follower: " omids->realids))
+                     (timbre/debug (str "Added follower: " omids->realids))
 
                      {:tempids omids->realids})
                    (catch Throwable e
-                     (println "Failed to add follower" e)
+                     (timbre/debug "Failed to add follower" e)
                      (throw e)))))}
     :else
     (throw (ex-info "Bad you!" {}))))
@@ -72,9 +74,7 @@
     :parser (om/parser {:read api-read})
     :parser-injections #{:db}
     :components {:db     (build-database :protocol-support)
-                 :seeder (make-seeder (:seed-data protocol-support-data))}
-
-    ))
+                 :seeder (make-seeder (:seed-data protocol-support-data))}))
 
 (def bad-test-server
   (core/make-untangled-test-server
@@ -100,5 +100,10 @@
       (ps/check-response-to-client bad-test-server bad-protocol-support-data)
       =throws=> (AssertionError #"seed data tempids must have no overlap")))
   (behavior "test server response w/ mutate protocol data"
-    (ps/check-response-to-client mutate-test-server mutate-protocol-support-data)))
-
+    (ps/check-response-to-client mutate-test-server mutate-protocol-support-data
+                                 :on-success (fn [env resp]
+                                               (assertions
+                                                 (keys env) => [:db]
+                                                 "seed data is put inside each database"
+                                                 (keys (:seed-result (udb/get-info (:db env))))
+                                                 => [:datomic.id/cthulhu])))))

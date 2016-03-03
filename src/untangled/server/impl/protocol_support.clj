@@ -1,8 +1,10 @@
 (ns untangled.server.impl.protocol-support
   (:require
     [clojure.walk :as walk]
+    [clojure.set :as set]
     [untangled-spec.core :refer [specification behavior provided component assertions]]
-    [untangled.server.impl.components.handler :as h]))
+    [untangled.server.impl.components.handler :as h]
+    [om.tempid :as omt]))
 
 (defn set-namespace [kw new-ns]
   (keyword new-ns (name kw)))
@@ -42,6 +44,14 @@
                   (get tid->rid % %) %)
     state))
 
+(defn uuid [] (str (java.util.UUID/randomUUID)))
+
+(defn rewrite-om-tempids [server-tx]
+  (let [om-tempids (collect-om-tempids server-tx)
+        fake-omt->real-omt (into {} (map #(vector % (omt/tempid (uuid))) om-tempids))]
+    [(rewrite-tempids server-tx fake-omt->real-omt om-tempid?)
+     (set/map-invert fake-omt->real-omt)]))
+
 (defn extract-tempids
   "returns a tuple where the second element is a set of all the mutation tempids
    and the first is stuff without the :tempids k-v pair in the mutation values"
@@ -57,8 +67,3 @@
              [k v]))
          stuff))
      @tempids]))
-
-(defn map-keys [f m]
-  (into {}
-    (for [[k v] m]
-      [(f k) v])))
