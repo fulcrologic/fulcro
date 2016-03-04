@@ -242,6 +242,20 @@
       {:items [{:id 0 :image "img1" :text impl/nf}
                {:id 1 :image impl/nf :text "text1"}]}))
 
+  (behavior "if the query has a ui.*/ attribute, it should not be marked as missing"
+    (are [query ?missing-result exp]
+      (= exp (impl/mark-missing ?missing-result query))
+
+      [:a :ui/b :c]
+      {:a {}
+       :c {}}
+      {:a {}
+       :c {}}
+
+      [{:j [:ui/b :c]}]
+      {:j {:c 5}}
+      {:j {:c 5}}))
+
   (behavior "mutations!"
     (are [query ?missing-result exp]
       (= exp (impl/mark-missing ?missing-result query))
@@ -259,4 +273,3 @@
       {'app/add-q {:tempids {}}
        :j1        {:p1 impl/nf}
        :j2        [{:p2 2} {:p2 impl/nf}]})))
-

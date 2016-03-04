@@ -144,6 +144,9 @@
                     (mapv #(mark-missing % (union->query (get q query-key))) <>)
                     (assoc res+nf query-key <>))
 
+                  ;; ui.*/ fragment's are ignored
+                  (is-ui-query-fragment? q) res
+
                   ;; recur
                   (and ?sub-query (not= nf sub-result))
                   (as-> sub-result <>
@@ -163,4 +166,3 @@
       #(if (map? %)
         (into {} (map clean %)) %)
       result)))
-
