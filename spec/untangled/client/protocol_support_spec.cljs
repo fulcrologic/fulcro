@@ -1,8 +1,7 @@
 (ns untangled.client.protocol-support-spec
   (:require
     [untangled-spec.core :refer-macros [specification behavior provided component assertions]]
-    [untangled.client.protocol-support :as ps
-     :refer-macros [with-methods]]
+    [untangled.client.protocol-support :as ps :refer-macros [with-methods]]
     [untangled.client.mutations :as mut]))
 
 (specification "Client Protocol Testing"

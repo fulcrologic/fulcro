@@ -7,35 +7,18 @@
     [untangled.client.mutations :as m]
     [yahoo.intl-messageformat-with-locales]
     [untangled.i18n :refer-macros [tr trf]]
-    [untangled.client.impl.network :as net])
-  (:import goog.Uri))
-
-(defn get-url
-  [] (-> js/window .-location .-href))
-
-(defn uri-params
-  ([] (uri-params (get-url)))
-  ([url]
-   (let [query-data (.getQueryData (goog.Uri. url))]
-     (into {}
-       (for [k (.getKeys query-data)]
-         [k (.get query-data k)])))))
-
-(defn get-url-param
-  ([param-name] (get-url-param (get-url) param-name))
-  ([url param-name]
-   (get (uri-params url) param-name)))
+    [untangled.client.impl.network :as net]))
 
 (defui ^:once SupportViewerRoot
   static om/IQuery
-  (query [this] [:react-key :current-position :client-time :frames :position :comments])
+  (query [this] [:ui/react-key :current-position :client-time :frames :position :comments])
   Object
   (render [this]
-    (let [{:keys [react-key current-position client-time frames position comments] :or {react-key "ROOT"}} (om/props this)]
+    (let [{:keys [ui/react-key current-position client-time frames position comments] :or {ui/react-key "ROOT"}} (om/props this)]
       (dom/div #js {:key react-key :className (str "history-controls " (name position))}
-        (dom/button #js {:onClick #(om/transact! this '[(support-viewer/toggle-position)])} (tr "<===>"))
-        (dom/button #js {:onClick #(om/transact! this '[(support-viewer/step-back)])} (tr "<Back"))
-        (dom/button #js {:onClick #(om/transact! this '[(support-viewer/step-forward)])} (tr "Forward>"))
+        (dom/button #js {:class "toggle-position" :onClick #(om/transact! this '[(support-viewer/toggle-position)])} (tr "<= Reposition =>"))
+        (dom/button #js {:class "history-back" :onClick #(om/transact! this '[(support-viewer/step-back)])} (tr "Back"))
+        (dom/button #js {:class "history-forward" :onClick #(om/transact! this '[(support-viewer/step-forward)])} (tr "Forward"))
         (dom/hr nil)
         (dom/span #js {:className "frame"} (trf "Frame {f,number} of {end,number} " :f (inc current-position) :end frames))
         (dom/span #js {:className "timestamp"} (trf "{ts,date,short} {ts,time,long}" :ts client-time))
@@ -95,7 +78,7 @@
                                                                                  (assoc :frames frames)
                                                                                  (assoc :history history)
                                                                                  (assoc :current-position last-idx))))))
-                                                             :params {:id (get-url-param "id")}))))})]
+                                                             :params {:id (core/get-url-param "id")}))))})]
     (core/mount viewer SupportViewerRoot support-dom-id)))
 
 (defn history-step [state delta-fn]

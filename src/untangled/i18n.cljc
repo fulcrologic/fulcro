@@ -11,46 +11,27 @@
            (fn [msg]
              (let [msg-key (str "|" msg)
                    translations (translations-for-locale)
-                   translation (get translations msg-key)]
-               (cond
-                 (= (current-locale) "en-US") msg
-                 (empty? translation) msg
-                 :else translation)
-               ))
-           ))
+                   translation (get translations msg-key msg)]
+               translation))))
 
-#?(:cljs (set! js/trc (fn [ctxt msg] msg)))
+#?(:cljs (set! js/trc
+           (fn [ctxt msg]
+             (let [msg-key (str ctxt "|" msg)
+                   translations (translations-for-locale)
+                   translation (get translations msg-key msg)]
+               translation))))
+
 #?(:cljs
    (set! js/trf
      (fn [fmt & {:keys [] :as argmap}]
        (try
-         (let [formatter (js/IntlMessageFormat. fmt (current-locale))]
+         (let [msg-key (str "|" fmt)
+               translations (translations-for-locale)
+               translation (get translations msg-key fmt)
+               formatter (js/IntlMessageFormat. translation (current-locale))]
            (.format formatter (clj->js argmap)))
          (catch :default e (log/error "Failed to format " fmt " args: " argmap " exception: " e)
                            "???")))))
-
-#?(:cljs (defn format-date
-           "Format a date with an optional style. The default style is :short.
-
-           Style can be one of:
-
-           - :short E.g. 3/4/2015
-           - :medium E.g. Mar 4, 2015
-           - :long E.g. March 4, 2015
-           "
-           ([date style] (.toLocaleDateString date))
-           ([date] (.toLocaleDateString date))
-           ))
-#?(:cljs (defn format-number
-           "Format a number with locale-specific separators (grouping digits, and correct marker for decimal point)"
-           [number] number))
-#?(:cljs (defn format-currency
-           "Format a number as a currency (dropping digits that are insignificant in the current currency.)"
-           [number] (.toPrecision number 2)))
-#?(:cljs (defn format-rounded-currency
-           "Round and format a number as a currency, according to the current currency's rules."
-           [number] (.toPrecision (/ (.round (* 100 number)) 100.0) 2)))
-
 
 #?(:clj (defmacro tr
           "Translate the given literal string. The argument MUST be a literal string so that it can be properly extracted

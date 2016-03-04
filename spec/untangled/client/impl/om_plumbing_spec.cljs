@@ -23,7 +23,7 @@
 
     (assertions
       "read the app locale"
-      (parser [:app/locale]) => {:app/locale "en-US"}
+      (parser [:ui/locale]) => {:ui/locale "en-US"}
 
       "read top-level properties"
       (parser [:top-level]) => {:top-level :top-level-value}

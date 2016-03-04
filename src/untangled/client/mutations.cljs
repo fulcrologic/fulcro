@@ -73,10 +73,10 @@
 (defmethod mutate 'app/clear-error [{:keys [state]} _ _]
   {:action #(swap! state assoc :last-error nil)})
 
-(defmethod mutate 'app/change-locale [{:keys [state]} _ {:keys [lang]}]
+(defmethod mutate 'ui/change-locale [{:keys [state]} _ {:keys [lang]}]
   {:action (fn []
              (reset! i18n/*current-locale* lang)
-             (swap! state assoc :react-key (unique-key)))})
+             (swap! state assoc :ui/react-key (unique-key)))})
 
 (defmethod mutate 'tx/fallback [env _ {:keys [action execute] :as params}]
   (if execute
