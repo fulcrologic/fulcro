@@ -28,12 +28,10 @@
   :jvm-opts ["-server" "-Xmx1024m" "-Xms512m" "-XX:-OmitStackTraceInFastThrow"]
 
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
+                 :with-repl    true
                  :changes-only true}
 
   :test-selectors {:focused :focused}
 
-  :profiles
-  {
-   :dev {
-         :source-paths ["env/dev"]
-         :repl-options {:init-ns user}}})
+  :profiles {:dev {:source-paths ["env/dev"]
+                   :repl-options {:init-ns user}}})

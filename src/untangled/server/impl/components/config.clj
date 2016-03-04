@@ -33,11 +33,11 @@
    and throws an ex-info if that failed."
   [file-path]
   (or (some-> file-path load-edn)
-      (throw (ex-info "please provide a valid file on your file-system"
+      (throw (ex-info (str "Invalid config file at '" file-path "'")
                       {:file-path file-path}))))
 
-(def  get-defaults open-config-file)
-(def  get-config   open-config-file)
+(def get-defaults open-config-file)
+(def get-config   open-config-file)
 
 (defn- resolve-symbol [sym]
   {:pre  [(namespace sym)]
