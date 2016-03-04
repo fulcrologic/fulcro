@@ -51,7 +51,6 @@
                               :else [edn content-type])
           post-data (ct/write (t/writer) request)
           headers (clj->js headers)]
-      (js/console.log this)
       (reset! error-callback (fn [e] (err e)))
       (reset! valid-data-callback (fn [resp] (ok resp)))
       (.send xhr-io url "POST" post-data headers))))

@@ -12,23 +12,23 @@
 ;;; SETUP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defui Person
+(defui ^:once Person
   static om/IQuery (query [_] [:db/id :username :name])
   static om/Ident (ident [_ props] [:person/id (:db/id props)]))
 
-(defui Comment
+(defui ^:once Comment
   static om/IQuery (query [this] [:db/id :title {:author (om/get-query Person)}])
   static om/Ident (ident [this props] [:comments/id (:db/id props)]))
 
-(defui Item
+(defui ^:once Item
   static om/IQuery (query [this] [:db/id :name {:comments (om/get-query Comment)}])
   static om/Ident (ident [this props] [:items/id (:db/id props)]))
 
-(defui Panel
+(defui ^:once Panel
   static om/IQuery (query [this] [:db/id {:items (om/get-query Item)}])
   static om/Ident (ident [this props] [:panel/id (:db/id props)]))
 
-(defui PanelRoot
+(defui ^:once PanelRoot
   static om/IQuery (query [this] [{:panel (om/get-query Panel)}]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -108,6 +108,18 @@
           :without #{:excluded-attr}
           :params {:sort :by-name}
           :callback (fn [] "foo")))))
+  (component "Loading a field from within another mutation"
+    (let [app-state (atom {})]
+      (df/load-field-action app-state Item [:item/by-id 3] :comments :without #{:author})
+
+      (let [marker (first (get-in @app-state [::om/ready-to-load]))]
+        (assertions
+          "places a ready marker in the app state"
+          marker =fn=> (fn [marker] (df/ready? marker))
+          "includes the focused query"
+          (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]
+
+          ))))
 
   (behavior "Loading data for the app in general"
     (provided "when requesting data for a specific ident"
@@ -137,7 +149,18 @@
                                  (behavior "directly uses the query."
                                    (is (= [{:items (om/get-query Item)}] (:query params)))))
 
-        (df/load-collection 'reconciler [{:items (om/get-query Item)}])))))
+        (df/load-collection 'reconciler [{:items (om/get-query Item)}]))))
+  (component "Loading a collection/singleton from within another mutation"
+    (let [app-state (atom {})]
+
+      (df/load-data-action app-state (om/get-query PanelRoot) :without #{:items})
+
+      (let [marker (first (get-in @app-state [::om/ready-to-load]))]
+        (assertions
+          "places a ready marker in the app state"
+          marker =fn=> (fn [marker] (df/ready? marker))
+          "includes the focused query"
+          (dfi/data-query marker) => [{:panel [:db/id]}])))))
 
 (specification "full-query"
   (let [item-ready-markers [(dfi/ready-state :ident [:db/id 1] :field :author :query [{:author [:name]}])
