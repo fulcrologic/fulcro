@@ -18,7 +18,9 @@
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
   :source-paths ["src" "spec"]
   :test-paths ["spec"]
-  :test-refresh {:report untangled-spec.reporters.terminal/untangled-report}
+  :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
+                 :changes-only true
+                 :with-repl true}
   :resource-paths ["src" "resources"]
 
   :plugins [[lein-cljsbuild "1.1.2"]
@@ -47,20 +49,15 @@
                                :asset-path    "js/out"
                                :optimizations :none}}]}
 
-  :profiles {
-             :dev {
-                   :source-paths ["src" "test" "dev"]
-                   :repl-options {
-                                  :init-ns          clj.user
-                                  :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]
-                                  :port             7001
-                                  }
+  :profiles {:dev {:source-paths ["src" "test" "dev"]
+                   :repl-options {:init-ns          clj.user
+                                  :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :env          {:dev true}
                    :dependencies [[figwheel-sidecar "0.5.0-3"]
                                   [binaryage/devtools "0.5.2"]
                                   [com.cemerick/piggieback "0.2.1"]
+                                  [org.clojure/tools.namespace "0.2.11"]
                                   [org.clojure/tools.nrepl "0.2.12"]]}}
 
-  :figwheel {
-             :server-port 3450
+  :figwheel {:server-port 3450
              :css-dirs    ["resources/public/css"]})
