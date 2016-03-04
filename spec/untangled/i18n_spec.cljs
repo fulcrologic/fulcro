@@ -68,7 +68,8 @@
   (assertions
     "formats dates - Mexico"
     (trf "{a, date, long}" :a (js/Date. 1990 3 1 13 45 22 0)) => "1 de abril de 1990"
-    (trf "{a, date, medium}" :a (js/Date. 1990 3 1 13 45 22 0)) => "1 de abr de 1990"
+    "Medium dates (browsers do different things here, so test is more generic)"
+    (trf "{a, date, medium}" :a (js/Date. 1990 3 1 13 45 22 0)) =fn=> (fn [s] (re-matches #"^1 .*abr.*" s))
     (trf "{a, date, short}" :a (js/Date. 1990 3 1 13 45 22 0)) => "1/4/90")
   (behavior "formats plurals - Spanish"
     (are [n msg] (= msg (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n n))
