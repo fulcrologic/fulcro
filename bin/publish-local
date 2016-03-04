@@ -1,3 +1,0 @@
-lein jar
-lein pom
-lein localrepo install -p pom.xml target/untangled-server-0.4.4-SNAPSHOT.jar navis/untangled-server 0.4.4-SNAPSHOT
