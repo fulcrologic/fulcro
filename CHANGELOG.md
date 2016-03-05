@@ -6,4 +6,5 @@
 - Implemented a number of missing things in i18n
 - Removed a number of i18n helpers that were redundant to trf
 - Added :request-transform networking hook with spec
+- Modified load callback to a mutation symbol
 

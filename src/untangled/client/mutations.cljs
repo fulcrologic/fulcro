@@ -57,7 +57,9 @@
 
 (defmethod post-mutate :default [env k p] nil)
 
-(defmethod mutate 'app/load [{:keys [state]} _ {:keys [root field query params without callback ident]}]
+(defmethod mutate 'app/load [{:keys [state]} _ {:keys [root field query params without post-mutation ident callback]}]
+  (when callback (log/error "Callback no longer supported. Use post-mutation instead."))
+  (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
   {:remote true
    :action (fn []
              (df/mark-ready
@@ -68,7 +70,13 @@
                :query query
                :params params
                :without without
-               :callback callback))})
+               :post-mutation post-mutation))})
+
+(defmethod mutate 'post-initial-load [{:keys [state]} k p]
+  {:action #(swap! state (fn [s]
+                          (-> s
+                            (assoc-in [:main :singleton :data-items] (:data-items s))
+                            (dissoc :data-items))))})
 
 (defmethod mutate 'app/clear-error [{:keys [state]} _ _]
   {:action #(swap! state assoc :last-error nil)})
