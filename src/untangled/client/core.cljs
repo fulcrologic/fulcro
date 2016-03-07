@@ -2,6 +2,7 @@
   (:require
     [om.next :as om]
     [untangled.client.impl.application :as app]
+    untangled.client.impl.built-in-mutations ; DO NOT REMOVE. Ensures built-in mutations load on start
     [untangled.client.impl.network :as net]
     [untangled.client.logging :as log]
     [untangled.dom :as udom])
