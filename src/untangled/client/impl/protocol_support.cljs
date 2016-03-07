@@ -1,6 +1,7 @@
 (ns untangled.client.impl.protocol-support
   (:require
     [untangled-spec.core :refer-macros [assertions behavior]]
+    [cljs.test :refer-macros [is]]
     [om.next :as om :refer-macros [defui]]
     [om.dom :as dom]
     [untangled.client.core :as core]))
@@ -28,11 +29,12 @@
       (let [behavior-string (:cps/behavior value)
             value (or (:cps/value value) value)]
         (behavior behavior-string
-          (assertions
-            (get-in new-state key-path) => value))))))
+          (if (instance? js/RegExp value)
+            (is (re-matches value (get-in new-state key-path)))
+            (is (= value (get-in new-state key-path)))))))))
 
 (defn with-behavior [behavior-string value]
-  {:cps/value value
+  {:cps/value    value
    :cps/behavior behavior-string})
 
 (defn allocate-tempids [tx]
