@@ -6,7 +6,8 @@
     [om.next :as om :refer-macros [defui]]
     [cljs.test :refer-macros [is are]]
     [untangled-spec.core :refer-macros
-     [specification behavior assertions provided component when-mocking]]))
+     [specification behavior assertions provided component when-mocking]]
+    [untangled.client.mutations :as m]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -100,14 +101,13 @@
                                     (behavior "includes the subquery exclusions."
                                       (is (= #{:excluded-attr} (:without params))))
                                     (behavior "includes the post-processing callback."
-                                      (let [cb (:callback params)]
-                                        (is (fn? cb))
-                                        (is (= "foo" (cb))))))
+                                      (let [cb (:post-mutation params)]
+                                        (is (= 'foo cb)))))
 
         (df/load-field 'component :comments
           :without #{:excluded-attr}
           :params {:sort :by-name}
-          :callback (fn [] "foo")))))
+          :post-mutation 'foo))))
   (component "Loading a field from within another mutation"
     (let [app-state (atom {})]
       (df/load-field-action app-state Item [:item/by-id 3] :comments :without #{:author})
@@ -129,9 +129,8 @@
                                (behavior "includes params."
                                  (is (= :params (:params params))))
                                (behavior "includes post-processing callback."
-                                 (let [cb (:callback params)]
-                                   (is (fn? cb))
-                                   (is (= "foo" (cb)))))
+                                 (let [cb (:post-mutation params)]
+                                   (is (= 'bar cb))))
                                (behavior "includes the ident in the data state."
                                  (is (= [:item/id 99] (:ident params))))
                                (behavior "includes the query joined to the ident."
@@ -141,7 +140,7 @@
         :ident [:item/id 99]
         :params :params
         :without :without
-        :callback (fn [] "foo")))
+        :post-mutation 'bar))
 
     (component "when requesting data for a collection"
       (when-mocking
@@ -172,7 +171,9 @@
     (behavior "composes top-level queries"
       (is (= [{:questions [:db/id :name]} {:answers [:db/id :name]}] (dfi/full-query top-level-markers))))))
 
-(defn post-process-fn [data] data)
+(defn mark-loading-mutate [])
+
+(defmethod m/mutate 'mark-loading-test/callback [e k p] {:action #(mark-loading-mutate)})
 
 (specification "mark-loading"
   (let [state-tree {:panel {:db/id 1
@@ -192,10 +193,10 @@
                             :mock-4 [:items/id 4])
       (om/transact! c tx) => (let [params (apply concat (-> tx first second (assoc :state state)))]
                                (apply dfi/mark-ready params))
-      (post-process-fn s) => (behavior "calls post processing function (requiring reconciler app state)."
-                               (is (instance? cljs.core/Atom s)))
+      
+      (mark-loading-mutate) => :check-that-invoked
 
-      (let [_ (df/load-field :mock-2 :comments :callback post-process-fn) ; place ready markers in state
+      (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
             _ (df/load-field :mock-3 :comments)
             _ (df/load-field :mock-4 :comments)             ; TODO: we should be able to select :on-missing behavior
             {:keys [query on-load on-error]} (df/mark-loading reconciler) ; transition to loading
