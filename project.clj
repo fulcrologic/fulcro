@@ -17,6 +17,7 @@
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
 
+  :source-paths ["src"]
   :resource-paths ["resources"]
 
   :plugins [[lein-cljsbuild "1.1.2"]
