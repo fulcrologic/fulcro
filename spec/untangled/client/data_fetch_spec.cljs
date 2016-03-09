@@ -197,7 +197,7 @@
       (mark-loading-mutate) => :check-that-invoked
 
       (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
-            _ (df/load-field :mock-3 :comments)
+            _ (df/load-field :mock-3 :comments :params {:comments {:max-length 20}} )
             _ (df/load-field :mock-4 :comments)             ; TODO: we should be able to select :on-missing behavior
             {:keys [query on-load on-error]} (df/mark-loading reconciler) ; transition to loading
             loading-state @state
@@ -206,7 +206,7 @@
             good-response {[:items/id 3] {:comments comments-3}
                            [:items/id 2] {:comments comments-2}}
             item-4-expr {[:items/id 4] [{:comments comment-query}]}
-            item-3-expr {[:items/id 3] [{:comments comment-query}]}
+            item-3-expr `{[:items/id 3] [({:comments ~comment-query} {:max-length 20})]}
             item-2-expr {[:items/id 2] [{:comments comment-query}]}
             normalized-response {[:items/id 3]   {:comments [[:comments/id 8] [:comments/id 9]]},
                                  [:items/id 2]   {:comments [[:comments/id 5] [:comments/id 6]]},
@@ -227,7 +227,7 @@
             (is (:app/loading-data @state))))
 
         (component "generated query"
-          (behavior "composes together all of the item queries"
+          (behavior "composes together all of the item queries, with desired parameters"
             (is (= [item-4-expr item-3-expr item-2-expr] query)))
 
           (behavior "has metadata for proper normalization of a response"
