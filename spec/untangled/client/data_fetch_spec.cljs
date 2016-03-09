@@ -79,7 +79,7 @@
       (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
 
   (behavior "can include parameters when eliding top-level keys from the query"
-    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:x 1})]
+    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:db/id {:x 1}})]
       (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state))))))
 
 (specification "Lazy loading"
@@ -193,7 +193,7 @@
                             :mock-4 [:items/id 4])
       (om/transact! c tx) => (let [params (apply concat (-> tx first second (assoc :state state)))]
                                (apply dfi/mark-ready params))
-      
+
       (mark-loading-mutate) => :check-that-invoked
 
       (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
@@ -278,6 +278,21 @@
 
       (behavior "that returns false when a given data state is not in the fetch state set."
         (is (not (predicate (dfi/make-data-state :loading))))))))
+
+(specification "The inject-query-params function"
+  (let [prop-ast (om/query->ast [:a :b :c])
+        prop-params {:a {:x 1} :c {:y 2}}
+        join-ast (om/query->ast [:a {:things [:name]}])
+        join-params {:things {:start 1}}
+        existing-params-ast (om/query->ast '[(:a {:x 1})])
+        existing-params-overwrite {:a {:x 2}}]
+    (assertions
+      "can add parameters to a top-level query property"
+      (om/ast->query (dfi/inject-query-params prop-ast prop-params)) => '[(:a {:x 1}) :b (:c {:y 2})]
+      "can add parameters to a top-level join property"
+      (om/ast->query (dfi/inject-query-params join-ast join-params)) => '[:a ({:things [:name]} {:start 1})]
+      "merges new parameters over existing ones"
+      (om/ast->query (dfi/inject-query-params existing-params-ast existing-params-overwrite)) => '[(:a {:x 2})])))
 
 (specification "set-global-loading"
   (let [loading-state {:app/loading-data true

@@ -73,6 +73,27 @@
   (when-not (contains? elision-set key)
     (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-set) c))))))
 
+(defn inject-query-params
+  "Inject parameters into elements of the top-level query.
+
+  `params` is a map from keyword (on the query in the AST) to parameter maps. So, given the AST for this query:
+
+  ```
+  [:a :b :c]
+  ```
+
+  and a `params` of `{:a {:x 1} :c {:y 2}}` you'll get an AST representing:
+
+  ```
+  [(:a {:x 1}) :b (:c {:y 2})]
+  ```
+  "
+  [ast params]
+  (update-in ast [:children] #(map (fn [c] (if-let [new-params (get params (:dispatch-key c))]
+                                             (update c :params merge new-params)
+                                             c)) %)))
+
+
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
@@ -82,7 +103,7 @@
   (let [old-ast (om/query->ast query)
         ast (cond-> old-ast
               (not-empty without) (elide-ast-nodes without)
-              params (update-in [:children 0 :params] (fn [_] params)))
+              params (inject-query-params params))
         query-field (first query)
         key (if (om/join? query-field) (om/join-key query-field) query-field)
         query' (om/ast->query ast)]

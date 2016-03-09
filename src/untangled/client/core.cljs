@@ -2,7 +2,7 @@
   (:require
     [om.next :as om]
     [untangled.client.impl.application :as app]
-    untangled.client.impl.built-in-mutations ; DO NOT REMOVE. Ensures built-in mutations load on start
+    untangled.client.impl.built-in-mutations                ; DO NOT REMOVE. Ensures built-in mutations load on start
     [untangled.client.impl.network :as net]
     [untangled.client.logging :as log]
     [untangled.dom :as udom])
@@ -43,7 +43,8 @@
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")
-  (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work."))
+  (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work.")
+  (history [this] "Return a serialized version of the current history of the application, suitable for network transfer"))
 
 (defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted?]
   UntangledApplication
@@ -53,6 +54,13 @@
       (app/initialize this initial-state root-component dom-id-or-node)))
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
+
+  (history [this]
+    (let [history-steps (-> reconciler :config :history .-arr)
+          history-map (-> reconciler :config :history .-index deref)]
+      {:steps   history-steps
+       :history (into {} (map (fn [[k v]]
+                                [k (assoc v :untangled/meta (meta v))]) history-map))}))
 
   (refresh [this]
     (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
