@@ -28,8 +28,8 @@
       (om/merge! reconciler {:app/loading-data true})
       (doseq [item items-to-load]
         (swap! state assoc-in
-               (data-path item)
-               {:ui/fetch-state (set-loading! item)}))
+          (data-path item)
+          {:ui/fetch-state (set-loading! item)}))
       (swap! state assoc :om.next/ready-to-load [])
       (om/force-root-render! reconciler)
       {:query    (full-query items-to-load)
@@ -76,12 +76,13 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field without query post-mutation] :or {:without #{}}}]
+  [& {:keys [ident field params without query post-mutation] :or {:without #{}}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (om/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
         ast (cond-> old-ast
-                    (not-empty without) (elide-ast-nodes without))
+              (not-empty without) (elide-ast-nodes without)
+              params (update-in [:children 0 :params] (fn [_] params)))
         query-field (first query)
         key (if (om/join? query-field) (om/join-key query-field) query-field)
         query' (om/ast->query ast)]
@@ -97,14 +98,15 @@
   a mutate function that is abstractly loading something. This is intended for internal use.
 
   See `load-field` for public API."
-  [& {:keys [state query ident field without post-mutation] :or {:without #{}}}]
+  [& {:keys [state query ident field without params post-mutation] :or {:without #{}}}]
   (swap! state update :om.next/ready-to-load conj
-         (ready-state
-           :ident ident
-           :field field
-           :without without
-           :query query
-           :post-mutation post-mutation)))
+    (ready-state
+      :ident ident
+      :field field
+      :params params
+      :without without
+      :query query
+      :post-mutation post-mutation)))
 
 ;; TODO: Rename "getters"
 (defn data-ident [state] (::ident state))
@@ -124,6 +126,7 @@
 (defn data-path [state] (if (and (nil? (data-ident state)) (nil? (data-field state)))
                           [(data-query-key state)]
                           (conj (data-ident state) (data-field state))))
+(defn data-params [state] (::params state))
 
 (defn data-exclusions [state] (::without state))
 
@@ -173,7 +176,7 @@
                (:app/loading-data @reconciler) nil          ;short-circuit traversal if app/loading-data already true
                (loading? value) (do (om/merge! reconciler {:app/loading-data true}) value)
                :else value))
-           @reconciler))
+    @reconciler))
 
 (defn- loaded-callback [reconciler items]
   (fn [response]
