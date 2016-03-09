@@ -297,3 +297,16 @@
       (dfi/set-global-loading not-loading-reconciler)
 
       (is (= (assoc not-loading-state :app/loading-data false) @not-loading-reconciler)))))
+
+(specification "The swap-data-states function"
+  (let [state {:foo  {:bar (dfi/make-data-state :ready)}
+               :baz  {:ui/fetch-state (dfi/make-data-state :loading {:foo :bar})}
+               :some {:other {:ui/fetch-state nil}}}]
+
+    (assertions
+      "replaces states of a certain type with a new type, removes any nil :ui/fetch-states"
+      (dfi/swap-data-states state df/loading? dfi/set-failed!)
+      =>
+      (-> state
+        (assoc-in [:baz :ui/fetch-state] (dfi/make-data-state :failed nil))
+        (assoc-in [:some :other] nil)))))

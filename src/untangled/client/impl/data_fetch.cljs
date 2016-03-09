@@ -154,7 +154,9 @@
    (swap-data-states state from-state-pred to-state-fn nil))
 
   ([state from-state-pred to-state-fn params]
-   (prewalk #(if (from-state-pred %) (to-state-fn % params) %) state)))
+   (->> state
+     (prewalk #(if (from-state-pred %) (to-state-fn % params) %))
+     (prewalk #(when-not (= % {:ui/fetch-state nil}) %)))))
 
 (defn full-query
   "Compose together a sequence of states into a single query."
