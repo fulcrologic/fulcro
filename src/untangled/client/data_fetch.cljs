@@ -14,15 +14,13 @@
   - `component`: The component
   - `field`: A field on the current component's query that you wish to load
   - `without`: Named parameter for excluding child keys from the query (e.g. for recursive queries or additional laziness)
-  - `params`: Named parameter for adding params to the query sent to the server for this field.
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
   "
-  [component field & {:keys [without params post-mutation]}]
+  [component field & {:keys [without post-mutation]}]
   (om/transact! component [(list 'app/load
                              {:ident    (om/get-ident component)
                               :field    field
                               :query    (om/focus-query (om/get-query component) [field])
-                              :params   params
                               :without  without
                               :post-mutation post-mutation})]))
 
@@ -35,14 +33,13 @@
   - Named parameter `ident`: An ident, used if loading a singleton and you wish to specify 'which one'.
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
 
-  Named parameters `:without` and `:params` are as in `load-field`.
+  Named parameters `:without` is as in `load-field`.
   "
-  [comp-or-reconciler query & {:keys [ident without params post-mutation]}]
+  [comp-or-reconciler query & {:keys [ident without  post-mutation]}]
   (let []
     (om/transact! comp-or-reconciler [(list 'app/load
                                         {:ident    ident
                                          :query    query
-                                         :params   params
                                          :without  without
                                          :post-mutation post-mutation})])))
 
@@ -59,13 +56,12 @@
     :action (fn []
        (load-field-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state component-class ident field & {:keys [without params post-mutation]}]
+  [app-state component-class ident field & {:keys [without post-mutation]}]
   (impl/mark-ready
     :state app-state
     :field field
     :ident ident
     :query (om/focus-query (om/get-query component-class) [field])
-    :params params
     :without without
     :post-mutation post-mutation))
 
@@ -80,12 +76,11 @@
     :action (fn []
        (load-data-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state query & {:keys [ident without params post-mutation]}]
+  [app-state query & {:keys [ident without post-mutation]}]
   (impl/mark-ready
     :state app-state
     :ident ident
     :query query
-    :params params
     :without without
     :post-mutation post-mutation))
 

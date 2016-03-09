@@ -7,5 +7,5 @@
 - Removed a number of i18n helpers that were redundant to trf
 - Added :request-transform networking hook with spec
 - Modified load callback to a mutation symbol
-- Moved 
+- Removed support for params in data-fetch load routines. Use Om query parameters instead.
 

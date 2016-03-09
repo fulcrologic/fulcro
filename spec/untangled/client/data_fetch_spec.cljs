@@ -76,11 +76,7 @@
 
   (behavior "can elide top-level keys from the query"
     (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name})]
-      (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
-
-  (behavior "can include parameters when eliding top-level keys from the query"
-    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:x 1})]
-      (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state))))))
+      (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state))))))
 
 (specification "Lazy loading"
   (component "Loading a field within a component"
@@ -96,11 +92,9 @@
                                     (behavior "focuses the query to the specified field."
                                       (is (= [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
                                             (:query params))))
-                                    (behavior "includes the parameters."
-                                      (is (= {:sort :by-name} (:params params))))
                                     (behavior "includes the subquery exclusions."
                                       (is (= #{:excluded-attr} (:without params))))
-                                    (behavior "includes the post-processing callback."
+                                    (behavior "includes the post-processing mutation."
                                       (let [cb (:post-mutation params)]
                                         (is (= 'foo cb)))))
 
@@ -126,9 +120,7 @@
       (om/transact! c tx) => (let [params (-> tx first second)]
                                (behavior "includes without."
                                  (is (= :without (:without params))))
-                               (behavior "includes params."
-                                 (is (= :params (:params params))))
-                               (behavior "includes post-processing callback."
+                               (behavior "includes post-processing mutation."
                                  (let [cb (:post-mutation params)]
                                    (is (= 'bar cb))))
                                (behavior "includes the ident in the data state."
@@ -193,7 +185,7 @@
                             :mock-4 [:items/id 4])
       (om/transact! c tx) => (let [params (apply concat (-> tx first second (assoc :state state)))]
                                (apply dfi/mark-ready params))
-      
+
       (mark-loading-mutate) => :check-that-invoked
 
       (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
