@@ -3,11 +3,13 @@
     [untangled.client.data-fetch :as df]
     [untangled.client.impl.data-fetch :as dfi]
     [untangled.client.impl.util :as util]
+    [goog.log :as glog]
     [om.next :as om :refer-macros [defui]]
     [cljs.test :refer-macros [is are]]
     [untangled-spec.core :refer-macros
      [specification behavior assertions provided component when-mocking]]
-    [untangled.client.mutations :as m]))
+    [untangled.client.mutations :as m]
+    [untangled.client.logging :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -79,7 +81,7 @@
       (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
 
   (behavior "can include parameters when eliding top-level keys from the query"
-    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:x 1})]
+    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:db/id {:x 1}})]
       (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state))))))
 
 (specification "Lazy loading"
@@ -193,11 +195,11 @@
                             :mock-4 [:items/id 4])
       (om/transact! c tx) => (let [params (apply concat (-> tx first second (assoc :state state)))]
                                (apply dfi/mark-ready params))
-      
+
       (mark-loading-mutate) => :check-that-invoked
 
       (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
-            _ (df/load-field :mock-3 :comments)
+            _ (df/load-field :mock-3 :comments :params {:comments {:max-length 20}})
             _ (df/load-field :mock-4 :comments)             ; TODO: we should be able to select :on-missing behavior
             {:keys [query on-load on-error]} (df/mark-loading reconciler) ; transition to loading
             loading-state @state
@@ -206,7 +208,7 @@
             good-response {[:items/id 3] {:comments comments-3}
                            [:items/id 2] {:comments comments-2}}
             item-4-expr {[:items/id 4] [{:comments comment-query}]}
-            item-3-expr {[:items/id 3] [{:comments comment-query}]}
+            item-3-expr `{[:items/id 3] [({:comments ~comment-query} {:max-length 20})]}
             item-2-expr {[:items/id 2] [{:comments comment-query}]}
             normalized-response {[:items/id 3]   {:comments [[:comments/id 8] [:comments/id 9]]},
                                  [:items/id 2]   {:comments [[:comments/id 5] [:comments/id 6]]},
@@ -227,7 +229,7 @@
             (is (:app/loading-data @state))))
 
         (component "generated query"
-          (behavior "composes together all of the item queries"
+          (behavior "composes together all of the item queries, with desired parameters"
             (is (= [item-4-expr item-3-expr item-2-expr] query)))
 
           (behavior "has metadata for proper normalization of a response"
@@ -278,6 +280,29 @@
 
       (behavior "that returns false when a given data state is not in the fetch state set."
         (is (not (predicate (dfi/make-data-state :loading))))))))
+
+(specification "The inject-query-params function"
+  (let [prop-ast (om/query->ast [:a :b :c])
+        prop-params {:a {:x 1} :c {:y 2}}
+        join-ast (om/query->ast [:a {:things [:name]}])
+        join-params {:things {:start 1}}
+        existing-params-ast (om/query->ast '[(:a {:x 1})])
+        existing-params-overwrite {:a {:x 2}}]
+    (assertions
+      "can add parameters to a top-level query property"
+      (om/ast->query (dfi/inject-query-params prop-ast prop-params)) => '[(:a {:x 1}) :b (:c {:y 2})]
+      "can add parameters to a top-level join property"
+      (om/ast->query (dfi/inject-query-params join-ast join-params)) => '[:a ({:things [:name]} {:start 1})]
+      "merges new parameters over existing ones"
+      (om/ast->query (dfi/inject-query-params existing-params-ast existing-params-overwrite)) => '[(:a {:x 2})])
+    (behavior "Warns about parameters that cannot be joined to the query"
+      (let [ast (om/query->ast [:a :b])
+            params {:c {:x 1}}]
+        (when-mocking
+          (glog/error obj msg) => (is (= "Error: You attempted to add parameters for #{:c} to top-level key(s) of [:a :b]" msg))
+
+          (dfi/inject-query-params ast params)
+          )))))
 
 (specification "set-global-loading"
   (let [loading-state {:app/loading-data true
