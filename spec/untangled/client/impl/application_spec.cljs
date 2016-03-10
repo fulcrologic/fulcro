@@ -30,7 +30,8 @@
         state {:things [{:id 1 :name "A"} {:id 2 :name "B"}]}
         callback (fn [app] (reset! startup-called (:initial-state app)))
         unmounted-app (uc/new-untangled-client :initial-state state :started-callback callback)
-        app (uc/mount unmounted-app Root "invisible-specs")
+        app (uc/mount unmounted-app Root "application-mount-point")
+
         mounted-app-state (om/app-state (:reconciler app))
         reconciler (:reconciler app)]
     (component "Initialization"
