@@ -23,7 +23,17 @@
   (defn loading? [state] (is-kind? state :loading))
   (defn failed? [state] (is-kind? state :failed)))
 
-(defn mark-loading [reconciler]
+(defn mark-loading
+  "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
+  in the app state, and returns a map with the keys:
+
+  `query` : The full query to send to the server.
+  `on-load` : The function to call to merge a response. Detects missing data and sets failure markers for those.
+  `on-error` : The function to call to set network/server error(s) in place of loading markers.
+
+  response-channel will have the response posted to it when the request is done.
+  ."
+  [reconciler]
   (let [state (om/app-state reconciler)
         items-to-load (get @state :om.next/ready-to-load)]
     (when-not (empty? items-to-load)

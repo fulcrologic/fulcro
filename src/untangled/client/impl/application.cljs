@@ -3,7 +3,7 @@
             [goog.dom :as gdom]
             [untangled.client.logging :as log]
             [om.next :as om]
-            [untangled.client.data-fetch :as f]
+            [untangled.client.impl.data-fetch :as f]
             [cljs.core.async :as async]
             [untangled.client.impl.network :as net]
             [untangled.client.impl.om-plumbing :as plumbing]

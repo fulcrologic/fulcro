@@ -201,7 +201,7 @@
       (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
             _ (df/load-field :mock-3 :comments :params {:comments {:max-length 20}})
             _ (df/load-field :mock-4 :comments)             ; TODO: we should be able to select :on-missing behavior
-            {:keys [query on-load on-error]} (df/mark-loading reconciler) ; transition to loading
+            {:keys [query on-load on-error]} (dfi/mark-loading reconciler) ; transition to loading
             loading-state @state
             comments-2 [{:db/id 5 :title "C"} {:db/id 6 :title "D"}]
             comments-3 [{:db/id 8 :title "A"} {:db/id 9 :title "B"}]
