@@ -16,9 +16,9 @@
   (render [this]
     (let [{:keys [ui/react-key current-position client-time frames position comments] :or {ui/react-key "ROOT"}} (om/props this)]
       (dom/div #js {:key react-key :className (str "history-controls " (name position))}
-        (dom/button #js {:class "toggle-position" :onClick #(om/transact! this '[(support-viewer/toggle-position)])} (tr "<= Reposition =>"))
-        (dom/button #js {:class "history-back" :onClick #(om/transact! this '[(support-viewer/step-back)])} (tr "Back"))
-        (dom/button #js {:class "history-forward" :onClick #(om/transact! this '[(support-viewer/step-forward)])} (tr "Forward"))
+        (dom/button #js {:className "toggle-position" :onClick #(om/transact! this '[(support-viewer/toggle-position)])} (tr "<= Reposition =>"))
+        (dom/button #js {:className "history-back" :onClick #(om/transact! this '[(support-viewer/step-back)])} (tr "Back"))
+        (dom/button #js {:className "history-forward" :onClick #(om/transact! this '[(support-viewer/step-forward)])} (tr "Forward"))
         (dom/hr nil)
         (dom/span #js {:className "frame"} (trf "Frame {f,number} of {end,number} " :f (inc current-position) :end frames))
         (dom/span #js {:className "timestamp"} (trf "{ts,date,short} {ts,time,long}" :ts client-time))
@@ -62,7 +62,7 @@
                                                                          :current-position 0}
                                                          :started-callback
                                                          (fn [{:keys [reconciler]}]
-                                                           (load-singleton reconciler `[:support-request]
+                                                           (load-singleton reconciler `[(:support-request {:id ~(core/get-url-param "id")})]
                                                              :callback (fn [state]
                                                                          (swap! state
                                                                            (fn [s]
@@ -77,8 +77,7 @@
                                                                                  (assoc :comments comments)
                                                                                  (assoc :frames frames)
                                                                                  (assoc :history history)
-                                                                                 (assoc :current-position last-idx))))))
-                                                             :params {:id (core/get-url-param "id")}))))})]
+                                                                                 (assoc :current-position last-idx))))))))))})]
     (core/mount viewer SupportViewerRoot support-dom-id)))
 
 (defn history-step [state delta-fn]
