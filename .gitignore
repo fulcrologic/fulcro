@@ -9,6 +9,7 @@ lib
 classes
 out
 target
+bin/publish-local
 .lein-deps-sum
 .lein-failures
 .lein-repl-history
