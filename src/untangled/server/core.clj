@@ -3,6 +3,7 @@
             [untangled.server.impl.components.handler :as handler]
             [untangled.server.impl.components.config :as config]
             [untangled.server.impl.components.access-token-handler :as access-token-handler]
+            [untangled.server.impl.components.openid-mock-server :as openid-mock-server]
             [com.stuartsierra.component :as component]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -49,6 +50,11 @@
   (component/using
     (access-token-handler/map->AccessTokenHandler {})
     [:config :handler :server :openid-mock]))
+
+(defn build-mock-openid-server []
+  (component/using
+    (openid-mock-server/map->MockOpenIdServer {})
+    [:config :handler]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Server Construction
