@@ -3,11 +3,13 @@
     [untangled.client.data-fetch :as df]
     [untangled.client.impl.data-fetch :as dfi]
     [untangled.client.impl.util :as util]
+    [goog.log :as glog]
     [om.next :as om :refer-macros [defui]]
     [cljs.test :refer-macros [is are]]
     [untangled-spec.core :refer-macros
      [specification behavior assertions provided component when-mocking]]
-    [untangled.client.mutations :as m]))
+    [untangled.client.mutations :as m]
+    [untangled.client.logging :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -197,7 +199,7 @@
       (mark-loading-mutate) => :check-that-invoked
 
       (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
-            _ (df/load-field :mock-3 :comments :params {:comments {:max-length 20}} )
+            _ (df/load-field :mock-3 :comments :params {:comments {:max-length 20}})
             _ (df/load-field :mock-4 :comments)             ; TODO: we should be able to select :on-missing behavior
             {:keys [query on-load on-error]} (df/mark-loading reconciler) ; transition to loading
             loading-state @state
@@ -292,7 +294,15 @@
       "can add parameters to a top-level join property"
       (om/ast->query (dfi/inject-query-params join-ast join-params)) => '[:a ({:things [:name]} {:start 1})]
       "merges new parameters over existing ones"
-      (om/ast->query (dfi/inject-query-params existing-params-ast existing-params-overwrite)) => '[(:a {:x 2})])))
+      (om/ast->query (dfi/inject-query-params existing-params-ast existing-params-overwrite)) => '[(:a {:x 2})])
+    (behavior "Warns about parameters that cannot be joined to the query"
+      (let [ast (om/query->ast [:a :b])
+            params {:c {:x 1}}]
+        (when-mocking
+          (glog/error obj msg) => (is (= "Error: You attempted to add parameters for #{:c} to top-level key(s) of [:a :b]" msg))
+
+          (dfi/inject-query-params ast params)
+          )))))
 
 (specification "set-global-loading"
   (let [loading-state {:app/loading-data true

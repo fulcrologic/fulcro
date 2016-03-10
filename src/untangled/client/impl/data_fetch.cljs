@@ -2,7 +2,9 @@
   (:require [om.next.impl.parser :as op]
             [om.next :as om]
             [clojure.walk :refer [prewalk]]
-            [cljs.core.async :as async])
+            [cljs.core.async :as async]
+            [clojure.set :as set]
+            [untangled.client.logging :as log])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
@@ -89,9 +91,14 @@
   ```
   "
   [ast params]
-  (update-in ast [:children] #(map (fn [c] (if-let [new-params (get params (:dispatch-key c))]
-                                             (update c :params merge new-params)
-                                             c)) %)))
+  (let [top-level-keys (set (map :dispatch-key (:children ast)))
+        param-keys (set (keys params))
+        unknown-keys (set/difference param-keys top-level-keys)]
+    (when (not (empty? unknown-keys))
+      (log/error (str "Error: You attempted to add parameters for " (pr-str unknown-keys) " to top-level key(s) of " (pr-str (om/ast->query ast)))))
+    (update-in ast [:children] #(map (fn [c] (if-let [new-params (get params (:dispatch-key c))]
+                                               (update c :params merge new-params)
+                                               c)) %))))
 
 
 (defn ready-state
