@@ -26,6 +26,9 @@
      :on-load  #(-> % (impl/mark-missing general-tx) cb)
      :on-error #(fallback %)}))
 
+;; this is here for testing
+(defn- enqueue [q v] (go (async/>! q v)))
+
 (defn server-send
   "Puts queries/mutations (and their corresponding callbacks) onto the send queue. The networking CSP will pull these
   off one at a time and send them through the real networking layer."
@@ -34,12 +37,12 @@
         has-non-fetch-tx? (> (count general-tx) 0)
         fetch-payload (f/mark-loading reconciler)]
 
-    (when fetch-payload
-      (go (async/>! queue (assoc fetch-payload :networking networking))))
-
     (when has-non-fetch-tx?
       (let [payload (tx-payload general-tx app cb)]
-        (go (async/>! queue payload))))))
+        (enqueue queue payload)))
+
+    (when fetch-payload
+      (enqueue queue (assoc fetch-payload :networking networking)))))
 
 (defn start-network-sequential-processing
   "Starts a communicating sequential process that sends network requests from the request queue."

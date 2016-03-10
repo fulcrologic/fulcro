@@ -8,6 +8,8 @@
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
+(defn has-remote-query? [ast] (or (:target ast) (some has-remote-query? (:children ast))))
+
 (defn read-local
   "Read function for the Om parser.
 
@@ -16,7 +18,7 @@
 
   Returns the current locale when reading the :ui/locale keyword. Otherwise pulls data out of the app-state.
   "
-  [{:keys [query target state]} dkey _]
+  [{:keys [query target state ast]} dkey _]
   (when (not target)
     (case dkey
       :app/locale {:value (deref i18n/*current-locale*)}

@@ -5,7 +5,10 @@
     [untangled-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
     untangled.client.impl.built-in-mutations
     [om.dom :as dom]
-    [untangled.i18n.core :as i18n]))
+    [untangled.i18n.core :as i18n]
+    [untangled.client.impl.application :as app]
+    [cljs.core.async :as async]
+    [untangled.client.impl.data-fetch :as f]))
 
 (defui Thing
   static om/Ident
@@ -50,6 +53,23 @@
           "normalizes and uses the initial state"
           (get-in @mounted-app-state [:thing/by-id 1]) => {:id 1 :name "A"}
           (get-in @mounted-app-state [:things 0]) => [:thing/by-id 1])))
+
+    (component "Transactions"
+      (when-mocking
+        (f/mark-loading r) => {:query [:a]}
+        (app/tx-payload t app cb) => {:query '[(f)]}
+        (app/enqueue q p) =1x=> (do
+                                  (assertions
+                                    "mutation is sent, and is first"
+                                    p => {:query '[(f)]})
+                                  true)
+        (app/enqueue q p) =1x=> (do
+                                  (assertions
+                                    "reads are sent, and are last"
+                                    (:query p) => [:a])
+                                  true)
+
+        (app/server-send {} {:remote '[(a/f) (app/load {})]} (fn []))))
 
     (component "Changing app :ui/locale"
       (let [react-key (:ui/react-key @mounted-app-state)]
