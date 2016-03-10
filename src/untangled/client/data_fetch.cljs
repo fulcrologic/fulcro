@@ -96,21 +96,58 @@
 (defn failed? [state] (impl/failed? state))
 
 (defn lazily-loaded
-  "Wraps a react element in a renderer that can show lazy loading status.
+  "Custom rendering for use while data is being lazily loaded using the data fetch methods
+  load-collection and load-field.
 
-  Example:
+  `data-render` : the render method to call once the data has been successfully loaded from
+  the server. Can be an Om factory method or a React rendering function.
+
+  `props` : the React properties for the element to be loaded.
+
+  Optional:
+
+  `ready-render` : the render method to call when the desired data has been marked as ready
+  to load, but the server request has not yet been sent.
+
+  `loading-render` : render method once the server request has been sent, and UI is waiting
+  on the response
+
+  `failed-render` : render method when the server returns a failure state for the requested data
+  ALPHA WARNING: The transfer of read errors to failed data states is not implemented in this alpha version.
+
+  `not-present-render` : called when props is nil (helpful for differentiating between a nil and
+  empty response from the server).
+
+  Example Usage:
 
   ```
   (defui Thing
+    static om/IQuery
+    (query [this] [{:thing2 (om/get-query Thing2)}])
+    Object
+    (componentDidMount [this]
+       (load-field this :thing2))
+
+    (render [this]
+      (let [thing2 (:thing2 (om/props this))]
+        (lazily-loaded Thing2 thing2))))
+
+  (defui Thing2
+    static om/IQuery
+    (query [this] [:ui/fetch-state])
     Object
     (render [this]
-      (lazily-loaded QuestionToolbox this)))
-  ```
-  "
-  [element props]
+      (display-thing-2))
+  ```"
+  [data-render props & {:keys [ready-render loading-render failed-render not-present-render]
+                        :or   {loading-render (fn [_] (dom/div #js {:className "lazy-loading-load"} "Loading..."))
+                               ready-render   (fn [_] (dom/div #js {:className "lazy-loading-ready"} nil))
+                               failed-render  (fn [_] (dom/div #js {:className "lazy-loading-failed"} nil))}}]
+
   (let [state (:ui/fetch-state props)]
     (cond
-      (ready? state) (dom/span #js {:className "lazy-loading ready"} "")
-      (loading? state) (dom/span #js {:className "lazy-loading loading"} (tr "Loading..."))
-      (failed? state) (dom/span #js {:className "lazy-loading failed"} (tr "FAILED!"))
-      :else (element props))))
+      (ready? state) (ready-render props)
+      (loading? state) (loading-render props)
+      (failed? state) (failed-render props)
+      (and not-present-render (nil? props)) (not-present-render props)
+      :else (data-render props))))

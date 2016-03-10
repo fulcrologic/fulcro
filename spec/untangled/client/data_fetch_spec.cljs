@@ -335,3 +335,34 @@
       (-> state
         (assoc-in [:baz :ui/fetch-state] (dfi/make-data-state :failed nil))
         (assoc-in [:some :other] nil)))))
+
+(specification "Rendering lazily loaded data"
+  (let [ready-props {:ui/fetch-state (dfi/make-data-state :ready)}
+        loading-props (update ready-props :ui/fetch-state dfi/set-loading!)
+        failed-props (update ready-props :ui/fetch-state dfi/set-failed!)
+        props {:foo :bar}]
+
+    (letfn [(ready-override [_] :ready-override)
+            (loading-override [_] :loading-override)
+            (failed-override [_] :failed-override)
+            (not-present [_] :not-present)
+            (present [props] (if (nil? props) :baz (:foo props)))]
+
+      (assertions
+        "When props are ready to load, runs ready-render"
+        (df/lazily-loaded present ready-props :ready-render ready-override) => :ready-override
+
+        "When props are loading, runs loading-render"
+        (df/lazily-loaded present loading-props :loading-render loading-override) => :loading-override
+
+        "When loading the props failed, runs failed-render"
+        (df/lazily-loaded present failed-props :failed-render failed-override) => :failed-override
+
+        "When the props are nil and not-present-renderer provided, runs not-present-render"
+        (df/lazily-loaded present nil :not-present-render not-present) => :not-present
+
+        "When the props are nil without a not-present-renderer, runs data-render"
+        (df/lazily-loaded present nil) => :baz
+
+        "When props are loaded, runs data-render."
+        (df/lazily-loaded present props) => :bar))))
