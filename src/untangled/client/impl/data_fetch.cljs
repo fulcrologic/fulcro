@@ -3,7 +3,8 @@
             [om.next :as om]
             [clojure.walk :refer [prewalk]]
             [cljs.core.async :as async]
-            )
+            [clojure.set :as set]
+            [untangled.client.logging :as log])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
@@ -74,32 +75,58 @@
   (when-not (contains? elision-set key)
     (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-set) c))))))
 
+(defn inject-query-params
+  "Inject parameters into elements of the top-level query.
+
+  `params` is a map from keyword (on the query in the AST) to parameter maps. So, given the AST for this query:
+
+  ```
+  [:a :b :c]
+  ```
+
+  and a `params` of `{:a {:x 1} :c {:y 2}}` you'll get an AST representing:
+
+  ```
+  [(:a {:x 1}) :b (:c {:y 2})]
+  ```
+  "
+  [ast params]
+  (let [top-level-keys (set (map :dispatch-key (:children ast)))
+        param-keys (set (keys params))
+        unknown-keys (set/difference param-keys top-level-keys)]
+    (when (not (empty? unknown-keys))
+      (log/error (str "Error: You attempted to add parameters for " (pr-str unknown-keys) " to top-level key(s) of " (pr-str (om/ast->query ast)))))
+    (update-in ast [:children] #(map (fn [c] (if-let [new-params (get params (:dispatch-key c))]
+                                               (update c :params merge new-params)
+                                               c)) %))))
+
+
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field params without query callback] :or {:without #{}}}]
+  [& {:keys [ident field params without query post-mutation] :or {:without #{}}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (om/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
         ast (cond-> old-ast
               (not-empty without) (elide-ast-nodes without)
-              params (update-in [:children 0 :params] (fn [_] params)))
+              params (inject-query-params params))
         query-field (first query)
         key (if (om/join? query-field) (om/join-key query-field) query-field)
         query' (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
-    {::type     :ready
-     ::ident    ident                                       ; only for component-targeted loads
-     ::field    field                                       ; for component-targeted load
-     ::query    query'
-     ::callback callback}))                                 ; query, relative to root of db OR component
+    {::type          :ready
+     ::ident         ident                                  ; only for component-targeted loads
+     ::field         field                                  ; for component-targeted load
+     ::query         query'
+     ::post-mutation post-mutation}))                       ; query, relative to root of db OR component
 
 (defn mark-ready
   "Place a ready-to-load marker into the application state. This should be done from
   a mutate function that is abstractly loading something. This is intended for internal use.
 
   See `load-field` for public API."
-  [& {:keys [state query ident field without params callback] :or {:without #{}}}]
+  [& {:keys [state query ident field without params post-mutation] :or {:without #{}}}]
   (swap! state update :om.next/ready-to-load conj
     (ready-state
       :ident ident
@@ -107,7 +134,7 @@
       :params params
       :without without
       :query query
-      :callback callback)))
+      :post-mutation post-mutation)))
 
 ;; TODO: Rename "getters"
 (defn data-ident [state] (::ident state))
@@ -155,7 +182,9 @@
    (swap-data-states state from-state-pred to-state-fn nil))
 
   ([state from-state-pred to-state-fn params]
-   (prewalk #(if (from-state-pred %) (to-state-fn % params) %) state)))
+   (->> state
+     (prewalk #(if (from-state-pred %) (to-state-fn % params) %))
+     (prewalk #(when-not (= % {:ui/fetch-state nil}) %)))))
 
 (defn full-query
   "Compose together a sequence of states into a single query."
@@ -184,7 +213,11 @@
           app-state (om/app-state reconciler)]
 
       (om/merge! reconciler response query)
-      (doseq [item loading-items] (if-let [cb (::callback item)] (cb (om/app-state reconciler))))
+      (doseq [item loading-items] (when-let [mutation-symbol (::post-mutation item)]
+                                    (some->
+                                      (untangled.client.mutations/mutate {:state (om/app-state reconciler)} mutation-symbol {})
+                                      :action
+                                      (apply []))))
       (om/force-root-render! reconciler)                    ; Don't love this, but ok for now. TK
 
       ;; Any loading states that didn't resolve to data are marked as not present

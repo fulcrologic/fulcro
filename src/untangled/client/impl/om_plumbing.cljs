@@ -14,12 +14,13 @@
   *** NOTE: This function only runs when it is called without a target -- it is not triggered for remote reads. To
   trigger a remote read, use the `untangled/data-fetch` namespace. ***
 
-  Returns the current locale when reading the :app/locale keyword. Otherwise pulls data out of the app-state.
+  Returns the current locale when reading the :ui/locale keyword. Otherwise pulls data out of the app-state.
   "
   [{:keys [query target state]} dkey _]
   (when (not target)
     (case dkey
       :app/locale {:value (deref i18n/*current-locale*)}
+      :ui/locale {:value (deref i18n/*current-locale*)}
       (let [top-level-prop (nil? query)
             key (or (:ast key) dkey)
             by-ident? (om/ident? key)
@@ -144,6 +145,9 @@
                     (mapv #(mark-missing % (union->query (get q query-key))) <>)
                     (assoc res+nf query-key <>))
 
+                  ;; ui.*/ fragment's are ignored
+                  (is-ui-query-fragment? q) res
+
                   ;; recur
                   (and ?sub-query (not= nf sub-result))
                   (as-> sub-result <>
@@ -163,4 +167,3 @@
       #(if (map? %)
         (into {} (map clean %)) %)
       result)))
-

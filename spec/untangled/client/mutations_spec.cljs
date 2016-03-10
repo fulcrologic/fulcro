@@ -78,7 +78,7 @@
 
     (behavior "can change the current localization."
       (reset! i18n/*current-locale* "en-US")
-      (om/transact! reconciler `[(app/change-locale {:lang "es-MX"}) :app/locale])
+      (om/transact! reconciler `[(ui/change-locale {:lang "es-MX"}) :ui/locale])
       (is (= "es-MX" @i18n/*current-locale*)))
 
     (behavior "can clear the top-level app error."

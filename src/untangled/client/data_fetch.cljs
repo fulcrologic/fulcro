@@ -3,47 +3,91 @@
     [clojure.walk :refer [walk prewalk]]
     [om.next :as om]
     [untangled.client.impl.data-fetch :as impl]
+    [untangled.i18n :refer-macros [tr]]
     [om.next.impl.parser :as op]
     [om.dom :as dom]))
 
 (defn load-field
-  "Load a field of the current component.
+  "Load a field of the current component. Runs `om/transact!`.
 
   Parameters
   - `component`: The component
   - `field`: A field on the current component's query that you wish to load
   - `without`: Named parameter for excluding child keys from the query (e.g. for recursive queries or additional laziness)
   - `params`: Named parameter for adding params to the query sent to the server for this field.
+  - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
   "
-  [component field & {:keys [without params callback]}]
+  [component field & {:keys [without params post-mutation]}]
   (om/transact! component [(list 'app/load
                              {:ident    (om/get-ident component)
                               :field    field
                               :query    (om/focus-query (om/get-query component) [field])
                               :params   params
                               :without  without
-                              :callback callback})]))
+                              :post-mutation post-mutation})]))
 
 (defn load-collection
-  "Load a collection from the remote.
+  "Load a collection from the remote. Runs `om/transact!`.
 
   Parameters
   - `comp-or-reconciler`: A component or reconciler (not a class)
   - `query`: The query for the element(s) attributes. Use defui to generate arbitrary queries so normalization will work.
   - Named parameter `ident`: An ident, used if loading a singleton and you wish to specify 'which one'.
+  - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
 
   Named parameters `:without` and `:params` are as in `load-field`.
   "
-  [comp-or-reconciler query & {:keys [ident without params callback]}]
+  [comp-or-reconciler query & {:keys [ident without params post-mutation]}]
   (let []
     (om/transact! comp-or-reconciler [(list 'app/load
                                         {:ident    ident
                                          :query    query
                                          :params   params
                                          :without  without
-                                         :callback callback})])))
+                                         :post-mutation post-mutation})])))
 
 (def load-singleton load-collection)
+
+(defn load-field-action
+  "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`
+  but usable from within a mutation.
+
+  To use this function make sure your mutation specifies a return value with a remote. The remote
+  should include the abstract mutation `(app/load)` as well as any desired `(tx/fallback)`:
+
+  { :remote (om/query->ast '[(app/load)])
+    :action (fn []
+       (load-field-action ...)
+       ; other optimistic updates/state changes)}"
+  [app-state component-class ident field & {:keys [without params post-mutation]}]
+  (impl/mark-ready
+    :state app-state
+    :field field
+    :ident ident
+    :query (om/focus-query (om/get-query component-class) [field])
+    :params params
+    :without without
+    :post-mutation post-mutation))
+
+(defn load-data-action
+  "Queue up a remote load from within an already-running mutation. Similar to `load-collection`, but usable from
+  within a mutation.
+
+  To use this function make sure your mutation specifies a return value with a remote. The remote
+  should include the abstract mutation `(app/load)` as well as any desired `(tx/fallback)`:
+
+  { :remote (om/query->ast '[(app/load)])
+    :action (fn []
+       (load-data-action ...)
+       ; other optimistic updates/state changes)}"
+  [app-state query & {:keys [ident without params post-mutation]}]
+  (impl/mark-ready
+    :state app-state
+    :ident ident
+    :query query
+    :params params
+    :without without
+    :post-mutation post-mutation))
 
 
 (defn mark-loading
@@ -81,6 +125,6 @@
   (let [state (:ui/fetch-state props)]
     (cond
       (ready? state) (dom/span #js {:className "lazy-loading ready"} "")
-      (loading? state) (dom/span #js {:className "lazy-loading loading"} "Loading...")
-      (failed? state) (dom/span #js {:className "lazy-loading failed"} "FAILED!")
-      :else (element props) )))
+      (loading? state) (dom/span #js {:className "lazy-loading loading"} (tr "Loading..."))
+      (failed? state) (dom/span #js {:className "lazy-loading failed"} (tr "FAILED!"))
+      :else (element props))))

@@ -1,9 +1,8 @@
 # Untangled
 
-## Quick Tour (Demo)
+Plans for a slide-based video tour...
 
-Demo of TodoMVC with Datomic server-side integration, internationalized,
-VCR viewer, tour of code base and development experience.
+## Quick Tour (Demo)
 
 ## The Client
 

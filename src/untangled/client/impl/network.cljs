@@ -10,7 +10,7 @@
   (:import [goog.net XhrIo EventType]))
 
 (defprotocol UntangledNetwork
-  (send [this edn ok-callback error-callback] [this edn ok-callback error-callback options]
+  (send [this edn ok-callback error-callback]
     "Send method, transmits EDN to the server and gets an EDN response. Calls result-callback with that response,
     or a map with key `:error` on errors. optional options may include `:headers`, but you may NOT override content
     type."))
@@ -22,7 +22,7 @@
 (defn parse-response [xhr-io]
   (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))}}) (.getResponseText xhr-io)))
 
-(defrecord Network [xhr-io url error-callback valid-data-callback]
+(defrecord Network [xhr-io url error-callback valid-data-callback request-transform]
   IXhrIOCallbacks
   (response-ok [this]
     ;; Implies:  everything went well and we have a good response
@@ -44,18 +44,22 @@
           (parse-response xhr-io)))))
 
   UntangledNetwork
-  (send [this edn ok err {:keys [headers]}]
-    (let [post-data (ct/write (t/writer) edn)
-          headers (clj->js (merge headers {"Content-Type" "application/transit+json"}))]
+  (send [this edn ok err]
+    (let [content-type {"Content-Type" "application/transit+json"}
+          [request headers] (cond
+                              request-transform (request-transform edn content-type)
+                              :else [edn content-type])
+          post-data (ct/write (t/writer) request)
+          headers (clj->js headers)]
       (reset! error-callback (fn [e] (err e)))
       (reset! valid-data-callback (fn [resp] (ok resp)))
-      (.send xhr-io url "POST" post-data headers)))
-  (send [this post-data ok-callback error-callback] (send this post-data ok-callback error-callback {})))
+      (.send xhr-io url "POST" post-data headers))))
 
-(defn make-untangled-network [url]
+(defn make-untangled-network [url & {:keys [request-transform]}]
   (let [xhrio (XhrIo.)
         rv (map->Network {:xhr-io              xhrio
                           :url                 url
+                          :request-transform   request-transform
                           :valid-data-callback (atom nil)
                           :error-callback      (atom nil)})]
     (events/listen xhrio (.-SUCCESS EventType) #(response-ok rv))
@@ -64,10 +68,8 @@
 
 (defrecord MockNetwork []
   UntangledNetwork
-  (send [this edn ok err {:keys [headers]}]
-    (log/info "Ignored (mock) Network request " edn))
-  (send [this post-data ok-callback error-callback] (send this post-data ok-callback error-callback {})))
+  (send [this edn ok err]
+    (log/info "Ignored (mock) Network request " edn)))
 
 (defn mock-network [] (MockNetwork.))
-
 

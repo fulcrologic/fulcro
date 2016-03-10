@@ -1,9 +1,11 @@
 (ns untangled.client.mutations
-  (:require [om.next :as om]
-            [untangled.dom :refer [unique-key]]
-            [untangled.client.impl.data-fetch :as df]
-            [untangled.i18n.core :as i18n]
-            [untangled.client.logging :as log]))
+  (:require [om.next :as om]))
+
+;; Add methods to this to implement your local mutations
+(defmulti mutate om/dispatch)
+
+;; Add methods to this to implement post mutation behavior (called after each mutation): WARNING: EXPERIMENTAL.
+(defmulti post-mutate om/dispatch)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public Mutation Helpers
@@ -48,49 +50,3 @@
   (let [value (if event (.. event -target -value) value)]
     (set-value! component field value)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Mutations (invoke using om/transact!)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defmulti mutate om/dispatch)
-(defmulti post-mutate om/dispatch)
-
-(defmethod post-mutate :default [env k p] nil)
-
-(defmethod mutate 'app/load [{:keys [state]} _ {:keys [root field query params without callback ident]}]
-  {:remote true
-   :action (fn []
-             (df/mark-ready
-               :state state
-               :root root
-               :field field
-               :ident ident
-               :query query
-               :params params
-               :without without
-               :callback callback))})
-
-(defmethod mutate 'app/clear-error [{:keys [state]} _ _]
-  {:action #(swap! state assoc :last-error nil)})
-
-(defmethod mutate 'app/change-locale [{:keys [state]} _ {:keys [lang]}]
-  {:action (fn []
-             (reset! i18n/*current-locale* lang)
-             (swap! state assoc :react-key (unique-key)))})
-
-(defmethod mutate 'tx/fallback [env _ {:keys [action execute] :as params}]
-  (if execute
-    {:action #(mutate env action params)}
-    {:remote true}))
-
-(defmethod mutate 'ui/set-props [{:keys [state ref]} _ params]
-  (when (nil? ref) (log/error "ui/set-props requires component to have an ident."))
-  {:action #(swap! state update-in ref (fn [st] (merge st params)))})
-
-(defmethod mutate 'ui/toggle [{:keys [state ref]} _ {:keys [field]}]
-  (when (nil? ref) (log/error "ui/toggle requires component to have an ident."))
-  {:action #(swap! state update-in (conj ref field) not)})
-
-(defmethod mutate :default [{:keys [target]} k _]
-  (when (nil? target)
-    (log/error (log/value-message "Unknown app state mutation. Have you required the file with your mutations?" k))))

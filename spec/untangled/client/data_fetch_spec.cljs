@@ -3,32 +3,35 @@
     [untangled.client.data-fetch :as df]
     [untangled.client.impl.data-fetch :as dfi]
     [untangled.client.impl.util :as util]
+    [goog.log :as glog]
     [om.next :as om :refer-macros [defui]]
     [cljs.test :refer-macros [is are]]
     [untangled-spec.core :refer-macros
-     [specification behavior assertions provided component when-mocking]]))
+     [specification behavior assertions provided component when-mocking]]
+    [untangled.client.mutations :as m]
+    [untangled.client.logging :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defui Person
+(defui ^:once Person
   static om/IQuery (query [_] [:db/id :username :name])
   static om/Ident (ident [_ props] [:person/id (:db/id props)]))
 
-(defui Comment
+(defui ^:once Comment
   static om/IQuery (query [this] [:db/id :title {:author (om/get-query Person)}])
   static om/Ident (ident [this props] [:comments/id (:db/id props)]))
 
-(defui Item
+(defui ^:once Item
   static om/IQuery (query [this] [:db/id :name {:comments (om/get-query Comment)}])
   static om/Ident (ident [this props] [:items/id (:db/id props)]))
 
-(defui Panel
+(defui ^:once Panel
   static om/IQuery (query [this] [:db/id {:items (om/get-query Item)}])
   static om/Ident (ident [this props] [:panel/id (:db/id props)]))
 
-(defui PanelRoot
+(defui ^:once PanelRoot
   static om/IQuery (query [this] [{:panel (om/get-query Panel)}]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78,7 +81,7 @@
       (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
 
   (behavior "can include parameters when eliding top-level keys from the query"
-    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:x 1})]
+    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:db/id {:x 1}})]
       (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state))))))
 
 (specification "Lazy loading"
@@ -100,14 +103,25 @@
                                     (behavior "includes the subquery exclusions."
                                       (is (= #{:excluded-attr} (:without params))))
                                     (behavior "includes the post-processing callback."
-                                      (let [cb (:callback params)]
-                                        (is (fn? cb))
-                                        (is (= "foo" (cb))))))
+                                      (let [cb (:post-mutation params)]
+                                        (is (= 'foo cb)))))
 
         (df/load-field 'component :comments
           :without #{:excluded-attr}
           :params {:sort :by-name}
-          :callback (fn [] "foo")))))
+          :post-mutation 'foo))))
+  (component "Loading a field from within another mutation"
+    (let [app-state (atom {})]
+      (df/load-field-action app-state Item [:item/by-id 3] :comments :without #{:author})
+
+      (let [marker (first (get-in @app-state [::om/ready-to-load]))]
+        (assertions
+          "places a ready marker in the app state"
+          marker =fn=> (fn [marker] (df/ready? marker))
+          "includes the focused query"
+          (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]
+
+          ))))
 
   (behavior "Loading data for the app in general"
     (provided "when requesting data for a specific ident"
@@ -117,9 +131,8 @@
                                (behavior "includes params."
                                  (is (= :params (:params params))))
                                (behavior "includes post-processing callback."
-                                 (let [cb (:callback params)]
-                                   (is (fn? cb))
-                                   (is (= "foo" (cb)))))
+                                 (let [cb (:post-mutation params)]
+                                   (is (= 'bar cb))))
                                (behavior "includes the ident in the data state."
                                  (is (= [:item/id 99] (:ident params))))
                                (behavior "includes the query joined to the ident."
@@ -129,7 +142,7 @@
         :ident [:item/id 99]
         :params :params
         :without :without
-        :callback (fn [] "foo")))
+        :post-mutation 'bar))
 
     (component "when requesting data for a collection"
       (when-mocking
@@ -137,7 +150,18 @@
                                  (behavior "directly uses the query."
                                    (is (= [{:items (om/get-query Item)}] (:query params)))))
 
-        (df/load-collection 'reconciler [{:items (om/get-query Item)}])))))
+        (df/load-collection 'reconciler [{:items (om/get-query Item)}]))))
+  (component "Loading a collection/singleton from within another mutation"
+    (let [app-state (atom {})]
+
+      (df/load-data-action app-state (om/get-query PanelRoot) :without #{:items})
+
+      (let [marker (first (get-in @app-state [::om/ready-to-load]))]
+        (assertions
+          "places a ready marker in the app state"
+          marker =fn=> (fn [marker] (df/ready? marker))
+          "includes the focused query"
+          (dfi/data-query marker) => [{:panel [:db/id]}])))))
 
 (specification "full-query"
   (let [item-ready-markers [(dfi/ready-state :ident [:db/id 1] :field :author :query [{:author [:name]}])
@@ -149,7 +173,9 @@
     (behavior "composes top-level queries"
       (is (= [{:questions [:db/id :name]} {:answers [:db/id :name]}] (dfi/full-query top-level-markers))))))
 
-(defn post-process-fn [data] data)
+(defn mark-loading-mutate [])
+
+(defmethod m/mutate 'mark-loading-test/callback [e k p] {:action #(mark-loading-mutate)})
 
 (specification "mark-loading"
   (let [state-tree {:panel {:db/id 1
@@ -169,11 +195,11 @@
                             :mock-4 [:items/id 4])
       (om/transact! c tx) => (let [params (apply concat (-> tx first second (assoc :state state)))]
                                (apply dfi/mark-ready params))
-      (post-process-fn s) => (behavior "calls post processing function (requiring reconciler app state)."
-                               (is (instance? cljs.core/Atom s)))
 
-      (let [_ (df/load-field :mock-2 :comments :callback post-process-fn) ; place ready markers in state
-            _ (df/load-field :mock-3 :comments)
+      (mark-loading-mutate) => :check-that-invoked
+
+      (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
+            _ (df/load-field :mock-3 :comments :params {:comments {:max-length 20}})
             _ (df/load-field :mock-4 :comments)             ; TODO: we should be able to select :on-missing behavior
             {:keys [query on-load on-error]} (df/mark-loading reconciler) ; transition to loading
             loading-state @state
@@ -182,7 +208,7 @@
             good-response {[:items/id 3] {:comments comments-3}
                            [:items/id 2] {:comments comments-2}}
             item-4-expr {[:items/id 4] [{:comments comment-query}]}
-            item-3-expr {[:items/id 3] [{:comments comment-query}]}
+            item-3-expr `{[:items/id 3] [({:comments ~comment-query} {:max-length 20})]}
             item-2-expr {[:items/id 2] [{:comments comment-query}]}
             normalized-response {[:items/id 3]   {:comments [[:comments/id 8] [:comments/id 9]]},
                                  [:items/id 2]   {:comments [[:comments/id 5] [:comments/id 6]]},
@@ -203,7 +229,7 @@
             (is (:app/loading-data @state))))
 
         (component "generated query"
-          (behavior "composes together all of the item queries"
+          (behavior "composes together all of the item queries, with desired parameters"
             (is (= [item-4-expr item-3-expr item-2-expr] query)))
 
           (behavior "has metadata for proper normalization of a response"
@@ -255,6 +281,29 @@
       (behavior "that returns false when a given data state is not in the fetch state set."
         (is (not (predicate (dfi/make-data-state :loading))))))))
 
+(specification "The inject-query-params function"
+  (let [prop-ast (om/query->ast [:a :b :c])
+        prop-params {:a {:x 1} :c {:y 2}}
+        join-ast (om/query->ast [:a {:things [:name]}])
+        join-params {:things {:start 1}}
+        existing-params-ast (om/query->ast '[(:a {:x 1})])
+        existing-params-overwrite {:a {:x 2}}]
+    (assertions
+      "can add parameters to a top-level query property"
+      (om/ast->query (dfi/inject-query-params prop-ast prop-params)) => '[(:a {:x 1}) :b (:c {:y 2})]
+      "can add parameters to a top-level join property"
+      (om/ast->query (dfi/inject-query-params join-ast join-params)) => '[:a ({:things [:name]} {:start 1})]
+      "merges new parameters over existing ones"
+      (om/ast->query (dfi/inject-query-params existing-params-ast existing-params-overwrite)) => '[(:a {:x 2})])
+    (behavior "Warns about parameters that cannot be joined to the query"
+      (let [ast (om/query->ast [:a :b])
+            params {:c {:x 1}}]
+        (when-mocking
+          (glog/error obj msg) => (is (= "Error: You attempted to add parameters for #{:c} to top-level key(s) of [:a :b]" msg))
+
+          (dfi/inject-query-params ast params)
+          )))))
+
 (specification "set-global-loading"
   (let [loading-state {:app/loading-data true
                        :some             :data
@@ -273,3 +322,16 @@
       (dfi/set-global-loading not-loading-reconciler)
 
       (is (= (assoc not-loading-state :app/loading-data false) @not-loading-reconciler)))))
+
+(specification "The swap-data-states function"
+  (let [state {:foo  {:bar (dfi/make-data-state :ready)}
+               :baz  {:ui/fetch-state (dfi/make-data-state :loading {:foo :bar})}
+               :some {:other {:ui/fetch-state nil}}}]
+
+    (assertions
+      "replaces states of a certain type with a new type, removes any nil :ui/fetch-states"
+      (dfi/swap-data-states state df/loading? dfi/set-failed!)
+      =>
+      (-> state
+        (assoc-in [:baz :ui/fetch-state] (dfi/make-data-state :failed nil))
+        (assoc-in [:some :other] nil)))))
