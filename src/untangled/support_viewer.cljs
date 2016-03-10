@@ -63,21 +63,7 @@
                                                          :started-callback
                                                          (fn [{:keys [reconciler]}]
                                                            (load-singleton reconciler `[(:support-request {:id ~(core/get-url-param "id")})]
-                                                             :callback (fn [state]
-                                                                         (swap! state
-                                                                           (fn [s]
-                                                                             (let [req (:support-request @state)
-                                                                                   comments (:comment req)
-                                                                                   history (:history req)
-                                                                                   frames (-> history :steps count)
-                                                                                   last-idx (dec frames)]
-                                                                               (core/reset-state! @app (history-entry history last-idx))
-                                                                               (-> s
-                                                                                 (dissoc :support-request)
-                                                                                 (assoc :comments comments)
-                                                                                 (assoc :frames frames)
-                                                                                 (assoc :history history)
-                                                                                 (assoc :current-position last-idx))))))))))})]
+                                                             :post-mutation 'support-viewer/initialize-history))))})]
     (core/mount viewer SupportViewerRoot support-dom-id)))
 
 (defn history-step [state delta-fn]
@@ -91,6 +77,25 @@
                            (assoc :current-position new-pos)
                            (assoc :client-time tm))))
     (core/reset-state! @application entry)))
+
+(defmethod m/mutate 'support-viewer/initialize-history [{:keys [state]} k params]
+  {:action
+   (fn []
+     (swap! state
+       (fn [s]
+         (let [req (:support-request @state)
+               app (:application @state)
+               comments (:comment req)
+               history (:history req)
+               frames (-> history :steps count)
+               last-idx (dec frames)]
+           (core/reset-state! @app (history-entry history last-idx))
+           (-> s
+             (dissoc :support-request)
+             (assoc :comments comments)
+             (assoc :frames frames)
+             (assoc :history history)
+             (assoc :current-position last-idx))))))})
 
 (defmethod m/mutate 'support-viewer/step-forward [{:keys [state]} k params] {:action #(history-step state inc)})
 
