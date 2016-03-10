@@ -4,14 +4,15 @@
     [clojure.java.io :as io]
     [bidi.bidi :as bidi]
     [com.stuartsierra.component :as component]
-    [ring.middleware.resource :refer [wrap-resource]]
     [ring.middleware.content-type :refer [wrap-content-type]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
+    [ring.middleware.resource :refer [wrap-resource]]
     [ring.middleware.gzip :refer [wrap-gzip]]
     [ring.util.response :refer [resource-response]]
     [ring.util.response :as rsp :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
-    [taoensso.timbre :as timbre])
+    [taoensso.timbre :as timbre]
+    [clojure.data.json :as json])
   (:import (clojure.lang ExceptionInfo)))
 
 (def routes
@@ -112,6 +113,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Handler Code
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn openid-locator [req {:keys [config] :as env} match]
+  (let [openid-config (-> config :value :openid)
+        url (str (:authority openid-config) "/connect/authorize")]
+    {:status  200
+     :headers {"Content-Type" "application/json"}
+     :body    (json/write-str {:authUrl  url
+                               :scope    (:scope openid-config)
+                               :clientId (:client-id openid-config)})}))
 
 (defn route-handler [req]
   (let [match (bidi/match-route routes (:uri req)

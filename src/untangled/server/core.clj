@@ -2,6 +2,7 @@
   (:require [untangled.server.impl.components.web-server :as web-server]
             [untangled.server.impl.components.handler :as handler]
             [untangled.server.impl.components.config :as config]
+            [untangled.server.impl.components.access-token-handler :as access-token-handler]
             [com.stuartsierra.component :as component]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -44,6 +45,10 @@
   [config-path]
   (config/map->Config {:config-path config-path}))
 
+(defn build-access-token-handler []
+  (component/using
+    (access-token-handler/map->AccessTokenHandler {})
+    [:config :handler :server :openid-mock]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Server Construction
