@@ -21,8 +21,8 @@
    :name                                  "Duck Dodgers"
    :role                                  ["test" "test2"]
    :aud                                   "api"
-   :private-key                           (jwtk/private-key "mock-keys/private.key" "pass phrase")
-   :public-key                            (jwtk/public-key "mock-keys/public.key")
+   :private-key-path                      "mock-keys/private.key"
+   :public-key-path                       "mock-keys/public.key"
    :alg                                   :RS256
    :grace-period-minutes                  1
    :idp                                   "idsrv"
@@ -65,9 +65,9 @@
                        :scope     (:scope options)
                        :client-id (:client-id options)}
         id-jwt (jwtc/jwt claims)
-        id-signed-jwt (jwtc/sign id-jwt (:alg options) (:private-key options))
+        id-signed-jwt (jwtc/sign id-jwt (:alg options) (jwtk/private-key (:private-key-path options) "pass phrase"))
         access-jwt (jwtc/jwt access-claims)
-        signed-access-jwt (jwtc/sign access-jwt (:alg options) (:private-key options))
+        signed-access-jwt (jwtc/sign access-jwt (:alg options) (jwtk/private-key (:private-key-path options) "pass phrase"))
         query {"access_token" (jwtc/to-str signed-access-jwt)
                "token_type"   "bearer"
                "id_token"     (jwtc/to-str id-signed-jwt)
@@ -134,7 +134,7 @@
 \"x5c\":[\"MIIDBTCCAfGgAwIBAgIQNQb+T2ncIrNA6cKvUA1GWTAJBgUrDgMCHQUAMBIxEDAOBgNVBAMTB0RldlJvb3QwHhcNMTAwMTIwMjIwMDAwWhcNMjAwMTIwMjIwMDAwWjAVMRMwEQYDVQQDEwppZHNydjN0ZXN0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqnTksBdxOiOlsmRNd+mMS2M3o1IDpK4uAr0T4/YqO3zYHAGAWTwsq4ms+NWynqY5HaB4EThNxuq2GWC5JKpO1YirOrwS97B5x9LJyHXPsdJcSikEI9BxOkl6WLQ0UzPxHdYTLpR4/O+0ILAlXw8NU4+jB4AP8Sn9YGYJ5w0fLw5YmWioXeWvocz1wHrZdJPxS8XnqHXwMUozVzQj+x6daOv5FmrHU1r9/bbp0a1GLv4BbTtSh4kMyz1hXylho0EvPg5p9YIKStbNAW9eNWvv5R8HN7PPei21AsUqxekK0oW9jnEdHewckToX7x5zULWKwwZIksll0XnVczVgy7fCFwIDAQABo1wwWjATBgNVHSUEDDAKBggrBgEFBQcDATBDBgNVHQEEPDA6gBDSFgDaV+Q2d2191r6A38tBoRQwEjEQMA4GA1UEAxMHRGV2Um9vdIIQLFk7exPNg41NRNaeNu0I9jAJBgUrDgMCHQUAA4IBAQBUnMSZxY5xosMEW6Mz4WEAjNoNv2QvqNmk23RMZGMgr516ROeWS5D3RlTNyU8FkstNCC4maDM3E0Bi4bbzW3AwrpbluqtcyMN3Pivqdxx+zKWKiORJqqLIvN8CT1fVPxxXb/e9GOdaR8eXSmB0PgNUhM4IjgNkwBbvWC9F/lzvwjlQgciR7d4GfXPYsE1vf8tmdQaY8/PtdAkExmbrb9MihdggSoGXlELrPA91Yce+fiRcKY3rQlNWVd4DOoJ/cPXsXwry8pWjNCo5JD8Q+RQ5yZEy7YPoifwemLhTdsBz3hlZr28oCGJ3kbnpW0xGvQb3VHSTVVbeei0CfXoW6iz1\"]}]}")
 
 (defn jwks [request options]
-  (let [public-key (:public-key options)
+  (let [public-key (jwtk/public-key (:public-key-path options))
         modulus (.getModulus public-key)
         exp (.getPublicExponent public-key)
         thum (.hashCode public-key)
@@ -178,5 +178,4 @@
                                      (partial wrap-openid-mock mock-config)))
       this))
   (stop [this] this))
-
 
