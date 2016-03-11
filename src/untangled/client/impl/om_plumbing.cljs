@@ -8,6 +8,8 @@
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
+(defn has-remote-query? [ast] (or (:target ast) (some has-remote-query? (:children ast))))
+
 (defn read-local
   "Read function for the Om parser.
 
@@ -16,13 +18,13 @@
 
   Returns the current locale when reading the :ui/locale keyword. Otherwise pulls data out of the app-state.
   "
-  [{:keys [query target state]} dkey _]
+  [{:keys [query target state ast]} dkey _]
   (when (not target)
     (case dkey
       :app/locale {:value (deref i18n/*current-locale*)}
       :ui/locale {:value (deref i18n/*current-locale*)}
       (let [top-level-prop (nil? query)
-            key (or (:ast key) dkey)
+            key (or (:key ast) dkey)
             by-ident? (om/ident? key)
             union? (map? query)
             data (if by-ident? (get-in @state key) (get @state key))]
@@ -66,7 +68,7 @@
       entry (recur (async/poll! queue) (conj entries (resolve-tempids entry tempid-map)))
       (seq entries) (doseq [e entries] (assert (async/offer! queue e) "Queue should not block.")))))
 
-(defn filter-loads-and-fallbacks
+(defn remove-loads-and-fallbacks
   "Removes all app/load and tx/fallback mutations from the query"
   [query]
   (let [symbols-to-filter #{'app/load 'tx/fallback}
@@ -76,7 +78,7 @@
         new-ast (assoc ast :children new-children)]
     (om/ast->query new-ast)))
 
-(defn fallback-query [query]
+(defn fallback-query [query resp]
   "Filters out everything from the query that is not a fallback mutation.
   Returns nil if the resulting expression is empty."
   (let [symbols-to-find #{'tx/fallback}
@@ -84,7 +86,7 @@
         children (:children ast)
         new-children (->> children
                        (filter (fn [child] (contains? symbols-to-find (:dispatch-key child))))
-                       (map (fn [ast] (update ast :params assoc :execute true))))
+                       (map (fn [ast] (update ast :params assoc :execute true :error resp))))
         new-ast (assoc ast :children new-children)
         fallback-query (om/ast->query new-ast)]
     (when (not-empty fallback-query)

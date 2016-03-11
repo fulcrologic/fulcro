@@ -1,4 +1,4 @@
-(ns untangled.client.mutations-spec
+(ns untangled.client.impl.built-in-mutations-spec
   (:require [om.next :as om]
             [untangled.client.mutations :as m]
             [untangled.client.impl.om-plumbing :as plumb]
@@ -7,6 +7,7 @@
   (:require-macros
     [cljs.test :refer [is]]
     [untangled-spec.core :refer [specification assertions behavior provided component when-mocking]]))
+
 
 (specification "Mutation Helpers"
   (let [state (atom {:foo "bar"
@@ -95,7 +96,13 @@
   (try
     (let [called (atom false)
           parser (om/parser {:read (fn [e k p] nil) :mutate m/mutate})]
-      (defmethod m/mutate 'my-undo [e k p] (reset! called true))
+      (defmethod m/mutate 'my-undo [e k p]
+        (do
+          (assertions
+            "do not pass :action or :execute key to mutation parameters"
+            (contains? p :action) => false
+            (contains? p :execute) => false)
+          {:action #(reset! called true)}))
 
       (behavior "are included in remote query if execute parameter is missing/false"
         (is (= '[(tx/fallback {:action my-undo})] (parser {} '[(tx/fallback {:action my-undo})] :remote)))

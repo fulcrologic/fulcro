@@ -9,3 +9,9 @@
 - Modified load callback to a mutation symbol
 - Changed :params of loaders to allow you to specify which prop on the query gets the stated parameters
 - Added history method to application protocol, to make implementing history viewer in an app trivial
+
+0.4.6
+-----
+- Fixed local read bug, and turned on path optimization
+- Fixed fallback handling of failed remote transactions, and added lots of tests
+

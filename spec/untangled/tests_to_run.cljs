@@ -2,10 +2,11 @@
   (:require
     untangled.services.local-storage-io-spec
     untangled.client.protocol-support-spec
+    untangled.client.impl.util-spec
     untangled.client.impl.application-spec
+    untangled.client.impl.built-in-mutations-spec
     untangled.client.cache-manager-spec
     untangled.client.data-fetch-spec
-    untangled.client.mutations-spec
     untangled.client.impl.om-plumbing-spec
     untangled.client.logging-spec
     untangled.client.impl.xhrio-spec

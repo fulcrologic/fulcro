@@ -201,7 +201,7 @@
       (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
             _ (df/load-field :mock-3 :comments :params {:comments {:max-length 20}})
             _ (df/load-field :mock-4 :comments)             ; TODO: we should be able to select :on-missing behavior
-            {:keys [query on-load on-error]} (df/mark-loading reconciler) ; transition to loading
+            {:keys [query on-load on-error]} (dfi/mark-loading reconciler) ; transition to loading
             loading-state @state
             comments-2 [{:db/id 5 :title "C"} {:db/id 6 :title "D"}]
             comments-3 [{:db/id 8 :title "A"} {:db/id 9 :title "B"}]
@@ -229,16 +229,16 @@
             (is (:app/loading-data @state))))
 
         (component "generated query"
-          (behavior "composes together all of the item queries, with desired parameters"
-            (is (= [item-4-expr item-3-expr item-2-expr] query)))
+          (assertions
+            "composes together all of the item queries, with desired parameters"
+            query => [item-4-expr item-3-expr item-2-expr]
+            "has metadata for proper normalization of a response"
+            (om/tree->db query good-response true) => normalized-response))
 
-          (behavior "has metadata for proper normalization of a response"
-            (is (= normalized-response (om/tree->db query good-response true)))))
-
-        (component "generated on-load handler (reconciler using deep merge)"
+        (component "includes an on-load handler (reconciler using deep merge)"
           (on-load good-response)
 
-          (behavior "leaves existing data in place"
+          (behavior "that leaves existing data in place"
             (are [path v] (= v (get-in @state path))
                           [:panel/id 1] {:db/id 1, :items [[:items/id 2] [:items/id 3] [:items/id 4]]}))
 
@@ -253,7 +253,7 @@
           (behavior "marks missing data in the app state as not present."
             (is (nil? (get-in @state [:items/id 4 :comments :ui/fetch-state])))))
 
-        (component "generated on-error handler"
+        (component "generates an on-error handler"
           (reset! state loading-state)
           (are [id] (df/loading? (get-in @state [:items/id id :comments :ui/fetch-state])) 2 3 4)
           (on-error {})
@@ -335,3 +335,34 @@
       (-> state
         (assoc-in [:baz :ui/fetch-state] (dfi/make-data-state :failed nil))
         (assoc-in [:some :other] nil)))))
+
+(specification "Rendering lazily loaded data"
+  (let [ready-props {:ui/fetch-state (dfi/make-data-state :ready)}
+        loading-props (update ready-props :ui/fetch-state dfi/set-loading!)
+        failed-props (update ready-props :ui/fetch-state dfi/set-failed!)
+        props {:foo :bar}]
+
+    (letfn [(ready-override [_] :ready-override)
+            (loading-override [_] :loading-override)
+            (failed-override [_] :failed-override)
+            (not-present [_] :not-present)
+            (present [props] (if (nil? props) :baz (:foo props)))]
+
+      (assertions
+        "When props are ready to load, runs ready-render"
+        (df/lazily-loaded present ready-props :ready-render ready-override) => :ready-override
+
+        "When props are loading, runs loading-render"
+        (df/lazily-loaded present loading-props :loading-render loading-override) => :loading-override
+
+        "When loading the props failed, runs failed-render"
+        (df/lazily-loaded present failed-props :failed-render failed-override) => :failed-override
+
+        "When the props are nil and not-present-renderer provided, runs not-present-render"
+        (df/lazily-loaded present nil :not-present-render not-present) => :not-present
+
+        "When the props are nil without a not-present-renderer, runs data-render"
+        (df/lazily-loaded present nil) => :baz
+
+        "When props are loaded, runs data-render."
+        (df/lazily-loaded present props) => :bar))))
