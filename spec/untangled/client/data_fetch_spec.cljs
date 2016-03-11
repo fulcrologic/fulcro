@@ -229,16 +229,16 @@
             (is (:app/loading-data @state))))
 
         (component "generated query"
-          (behavior "composes together all of the item queries, with desired parameters"
-            (is (= [item-4-expr item-3-expr item-2-expr] query)))
+          (assertions
+            "composes together all of the item queries, with desired parameters"
+            query => [item-4-expr item-3-expr item-2-expr]
+            "has metadata for proper normalization of a response"
+            (om/tree->db query good-response true) => normalized-response))
 
-          (behavior "has metadata for proper normalization of a response"
-            (is (= normalized-response (om/tree->db query good-response true)))))
-
-        (component "generated on-load handler (reconciler using deep merge)"
+        (component "includes an on-load handler (reconciler using deep merge)"
           (on-load good-response)
 
-          (behavior "leaves existing data in place"
+          (behavior "that leaves existing data in place"
             (are [path v] (= v (get-in @state path))
                           [:panel/id 1] {:db/id 1, :items [[:items/id 2] [:items/id 3] [:items/id 4]]}))
 
@@ -253,7 +253,7 @@
           (behavior "marks missing data in the app state as not present."
             (is (nil? (get-in @state [:items/id 4 :comments :ui/fetch-state])))))
 
-        (component "generated on-error handler"
+        (component "generates an on-error handler"
           (reset! state loading-state)
           (are [id] (df/loading? (get-in @state [:items/id id :comments :ui/fetch-state])) 2 3 4)
           (on-error {})

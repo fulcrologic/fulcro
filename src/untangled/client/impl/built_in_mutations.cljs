@@ -36,7 +36,7 @@
 
 (defmethod mutate 'tx/fallback [env _ {:keys [action execute] :as params}]
   (if execute
-    {:action #(mutate env action params)}
+    {:action #(some-> (mutate env action (dissoc params :action :execute)) :action (apply []))}
     {:remote true}))
 
 (defmethod mutate 'ui/set-props [{:keys [state ref]} _ params]

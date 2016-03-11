@@ -40,7 +40,7 @@
           ui-tx (impl/rewrite-tempids ui-tx tempid-map)]
       (assertions "Generates the expected server query"
         (-> (parse ui-tx :remote)
-          plumbing/filter-loads-and-fallbacks
+          plumbing/remove-loads-and-fallbacks
           plumbing/strip-ui
           (impl/rewrite-tempids (set/map-invert tempid-map)
             omt/tempid?))
