@@ -68,7 +68,7 @@
       entry (recur (async/poll! queue) (conj entries (resolve-tempids entry tempid-map)))
       (seq entries) (doseq [e entries] (assert (async/offer! queue e) "Queue should not block.")))))
 
-(defn filter-loads-and-fallbacks
+(defn remove-loads-and-fallbacks
   "Removes all app/load and tx/fallback mutations from the query"
   [query]
   (let [symbols-to-filter #{'app/load 'tx/fallback}
@@ -78,7 +78,7 @@
         new-ast (assoc ast :children new-children)]
     (om/ast->query new-ast)))
 
-(defn fallback-query [query]
+(defn fallback-query [query resp]
   "Filters out everything from the query that is not a fallback mutation.
   Returns nil if the resulting expression is empty."
   (let [symbols-to-find #{'tx/fallback}
@@ -86,7 +86,7 @@
         children (:children ast)
         new-children (->> children
                        (filter (fn [child] (contains? symbols-to-find (:dispatch-key child))))
-                       (map (fn [ast] (update ast :params assoc :execute true))))
+                       (map (fn [ast] (update ast :params assoc :execute true :error resp))))
         new-ast (assoc ast :children new-children)
         fallback-query (om/ast->query new-ast)]
     (when (not-empty fallback-query)

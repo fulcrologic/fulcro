@@ -14,16 +14,15 @@
 
 (defn fallback-handler [{:keys [reconciler]} query]
   (fn [resp]
-    ;; TODO: integrate resp into the transaction somehow
-    (if-let [q (impl/fallback-query query)]
+    (if-let [q (impl/fallback-query query resp)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
           (om/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
 
-(defn tx-payload [general-tx app cb]
-  (let [fallback (fallback-handler app general-tx)]
-    {:query    general-tx
-     :on-load  #(-> % (impl/mark-missing general-tx) cb)
+(defn tx-payload [full-tx real-mutations app cb]
+  (let [fallback (fallback-handler app full-tx)]
+    {:query    real-mutations
+     :on-load  #(-> % (impl/mark-missing full-tx) cb)
      :on-error #(fallback %)}))
 
 ;; this is here for testing
@@ -33,12 +32,12 @@
   "Puts queries/mutations (and their corresponding callbacks) onto the send queue. The networking CSP will pull these
   off one at a time and send them through the real networking layer."
   [{:keys [reconciler networking queue] :as app} {:keys [remote]} cb]
-  (let [general-tx (impl/filter-loads-and-fallbacks remote)
+  (let [general-tx (impl/remove-loads-and-fallbacks remote)
         has-non-fetch-tx? (> (count general-tx) 0)
         fetch-payload (f/mark-loading reconciler)]
 
     (when has-non-fetch-tx?
-      (let [payload (tx-payload general-tx app cb)]
+      (let [payload (tx-payload remote general-tx app cb)]
         (enqueue queue payload)))
 
     (when fetch-payload
