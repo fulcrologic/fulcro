@@ -83,9 +83,14 @@
         (cfg/get-defaults defaults-path) => {}
         (cfg/get-config "/foo/bar") => {}
         (assertions (cfg/load-config {:config-path "/foo/bar"}) => {})))
-    (behavior "config-path can be a relative path"
-      (assertions
-        (cfg/load-config {:config-path "not/abs/path"}) =throws=> (ExceptionInfo #"provide a valid file"))))
+    (assertions
+      "config-path can be a relative path"
+      (cfg/load-config {:config-path "not/abs/path"})
+      =throws=> (ExceptionInfo #"Invalid config file")
+
+      "prints the invalid path in the exception message"
+      (cfg/load-config {:config-path "invalid/file"})
+      =throws=> (ExceptionInfo #"invalid/file")))
 
   (component "resolve-symbol"
     (behavior "requires if necessary"
@@ -123,10 +128,10 @@
           (#'cfg/open-config-file "/foobar") => "42")))
     (behavior "or if path is nil, uses a default path"
       (assertions
-        (#'cfg/open-config-file nil) =throws=> (ExceptionInfo #"provide a valid file")))
+        (#'cfg/open-config-file nil) =throws=> (ExceptionInfo #"Invalid config file")))
     (behavior "if path doesn't exist on fs, it throws an ex-info"
       (assertions
-        (#'cfg/get-config "/should/fail") =throws=> (ExceptionInfo #"provide a valid file")))))
+        (#'cfg/get-config "/should/fail") =throws=> (ExceptionInfo #"Invalid config file")))))
 
 (defrecord App []
   component/Lifecycle

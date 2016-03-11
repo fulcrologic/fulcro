@@ -1,10 +1,10 @@
-(defproject navis/untangled-server "0.4.5"
+(defproject navis/untangled-server "0.4.6"
   :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
                  [org.clojure/math.combinatorics "0.1.1"]
                  [org.clojure/tools.namespace "0.2.10"]
-                 [org.omcljs/om "1.0.0-alpha30"]
+                 [org.omcljs/om "1.0.0-alpha31"]
                  [http-kit "2.1.19"]
                  [environ "1.0.0"]
                  [bidi "1.21.1"]
@@ -28,12 +28,10 @@
   :jvm-opts ["-server" "-Xmx1024m" "-Xms512m" "-XX:-OmitStackTraceInFastThrow"]
 
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
+                 :with-repl    true
                  :changes-only true}
 
   :test-selectors {:focused :focused}
 
-  :profiles
-  {
-   :dev {
-         :source-paths ["env/dev"]
-         :repl-options {:init-ns user}}})
+  :profiles {:dev {:source-paths ["env/dev"]
+                   :repl-options {:init-ns user}}})

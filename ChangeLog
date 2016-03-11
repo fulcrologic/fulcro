@@ -4,3 +4,7 @@
 - Moved GELF logger to an optional compoent
 - Changed dependencies to not pull GELF in as a transitive dependency
 - Fixed various docs
+
+0.4.6
+-----
+
