@@ -16,13 +16,13 @@
 
   Returns the current locale when reading the :ui/locale keyword. Otherwise pulls data out of the app-state.
   "
-  [{:keys [query target state]} dkey _]
+  [{:keys [query target state ast]} dkey _]
   (when (not target)
     (case dkey
       :app/locale {:value (deref i18n/*current-locale*)}
       :ui/locale {:value (deref i18n/*current-locale*)}
       (let [top-level-prop (nil? query)
-            key (or (:ast key) dkey)
+            key (or (:key ast) dkey)
             by-ident? (om/ident? key)
             union? (map? query)
             data (if by-ident? (get-in @state key) (get @state key))]

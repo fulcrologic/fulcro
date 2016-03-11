@@ -37,7 +37,11 @@
 
       "read queries with references"
       (parser [{:join [{:sub-key-1 [:survey/title :survey/description]}]}]) =>
-      {:join {:sub-key-1 {:survey/title "Howdy!" :survey/description "More stuff"}}})))
+      {:join {:sub-key-1 {:survey/title "Howdy!" :survey/description "More stuff"}}}
+
+      "read with pathopt turned on"
+      (parser [{[:item/by-id 1] [:survey/title]}])
+      => {[:item/by-id 1] {:survey/title "Howdy!"}})))
 
 (specification "filter-loads-and-fallbacks"
   (behavior "Removes top-level mutations that use the app/load or tx/fallback symbols"
