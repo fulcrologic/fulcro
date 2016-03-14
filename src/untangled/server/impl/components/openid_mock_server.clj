@@ -19,10 +19,10 @@
    :email                                 "test@test.com"
    :realm                                 ["realm1" "realm2"]
    :name                                  "Duck Dodgers"
-   :role                                  ["test" "test2"]
+   :role                                  "[\"test\" \"test2\"]"
    :aud                                   "api"
-   :private-key-path                      "mock-keys/private.key"
-   :public-key-path                       "mock-keys/public.key"
+   :private-key-path                      "mock-keys/host.key"
+   :public-key-path                       "mock-keys/server.crt"
    :alg                                   :RS256
    :grace-period-minutes                  1
    :idp                                   "idsrv"

@@ -38,9 +38,9 @@
 (defn public-keys-from-jwks [keys]
   (map (fn [json-web-key]
          (let [x5cert-chain (get json-web-key "x5c")
-               key (-> x5cert-chain json/read-str first)    ;; key MUST be first cert in the chain, according to JWK spec
-               key-str (str "-----BEGIN PUBLIC KEY-----\n"
+               key (first x5cert-chain)    ;; key MUST be first cert in the chain, according to JWK spec
+               key-str (str "-----BEGIN CERTIFICATE-----\n"
                          key "\n"
-                         "-----END PUBLIC KEY-----")]
+                         "-----END CERTIFICATE-----")]
            (public-key-from-string key-str))) keys))
 

@@ -12,8 +12,8 @@
     [hickory.zip :as hz]
     [clojure.zip :as zip]))
 
-(def rsa-prv-key (private-key "mock-keys/private.key" "pass phrase"))
-(def rsa-pub-key (public-key "mock-keys/public.key"))
+(def rsa-prv-key (private-key "mock-keys/host.key" "pass phrase"))
+(def rsa-pub-key (public-key "mock-keys/server.crt"))
 
 
 (def options {:path          "openid"
@@ -21,6 +21,7 @@
 
 (def access-token-sample "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImEzck1VZ01Gdjl0UGNsTGE2eUYzekFrZnF1RSIsImtpZCI6ImEzck1VZ01Gdjl0UGNsTGE2eUYzekFrZnF1RSJ9.eyJjbGllbnRfaWQiOiJtdmM2Iiwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSIsImVtYWlsIiwiYXBpMSJdLCJzdWIiOiI4MTg3MjciLCJhbXIiOlsicGFzc3dvcmQiXSwiYXV0aF90aW1lIjoxNDQ3NjE3NTM4LCJpZHAiOiJpZHNydiIsInJvbGUiOlsiQWRtaW4iLCJHZWVrIl0sImlzcyI6Imh0dHBzOi8vbG9jYWxob3N0OjQ0MzAwIiwiYXVkIjoiaHR0cHM6Ly9sb2NhbGhvc3Q6NDQzMDAvcmVzb3VyY2VzIiwiZXhwIjoxNDQ3NjIxMTU1LCJuYmYiOjE0NDc2MTc1NTV9.jtbjTyE_-HhFWOR8t18d8YkMlrtbiNMi-nTACF_ucHB_wvKkF9Ap4dRoXuFcfl6JwelxsT5DmS5DHbWofr24-ptiOkt0YTyEj6RkV9jeTry7Vi4Rl15y9aTXgc5y2a4Q37kneQL9iZzJ-pSsIFWPu-y5sNWA1i7IvlJI4yB6sgWvfunYfVD3wdOIvMA5cOlU29-kIhYpLLSmjD0ELNNrUOJHRymiJLOQHogAqV_inlloP_EXY_pRD_ghGhLzVio8DX5Z3aqFZk8ZjLcQZu8T6V8goKXC9JamzaSe0m4_Kb7fng-KVmqpIHfRNTRZ7Jpeu8gGjqX2TVE__wQ4FjP0Qg")
 (def id-token-sample "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImEzck1VZ01Gdjl0UGNsTGE2eUYzekFrZnF1RSIsImtpZCI6ImEzck1VZ01Gdjl0UGNsTGE2eUYzekFrZnF1RSJ9.eyJub25jZSI6IjYzNTgzMjE0MjcyNDUzMTAwMC5abVpoTVRNNU1qY3RNamMxTlMwME16UmpMV0ptTlRZdFpURmpaRGMyTXpnNE1XUmlPRFZtTnpNeVptSXROemN3WWkwMFpXTTBMVGhqWldJdE1HTXdaV1V3Wm1FeVpqZzQiLCJpYXQiOjE0NDc2MTc1NzAsImF0X2hhc2giOiJ1b3JCNHhaNGlOZXAzU01LRUlFOGxRIiwic3ViIjoiODE4NzI3IiwiYW1yIjpbInBhc3N3b3JkIl0sImF1dGhfdGltZSI6MTQ0NzYxNzUzOCwiaWRwIjoiaWRzcnYiLCJuYW1lIjoiQWxpY2UgU21pdGgiLCJnaXZlbl9uYW1lIjoiQWxpY2UiLCJmYW1pbHlfbmFtZSI6IlNtaXRoIiwiZW1haWwiOiJBbGljZVNtaXRoQGVtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJpc3MiOiJodHRwczovL2xvY2FsaG9zdDo0NDMwMCIsImF1ZCI6Im12YzYiLCJleHAiOjE0NDc2MTc4NzAsIm5iZiI6MTQ0NzYxNzU3MH0.oOKy06Yxy_ufYAKMoso6wcE-D47ZDihNA937qI_nsjWAFToia7TL7Um23lcN4PmuXGTbrKYCgu9sa1URgGuOISd8XkgoUbMfOsc11OMRLI308QyVid9loUDZ6cwEhYzbZQbwhJqhTvf7JMh-fVKkzt9Ye9o-At3BjOhelBQBxOhSCRSXoUFm_tS5P7Uj9SsVYNKSLdeIYXLKwBZNRSlbEPrzeTwjYP22JphlrtqndF4qbMBW2DMgCjsX2vniQcCLRI6D_5nx7UR0e4U1aKa3R0dbqEYB0iQVvDj5VnFMsJbOGHlHKQsetrCKpWpAS_Qgl61WmMCx1uFa3hwnqEZYnw")
+
 
 
 (def handler (mock/wrap-openid-mock options {}))
@@ -32,9 +33,8 @@
                "scope"         "openid profile api1"
                "state"         "af0ifjsldkj"
                "nonce"         "n-0S6_WzA2Mj"}
-        req (rm/request :get "openid/connect/authorize")
+        req (-> (rm/request :get "openid/connect/authorize"))
         hand (params/wrap-params handler)
-        _ (rm/query-string req query)
         resp (-> req (rm/query-string query) hand)
         form-input-elems (:content (-> (hz/hickory-zip (hc/as-hickory (hc/parse (:body resp)))) zip/next zip/next zip/next zip/right zip/next zip/node))
         form-inputs (reduce (fn [acc {:keys [attrs]}]
