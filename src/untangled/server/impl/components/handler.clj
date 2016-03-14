@@ -114,15 +114,6 @@
 ;; Handler Code
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn openid-locator [req {:keys [config] :as env} match]
-  (let [openid-config (-> config :value :openid)
-        url (str (:authority openid-config) "/connect/authorize")]
-    {:status  200
-     :headers {"Content-Type" "application/json"}
-     :body    (json/write-str {:authUrl  url
-                               :scope    (:scope openid-config)
-                               :clientId (:client-id openid-config)})}))
-
 (defn route-handler [req]
   (let [match (bidi/match-route routes (:uri req)
                 :request-method (:request-method req))]
