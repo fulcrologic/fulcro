@@ -95,4 +95,3 @@ default-malformed-response
               transit-response
               (content-type transit-response (format "application/transit+%s; charset=utf-8" (name encoding)))))
           response)))))
-
