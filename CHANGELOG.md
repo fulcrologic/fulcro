@@ -15,3 +15,6 @@
 - Fixed local read bug, and turned on path optimization
 - Fixed fallback handling of failed remote transactions, and added lots of tests
 
+0.4.7
+-----
+- untangled.openid-client/setup, parses any openid claims from the webtoken in the url's hash fragments
