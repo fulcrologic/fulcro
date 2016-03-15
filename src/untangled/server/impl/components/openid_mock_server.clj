@@ -126,18 +126,18 @@
 
 (defn jwks [request options]
   (let [public-key (jwtk/public-key (:public-key-path options))
+        raw-data (slurp (:public-key-path options))
+        key-data (apply str (-> (clojure.string/split-lines raw-data) rest reverse rest reverse))
         modulus (.getModulus public-key)
         exp (.getPublicExponent public-key)
         thum (.hashCode public-key)
-        raw (apply str (mapv char (Base64/encodeBase64 (.encode public-key))))
         e (encode-bigint exp)
         n (encode-bigint modulus)
         x5t (apply str (map char (Base64/encodeBase64 (->> thum str (map byte) byte-array))))]
     {:status  200
      :headers {"Content-Type" "application/json"}
-     :body    (json/write-str {:keys [{:kty "RSA" :use "sig" :e e :n n :x5t x5t :x5c (str [raw])}]})}))
-
-
+     :body    (json/write-str {:keys [{:kty "RSA" :use "sig" :e e :n n :x5t x5t :x5c [key-data]}]}
+                              :escape-slash false)}))
 
 (defn wrap-openid-mock
   "Middleware that simulates an openid connect server for development purposes
