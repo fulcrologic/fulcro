@@ -19,15 +19,15 @@
   "
   [component field & {:keys [without params post-mutation]}]
   (om/transact! component [(list 'app/load
-                             {:ident    (om/get-ident component)
-                              :field    field
-                              :query    (om/focus-query (om/get-query component) [field])
-                              :params   params
-                              :without  without
+                             {:ident         (om/get-ident component)
+                              :field         field
+                              :query         (om/focus-query (om/get-query component) [field])
+                              :params        params
+                              :without       without
                               :post-mutation post-mutation})]))
 
-(defn load-collection
-  "Load a collection from the remote. Runs `om/transact!`.
+(defn load-data
+  "Load data from the remote. Runs `om/transact!`. See also `load-field`.
 
   Parameters
   - `comp-or-reconciler`: A component or reconciler (not a class)
@@ -40,13 +40,15 @@
   [comp-or-reconciler query & {:keys [ident without params post-mutation]}]
   (let []
     (om/transact! comp-or-reconciler [(list 'app/load
-                                        {:ident    ident
-                                         :query    query
-                                         :params   params
-                                         :without  without
+                                        {:ident         ident
+                                         :query         query
+                                         :params        params
+                                         :without       without
                                          :post-mutation post-mutation})])))
 
-(def load-singleton load-collection)
+; DEPRECATED NAMES FOR load-data:
+(def load-singleton load-data)
+(def load-collection load-data)
 
 (defn load-field-action
   "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`
