@@ -4,7 +4,8 @@
             [untangled.server.impl.components.config :as config]
             [untangled.server.impl.components.access-token-handler :as access-token-handler]
             [untangled.server.impl.components.openid-mock-server :as openid-mock-server]
-            [com.stuartsierra.component :as component]))
+            [com.stuartsierra.component :as component]
+            [clojure.data.json :as json]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mutation Helpers
@@ -14,10 +15,29 @@
   "The function will throw an assertion error if any args are nil."
   (assert (every? (comp not nil?) args) (str "All parameters to " mutation " mutation must be provided.")))
 
+(defn assert-user [req]
+  "Throws and AssertionError if the user credentials are missing from the request."
+  (assert (:user req) "Request has no user credentials!"))
+
 (defn transitive-join
   "Takes a map from a->b and a map from b->c and returns a map a->c."
   [a->b b->c]
   (reduce (fn [result k] (assoc result k (->> k (get a->b) (get b->c)))) {} (keys a->b)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; OpenID helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn openid-location [req {:keys [config] :as env} match]
+  "A helper endpoint that can be injected via untangled server's :extra-routes.
+  This allows untangled clients to access the configuration they require to begin the OpenID auth process."
+  (let [openid-config (-> config :value :openid)
+        url (str (:authority openid-config) "/connect/authorize")]
+    {:status  200
+     :headers {"Content-Type" "application/json"}
+     :body    (json/write-str {:authUrl  url
+                               :scope    (:scope openid-config)
+                               :clientId (:client-id openid-config)})}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Component Constructor Functions
