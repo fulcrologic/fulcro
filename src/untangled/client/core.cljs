@@ -92,4 +92,3 @@
   ([param-name] (get-url-param (get-url) param-name))
   ([url param-name]
    (get (uri-params url) param-name)))
-

@@ -45,10 +45,10 @@
 
   UntangledNetwork
   (send [this edn ok err]
-    (let [content-type {"Content-Type" "application/transit+json"}
-          [request headers] (cond
-                              request-transform (request-transform edn content-type)
-                              :else [edn content-type])
+    (let [headers {"Content-Type" "application/transit+json"}
+          {:keys [request headers]} (cond
+                                      request-transform (request-transform {:request edn :headers headers})
+                                      :else {:request edn :headers headers})
           post-data (ct/write (t/writer) request)
           headers (clj->js headers)]
       (reset! error-callback (fn [e] (err e)))

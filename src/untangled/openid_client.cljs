@@ -17,14 +17,21 @@
 
 (defn setup
   "Installs openid information into the passed in untangled-client app's initial state,
-  based on the token claims in the url's hash fragments."
-  [app-state]
+  based on the token claims in the url's hash fragments.
+  Also composes in a request-transform in networking's send function
+  to add an Authorization header for each request."
+  [app]
   (let [tokens (tokens-from-params (params))
         id-claims (-> tokens (get "id_token") parse-claims js->clj w/keywordize-keys)]
-    (swap! app-state update-in [:initial-state]
+    (swap! app update-in [:initial-state]
            (fn [m]
              (assoc m
                     :app/header {:current-username (:name id-claims)}
                     :openid/claims id-claims
                     :openid/access-token (get tokens "access_token"))))
+    (swap! app update-in [:networking :request-transform]
+           #(comp (or % identity)
+                  (fn [req]
+                      (let [access-token (:openid/access-token @(:reconciler @app))]
+                        (assoc-in req [:headers "Authorization"] (str "Bearer " access-token))))))
     (aset js/window.location "hash" "")))
