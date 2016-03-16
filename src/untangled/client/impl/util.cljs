@@ -14,9 +14,9 @@
               (if (sequential? location) location [location]))
             (process-location [acc location]
               (let [path (make-path location)]
-                (assoc-in acc path (get-in @app-state path))))]
+                (assoc-in acc path (get-in app-state path))))]
 
       (condp = (count keys-and-paths)
         0 app-state
-        1 (get-in @app-state (make-path (first keys-and-paths)))
+        1 (get-in app-state (make-path (first keys-and-paths)))
         (reduce process-location {} keys-and-paths)))))

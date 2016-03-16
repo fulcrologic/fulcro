@@ -4,22 +4,22 @@
     [untangled.client.impl.util :as util]))
 
 (specification "Log app state"
-  (let [state (atom {:foo        {:a :b
-                                  12 {:c         ["hello" "world"]
-                                      [:wee :ha] {:e [{:e :g}
-                                                      {:a [1 2 3 4]}
-                                                      {:t :k}]
-                                                  :g :h
-                                                  :i :j}}}
-                     {:map :key} {:other :data}
-                     [1 2 3]     :data})]
+  (let [state {:foo        {:a :b
+                            12 {:c         ["hello" "world"]
+                                [:wee :ha] {:e [{:e :g}
+                                                {:a [1 2 3 4]}
+                                                {:t :k}]
+                                            :g :h
+                                            :i :j}}}
+               {:map :key} {:other :data}
+               [1 2 3]     :data}]
 
     (when-mocking
       (cljs.pprint/pprint data) => data
 
       (assertions
         "Handle non-sequential keys"
-        (util/log-app-state state {:map :key}) => (get @state {:map :key})
+        (util/log-app-state state {:map :key}) => (get state {:map :key})
 
         "Handles sequential keys"
         (util/log-app-state state [[1 2 3]]) => :data
