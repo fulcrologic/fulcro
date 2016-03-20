@@ -9,11 +9,11 @@
 
 
 (defn toggle-class
-  "Adds the 'visble' class and removes the 'hidden' class to the pre-supplied class string based on the truthiness
+  "Adds the 'visible' class and removes the 'hidden' class to the pre-supplied class string based on the truthiness
   of the value in data at key.
 
   Parameters:
-  `data`: A map containg the component's state.
+  `data`: A map containing the component's state.
   `key`: A key within `data`.
   `always-classes`: A string that has the CSS classes to always return in the returned string.
 
