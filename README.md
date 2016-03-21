@@ -8,4 +8,4 @@ This is a library of Datomic support functions, including the following:
 
 ## License
 
-Copyright © 2015 NAVIS
+The MIT License (MIT) Copyright © 2016 NAVIS
