@@ -11,7 +11,7 @@
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [navis/untangled-spec "0.3.5" :scope "test"]
-                 [org.omcljs/om "1.0.0-alpha31" :scope "provided"]
+                 [org.omcljs/om "1.0.0-alpha32" :scope "provided"]
                  [camel-snake-kebab "0.3.2"]]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]

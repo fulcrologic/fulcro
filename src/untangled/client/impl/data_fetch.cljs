@@ -1,6 +1,7 @@
 (ns untangled.client.impl.data-fetch
   (:require [om.next.impl.parser :as op]
             [om.next :as om]
+            [om.util :as util]
             [clojure.walk :refer [prewalk]]
             [cljs.core.async :as async]
             [clojure.set :as set]
@@ -116,13 +117,13 @@
   remoting and merging."
   [& {:keys [ident field params without query post-mutation] :or {:without #{}}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
-  (assert (or (not field) (and field (om/ident? ident))) "Field requires ident")
+  (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
         ast (cond-> old-ast
               (not-empty without) (elide-ast-nodes without)
               params (inject-query-params params))
         query-field (first query)
-        key (if (om/join? query-field) (om/join-key query-field) query-field)
+        key (if (util/join? query-field) (util/join-key query-field) query-field)
         query' (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
     {::type          :ready
