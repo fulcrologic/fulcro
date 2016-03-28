@@ -1,6 +1,7 @@
 (ns untangled.client.impl.om-plumbing
   (:require [om.next :as om]
             [om.next.impl.parser :as op]
+            [om.util :as util]
             [untangled.i18n.core :as i18n]
             [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
@@ -25,7 +26,7 @@
       :ui/locale {:value (deref i18n/*current-locale*)}
       (let [top-level-prop (nil? query)
             key (or (:key ast) dkey)
-            by-ident? (om/ident? key)
+            by-ident? (util/ident? key)
             union? (map? query)
             data (if by-ident? (get-in @state key) (get @state key))]
         {:value
@@ -128,8 +129,8 @@
           (step [res q]
             (let [q (if (paramterized? q) (first q) q)]
               (let [[query-key ?sub-query] (cond
-                                             (om/join? q)
-                                             [(om/join-key q) (om/join-value q)]
+                                             (util/join? q)
+                                             [(util/join-key q) (util/join-value q)]
 
                                              :else [q nil])
                     res+nf (ok*not-found res query-key)
