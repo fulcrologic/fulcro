@@ -31,9 +31,9 @@
         callback (fn [app] (reset! startup-called (:initial-state app)))
         unmounted-app (uc/new-untangled-client :initial-state state :started-callback callback)
         app (uc/mount unmounted-app Root "application-mount-point")
-
         mounted-app-state (om/app-state (:reconciler app))
         reconciler (:reconciler app)]
+
     (component "Initialization"
       (behavior "returns untangled client app record with"
         (assertions
@@ -53,7 +53,9 @@
           @startup-called => state
           "normalizes and uses the initial state"
           (get-in @mounted-app-state [:thing/by-id 1]) => {:id 1 :name "A"}
-          (get-in @mounted-app-state [:things 0]) => [:thing/by-id 1])))
+          (get-in @mounted-app-state [:things 0]) => [:thing/by-id 1]
+          "sets the language to en-US"
+          (get @mounted-app-state :ui/locale) => "en-US")))
 
     (component "Remote transaction"
       (behavior "are split into reads, mutations, and tx fallbacks"
@@ -94,6 +96,8 @@
         (assertions
           "Changes the i18n locale for translation lookups"
           (deref i18n/*current-locale*) => "es-MX"
+          "Places the new locale in the app state"
+          (:ui/locale @mounted-app-state) => "es-MX"
           "Updates the react key to ensure render can redraw everything"
           (not= react-key (:ui/react-key @mounted-app-state)) => true)))))
 

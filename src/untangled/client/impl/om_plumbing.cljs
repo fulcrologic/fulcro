@@ -22,8 +22,6 @@
   [{:keys [query target state ast]} dkey _]
   (when (not target)
     (case dkey
-      :app/locale {:value (deref i18n/*current-locale*)}
-      :ui/locale {:value (deref i18n/*current-locale*)}
       (let [top-level-prop (nil? query)
             key (or (:key ast) dkey)
             by-ident? (util/ident? key)

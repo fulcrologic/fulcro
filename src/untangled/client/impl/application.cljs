@@ -79,7 +79,12 @@
         tempid-migrate (fn [pure _ tempids _]
                          (impl/rewrite-tempids-in-request-queue queue tempids)
                          (impl/resolve-tempids pure tempids))
-        config {:state      initial-state
+        initial-state-with-locale (if (= Atom (type initial-state))
+                                    (do
+                                      (swap! initial-state assoc :ui/locale "en-US")
+                                      initial-state)
+                                    (assoc initial-state :ui/locale "en-US"))
+        config {:state      initial-state-with-locale
                 :send       (fn [tx cb]
                               (server-send (assoc app :reconciler @rec-atom) tx cb))
                 :migrate    tempid-migrate
@@ -106,6 +111,7 @@
         node (if (string? dom-id-or-node)
                (gdom/getElement dom-id-or-node)
                dom-id-or-node)]
+
     (initialize-internationalization rec)
     (start-network-sequential-processing completed-app)
     (om/add-root! rec root-component node)

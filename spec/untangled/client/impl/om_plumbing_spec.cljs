@@ -22,9 +22,6 @@
     (reset! i18n/*current-locale* "en-US")
 
     (assertions
-      "read the app locale"
-      (parser [:ui/locale]) => {:ui/locale "en-US"}
-
       "read top-level properties"
       (parser [:top-level]) => {:top-level :top-level-value}
 
