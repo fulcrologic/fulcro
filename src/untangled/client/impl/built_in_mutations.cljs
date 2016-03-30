@@ -32,7 +32,9 @@
 (defmethod mutate 'ui/change-locale [{:keys [state]} _ {:keys [lang]}]
   {:action (fn []
              (reset! i18n/*current-locale* lang)
-             (swap! state assoc :ui/react-key (unique-key)))})
+             (swap! state #(-> %
+                            (assoc :ui/locale lang)
+                            (assoc :ui/react-key (unique-key)))))})
 
 (defmethod mutate 'tx/fallback [env _ {:keys [action execute] :as params}]
   (if execute
