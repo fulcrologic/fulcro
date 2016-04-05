@@ -226,7 +226,7 @@
             (is (empty? (-> @state :om.next/ready-to-load))))
 
           (behavior "marking the top-level app-state with loading indicator."
-            (is (:app/loading-data @state))))
+            (is (:ui/loading-data @state))))
 
         (component "generated query"
           (assertions
@@ -305,7 +305,7 @@
           )))))
 
 (specification "set-global-loading"
-  (let [loading-state {:app/loading-data true
+  (let [loading-state {:ui/loading-data true
                        :some             :data
                        :nested           {:information (dfi/make-data-state :loading)}
                        :om.next/tables   #{}}
@@ -321,7 +321,7 @@
     (behavior "sets app-wide data loading key to false if no loading markers present."
       (dfi/set-global-loading not-loading-reconciler)
 
-      (is (= (assoc not-loading-state :app/loading-data false) @not-loading-reconciler)))))
+      (is (= (assoc not-loading-state :ui/loading-data false) @not-loading-reconciler)))))
 
 (specification "The swap-data-states function"
   (let [state {:foo  {:bar (dfi/make-data-state :ready)}
