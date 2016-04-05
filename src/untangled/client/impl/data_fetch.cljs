@@ -38,7 +38,7 @@
   (let [state (om/app-state reconciler)
         items-to-load (get @state :om.next/ready-to-load)]
     (when-not (empty? items-to-load)
-      (om/merge! reconciler {:app/loading-data true})
+      (om/merge! reconciler {:ui/loading-data true})
       (doseq [item items-to-load]
         (swap! state assoc-in
           (data-path item)
@@ -208,12 +208,12 @@
 
 (defn- set-global-loading [reconciler]
   "Sets :app/loading to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
-  (om/merge! reconciler {:app/loading-data false})
+  (om/merge! reconciler {:ui/loading-data false})
 
   (prewalk (fn [value]
              (cond
-               (:app/loading-data @reconciler) nil          ;short-circuit traversal if app/loading-data already true
-               (loading? value) (do (om/merge! reconciler {:app/loading-data true}) value)
+               (:ui/loading-data @reconciler) nil          ;short-circuit traversal if ui/loading-data already true
+               (loading? value) (do (om/merge! reconciler {:ui/loading-data true}) value)
                :else value))
     @reconciler))
 

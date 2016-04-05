@@ -18,5 +18,6 @@
 0.4.7
 -----
 - untangled.openid-client/setup, parses any openid claims from the webtoken in the url's hash fragments
-- Renamed load-collection/singleton to load-data. Old names are 
-deprecated, but not yet removed.
+- Renamed load-collection/singleton to load-data. Old names are deprecated, but not yet removed.
+- Renamed :app/loading-data to :ui/loading-data
+
