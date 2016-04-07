@@ -20,12 +20,6 @@
                :without without
                :post-mutation post-mutation))})
 
-(defmethod mutate 'post-initial-load [{:keys [state]} k p]
-  {:action #(swap! state (fn [s]
-                           (-> s
-                             (assoc-in [:main :singleton :data-items] (:data-items s))
-                             (dissoc :data-items))))})
-
 (defmethod mutate 'app/clear-error [{:keys [state]} _ _]
   {:action #(swap! state assoc :last-error nil)})
 
