@@ -19,7 +19,7 @@
   `on-success`: a function of 2 arguments, taking the parsing environment and the server response for extra validation.
   `prepare-server-tx`: allows you to modify the transaction recevied from the client before running it, using the
   seed result to remap seeded tempids."
-  [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx]}]
+  [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx which-db]}]
   (let [started-app (.start app)]
     (try
       (let [seeder-result (get-in started-app [:seeder :seed-result])
@@ -28,7 +28,12 @@
                 (.stop started-app)
                 (assert false "seed data tempids must have no overlap"))
 
-            datomic-tid->rid (apply merge (vals seeder-result))
+            datomic-tid->rid (if which-db
+                               (or (get seeder-result which-db)
+                                   (throw (ex-info "Invalid which-db"
+                                                   {:which-db which-db
+                                                    :valid-options (keys seeder-result)})))
+                               (apply merge (vals seeder-result)))
             _ (timbre/debug :datomic-tid->rid datomic-tid->rid)
             prepare-server-tx+ (if prepare-server-tx
                                  #(prepare-server-tx % datomic-tid->rid)
