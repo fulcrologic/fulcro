@@ -96,7 +96,10 @@
 
   *`parser-injections`  a vector of keywords which represent components which will be injected as the om parsing env.
 
-  *`extra-routes`       *IN FLUX*, but currently a map from uri path to a fn of type :: req -> env -> res
+  *`extra-routes`       OPTIONAL, a map containing `:routes` and `:handlers`,
+                        where routes is a bidi routing data structure,
+                        and handlers are map from handler name to a function of type :: Req -> Env -> BidiMatch -> Res
+                        see `handler/wrap-extra-routes` & handler-spec for more.
 
   Returns a Sierra system component.
   "
