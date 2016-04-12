@@ -80,7 +80,8 @@
           (let [env+seed-result (reduce (fn [env [db-name seed-result]]
                                           (assoc-in env [db-name :seed-result] seed-result))
                                         env seeder-result)]
-            (on-success env+seed-result server-response rewrite-response))))
+            (on-success (assoc env+seed-result :remap-fn rewrite-response)
+                        server-response))))
 
       (finally
         (.stop started-app)))))

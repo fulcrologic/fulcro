@@ -101,9 +101,9 @@
       =throws=> (AssertionError #"seed data tempids must have no overlap")))
   (behavior "test server response w/ mutate protocol data"
     (ps/check-response-to-client mutate-test-server mutate-protocol-support-data
-                                 :on-success (fn [env resp _]
+                                 :on-success (fn [env resp]
                                                (assertions
-                                                 (keys env) => [:db]
+                                                 (keys env) => [:db :remap-fn]
                                                  "seed data is put inside each database"
                                                  (keys (:seed-result (udb/get-info (:db env))))
                                                  => [:datomic.id/cthulhu])))))
