@@ -47,7 +47,7 @@
             server-response (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
             _ (timbre/debug :server-response server-response)
             [response-without-tempid-remaps om-tempid->datomic-id] (impl/extract-tempids server-response)
-            response-to-check (-> response-without-tempid-remaps
+            rewrite-response #(-> %
                                   ;;datomic rid->tid
                                   (impl/rewrite-tempids
                                     (clojure.set/map-invert datomic-tid->rid)
@@ -60,6 +60,7 @@
                                   (impl/rewrite-tempids
                                     real-omt->fake-omt
                                     omt/tempid?))
+            response-to-check (rewrite-response response-without-tempid-remaps)
             _ (timbre/debug :response-to-check response-to-check)
             om-tempids-to-check (impl/rewrite-tempids
                                   (set (keys om-tempid->datomic-id))
@@ -79,7 +80,7 @@
           (let [env+seed-result (reduce (fn [env [db-name seed-result]]
                                           (assoc-in env [db-name :seed-result] seed-result))
                                         env seeder-result)]
-            (on-success env+seed-result response-to-check))))
+            (on-success env+seed-result server-response rewrite-response))))
 
       (finally
         (.stop started-app)))))
