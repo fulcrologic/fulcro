@@ -8,13 +8,8 @@
   "Takes a keyword (:all, :debug, :info, :warn, :error, :none) and changes the log level accordingly.
   Note that the log levels are listed from least restrictive level to most restrictive."
   (.setLevel *logger*
-    (case log-level
-      :all (level/getPredefinedLevel "ALL")
-      :debug (level/getPredefinedLevel "FINE")
-      :info (level/getPredefinedLevel "INFO")
-      :warn (level/getPredefinedLevel "WARNING")
-      :error (level/getPredefinedLevel "SEVERE")
-      :none (level/getPredefinedLevel "NONE"))))
+    (level/getPredefinedLevel
+      (case log-level :all "ALL" :debug "FINE" :info "INFO" :warn "WARNING" :error "SEVERE" :none "OFF"))))
 
 (defn value-message
   "Include a pretty-printed cljs value as a string with the given text message."
