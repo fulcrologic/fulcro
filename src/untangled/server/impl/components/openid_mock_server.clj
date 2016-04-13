@@ -170,3 +170,9 @@
       this))
   (stop [this] this))
 
+(defrecord TestMockOpenIdServer [config]
+  component/Lifecycle
+  (start [this]
+    (let [mock-config (-> config :value :openid-mock)]
+      (assoc this :openid-mock/claims (merge default-options mock-config))))
+  (stop [this] this))

@@ -76,6 +76,11 @@
     (openid-mock-server/map->MockOpenIdServer {})
     [:config :handler]))
 
+(defn build-test-mock-openid-server []
+  (component/using
+    (openid-mock-server/map->TestMockOpenIdServer {})
+    [:config]))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Server Construction
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

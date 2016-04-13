@@ -44,7 +44,11 @@
             _ (timbre/debug :server-tx server-tx+)
 
             {:keys [api-parser env]} (:handler started-app)
-            server-response (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
+            mock-user-claims (-> started-app :test-openid-mock :openid-mock/claims)
+            server-response (-> (h/api {:parser api-parser
+                                        :env (assoc-in env [:request :user] mock-user-claims)
+                                        :transit-params server-tx+})
+                                :body)
             _ (timbre/debug :server-response server-response)
             [response-without-tempid-remaps om-tempid->datomic-id] (impl/extract-tempids server-response)
             rewrite-response #(-> %
