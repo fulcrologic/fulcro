@@ -19,7 +19,7 @@
           (om/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
 
-(defn tx-payload [full-tx real-mutations app cb]
+(defn mutation-payload [full-tx real-mutations app cb]
   (let [fallback (fallback-handler app full-tx)]
     {:query    real-mutations
      :on-load  #(-> % (impl/mark-missing full-tx) cb)
@@ -33,11 +33,11 @@
   off one at a time and send them through the real networking layer."
   [{:keys [reconciler networking queue] :as app} {:keys [remote]} cb]
   (let [general-tx (impl/remove-loads-and-fallbacks remote)
-        has-non-fetch-tx? (> (count general-tx) 0)
+        query-has-mutation? (> (count general-tx) 0)
         fetch-payload (f/mark-loading reconciler)]
 
-    (when has-non-fetch-tx?
-      (let [payload (tx-payload remote general-tx app cb)]
+    (when query-has-mutation?
+      (let [payload (mutation-payload remote general-tx app cb)]
         (enqueue queue payload)))
 
     (when fetch-payload
