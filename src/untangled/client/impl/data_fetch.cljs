@@ -239,5 +239,9 @@
 (defn- error-callback [reconciler items]
   (let [loading-items (into #{} (map set-loading! items))]
     (fn [error]
-      (swap! (om/app-state reconciler) swap-data-states (active-loads? loading-items) #(set-failed! % error))
+      (swap! (om/app-state reconciler)
+        (fn [st]
+          (-> st
+            (assoc :untangled/server-error error)
+            (swap-data-states (active-loads? loading-items) #(set-failed! % error)))))
       (set-global-loading reconciler))))

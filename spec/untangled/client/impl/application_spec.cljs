@@ -60,13 +60,27 @@
     (component "Remote transaction"
       (behavior "are split into reads, mutations, and tx fallbacks"
         (let [real-tx-payload app/mutation-payload
+              fallback-handler app/fallback-handler
               full-tx '[(a/f) (untangled/load {}) (tx/fallback {:action app/fix-error})]]
           (when-mocking
             (f/mark-loading r) => {:query '[:some-real-query]}
-            (app/fallback-handler app tx) => (do
+            (app/fallback-handler app tx) => (let [rv (fallback-handler app tx)
+                                                   app-state (atom {})]
+                                               (when-mocking
+                                                 (om/app-state _) => app-state
+                                                 (om/transact! _ tx) =1x=> (assertions
+                                                                             "calls passed-in fallback mutation"
+                                                                             tx => '[(tx/fallback {:action  app/fix-error
+                                                                                                   :execute true
+                                                                                                   :error   {:some :error}})])
+                                                 (behavior "fallback handler"
+                                                   (rv {:some :error})
                                                (assertions
-                                                 "Fallback handler sees the tx that includes the fallback"
-                                                 tx => full-tx))
+                                                     "sees the tx that includes the fallback"
+                                                     tx => full-tx
+                                                     "sets the global error marker"
+                                                     (:untangled/server-error @app-state) => {:some :error}))))
+
             (app/mutation-payload tx mtx app cb) => (let [rv (real-tx-payload tx mtx app cb)]
                                                 (assertions
                                                   "tx payload sees the full transaction"
@@ -100,6 +114,4 @@
           (:ui/locale @mounted-app-state) => "es-MX"
           "Updates the react key to ensure render can redraw everything"
           (not= react-key (:ui/react-key @mounted-app-state)) => true)))))
-
-(specification "")
 

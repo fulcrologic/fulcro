@@ -256,10 +256,13 @@
         (component "generates an on-error handler"
           (reset! state loading-state)
           (are [id] (df/loading? (get-in @state [:items/id id :comments :ui/fetch-state])) 2 3 4)
-          (on-error {})
+          (on-error {:some :error})
 
           (behavior "Marks all loading states as failed"
-            (are [id] (df/failed? (get-in @state [:items/id id :comments :ui/fetch-state])) 2 3 4)))))))
+            (are [id] (df/failed? (get-in @state [:items/id id :comments :ui/fetch-state])) 2 3 4))
+          (assertions
+            "Sets global error marker"
+            (get @state :untangled/server-error) => {:some :error}))))))
 
 (specification "active-loads?"
   (behavior "returns a callback predicate"

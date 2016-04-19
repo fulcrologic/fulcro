@@ -13,8 +13,9 @@
     [cljs.core.async.macros :refer [go]]))
 
 (defn fallback-handler [{:keys [reconciler]} query]
-  (fn [resp]
-    (if-let [q (impl/fallback-query query resp)]
+  (fn [error]
+    (swap! (om/app-state reconciler) assoc :untangled/server-error error)
+    (if-let [q (impl/fallback-query query error)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
           (om/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
