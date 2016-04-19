@@ -1,10 +1,8 @@
 (ns untangled.client.impl.network
-  (:require [cljs.core.async :as async]
-            [untangled.client.logging :as log]
+  (:require [untangled.client.logging :as log]
             [cognitect.transit :as ct]
             [goog.events :as events]
-            [om.transit :as t]
-            [untangled.client.impl.om-plumbing :as plumbing])
+            [om.transit :as t])
   (:require-macros
     [cljs.core.async.macros :refer [go]])
   (:import [goog.net XhrIo EventType]))
