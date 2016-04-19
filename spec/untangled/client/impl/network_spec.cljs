@@ -21,7 +21,7 @@
           "records the request transform"
           (:request-transform n) => :transform
           "records the global error callback"
-          ((:global-error-callback n)) => 5))))
+          (@(:global-error-callback n)) => 5))))
 
   (behavior "Send"
     (let [body-sent (atom nil)

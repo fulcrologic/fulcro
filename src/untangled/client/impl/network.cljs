@@ -36,7 +36,7 @@
               ;; note that impl.application/initialize will partially apply the
               ;; app-state as the first arg to global-error-callback
               (log/error str)
-              (global-error-callback error)
+              (@global-error-callback error)
               (@error-callback error))]
 
       (if (zero? (.getStatus xhr-io))
@@ -61,12 +61,12 @@
 
 (defn make-untangled-network [url & {:keys [request-transform global-error-callback]}]
   (let [xhrio (XhrIo.)
-        rv (map->Network {:xhr-io              xhrio
-                          :url                 url
-                          :request-transform   request-transform
-                          :valid-data-callback (atom nil)
-                          :global-error-callback global-error-callback
-                          :error-callback      (atom nil)})]
+        rv (map->Network {:xhr-io                xhrio
+                          :url                   url
+                          :request-transform     request-transform
+                          :global-error-callback (atom global-error-callback)
+                          :valid-data-callback   (atom nil)
+                          :error-callback        (atom nil)})]
     (events/listen xhrio (.-SUCCESS EventType) #(response-ok rv))
     (events/listen xhrio (.-ERROR EventType) #(response-error rv))
     rv))

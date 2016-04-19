@@ -61,7 +61,7 @@
           "sets the language to en-US"
           (get @mounted-app-state :ui/locale) => "en-US"
           "gives app-state to global error function"
-          ((get-in app [:networking :global-error-callback])) => thing-1)))
+          (@(get-in app [:networking :global-error-callback])) => thing-1)))
 
     (component "Remote transaction"
       (behavior "are split into reads, mutations, and tx fallbacks"

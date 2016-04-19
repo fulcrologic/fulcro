@@ -98,6 +98,13 @@
     (reset! rec-atom rec)
     rec))
 
+(defn initialize-global-error-callback [app]
+  (let [cb-atom (-> app (get-in [:networking :global-error-callback]))]
+    (when (= Atom (type cb-atom))
+      (swap! cb-atom #(if (fn? %)
+                       (partial % (om/app-state (:reconciler app)))
+                       (throw (ex-info "Networking error callback must be a function." {})))))))
+
 (defn initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
@@ -108,14 +115,13 @@
         initial-app (assoc app :queue queue :response-channel rc :parser parser :mounted? true
                                :networking networking)
         rec (generate-reconciler initial-app initial-state parser)
-        completed-app (-> initial-app
-                        (update-in [:networking :global-error-callback] #(if (fn? %) (partial % (om/app-state rec)) %))
-                        (assoc :reconciler rec))
+        completed-app (assoc initial-app :reconciler rec)
         node (if (string? dom-id-or-node)
                (gdom/getElement dom-id-or-node)
                dom-id-or-node)]
 
     (initialize-internationalization rec)
+    (initialize-global-error-callback completed-app)
     (start-network-sequential-processing completed-app)
     (om/add-root! rec root-component node)
     (when started-callback
