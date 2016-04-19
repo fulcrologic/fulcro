@@ -108,7 +108,9 @@
         initial-app (assoc app :queue queue :response-channel rc :parser parser :mounted? true
                                :networking networking)
         rec (generate-reconciler initial-app initial-state parser)
-        completed-app (assoc initial-app :reconciler rec)
+        completed-app (-> initial-app
+                        (update-in [:networking :global-error-callback] #(if (fn? %) (partial % (om/app-state rec)) %))
+                        (assoc :reconciler rec))
         node (if (string? dom-id-or-node)
                (gdom/getElement dom-id-or-node)
                dom-id-or-node)]

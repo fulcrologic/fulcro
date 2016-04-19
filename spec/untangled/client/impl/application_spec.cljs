@@ -27,9 +27,13 @@
 
 (specification "Untangled Application (integration tests)"
   (let [startup-called (atom false)
-        state {:things [{:id 1 :name "A"} {:id 2 :name "B"}]}
+        thing-1 {:id 1 :name "A"}
+        state {:things [thing-1 {:id 2 :name "B"}]}
         callback (fn [app] (reset! startup-called (:initial-state app)))
-        unmounted-app (uc/new-untangled-client :initial-state state :started-callback callback)
+        unmounted-app (uc/new-untangled-client
+                        :initial-state state
+                        :started-callback callback
+                        :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
         app (uc/mount unmounted-app Root "application-mount-point")
         mounted-app-state (om/app-state (:reconciler app))
         reconciler (:reconciler app)]
@@ -55,7 +59,9 @@
           (get-in @mounted-app-state [:thing/by-id 1]) => {:id 1 :name "A"}
           (get-in @mounted-app-state [:things 0]) => [:thing/by-id 1]
           "sets the language to en-US"
-          (get @mounted-app-state :ui/locale) => "en-US")))
+          (get @mounted-app-state :ui/locale) => "en-US"
+          "gives app-state to global error function"
+          ((get-in app [:networking :global-error-callback])) => thing-1)))
 
     (component "Remote transaction"
       (behavior "are split into reads, mutations, and tx fallbacks"

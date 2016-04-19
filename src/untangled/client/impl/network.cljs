@@ -20,7 +20,7 @@
 (defn parse-response [xhr-io]
   (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))}}) (.getResponseText xhr-io)))
 
-(defrecord Network [xhr-io url error-callback valid-data-callback request-transform]
+(defrecord Network [xhr-io url error-callback valid-data-callback request-transform global-error-callback]
   IXhrIOCallbacks
   (response-ok [this]
     ;; Implies:  everything went well and we have a good response
@@ -32,7 +32,13 @@
     ;; Implies:  request was sent.
     ;; *Always* called if completed (even in the face of network errors).
     ;; Used to detect errors.
-    (letfn [(log-and-dispatch-error [str error] (log/error str) (@error-callback error))]
+    (letfn [(log-and-dispatch-error [str error]
+              ;; note that impl.application/initialize will partially apply the
+              ;; app-state as the first arg to global-error-callback
+              (log/error str)
+              (global-error-callback error)
+              (@error-callback error))]
+
       (if (zero? (.getStatus xhr-io))
         (log-and-dispatch-error
           (str "UNTANGLED NETWORK ERROR: No connection established.")
@@ -53,12 +59,13 @@
       (reset! valid-data-callback (fn [resp] (ok resp)))
       (.send xhr-io url "POST" post-data headers))))
 
-(defn make-untangled-network [url & {:keys [request-transform]}]
+(defn make-untangled-network [url & {:keys [request-transform global-error-callback]}]
   (let [xhrio (XhrIo.)
         rv (map->Network {:xhr-io              xhrio
                           :url                 url
                           :request-transform   request-transform
                           :valid-data-callback (atom nil)
+                          :global-error-callback global-error-callback
                           :error-callback      (atom nil)})]
     (events/listen xhrio (.-SUCCESS EventType) #(response-ok rv))
     (events/listen xhrio (.-ERROR EventType) #(response-error rv))
