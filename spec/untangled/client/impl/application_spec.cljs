@@ -65,8 +65,7 @@
 
     (component "Remote transaction"
       (behavior "are split into reads, mutations, and tx fallbacks"
-        (let [real-tx-payload app/mutation-payload
-              fallback-handler app/fallback-handler
+        (let [fallback-handler app/fallback-handler
               full-tx '[(a/f) (untangled/load {}) (tx/fallback {:action app/fix-error})]]
           (when-mocking
             (f/mark-loading r) => {:query '[:some-real-query]}
@@ -81,21 +80,12 @@
                                                                                                    :error   {:some :error}})])
                                                  (behavior "fallback handler"
                                                    (rv {:some :error})
-                                               (assertions
+                                                   (assertions
                                                      "sees the tx that includes the fallback"
                                                      tx => full-tx
                                                      "sets the global error marker"
                                                      (:untangled/server-error @app-state) => {:some :error}))))
 
-            (app/mutation-payload tx mtx app cb) => (let [rv (real-tx-payload tx mtx app cb)]
-                                                (assertions
-                                                  "tx payload sees the full transaction"
-                                                  tx => full-tx
-                                                  "is given the tx with real mutations only"
-                                                  mtx => '[(a/f)]
-                                                  "gives back the pure mutations as the payload query"
-                                                  (:query rv) => '[(a/f)])
-                                                rv)
             (app/enqueue q p) =1x=> (do
                                       (assertions
                                         "mutation is sent, is first, and does not include load/fallbacks"

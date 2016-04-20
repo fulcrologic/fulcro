@@ -21,9 +21,6 @@
                :post-mutation post-mutation
                :fallback fallback))})
 
-(defmethod mutate 'app/clear-error [{:keys [state]} _ _]
-  {:action #(swap! state assoc :last-error nil)})
-
 (defmethod mutate 'ui/change-locale [{:keys [state]} _ {:keys [lang]}]
   {:action (fn []
              (reset! i18n/*current-locale* lang)

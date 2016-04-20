@@ -5,7 +5,8 @@
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
             [untangled.client.mutations :as m]
-            [untangled.client.logging :as log])
+            [untangled.client.logging :as log]
+            [untangled.client.impl.om-plumbing :as plumbing])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
@@ -41,8 +42,8 @@
       (om/merge! reconciler {:ui/loading-data true})
       (doseq [item items-to-load]
         (swap! state assoc-in
-          (data-path item)
-          {:ui/fetch-state (set-loading! item)}))
+               (data-path item)
+               {:ui/fetch-state (set-loading! item)}))
       (swap! state assoc :om.next/ready-to-load [])
       (om/force-root-render! reconciler)
       {:query    (full-query items-to-load)
@@ -120,8 +121,8 @@
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
         ast (cond-> old-ast
-              (not-empty without) (elide-ast-nodes without)
-              params (inject-query-params params))
+                    (not-empty without) (elide-ast-nodes without)
+                    params (inject-query-params params))
         query-field (first query)
         key (if (util/join? query-field) (util/join-key query-field) query-field)
         query' (om/ast->query ast)]
@@ -140,14 +141,14 @@
   See `load-field` for public API."
   [& {:keys [state query ident field without params post-mutation fallback] :or {:without #{}}}]
   (swap! state update :om.next/ready-to-load conj
-    (ready-state
-      :ident ident
-      :field field
-      :params params
-      :without without
-      :query query
-      :post-mutation post-mutation
-      :fallback fallback)))
+         (ready-state
+           :ident ident
+           :field field
+           :params params
+           :without without
+           :query query
+           :post-mutation post-mutation
+           :fallback fallback)))
 
 ;; TODO: Rename "getters"
 (defn data-ident [state] (::ident state))
@@ -181,8 +182,7 @@
   (defn set-loading!
     ([state] (set-loading! state nil))
     ([state params] (let [rv (set-type state :loading params)]
-                      (with-meta rv {:state rv})
-                      )))
+                      (with-meta rv {:state rv}))))
   (defn set-failed!
     ([state] (set-failed! state nil))
     ([state params] (set-type state :failed params))))
@@ -196,8 +196,8 @@
 
   ([state from-state-pred to-state-fn params]
    (->> state
-     (prewalk #(if (from-state-pred %) (to-state-fn % params) %))
-     (prewalk #(when-not (= % {:ui/fetch-state nil}) %)))))
+        (prewalk #(if (from-state-pred %) (to-state-fn % params) %))
+        (prewalk #(when-not (= % {:ui/fetch-state nil}) %)))))
 
 (defn full-query
   "Compose together a sequence of states into a single query."
@@ -217,15 +217,15 @@
                (:ui/loading-data @reconciler) nil           ;short-circuit traversal if ui/loading-data already true
                (loading? value) (do (om/merge! reconciler {:ui/loading-data true}) value)
                :else value))
-    @reconciler))
+           @reconciler))
 
 (defn- loaded-callback [reconciler items]
   (fn [response]
     (let [query (full-query items)
           loading-items (into #{} (map set-loading! items))
+          marked-response (plumbing/mark-missing response query)
           app-state (om/app-state reconciler)]
-
-      (om/merge! reconciler response query)
+      (om/merge! reconciler marked-response query)
       (doseq [item loading-items]
         (when-let [mutation-symbol (::post-mutation item)]
           (some->
@@ -243,10 +243,10 @@
   (let [loading-items (into #{} (map set-loading! items))]
     (fn [error]
       (swap! (om/app-state reconciler)
-        (fn [st]
-          (-> st
-            (assoc :untangled/server-error error)
-            (swap-data-states (active-loads? loading-items) #(set-failed! % error)))))
+             (fn [st]
+               (-> st
+                   (assoc :untangled/server-error error)
+                   (swap-data-states (active-loads? loading-items) #(set-failed! % error)))))
       (doseq [item loading-items]
         (when-let [fallback-symbol (::fallback item)]
           (some->

@@ -110,7 +110,11 @@
 
 (def nf ::not-found)
 
-(defn mark-missing [result query]
+(defn mark-missing
+  "Walk the query and response, marking anything that was asked for in the query but is not in the response a missing. A
+  later call to sweep-missing can remove these from the result. Returns the result with missing markers in place. NOTE:
+  sweep-missing is integrated into the merge plumbing at the reconciler level (post deep-merge)."
+  [result query]
   (letfn [(paramterized? [q]
             (and (list? q)
               (or (symbol? (first q))

@@ -21,5 +21,10 @@
 - untangled.openid-client/setup, parses any openid claims from the webtoken in the url's hash fragments
 - Renamed load-collection/singleton to load-data. Old names are deprecated, but not yet removed.
 - Renamed :app/loading-data to :ui/loading-data
-- Added remote trigger method for doing loading from mutations
+- Added remote trigger method for doing loading from mutations.
 - Renamed everything in the internals that was prefixed app/ to untangled/
+- Added global server error handler.
+- Added fallback support for load-data, load-field, etc.
+- Refactored networking send for better clarity 
+- Fixed bug on mark/sweep of missing query results. It was being applied to mutations instead of reads. Added tests for this that need a bit more work.
+
