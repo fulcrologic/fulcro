@@ -3,8 +3,8 @@
             [om.next :as om]
             [om.util :as util]
             [clojure.walk :refer [prewalk]]
-            [cljs.core.async :as async]
             [clojure.set :as set]
+            [untangled.client.mutations :as m]
             [untangled.client.logging :as log])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
@@ -115,7 +115,7 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field params without query post-mutation] :or {:without #{}}}]
+  [& {:keys [ident field params without query post-mutation fallback] :or {:without #{}}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
@@ -129,15 +129,16 @@
     {::type          :ready
      ::ident         ident                                  ; only for component-targeted loads
      ::field         field                                  ; for component-targeted load
-     ::query         query'
-     ::post-mutation post-mutation}))                       ; query, relative to root of db OR component
+     ::query         query'                                 ; query, relative to root of db OR component
+     ::post-mutation post-mutation
+     ::fallback      fallback}))
 
 (defn mark-ready
   "Place a ready-to-load marker into the application state. This should be done from
   a mutate function that is abstractly loading something. This is intended for internal use.
 
   See `load-field` for public API."
-  [& {:keys [state query ident field without params post-mutation] :or {:without #{}}}]
+  [& {:keys [state query ident field without params post-mutation fallback] :or {:without #{}}}]
   (swap! state update :om.next/ready-to-load conj
     (ready-state
       :ident ident
@@ -145,7 +146,8 @@
       :params params
       :without without
       :query query
-      :post-mutation post-mutation)))
+      :post-mutation post-mutation
+      :fallback fallback)))
 
 ;; TODO: Rename "getters"
 (defn data-ident [state] (::ident state))
@@ -212,7 +214,7 @@
 
   (prewalk (fn [value]
              (cond
-               (:ui/loading-data @reconciler) nil          ;short-circuit traversal if ui/loading-data already true
+               (:ui/loading-data @reconciler) nil           ;short-circuit traversal if ui/loading-data already true
                (loading? value) (do (om/merge! reconciler {:ui/loading-data true}) value)
                :else value))
     @reconciler))
@@ -224,11 +226,12 @@
           app-state (om/app-state reconciler)]
 
       (om/merge! reconciler response query)
-      (doseq [item loading-items] (when-let [mutation-symbol (::post-mutation item)]
-                                    (some->
-                                      (untangled.client.mutations/mutate {:state (om/app-state reconciler)} mutation-symbol {})
-                                      :action
-                                      (apply []))))
+      (doseq [item loading-items]
+        (when-let [mutation-symbol (::post-mutation item)]
+          (some->
+            (m/mutate {:state (om/app-state reconciler)} mutation-symbol {})
+            :action
+            (apply []))))
       (om/force-root-render! reconciler)                    ; Don't love this, but ok for now. TK
 
       ;; Any loading states that didn't resolve to data are marked as not present
@@ -239,5 +242,15 @@
 (defn- error-callback [reconciler items]
   (let [loading-items (into #{} (map set-loading! items))]
     (fn [error]
-      (swap! (om/app-state reconciler) swap-data-states (active-loads? loading-items) #(set-failed! % error))
+      (swap! (om/app-state reconciler)
+        (fn [st]
+          (-> st
+            (assoc :untangled/server-error error)
+            (swap-data-states (active-loads? loading-items) #(set-failed! % error)))))
+      (doseq [item loading-items]
+        (when-let [fallback-symbol (::fallback item)]
+          (some->
+            (m/mutate {:state (om/app-state reconciler)} fallback-symbol {:error error})
+            :action
+            (apply []))))
       (set-global-loading reconciler))))

@@ -4,7 +4,6 @@
     [om.next :as om]
     [untangled.client.impl.data-fetch :as impl]
     [untangled.i18n :refer-macros [tr]]
-    [om.next.impl.parser :as op]
     [om.dom :as dom]))
 
 (defn load-field
@@ -16,15 +15,18 @@
   - `without`: Named parameter for excluding child keys from the query (e.g. for recursive queries or additional laziness)
   - `params`: Named parameter for adding params to the query sent to the server for this field.
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
+  - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error in the params under :error.
   "
-  [component field & {:keys [without params post-mutation]}]
+  [component field & {:keys [without params post-mutation fallback]}]
+  (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
   (om/transact! component [(list 'untangled/load
                              {:ident         (om/get-ident component)
                               :field         field
                               :query         (om/focus-query (om/get-query component) [field])
                               :params        params
                               :without       without
-                              :post-mutation post-mutation})]))
+                              :post-mutation post-mutation
+                              :fallback      fallback})]))
 
 (defn load-data
   "Load data from the remote. Runs `om/transact!`. See also `load-field`.
@@ -34,17 +36,19 @@
   - `query`: The query for the element(s) attributes. Use defui to generate arbitrary queries so normalization will work.
   - Named parameter `ident`: An ident, used if loading a singleton and you wish to specify 'which one'.
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
+  - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error is in the params under :error.
 
   Named parameters `:without` and `:params` are as in `load-field`.
   "
-  [comp-or-reconciler query & {:keys [ident without params post-mutation]}]
-  (let []
-    (om/transact! comp-or-reconciler [(list 'untangled/load
-                                        {:ident         ident
-                                         :query         query
-                                         :params        params
-                                         :without       without
-                                         :post-mutation post-mutation})])))
+  [comp-or-reconciler query & {:keys [ident without params post-mutation fallback]}]
+  (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
+  (om/transact! comp-or-reconciler [(list 'untangled/load
+                                      {:ident         ident
+                                       :query         query
+                                       :params        params
+                                       :without       without
+                                       :post-mutation post-mutation
+                                       :fallback      fallback})]))
 
 ; DEPRECATED NAMES FOR load-data:
 (def load-singleton load-data)
@@ -61,7 +65,7 @@
     :action (fn []
        (load-field-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state component-class ident field & {:keys [without params post-mutation]}]
+  [app-state component-class ident field & {:keys [without params post-mutation fallback]}]
   (impl/mark-ready
     :state app-state
     :field field
@@ -69,7 +73,8 @@
     :query (om/focus-query (om/get-query component-class) [field])
     :params params
     :without without
-    :post-mutation post-mutation))
+    :post-mutation post-mutation
+    :fallback fallback))
 
 (defn load-data-action
   "Queue up a remote load from within an already-running mutation. Similar to `load-data`, but usable from
@@ -82,14 +87,15 @@
     :action (fn []
        (load-data-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state query & {:keys [ident without params post-mutation]}]
+  [app-state query & {:keys [ident without params post-mutation fallback]}]
   (impl/mark-ready
     :state app-state
     :ident ident
     :query query
     :params params
     :without without
-    :post-mutation post-mutation))
+    :post-mutation post-mutation
+    :fallback fallback))
 
 (defn remote-load
   "Returns the correct value for the `:remote` side of a mutation that should act as a

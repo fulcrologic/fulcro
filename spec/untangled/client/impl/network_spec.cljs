@@ -11,7 +11,7 @@
 
       (let [url "/some-api"
             atom? (fn [a] (= (type a) Atom))
-            n (net/make-untangled-network url :request-transform :transform)]
+            n (net/make-untangled-network url :request-transform :transform :global-error-callback (fn [] 5))]
         (assertions
           "sets the URL"
           (:url n) => url
@@ -19,7 +19,9 @@
           (:valid-data-callback n) =fn=> atom?
           (:error-callback n) =fn=> atom?
           "records the request transform"
-          (:request-transform n) => :transform))))
+          (:request-transform n) => :transform
+          "records the global error callback"
+          (@(:global-error-callback n)) => 5))))
 
   (behavior "Send"
     (let [body-sent (atom nil)

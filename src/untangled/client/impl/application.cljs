@@ -13,13 +13,14 @@
     [cljs.core.async.macros :refer [go]]))
 
 (defn fallback-handler [{:keys [reconciler]} query]
-  (fn [resp]
-    (if-let [q (impl/fallback-query query resp)]
+  (fn [error]
+    (swap! (om/app-state reconciler) assoc :untangled/server-error error)
+    (if-let [q (impl/fallback-query query error)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
           (om/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
 
-(defn tx-payload [full-tx real-mutations app cb]
+(defn mutation-payload [full-tx real-mutations app cb]
   (let [fallback (fallback-handler app full-tx)]
     {:query    real-mutations
      :on-load  #(-> % (impl/mark-missing full-tx) cb)
@@ -33,11 +34,11 @@
   off one at a time and send them through the real networking layer."
   [{:keys [reconciler networking queue] :as app} {:keys [remote]} cb]
   (let [general-tx (impl/remove-loads-and-fallbacks remote)
-        has-non-fetch-tx? (> (count general-tx) 0)
+        query-has-mutation? (> (count general-tx) 0)
         fetch-payload (f/mark-loading reconciler)]
 
-    (when has-non-fetch-tx?
-      (let [payload (tx-payload remote general-tx app cb)]
+    (when query-has-mutation?
+      (let [payload (mutation-payload remote general-tx app cb)]
         (enqueue queue payload)))
 
     (when fetch-payload
@@ -97,6 +98,13 @@
     (reset! rec-atom rec)
     rec))
 
+(defn initialize-global-error-callback [app]
+  (let [cb-atom (-> app (get-in [:networking :global-error-callback]))]
+    (when (= Atom (type cb-atom))
+      (swap! cb-atom #(if (fn? %)
+                       (partial % (om/app-state (:reconciler app)))
+                       (throw (ex-info "Networking error callback must be a function." {})))))))
+
 (defn initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
@@ -113,6 +121,7 @@
                dom-id-or-node)]
 
     (initialize-internationalization rec)
+    (initialize-global-error-callback completed-app)
     (start-network-sequential-processing completed-app)
     (om/add-root! rec root-component node)
     (when started-callback

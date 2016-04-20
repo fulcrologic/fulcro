@@ -104,12 +104,17 @@
                                       (is (= #{:excluded-attr} (:without params))))
                                     (behavior "includes the post-processing callback."
                                       (let [cb (:post-mutation params)]
-                                        (is (= 'foo cb)))))
+                                        (is (= 'foo cb))))
+                                    (behavior "includes the error fallback"
+                                      (let [fb (:fallback params)]
+                                        (is (= 'bar fb)))))
 
         (df/load-field 'component :comments
           :without #{:excluded-attr}
           :params {:sort :by-name}
-          :post-mutation 'foo))))
+          :post-mutation 'foo
+          :fallback 'bar))))
+
   (component "Loading a field from within another mutation"
     (let [app-state (atom {})]
       (df/load-field-action app-state Item [:item/by-id 3] :comments :without #{:author})
@@ -119,9 +124,7 @@
           "places a ready marker in the app state"
           marker =fn=> (fn [marker] (df/ready? marker))
           "includes the focused query"
-          (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]
-
-          ))))
+          (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]))))
 
   (behavior "Loading data for the app in general"
     (provided "when requesting data for a specific ident"
@@ -132,7 +135,10 @@
                                  (is (= :params (:params params))))
                                (behavior "includes post-processing callback."
                                  (let [cb (:post-mutation params)]
-                                   (is (= 'bar cb))))
+                                   (is (= 'foo cb))))
+                               (behavior "includes error fallback."
+                                 (let [fb (:fallback params)]
+                                   (is (= 'bar fb))))
                                (behavior "includes the ident in the data state."
                                  (is (= [:item/id 99] (:ident params))))
                                (behavior "includes the query joined to the ident."
@@ -142,7 +148,8 @@
         :ident [:item/id 99]
         :params :params
         :without :without
-        :post-mutation 'bar))
+        :post-mutation 'foo
+        :fallback 'bar))
 
     (component "when requesting data for a collection"
       (when-mocking
@@ -151,6 +158,7 @@
                                    (is (= [{:items (om/get-query Item)}] (:query params)))))
 
         (df/load-collection 'reconciler [{:items (om/get-query Item)}]))))
+
   (component "Loading a collection/singleton from within another mutation"
     (let [app-state (atom {})]
 
@@ -174,8 +182,10 @@
       (is (= [{:questions [:db/id :name]} {:answers [:db/id :name]}] (dfi/full-query top-level-markers))))))
 
 (defn mark-loading-mutate [])
+(defn mark-loading-fallback [])
 
 (defmethod m/mutate 'mark-loading-test/callback [e k p] {:action #(mark-loading-mutate)})
+(defmethod m/mutate 'mark-loading-test/fallback [_ _ _] {:action #(mark-loading-fallback)})
 
 (specification "mark-loading"
   (let [state-tree {:panel {:db/id 1
@@ -187,6 +197,7 @@
                                    :parser     (om/parser {:read (constantly nil)})})
         _ (om/add-root! reconciler PanelRoot "invisible-specs")
         state (om/app-state reconciler)]
+
     (when-mocking
       (om/get-query c) => item-query
       (om/get-ident c) => (case c
@@ -197,9 +208,10 @@
                                (apply dfi/mark-ready params))
 
       (mark-loading-mutate) => :check-that-invoked
+      (mark-loading-fallback) => :check-that-invoked
 
       (let [_ (df/load-field :mock-2 :comments :post-mutation 'mark-loading-test/callback) ; place ready markers in state
-            _ (df/load-field :mock-3 :comments :params {:comments {:max-length 20}})
+            _ (df/load-field :mock-3 :comments :params {:comments {:max-length 20}} :fallback 'mark-loading-test/fallback)
             _ (df/load-field :mock-4 :comments)             ; TODO: we should be able to select :on-missing behavior
             {:keys [query on-load on-error]} (dfi/mark-loading reconciler) ; transition to loading
             loading-state @state
@@ -256,10 +268,13 @@
         (component "generates an on-error handler"
           (reset! state loading-state)
           (are [id] (df/loading? (get-in @state [:items/id id :comments :ui/fetch-state])) 2 3 4)
-          (on-error {})
+          (on-error {:some :error})
 
           (behavior "Marks all loading states as failed"
-            (are [id] (df/failed? (get-in @state [:items/id id :comments :ui/fetch-state])) 2 3 4)))))))
+            (are [id] (df/failed? (get-in @state [:items/id id :comments :ui/fetch-state])) 2 3 4))
+          (assertions
+            "Sets global error marker"
+            (get @state :untangled/server-error) => {:some :error}))))))
 
 (specification "active-loads?"
   (behavior "returns a callback predicate"
@@ -306,9 +321,9 @@
 
 (specification "set-global-loading"
   (let [loading-state {:ui/loading-data true
-                       :some             :data
-                       :nested           {:information (dfi/make-data-state :loading)}
-                       :om.next/tables   #{}}
+                       :some            :data
+                       :nested          {:information (dfi/make-data-state :loading)}
+                       :om.next/tables  #{}}
         loading-reconciler (om/reconciler {:state loading-state :parser (fn [] nil)})
         not-loading-state (assoc-in loading-state [:nested :information] :has-been-loaded)
         not-loading-reconciler (om/reconciler {:state not-loading-state :parser (fn [] nil)})]
