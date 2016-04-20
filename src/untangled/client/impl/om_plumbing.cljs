@@ -68,9 +68,9 @@
       (seq entries) (doseq [e entries] (assert (async/offer! queue e) "Queue should not block.")))))
 
 (defn remove-loads-and-fallbacks
-  "Removes all app/load and tx/fallback mutations from the query"
+  "Removes all untangled/load and tx/fallback mutations from the query"
   [query]
-  (let [symbols-to-filter #{'app/load 'tx/fallback}
+  (let [symbols-to-filter #{'untangled/load 'tx/fallback}
         ast (om/query->ast query)
         children (:children ast)
         new-children (filter (fn [child] (not (contains? symbols-to-filter (:dispatch-key child)))) children)

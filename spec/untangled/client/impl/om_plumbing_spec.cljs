@@ -41,11 +41,11 @@
       => {[:item/by-id 1] {:survey/title "Howdy!"}})))
 
 (specification "remove-loads-and-fallbacks"
-  (behavior "Removes top-level mutations that use the app/load or tx/fallback symbols"
+  (behavior "Removes top-level mutations that use the untangled/load or tx/fallback symbols"
     (are [q q2] (= (impl/remove-loads-and-fallbacks q) q2)
-                '[:a {:j [:a]} (f) (app/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[:a {:j [:a]} (f) (app/l)]
-                '[(app/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[(app/l)]
-                '[(app/load {:x 1}) (tx/fallback {:a 3})] '[]
+                '[:a {:j [:a]} (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[:a {:j [:a]} (f) (app/l)]
+                '[(untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[(app/l)]
+                '[(untangled/load {:x 1}) (tx/fallback {:a 3})] '[]
                 '[:a {:j [:a]}] '[:a {:j [:a]}])))
 
 (specification "fallback-query"
@@ -53,10 +53,10 @@
     (are [q q2] (= (impl/fallback-query q {:error 42}) q2)
                 '[:a :b] nil
 
-                '[:a {:j [:a]} (f) (app/load {:x 1}) (app/l) (tx/fallback {:a 3})]
+                '[:a {:j [:a]} (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})]
                 '[(tx/fallback {:a 3 :execute true :error {:error 42}})]
 
-                '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (app/load {:x 1}) (app/l) (tx/fallback {:a 3})]
+                '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})]
                 '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (tx/fallback {:a 3 :execute true :error {:error 42}})])))
 
 (specification "tempid handling"

@@ -207,7 +207,7 @@
   (fn [fetch-state] (and (loading? fetch-state) (contains? loading-items fetch-state))))
 
 (defn- set-global-loading [reconciler]
-  "Sets :app/loading to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
+  "Sets :ui/loading to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
   (om/merge! reconciler {:ui/loading-data false})
 
   (prewalk (fn [value]

@@ -18,7 +18,7 @@
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
   "
   [component field & {:keys [without params post-mutation]}]
-  (om/transact! component [(list 'app/load
+  (om/transact! component [(list 'untangled/load
                              {:ident         (om/get-ident component)
                               :field         field
                               :query         (om/focus-query (om/get-query component) [field])
@@ -39,7 +39,7 @@
   "
   [comp-or-reconciler query & {:keys [ident without params post-mutation]}]
   (let []
-    (om/transact! comp-or-reconciler [(list 'app/load
+    (om/transact! comp-or-reconciler [(list 'untangled/load
                                         {:ident         ident
                                          :query         query
                                          :params        params
@@ -98,7 +98,7 @@
   load)."
   [parsing-env]
   (let [ast (:ast parsing-env)]
-    (assoc ast :key 'app/load :dispatch-key 'app/load)))
+    (assoc ast :key 'untangled/load :dispatch-key 'untangled/load)))
 
 ;; Predicate functions
 (defn data-state? [state] (impl/data-state? state))

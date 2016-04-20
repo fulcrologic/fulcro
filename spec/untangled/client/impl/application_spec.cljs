@@ -60,7 +60,7 @@
     (component "Remote transaction"
       (behavior "are split into reads, mutations, and tx fallbacks"
         (let [real-tx-payload app/tx-payload
-              full-tx '[(a/f) (app/load {}) (tx/fallback {:action app/fix-error})]]
+              full-tx '[(a/f) (untangled/load {}) (tx/fallback {:action app/fix-error})]]
           (when-mocking
             (f/mark-loading r) => {:query '[:some-real-query]}
             (app/fallback-handler app tx) => (do
