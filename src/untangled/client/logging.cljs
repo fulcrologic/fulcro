@@ -23,10 +23,10 @@
   ([msg value] (glog/fine *logger* (value-message msg value)) value))
 
 (defn info [& data]
-  (glog/info *logger* (apply str data)))
+  (glog/info *logger* (apply str (interpose " " data))))
 
 (defn warn [& data]
-  (glog/warning *logger* (apply str data)))
+  (glog/warning *logger* (apply str (interpose " " data))))
 
 (defn error [& data]
-  (glog/error *logger* (apply str data)))
+  (glog/error *logger* (apply str (interpose " " data))))
