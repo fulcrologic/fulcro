@@ -154,13 +154,15 @@
          {:a 1 :b {:a 2 :b {:a 3}}}
          {:a 1 :b {:a 2 :b {:a 3 :b impl/nf}}}
 
-         [:a {:b 1}]
+         [:a {:b 9}]
          {:a 1 :b {:a 2 :b {:a 3 :b {:a 4}}}}
          {:a 1 :b {:a 2 :b {:a 3 :b {:a 4 :b impl/nf}}}}
 
-         [:a {:b 9}]
-         {:a 1 :b {:a 2 :b {:a 3 :b {:a 4}}}}
-         {:a 1 :b {:a 2 :b {:a 3 :b {:a 4 :b impl/nf}}}}))
+         [:a {:b '...}]
+         {:a 1 :b [{:a 2 :b [{:a 3}]}
+                   {:a 4}]}
+         {:a 1 :b [{:a 2 :b [{:a 3 :b impl/nf}]}
+                   {:a 4 :b impl/nf}]}))
 
   (behavior "props"
     (are [query ?missing-result exp]
@@ -205,7 +207,9 @@
 
          [{[:a 1] [:x]}]
          {[:a 1] {:x 2}}
-         {[:a 1] {:x 2}}))
+         {[:a 1] {:x 2}}
+
+         ))
 
   (behavior "paramterized"
     (are [query ?missing-result exp]
@@ -300,5 +304,4 @@
           :j2        [{:p2 2} {}]}
          {'app/add-q {:tempids {}}
           :j1        {:p1 impl/nf}
-          :j2        [{:p2 2} {:p2 impl/nf}]}))
- )
+          :j2        [{:p2 2} {:p2 impl/nf}]})))

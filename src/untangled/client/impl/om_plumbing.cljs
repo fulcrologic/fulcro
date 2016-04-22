@@ -197,11 +197,6 @@
                     ;; ui.*/ fragment's are ignored
                     (is-ui-query-fragment? q) res
 
-                    ;; {? number}
-                    (and (map? q)
-                         (number? ?sub-query))
-                    (assert false "ACK")
-
                     ;; recur
                     (and ?sub-query
                          (not= nf sub-result)
@@ -215,7 +210,11 @@
                     ;; recursive?
                     (recursive? ?sub-query)
                     (if-let [res- (get res query-key)]
-                      (assoc res query-key (mark-missing res- ?sub-query))
+                      (as-> res- <>
+                        (if (vector? <>)
+                          (mapv #(mark-missing % ?sub-query) <>)
+                          (mark-missing <> ?sub-query))
+                        (assoc res query-key <>))
                       res+nf)
 
                     ;; nf so next step
