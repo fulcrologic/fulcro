@@ -28,3 +28,6 @@
 - Refactored networking send for better clarity 
 - Fixed bug on mark/sweep of missing query results. It was being applied to mutations instead of reads. Added tests for this that need a bit more work.
 
+0.4.8
+-----
+- Fixed tempid rewrite regression
