@@ -69,7 +69,7 @@
 
   (refresh [this]
     (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
-    (swap! (om/app-state reconciler) assoc :ui/react-key (udom/unique-key))))
+    (om/merge! reconciler {:ui/react-key (udom/unique-key)})))
 
 (defn new-untangled-test-client
   "A test client that has no networking. Useful for UI testing with a real Untangled app container."

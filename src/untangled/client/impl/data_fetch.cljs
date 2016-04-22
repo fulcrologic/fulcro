@@ -6,7 +6,8 @@
             [clojure.set :as set]
             [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
-            [untangled.client.impl.om-plumbing :as plumbing])
+            [untangled.client.impl.om-plumbing :as plumbing]
+            [untangled.dom :as udom])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
@@ -247,6 +248,7 @@
                (-> st
                    (assoc :untangled/server-error error)
                    (swap-data-states (active-loads? loading-items) #(set-failed! % error)))))
+      (om/merge! reconciler {:ui/react-key (udom/unique-key)})
       (doseq [item loading-items]
         (when-let [fallback-symbol (::fallback item)]
           (some->
