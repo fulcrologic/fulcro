@@ -1,10 +1,10 @@
-(defproject navis/untangled-server "0.4.7-SNAPSHOT"
+(defproject navis/untangled-server "0.4.7"
   :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
                  [org.clojure/math.combinatorics "0.1.1"]
                  [org.clojure/tools.namespace "0.2.10"]
-                 [org.omcljs/om "1.0.0-alpha31"]
+                 [org.omcljs/om "1.0.0-alpha32"]
                  [http-kit "2.1.19"]
                  [environ "1.0.0"]
                  [bidi "1.21.1"]
@@ -16,7 +16,7 @@
                  [com.taoensso/timbre "4.3.1"]
                  [org.clojure/java.classpath "0.2.2"]
                  [org.bouncycastle/bcpkix-jdk15on "1.54"]
-                 [navis/untangled-spec "0.3.5" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
+                 [navis/untangled-spec "0.3.6" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
                  [navis/untangled-datomic "0.4.4" :scope "test"]
                  [com.datomic/datomic-free "0.9.5206" :scope "test" :exclusions [joda-time]]
                  [hickory "0.6.0" :scope "test"]
