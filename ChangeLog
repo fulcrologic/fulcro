@@ -5,10 +5,6 @@
 - Changed dependencies to not pull GELF in as a transitive dependency
 - Fixed various docs
 
-0.4.6
------
-
-
 0.4.7
 -----
 - Added build-test-mock-openid-server to grab openid config and put into the
