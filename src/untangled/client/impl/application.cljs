@@ -23,14 +23,13 @@
 ;; this is here so we can do testing (can mock core async stuff out of the way)
 (defn- enqueue [q v] (go (async/>! q v)))
 
-(defn enqueue-mutations [{:keys [queue] :as app} remote-tx-map]
+(defn enqueue-mutations [{:keys [queue] :as app} remote-tx-map cb]
   (let [full-remote-transaction (:remote remote-tx-map)
         fallback (fallback-handler app full-remote-transaction)
         desired-remote-mutations (impl/remove-loads-and-fallbacks full-remote-transaction)
         has-mutations? (> (count desired-remote-mutations) 0)
         payload {:query    desired-remote-mutations
-                 ;; NOTE: Do we need to do the callback or mark-missing on mutations? I think not. TK
-                 :on-load  (fn [])
+                 :on-load  cb
                  :on-error #(fallback %)}]
     (when has-mutations?
       (enqueue queue payload))))
@@ -44,7 +43,7 @@
   "Puts queries/mutations (and their corresponding callbacks) onto the send queue. The networking CSP will pull these
   off one at a time and send them through the real networking layer. Reads are guaranteed to *follow* writes."
   [app remote-tx-map cb]
-  (enqueue-mutations app remote-tx-map)
+  (enqueue-mutations app remote-tx-map cb)
   (enqueue-reads app))
 
 (defn start-network-sequential-processing
