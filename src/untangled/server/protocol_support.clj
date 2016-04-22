@@ -19,7 +19,7 @@
   `on-success`: a function of 2 arguments, taking the parsing environment and the server response for extra validation.
   `prepare-server-tx`: allows you to modify the transaction recevied from the client before running it, using the
   seed result to remap seeded tempids."
-  [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx]}]
+  [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx which-db]}]
   (let [started-app (.start app)]
     (try
       (let [seeder-result (get-in started-app [:seeder :seed-result])
@@ -28,7 +28,12 @@
                 (.stop started-app)
                 (assert false "seed data tempids must have no overlap"))
 
-            datomic-tid->rid (apply merge (vals seeder-result))
+            datomic-tid->rid (if which-db
+                               (or (get seeder-result which-db)
+                                   (throw (ex-info "Invalid which-db"
+                                                   {:which-db which-db
+                                                    :valid-options (keys seeder-result)})))
+                               (apply merge (vals seeder-result)))
             _ (timbre/debug :datomic-tid->rid datomic-tid->rid)
             prepare-server-tx+ (if prepare-server-tx
                                  #(prepare-server-tx % datomic-tid->rid)
@@ -39,10 +44,14 @@
             _ (timbre/debug :server-tx server-tx+)
 
             {:keys [api-parser env]} (:handler started-app)
-            server-response (-> (h/api {:parser api-parser :env env :transit-params server-tx+}) :body)
+            mock-user-claims (-> started-app :test-openid-mock :openid-mock/claims)
+            server-response (-> (h/api {:parser api-parser
+                                        :env (assoc-in env [:request :user] mock-user-claims)
+                                        :transit-params server-tx+})
+                                :body)
             _ (timbre/debug :server-response server-response)
             [response-without-tempid-remaps om-tempid->datomic-id] (impl/extract-tempids server-response)
-            response-to-check (-> response-without-tempid-remaps
+            rewrite-response #(-> %
                                   ;;datomic rid->tid
                                   (impl/rewrite-tempids
                                     (clojure.set/map-invert datomic-tid->rid)
@@ -55,6 +64,7 @@
                                   (impl/rewrite-tempids
                                     real-omt->fake-omt
                                     omt/tempid?))
+            response-to-check (rewrite-response response-without-tempid-remaps)
             _ (timbre/debug :response-to-check response-to-check)
             om-tempids-to-check (impl/rewrite-tempids
                                   (set (keys om-tempid->datomic-id))
@@ -74,7 +84,8 @@
           (let [env+seed-result (reduce (fn [env [db-name seed-result]]
                                           (assoc-in env [db-name :seed-result] seed-result))
                                         env seeder-result)]
-            (on-success env+seed-result response-to-check))))
+            (on-success (assoc env+seed-result :remap-fn rewrite-response)
+                        server-response))))
 
       (finally
         (.stop started-app)))))

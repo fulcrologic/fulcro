@@ -2,7 +2,10 @@
   (:require [untangled.server.impl.components.web-server :as web-server]
             [untangled.server.impl.components.handler :as handler]
             [untangled.server.impl.components.config :as config]
-            [com.stuartsierra.component :as component]))
+            [untangled.server.impl.components.access-token-handler :as access-token-handler]
+            [untangled.server.impl.components.openid-mock-server :as openid-mock-server]
+            [com.stuartsierra.component :as component]
+            [clojure.data.json :as json]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mutation Helpers
@@ -12,10 +15,29 @@
   "The function will throw an assertion error if any args are nil."
   (assert (every? (comp not nil?) args) (str "All parameters to " mutation " mutation must be provided.")))
 
+(defn assert-user [req]
+  "Throws and AssertionError if the user credentials are missing from the request."
+  (assert (:user req) "Request has no user credentials!"))
+
 (defn transitive-join
   "Takes a map from a->b and a map from b->c and returns a map a->c."
   [a->b b->c]
   (reduce (fn [result k] (assoc result k (->> k (get a->b) (get b->c)))) {} (keys a->b)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; OpenID helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn openid-location [req {:keys [config] :as env} match]
+  "A helper endpoint that can be injected via untangled server's :extra-routes.
+  This allows untangled clients to access the configuration they require to begin the OpenID auth process."
+  (let [openid-config (-> config :value :openid)
+        url (str (:authority openid-config) "/connect/authorize")]
+    {:status  200
+     :headers {"Content-Type" "application/json"}
+     :body    (json/write-str {:authUrl  url
+                               :scope    (:scope openid-config)
+                               :clientId (:client-id openid-config)})}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Component Constructor Functions
@@ -44,6 +66,20 @@
   [config-path]
   (config/map->Config {:config-path config-path}))
 
+(defn build-access-token-handler []
+  (component/using
+    (access-token-handler/map->AccessTokenHandler {})
+    [:config :handler :server :openid-mock]))
+
+(defn build-mock-openid-server []
+  (component/using
+    (openid-mock-server/map->MockOpenIdServer {})
+    [:config :handler]))
+
+(defn build-test-mock-openid-server []
+  (component/using
+    (openid-mock-server/map->TestMockOpenIdServer {})
+    [:config]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Server Construction
@@ -65,7 +101,10 @@
 
   *`parser-injections`  a vector of keywords which represent components which will be injected as the om parsing env.
 
-  *`extra-routes`       *IN FLUX*, but currently a map from uri path to a fn of type :: req -> env -> res
+  *`extra-routes`       OPTIONAL, a map containing `:routes` and `:handlers`,
+                        where routes is a bidi routing data structure,
+                        and handlers are map from handler name to a function of type :: Req -> Env -> BidiMatch -> Res
+                        see `handler/wrap-extra-routes` & handler-spec for more.
 
   Returns a Sierra system component.
   "
