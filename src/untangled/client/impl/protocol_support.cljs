@@ -49,5 +49,5 @@
   Object (render [this] (dom/div nil "if you see this something is wrong")))
 
 (defn init-testing []
-  (-> (core/new-untangled-client :started-callback #() :networking #())
+  (-> (core/new-untangled-test-client)
     (core/mount Root "invisible-specs")))

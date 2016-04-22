@@ -1,10 +1,12 @@
 (ns untangled.client.impl.data-fetch
   (:require [om.next.impl.parser :as op]
             [om.next :as om]
+            [om.util :as util]
             [clojure.walk :refer [prewalk]]
-            [cljs.core.async :as async]
             [clojure.set :as set]
-            [untangled.client.logging :as log])
+            [untangled.client.mutations :as m]
+            [untangled.client.logging :as log]
+            [untangled.client.impl.om-plumbing :as plumbing])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
@@ -37,11 +39,11 @@
   (let [state (om/app-state reconciler)
         items-to-load (get @state :om.next/ready-to-load)]
     (when-not (empty? items-to-load)
-      (om/merge! reconciler {:app/loading-data true})
+      (om/merge! reconciler {:ui/loading-data true})
       (doseq [item items-to-load]
         (swap! state assoc-in
-          (data-path item)
-          {:ui/fetch-state (set-loading! item)}))
+               (data-path item)
+               {:ui/fetch-state (set-loading! item)}))
       (swap! state assoc :om.next/ready-to-load [])
       (om/force-root-render! reconciler)
       {:query    (full-query items-to-load)
@@ -114,37 +116,39 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field params without query post-mutation] :or {:without #{}}}]
+  [& {:keys [ident field params without query post-mutation fallback] :or {:without #{}}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
-  (assert (or (not field) (and field (om/ident? ident))) "Field requires ident")
+  (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
         ast (cond-> old-ast
-              (not-empty without) (elide-ast-nodes without)
-              params (inject-query-params params))
+                    (not-empty without) (elide-ast-nodes without)
+                    params (inject-query-params params))
         query-field (first query)
-        key (if (om/join? query-field) (om/join-key query-field) query-field)
+        key (if (util/join? query-field) (util/join-key query-field) query-field)
         query' (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
     {::type          :ready
      ::ident         ident                                  ; only for component-targeted loads
      ::field         field                                  ; for component-targeted load
-     ::query         query'
-     ::post-mutation post-mutation}))                       ; query, relative to root of db OR component
+     ::query         query'                                 ; query, relative to root of db OR component
+     ::post-mutation post-mutation
+     ::fallback      fallback}))
 
 (defn mark-ready
   "Place a ready-to-load marker into the application state. This should be done from
   a mutate function that is abstractly loading something. This is intended for internal use.
 
   See `load-field` for public API."
-  [& {:keys [state query ident field without params post-mutation] :or {:without #{}}}]
+  [& {:keys [state query ident field without params post-mutation fallback] :or {:without #{}}}]
   (swap! state update :om.next/ready-to-load conj
-    (ready-state
-      :ident ident
-      :field field
-      :params params
-      :without without
-      :query query
-      :post-mutation post-mutation)))
+         (ready-state
+           :ident ident
+           :field field
+           :params params
+           :without without
+           :query query
+           :post-mutation post-mutation
+           :fallback fallback)))
 
 ;; TODO: Rename "getters"
 (defn data-ident [state] (::ident state))
@@ -178,8 +182,7 @@
   (defn set-loading!
     ([state] (set-loading! state nil))
     ([state params] (let [rv (set-type state :loading params)]
-                      (with-meta rv {:state rv})
-                      )))
+                      (with-meta rv {:state rv}))))
   (defn set-failed!
     ([state] (set-failed! state nil))
     ([state params] (set-type state :failed params))))
@@ -193,8 +196,8 @@
 
   ([state from-state-pred to-state-fn params]
    (->> state
-     (prewalk #(if (from-state-pred %) (to-state-fn % params) %))
-     (prewalk #(when-not (= % {:ui/fetch-state nil}) %)))))
+        (prewalk #(if (from-state-pred %) (to-state-fn % params) %))
+        (prewalk #(when-not (= % {:ui/fetch-state nil}) %)))))
 
 (defn full-query
   "Compose together a sequence of states into a single query."
@@ -206,28 +209,29 @@
   (fn [fetch-state] (and (loading? fetch-state) (contains? loading-items fetch-state))))
 
 (defn- set-global-loading [reconciler]
-  "Sets :app/loading to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
-  (om/merge! reconciler {:app/loading-data false})
+  "Sets :ui/loading to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
+  (om/merge! reconciler {:ui/loading-data false})
 
   (prewalk (fn [value]
              (cond
-               (:app/loading-data @reconciler) nil          ;short-circuit traversal if app/loading-data already true
-               (loading? value) (do (om/merge! reconciler {:app/loading-data true}) value)
+               (:ui/loading-data @reconciler) nil           ;short-circuit traversal if ui/loading-data already true
+               (loading? value) (do (om/merge! reconciler {:ui/loading-data true}) value)
                :else value))
-    @reconciler))
+           @reconciler))
 
 (defn- loaded-callback [reconciler items]
   (fn [response]
     (let [query (full-query items)
           loading-items (into #{} (map set-loading! items))
+          marked-response (plumbing/mark-missing response query)
           app-state (om/app-state reconciler)]
-
-      (om/merge! reconciler response query)
-      (doseq [item loading-items] (when-let [mutation-symbol (::post-mutation item)]
-                                    (some->
-                                      (untangled.client.mutations/mutate {:state (om/app-state reconciler)} mutation-symbol {})
-                                      :action
-                                      (apply []))))
+      (om/merge! reconciler marked-response query)
+      (doseq [item loading-items]
+        (when-let [mutation-symbol (::post-mutation item)]
+          (some->
+            (m/mutate {:state (om/app-state reconciler)} mutation-symbol {})
+            :action
+            (apply []))))
       (om/force-root-render! reconciler)                    ; Don't love this, but ok for now. TK
 
       ;; Any loading states that didn't resolve to data are marked as not present
@@ -238,5 +242,15 @@
 (defn- error-callback [reconciler items]
   (let [loading-items (into #{} (map set-loading! items))]
     (fn [error]
-      (swap! (om/app-state reconciler) swap-data-states (active-loads? loading-items) #(set-failed! % error))
+      (swap! (om/app-state reconciler)
+             (fn [st]
+               (-> st
+                   (assoc :untangled/server-error error)
+                   (swap-data-states (active-loads? loading-items) #(set-failed! % error)))))
+      (doseq [item loading-items]
+        (when-let [fallback-symbol (::fallback item)]
+          (some->
+            (m/mutate {:state (om/app-state reconciler)} fallback-symbol {:error error})
+            :action
+            (apply []))))
       (set-global-loading reconciler))))

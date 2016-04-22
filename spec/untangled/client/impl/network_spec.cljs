@@ -11,7 +11,7 @@
 
       (let [url "/some-api"
             atom? (fn [a] (= (type a) Atom))
-            n (net/make-untangled-network url :request-transform :transform)]
+            n (net/make-untangled-network url :request-transform :transform :global-error-callback (fn [] 5))]
         (assertions
           "sets the URL"
           (:url n) => url
@@ -20,7 +20,9 @@
           (:error-callback n) =fn=> atom?
           "records the request transform"
           (:request-transform n) => :transform
-          ))))
+          "records the global error callback"
+          (@(:global-error-callback n)) => 5))))
+
   (behavior "Send"
     (let [body-sent (atom nil)
           headers-sent (atom nil)
@@ -37,9 +39,12 @@
         (js->clj @body-sent) => "[\"^ \",\"~:original\",1]"
         "Uses content-type for transit by default"
         (js->clj @headers-sent) => {"Content-Type" "application/transit+json"}))
+
     (let [body-sent (atom nil)
           headers-sent (atom nil)
-          n (net/make-untangled-network "/api" :request-transform (fn [e h] [{:new 2} {:other 3}]))
+          n (net/make-untangled-network "/api" :request-transform (fn [{:keys [request headers]}]
+                                                                    {:request {:new 2}
+                                                                     :headers {:other 3}}))
           fake-xhrio (js-obj "send" (fn [url typ body headers]
                                       (reset! body-sent body)
                                       (reset! headers-sent headers)))
@@ -51,7 +56,4 @@
         "Request transform can replace body"
         (js->clj @body-sent) => "[\"^ \",\"~:new\",2]"
         "Request transform can replace headers"
-        (js->clj @headers-sent) => {"other" 3}
-        ))
-    ))
-
+        (js->clj @headers-sent) => {"other" 3}))))

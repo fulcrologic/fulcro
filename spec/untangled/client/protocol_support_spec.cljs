@@ -55,7 +55,16 @@
     (behavior "handles regular expressions as value in deltas"
       (with-methods mut/mutate {'dummy-string dummy-string-fn}
         (ps/check-optimistic-update silly-protocol)
-        (ps/check-response-from-server silly-protocol)))))
+        (ps/check-response-from-server silly-protocol))))
 
-
-
+  (let [silly-protocol {:initial-ui-state {:x/by-id {13 {:val 0}}}
+                        :ui-tx            '[(inc-it)]
+                        :optimistic-delta {[:x/by-id 13 :val] 1}}
+        inc-it-fn (fn [{:keys [state ref]} _ _]
+                    (swap! state update-in (conj ref :val) inc))]
+    (behavior "can pass an optional env to the parser, eg: to mock :ref"
+      (with-methods mut/mutate {'inc-it inc-it-fn}
+        (ps/check-optimistic-update silly-protocol :env {:ref [:x/by-id 13]}))
+      (assertions ":state in the env is not allowed, as it should come from the protocol"
+        (ps/check-optimistic-update nil :env {:state :should-not-allowed})
+        =throws=> (js/Error #"state not allowed in the env")))))

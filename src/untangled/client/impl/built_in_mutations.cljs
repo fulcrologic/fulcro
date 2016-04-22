@@ -5,7 +5,7 @@
             [untangled.dom :refer [unique-key]]
             [untangled.i18n.core :as i18n]))
 
-(defmethod mutate 'app/load [{:keys [state]} _ {:keys [root field query params without post-mutation ident callback]}]
+(defmethod mutate 'untangled/load [{:keys [state]} _ {:keys [root field query params without post-mutation fallback ident callback]}]
   (when callback (log/error "Callback no longer supported. Use post-mutation instead."))
   (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
   {:remote true
@@ -18,21 +18,15 @@
                :query query
                :params params
                :without without
-               :post-mutation post-mutation))})
-
-(defmethod mutate 'post-initial-load [{:keys [state]} k p]
-  {:action #(swap! state (fn [s]
-                           (-> s
-                             (assoc-in [:main :singleton :data-items] (:data-items s))
-                             (dissoc :data-items))))})
-
-(defmethod mutate 'app/clear-error [{:keys [state]} _ _]
-  {:action #(swap! state assoc :last-error nil)})
+               :post-mutation post-mutation
+               :fallback fallback))})
 
 (defmethod mutate 'ui/change-locale [{:keys [state]} _ {:keys [lang]}]
   {:action (fn []
              (reset! i18n/*current-locale* lang)
-             (swap! state assoc :ui/react-key (unique-key)))})
+             (swap! state #(-> %
+                            (assoc :ui/locale lang)
+                            (assoc :ui/react-key (unique-key)))))})
 
 (defmethod mutate 'tx/fallback [env _ {:keys [action execute] :as params}]
   (if execute

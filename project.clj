@@ -1,4 +1,4 @@
-(defproject navis/untangled-client "0.4.6"
+(defproject navis/untangled-client "0.4.7"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "NAVIS"
@@ -10,9 +10,8 @@
                  [differ "0.2.1"]
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [navis/untangled-spec "0.3.5" :scope "test"]
-                 [org.omcljs/om "1.0.0-alpha31" :scope "provided"]
-                 [camel-snake-kebab "0.3.2"]]
+                 [navis/untangled-spec "0.3.6" :scope "test"]
+                 [org.omcljs/om "1.0.0-alpha32" :scope "provided"]]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]

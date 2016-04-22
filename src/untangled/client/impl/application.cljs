@@ -13,35 +13,39 @@
     [cljs.core.async.macros :refer [go]]))
 
 (defn fallback-handler [{:keys [reconciler]} query]
-  (fn [resp]
-    (if-let [q (impl/fallback-query query resp)]
+  (fn [error]
+    (swap! (om/app-state reconciler) assoc :untangled/server-error error)
+    (if-let [q (impl/fallback-query query error)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
           (om/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
 
-(defn tx-payload [full-tx real-mutations app cb]
-  (let [fallback (fallback-handler app full-tx)]
-    {:query    real-mutations
-     :on-load  #(-> % (impl/mark-missing full-tx) cb)
-     :on-error #(fallback %)}))
-
-;; this is here for testing
+;; this is here so we can do testing (can mock core async stuff out of the way)
 (defn- enqueue [q v] (go (async/>! q v)))
+
+(defn enqueue-mutations [{:keys [queue] :as app} remote-tx-map]
+  (let [full-remote-transaction (:remote remote-tx-map)
+        fallback (fallback-handler app full-remote-transaction)
+        desired-remote-mutations (impl/remove-loads-and-fallbacks full-remote-transaction)
+        has-mutations? (> (count desired-remote-mutations) 0)
+        payload {:query    desired-remote-mutations
+                 ;; NOTE: Do we need to do the callback or mark-missing on mutations? I think not. TK
+                 :on-load  (fn [])
+                 :on-error #(fallback %)}]
+    (when has-mutations?
+      (enqueue queue payload))))
+
+(defn enqueue-reads [{:keys [queue reconciler networking]}]
+  (let [fetch-payload (f/mark-loading reconciler)]
+    (when fetch-payload
+      (enqueue queue (assoc fetch-payload :networking networking)))))
 
 (defn server-send
   "Puts queries/mutations (and their corresponding callbacks) onto the send queue. The networking CSP will pull these
-  off one at a time and send them through the real networking layer."
-  [{:keys [reconciler networking queue] :as app} {:keys [remote]} cb]
-  (let [general-tx (impl/remove-loads-and-fallbacks remote)
-        has-non-fetch-tx? (> (count general-tx) 0)
-        fetch-payload (f/mark-loading reconciler)]
-
-    (when has-non-fetch-tx?
-      (let [payload (tx-payload remote general-tx app cb)]
-        (enqueue queue payload)))
-
-    (when fetch-payload
-      (enqueue queue (assoc fetch-payload :networking networking)))))
+  off one at a time and send them through the real networking layer. Reads are guaranteed to *follow* writes."
+  [app remote-tx-map cb]
+  (enqueue-mutations app remote-tx-map)
+  (enqueue-reads app))
 
 (defn start-network-sequential-processing
   "Starts a communicating sequential process that sends network requests from the request queue."
@@ -79,7 +83,12 @@
         tempid-migrate (fn [pure _ tempids _]
                          (impl/rewrite-tempids-in-request-queue queue tempids)
                          (impl/resolve-tempids pure tempids))
-        config {:state      initial-state
+        initial-state-with-locale (if (= Atom (type initial-state))
+                                    (do
+                                      (swap! initial-state assoc :ui/locale "en-US")
+                                      initial-state)
+                                    (assoc initial-state :ui/locale "en-US"))
+        config {:state      initial-state-with-locale
                 :send       (fn [tx cb]
                               (server-send (assoc app :reconciler @rec-atom) tx cb))
                 :migrate    tempid-migrate
@@ -91,6 +100,13 @@
 
     (reset! rec-atom rec)
     rec))
+
+(defn initialize-global-error-callback [app]
+  (let [cb-atom (-> app (get-in [:networking :global-error-callback]))]
+    (when (= Atom (type cb-atom))
+      (swap! cb-atom #(if (fn? %)
+                       (partial % (om/app-state (:reconciler app)))
+                       (throw (ex-info "Networking error callback must be a function." {})))))))
 
 (defn initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
@@ -106,7 +122,9 @@
         node (if (string? dom-id-or-node)
                (gdom/getElement dom-id-or-node)
                dom-id-or-node)]
+
     (initialize-internationalization rec)
+    (initialize-global-error-callback completed-app)
     (start-network-sequential-processing completed-app)
     (om/add-root! rec root-component node)
     (when started-callback

@@ -31,14 +31,19 @@
   mounted in the DOM, and is useful for triggering initial loads, routing mutations, etc. The Om reconciler is available
   under the `:reconciler` key (and you can access the app state, root node, etc from there.)
 
+  `:network-error-callback` is a function of two arguments, the app state atom and the error, which will be invoked for
+  every network error (status code >= 400, or no network found), should you choose to use the built-in networking record.
+
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state started-callback networking request-transform]
-      :or   {initial-state {} started-callback nil}}]
+  [& {:keys [initial-state started-callback networking request-transform network-error-callback]
+      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil)}}]
   (map->Application {:initial-state    initial-state
                      :started-callback started-callback
-                     :networking       (or networking (net/make-untangled-network "/api" :request-transform request-transform))}))
+                     :networking       (or networking (net/make-untangled-network "/api"
+                                                        :request-transform request-transform
+                                                        :global-error-callback network-error-callback))}))
 
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
@@ -92,4 +97,3 @@
   ([param-name] (get-url-param (get-url) param-name))
   ([url param-name]
    (get (uri-params url) param-name)))
-

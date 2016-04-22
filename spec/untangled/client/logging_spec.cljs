@@ -14,7 +14,7 @@
       (level/getPredefinedLevel name) =1x=> (assertions "info" name => "INFO")
       (level/getPredefinedLevel name) =1x=> (assertions "warn" name => "WARNING")
       (level/getPredefinedLevel name) =1x=> (assertions "error" name => "SEVERE")
-      (level/getPredefinedLevel name) =1x=> (assertions "none" name => "NONE")
+      (level/getPredefinedLevel name) =1x=> (assertions "none" name => "OFF")
 
       (doall (map log/set-level [:all :debug :info :warn :error :none])))))
 

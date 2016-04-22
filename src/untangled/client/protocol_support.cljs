@@ -13,11 +13,12 @@
   `ui-tx`: the om transaction that modifies the app state prior to receiving a server response
   `optimistic-delta`: the expected changes to the app state after executing ui-tx. See Protocol Testing README for how
   to build this properly."
-  [{:keys [initial-ui-state ui-tx optimistic-delta] :as data}]
+  [{:keys [initial-ui-state ui-tx optimistic-delta] :as data} & {:keys [env]}]
+  (assert (not (:state env)) "state not allowed in the env argument")
   (component "Optimistic Updates"
     (let [{:keys [parser]} (impl/init-testing)
           state (atom initial-ui-state)
-          parse (partial parser {:state state})
+          parse (partial parser (merge {:state state} env))
           tempid-map (impl/allocate-tempids ui-tx)
           ui-tx (impl/rewrite-tempids ui-tx tempid-map)]
       (behavior "trigger correct state transitions"
