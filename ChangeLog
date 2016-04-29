@@ -17,3 +17,6 @@
 - check-response-to-client now takes an optional :which-db which is a keyword
 	that specifies from which db a response originates from.
 	This is because :db/id's are not unique across datomic databases.
+
+0.4.8
+-----
