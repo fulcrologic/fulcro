@@ -23,6 +23,11 @@
 ;; this is here so we can do testing (can mock core async stuff out of the way)
 (defn- enqueue [q v] (go (async/>! q v)))
 
+(defn real-send
+  "Do a properly-plumbed network send that strips ui attributes from the tx"
+  [net tx on-load on-error]
+  (net/send net (plumbing/strip-ui tx) on-load on-error))
+
 (defn enqueue-mutations [{:keys [queue] :as app} remote-tx-map cb]
   (let [full-remote-transaction (:remote remote-tx-map)
         fallback (fallback-handler app full-remote-transaction)
@@ -34,13 +39,11 @@
     (when has-mutations?
       (enqueue queue payload))))
 
-(defn raw-send []
-  )
 (defn enqueue-reads [{:keys [queue reconciler networking]}]
   (let [parallel-payload (f/mark-parallel-loading reconciler)
         fetch-payload (f/mark-loading reconciler)]
     (doseq [{:keys [query on-load on-error]} parallel-payload]
-      (net/send networking (plumbing/strip-ui query) on-load on-error))
+      (real-send networking query on-load on-error))
     (when fetch-payload
       (enqueue queue (assoc fetch-payload :networking networking)))))
 
@@ -62,7 +65,7 @@
         (let [{:keys [query on-load on-error]} payload
               on-load (make-process-response on-load)
               on-error (make-process-response on-error)]
-          (net/send networking (plumbing/strip-ui query) on-load on-error))
+          (real-send networking query on-load on-error))
         (async/<! response-channel)                         ; expect to block
         (recur (async/<! queue))))))
 
