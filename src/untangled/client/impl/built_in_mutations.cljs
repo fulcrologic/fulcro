@@ -5,7 +5,7 @@
             [untangled.dom :refer [unique-key]]
             [untangled.i18n.core :as i18n]))
 
-(defmethod mutate 'untangled/load [{:keys [state]} _ {:keys [root field query params without post-mutation fallback ident callback]}]
+(defmethod mutate 'untangled/load [{:keys [state]} _ {:keys [root field query params without post-mutation fallback ident callback parallel]}]
   (when callback (log/error "Callback no longer supported. Use post-mutation instead."))
   (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
   {:remote true
@@ -18,6 +18,7 @@
                :query query
                :params params
                :without without
+               :parallel parallel
                :post-mutation post-mutation
                :fallback fallback))})
 

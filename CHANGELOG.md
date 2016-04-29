@@ -31,3 +31,8 @@
 0.4.8
 -----
 - Fixed tempid rewrite regression
+
+0.4.9
+-----
+- Removed old logging code (use untangled.client.logging instead)
+- Added support for parallel lazy loading

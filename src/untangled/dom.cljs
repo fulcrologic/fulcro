@@ -2,12 +2,9 @@
   (:require [clojure.string :as str]
             [cljs-uuid-utils.core :as uuid]
             [om.next :as om]
-            [untangled.logging :as logging]))
-
-
+            [untangled.client.logging :as log]))
 
 (defn unique-key [] (uuid/uuid-string (uuid/make-random-squuid)))
-
 
 (defn append-class
   "Given a component and a local state key or keys, to be passed to `om/get-state`,
@@ -25,7 +22,6 @@
                           when-true
                           when-false)]
       (str default-class-string " " append-string))))
-
 
 (defn toggle-class
   "Adds the 'visible' class and removes the 'hidden' class to the pre-supplied class string based on the truthiness
@@ -52,6 +48,4 @@
   [evt]
   (try
     (.-value (.-target evt))
-    (catch js/Object e (logging/warn "Event had no target when trying to pull text"))
-    )
-  )
+    (catch js/Object e (log/warn "Event had no target when trying to pull text"))))

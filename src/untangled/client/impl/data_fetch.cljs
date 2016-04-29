@@ -26,6 +26,33 @@
   (defn loading? [state] (is-kind? state :loading))
   (defn failed? [state] (is-kind? state :failed)))
 
+(defn mark-parallel-loading
+  "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
+  in the app state, and return maps with the keys:
+
+  `query` : The full query to send to the server.
+  `on-load` : The function to call to merge a response. Detects missing data and sets failure markers for those.
+  `on-error` : The function to call to set network/server error(s) in place of loading markers.
+
+  response-channel will have the response posted to it when the request is done.
+  ."
+  [reconciler]
+  (let [state (om/app-state reconciler)
+        queued-items (get @state :om.next/ready-to-load)
+        items-to-load (filter ::parallel queued-items)]
+    (when-not (empty? items-to-load)
+      (om/merge! reconciler {:ui/loading-data true})
+      (doseq [item items-to-load]
+        (swap! state assoc-in
+               (data-path item)
+               {:ui/fetch-state (set-loading! item)}))
+      (swap! state assoc :om.next/ready-to-load (filter (comp not ::parallel) queued-items))
+      (om/force-root-render! reconciler)
+      (for [item items-to-load]
+        {:query    (full-query [item])
+         :on-load  (loaded-callback reconciler [item])
+         :on-error (error-callback reconciler [item])}))))
+
 (defn mark-loading
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
   in the app state, and returns a map with the keys:
@@ -117,7 +144,7 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field params without query post-mutation fallback] :or {:without #{}}}]
+  [& {:keys [ident field params without query post-mutation fallback parallel] :or {:without #{}}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
@@ -133,6 +160,7 @@
      ::field         field                                  ; for component-targeted load
      ::query         query'                                 ; query, relative to root of db OR component
      ::post-mutation post-mutation
+     ::parallel    parallel
      ::fallback      fallback}))
 
 (defn mark-ready
@@ -140,11 +168,12 @@
   a mutate function that is abstractly loading something. This is intended for internal use.
 
   See `load-field` for public API."
-  [& {:keys [state query ident field without params post-mutation fallback] :or {:without #{}}}]
+  [& {:keys [state query ident field without params post-mutation fallback parallel] :or {:without #{}}}]
   (swap! state update :om.next/ready-to-load conj
          (ready-state
            :ident ident
            :field field
+           :parallel parallel
            :params params
            :without without
            :query query
@@ -209,6 +238,7 @@
   "Useful for simultaneous `mark-loading` calls, so that loading states from other calls are not cleared accidentally."
   (fn [fetch-state] (and (loading? fetch-state) (contains? loading-items fetch-state))))
 
+;; TODO: Fix this. Bleh, highly inefficient. Specter anyone?
 (defn- set-global-loading [reconciler]
   "Sets :ui/loading to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
   (om/merge! reconciler {:ui/loading-data false})

@@ -34,8 +34,13 @@
     (when has-mutations?
       (enqueue queue payload))))
 
+(defn raw-send []
+  )
 (defn enqueue-reads [{:keys [queue reconciler networking]}]
-  (let [fetch-payload (f/mark-loading reconciler)]
+  (let [parallel-payload (f/mark-parallel-loading reconciler)
+        fetch-payload (f/mark-loading reconciler)]
+    (doseq [{:keys [query on-load on-error]} parallel-payload]
+      (net/send networking (plumbing/strip-ui query) on-load on-error))
     (when fetch-payload
       (enqueue queue (assoc fetch-payload :networking networking)))))
 
