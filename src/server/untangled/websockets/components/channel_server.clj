@@ -92,7 +92,7 @@
                             8000  ; timeout
                             (fn [entity-data] ...)) ; callback for reply
           "
-  (juxt :id #(get-in % [:?data :action] :default)))
+  :id)
 
 (defrecord ChannelServer [handler
                           connected-services            ; atom containing a set of target keywords that have registered multimethods
@@ -144,7 +144,6 @@
     (map->ChannelServer {:handshake-data-fn (fn [ring-req] (:sesson ring-req))
                          :user-id-fn        (let [id-atom (atom 0)]
                                               (fn [request]
-                                                (timbre/info "Creating client id: " (inc @id-atom))
                                                 (swap! id-atom inc)))
                          :chsk-handler      message-received})
     [:handler]))

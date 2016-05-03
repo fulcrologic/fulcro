@@ -9,23 +9,21 @@
             [untangled.client.impl.network :refer [UntangledNetwork]]
             [untangled.transit-packer :as tp]))
 
-(defrecord ChannelClient [url send-fn callback global-error-callback]
+(defrecord ChannelClient [url send-fn callback global-error-callback server-push]
   UntangledNetwork
   (send [this edn ok err]
-    (let [message (ct/write (t/writer) edn)]
+    (do
       (@callback ok err)
       (send-fn `[:api/parse ~{:action  :send-message
-                                :command :send-om-request
-                                :content edn}]))))
-
-(def reconciler (atom nil))
+                              :command :send-om-request
+                              :content edn}]))))
 
 (defmulti message-received
   "Multimethod to handle Sente `event-msg`s"
   :id)
 
-(defn make-channel-client [url & {:keys [global-error-callback]}]
-  (let [ch                                   (chan)
+(defn make-channel-client [url & {:keys [global-error-callback push-queue]}]
+  (let [parse-queue                          (chan)
         {:keys [chsk ch-recv send-fn state]} (sente/make-channel-socket! url ; path on server
                                                {:packer         tp/packer
                                                 :type           :ws ; e/o #{:auto :ajax :ws}
@@ -34,14 +32,32 @@
     (def ch-chsk ch-recv)                                     ; ChannelSocket's receive channel
     (def chsk-send! send-fn)                                  ; ChannelSocket's send API fn
     (def chsk-state state)                                    ; Watchable, read-only atom)
-    (js/console.log "Making the network")
+    (defonce router_ (atom nil))
 
-    (defmethod message-received :default [{:keys [ch-recv send-fn state event id ?data] :as message}]
+    (defn stop-router! []
+      (when-let [stop-f @router_]
+        (stop-f)))
+
+    (defn start-router! []
+      (js/console.log "Starting websocket router.")
+      (stop-router!)
+      (reset! router_
+        (sente/start-chsk-router!
+          ch-chsk message-received)))
+
+    (start-router!)
+
+    (defmethod message-received :default [{:keys [ch-recv send-fn state event id ?data]}]
       (let [command (:command ?data)]
         (println "Message Routed to default handler " command)))
 
-    (defmethod message-received :api/parse [{:keys [?data] :as message}]
-      (put! ch ?data))
+    (defmethod message-received :api/parse [{:keys [?data]}]
+      (put! parse-queue ?data))
+
+    (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
+      (println "Received a server push with:")
+      (js/console.log msg)
+      (put! push-queue ?data))
 
     (defmethod message-received :chsk/handshake [message]
       (println "Message Routed to handshake handler "))
@@ -52,28 +68,12 @@
     (map->ChannelClient {:url                   url
                          :send-fn               chsk-send!
                          :global-error-callback (atom global-error-callback)
+                         :server-push           {:push-queue push-queue}
                          :callback              (atom (fn [valid error]
                                                         (go
-                                                          (let [{:keys [status body]} (<! ch)]
+                                                          (let [{:keys [status body]} (<! parse-queue)]
                                                             ;; We are saying that all we care about at this point is the body.
                                                             (if (= status 200)
                                                               (valid body)
                                                               (error body))
-                                                            ch))))})))
-
-(defonce router_ (atom nil))
-
-(defn stop-router! []
-  (when-let [stop-f @router_]
-    (stop-f)))
-
-(defn start-router! []
-  (stop-router!)
-  (reset! router_
-          (sente/start-chsk-router!
-            ch-chsk message-received)))
-
-(defn start! [r]
-  (js/console.log "Starting websocket router.")
-  (reset! reconciler r)
-  (start-router!))
+                                                            parse-queue))))})))
