@@ -8,45 +8,8 @@
             [ring.middleware.keyword-params :as keyword-params]
             [untangled.transit-packer :as tp]))
 
-(defn wrap-dependencies
-  "Wrap the handler such that the given dependency value can be obtained from the request
-   using get-dependencies and the specified key-path. Multiple wrap-dependencies can be chained in your middleware.
-
-   Parameters:
-   * `handler` - The handler to wrap
-   * `pairs` - Pairs of key paths and values to add to the dependencies.
-
-   Example:
-
-         (wrap-dependencies handler
-              [:top :k2] value
-              [:top :k3] value2)
-   "
-  [handler & pairs]
-  (assert (sequential? (first pairs)) "first item in pairs must be a list of vector")
-  (fn [req]
-    (let [new-req (reduce (fn [r [key-path value]]
-                            (let [path (conj (apply vector :dashboard/dependencies key-path) :dependency/value)
-                                  new-req (update-in r path (fn [n] value))]
-                              new-req)) req (partition 2 pairs))]
-      (handler new-req))))
-
-(defn get-dependency
-  "Get a dependency previously injected by wrap-dependencies.
-
-  Parameters:
-  * `req` -  the incoming request
-  * `key-path` - a vector or list that represents a location that was used in the injection
-  "
-  [req key-path]
-  (assert (sequential? key-path) "Key-path must be vector or list")
-  (let [path (conj (apply vector :dashboard/dependencies key-path) :dependency/value)]
-    (get-in req path)))
-
-;; TODO - We can just pass the socket necessities in at this point, and then pass to prehook, which removes another handler wrapper.
-(defn wrap-web-socket [component handler]
+(defn wrap-web-socket [handler]
   (-> handler
-    (wrap-dependencies [:channel-server :only] component)
     (keyword-params/wrap-keyword-params)
     (params/wrap-params)))
 
@@ -63,7 +26,7 @@
 ;;                   :params               {:client-id "930"},
 ;;                   :datahub/credentials  {:real-user nil, :effective-user nil, :realm nil},
 ;;                   :route-params         {},
-;;                   :headers              {"origin" "http://localhost:4001", "host" "localhost:3000", ...}
+;;                   :headers              {"Authorization" "Bearer some-token" ,"origin" "http://localhost:4001", "host" "localhost:3000", ...}
 ;;                   :websocket?           true,
 ;;                   :query-params         {"client-id" "930"},
 ;;                   :datahub/dependencies {:databases ...}
@@ -80,19 +43,12 @@
 ;;                                     }
 
 (defmulti message-received
-          "The primary multi-method to define methods for in order to receive client messages.
-
-          The client will send a message of the form (via Sente):
-
-               [:target/kw { :command :kw ...any other data... }]
-
-          The client can include a timeout and reply callback:
-
-               (sente/send! [:dataservice/todomvc { :command :subscribe :entity 23 }]  ; message
-                            8000  ; timeout
-                            (fn [entity-data] ...)) ; callback for reply
-          "
+  "The primary multi-method to define methods for in order to receive client messages."
   :id)
+
+(def post-handler (atom nil))
+
+(def ajax-get-or-ws-handler (atom nil))
 
 (defrecord ChannelServer [handler
                           connected-services            ; atom containing a set of target keywords that have registered multimethods
@@ -129,9 +85,12 @@
                               :chsk-send! send-fn              ; ChannelSocket's send API fn
                               :connected-uids connected-uids
                               :router (sente/start-server-chsk-router! ch-recv chsk-handler))]
+
+      (reset! post-handler ajax-post-fn)
+      (reset! ajax-get-or-ws-handler ajax-get-or-ws-handshake-fn)
+
       (.set-pre-hook! handler
-        (comp pre-hook
-          (partial wrap-web-socket component)))
+        (comp pre-hook wrap-web-socket))
       component))
 
   (stop [component]
@@ -139,21 +98,25 @@
       (assoc component :router (stop-f))
       component)))
 
-(defn make-channel-server []
+(defn make-channel-server [& {:keys [user-id-fn handshake-data-fn]}]
   (component/using
-    (map->ChannelServer {:handshake-data-fn (fn [ring-req] (:sesson ring-req))
-                         :user-id-fn        (let [id-atom (atom 0)]
-                                              (fn [request]
-                                                (swap! id-atom inc)))
+    (map->ChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
+                                                                    (get (:headers ring-req) "Authorization")))
+                         :user-id-fn        (or user-id-fn (let [id-atom (atom 0)]
+                                                             (fn [request]
+                                                               (swap! id-atom inc))))
                          :chsk-handler      message-received})
     [:handler]))
 
 (defn route-handlers
   "Route handler that is expected to be passed to `:extra-routes` when creating an untangled app."
-  [req env _]
-  (let [websocket                     (get-dependency req [:channel-server :only])
-        ring-ajax-get-or-ws-handshake (get websocket :ring-ajax-get-or-ws-handshake)
-        ring-ajax-post                (get websocket :ring-ajax-post)]
+  [req _env _match]
+  (let [ring-ajax-get-or-ws-handshake @ajax-get-or-ws-handler
+        ring-ajax-post @post-handler]
+    (assert (not (and
+                   (nil? @post-handler)
+                   (nil? @ajax-get-or-ws-handler)))
+      "Your handlers are nil. Did you start the channel server?")
     (case (:request-method req)
       :get  (try (ring-ajax-get-or-ws-handshake req)
                  (catch Exception e (.printStackTrace e System/out)))

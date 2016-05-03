@@ -7,13 +7,14 @@
             [om.next :as om]
             [om.transit :as t]
             [untangled.client.impl.network :refer [UntangledNetwork]]
+            [untangled.client.logging :as log]
             [untangled.transit-packer :as tp]))
 
 (defrecord ChannelClient [url send-fn callback global-error-callback server-push]
   UntangledNetwork
   (send [this edn ok err]
     (do
-      (@callback ok err)
+      (callback ok err)
       (send-fn `[:api/parse ~{:action  :send-message
                               :command :send-om-request
                               :content edn}]))))
@@ -49,31 +50,30 @@
 
     (defmethod message-received :default [{:keys [ch-recv send-fn state event id ?data]}]
       (let [command (:command ?data)]
-        (println "Message Routed to default handler " command)))
+        (log/error "Message Routed to default handler " command)))
 
     (defmethod message-received :api/parse [{:keys [?data]}]
       (put! parse-queue ?data))
 
     (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
-      (println "Received a server push with:")
-      (js/console.log msg)
+      (log/debug "Received a server push with:")
       (put! push-queue ?data))
 
     (defmethod message-received :chsk/handshake [message]
-      (println "Message Routed to handshake handler "))
+      (log/debug "Message Routed to handshake handler "))
 
     (defmethod message-received :chsk/state [message]
-      (println "Message Routed to state handler"))
+      (log/debug "Message Routed to state handler"))
 
     (map->ChannelClient {:url                   url
                          :send-fn               chsk-send!
                          :global-error-callback (atom global-error-callback)
                          :server-push           {:push-queue push-queue}
-                         :callback              (atom (fn [valid error]
-                                                        (go
-                                                          (let [{:keys [status body]} (<! parse-queue)]
-                                                            ;; We are saying that all we care about at this point is the body.
-                                                            (if (= status 200)
-                                                              (valid body)
-                                                              (error body))
-                                                            parse-queue))))})))
+                         :callback              (fn [valid error]
+                                                  (go
+                                                    (let [{:keys [status body]} (<! parse-queue)]
+                                                      ;; We are saying that all we care about at this point is the body.
+                                                      (if (= status 200)
+                                                        (valid body)
+                                                        (error body))
+                                                      parse-queue)))})))
