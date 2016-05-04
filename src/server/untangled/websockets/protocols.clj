@@ -1,15 +1,14 @@
 (ns untangled.websockets.protocols)
 
-(defprotocol ChannelHandler
-  (req->authenticated? [this req client-tab-uuid]
-    "Returns a bool describing whether or not authentication succeeded.")
-  (client-dropped [this client-tab-uuid]
-    "Handles dropping a client connection."))
+(defprotocol WSEvents
+  (add-closed-listener [this listener]
+    "Add a listener to run when when a connection is closed.")
+  (remove-closed-listener [this listener]
+    "Remove a listener to run when when a connection is closed.")
+  (add-opened-listener [this listener]
+    "Add a listener to run when when a connection is opened.")
+  (remove-opened-listener [this listener]
+    "Remove a listener to run when when a connection is opened."))
 
-(defprotocol Subscribable
-  (subscribe [this user topic]
-    "Subscribe a user to a topic")
-  (unsubscribe [this user] [this user topic]
-    "Unsubscribe a user from all topics or a topic")
-  (get-subscribers [this topic]
-    "Get the subscribers to a topic."))
+(defprotocol WSPush
+  (push [this cid verb edn] "Push from server"))

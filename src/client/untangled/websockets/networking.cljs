@@ -23,7 +23,11 @@
   "Multimethod to handle Sente `event-msg`s"
   :id)
 
-(defn make-channel-client [url & {:keys [global-error-callback push-queue]}]
+(defmulti push-received
+  "Multimethod to handle push events"
+  :topic)
+
+(defn make-channel-client [url & {:keys [global-error-callback]}]
   (let [parse-queue                          (chan)
         {:keys [chsk ch-recv send-fn state]} (sente/make-channel-socket! url ; path on server
                                                {:packer         tp/packer
@@ -57,7 +61,7 @@
 
     (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
       (log/debug "Received a server push with:")
-      (put! push-queue ?data))
+      (push-received ?data))
 
     (defmethod message-received :chsk/handshake [message]
       (log/debug "Message Routed to handshake handler "))
@@ -68,7 +72,6 @@
     (map->ChannelClient {:url                   url
                          :send-fn               chsk-send!
                          :global-error-callback (atom global-error-callback)
-                         :server-push           {:push-queue push-queue}
                          :callback              (fn [valid error]
                                                   (go
                                                     (let [{:keys [status body]} (<! parse-queue)]
