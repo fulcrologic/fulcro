@@ -14,7 +14,8 @@
         "Send method, transmits EDN to the server and gets an EDN response. Calls result-callback with that response,
         or a map with key `:error` on errors. optional options may include `:headers`, but you may NOT override content
         type. The method CANNOT be used for parallel network requests.")
-  (say [this verb params ok-callback] "Send a verb to the server for separate non-query processing. Any number of these can be started at once."))
+  (start [this complete-app]
+    "Starts the network, passing in the app for any components that may need it."))
 
 (defprotocol IXhrIOCallbacks
   (response-ok [this xhrio ok-cb] "Called by XhrIo on OK")
@@ -23,7 +24,7 @@
 (defn parse-response [xhr-io]
   (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))}}) (.getResponseText xhr-io)))
 
-(defrecord Network [url request-transform global-error-callback]
+(defrecord Network [url request-transform global-error-callback complete-app]
   IXhrIOCallbacks
   (response-ok [this xhr-io valid-data-callback]
     ;; Implies:  everything went well and we have a good response
@@ -64,7 +65,10 @@
           headers (clj->js headers)]
       (.send xhrio url "POST" post-data headers)
       (events/listen xhrio (.-SUCCESS EventType) #(response-ok this xhrio ok))
-      (events/listen xhrio (.-ERROR EventType) #(response-error this xhrio err)))))
+      (events/listen xhrio (.-ERROR EventType) #(response-error this xhrio err))))
+
+  (start [this app]
+    (assoc this :complete-app app)))
 
 (defn make-untangled-network [url & {:keys [request-transform global-error-callback]}]
   (map->Network {:url                   url
@@ -72,10 +76,11 @@
                  :global-error-callback (atom global-error-callback)
                  }))
 
-(defrecord MockNetwork []
+(defrecord MockNetwork [complete-app]
   UntangledNetwork
   (send [this edn ok err]
-    (log/info "Ignored (mock) Network request " edn)))
+    (log/info "Ignored (mock) Network request " edn))
+  (start [this app]
+    (assoc this :complete-app app)))
 
 (defn mock-network [] (MockNetwork.))
-
