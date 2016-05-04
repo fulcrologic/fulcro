@@ -36,3 +36,4 @@
 -----
 - Removed old logging code (use untangled.client.logging instead)
 - Added support for parallel lazy loading
+- Added `(start [this app])` to the `UntangledNetwork` protocol.

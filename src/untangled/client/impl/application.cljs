@@ -130,6 +130,7 @@
                (gdom/getElement dom-id-or-node)
                dom-id-or-node)]
 
+    (net/start networking completed-app)
     (initialize-internationalization rec)
     (initialize-global-error-callback completed-app)
     (start-network-sequential-processing completed-app)
