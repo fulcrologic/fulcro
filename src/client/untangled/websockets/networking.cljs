@@ -10,14 +10,29 @@
             [untangled.client.logging :as log]
             [untangled.transit-packer :as tp]))
 
-(defrecord ChannelClient [url send-fn callback global-error-callback server-push]
+(defonce router_ (atom nil))
+
+(defn stop-router! []
+  (when-let [stop-f @router_]
+    (stop-f)))
+
+(defn start-router! [ch-recv msg-handler]
+  (js/console.log "Starting websocket router.")
+  (stop-router!)
+  (reset! router_
+    (sente/start-chsk-router!
+      ch-recv msg-handler)))
+
+(defrecord ChannelClient [url send-fn callback global-error-callback server-push completed-app]
   UntangledNetwork
   (send [this edn ok err]
     (do
       (callback ok err)
       (send-fn `[:api/parse ~{:action  :send-message
                               :command :send-om-request
-                              :content edn}]))))
+                              :content edn}])))
+  (start [this app]
+    (assoc this :completed-app app)))
 
 (defmulti message-received
   "Multimethod to handle Sente `event-msg`s"
@@ -25,32 +40,30 @@
 
 (defmulti push-received
   "Multimethod to handle push events"
-  :topic)
+  (fn [app msg] (:topic msg)))
 
 (defn make-channel-client [url & {:keys [global-error-callback]}]
-  (let [parse-queue                          (chan)
-        {:keys [chsk ch-recv send-fn state]} (sente/make-channel-socket! url ; path on server
-                                               {:packer         tp/packer
-                                                :type           :ws ; e/o #{:auto :ajax :ws}
-                                                :wrap-recv-evs? false})]
-    (def chsk chsk)
-    (def ch-chsk ch-recv)                                     ; ChannelSocket's receive channel
-    (def chsk-send! send-fn)                                  ; ChannelSocket's send API fn
-    (def chsk-state state)                                    ; Watchable, read-only atom)
-    (defonce router_ (atom nil))
+  (let [parse-queue     (chan)
+        {:keys [chsk
+                ch-recv
+                send-fn
+                state]} (sente/make-channel-socket! url ; path on server
+                          {:packer         tp/packer
+                           :type           :ws ; e/o #{:auto :ajax :ws}
+                           :wrap-recv-evs? false})
+        channel-client  (map->ChannelClient {:url                   url
+                                             :send-fn               send-fn
+                                             :global-error-callback (atom global-error-callback)
+                                             :callback              (fn [valid error]
+                                                                      (go
+                                                                        (let [{:keys [status body]} (<! parse-queue)]
+                                                                          ;; We are saying that all we care about at this point is the body.
+                                                                          (if (= status 200)
+                                                                            (valid body)
+                                                                            (error body))
+                                                                          parse-queue)))})]
 
-    (defn stop-router! []
-      (when-let [stop-f @router_]
-        (stop-f)))
-
-    (defn start-router! []
-      (js/console.log "Starting websocket router.")
-      (stop-router!)
-      (reset! router_
-        (sente/start-chsk-router!
-          ch-chsk message-received)))
-
-    (start-router!)
+    (start-router! ch-recv message-received)
 
     (defmethod message-received :default [{:keys [ch-recv send-fn state event id ?data]}]
       (let [command (:command ?data)]
@@ -61,7 +74,7 @@
 
     (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
       (log/debug "Received a server push with:")
-      (push-received ?data))
+      (push-received ?data) (:complete-app channel-client))
 
     (defmethod message-received :chsk/handshake [message]
       (log/debug "Message Routed to handshake handler "))
@@ -69,14 +82,4 @@
     (defmethod message-received :chsk/state [message]
       (log/debug "Message Routed to state handler"))
 
-    (map->ChannelClient {:url                   url
-                         :send-fn               chsk-send!
-                         :global-error-callback (atom global-error-callback)
-                         :callback              (fn [valid error]
-                                                  (go
-                                                    (let [{:keys [status body]} (<! parse-queue)]
-                                                      ;; We are saying that all we care about at this point is the body.
-                                                      (if (= status 200)
-                                                        (valid body)
-                                                        (error body))
-                                                      parse-queue)))})))
+    channel-client))
