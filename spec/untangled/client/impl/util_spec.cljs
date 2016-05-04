@@ -1,25 +1,27 @@
 (ns untangled.client.impl.util-spec
   (:require
     [untangled-spec.core :refer-macros [specification when-mocking assertions]]
-    [untangled.client.impl.util :as util]))
+    [untangled.client.impl.util :as util]
+    [om.next :as om]))
 
 (specification "Log app state"
-  (let [state {:foo        {:a :b
-                            12 {:c         ["hello" "world"]
-                                [:wee :ha] {:e [{:e :g}
-                                                {:a [1 2 3 4]}
-                                                {:t :k}]
-                                            :g :h
-                                            :i :j}}}
-               {:map :key} {:other :data}
-               [1 2 3]     :data}]
+  (let [state (atom {:foo        {:a :b
+                                  12 {:c         ["hello" "world"]
+                                      [:wee :ha] {:e [{:e :g}
+                                                      {:a [1 2 3 4]}
+                                                      {:t :k}]
+                                                  :g :h
+                                                  :i :j}}}
+                     {:map :key} {:other :data}
+                     [1 2 3]     :data})]
 
     (when-mocking
+      (om/app-state _) => state
       (cljs.pprint/pprint data) => data
 
       (assertions
         "Handle non-sequential keys"
-        (util/log-app-state state {:map :key}) => (get state {:map :key})
+        (util/log-app-state state {:map :key}) => {:other :data}
 
         "Handles sequential keys"
         (util/log-app-state state [[1 2 3]]) => :data

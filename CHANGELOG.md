@@ -25,7 +25,7 @@
 - Renamed everything in the internals that was prefixed app/ to untangled/
 - Added global server error handler.
 - Added fallback support for load-data, load-field, etc.
-- Refactored networking send for better clarity 
+- Refactored networking send for better clarity
 - Fixed bug on mark/sweep of missing query results. It was being applied to mutations instead of reads. Added tests for this that need a bit more work.
 
 0.4.8
@@ -36,3 +36,9 @@
 -----
 - Removed old logging code (use untangled.client.logging instead)
 - Added support for parallel lazy loading
+- Log-app-state now requires the atom containing a mounted untangled client, define it in the user namespace like so:
+```
+(defonce app (atom (uc/new-untangled-client ... )))
+(swap! app uc/mount RootComponent "app-div")
+(def log-app-state (partial util/log-app-state app))
+```
