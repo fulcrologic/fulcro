@@ -36,6 +36,7 @@
 -----
 - Removed old logging code (use untangled.client.logging instead)
 - Added support for parallel lazy loading
+- Added `(start [this app])` to the `UntangledNetwork` protocol.
 - Log-app-state now requires the atom containing a mounted untangled client, define it in the user namespace like so:
 ```
 (defonce app (atom (uc/new-untangled-client ... )))
