@@ -6,9 +6,9 @@
             [taoensso.sente.server-adapters.http-kit :refer [sente-web-server-adapter]]
             [ring.middleware.params :as params]
             [ring.middleware.keyword-params :as keyword-params]
-            [untangled.server.impl.components.handler :refer [api]]
+            [untangled.server.impl.components.handler :refer [api get-pre-hook set-pre-hook!]]
             [untangled.transit-packer :as tp]
-            [untangled.websockets.protocols :refer [WSEvents WSPush]]))
+            [untangled.websockets.protocols :refer [WSNet WSListener client-added client-dropped]]))
 
 (def post-handler (atom nil))
 
@@ -66,18 +66,20 @@
   "The primary multi-method to define methods for in order to receive client messages."
   :id)
 
-(def closed-listeners (ref #{}))
-(def opened-listeners (ref #{}))
+(def listeners (ref #{}))
 
 (defn add-listener [listeners listener]
+  {:pre [(satisfies? WSListener listener)]}
   (dosync
     (alter listeners conj listener)))
 (defn remove-listener [listeners listener]
+  {:pre [(satisfies? WSListener listener)]}
   (dosync
     (alter listeners disj listener)))
 
-(defn notify-listeners [listeners params]
-  (doall (map #(% params) @listeners)))
+(defn notify-listeners [f listeners ws-net cid]
+  {:pre [(satisfies? WSNet ws-net)]}
+  (doall (map #(f % ws-net cid) @listeners)))
 
 (defrecord ChannelServer [handler
                           ring-ajax-post ; ring hook-ups
@@ -87,47 +89,44 @@
                           connected-uids
                           router
                           handshake-data-fn
+                          server-adapter
                           user-id-fn]
-  WSEvents
-  (add-closed-listener [this listener]
-    (add-listener closed-listeners listener))
-  (remove-closed-listener [this listener]
-    (remove-listener closed-listeners listener))
-  (add-opened-listener [this listener]
-    (add-listener opened-listeners listener))
-  (remove-opened-listener [this listener]
-    (remove-listener opened-listeners listener))
-
-  WSPush
+  WSNet
+  (add-listener [this listener]
+    (add-listener listeners listener))
+  (remove-listener [this listener]
+    (remove-listener listeners listener))
   (push [this cid verb edn]
     (chsk-send! this [:api/server-push {:topic verb :msg edn}]))
 
   component/Lifecycle
   (start [component]
     (timbre/info "Starting Channel Server.")
-    (let [pre-hook                 (.get-pre-hook handler)
-          {:keys [api-parser env]} handler
+    (let [pre-hook          (get-pre-hook handler)
+          {:keys [api-parser
+                  env]}     handler
           {:keys [ajax-get-or-ws-handshake-fn
                   ajax-post-fn
                   ch-recv
                   connected-uids
-                  send-fn]}        (sente/make-channel-socket!
-                                     sente-web-server-adapter
-                                     {:user-id-fn        user-id-fn
-                                      :handshake-data-fn handshake-data-fn
-                                      :packer            tp/packer})
-          component                (assoc component
-                                     :ring-ajax-post ajax-post-fn
-                                     :ring-ajax-get-or-ws-handshake ajax-get-or-ws-handshake-fn
-                                     :ch-recv ch-recv                 ; ChannelSocket's receive channel
-                                     :chsk-send! send-fn              ; ChannelSocket's send API fn
-                                     :connected-uids connected-uids
-                                     :router (sente/start-server-chsk-router! ch-recv message-received))]
+                  send-fn]} (sente/make-channel-socket!
+                              server-adapter
+                              {:user-id-fn        user-id-fn
+                               :handshake-data-fn handshake-data-fn
+                               :packer            tp/packer})
+          component         (assoc component
+                              :ring-ajax-post ajax-post-fn
+                              :ring-ajax-get-or-ws-handshake ajax-get-or-ws-handshake-fn
+                              :ch-recv ch-recv                 ; ChannelSocket's receive channel
+                              :chsk-send! send-fn              ; ChannelSocket's send API fn
+                              :connected-uids connected-uids
+                              :router (sente/start-server-chsk-router! ch-recv message-received))
+          env               (assoc env :ws-net component)]
 
       (reset! post-handler ajax-post-fn)
       (reset! ajax-get-or-ws-handler ajax-get-or-ws-handshake-fn)
 
-      (.set-pre-hook! handler
+      (set-pre-hook! handler
         (comp pre-hook wrap-web-socket))
 
       (defmethod message-received :default [message]
@@ -140,12 +139,13 @@
           (send-fn uid [:api/parse result])))
 
       (defmethod message-received :chsk/uidport-open [{:keys [client-id ?data ring-req uid] :as message}]
-        (timbre/debug "Port opened by client" (:client-id message) (:uid message))
-        (notify-listeners opened-listeners message))
+        (timbre/debug "Port opened by client: " (:uid message))
+        (timbre/debug "Port state: " (:state message))
+        (notify-listeners client-added listeners component uid))
 
       (defmethod message-received :chsk/uidport-close [{:keys [client-id ?data ring-req uid] :as message}]
         (timbre/debug "Connection closed" client-id)
-        (notify-listeners closed-listeners message))
+        (notify-listeners client-dropped listeners component uid))
 
       (defmethod message-received :chsk/ws-ping [{:keys [client-id ?data ring-req uid] :as message}]
         #_(timbre/debug "Ping from client" (:client-id message)))
@@ -153,13 +153,14 @@
       component))
 
   (stop [component]
-    (if-let [stop-f router]
-      (assoc component :router (stop-f))
-      component)))
+    (let [stop-f router]
+      (dosync (alter listeners #{}))
+      (assoc component :router (stop-f)))))
 
-(defn make-channel-server [& {:keys [user-id-fn handshake-data-fn]}]
+(defn make-channel-server [& {:keys [handshake-data-fn server-adapter user-id-fn]}]
   (component/using
     (map->ChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
                                                                     (get (:headers ring-req) "Authorization")))
+                         :server-adapter    (or server-adapter sente-web-server-adapter)
                          :user-id-fn        (or user-id-fn (fn [request] (:client-id request)))})
     [:handler]))

@@ -1,14 +1,14 @@
 (ns untangled.websockets.protocols)
 
-(defprotocol WSEvents
-  (add-closed-listener [this listener]
-    "Add a listener to run when when a connection is closed.")
-  (remove-closed-listener [this listener]
-    "Remove a listener to run when when a connection is closed.")
-  (add-opened-listener [this listener]
-    "Add a listener to run when when a connection is opened.")
-  (remove-opened-listener [this listener]
-    "Remove a listener to run when when a connection is opened."))
-
-(defprotocol WSPush
+(defprotocol WSNet
+  (add-listener [this ^WSListener listener]
+    "Add a `WSListen` listener")
+  (remove-listener [this ^WSListener listener]
+    "Remove a `WSListen` listener")
   (push [this cid verb edn] "Push from server"))
+
+(defprotocol WSListener
+  (client-added [this ws-net cid]
+    "Listener for dealing with client added events.")
+  (client-dropped [this ws-net cid]
+    "listener for dealing with client dropped events."))
