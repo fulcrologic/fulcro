@@ -83,4 +83,4 @@
   (start [this app]
     (assoc this :complete-app app)))
 
-(defn mock-network [] (MockNetwork.))
+(defn mock-network [] (map->MockNetwork {}))
