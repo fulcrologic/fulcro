@@ -23,7 +23,18 @@
     (sente/start-chsk-router!
       ch-recv msg-handler)))
 
-(defrecord ChannelClient [url send-fn callback global-error-callback server-push completed-app]
+(defmulti message-received
+  "Multimethod to handle Sente `event-msg`s"
+  :id)
+
+(defmulti push-received
+  "Multimethod to handle push events"
+  (fn [app msg] (:topic msg)))
+
+(defmethod push-received :default [app msg]
+  (log/error (str "Received and unhandled message: " msg)))
+
+(defrecord ChannelClient [url send-fn callback global-error-callback server-push parse-queue completed-app]
   UntangledNetwork
   (send [this edn ok err]
     (do
@@ -32,15 +43,23 @@
                               :command :send-om-request
                               :content edn}])))
   (start [this app]
-    (assoc this :completed-app app)))
+    (let [this (assoc this :completed-app app)]
+      (defmethod message-received :default [{:keys [ch-recv send-fn state event id ?data]}]
+        (let [command (:command ?data)]
+          (log/error "Message Routed to default handler " command)))
 
-(defmulti message-received
-  "Multimethod to handle Sente `event-msg`s"
-  :id)
+      (defmethod message-received :api/parse [{:keys [?data]}]
+        (put! parse-queue ?data))
 
-(defmulti push-received
-  "Multimethod to handle push events"
-  (fn [app msg] (:topic msg)))
+      (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
+        (let [app (:completed-app this)]
+          (push-received app ?data)))
+
+      (defmethod message-received :chsk/handshake [message]
+        (log/debug "Message Routed to handshake handler "))
+
+      (defmethod message-received :chsk/state [message]
+        (log/debug "Message Routed to state handler")))))
 
 (defn make-channel-client [url & {:keys [global-error-callback]}]
   (let [parse-queue     (chan)
@@ -54,6 +73,7 @@
         channel-client  (map->ChannelClient {:url                   url
                                              :send-fn               send-fn
                                              :global-error-callback (atom global-error-callback)
+                                             :parse-queue           parse-queue
                                              :callback              (fn [valid error]
                                                                       (go
                                                                         (let [{:keys [status body]} (<! parse-queue)]
@@ -62,24 +82,5 @@
                                                                             (valid body)
                                                                             (error body))
                                                                           parse-queue)))})]
-
     (start-router! ch-recv message-received)
-
-    (defmethod message-received :default [{:keys [ch-recv send-fn state event id ?data]}]
-      (let [command (:command ?data)]
-        (log/error "Message Routed to default handler " command)))
-
-    (defmethod message-received :api/parse [{:keys [?data]}]
-      (put! parse-queue ?data))
-
-    (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
-      (log/debug "Received a server push with:")
-      (push-received ?data) (:complete-app channel-client))
-
-    (defmethod message-received :chsk/handshake [message]
-      (log/debug "Message Routed to handshake handler "))
-
-    (defmethod message-received :chsk/state [message]
-      (log/debug "Message Routed to state handler"))
-
     channel-client))
