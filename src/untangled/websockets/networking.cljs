@@ -8,7 +8,7 @@
             [om.transit :as t]
             [untangled.client.impl.network :refer [UntangledNetwork]]
             [untangled.client.logging :as log]
-            [untangled.transit-packer :as tp]))
+            [untangled.websockets.transit-packer :as tp]))
 
 (defonce router_ (atom nil))
 

@@ -1,4 +1,4 @@
-(ns untangled.transit-packer
+(ns untangled.websockets.transit-packer
   (:require [om.transit :as ot]
             [taoensso.sente.packers.transit :as st]
             [om.tempid :as tempid #?@(:cljs [:refer [TempId]])])

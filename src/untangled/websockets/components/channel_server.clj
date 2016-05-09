@@ -6,7 +6,7 @@
             [ring.middleware.params :as params]
             [ring.middleware.keyword-params :as keyword-params]
             [untangled.server.impl.components.handler :refer [api get-pre-hook set-pre-hook!]]
-            [untangled.transit-packer :as tp]
+            [untangled.websockets.transit-packer :as tp]
             [untangled.websockets.protocols :refer [WSNet WSListener client-added client-dropped]]))
 
 (def post-handler (atom nil))
