@@ -17,7 +17,7 @@
     (stop-f)))
 
 (defn start-router! [ch-recv msg-handler]
-  (js/console.log "Starting websocket router.")
+  (log/info "Starting websocket router.")
   (stop-router!)
   (reset! router_
     (sente/start-chsk-router!

@@ -17,14 +17,19 @@
   "Route handler that is expected to be passed to `:extra-routes` when creating an untangled app."
   [req _env _match]
   (let [ring-ajax-get-or-ws-handshake @ajax-get-or-ws-handler
-        ring-ajax-post @post-handler]
+        ring-ajax-post                @post-handler]
     (assert (not (and
                    (nil? @post-handler)
                    (nil? @ajax-get-or-ws-handler)))
       "Your handlers are nil. Did you start the channel server?")
     (case (:request-method req)
       :get  (try (ring-ajax-get-or-ws-handshake req)
-                 (catch Exception e (.printStackTrace e System/out)))
+                 (catch Exception e
+                   (let [message (.getMessage e)
+                         type    (str (type e))]
+                     (timbre/error "Sente handler error: " message)
+                     {:status 500
+                      :body   {:type type :message message}})))
       :post (ring-ajax-post req))))
 
 (defn wrap-web-socket [handler]
@@ -81,15 +86,15 @@
   (doall (map #(f % ws-net cid) @listeners)))
 
 (defrecord ChannelServer [handler
-                          ring-ajax-post ; ring hook-ups
+                          ring-ajax-post
                           ring-ajax-get-or-ws-handshake
-                          ch-recv       ; incoming messages
-                          chsk-send!    ; server push by uid
-                          connected-uids
+                          ch-recv
+                          chsk-send!
+                          connected-cids
                           router
                           handshake-data-fn
                           server-adapter
-                          user-id-fn]
+                          client-id-fn]
   WSNet
   (add-listener [this listener]
     (add-listener listeners listener))
@@ -111,15 +116,15 @@
                   connected-uids
                   send-fn]} (sente/make-channel-socket!
                               server-adapter
-                              {:user-id-fn        user-id-fn
+                              {:user-id-fn        client-id-fn
                                :handshake-data-fn handshake-data-fn
                                :packer            tp/packer})
           component         (assoc component
                               :ring-ajax-post ajax-post-fn
                               :ring-ajax-get-or-ws-handshake ajax-get-or-ws-handshake-fn
-                              :ch-recv ch-recv                 ; ChannelSocket's receive channel
-                              :chsk-send! send-fn              ; ChannelSocket's send API fn
-                              :connected-uids connected-uids
+                              :ch-recv ch-recv
+                              :chsk-send! send-fn
+                              :connected-cids connected-uids ; remap uid's to cid's
                               :router (sente/start-server-chsk-router! ch-recv message-received))
           env               (assoc env :ws-net component)]
 
@@ -157,10 +162,11 @@
       (dosync (alter listeners #{}))
       (assoc component :router (stop-f)))))
 
-(defn make-channel-server [& {:keys [handshake-data-fn server-adapter user-id-fn]}]
+(defn make-channel-server [& {:keys [handshake-data-fn server-adapter client-id-fn]}]
   (component/using
     (map->ChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
                                                                     (get (:headers ring-req) "Authorization")))
                          :server-adapter    (or server-adapter sente-web-server-adapter)
-                         :user-id-fn        (or user-id-fn (fn [request] (:client-id request)))})
+                         :client-id-fn      (or client-id-fn (fn [request]
+                                                               (:client-id request)))})
     [:handler]))
