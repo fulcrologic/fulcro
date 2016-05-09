@@ -19,13 +19,14 @@
                  :with-repl    true
                  :changes-only true}
 
-  :source-paths ["src/server" "src/shared"]
-  :test-paths ["specs/server"]
+  :source-paths ["src"]
+
   :resource-paths ["resources"]
+
   :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
   :cljsbuild {:builds [{:id           "dev"
-                        :source-paths ["src/client" "src/shared"]
+                        :source-paths ["src"]
                         :figwheel     true
                         :compiler     {:main                 cljs.user
                                        :asset-path           "js/compiled/dev"
