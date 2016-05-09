@@ -1,6 +1,5 @@
 (ns untangled.websockets.components.channel-server
-  (:require [clojure.core.async :as async :refer [<! <!! chan go thread]]
-            [com.stuartsierra.component :as component]
+  (:require [com.stuartsierra.component :as component]
             [taoensso.timbre :as timbre]
             [taoensso.sente :as sente]
             [taoensso.sente.server-adapters.http-kit :refer [sente-web-server-adapter]]

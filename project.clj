@@ -8,8 +8,7 @@
                  [com.taoensso/timbre "4.3.1"]
                  [navis/untangled-client "0.4.9-SNAPSHOT" :exclusions [cljsjs/react org.omcljs/om] :scope "provided"]
                  [navis/untangled-server "0.4.7" :scope "provided"]
-                 [navis/untangled-spec "0.3.5" :scope "provided"]
-                 [org.clojure/core.async "0.2.374"]
+                 [navis/untangled-spec "0.3.6" :scope "provided"]
                  [org.omcljs/om "1.0.0-alpha32" :scope "provided"]
                  [com.taoensso/sente "1.8.1"]]
 
