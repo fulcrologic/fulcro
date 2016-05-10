@@ -101,7 +101,6 @@
   (remove-listener [this listener]
     (remove-listener listeners listener))
   (push [this cid verb edn]
-    (timbre/info "Sending message to: " cid)
     (chsk-send! cid [:api/server-push {:topic verb :msg edn}]))
 
   component/Lifecycle
