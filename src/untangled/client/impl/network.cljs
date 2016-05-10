@@ -9,6 +9,9 @@
 
 (declare make-untangled-network)
 
+(defn make-xhrio []
+  (XhrIo.))
+
 (defprotocol UntangledNetwork
   (send [this edn ok-callback error-callback]
         "Send method, transmits EDN to the server and gets an EDN response. Calls result-callback with that response,
@@ -56,7 +59,7 @@
 
   UntangledNetwork
   (send [this edn ok err]
-    (let [xhrio (XhrIo.)
+    (let [xhrio (make-xhrio)
           headers {"Content-Type" "application/transit+json"}
           {:keys [request headers]} (cond
                                       request-transform (request-transform {:request edn :headers headers})

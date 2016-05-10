@@ -6,33 +6,29 @@
 
 (specification "Networking"
   (component "Construction of networking"
-    (when-mocking
-      (events/listen xhr evt cb) => nil
-
-      (let [url "/some-api"
-            atom? (fn [a] (= (type a) Atom))
-            n (net/make-untangled-network url :request-transform :transform :global-error-callback (fn [] 5))]
-        (assertions
-          "sets the URL"
-          (:url n) => url
-          "creates atoms for internal callbacks"
-          (:valid-data-callback n) =fn=> atom?
-          (:error-callback n) =fn=> atom?
-          "records the request transform"
-          (:request-transform n) => :transform
-          "records the global error callback"
-          (@(:global-error-callback n)) => 5))))
+    (let [url "/some-api"
+          atom? (fn [a] (= (type a) Atom))
+          n (net/make-untangled-network url :request-transform :transform :global-error-callback (fn [] 5))]
+      (assertions
+        "sets the URL"
+        (:url n) => url
+        "records the request transform"
+        (:request-transform n) => :transform
+        "records the global error callback"
+        (@(:global-error-callback n)) => 5)))
 
   (behavior "Send"
     (let [body-sent (atom nil)
           headers-sent (atom nil)
-          n (net/make-untangled-network "/api")
+          network (net/make-untangled-network "/api")
           fake-xhrio (js-obj "send" (fn [url typ body headers]
                                       (reset! body-sent body)
-                                      (reset! headers-sent headers)))
-          network (assoc n :xhr-io fake-xhrio)]
+                                      (reset! headers-sent headers)))]
 
-      (net/send network {:original 1} nil nil)
+      (when-mocking
+          (net/make-xhrio) => fake-xhrio
+          (events/listen _ _ _) => nil
+          (net/send network {:original 1} nil nil))
 
       (assertions
         "Sends the original body if no transform is present"
@@ -42,15 +38,17 @@
 
     (let [body-sent (atom nil)
           headers-sent (atom nil)
-          n (net/make-untangled-network "/api" :request-transform (fn [{:keys [request headers]}]
-                                                                    {:request {:new 2}
-                                                                     :headers {:other 3}}))
+          network (net/make-untangled-network "/api" :request-transform (fn [{:keys [request headers]}]
+                                                                          {:request {:new 2}
+                                                                           :headers {:other 3}}))
           fake-xhrio (js-obj "send" (fn [url typ body headers]
                                       (reset! body-sent body)
-                                      (reset! headers-sent headers)))
-          network (assoc n :xhr-io fake-xhrio)]
+                                      (reset! headers-sent headers)))]
 
-      (net/send network {:original 1} nil nil)
+      (when-mocking
+          (net/make-xhrio) => fake-xhrio
+          (events/listen _ _ _) => nil
+          (net/send network {:original 1} nil nil))
 
       (assertions
         "Request transform can replace body"
