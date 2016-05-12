@@ -139,7 +139,7 @@
       (defmethod message-received :api/parse [{:keys [client-id ?data ring-req uid] :as message}]
         (let [result (api {:transit-params (:content ?data)
                            :parser         api-parser
-                           :env            (assoc env :cid uid)})]
+                           :env            (assoc env :cid uid :request ring-req)})]
           (send-fn uid [:api/parse result])))
 
       (defmethod message-received :chsk/uidport-open [{:keys [client-id ?data ring-req uid] :as message}]
@@ -158,14 +158,15 @@
 
   (stop [component]
     (let [stop-f router]
-      (dosync (alter listeners #{}))
+      (dosync (ref-set listeners #{}))
       (assoc component :router (stop-f)))))
 
-(defn make-channel-server [& {:keys [handshake-data-fn server-adapter client-id-fn]}]
+(defn make-channel-server [& {:keys [handshake-data-fn server-adapter client-id-fn dependencies]}]
   (component/using
     (map->ChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
                                                                     (get (:headers ring-req) "Authorization")))
                          :server-adapter    (or server-adapter sente-web-server-adapter)
                          :client-id-fn      (or client-id-fn (fn [request]
                                                                (:client-id request)))})
-    [:handler]))
+    (into [] (cond-> [:handler]
+               dependencies (concat dependencies)))))

@@ -34,7 +34,7 @@
 (defmethod push-received :default [app msg]
   (log/error (str "Received and unhandled message: " msg)))
 
-(defrecord ChannelClient [url send-fn callback global-error-callback server-push parse-queue completed-app]
+(defrecord ChannelClient [url send-fn callback global-error-callback req-params server-push parse-queue completed-app]
   UntangledNetwork
   (send [this edn ok err]
     (do
@@ -61,7 +61,7 @@
       (defmethod message-received :chsk/state [message]
         (log/debug "Message Routed to state handler")))))
 
-(defn make-channel-client [url & {:keys [global-error-callback]}]
+(defn make-channel-client [url & {:keys [global-error-callback req-params]}]
   (let [parse-queue     (chan)
         {:keys [chsk
                 ch-recv
@@ -69,10 +69,12 @@
                 state]} (sente/make-channel-socket! url ; path on server
                           {:packer         tp/packer
                            :type           :ws ; e/o #{:auto :ajax :ws}
+                           :params         req-params
                            :wrap-recv-evs? false})
         channel-client  (map->ChannelClient {:url                   url
                                              :send-fn               send-fn
                                              :global-error-callback (atom global-error-callback)
+                                             :req-params            req-params
                                              :parse-queue           parse-queue
                                              :callback              (fn [valid error]
                                                                       (go
