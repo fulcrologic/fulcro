@@ -22,7 +22,8 @@
 
 (defn- get-token [request]
   (if-let [bearer (-> request :headers (get "authorization"))]
-    (some-> bearer (get-token-from-bearer) read-token)))
+    (some-> bearer (get-token-from-bearer) read-token)
+    (some-> (get-in request [:params "openid/access-token"]) read-token)))
 
 (defn- missing-token? [token]
   (nil? token))

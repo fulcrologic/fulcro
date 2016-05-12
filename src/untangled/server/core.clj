@@ -66,10 +66,11 @@
   [config-path]
   (config/map->Config {:config-path config-path}))
 
-(defn build-access-token-handler []
+(defn build-access-token-handler [& {:keys [dependencies]}]
   (component/using
     (access-token-handler/map->AccessTokenHandler {})
-    [:config :handler :server :openid-mock]))
+    (into [] (cond-> [:config :handler :server :openid-mock]
+               dependencies (concat dependencies)))))
 
 (defn build-mock-openid-server []
   (component/using
