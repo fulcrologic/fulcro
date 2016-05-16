@@ -122,7 +122,21 @@
         (cfg/get-defaults defaults-path) => {}
         (cfg/get-system-prop "config") => :..cfg-path..
         (cfg/get-config :..cfg-path..) => {:fake :env/FAKE_ENV_VAR}
-        (assertions (cfg/load-config) => {:fake "FAKE STUFF"}))))
+        (assertions (cfg/load-config) => {:fake "FAKE STUFF"}))
+      (behavior "when the namespace is env.edn it will edn/read-string it"
+        (when-mocking
+          (cfg/get-system-env "FAKE_ENV_VAR") => "3000"
+          (cfg/get-defaults defaults-path) => {}
+          (cfg/get-system-prop "config") => :..cfg-path..
+          (cfg/get-config :..cfg-path..) => {:fake :env.edn/FAKE_ENV_VAR}
+          (assertions (cfg/load-config) => {:fake 3000}))
+        (behavior "buyer beware as it'll parse it in ways you might not expect!"
+          (when-mocking
+            (cfg/get-system-env "FAKE_ENV_VAR") => "http://google.com"
+            (cfg/get-defaults defaults-path) => {}
+            (cfg/get-system-prop "config") => :..cfg-path..
+            (cfg/get-config :..cfg-path..) => {:fake :env.edn/FAKE_ENV_VAR}
+            (assertions (cfg/load-config) => {:fake 'http://google.com}))))))
 
   (component "open-config-file"
     (behavior "takes in a path, finds the file at that path and should return a clojure map"
