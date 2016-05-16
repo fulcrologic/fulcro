@@ -7,16 +7,18 @@
 (defrecord WebServer [port handler server]
   component/Lifecycle
   (start [this]
-    (timbre/info "Web server started successfully.")
-    (try
-      (assoc this :server
-             (run-server (:all-routes (:handler this))
-                         {:port (-> this :config :value :port)
-                          :join? false}))
-      (catch Exception e
-        (timbre/fatal "Failed to start web server " e))))
+    (let [port (-> this :config :value :port)]
+      (try
+        (assoc this :server
+               (run-server (:all-routes handler)
+                           {:port port
+                            :join? false}))
+        (catch Exception e
+          (timbre/fatal "Failed to start web server, on port " port)
+          (throw e)))
+      (timbre/info "Web server started successfully, on port: " port)))
   (stop [this]
-    (when-let [server (:server this)]
+    (when server
       (server)
-      (timbre/info "web server stopped.")
+      (timbre/info "web server successfully stopped.")
       (assoc this :server nil))))
