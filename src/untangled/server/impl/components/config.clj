@@ -8,6 +8,9 @@
 (defn- get-system-prop [prop-name]
   (System/getProperty prop-name))
 
+(defn- get-system-env [var-name]
+  (System/getenv var-name))
+
 (defn- deep-merge [& xs]
   "Recursively merge maps.
    If the args are ever not all maps,
@@ -57,7 +60,10 @@
    (let [defaults (get-defaults "config/defaults.edn")
          config   (get-config   (or (get-system-prop "config") config-path))]
      (->> (deep-merge defaults config)
-          (transform (walker symbol?) resolve-symbol)))))
+          (transform (walker symbol?) resolve-symbol)
+          (transform (walker #(and (keyword? %)
+                                   (= "env" (namespace %))))
+                     (comp get-system-env name))))))
 
 (defrecord Config [value config-path]
   component/Lifecycle

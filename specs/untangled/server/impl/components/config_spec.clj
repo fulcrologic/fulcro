@@ -2,11 +2,8 @@
   (:require [com.stuartsierra.component :as component]
             [untangled.server.impl.components.config :as cfg]
             [untangled.server.core :refer [new-config raw-config] ]
-            [untangled-spec.core :refer [specification
-                                         assertions
-                                         when-mocking
-                                         component
-                                         behavior]]
+            [untangled-spec.core :refer
+             [specification component behavior assertions when-mocking provided]]
             [clojure.test :refer :all])
   (:import (java.io File)
            (clojure.lang ExceptionInfo)))
@@ -103,10 +100,10 @@
         (#'cfg/resolve-symbol 'srsly/not-a-var) =throws=> (java.io.FileNotFoundException #"")))
     (behavior "if not found in the namespace after requiring"
       (assertions
-          (#'cfg/resolve-symbol 'untangled.server.fixtures.dont-require-me/invalid) =throws=> (AssertionError #"not \(nil")))
+        (#'cfg/resolve-symbol 'untangled.server.fixtures.dont-require-me/invalid) =throws=> (AssertionError #"not \(nil")))
     (behavior "must be namespaced, throws otherwise"
       (assertions
-          (#'cfg/resolve-symbol 'invalid) =throws=> (AssertionError #"namespace"))))
+        (#'cfg/resolve-symbol 'invalid) =throws=> (AssertionError #"namespace"))))
 
   (component "load-edn"
     (behavior "returns nil if absolute file is not found"
@@ -118,7 +115,14 @@
     (behavior :integration "can load edn from the disk"
       (assertions (with-tmp-edn-file {:foo :bar} #'cfg/load-edn) => {:foo :bar}))
     (behavior :integration "can load edn with symbols"
-      (assertions (with-tmp-edn-file {:sym 'sym} #'cfg/load-edn) => {:sym 'sym})))
+      (assertions (with-tmp-edn-file {:sym 'sym} #'cfg/load-edn) => {:sym 'sym}))
+    (behavior "can load edn with :env/vars"
+      (when-mocking
+        (cfg/get-system-env "FAKE_ENV_VAR") => "FAKE STUFF"
+        (cfg/get-defaults defaults-path) => {}
+        (cfg/get-system-prop "config") => :..cfg-path..
+        (cfg/get-config :..cfg-path..) => {:fake :env/FAKE_ENV_VAR}
+        (assertions (cfg/load-config) => {:fake "FAKE STUFF"}))))
 
   (component "open-config-file"
     (behavior "takes in a path, finds the file at that path and should return a clojure map"
