@@ -1,7 +1,7 @@
 (ns untangled.server.impl.components.config-spec
   (:require [com.stuartsierra.component :as component]
             [untangled.server.impl.components.config :as cfg]
-            [untangled.server.core :refer [new-config raw-config] ]
+            [untangled.server.core :refer [new-config raw-config]]
             [untangled-spec.core :refer
              [specification component behavior assertions when-mocking provided]]
             [clojure.test :refer :all])
