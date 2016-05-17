@@ -2,7 +2,8 @@
   (:require [com.stuartsierra.component :as component]
             [clojure.java.classpath :as cp]
             [clojure.java.io :as io]
-            [com.rpl.specter :refer [transform walker]])
+            [com.rpl.specter :refer [transform walker]]
+            [clojure.edn :as edn])
   (:import (java.io File)))
 
 (defn- get-system-prop [prop-name]
@@ -25,8 +26,8 @@
     (if-let [edn-file (and (.isAbsolute ?edn-file)
                            (.exists ?edn-file)
                            (io/file file-path))]
-      (-> edn-file slurp read-string)
-      (some-> file-path io/resource .openStream slurp read-string))))
+      (-> edn-file slurp edn/read-string)
+      (some-> file-path io/resource .openStream slurp edn/read-string))))
 
 (defn- open-config-file
   "Calls load-edn on `file-path`,
@@ -46,6 +47,9 @@
       (do (-> sym namespace symbol require)
           (resolve sym))))
 
+(defn- get-system-env [var-name]
+  (System/getenv var-name))
+
 (defn load-config
   "Entry point for config loading, pass it a map with k-v pairs indicating where
    it should look for configuration in case things are not found.
@@ -57,7 +61,13 @@
    (let [defaults (get-defaults "config/defaults.edn")
          config   (get-config   (or (get-system-prop "config") config-path))]
      (->> (deep-merge defaults config)
-          (transform (walker symbol?) resolve-symbol)))))
+          (transform (walker symbol?) resolve-symbol)
+          (transform (walker #(and (keyword? %) (namespace %)
+                                   (re-find #"^env.*" (namespace %))))
+                     (fn [env-kw]
+                       (cond-> (get-system-env (name env-kw))
+                         (= "env.edn" (namespace env-kw))
+                         (edn/read-string))))))))
 
 (defrecord Config [value config-path]
   component/Lifecycle

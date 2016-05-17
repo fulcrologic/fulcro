@@ -1,4 +1,4 @@
-(defproject navis/untangled-server "0.4.7"
+(defproject navis/untangled-server "0.4.8-SNAPSHOT"
   :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
@@ -6,7 +6,6 @@
                  [org.clojure/tools.namespace "0.2.10"]
                  [org.omcljs/om "1.0.0-alpha32"]
                  [http-kit "2.1.19"]
-                 [environ "1.0.0"]
                  [bidi "1.21.1"]
                  [ring/ring-defaults "0.1.5"]
                  [ring/ring-mock "0.3.0" :scope "test"]
@@ -27,7 +26,7 @@
                  [crypto-equality "1.0.0"]
                  [com.rpl/specter "0.8.0"]]
 
-  :plugins [[com.jakemccrary/lein-test-refresh "0.14.0"]]
+  :plugins [[com.jakemccrary/lein-test-refresh "0.15.0"]]
 
   :source-paths ["src"]
   :test-paths ["specs" "specs/config"]
