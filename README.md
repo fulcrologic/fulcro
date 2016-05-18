@@ -1,10 +1,7 @@
-# Datomic Support
+# Untangled Server
 
-This is a library of Datomic support functions, including the following:
-
-- Support for additional schema validations (opt-in)
-- Utility functions for querying schema
-- 
+This is a library that adds server-side support for Untangled. See the TodoMVC application or the Untangled
+Tutorial for details.
 
 ## License
 
