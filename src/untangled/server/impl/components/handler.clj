@@ -70,7 +70,7 @@
                          (instance? ExceptionInfo error) (parser-read-error->response error)
                          (instance? Exception error) (unknow-error->response error)
                          :else (parser-mutate-error->response error))]
-    (timbre/error error-response "Parser error:\n" (with-out-str (clojure.pprint/pprint error-response)))
+    (timbre/error error "Parser error:\n" (with-out-str (clojure.pprint/pprint error-response)))
     error-response))
 
 (defn valid-response? [result]
