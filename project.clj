@@ -1,7 +1,7 @@
 (defproject navis/untangled-server "0.4.8-SNAPSHOT"
   :description "Library for creating Untangled web servers"
   :url ""
-  :dependencies [[org.clojure/clojure "1.7.0" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
                  [org.clojure/math.combinatorics "0.1.1"]
                  [org.clojure/tools.namespace "0.2.10"]
                  [org.omcljs/om "1.0.0-alpha32"]
