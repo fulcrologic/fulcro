@@ -31,6 +31,7 @@
       "read union queries"
       (parser [{:union-join {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join {:x 1 :n 4}}
       (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join-2 {:x 2 :y 1}}
+      (parser [{[:panel :a] {:panel [:x :n] :dashboard [:x :y]}}]) => {[:panel :a] {:x 1 :n 4}}
 
       "read queries with references"
       (parser [{:join [{:sub-key-1 [:survey/title :survey/description]}]}]) =>

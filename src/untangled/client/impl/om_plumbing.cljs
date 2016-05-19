@@ -30,7 +30,7 @@
             data (if by-ident? (get-in @state key) (get @state key))]
         {:value
          (cond
-           union? (get (om/db->tree [{dkey query}] @state @state) dkey)
+           union? (get (om/db->tree [{key query}] @state @state) key)
            top-level-prop data
            :else (om/db->tree query data @state))}))))
 
