@@ -33,6 +33,9 @@
   `query` : The full query to send to the server.
   `on-load` : The function to call to merge a response. Detects missing data and sets failure markers for those.
   `on-error` : The function to call to set network/server error(s) in place of loading markers.
+  `callback-args` : Args to pass back to on-load and on-error. These are separated
+    so that `rewrite-tempids-in-request-queue` can rewrite tempids for merge and
+    error callbacks
 
   response-channel will have the response posted to it when the request is done.
   ."
@@ -50,8 +53,9 @@
       (om/force-root-render! reconciler)
       (for [item items-to-load]
         {:query    (full-query [item])
-         :on-load  (loaded-callback reconciler [item])
-         :on-error (error-callback reconciler [item])}))))
+         :on-load  (loaded-callback reconciler)
+         :on-error (error-callback reconciler)
+         :callback-args [item]}))))
 
 (defn mark-loading
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
@@ -60,6 +64,9 @@
   `query` : The full query to send to the server.
   `on-load` : The function to call to merge a response. Detects missing data and sets failure markers for those.
   `on-error` : The function to call to set network/server error(s) in place of loading markers.
+  `callback-args` : Args to pass back to on-load and on-error. These are separated
+    so that `rewrite-tempids-in-request-queue` can rewrite tempids for merge and
+    error callbacks
 
   response-channel will have the response posted to it when the request is done.
   ."
@@ -75,8 +82,9 @@
       (swap! state assoc :om.next/ready-to-load [])
       (om/force-root-render! reconciler)
       {:query    (full-query items-to-load)
-       :on-load  (loaded-callback reconciler items-to-load)
-       :on-error (error-callback reconciler items-to-load)})))
+       :on-load  (loaded-callback reconciler)
+       :on-error (error-callback reconciler)
+       :callback-args [items-to-load]})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API, used to write tests against specific data states
@@ -250,8 +258,8 @@
                :else value))
            @reconciler))
 
-(defn- loaded-callback [reconciler items]
-  (fn [response]
+(defn- loaded-callback [reconciler]
+  (fn [response items]
     (let [query (full-query items)
           loading-items (into #{} (map set-loading! items))
           marked-response (plumbing/mark-missing response query)
@@ -270,9 +278,9 @@
 
       (set-global-loading reconciler))))
 
-(defn- error-callback [reconciler items]
-  (let [loading-items (into #{} (map set-loading! items))]
-    (fn [error]
+(defn- error-callback [reconciler]
+  (fn [error items]
+    (let [loading-items (into #{} (map set-loading! items))]
       (swap! (om/app-state reconciler)
              (fn [st]
                (-> st
