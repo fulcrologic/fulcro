@@ -391,7 +391,7 @@
         rendered (atom false)
         merged (atom false)
         globally-marked (atom false)
-        loaded-cb (dfi/loaded-callback :reconciler items)
+        loaded-cb (dfi/loaded-callback :reconciler)
         response {:b 1}]
     (when-mocking
       (om/app-state r) => state
@@ -399,7 +399,7 @@
       (om/force-root-render! r) => (reset! rendered true)
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
-      (loaded-cb response)
+      (loaded-cb response items)
 
       (assertions
         "Merges a marked-up (missing) response with app state"

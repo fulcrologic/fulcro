@@ -39,11 +39,20 @@
     (when has-mutations?
       (enqueue queue payload))))
 
+(defn- action-with-args
+  "Allows optional arguments to be passed in first so we can use
+  this function with `partial` to generate a callback that takes just
+  a response and passes both arguments and response to the action"
+  [action args resp]
+  (apply action (apply conj [resp] args)))
+
 (defn enqueue-reads [{:keys [queue reconciler networking]}]
   (let [parallel-payload (f/mark-parallel-loading reconciler)
         fetch-payload (f/mark-loading reconciler)]
-    (doseq [{:keys [query on-load on-error]} parallel-payload]
-      (real-send networking query on-load on-error))
+    (doseq [{:keys [query on-load on-error callback-args]} parallel-payload
+            on-load' (partial action-with-args on-load callback-args)
+            on-error' (partial action-with-args on-error callback-args)]
+      (real-send networking query on-load' on-error'))
     (when fetch-payload
       (enqueue queue (assoc fetch-payload :networking networking)))))
 
@@ -57,14 +66,15 @@
 (defn start-network-sequential-processing
   "Starts a communicating sequential process that sends network requests from the request queue."
   [{:keys [networking queue response-channel]}]
-  (letfn [(make-process-response [action]
+  (letfn [(make-process-response [action callback-args]
             (fn [resp]
-              (try (action resp) (finally (go (async/>! response-channel :complete))))))]
+              (try (action-with-args action callback-args resp)
+                   (finally (go (async/>! response-channel :complete))))))]
     (go
       (loop [payload (async/<! queue)]
-        (let [{:keys [query on-load on-error]} payload
-              on-load (make-process-response on-load)
-              on-error (make-process-response on-error)]
+        (let [{:keys [query on-load on-error callback-args]} payload
+              on-load (make-process-response on-load callback-args)
+              on-error (make-process-response on-error callback-args)]
           (real-send networking query on-load on-error))
         (async/<! response-channel)                         ; expect to block
         (recur (async/<! queue))))))
