@@ -49,10 +49,10 @@
 (defn enqueue-reads [{:keys [queue reconciler networking]}]
   (let [parallel-payload (f/mark-parallel-loading reconciler)
         fetch-payload (f/mark-loading reconciler)]
-    (doseq [{:keys [query on-load on-error callback-args]} parallel-payload
-            on-load' (partial action-with-args on-load callback-args)
+    (doseq [{:keys [query on-load on-error callback-args]} parallel-payload]
+      (let [on-load' (partial action-with-args on-load callback-args)
             on-error' (partial action-with-args on-error callback-args)]
-      (real-send networking query on-load' on-error'))
+        (real-send networking query on-load' on-error')))
     (when fetch-payload
       (enqueue queue (assoc fetch-payload :networking networking)))))
 
