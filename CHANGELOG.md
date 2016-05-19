@@ -43,3 +43,4 @@
 (swap! app uc/mount RootComponent "app-div")
 (def log-app-state (partial util/log-app-state app))
 ```
+- Fixed bug that closed over tempids in network callbacks
