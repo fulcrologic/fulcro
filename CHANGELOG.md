@@ -44,3 +44,4 @@
 (def log-app-state (partial util/log-app-state app))
 ```
 - Fixed bug that closed over tempids in network callbacks
+- Fixed bug in path-optimized union query parsing
