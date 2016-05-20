@@ -81,10 +81,10 @@
                {:ui/fetch-state (set-loading! item)}))
       (swap! state assoc :om.next/ready-to-load [])
       (om/force-root-render! reconciler)
-      {:query    (full-query items-to-load)
-       :on-load  (loaded-callback reconciler)
-       :on-error (error-callback reconciler)
-       :callback-args [items-to-load]})))
+      {:query         (full-query items-to-load)
+       :on-load       (loaded-callback reconciler)
+       :on-error      (error-callback reconciler)
+       :callback-args items-to-load})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API, used to write tests against specific data states

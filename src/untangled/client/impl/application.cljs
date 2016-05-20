@@ -39,19 +39,12 @@
     (when has-mutations?
       (enqueue queue payload))))
 
-(defn- action-with-args
-  "Allows optional arguments to be passed in first so we can use
-  this function with `partial` to generate a callback that takes just
-  a response and passes both arguments and response to the action"
-  [action args resp]
-  (apply action (apply conj [resp] args)))
-
 (defn enqueue-reads [{:keys [queue reconciler networking]}]
   (let [parallel-payload (f/mark-parallel-loading reconciler)
         fetch-payload (f/mark-loading reconciler)]
     (doseq [{:keys [query on-load on-error callback-args]} parallel-payload]
-      (let [on-load' (partial action-with-args on-load callback-args)
-            on-error' (partial action-with-args on-error callback-args)]
+      (let [on-load' #(on-load % callback-args)
+            on-error' #(on-error % callback-args)]
         (real-send networking query on-load' on-error')))
     (when fetch-payload
       (enqueue queue (assoc fetch-payload :networking networking)))))
@@ -68,7 +61,7 @@
   [{:keys [networking queue response-channel]}]
   (letfn [(make-process-response [action callback-args]
             (fn [resp]
-              (try (action-with-args action callback-args resp)
+              (try (action resp callback-args)
                    (finally (go (async/>! response-channel :complete))))))]
     (go
       (loop [payload (async/<! queue)]
