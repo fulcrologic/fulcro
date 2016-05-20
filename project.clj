@@ -1,4 +1,4 @@
-(defproject navis/untangled-client "0.4.9-SNAPSHOT"
+(defproject navis/untangled-client "0.4.9"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "NAVIS"
@@ -18,7 +18,7 @@
 
   :resource-paths ["src" "resources"] ; maven deploy to internal artifactory needs src here
 
-  :plugins [[lein-cljsbuild "1.1.2"]
+  :plugins [[lein-cljsbuild "1.1.3"]
             [lein-doo "0.1.6"]]
 
   ;:hooks [leiningen.cljsbuild]

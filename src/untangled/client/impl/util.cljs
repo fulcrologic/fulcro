@@ -1,5 +1,7 @@
 (ns untangled.client.impl.util
-  (:require [om.next :as om]))
+  (:require
+    cljs.pprint
+    [om.next :as om]))
 
 (defn deep-merge [& xs]
   "Merges nested maps without overwriting existing keys."
