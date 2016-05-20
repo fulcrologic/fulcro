@@ -8,14 +8,14 @@
   (component "Construction of networking"
     (let [url "/some-api"
           atom? (fn [a] (= (type a) Atom))
-          n (net/make-untangled-network url :request-transform :transform :global-error-callback (fn [] 5))]
+          n (net/make-untangled-network url :request-transform :transform :global-error-callback (fn [status body] status))]
       (assertions
         "sets the URL"
         (:url n) => url
         "records the request transform"
         (:request-transform n) => :transform
         "records the global error callback"
-        (@(:global-error-callback n)) => 5)))
+        (@(:global-error-callback n) 200 "Body") => 200)))
 
   (behavior "Send"
     (let [body-sent (atom nil)

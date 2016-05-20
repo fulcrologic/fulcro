@@ -42,18 +42,20 @@
     ;; *Always* called if completed (even in the face of network errors).
     ;; Used to detect errors.
     (try
-      (letfn [(log-and-dispatch-error [str error]
-                ;; note that impl.application/initialize will partially apply the
-                ;; app-state as the first arg to global-error-callback
-                (log/error str)
-                (@global-error-callback error)
-                (error-callback error))]
-        (if (zero? (.getStatus xhr-io))
+      (let [status (.getStatus xhr-io)
+            log-and-dispatch-error (fn [str error]
+                                     ;; note that impl.application/initialize will partially apply the
+                                     ;; app-state as the first arg to global-error-callback
+                                     (log/error str)
+                                     (when @global-error-callback
+                                         (@global-error-callback status error))
+                                     (error-callback error))]
+        (if (zero? status)
           (log-and-dispatch-error
             (str "UNTANGLED NETWORK ERROR: No connection established.")
             {:type :network})
           (log-and-dispatch-error
-            (str "SERVER ERROR CODE: " (.getStatus xhr-io))
+            (str "SERVER ERROR CODE: " status)
             (parse-response xhr-io))))
       (finally (.dispose xhr-io))))
 

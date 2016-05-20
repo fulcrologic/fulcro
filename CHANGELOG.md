@@ -43,5 +43,6 @@
 (swap! app uc/mount RootComponent "app-div")
 (def log-app-state (partial util/log-app-state app))
 ```
+- `global-error-callback` now expectes an arity 2 function. First param is the status and the second is the response.
 - Fixed bug that closed over tempids in network callbacks
 - Fixed bug in path-optimized union query parsing
