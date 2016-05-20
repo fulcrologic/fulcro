@@ -20,3 +20,7 @@
 
 0.4.8
 -----
+- Added stack traces to server parsing error logging
+- Updated dependencies
+- Added server settings to log message of webserver start
+- Removed dev environ
