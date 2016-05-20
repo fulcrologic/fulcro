@@ -68,6 +68,7 @@
         (let [fallback-handler app/fallback-handler
               full-tx '[(a/f) (untangled/load {}) (tx/fallback {:action app/fix-error})]]
           (when-mocking
+            (om/app-state _) => (atom nil)
             (f/mark-loading r) => {:query '[:some-real-query]}
             (app/fallback-handler app tx) => (let [rv (fallback-handler app tx)
                                                    app-state (atom {})]

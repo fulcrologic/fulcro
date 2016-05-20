@@ -23,6 +23,11 @@
 ;; this is here so we can do testing (can mock core async stuff out of the way)
 (defn- enqueue [q v] (go (async/>! q v)))
 
+(defn real-send
+  "Do a properly-plumbed network send that strips ui attributes from the tx"
+  [net tx on-load on-error]
+  (net/send net (plumbing/strip-ui tx) on-load on-error))
+
 (defn enqueue-mutations [{:keys [queue] :as app} remote-tx-map cb]
   (let [full-remote-transaction (:remote remote-tx-map)
         fallback (fallback-handler app full-remote-transaction)
@@ -35,7 +40,12 @@
       (enqueue queue payload))))
 
 (defn enqueue-reads [{:keys [queue reconciler networking]}]
-  (let [fetch-payload (f/mark-loading reconciler)]
+  (let [parallel-payload (f/mark-parallel-loading reconciler)
+        fetch-payload (f/mark-loading reconciler)]
+    (doseq [{:keys [query on-load on-error callback-args]} parallel-payload]
+      (let [on-load' #(on-load % callback-args)
+            on-error' #(on-error % callback-args)]
+        (real-send networking query on-load' on-error')))
     (when fetch-payload
       (enqueue queue (assoc fetch-payload :networking networking)))))
 
@@ -49,15 +59,16 @@
 (defn start-network-sequential-processing
   "Starts a communicating sequential process that sends network requests from the request queue."
   [{:keys [networking queue response-channel]}]
-  (letfn [(make-process-response [action]
+  (letfn [(make-process-response [action callback-args]
             (fn [resp]
-              (try (action resp) (finally (go (async/>! response-channel :complete))))))]
+              (try (action resp callback-args)
+                   (finally (go (async/>! response-channel :complete))))))]
     (go
       (loop [payload (async/<! queue)]
-        (let [{:keys [query on-load on-error]} payload
-              on-load (make-process-response on-load)
-              on-error (make-process-response on-error)]
-          (net/send networking (plumbing/strip-ui query) on-load on-error))
+        (let [{:keys [query on-load on-error callback-args]} payload
+              on-load (make-process-response on-load callback-args)
+              on-error (make-process-response on-error callback-args)]
+          (real-send networking query on-load on-error))
         (async/<! response-channel)                         ; expect to block
         (recur (async/<! queue))))))
 
@@ -122,6 +133,7 @@
                (gdom/getElement dom-id-or-node)
                dom-id-or-node)]
 
+    (net/start networking completed-app)
     (initialize-internationalization rec)
     (initialize-global-error-callback completed-app)
     (start-network-sequential-processing completed-app)
