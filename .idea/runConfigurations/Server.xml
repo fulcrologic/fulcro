@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Server" type="ClojureREPL" factoryName="Local">
+    <setting name="replType" value="2" />
+    <module name="untangled-client" />
+    <setting name="jvmArgs" value="" />
+    <setting name="parameters" value="" />
+    <setting name="workingDir" value="$PROJECT_DIR$" />
+    <setting name="profiles" value="" />
+    <method />
+  </configuration>
+</component>
