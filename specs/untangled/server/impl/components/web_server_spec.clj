@@ -15,6 +15,6 @@
   (component "start"
     (behavior "correctly grabs the port & all-routes, and returns the started server under :server"
       (when-mocking
-        (org.httpkit.server/run-server :fake/all-routes {:port 1337 :join? false}) => :ok
+        (org.httpkit.server/run-server routes options) => :ok
         (assertions
           (-> (make-test-system) .start :web-server :server) => :ok)))))
