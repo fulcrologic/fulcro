@@ -1,4 +1,4 @@
-(ns ^:focused untangled.server.impl.components.handler-spec
+(ns untangled.server.impl.components.handler-spec
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
             [clojure.test :refer [is]]
             [untangled.server.impl.components.handler :as h]
