@@ -46,7 +46,7 @@
    :exp (plus (now) (days 1))
    :aud "http://webapp.com/rest/v1"
    :iat (now)
-   :client-id "fake-client-id"})
+   :client_id "fake-client-id"})
 
 (def rsa-prv-key (private-key "specs/resources/rsa/private.key" "pass phrase"))
 (def rsa-pub-key (public-key "specs/resources/rsa/public.key"))

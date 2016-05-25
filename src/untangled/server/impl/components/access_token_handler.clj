@@ -32,7 +32,7 @@
   (nil? (:sub (:claims token))))
 
 (defn- missing-client-id? [token]
-  (nil? (:client-id (:claims token))))
+  (nil? (:client_id (:claims token))))
 
 (defn- fail-with [token message]
   (log/debug "Token: " (:claims token) " Failed because: " message)
