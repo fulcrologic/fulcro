@@ -104,7 +104,7 @@
 
   *`extra-routes`       OPTIONAL, a map containing `:routes` and `:handlers`,
                         where routes is a bidi routing data structure,
-                        and handlers are map from handler name to a function of type :: Req -> Env -> BidiMatch -> Res
+                        and handlers are map from handler name to a function of type :: Env -> BidiMatch -> Res
                         see `handler/wrap-extra-routes` & handler-spec for more.
 
   Returns a Sierra system component.
