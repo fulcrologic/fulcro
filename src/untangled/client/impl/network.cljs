@@ -25,7 +25,9 @@
   (response-error [this xhrio err-cb] "Called by XhrIo on ERROR"))
 
 (defn parse-response [xhr-io]
-  (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))}}) (.getResponseText xhr-io)))
+  (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))
+                                 "u" cljs.core/uuid}})
+           (.getResponseText xhr-io)))
 
 (defrecord Network [url request-transform global-error-callback complete-app]
   IXhrIOCallbacks
