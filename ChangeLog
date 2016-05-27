@@ -2,6 +2,7 @@
 -----
 - :extra-routes handlers are now of type (fn [env match] res)
 	the :request is in the env
+- access-token-handler looks for :client_id if :sub is not present
 
 0.4.8
 -----
