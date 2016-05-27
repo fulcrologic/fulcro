@@ -135,7 +135,7 @@
   (fn [{:keys [uri] :as req}]
     (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
       (if-let [bidi-handler (get handlers (:handler match))]
-        (bidi-handler req om-parsing-env match)
+        (bidi-handler (assoc om-parsing-env :request req) match)
         (dflt-handler req)))))
 
 (defn not-found-handler []

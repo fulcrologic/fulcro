@@ -1,9 +1,15 @@
-0.4.5
+0.5.0
 -----
-- Removed default logger configuration
-- Moved GELF logger to an optional compoent
-- Changed dependencies to not pull GELF in as a transitive dependency
-- Fixed various docs
+- :extra-routes handlers are now of type (fn [env match] res)
+	the :request is in the env
+- access-token-handler looks for :client_id if :sub is not present
+
+0.4.8
+-----
+- Added stack traces to server parsing error logging
+- Updated dependencies
+- Added server settings to log message of webserver start
+- Removed dev environ
 
 0.4.7
 -----
@@ -18,9 +24,9 @@
 	that specifies from which db a response originates from.
 	This is because :db/id's are not unique across datomic databases.
 
-0.4.8
+0.4.5
 -----
-- Added stack traces to server parsing error logging
-- Updated dependencies
-- Added server settings to log message of webserver start
-- Removed dev environ
+- Removed default logger configuration
+- Moved GELF logger to an optional compoent
+- Changed dependencies to not pull GELF in as a transitive dependency
+- Fixed various docs

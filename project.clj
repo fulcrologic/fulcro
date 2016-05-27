@@ -1,4 +1,4 @@
-(defproject navis/untangled-server "0.4.8"
+(defproject navis/untangled-server "0.5.0"
   :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]

@@ -41,10 +41,15 @@
    :aud "invalid"
    :iat (now)})
 
+(def claim-missing-sub-with-client-id
+  {:iss "foobar"
+   :exp (plus (now) (days 1))
+   :aud "http://webapp.com/rest/v1"
+   :iat (now)
+   :client_id "fake-client-id"})
+
 (def rsa-prv-key (private-key "specs/resources/rsa/private.key" "pass phrase"))
 (def rsa-pub-key (public-key "specs/resources/rsa/public.key"))
-
-
 
 (defn build-test-token [claim]                              ;; RS256 signed JWT
   (-> claim jwt (sign :RS256 rsa-prv-key) to-str))
@@ -64,18 +69,25 @@
 
 (def handler (wrap-access-token options (fn [resp] resp)))
 
-(specification "wrap-access-token fn"
+(defn test-claim [claim]
+  (let [headers (cond-> claim (seq claim) build-test-header)]
+    (-> (request :get "/")
+      (assoc :headers headers)
+      handler)))
+
+(specification "wrap-access-token"
   (assertions
     "Adds claims to request when token is valid"
-    (-> (request :get "/") (assoc :headers (build-test-header claim)) handler) =fn=> :user
+    (test-claim claim) =fn=> :user
     "Does not add claims to request that is missing access token"
-    (-> (request :get "/") (assoc :headers {}) handler) =fn=>  #(not (:user %))
+    (test-claim {}) =fn=> (comp not :user)
     "Does not add claims to request that has expired access token"
-    (-> (request :get "/") (assoc :headers (build-test-header claim-invalid-expired)) handler) =fn=> #(not (:user %))
+    (test-claim claim-invalid-expired) =fn=> (comp not :user)
     "Does not add claims to request that has invalid issuer"
-    (-> (request :get "/") (assoc :headers (build-test-header claim-invalid-issuer)) handler) =fn=> #(not (:user %))
+    (test-claim claim-invalid-issuer) =fn=> (comp not :user)
     "Does not add claims to request that has invalid audience"
-    (-> (request :get "/") (assoc :headers (build-test-header claim-invalid-audience)) handler) =fn=> #(not (:user %))
+    (test-claim claim-invalid-audience) =fn=> (comp not :user)
     "Does not add claims to request that is missing the subject"
-    (-> (request :get "/") (assoc :headers (build-test-header claim-missing-sub)) handler) =fn=> #(not (:user %))))
-
+    (test-claim claim-missing-sub) =fn=> (comp not :user)
+    "Sub can 'fallback' to client-id"
+    (test-claim claim-missing-sub-with-client-id) =fn=> :user))

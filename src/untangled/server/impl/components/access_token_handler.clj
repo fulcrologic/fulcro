@@ -31,14 +31,24 @@
 (defn- missing-sub? [token]
   (nil? (:sub (:claims token))))
 
-(defn- valid-token? [token options]
+(defn- missing-client-id? [token]
+  (nil? (:client_id (:claims token))))
+
+(defn- fail-with [token message]
+  (log/debug "Token: " (:claims token) " Failed because: " message)
+  false)
+
+(defn- valid-token? [token {:keys [public-keys issuer audience grace-period-minutes]}]
   (cond
-    (missing-token? token) (do (log/debug "Token is missing.") false)
-    (not (valid-signature? token (:public-keys options))) (do (log/debug "Invalid signature.") false)
-    (missing-sub? token) (do (log/debug "Missing subject.") false)
-    (not (valid-issuer? token (:issuer options))) (do (log/debug "Invalid issuer.") false)
-    (not (valid-expire? token (:grace-period-minutes options))) (do (log/debug "Expired token.") false)
-    (not (valid-audience? token (:audience options))) (do (log/debug "Invalid audience.") false)
+    (missing-token? token)                           (fail-with token "Token is missing.")
+    (not (valid-signature? token public-keys))       (fail-with token "Invalid signature.")
+    (not (valid-issuer? token issuer))               (fail-with token "Invalid issuer.")
+    (not (valid-expire? token grace-period-minutes)) (fail-with token "Expired token.")
+    (not (valid-audience? token audience))           (fail-with token "Invalid audience.")
+
+    (and (missing-sub? token) (missing-client-id? token))
+    (fail-with token (if (missing-sub? token) "Missing subject." "Missing client id."))
+
     :else true))
 
 (def default-options

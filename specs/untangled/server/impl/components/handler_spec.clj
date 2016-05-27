@@ -1,4 +1,4 @@
-(ns ^:focused untangled.server.impl.components.handler-spec
+(ns untangled.server.impl.components.handler-spec
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
             [clojure.test :refer [is]]
             [untangled.server.impl.components.handler :as h]
@@ -113,7 +113,7 @@
     (let [make-handler (fn [extra-routes] (h/handler (constantly nil) {} extra-routes identity identity))]
       (assertions
         (-> {:routes   ["test" :test]
-             :handlers {:test (fn [req env match]
+             :handlers {:test (fn [env match]
                                 {:body "test"
                                  :status 200})}}
             (make-handler)
@@ -124,7 +124,7 @@
 
         "handler functions get passed the bidi match as an arg"
         (-> {:routes   ["" {["test/" :id] :test-with-params}]
-             :handlers {:test-with-params (fn [req env match]
+             :handlers {:test-with-params (fn [env match]
                                             {:body (:id (:route-params match))
                                              :status 200})}}
             (make-handler)
@@ -133,9 +133,20 @@
             :status 200
             :headers {"Content-Type" "application/octet-stream"}}
 
+        "and the request in the environment"
+        (-> {:routes   ["" {["test"] :test}]
+             :handlers {:test (fn [env match]
+                                {:body {:req (:request env)}
+                                 :status 200})}}
+            (make-handler)
+            (run {:uri "test"}))
+        => {:body {:req {:uri "test"}}
+            :status 200
+            :headers {"Content-Type" "application/octet-stream"}}
+
         "also dispatches on :request-method"
         (-> {:routes   ["/" {["test/" :id] {:post :test-post}}]
-             :handlers {:test-post (fn [req env match]
+             :handlers {:test-post (fn [env match]
                                      {:body "post"
                                       :status 200})}}
             (make-handler)
