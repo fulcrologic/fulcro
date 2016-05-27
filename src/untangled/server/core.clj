@@ -28,7 +28,7 @@
 ;; OpenID helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn openid-location [req {:keys [config] :as env} match]
+(defn openid-location [{:keys [config] :as env} match]
   "A helper endpoint that can be injected via untangled server's :extra-routes.
   This allows untangled clients to access the configuration they require to begin the OpenID auth process."
   (let [openid-config (-> config :value :openid)
