@@ -1,10 +1,16 @@
 (ns untangled.server.impl.components.handler-spec
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
-            [clojure.test :refer [is]]
+            [clojure.test :as t]
             [untangled.server.impl.components.handler :as h]
             [com.stuartsierra.component :as component]
-            [om.next.server :as om])
+            [om.next.server :as om]
+            [taoensso.timbre :as timbre])
   (:import (clojure.lang ExceptionInfo)))
+
+(t/use-fixtures
+  :once #(timbre/with-merged-config
+           {:ns-blacklist ["untangled.server.impl.components.handler"]}
+           (%)))
 
 (specification "generate-response"
   (assertions
@@ -91,7 +97,7 @@
               baz-result (parse-result ['(baz)])]
 
           (behavior "returns a status code of 400."
-            (doall (map #(is (= 400 (:status %))) [bar'-result bar-result baz-result])))
+            (doall (map #(t/is (= 400 (:status %))) [bar'-result bar-result baz-result])))
 
           (behavior "returns failing mutation result in the body."
             (letfn [(get-error [result] (-> result :body vals first :om.next/error))]

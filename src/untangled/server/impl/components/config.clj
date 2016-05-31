@@ -2,8 +2,10 @@
   (:require [com.stuartsierra.component :as component]
             [clojure.java.classpath :as cp]
             [clojure.java.io :as io]
-            [com.rpl.specter :refer [transform walker]]
-            [clojure.edn :as edn])
+            [com.rpl.specter :refer [walker]]
+            [com.rpl.specter.macros :refer [transform]]
+            [clojure.edn :as edn]
+            [taoensso.timbre :as log])
   (:import (java.io File)))
 
 (defn- get-system-prop [prop-name]
@@ -73,5 +75,6 @@
   component/Lifecycle
   (start [this]
     (let [config (or value (load-config {:config-path config-path}))]
+      (log/debug "Loaded config:" config)
       (assoc this :value config)))
   (stop [this] this))

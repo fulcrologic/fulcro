@@ -4,9 +4,15 @@
             [untangled.server.core :refer [new-config raw-config]]
             [untangled-spec.core :refer
              [specification component behavior assertions when-mocking provided]]
-            [clojure.test :refer :all])
+            [clojure.test :as t]
+            [taoensso.timbre :as timbre])
   (:import (java.io File)
            (clojure.lang ExceptionInfo)))
+
+(t/use-fixtures
+  :once #(timbre/with-merged-config
+           {:ns-blacklist ["untangled.server.impl.components.config"]}
+           (%)))
 
 (defn with-tmp-edn-file
   "Creates a temporary edn file with stringified `contents`,

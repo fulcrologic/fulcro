@@ -4,7 +4,14 @@
             [com.stuartsierra.component :as component]
             [untangled.server.impl.components.web-server :as src]
             [untangled.server.core :refer [make-web-server]]
-            [org.httpkit.server :refer [run-server]]))
+            [org.httpkit.server :refer [run-server]]
+            [taoensso.timbre :as timbre]
+            [clojure.test :as t]))
+
+(t/use-fixtures
+  :once #(timbre/with-merged-config
+           {:ns-blacklist ["untangled.server.impl.components.web-server"]}
+           (%)))
 
 (def dflt-cfg {:port 1337})
 

@@ -1,4 +1,4 @@
-(defproject navis/untangled-server "0.5.0"
+(defproject navis/untangled-server "0.5.1"
   :description "Library for creating Untangled web servers"
   :url ""
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
@@ -24,7 +24,7 @@
                  [clj-http "2.1.0"]
                  [commons-codec "1.10"]
                  [crypto-equality "1.0.0"]
-                 [com.rpl/specter "0.8.0"]]
+                 [com.rpl/specter "0.11.0"]]
 
   :plugins [[com.jakemccrary/lein-test-refresh "0.15.0"]]
 
