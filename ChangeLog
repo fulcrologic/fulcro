@@ -1,3 +1,8 @@
+0.5.1
+-----
+- Logging the config on start
+- Upgraded specter to 0.11.0
+
 0.5.0
 -----
 - :extra-routes handlers are now of type (fn [env match] res)
