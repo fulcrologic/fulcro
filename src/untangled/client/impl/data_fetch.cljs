@@ -7,8 +7,10 @@
             [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
             [untangled.client.impl.om-plumbing :as plumbing]
+            [com.rpl.specter :refer [ALL FIRST LAST walker collect continue-then-stay selected?]]
             [untangled.dom :as udom])
   (:require-macros
+    [com.rpl.specter.macros :refer [transform select declarepath providepath]]
     [cljs.core.async.macros :refer [go]]))
 
 (declare data-path data-query set-loading! full-query loaded-callback error-callback)
@@ -52,9 +54,9 @@
       (swap! state assoc :om.next/ready-to-load (filter (comp not ::parallel) queued-items))
       (om/force-root-render! reconciler)
       (for [item items-to-load]
-        {:query    (full-query [item])
-         :on-load  (loaded-callback reconciler)
-         :on-error (error-callback reconciler)
+        {:query         (full-query [item])
+         :on-load       (loaded-callback reconciler)
+         :on-error      (error-callback reconciler)
          :callback-args [item]}))))
 
 (defn mark-loading
@@ -168,7 +170,7 @@
      ::field         field                                  ; for component-targeted load
      ::query         query'                                 ; query, relative to root of db OR component
      ::post-mutation post-mutation
-     ::parallel    parallel
+     ::parallel      parallel
      ::fallback      fallback}))
 
 (defn mark-ready
@@ -234,8 +236,8 @@
 
   ([state from-state-pred to-state-fn params]
    (->> state
-        (prewalk #(if (from-state-pred %) (to-state-fn % params) %))
-        (prewalk #(when-not (= % {:ui/fetch-state nil}) %)))))
+        (transform (walker #(from-state-pred %)) #(to-state-fn % params))
+        (transform (walker #(= {:ui/fetch-state nil} %)) (constantly nil)))))
 
 (defn full-query
   "Compose together a sequence of states into a single query."
@@ -246,7 +248,6 @@
   "Useful for simultaneous `mark-loading` calls, so that loading states from other calls are not cleared accidentally."
   (fn [fetch-state] (and (loading? fetch-state) (contains? loading-items fetch-state))))
 
-;; TODO: Fix this. Bleh, highly inefficient. Specter anyone?
 (defn- set-global-loading [reconciler]
   "Sets :ui/loading to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
   (om/merge! reconciler {:ui/loading-data false})
