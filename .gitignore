@@ -7,3 +7,4 @@ target
 *.log
 datahub.log*
 pom.xml
+pom.xml.asc

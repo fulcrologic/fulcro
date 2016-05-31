@@ -2,7 +2,8 @@
   (:require [com.stuartsierra.component :as component]
             [clojure.java.classpath :as cp]
             [clojure.java.io :as io]
-            [com.rpl.specter :refer [transform walker]]
+            [com.rpl.specter :refer [walker]]
+            [com.rpl.specter.macros :refer [transform]]
             [clojure.edn :as edn]
             [taoensso.timbre :as log])
   (:import (java.io File)))
