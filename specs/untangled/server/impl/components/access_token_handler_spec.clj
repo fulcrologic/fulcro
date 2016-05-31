@@ -1,11 +1,17 @@
 (ns untangled.server.impl.components.access-token-handler-spec
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :as t]
             [clj-jwt.core :refer :all]
             [clj-jwt.key :refer [private-key public-key]]
             [clj-time.core :refer [now plus days minus]]
             [ring.mock.request :refer [request]]
             [untangled-spec.core :refer [specification behavior provided component assertions]]
-            [untangled.server.impl.components.access-token-handler :refer :all]))
+            [untangled.server.impl.components.access-token-handler :refer :all]
+            [taoensso.timbre :as timbre]))
+
+(t/use-fixtures
+  :once #(timbre/with-merged-config
+           {:ns-blacklist ["untangled.server.impl.components.access-token-handler"]}
+           (%)))
 
 (def claim
   {:iss "foobar"

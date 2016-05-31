@@ -8,8 +8,16 @@
     [untangled.datomic.core :refer [resolve-ids build-database]]
     [untangled.datomic.test-helpers :refer [make-seeder]]
     [untangled.datomic.protocols :as udb]
-    [clojure.test :refer [is]]
+    [clojure.test :as t]
     [untangled-spec.core :refer [specification behavior provided component assertions]]))
+
+(t/use-fixtures
+  :once #(timbre/with-merged-config
+           {:ns-blacklist ["untangled.datomic.*"
+                           "untangled.server.protocol-support"
+                           "untangled.server.impl.components.handler"
+                           "untangled.server.impl.components.config"]}
+           (%)))
 
 (defn make-old-one [id name madness]
   {:db/id           id
@@ -60,11 +68,8 @@
                                   [:db/add old-one-id :old-one/followers follower-tid]]
                          tempids->realids (:tempids @(d/transact connection tx-data))
                          omids->realids (resolve-ids (d/db connection) omids->tempids tempids->realids)]
-                     (timbre/debug (str "Added follower: " omids->realids))
-
                      {:tempids omids->realids})
                    (catch Throwable e
-                     (timbre/debug "Failed to add follower" e)
                      (throw e)))))}
     :else
     (throw (ex-info "Bad you!" {}))))

@@ -1,7 +1,9 @@
 (ns untangled.server.impl.protocol-support-spec
   (:require [untangled-spec.core :refer [specification assertions behavior]]
             [untangled.server.impl.protocol-support :as ips]
-            [om.tempid :as omt]))
+            [om.tempid :as omt]
+            [clojure.test :as t]
+            [taoensso.timbre :as timbre]))
 
 (specification "helper functions"
   (assertions
