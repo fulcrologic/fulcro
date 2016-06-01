@@ -98,14 +98,11 @@
         expected-state {:thing  {rid  {:id rid}
                                  tid2 {:id tid2}}
                         :things [[:thing rid]]}
-        reconciler     (om/reconciler {:state state :parser {:read (constantly nil)} :migrate impl/resolve-tempids})
-        state          @reconciler
-        migrate        (-> reconciler :config :migrate)
-        actual-state   (migrate state {tid rid})]
+        reconciler (om/reconciler {:state state :parser {:read (constantly nil)} :migrate impl/resolve-tempids})]
 
     (assertions
       "rewrites all tempids in the app state (leaving unmapped ones alone)"
-       actual-state => expected-state)))
+      ((-> reconciler :config :migrate) @reconciler {tid rid}) => expected-state)))
 
 (specification "strip-ui"
   (let [q1 [:username :password :ui/login-dropdown-showing {:forgot-password [:email :ui/forgot-button-showing]}]

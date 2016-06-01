@@ -6,10 +6,8 @@
             [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
             [cljs.core.async :as async]
-            [com.rpl.specter :refer [ALL FIRST LAST walker collect continue-then-stay selected?]]
             [clojure.zip :as zip])
   (:require-macros
-    [com.rpl.specter.macros :refer [transform select declarepath providepath]]
     [cljs.core.async.macros :refer [go]]))
 
 (defn has-remote-query? [ast] (or (:target ast) (some has-remote-query? (:children ast))))
@@ -58,7 +56,7 @@
 
 (defn resolve-tempids [state tid->rid]
   "Replaces all om-tempids in app-state with the ids returned by the server."
-  (transform (walker (fn [v] (and (om/tempid? v) (contains? tid->rid v)))) tid->rid state))
+  (clojure.walk/prewalk #(if (-> % type (= om.tempid/TempId)) (get tid->rid % %) %) state))
 
 (defn rewrite-tempids-in-request-queue
   "Rewrite any pending requests in the request queue to account for the fact that a response might have
@@ -87,8 +85,8 @@
         ast (om/query->ast query)
         children (:children ast)
         new-children (->> children
-                          (filter (fn [child] (contains? symbols-to-find (:dispatch-key child))))
-                          (map (fn [ast] (update ast :params assoc :execute true :error resp))))
+                       (filter (fn [child] (contains? symbols-to-find (:dispatch-key child))))
+                       (map (fn [ast] (update ast :params assoc :execute true :error resp))))
         new-ast (assoc ast :children new-children)
         fallback-query (om/ast->query new-ast)]
     (when (not-empty fallback-query)
@@ -226,10 +224,9 @@
               (-> query meta :... add-meta-to-recursive-queries)
               (add-meta-to-recursive-queries query)))))
 
-(declarepath RecursiveMaps)
-(providepath RecursiveMaps [(walker map?) (continue-then-stay ALL LAST RecursiveMaps)])
-
 (defn sweep-missing [result]
-  (transform [RecursiveMaps (collect ALL (selected? LAST #(= % nf)) FIRST)]
-             (fn [keys m] (apply dissoc m keys))
-             result))
+  (letfn [(clean [[k v]] (when-not (= v nf) [k v]))]
+    (clojure.walk/prewalk
+      #(if (map? %)
+        (into {} (map clean %)) %)
+      result)))
