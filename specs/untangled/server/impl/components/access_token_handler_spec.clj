@@ -70,14 +70,14 @@
 (def options {:issuer               "foobar"
               :public-keys          [rsa-pub-key]
               :audience             "http://webapp.com/rest/v1"
-              :authorized-routes    #{"/"}
+              :unsecured-routes     #{"/unsafe" ["/unsafe/" :id]}
               :grace-period-minutes 1})
 
 (def handler (wrap-access-token options (fn [resp] resp)))
 
-(defn test-claim [claim]
+(defn test-claim [claim & [path]]
   (let [headers (cond-> claim (seq claim) build-test-header)]
-    (-> (request :get "/")
+    (-> (request :get (or path "/"))
       (assoc :headers headers)
       handler)))
 
@@ -96,4 +96,8 @@
     "Does not add claims to request that is missing the subject"
     (test-claim claim-missing-sub) =fn=> (comp not :user)
     "Sub can 'fallback' to client-id"
-    (test-claim claim-missing-sub-with-client-id) =fn=> :user))
+    (test-claim claim-missing-sub-with-client-id) =fn=> :user)
+  (assertions "does not add claims if its an :unsecured-routes"
+    (test-claim claim "/unsafe") =fn=> (comp not :user)
+    (test-claim claim "/unsafe/13") =fn=> (comp not :user)
+    (test-claim claim "/unsafe/or/not!") =fn=> :user))

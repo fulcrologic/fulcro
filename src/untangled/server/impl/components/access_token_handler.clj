@@ -5,7 +5,8 @@
             [clj-http.client :as http]
             [clojure.data.json :as json]
             [taoensso.timbre :as log]
-            [untangled.server.impl.jwt-validation :refer :all]))
+            [untangled.server.impl.jwt-validation :refer :all]
+            [bidi.bidi :as bidi]))
 
 (defn- add-claims-to-request
   "Adds a :user to the request, which is a map of claims."
@@ -57,6 +58,10 @@
    :grace-period-minutes 1
    :claims-transform     default-claims-transform})
 
+(defn unsecured-route? [{:keys [uri request-method]} {:keys [unsecured-routes]}]
+  (let [bidified-unsecured-routes ["" (into {} (map #(vector % :ok) unsecured-routes))]]
+    (bidi/match-route bidified-unsecured-routes uri :request-method request-method)))
+
 (defn wrap-access-token
   "Middleware that validates the request for a JWT access-token that are issued by
   an OpenID Connect server.  Validation rules include access-token signiture, issuer and
@@ -74,15 +79,15 @@
   {:arglists '([options handler])}
   [options handler]
   (let [merged-options (merge default-options options)]
-    (fn [request]
-      (if-not (contains? (:authorized-routes merged-options) (:uri request))
-        (handler request)
-        (let [token (get-token request)]
-          (if (valid-token? token merged-options)
-            (-> request
-              (add-claims-to-request token merged-options)
-              handler)
-            (handler request)))))))
+    (fn [{:as request :keys [uri]}]
+      (if (unsecured-route? request merged-options)
+        (do (log/warn "Unsecured route: " uri)
+            (handler request))
+        (let [_ (log/debug "Securing route: " uri)
+              token (get-token request)]
+          (handler
+            (cond-> request (valid-token? token merged-options)
+              (add-claims-to-request token merged-options))))))))
 
 (defrecord AccessTokenHandler [handler]
   component/Lifecycle
@@ -101,4 +106,3 @@
                                 (partial wrap-access-token config')))
       this))
   (stop [this] this))
-
