@@ -8,7 +8,8 @@
     [untangled.i18n.core :as i18n]
     [untangled.client.impl.application :as app]
     [cljs.core.async :as async]
-    [untangled.client.impl.data-fetch :as f]))
+    [untangled.client.impl.data-fetch :as f]
+    [untangled.client.impl.om-plumbing :as plumbing]))
 
 (defui Thing
   static om/Ident
@@ -112,3 +113,13 @@
           "Updates the react key to ensure render can redraw everything"
           (not= react-key (:ui/react-key @mounted-app-state)) => true)))))
 
+(specification "Sweep merge"
+  (assertions
+    "recursively merges maps"
+    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c 5}) => {:a 2 :c 5}
+    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:x 1}}) => {:a 2 :c {:b 2 :x 1}}
+    "stops recursive merging if the source element is marked as a leaf"
+    (app/sweep-merge {:a 1 :c {:d {:x 2} :e 4}} {:a 2 :c (plumbing/as-leaf {:d {:x 1}})}) => {:a 2 :c {:d {:x 1}}}
+    "sweeps values that are marked as not found"
+    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:b ::plumbing/not-found}}) => {:a 2 :c {}}
+    ))

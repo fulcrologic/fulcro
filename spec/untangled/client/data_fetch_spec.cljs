@@ -88,32 +88,32 @@
   (component "Loading a field within a component"
     (let [query (om/get-query Item)]
       (provided "properly calls transact"
-        (om/get-ident c) =1x=> [:item/by-id 10]
-        (om/get-query c) =1x=> query
-        (om/transact! c tx) =1x=> (let [params (-> tx first second)]
-                                    (behavior "with the given component."
-                                      (is (= c 'component)))
-                                    (behavior "includes the component's ident."
-                                      (is (= [:item/by-id 10] (:ident params))))
-                                    (behavior "focuses the query to the specified field."
-                                      (is (= [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
-                                             (:query params))))
-                                    (behavior "includes the parameters."
-                                      (is (= {:sort :by-name} (:params params))))
-                                    (behavior "includes the subquery exclusions."
-                                      (is (= #{:excluded-attr} (:without params))))
-                                    (behavior "includes the post-processing callback."
-                                      (let [cb (:post-mutation params)]
-                                        (is (= 'foo cb))))
-                                    (behavior "includes the error fallback"
-                                      (let [fb (:fallback params)]
-                                        (is (= 'bar fb)))))
+                (om/get-ident c) =1x=> [:item/by-id 10]
+                (om/get-query c) =1x=> query
+                (om/transact! c tx) =1x=> (let [params (-> tx first second)]
+                                            (behavior "with the given component."
+                                              (is (= c 'component)))
+                                            (behavior "includes the component's ident."
+                                              (is (= [:item/by-id 10] (:ident params))))
+                                            (behavior "focuses the query to the specified field."
+                                              (is (= [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
+                                                     (:query params))))
+                                            (behavior "includes the parameters."
+                                              (is (= {:sort :by-name} (:params params))))
+                                            (behavior "includes the subquery exclusions."
+                                              (is (= #{:excluded-attr} (:without params))))
+                                            (behavior "includes the post-processing callback."
+                                              (let [cb (:post-mutation params)]
+                                                (is (= 'foo cb))))
+                                            (behavior "includes the error fallback"
+                                              (let [fb (:fallback params)]
+                                                (is (= 'bar fb)))))
 
-        (df/load-field 'component :comments
-                       :without #{:excluded-attr}
-                       :params {:sort :by-name}
-                       :post-mutation 'foo
-                       :fallback 'bar))))
+                (df/load-field 'component :comments
+                               :without #{:excluded-attr}
+                               :params {:sort :by-name}
+                               :post-mutation 'foo
+                               :fallback 'bar))))
 
   (component "Loading a field from within another mutation"
     (let [app-state (atom {})]
@@ -128,28 +128,28 @@
 
   (behavior "Loading data for the app in general"
     (provided "when requesting data for a specific ident"
-      (om/transact! c tx) => (let [params (-> tx first second)]
-                               (behavior "includes without."
-                                 (is (= :without (:without params))))
-                               (behavior "includes params."
-                                 (is (= :params (:params params))))
-                               (behavior "includes post-processing callback."
-                                 (let [cb (:post-mutation params)]
-                                   (is (= 'foo cb))))
-                               (behavior "includes error fallback."
-                                 (let [fb (:fallback params)]
-                                   (is (= 'bar fb))))
-                               (behavior "includes the ident in the data state."
-                                 (is (= [:item/id 99] (:ident params))))
-                               (behavior "includes the query joined to the ident."
-                                 (is (= (om/get-query Item) (:query params)))))
+              (om/transact! c tx) => (let [params (-> tx first second)]
+                                       (behavior "includes without."
+                                         (is (= :without (:without params))))
+                                       (behavior "includes params."
+                                         (is (= :params (:params params))))
+                                       (behavior "includes post-processing callback."
+                                         (let [cb (:post-mutation params)]
+                                           (is (= 'foo cb))))
+                                       (behavior "includes error fallback."
+                                         (let [fb (:fallback params)]
+                                           (is (= 'bar fb))))
+                                       (behavior "includes the ident in the data state."
+                                         (is (= [:item/id 99] (:ident params))))
+                                       (behavior "includes the query joined to the ident."
+                                         (is (= (om/get-query Item) (:query params)))))
 
-      (df/load-singleton 'reconciler (om/get-query Item)
-                         :ident [:item/id 99]
-                         :params :params
-                         :without :without
-                         :post-mutation 'foo
-                         :fallback 'bar))
+              (df/load-singleton 'reconciler (om/get-query Item)
+                                 :ident [:item/id 99]
+                                 :params :params
+                                 :without :without
+                                 :post-mutation 'foo
+                                 :fallback 'bar))
 
     (component "when requesting data for a collection"
       (when-mocking
@@ -253,7 +253,7 @@
 
             (behavior "that leaves existing data in place"
               (are [path v] (= v (get-in @state path))
-                            [:panel/id 1] {:db/id 1, :items [[:items/id 2] [:items/id 3] [:items/id 4]]}))
+                   [:panel/id 1] {:db/id 1, :items [[:items/id 2] [:items/id 3] [:items/id 4]]}))
 
             (assertions
               "merges each ident-keyed item into existing tables"
@@ -276,26 +276,6 @@
             (assertions
               "Sets global error marker"
               (get @state :untangled/server-error) => {:some :error}))))))
-
-(specification "active-loads?"
-  (behavior "returns a callback predicate"
-    (let [active-load (dfi/make-data-state :loading {:foo :bar})
-          loading-items #{active-load (dfi/make-data-state :loading {:x :y})}
-          empty-predicate (dfi/active-loads? #{})
-          predicate (dfi/active-loads? loading-items)]
-
-      (is (fn? empty-predicate))
-      (is (fn? predicate))
-
-      (behavior "that always returns false when passed an empty fetch state set."
-        (is (not (empty-predicate active-load)))
-        (is (not (empty-predicate nil))))
-
-      (behavior "that returns true when a given data state is contained in the fetch state set."
-        (is (predicate active-load)))
-
-      (behavior "that returns false when a given data state is not in the fetch state set."
-        (is (not (predicate (dfi/make-data-state :loading))))))))
 
 (specification "The inject-query-params function"
   (let [prop-ast (om/query->ast [:a :b :c])
@@ -321,36 +301,27 @@
           )))))
 
 (specification "set-global-loading"
-  (let [loading-state {:ui/loading-data true
-                       :some            :data
-                       :nested          {:information (dfi/make-data-state :loading)}
-                       :om.next/tables  #{}}
-        loading-reconciler (om/reconciler {:state loading-state :parser (fn [] nil)})
-        not-loading-state (assoc-in loading-state [:nested :information] :has-been-loaded)
-        not-loading-reconciler (om/reconciler {:state not-loading-state :parser (fn [] nil)})]
+  (let [loading-state (atom {:ui/loading-data             true
+                             :untangled/loads-in-progress #{1}})
+        not-loading-state (atom {:ui/loading-data             true
+                                 :untangled/loads-in-progress #{}})]
+    (when-mocking
+      (om/app-state r) => not-loading-state
 
-    (behavior "does not change reconciler state if any loading markers present."
-      (dfi/set-global-loading loading-reconciler)
+      (dfi/set-global-loading :reconciler)
 
-      (is (= loading-state @loading-reconciler)))
+      (assertions
+        "clears the marker if nothing is in the loading set"
+        (-> @not-loading-state :ui/loading-data) => false))
 
-    (behavior "sets app-wide data loading key to false if no loading markers present."
-      (dfi/set-global-loading not-loading-reconciler)
+    (when-mocking
+      (om/app-state r) => loading-state
 
-      (is (= (assoc not-loading-state :ui/loading-data false) @not-loading-reconciler)))))
+      (dfi/set-global-loading :reconciler)
 
-(specification "The swap-data-states function"
-  (let [state {:foo  {:bar (dfi/make-data-state :ready)}
-               :baz  {:ui/fetch-state (dfi/make-data-state :loading {:foo :bar})}
-               :some {:other {:ui/fetch-state nil}}}]
-
-    (assertions
-      "replaces states of a certain type with a new type, removes any nil :ui/fetch-states"
-      (dfi/swap-data-states state df/loading? dfi/set-failed!)
-      =>
-      (-> state
-          (assoc-in [:baz :ui/fetch-state] (dfi/make-data-state :failed nil))
-          (assoc-in [:some :other] nil)))))
+      (assertions
+        "sets the marker if anything is in the loading set"
+        (-> @loading-state :ui/loading-data) => true))))
 
 (specification "Rendering lazily loaded data"
   (let [ready-props {:ui/fetch-state (dfi/make-data-state :ready)}
@@ -386,29 +357,58 @@
 (defmethod m/mutate 'qrp-loaded-callback [{:keys [state]} n p] (swap! state assoc :callback-done true))
 
 (specification "Query response processing (loaded-callback)"
-  (let [state (atom {})
-        items [(dfi/set-loading! (dfi/ready-state :query [:a :b] :post-mutation 'qrp-loaded-callback))]
+  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback))
+        state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
+                     :item                        {2 {:id :original-data}}})
+        items [item]
         rendered (atom false)
         merged (atom false)
         globally-marked (atom false)
         loaded-cb (dfi/loaded-callback :reconciler)
-        response {:b 1}]
+        response {:id 2}]
     (when-mocking
       (om/app-state r) => state
-      (om/merge! r resp query) => (reset! merged resp)
+      (om/merge! r resp query) => (reset! merged true)
       (om/force-root-render! r) => (reset! rendered true)
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
       (loaded-cb response items)
 
       (assertions
-        "Merges a marked-up (missing) response with app state"
-        @merged => {:a :untangled.client.impl.om-plumbing/not-found :b 1}
+        "Merges response with app state"
+        @merged => true
         "Runs post-mutations"
         (:callback-done @state) => true
         "Re-renders the application"
         @rendered => true
-        "Removes loading markers for results the didn't materialize"
-        {:TODO true} =fn=> :TODO
+        "Removes loading markers for results that didn't materialize"
+        (get-in @state (dfi/data-path item) :fail) => nil
+        "Updates the global loading marker"
+        @globally-marked => true))))
+
+(defmethod m/mutate 'qrp-error-fallback [{:keys [state]} n p] (swap! state assoc :fallback-done true))
+
+(specification "Query response processing (error-callback)"
+  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :fallback 'qrp-error-fallback))
+        state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
+                     :item                        {2 {:id :original-data}}})
+        items [item]
+        globally-marked (atom false)
+        error-cb (dfi/error-callback :reconciler)
+        response {:id 2}]
+    (when-mocking
+      (om/app-state r) => state
+      (om/merge! r resp) => (assertions
+                                    "updates the react key to force full DOM re-render"
+                                    (contains? resp :ui/react-key) => true)
+      (dfi/set-global-loading r) => (reset! globally-marked true)
+
+      (error-cb response items)
+
+      (assertions
+        "Runs fallbacks"
+        (:fallback-done @state) => true
+        "Rewrites load markers as error markers"
+        (dfi/failed? (get-in @state (dfi/data-path item) :fail)) => true
         "Updates the global loading marker"
         @globally-marked => true))))

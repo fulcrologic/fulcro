@@ -1,6 +1,5 @@
 (ns untangled.client.impl.application
-  (:require [untangled.client.impl.om-plumbing :as impl]
-            [goog.dom :as gdom]
+  (:require [goog.dom :as gdom]
             [untangled.client.logging :as log]
             [om.next :as om]
             [untangled.client.impl.data-fetch :as f]
@@ -15,7 +14,7 @@
 (defn fallback-handler [{:keys [reconciler]} query]
   (fn [error]
     (swap! (om/app-state reconciler) assoc :untangled/server-error error)
-    (if-let [q (impl/fallback-query query error)]
+    (if-let [q (plumbing/fallback-query query error)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
           (om/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
@@ -31,7 +30,7 @@
 (defn enqueue-mutations [{:keys [queue] :as app} remote-tx-map cb]
   (let [full-remote-transaction (:remote remote-tx-map)
         fallback (fallback-handler app full-remote-transaction)
-        desired-remote-mutations (impl/remove-loads-and-fallbacks full-remote-transaction)
+        desired-remote-mutations (plumbing/remove-loads-and-fallbacks full-remote-transaction)
         has-mutations? (> (count desired-remote-mutations) 0)
         payload {:query    desired-remote-mutations
                  :on-load  cb
@@ -80,6 +79,16 @@
                                              (when (om/mounted? (om/app-root reconciler))
                                                (om/force-root-render! reconciler)))))
 
+(defn sweep-merge
+  [target source]
+  (reduce (fn [acc [k v]]
+            (cond
+              (= v ::plumbing/not-found) (dissoc acc k)
+              (plumbing/leaf? v) (assoc acc k v)
+              (map? v) (update acc k sweep-merge v)
+              :else (assoc acc k v))
+            ) target source))
+
 (defn generate-reconciler
   "The reconciler's send method calls UntangledApplication/server-send, which itself requires a reconciler with a
   send method already defined. This creates a catch-22 / circular dependency on the reconciler and :send field within
@@ -91,8 +100,8 @@
   [{:keys [queue] :as app} initial-state parser]
   (let [rec-atom (atom nil)
         tempid-migrate (fn [pure _ tempids _]
-                         (impl/rewrite-tempids-in-request-queue queue tempids)
-                         (impl/resolve-tempids pure tempids))
+                         (plumbing/rewrite-tempids-in-request-queue queue tempids)
+                         (plumbing/resolve-tempids pure tempids))
         initial-state-with-locale (if (= Atom (type initial-state))
                                     (do
                                       (swap! initial-state assoc :ui/locale "en-US")
@@ -104,7 +113,7 @@
                 :migrate    tempid-migrate
                 :normalize  true
                 :pathopt    true
-                :merge-tree (comp impl/sweep-missing util/deep-merge)
+                :merge-tree sweep-merge
                 :parser     parser}
         rec (om/reconciler config)]
 
@@ -124,7 +133,7 @@
   [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node]
   (let [queue (async/chan 1024)
         rc (async/chan)
-        parser (om/parser {:read impl/read-local :mutate impl/write-entry-point})
+        parser (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
         initial-app (assoc app :queue queue :response-channel rc :parser parser :mounted? true
                                :networking networking)
         rec (generate-reconciler initial-app initial-state parser)
