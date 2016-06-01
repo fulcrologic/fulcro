@@ -166,6 +166,7 @@
         query' (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
     {::type          :ready
+     ::uuid          (uuid/uuid-string (uuid/make-random-squuid))
      ::ident         ident                                  ; only for component-targeted loads
      ::field         field                                  ; for component-targeted load
      ::query         query'                                 ; query, relative to root of db OR component
@@ -222,10 +223,7 @@
   (defn set-loading!
     "Sets a marker to loading, ensuring that it has a UUID"
     ([state] (set-loading! state nil))
-    ([state params] (let [rv (set-type state :loading params)
-                          rv (if (contains? rv ::uuid)
-                               rv
-                               (assoc rv ::uuid (uuid/uuid-string (uuid/make-random-squuid))))]
+    ([state params] (let [rv (set-type state :loading params)]
                       (with-meta rv {:state rv}))))
   (defn set-failed!
     ([state] (set-failed! state nil))
