@@ -46,3 +46,7 @@
 - `global-error-callback` now expectes an arity 2 function. First param is the status and the second is the response.
 - Fixed bug that closed over tempids in network callbacks
 - Fixed bug in path-optimized union query parsing
+
+0.4.11
+------
+- Significant optimizations to post-query processing.
