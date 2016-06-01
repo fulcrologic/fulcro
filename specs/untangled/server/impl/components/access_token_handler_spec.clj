@@ -81,20 +81,23 @@
       (assoc :headers headers)
       handler)))
 
+(defn unauthorized? [{:keys [user status]}]
+  (and (not user) (= status 401)))
+
 (specification "wrap-access-token"
   (assertions
     "Adds claims to request when token is valid"
     (test-claim claim) =fn=> :user
     "Does not add claims to request that is missing access token"
-    (test-claim {}) =fn=> (comp not :user)
+    (test-claim {}) =fn=> unauthorized?
     "Does not add claims to request that has expired access token"
-    (test-claim claim-invalid-expired) =fn=> (comp not :user)
+    (test-claim claim-invalid-expired) =fn=> unauthorized?
     "Does not add claims to request that has invalid issuer"
-    (test-claim claim-invalid-issuer) =fn=> (comp not :user)
+    (test-claim claim-invalid-issuer) =fn=> unauthorized?
     "Does not add claims to request that has invalid audience"
-    (test-claim claim-invalid-audience) =fn=> (comp not :user)
+    (test-claim claim-invalid-audience) =fn=> unauthorized?
     "Does not add claims to request that is missing the subject"
-    (test-claim claim-missing-sub) =fn=> (comp not :user)
+    (test-claim claim-missing-sub) =fn=> unauthorized?
     "Sub can 'fallback' to client-id"
     (test-claim claim-missing-sub-with-client-id) =fn=> :user)
   (assertions "does not add claims if its an :unsecured-routes"

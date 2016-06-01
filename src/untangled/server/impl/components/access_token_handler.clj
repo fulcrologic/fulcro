@@ -85,9 +85,9 @@
             (handler request))
         (let [_ (log/debug "Securing route: " uri)
               token (get-token request)]
-          (handler
-            (cond-> request (valid-token? token merged-options)
-              (add-claims-to-request token merged-options))))))))
+          (if-not (valid-token? token merged-options)
+            {:status 401}
+            (add-claims-to-request request token merged-options)))))))
 
 (defrecord AccessTokenHandler [handler]
   component/Lifecycle
