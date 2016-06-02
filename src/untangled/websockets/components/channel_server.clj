@@ -15,12 +15,14 @@
 
 (defn route-handlers
   "Route handler that is expected to be passed to `:extra-routes` when creating an untangled app."
-  [req _env _match]
+  [env _match]
   (let [ring-ajax-get-or-ws-handshake @ajax-get-or-ws-handler
-        ring-ajax-post                @post-handler]
+        ring-ajax-post                @post-handler
+        req                           (:req env)]
     (assert (not (and
                    (nil? @post-handler)
-                   (nil? @ajax-get-or-ws-handler)))
+                   (nil? @ajax-get-or-ws-handler)
+                   (nil? req)))
       "Your handlers are nil. Did you start the channel server?")
     (case (:request-method req)
       :get  (try (ring-ajax-get-or-ws-handshake req)

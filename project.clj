@@ -7,7 +7,7 @@
                  [org.clojure/clojurescript "1.8.51"]
                  [com.taoensso/timbre "4.3.1"]
                  [navis/untangled-client "0.4.9" :exclusions [cljsjs/react org.omcljs/om] :scope "provided"]
-                 [navis/untangled-server "0.4.7" :scope "provided"]
+                 [navis/untangled-server "0.5.0" :scope "provided"]
                  [navis/untangled-spec "0.3.6" :scope "provided"]
                  [org.omcljs/om "1.0.0-alpha32" :scope "provided"]
                  [com.taoensso/sente "1.8.1"]]
