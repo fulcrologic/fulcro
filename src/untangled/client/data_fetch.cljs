@@ -115,6 +115,8 @@
 (defn loading? [state] (impl/loading? state))
 (defn failed? [state] (impl/failed? state))
 
+; FIXME: This should NOT use a component. instead it should be embedded within the component. The reason is that the
+; query is marked with metadata that expects the renderer to implement the component of the query. This breaks Om!
 (defn lazily-loaded
   "Custom rendering for use while data is being lazily loaded using the data fetch methods
   load-collection and load-field.

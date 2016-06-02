@@ -2,7 +2,7 @@
   (:require
     [om.next :as om :refer-macros [defui]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :refer [load-singleton]]
+    [untangled.client.data-fetch :refer [load-data]]
     [untangled.client.core :as core]
     [untangled.client.mutations :as m]
     [yahoo.intl-messageformat-with-locales]
@@ -62,7 +62,7 @@
                                                                          :current-position 0}
                                                          :started-callback
                                                          (fn [{:keys [reconciler]}]
-                                                           (load-singleton reconciler `[(:support-request {:id ~(core/get-url-param "id")})]
+                                                           (load-data reconciler `[(:support-request {:id ~(core/get-url-param "id")})]
                                                              :post-mutation 'support-viewer/initialize-history))))})]
     (core/mount viewer SupportViewerRoot support-dom-id)))
 

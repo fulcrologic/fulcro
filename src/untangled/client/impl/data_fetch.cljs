@@ -261,6 +261,9 @@
       (om/merge! reconciler marked-response query)
       (run-post-mutations)
       (set-global-loading reconciler)
+      ; TODO: MAYBE. Pass the follow-on reads through the load markers and use Om queue!/schedule-render!
+      ; FIXME: Possible problem: the way load markers work can cause Om to throw missing query exceptions if you ask for
+      ; a follow-on read for a component that is being rendered by lazily-loaded.
       (if @ran-mutations
         (om/force-root-render! reconciler)
         (omp/queue! reconciler [:ui/loading-data])))))
