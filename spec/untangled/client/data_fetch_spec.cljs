@@ -144,7 +144,7 @@
                                        (behavior "includes the query joined to the ident."
                                          (is (= (om/get-query Item) (:query params)))))
 
-              (df/load-singleton 'reconciler (om/get-query Item)
+              (df/load-data 'reconciler (om/get-query Item)
                                  :ident [:item/id 99]
                                  :params :params
                                  :without :without
@@ -157,7 +157,7 @@
                                  (behavior "directly uses the query."
                                    (is (= [{:items (om/get-query Item)}] (:query params)))))
 
-        (df/load-collection 'reconciler [{:items (om/get-query Item)}]))))
+        (df/load-data 'reconciler [{:items (om/get-query Item)}]))))
 
   (component "Loading a collection/singleton from within another mutation"
     (let [app-state (atom {})]
@@ -394,10 +394,12 @@
                      :item                        {2 {:id :original-data}}})
         items [item]
         globally-marked (atom false)
+        rendered (atom false)
         error-cb (dfi/error-callback :reconciler)
         response {:id 2}]
     (when-mocking
       (om/app-state r) => state
+      (om/force-root-render! r) => (reset! rendered true)
       (om/merge! r resp) => (assertions
                                     "updates the react key to force full DOM re-render"
                                     (contains? resp :ui/react-key) => true)
