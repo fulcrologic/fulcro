@@ -1,3 +1,7 @@
+0.6.0
+-----
+- Open id mock will now deal with multiple users. "user" can be passed as a query param to the open id mock endpoint.
+
 0.5.1
 -----
 - Logging the config on start

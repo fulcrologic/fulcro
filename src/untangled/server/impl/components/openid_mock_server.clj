@@ -15,11 +15,11 @@
    :response-mode                         :fragment
    :issuer                                "https://localhost:44300"
    :exp-in-hours                          36
-   :sub                                   "123-456"
-   :email                                 "test@test.com"
-   :realm                                 ["realm1" "realm2"]
-   :name                                  "Duck Dodgers"
-   :role                                  "[\"test\" \"test2\"]"
+   :users                                 {"123-456" {:sub   "123-456"
+                                                      :email "test@test.com"
+                                                      :realm ["realm1" "realm2"]
+                                                      :name  "Duck Dodgers"
+                                                      :role  "[\"test\" \"test2\"]"}}
    :aud                                   "api"
    :private-key-path                      "mock-keys/host.key"
    :public-key-path                       "mock-keys/server.crt"
@@ -37,42 +37,44 @@
    :client-id                             "mvc6"})
 
 (defn authorize [request options]
-  (let [params (apply merge
-                 (map (fn [v]
-                        (let [pairs (split v #"=")]
-                          {(first pairs) (second pairs)}
-                          )) (split (:query-string request) #"&")))
-        claims {:iss   (:issuer options)
-                :exp   (time/plus (time/now) (time/hours (:exp-in-hours options)))
-                :name  (:name options)
-                :iat   (time/now)
-                :role  (:role options)
-                :sub   (:sub options)
-                :realm (:realm options)
-                :email (:email options)
-                :nonce (get params "nonce")}
-        access-claims {:iss       (:issuer options)
-                       :exp       (time/plus (time/now) (time/hours (:exp-in-hours options)))
-                       :iat       (time/now)
-                       :aud       (:aud options)
-                       ;      :auth-time (time/now)
-                       :sub       (:sub options)
-                       :email     (:email options)
-                       :nonce     (get params "nonce")
-                       :amr       ["passsord"]
-                       :role      (:role options)
-                       :idp       (:idp options)
-                       :scope     (:scope options)
-                       :client-id (:client-id options)}
-        id-jwt (jwtc/jwt claims)
-        id-signed-jwt (jwtc/sign id-jwt (:alg options) (jwtk/private-key (:private-key-path options) "pass phrase"))
-        access-jwt (jwtc/jwt access-claims)
+  (let [params            (apply merge
+                            (map (fn [v]
+                                   (let [pairs (split v #"=")]
+                                     {(first pairs) (second pairs)}
+                                     )) (split (:query-string request) #"&")))
+        user-id           (get params "user")
+        user              (get-in options [:users user-id] (-> options :users first second))
+        claims            {:iss   (:issuer options)
+                           :exp   (time/plus (time/now) (time/hours (:exp-in-hours options)))
+                           :iat   (time/now)
+                           :name  (:name user)
+                           :role  (:role user)
+                           :sub   (:sub user)
+                           :realm (:realm user)
+                           :email (:email user)
+                           :nonce (get params "nonce")}
+        access-claims     {:iss       (:issuer options)
+                           :exp       (time/plus (time/now) (time/hours (:exp-in-hours options)))
+                           :iat       (time/now)
+                           :aud       (:aud options)
+                                        ;      :auth-time (time/now)
+                           :sub       (:sub options)
+                           :email     (:email options)
+                           :nonce     (get params "nonce")
+                           :amr       ["passsord"]
+                           :role      (:role options)
+                           :idp       (:idp options)
+                           :scope     (:scope options)
+                           :client-id (:client-id options)}
+        id-jwt            (jwtc/jwt claims)
+        id-signed-jwt     (jwtc/sign id-jwt (:alg options) (jwtk/private-key (:private-key-path options) "pass phrase"))
+        access-jwt        (jwtc/jwt access-claims)
         signed-access-jwt (jwtc/sign access-jwt (:alg options) (jwtk/private-key (:private-key-path options) "pass phrase"))
-        query {"access_token" (jwtc/to-str signed-access-jwt)
-               "token_type"   "bearer"
-               "id_token"     (jwtc/to-str id-signed-jwt)
-               "expires_in"   "3600"
-               "state"        (get params "state")}
+        query             {"access_token" (jwtc/to-str signed-access-jwt)
+                           "token_type"   "bearer"
+                           "id_token"     (jwtc/to-str id-signed-jwt)
+                           "expires_in"   "3600"
+                           "state"        (get params "state")}
 
         query-as-params (apply str (interpose "&" (map (fn [[k v]] (str k "=" v)) query)))
 
