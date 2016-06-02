@@ -88,26 +88,29 @@
   (component "Loading a field within a component"
     (let [query (om/get-query Item)]
       (provided "properly calls transact"
-                (om/get-ident c) =1x=> [:item/by-id 10]
+                (om/get-ident c) =2x=> [:item/by-id 10]
                 (om/get-query c) =1x=> query
-                (om/transact! c tx) =1x=> (let [params (-> tx first second)]
-                                            (behavior "with the given component."
-                                              (is (= c 'component)))
-                                            (behavior "includes the component's ident."
-                                              (is (= [:item/by-id 10] (:ident params))))
-                                            (behavior "focuses the query to the specified field."
-                                              (is (= [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
-                                                     (:query params))))
-                                            (behavior "includes the parameters."
-                                              (is (= {:sort :by-name} (:params params))))
-                                            (behavior "includes the subquery exclusions."
-                                              (is (= #{:excluded-attr} (:without params))))
-                                            (behavior "includes the post-processing callback."
-                                              (let [cb (:post-mutation params)]
-                                                (is (= 'foo cb))))
-                                            (behavior "includes the error fallback"
-                                              (let [fb (:fallback params)]
-                                                (is (= 'bar fb)))))
+                (om/transact! c tx) =1x=> (let [params (-> tx first second)
+                                                follow-on-reads (set (-> tx rest))]
+                                            (assertions
+                                              "includes :ui/loading-data in the follow-on reads"
+                                              (contains? follow-on-reads :ui/loading-data) => true
+                                              "includes ident of component in the follow-on reads"
+                                              (contains? follow-on-reads [:item/by-id 10]) => true
+                                              "does the transact on the component"
+                                              c => 'component
+                                              "includes the component's ident in the marker."
+                                              (:ident params) => [:item/by-id 10]
+                                              "focuses the query to the specified field."
+                                              (:query params) => [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
+                                              "includes the parameters."
+                                              (:params params) => {:sort :by-name}
+                                              "includes the subquery exclusions."
+                                              (:without params) => #{:excluded-attr}
+                                              "includes the post-processing callback."
+                                              (:post-mutation params) => 'foo
+                                              "includes the error fallback"
+                                              (:fallback params) => 'bar))
 
                 (df/load-field 'component :comments
                                :without #{:excluded-attr}
@@ -145,19 +148,23 @@
                                          (is (= (om/get-query Item) (:query params)))))
 
               (df/load-data 'reconciler (om/get-query Item)
-                                 :ident [:item/id 99]
-                                 :params :params
-                                 :without :without
-                                 :post-mutation 'foo
-                                 :fallback 'bar))
+                            :ident [:item/id 99]
+                            :params :params
+                            :without :without
+                            :post-mutation 'foo
+                            :fallback 'bar))
 
     (component "when requesting data for a collection"
       (when-mocking
-        (om/transact! c tx) => (let [params (-> tx first second)]
-                                 (behavior "directly uses the query."
-                                   (is (= [{:items (om/get-query Item)}] (:query params)))))
+        (om/transact! c tx) => (let [params (-> tx first second)
+                                     follow-on-reads (set (rest tx))]
+                                 (assertions
+                                   "includes the follow-on reads"
+                                   follow-on-reads => #{:a :b}
+                                   "directly uses the query."
+                                   (:query params) => [{:items (om/get-query Item)}]))
 
-        (df/load-data 'reconciler [{:items (om/get-query Item)}]))))
+        (df/load-data 'reconciler [{:items (om/get-query Item)}] :reads [:a :b]))))
 
   (component "Loading a collection/singleton from within another mutation"
     (let [app-state (atom {})]
@@ -401,8 +408,8 @@
       (om/app-state r) => state
       (om/force-root-render! r) => (reset! rendered true)
       (om/merge! r resp) => (assertions
-                                    "updates the react key to force full DOM re-render"
-                                    (contains? resp :ui/react-key) => true)
+                              "updates the react key to force full DOM re-render"
+                              (contains? resp :ui/react-key) => true)
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
       (error-cb response items)
