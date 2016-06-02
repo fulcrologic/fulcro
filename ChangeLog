@@ -1,6 +1,12 @@
 0.6.0
 -----
-- Open id mock will now deal with multiple users. "user" can be passed as a query param to the open id mock endpoint.
+- :authorized-routes => :unsecured-routes
+	- should be a bidi route map to :ok handlers (enforced on system start)
+	- top level files are always unsecured
+	- to unsecure a whole sub-route (eg: the js folder)
+		use bidi's catch-all routes, eg: `{"/js" {true :ok}}`
+- Open id mock will now deal with multiple users.
+	"user" can be passed as a query param to the open id mock endpoint.
 
 0.5.1
 -----

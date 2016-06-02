@@ -1,6 +1,7 @@
 (ns untangled.server.impl.components.access-token-handler
   (:require [ring.util.response :refer [get-header]]
             [clojure.string :refer [split]]
+            [clojure.walk :as walk]
             [com.stuartsierra.component :as component]
             [clj-http.client :as http]
             [clojure.data.json :as json]
@@ -58,14 +59,14 @@
    :grace-period-minutes 1
    :claims-transform     default-claims-transform})
 
-(defn unsecured-route? [{:keys [uri request-method]} {:keys [unsecured-routes]}]
-  (let [bidified-unsecured-routes ["" (into {} (map #(vector % :ok) unsecured-routes))]]
-    (bidi/match-route bidified-unsecured-routes uri :request-method request-method)))
+(defn unsecured-route? [{:keys [uri request-method] :as request} {:keys [unsecured-routes]}]
+  (bidi/match-route ["" (conj unsecured-routes [#"/[^/]*\.[^/]*" :ok])]
+                    uri :request-method request-method))
 
 (defn wrap-access-token
   "Middleware that validates the request for a JWT access-token that are issued by
   an OpenID Connect server.  Validation rules include access-token signiture, issuer and
-  audience.  The requeste wrapper also calls a specified function after validation to allow for
+  audience.  The request wrapper also calls a specified function after validation to allow for
   claims transformation before associating the claims with the request.
   A :claims-principle map will be associated with the session after the claims
   claims transformation function is called.
@@ -89,11 +90,22 @@
             {:status 401}
             (add-claims-to-request request token merged-options)))))))
 
+(defn validate-unsecured-route-handlers! [unsecured-routes]
+  (assert (map? unsecured-routes) (str "unsecured-routes was not a map: " unsecured-routes))
+  (walk/prewalk #(do (when (and (map-entry? %)
+                                (not (coll? (val %))))
+                       (assert (= :ok (val %))
+                         (str "unsecured-routes handler was not :ok <" % ">")))
+                     %)
+                unsecured-routes)
+  true)
+
 (defrecord AccessTokenHandler [handler]
   component/Lifecycle
   (start [this]
     (let [pre-hook (.get-pre-hook handler)
           config (-> this :config :value :openid)
+          _ (validate-unsecured-route-handlers! (:unsecured-routes config))
           authority (:authority config)
           discovery-doc-url (str authority "/.well-known/openid-configuration")
           discovery-doc (-> discovery-doc-url http/get :body json/read-str)

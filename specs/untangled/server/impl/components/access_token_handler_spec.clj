@@ -70,7 +70,9 @@
 (def options {:issuer               "foobar"
               :public-keys          [rsa-pub-key]
               :audience             "http://webapp.com/rest/v1"
-              :unsecured-routes     #{"/unsafe" ["/unsafe/" :id]}
+              :unsecured-routes     {"/unsafe"        :ok
+                                     ["/unsafe/" :id] :ok
+                                     "/js" {true :ok}}
               :grace-period-minutes 1})
 
 (def handler (wrap-access-token options (fn [resp] resp)))
@@ -100,7 +102,25 @@
     (test-claim claim-missing-sub) =fn=> unauthorized?
     "Sub can 'fallback' to client-id"
     (test-claim claim-missing-sub-with-client-id) =fn=> :user)
-  (assertions "does not add claims if its an :unsecured-routes"
+  (assertions
+    "does not add claims if its an :unsecured-routes"
     (test-claim claim "/unsafe") =fn=> (comp not :user)
     (test-claim claim "/unsafe/13") =fn=> (comp not :user)
-    (test-claim claim "/unsafe/or/not!") =fn=> :user))
+    (test-claim claim "/unsafe/or/not!") =fn=> :user
+    "we can unsecure a whole folder (eg: /js)"
+    (test-claim claim "/js/bar/baz") =fn=> (comp not :user)
+    "top level files are unsecured"
+    (test-claim claim "/some-file.fake") =fn=> (comp not :user)
+    "nested files are by default secured"
+    (test-claim claim "/foo/some-file.fake") =fn=> :user))
+
+(specification "validate-unsecured-route-handlers!"
+  (assertions
+    (validate-unsecured-route-handlers!
+      {:foo :ok}) => true
+    (validate-unsecured-route-handlers!
+      {:foo :not/ok})
+    =throws=> (AssertionError #"handler was not :ok")
+    (validate-unsecured-route-handlers!
+      {:foo {:bar :not/ok}})
+    =throws=> (AssertionError #"handler was not :ok")))
