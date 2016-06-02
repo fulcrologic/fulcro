@@ -28,7 +28,7 @@
                                   :without       without
                                   :post-mutation post-mutation
                                   :parallel      parallel
-                                  :fallback      fallback})]))
+                                  :fallback      fallback}) :ui/loading-data (om/get-ident component)]))
 
 (defn load-data
   "Load data from the remote. Runs `om/transact!`. See also `load-field`.
@@ -40,23 +40,20 @@
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
   - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error is in the params under :error.
   - `parallel`: Boolean to indicate that this load should happen in the parallel on the server (non-blocking load). Any loads marked this way will happen in parallel.
+  - `reads`: Follow-on reads to trigger re-renders (a vector of keywords)
 
   Named parameters `:without` and `:params` are as in `load-field`.
   "
-  [comp-or-reconciler query & {:keys [ident without params post-mutation fallback parallel]}]
+  [comp-or-reconciler query & {:keys [ident without params post-mutation fallback parallel reads] :or {reads []}}]
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
-  (om/transact! comp-or-reconciler [(list 'untangled/load
-                                          {:ident         ident
-                                           :query         query
-                                           :params        params
-                                           :without       without
-                                           :post-mutation post-mutation
-                                           :parallel      parallel
-                                           :fallback      fallback})]))
-
-; DEPRECATED NAMES FOR load-data:
-(def load-singleton load-data)
-(def load-collection load-data)
+  (om/transact! comp-or-reconciler (into [(list 'untangled/load
+                                                {:ident         ident
+                                                 :query         query
+                                                 :params        params
+                                                 :without       without
+                                                 :post-mutation post-mutation
+                                                 :parallel      parallel
+                                                 :fallback      fallback})] reads)))
 
 (defn load-field-action
   "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`

@@ -6,8 +6,7 @@
             [cljs.core.async :as async]
             [untangled.client.impl.network :as net]
             [untangled.client.impl.om-plumbing :as plumbing]
-            [untangled.i18n.core :as i18n]
-            [untangled.client.impl.util :as util])
+            [untangled.i18n.core :as i18n])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 

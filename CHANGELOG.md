@@ -50,3 +50,8 @@
 0.4.11
 ------
 - Significant optimizations to post-query processing.
+- Changed load-data. You may now include :reads to trigger follow-on reads. This
+  removes the internal need for a forced root re-render. BREAKING CHANGE. Proper refresh on 
+  load-data now requires follow-on reads UNLESS you do post mutations (which will always trigger 
+  a full root re-render).
+- Removed deprecated load-collection and load-singleton. Use load-data instead (name change only)

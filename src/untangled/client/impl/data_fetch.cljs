@@ -1,6 +1,7 @@
 (ns untangled.client.impl.data-fetch
   (:require [om.next.impl.parser :as op]
             [om.next :as om]
+            [om.next.protocols :as omp]
             [om.util :as util]
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
@@ -55,8 +56,7 @@
         items-to-load (filter ::parallel queued-items)]
     (when-not (empty? items-to-load)
       (place-load-markers state items-to-load)
-      (swap! state assoc :om.next/ready-to-load (filter (comp not ::parallel) queued-items))
-      (om/force-root-render! reconciler)
+      (swap! state assoc :ui/loading-data true :om.next/ready-to-load (filter (comp not ::parallel) queued-items))
       (for [item items-to-load]
         {:query         (full-query [item])
          :on-load       (loaded-callback reconciler)
@@ -81,8 +81,7 @@
         items-to-load (get @state :om.next/ready-to-load)]
     (when-not (empty? items-to-load)
       (place-load-markers state items-to-load)
-      (swap! state assoc :om.next/ready-to-load [])
-      (om/force-root-render! reconciler)
+      (swap! state assoc :ui/loading-data true :om.next/ready-to-load [])
       {:query         (full-query items-to-load)
        :on-load       (loaded-callback reconciler)
        :on-error      (error-callback reconciler)
@@ -245,6 +244,7 @@
           loading-items (into #{} (map set-loading! items))
           marked-response (plumbing/mark-missing response query)
           app-state (om/app-state reconciler)
+          ran-mutations (atom false)
           remove-markers (fn [] (doseq [item loading-items]
                                   (swap! app-state (fn [s]
                                                      (-> s
@@ -252,6 +252,7 @@
                                                          (assoc-in (data-path item) nil))))))
           run-post-mutations (fn [] (doseq [item loading-items]
                                       (when-let [mutation-symbol (::post-mutation item)]
+                                        (reset! ran-mutations true)
                                         (some->
                                           (m/mutate {:state (om/app-state reconciler)} mutation-symbol {})
                                           :action
@@ -259,13 +260,16 @@
       (remove-markers)
       (om/merge! reconciler marked-response query)
       (run-post-mutations)
-      (om/force-root-render! reconciler)
-      (set-global-loading reconciler))))
+      (set-global-loading reconciler)
+      (if @ran-mutations
+        (om/force-root-render! reconciler)
+        (omp/queue! reconciler [:ui/loading-data])))))
 
 (defn- error-callback [reconciler]
   (fn [error items]
     (let [loading-items (into #{} (map set-loading! items))
           app-state (om/app-state reconciler)
+          ran-fallbacks (atom false)
           mark-errors (fn []
                         (swap! app-state assoc :untangled/server-error error)
                         (doseq [item loading-items]
@@ -275,6 +279,7 @@
                                                  (update-in (data-path item) set-failed! error))))))
           run-fallbacks (fn [] (doseq [item loading-items]
                                  (when-let [fallback-symbol (::fallback item)]
+                                   (reset! ran-fallbacks true)
                                    (some->
                                      (m/mutate {:state app-state} fallback-symbol {:error error})
                                      :action
@@ -282,4 +287,7 @@
       (mark-errors)
       (om/merge! reconciler {:ui/react-key (udom/unique-key)})
       (run-fallbacks)
-      (set-global-loading reconciler))))
+      (set-global-loading reconciler)
+      (if @ran-fallbacks
+        (om/force-root-render! reconciler)
+        (omp/queue! reconciler [:ui/loading-data])))))
