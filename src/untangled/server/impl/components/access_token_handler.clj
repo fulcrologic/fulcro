@@ -82,7 +82,7 @@
   (let [merged-options (merge default-options options)]
     (fn [{:as request :keys [uri]}]
       (if (unsecured-route? request merged-options)
-        (do (log/warn "Unsecured route: " uri)
+        (do (log/debug "Unsecured route: " uri)
             (handler request))
         (let [_ (log/debug "Securing route: " uri)
               token (get-token request)]
