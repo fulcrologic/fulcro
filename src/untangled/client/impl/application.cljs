@@ -78,14 +78,30 @@
                                              (when (om/mounted? (om/app-root reconciler))
                                                (om/force-root-render! reconciler)))))
 
+(defn sweep-one "Remove not-found keys from m (non-recursive)" [m]
+  (cond
+    (map? m) (reduce (fn [acc [k v]]
+                       (if (= ::plumbing/not-found v) acc (assoc acc k v))) (with-meta {} (meta m)) m)
+    (vector? m) (with-meta (mapv sweep-one m) (meta m))
+    :else m))
+
+(defn sweep "Remove all of the not-found keys (recursively) from v, stopping at marked leaves (if present)"
+  [m]
+  (cond
+    (plumbing/leaf? m) (sweep-one m)
+    (map? m) (reduce (fn [acc [k v]]
+                       (if (= ::plumbing/not-found v) acc (assoc acc k (sweep v)))) (with-meta {} (meta m)) m)
+    (vector? m) (with-meta (mapv sweep m) (meta m))
+    :else m))
+
 (defn sweep-merge
   [target source]
   (reduce (fn [acc [k v]]
             (cond
               (= v ::plumbing/not-found) (dissoc acc k)
-              (plumbing/leaf? v) (assoc acc k v)
+              (plumbing/leaf? v) (assoc acc k (sweep-one v))
               (and (map? (get acc k)) (map? v)) (update acc k sweep-merge v)
-              :else (assoc acc k v))
+              :else (assoc acc k (sweep v)))
             ) target source))
 
 (defn generate-reconciler
