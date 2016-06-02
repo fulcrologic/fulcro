@@ -11,7 +11,8 @@
                  [lein-doo "0.1.7" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [navis/untangled-spec "0.3.9" :scope "test"]
-                 [org.omcljs/om "1.0.0-alpha45" :scope "provided"]]
+                 [org.omcljs/om "1.0.0-alpha45" :scope "provided"]
+                 [camel-snake-kebab "0.3.2"]]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
@@ -19,7 +20,15 @@
   :resource-paths ["src" "resources"] ; maven deploy to internal artifactory needs src here
 
   :plugins [[lein-cljsbuild "1.1.4"]
-            [lein-doo "0.1.7"]]
+            [lein-doo "0.1.7"]
+            [com.jakemccrary/lein-test-refresh "0.15.0"]]
+
+  :test-paths ["spec"]
+  :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
+                 :changes-only true
+                 :with-repl true}
+  :test-selectors {:test/in-progress :test/in-progress
+                   :focused :focused}
 
   ;:hooks [leiningen.cljsbuild]
 
@@ -47,7 +56,6 @@
   :profiles {:dev {:source-paths ["dev" "src" "spec"]
                    :repl-options {:init-ns          clj.user
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :env          {:dev true}
                    :dependencies [[figwheel-sidecar "0.5.3-1"]
                                   [binaryage/devtools "0.5.2"]
                                   [com.cemerick/piggieback "0.2.1"]
