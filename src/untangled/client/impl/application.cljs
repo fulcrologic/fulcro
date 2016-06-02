@@ -84,7 +84,7 @@
             (cond
               (= v ::plumbing/not-found) (dissoc acc k)
               (plumbing/leaf? v) (assoc acc k v)
-              (map? v) (update acc k sweep-merge v)
+              (and (map? (get acc k)) (map? v)) (update acc k sweep-merge v)
               :else (assoc acc k v))
             ) target source))
 
