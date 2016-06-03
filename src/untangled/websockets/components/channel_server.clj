@@ -18,7 +18,7 @@
   [env _match]
   (let [ring-ajax-get-or-ws-handshake @ajax-get-or-ws-handler
         ring-ajax-post                @post-handler
-        req                           (:req env)]
+        req                           (:request env)]
     (assert (not (and
                    (nil? @post-handler)
                    (nil? @ajax-get-or-ws-handler)
