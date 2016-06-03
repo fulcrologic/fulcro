@@ -9,7 +9,8 @@
     [untangled-spec.core :refer-macros
      [specification behavior assertions provided component when-mocking]]
     [untangled.client.mutations :as m]
-    [untangled.client.logging :as log]))
+    [untangled.client.logging :as log]
+    [om.next.protocols :as omp]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -160,11 +161,12 @@
                                      follow-on-reads (set (rest tx))]
                                  (assertions
                                    "includes the follow-on reads"
-                                   follow-on-reads => #{:a :b}
+                                   (contains? follow-on-reads :a) => true
+                                   (contains? follow-on-reads :b) => true
                                    "directly uses the query."
                                    (:query params) => [{:items (om/get-query Item)}]))
 
-        (df/load-data 'reconciler [{:items (om/get-query Item)}] :reads [:a :b]))))
+        (df/load-data 'reconciler [{:items (om/get-query Item)}] :refresh [:a :b]))))
 
   (component "Loading a collection/singleton from within another mutation"
     (let [app-state (atom {})]
@@ -274,10 +276,11 @@
 (defmethod m/mutate 'qrp-loaded-callback [{:keys [state]} n p] (swap! state assoc :callback-done true))
 
 (specification "Query response processing (loaded-callback)"
-  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback))
+  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback :refresh [:a]))
         state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
                      :item                        {2 {:id :original-data}}})
         items [item]
+        queued (atom [])
         rendered (atom false)
         merged (atom false)
         globally-marked (atom false)
@@ -286,7 +289,8 @@
     (when-mocking
       (om/app-state r) => state
       (om/merge! r resp query) => (reset! merged true)
-      (om/force-root-render! r) => (reset! rendered true)
+      (omp/queue! r items) => (reset! queued (set items))
+      (omp/schedule-render! r) => (reset! rendered true)
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
       (loaded-cb response items)
@@ -296,6 +300,10 @@
         @merged => true
         "Runs post-mutations"
         (:callback-done @state) => true
+        "Queues the refresh items for refresh"
+        @queued =fn=> #(contains? % :a)
+        "Queues the global loading marker for refresh"
+        @queued =fn=> #(contains? % :ui/loading-data)
         "Re-renders the application"
         @rendered => true
         "Removes loading markers for results that didn't materialize"
@@ -306,17 +314,19 @@
 (defmethod m/mutate 'qrp-error-fallback [{:keys [state]} n p] (swap! state assoc :fallback-done true))
 
 (specification "Query response processing (error-callback)"
-  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :fallback 'qrp-error-fallback))
+  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :fallback 'qrp-error-fallback :refresh [:x :y]))
         state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
                      :item                        {2 {:id :original-data}}})
         items [item]
         globally-marked (atom false)
+        queued (atom [])
         rendered (atom false)
         error-cb (dfi/error-callback :reconciler)
         response {:id 2}]
     (when-mocking
       (om/app-state r) => state
-      (om/force-root-render! r) => (reset! rendered true)
+      (omp/queue! r items) => (reset! queued (set items))
+      (omp/schedule-render! r) => (reset! rendered true)
       (om/merge! r resp) => (assertions
                               "updates the react key to force full DOM re-render"
                               (contains? resp :ui/react-key) => true)
@@ -327,6 +337,13 @@
       (assertions
         "Runs fallbacks"
         (:fallback-done @state) => true
+        "Queues the refresh items for refresh"
+        @queued =fn=> #(contains? % :x)
+        @queued =fn=> #(contains? % :y)
+        "Queues the global loading marker for refresh"
+        @queued =fn=> #(contains? % :ui/loading-data)
+        "Triggers render"
+        @rendered => true
         "Rewrites load markers as error markers"
         (dfi/failed? (get-in @state (dfi/data-path item) :fail)) => true
         "Updates the global loading marker"

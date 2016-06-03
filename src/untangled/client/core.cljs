@@ -34,16 +34,22 @@
   `:network-error-callback` is a function of two arguments, the app state atom and the error, which will be invoked for
   every network error (status code >= 400, or no network found), should you choose to use the built-in networking record.
 
+  `:migrate` is optional. It is a (fn [state tid->rid] ... state') that should return a new state where all tempids
+  (the keys of `tid->rid`) are rewritten to real ids (the values of tid->rid). This defaults to a full recursive
+  algorithm against all data in the app-state, which is correct but possibly slow).  Note that tempids will have an Om tempid data type.
+  See Om reconciler documentation for further information.
+
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state started-callback networking request-transform network-error-callback]
-      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil)}}]
-  (map->Application {:initial-state    initial-state
-                     :started-callback started-callback
-                     :networking       (or networking (net/make-untangled-network "/api"
-                                                        :request-transform request-transform
-                                                        :global-error-callback network-error-callback))}))
+  [& {:keys [initial-state started-callback networking request-transform network-error-callback migrate]
+      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil}}]
+  (map->Application {:initial-state      initial-state
+                     :started-callback   started-callback
+                     :reconciler-options {:migrate migrate}
+                     :networking         (or networking (net/make-untangled-network "/api"
+                                                                                    :request-transform request-transform
+                                                                                    :global-error-callback network-error-callback))}))
 
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
@@ -51,12 +57,12 @@
   (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work.")
   (history [this] "Return a serialized version of the current history of the application, suitable for network transfer"))
 
-(defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted?]
+(defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node]
     (if mounted?
       (do (refresh this) this)
-      (app/initialize this initial-state root-component dom-id-or-node)))
+      (app/initialize this initial-state root-component dom-id-or-node reconciler-options)))
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
@@ -69,7 +75,7 @@
 
   (refresh [this]
     (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
-    (om/merge! reconciler {:ui/react-key (udom/unique-key)})))
+    (udom/force-render reconciler)))
 
 (defn new-untangled-test-client
   "A test client that has no networking. Useful for UI testing with a real Untangled app container."
@@ -89,8 +95,8 @@
   ([url]
    (let [query-data (.getQueryData (goog.Uri. url))]
      (into {}
-       (for [k (.getKeys query-data)]
-         [k (.get query-data k)])))))
+           (for [k (.getKeys query-data)]
+             [k (.get query-data k)])))))
 
 (defn get-url-param
   "Get the value of the named parameter from the browser URL (or an explicit one)"

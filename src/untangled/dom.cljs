@@ -2,9 +2,28 @@
   (:require [clojure.string :as str]
             [cljs-uuid-utils.core :as uuid]
             [om.next :as om]
-            [untangled.client.logging :as log]))
+            [untangled.client.logging :as log]
+            [om.next.protocols :as omp]))
 
-(defn unique-key [] (uuid/uuid-string (uuid/make-random-squuid)))
+(defn unique-key
+  "Get a unique string-based key. Never returns the same value."
+  [] (uuid/uuid-string (uuid/make-random-squuid)))
+
+(defn force-render
+  "Re-render components. If only a reconciler is supplied then it forces a full DOM re-render by updating the :ui/react-key
+  in app state and forcing Om to re-render the entire DOM, which only works properly if you query
+  for :ui/react-key in your Root render component and add that as the react :key to your top-level element.
+
+  If you supply an additional vector of keywords and idents then it will ask Om to rerender only those components that mention
+  those things in their queries."
+  ([reconciler keywords]
+   (omp/queue! reconciler keywords)
+   (omp/schedule-render! reconciler))
+  ([reconciler]
+   (let [app-state (om/app-state reconciler)]
+     (do
+       (swap! app-state assoc :ui/react-key (unique-key))
+       (om/force-root-render! reconciler)))))
 
 (defn append-class
   "Given a component and a local state key or keys, to be passed to `om/get-state`,

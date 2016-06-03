@@ -153,7 +153,7 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field params without query post-mutation fallback parallel] :or {:without #{}}}]
+  [& {:keys [ident field params without query post-mutation fallback parallel refresh] :or {without #{} refresh []}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
@@ -170,6 +170,7 @@
      ::field         field                                  ; for component-targeted load
      ::query         query'                                 ; query, relative to root of db OR component
      ::post-mutation post-mutation
+     ::refresh       refresh
      ::parallel      parallel
      ::fallback      fallback}))
 
@@ -178,12 +179,13 @@
   a mutate function that is abstractly loading something. This is intended for internal use.
 
   See `load-field` for public API."
-  [& {:keys [state query ident field without params post-mutation fallback parallel] :or {:without #{}}}]
+  [& {:keys [state query ident field without params post-mutation fallback parallel refresh] :or {refresh [] without #{}}}]
   (swap! state update :om.next/ready-to-load conj
          (ready-state
            :ident ident
            :field field
            :parallel parallel
+           :refresh refresh
            :params params
            :without without
            :query query
@@ -198,6 +200,7 @@
     (::query state)))
 (defn data-field [state] (::field state))
 (defn data-uuid [state] (::uuid state))
+(defn data-refresh [state] (::refresh state))
 (defn data-query-key [state]
   (let [expr (-> state ::query first)
         key (cond
@@ -242,6 +245,8 @@
   (fn [response items]
     (let [query (full-query items)
           loading-items (into #{} (map set-loading! items))
+          refresh-set (into #{:ui/loading-data} (mapcat data-refresh items))
+          to-refresh (vec refresh-set)
           marked-response (plumbing/mark-missing response query)
           app-state (om/app-state reconciler)
           ran-mutations (atom false)
@@ -261,17 +266,16 @@
       (om/merge! reconciler marked-response query)
       (run-post-mutations)
       (set-global-loading reconciler)
-      ; TODO: MAYBE. Pass the follow-on reads through the load markers and use Om queue!/schedule-render!
-      ; FIXME: Possible problem: the way load markers work can cause Om to throw missing query exceptions if you ask for
-      ; a follow-on read for a component that is being rendered by lazily-loaded.
-      (if @ran-mutations
-        (om/force-root-render! reconciler)
-        (omp/queue! reconciler [:ui/loading-data])))))
+      (if (contains? refresh-set :untangled/force-root)
+        (udom/force-render reconciler)
+        (udom/force-render reconciler to-refresh)))))
 
 (defn- error-callback [reconciler]
   (fn [error items]
     (let [loading-items (into #{} (map set-loading! items))
           app-state (om/app-state reconciler)
+          refresh-set (into #{:ui/loading-data} (mapcat data-refresh items))
+          to-refresh (vec refresh-set)
           ran-fallbacks (atom false)
           mark-errors (fn []
                         (swap! app-state assoc :untangled/server-error error)
@@ -291,6 +295,6 @@
       (om/merge! reconciler {:ui/react-key (udom/unique-key)})
       (run-fallbacks)
       (set-global-loading reconciler)
-      (if @ran-fallbacks
-        (om/force-root-render! reconciler)
-        (omp/queue! reconciler [:ui/loading-data])))))
+      (if (contains? refresh-set :untangled/force-root)
+        (udom/force-render reconciler)
+        (udom/force-render reconciler to-refresh)))))

@@ -112,11 +112,12 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [queue] :as app} initial-state parser]
+  [{:keys [queue] :as app} initial-state parser {:keys [migrate] :or {migrate nil}}]
   (let [rec-atom (atom nil)
+        state-migrate (or migrate plumbing/resolve-tempids)
         tempid-migrate (fn [pure _ tempids _]
                          (plumbing/rewrite-tempids-in-request-queue queue tempids)
-                         (plumbing/resolve-tempids pure tempids))
+                         (state-migrate pure tempids))
         initial-state-with-locale (if (= Atom (type initial-state))
                                     (do
                                       (swap! initial-state assoc :ui/locale "en-US")
@@ -125,7 +126,7 @@
         config {:state      initial-state-with-locale
                 :send       (fn [tx cb]
                               (server-send (assoc app :reconciler @rec-atom) tx cb))
-                :migrate    tempid-migrate
+                :migrate    (or migrate tempid-migrate)
                 :normalize  true
                 :pathopt    true
                 :merge-tree sweep-merge
@@ -145,13 +146,13 @@
 (defn initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
-  [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node]
+  [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
   (let [queue (async/chan 1024)
         rc (async/chan)
         parser (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
         initial-app (assoc app :queue queue :response-channel rc :parser parser :mounted? true
                                :networking networking)
-        rec (generate-reconciler initial-app initial-state parser)
+        rec (generate-reconciler initial-app initial-state parser reconciler-options)
         completed-app (assoc initial-app :reconciler rec)
         node (if (string? dom-id-or-node)
                (gdom/getElement dom-id-or-node)
