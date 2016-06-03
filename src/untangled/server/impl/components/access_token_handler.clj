@@ -88,7 +88,7 @@
               token (get-token request)]
           (if-not (valid-token? token merged-options)
             {:status 401}
-            (add-claims-to-request request token merged-options)))))))
+            (handler (add-claims-to-request request token merged-options))))))))
 
 (defn validate-unsecured-route-handlers! [unsecured-routes]
   (assert (map? unsecured-routes) (str "unsecured-routes was not a map: " unsecured-routes))
