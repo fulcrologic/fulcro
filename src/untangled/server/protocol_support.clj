@@ -64,7 +64,8 @@
                                   (impl/rewrite-tempids
                                     real-omt->fake-omt
                                     omt/tempid?))
-            response-to-check (rewrite-response response-without-tempid-remaps)
+            unsorted-resp-to-check (rewrite-response response-without-tempid-remaps)
+            response-to-check (impl/recursive-sort-by hash unsorted-resp-to-check)
             _ (timbre/debug :response-to-check response-to-check)
             om-tempids-to-check (impl/rewrite-tempids
                                   (set (keys om-tempid->datomic-id))

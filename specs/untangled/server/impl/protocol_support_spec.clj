@@ -20,7 +20,11 @@
          :surveys
          [{:artifact/display-title
            "Survey Zero"}]}
-        {:om.tempid/inst-id0 17592186045460}])
+        {:om.tempid/inst-id0 17592186045460}]
+
+    "nested-sort sorts collections recursively"
+    (ips/recursive-sort-by hash {'foo {:bar [{:db/id 3} {:db/id 1 :foo [1 0 4 2 3]}]}})
+    => {'foo {:bar [{:db/id 1 :foo [3 2 4 0 1]} {:db/id 3}]}})
 
   (let [[with-om-tempids omt->fake-omt] (ips/rewrite-om-tempids [:om.tempid/asdf :datomic.id/qwer :foo/bar])]
     (assertions "rewrite-om-tempids"

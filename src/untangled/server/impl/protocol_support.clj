@@ -67,3 +67,10 @@
              [k v]))
          stuff))
      @tempids]))
+
+(defn recursive-sort-by [f x]
+  (walk/prewalk
+    #(if (and (sequential? %) (not (map-entry? %)))
+       (into (empty %) (sort-by f %))
+       %)
+    x))
