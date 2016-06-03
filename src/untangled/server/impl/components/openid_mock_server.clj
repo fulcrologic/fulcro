@@ -58,11 +58,11 @@
                            :iat       (time/now)
                            :aud       (:aud options)
                                         ;      :auth-time (time/now)
-                           :sub       (:sub options)
-                           :email     (:email options)
+                           :sub       (:sub user)
+                           :email     (:email user)
+                           :role      (:role user)
                            :nonce     (get params "nonce")
                            :amr       ["passsord"]
-                           :role      (:role options)
                            :idp       (:idp options)
                            :scope     (:scope options)
                            :client-id (:client-id options)}

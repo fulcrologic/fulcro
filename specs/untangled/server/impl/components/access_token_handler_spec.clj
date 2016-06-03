@@ -83,6 +83,14 @@
       (assoc :headers headers)
       handler)))
 
+(def handler-test (wrap-access-token options (fn [_] :ok)))
+
+(defn test-handler [claim & [path]]
+  (let [headers (cond-> claim (seq claim) build-test-header)]
+    (-> (request :get (or path "/"))
+      (assoc :headers headers)
+      handler-test)))
+
 (defn unauthorized? [{:keys [user status]}]
   (and (not user) (= status 401)))
 
@@ -112,7 +120,10 @@
     "top level files are unsecured"
     (test-claim claim "/some-file.fake") =fn=> (comp not :user)
     "nested files are by default secured"
-    (test-claim claim "/foo/some-file.fake") =fn=> :user))
+    (test-claim claim "/foo/some-file.fake") =fn=> :user)
+  (assertions
+    "calls the passed in handler"
+    (test-handler claim "/does/not/matter") => :ok))
 
 (specification "validate-unsecured-route-handlers!"
   (assertions
