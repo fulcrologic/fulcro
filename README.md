@@ -25,8 +25,8 @@ If you copy/paste the following file into a `project.clj` it will serve as a goo
   :description "My Project"
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.51"]
-                 [org.omcljs/om "1.0.0-alpha32"]
-                 [navis/untangled-client "0.4.10"]]
+                 [org.omcljs/om "1.0.0-alpha36"]
+                 [navis/untangled-client "0.5.0"]]
 
   ; needed or compiled js files won't get cleaned
   :clean-targets ^{:protect false} ["resources/public/js/compiled" "target" "i18n/out"]
