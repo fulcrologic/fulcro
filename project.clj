@@ -6,10 +6,10 @@
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.51"]
                  [com.taoensso/timbre "4.3.1"]
-                 [navis/untangled-client "0.4.9" :exclusions [cljsjs/react org.omcljs/om] :scope "provided"]
-                 [navis/untangled-server "0.5.0" :scope "provided"]
+                 [navis/untangled-client "0.5.0" :exclusions [cljsjs/react org.omcljs/om] :scope "provided"]
+                 [navis/untangled-server "0.5.1" :scope "provided"]
                  [navis/untangled-spec "0.3.6" :scope "provided"]
-                 [org.omcljs/om "1.0.0-alpha32" :scope "provided"]
+                 [org.omcljs/om "1.0.0-alpha36" :scope "provided"]
                  [com.taoensso/sente "1.8.1"]]
 
   :plugins [[com.jakemccrary/lein-test-refresh "0.14.0"]
