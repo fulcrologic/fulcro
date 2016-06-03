@@ -7,6 +7,7 @@
 		use bidi's catch-all routes, eg: `{"/js" {true :ok}}`
 - Open id mock will now deal with multiple users.
 	"user" can be passed as a query param to the open id mock endpoint.
+- Fixing heisenbugs wrt datomic not sorting & protocol-testing randomly failing
 
 0.5.1
 -----
