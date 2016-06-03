@@ -1,21 +1,19 @@
 (ns untangled.client.impl.application
-  (:require [untangled.client.impl.om-plumbing :as impl]
-            [goog.dom :as gdom]
+  (:require [goog.dom :as gdom]
             [untangled.client.logging :as log]
             [om.next :as om]
             [untangled.client.impl.data-fetch :as f]
             [cljs.core.async :as async]
             [untangled.client.impl.network :as net]
             [untangled.client.impl.om-plumbing :as plumbing]
-            [untangled.i18n.core :as i18n]
-            [untangled.client.impl.util :as util])
+            [untangled.i18n.core :as i18n])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
 (defn fallback-handler [{:keys [reconciler]} query]
   (fn [error]
     (swap! (om/app-state reconciler) assoc :untangled/server-error error)
-    (if-let [q (impl/fallback-query query error)]
+    (if-let [q (plumbing/fallback-query query error)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
           (om/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
@@ -31,7 +29,7 @@
 (defn enqueue-mutations [{:keys [queue] :as app} remote-tx-map cb]
   (let [full-remote-transaction (:remote remote-tx-map)
         fallback (fallback-handler app full-remote-transaction)
-        desired-remote-mutations (impl/remove-loads-and-fallbacks full-remote-transaction)
+        desired-remote-mutations (plumbing/remove-loads-and-fallbacks full-remote-transaction)
         has-mutations? (> (count desired-remote-mutations) 0)
         payload {:query    desired-remote-mutations
                  :on-load  cb
@@ -80,6 +78,32 @@
                                              (when (om/mounted? (om/app-root reconciler))
                                                (om/force-root-render! reconciler)))))
 
+(defn sweep-one "Remove not-found keys from m (non-recursive)" [m]
+  (cond
+    (map? m) (reduce (fn [acc [k v]]
+                       (if (= ::plumbing/not-found v) acc (assoc acc k v))) (with-meta {} (meta m)) m)
+    (vector? m) (with-meta (mapv sweep-one m) (meta m))
+    :else m))
+
+(defn sweep "Remove all of the not-found keys (recursively) from v, stopping at marked leaves (if present)"
+  [m]
+  (cond
+    (plumbing/leaf? m) (sweep-one m)
+    (map? m) (reduce (fn [acc [k v]]
+                       (if (= ::plumbing/not-found v) acc (assoc acc k (sweep v)))) (with-meta {} (meta m)) m)
+    (vector? m) (with-meta (mapv sweep m) (meta m))
+    :else m))
+
+(defn sweep-merge
+  [target source]
+  (reduce (fn [acc [k v]]
+            (cond
+              (= v ::plumbing/not-found) (dissoc acc k)
+              (plumbing/leaf? v) (assoc acc k (sweep-one v))
+              (and (map? (get acc k)) (map? v)) (update acc k sweep-merge v)
+              :else (assoc acc k (sweep v)))
+            ) target source))
+
 (defn generate-reconciler
   "The reconciler's send method calls UntangledApplication/server-send, which itself requires a reconciler with a
   send method already defined. This creates a catch-22 / circular dependency on the reconciler and :send field within
@@ -88,11 +112,12 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [queue] :as app} initial-state parser]
+  [{:keys [queue] :as app} initial-state parser {:keys [migrate] :or {migrate nil}}]
   (let [rec-atom (atom nil)
+        state-migrate (or migrate plumbing/resolve-tempids)
         tempid-migrate (fn [pure _ tempids _]
-                         (impl/rewrite-tempids-in-request-queue queue tempids)
-                         (impl/resolve-tempids pure tempids))
+                         (plumbing/rewrite-tempids-in-request-queue queue tempids)
+                         (state-migrate pure tempids))
         initial-state-with-locale (if (= Atom (type initial-state))
                                     (do
                                       (swap! initial-state assoc :ui/locale "en-US")
@@ -101,10 +126,10 @@
         config {:state      initial-state-with-locale
                 :send       (fn [tx cb]
                               (server-send (assoc app :reconciler @rec-atom) tx cb))
-                :migrate    tempid-migrate
+                :migrate    (or migrate tempid-migrate)
                 :normalize  true
                 :pathopt    true
-                :merge-tree (comp impl/sweep-missing util/deep-merge)
+                :merge-tree sweep-merge
                 :parser     parser}
         rec (om/reconciler config)]
 
@@ -121,13 +146,13 @@
 (defn initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
-  [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node]
+  [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
   (let [queue (async/chan 1024)
         rc (async/chan)
-        parser (om/parser {:read impl/read-local :mutate impl/write-entry-point})
+        parser (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
         initial-app (assoc app :queue queue :response-channel rc :parser parser :mounted? true
                                :networking networking)
-        rec (generate-reconciler initial-app initial-state parser)
+        rec (generate-reconciler initial-app initial-state parser reconciler-options)
         completed-app (assoc initial-app :reconciler rec)
         node (if (string? dom-id-or-node)
                (gdom/getElement dom-id-or-node)

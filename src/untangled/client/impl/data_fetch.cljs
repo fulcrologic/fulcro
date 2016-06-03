@@ -1,17 +1,19 @@
 (ns untangled.client.impl.data-fetch
   (:require [om.next.impl.parser :as op]
             [om.next :as om]
+            [om.next.protocols :as omp]
             [om.util :as util]
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
             [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
             [untangled.client.impl.om-plumbing :as plumbing]
-            [untangled.dom :as udom])
+            [untangled.dom :as udom]
+            [cljs-uuid-utils.core :as uuid])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
-(declare data-path data-query set-loading! full-query loaded-callback error-callback)
+(declare data-path data-uuid data-query set-loading! full-query loaded-callback error-callback)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implementation for public api
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -25,6 +27,15 @@
   (defn ready? [state] (is-kind? state :ready))
   (defn loading? [state] (is-kind? state :loading))
   (defn failed? [state] (is-kind? state :failed)))
+
+(defn- place-load-markers
+  "Place load markers in the app state at their data paths so that UI rendering can see them."
+  [state-atom items-to-load]
+  (doseq [item items-to-load]
+    (let [i (set-loading! item)]
+      (swap! state-atom (fn [s] (-> s
+                                    (assoc-in (data-path i) {:ui/fetch-state i})
+                                    (update :untangled/loads-in-progress (fnil conj #{}) (data-uuid i))))))))
 
 (defn mark-parallel-loading
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
@@ -44,17 +55,12 @@
         queued-items (get @state :om.next/ready-to-load)
         items-to-load (filter ::parallel queued-items)]
     (when-not (empty? items-to-load)
-      (om/merge! reconciler {:ui/loading-data true})
-      (doseq [item items-to-load]
-        (swap! state assoc-in
-               (data-path item)
-               {:ui/fetch-state (set-loading! item)}))
-      (swap! state assoc :om.next/ready-to-load (filter (comp not ::parallel) queued-items))
-      (om/force-root-render! reconciler)
+      (place-load-markers state items-to-load)
+      (swap! state assoc :ui/loading-data true :om.next/ready-to-load (filter (comp not ::parallel) queued-items))
       (for [item items-to-load]
-        {:query    (full-query [item])
-         :on-load  (loaded-callback reconciler)
-         :on-error (error-callback reconciler)
+        {:query         (full-query [item])
+         :on-load       (loaded-callback reconciler)
+         :on-error      (error-callback reconciler)
          :callback-args [item]}))))
 
 (defn mark-loading
@@ -74,13 +80,8 @@
   (let [state (om/app-state reconciler)
         items-to-load (get @state :om.next/ready-to-load)]
     (when-not (empty? items-to-load)
-      (om/merge! reconciler {:ui/loading-data true})
-      (doseq [item items-to-load]
-        (swap! state assoc-in
-               (data-path item)
-               {:ui/fetch-state (set-loading! item)}))
-      (swap! state assoc :om.next/ready-to-load [])
-      (om/force-root-render! reconciler)
+      (place-load-markers state items-to-load)
+      (swap! state assoc :ui/loading-data true :om.next/ready-to-load [])
       {:query         (full-query items-to-load)
        :on-load       (loaded-callback reconciler)
        :on-error      (error-callback reconciler)
@@ -152,7 +153,7 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field params without query post-mutation fallback parallel] :or {:without #{}}}]
+  [& {:keys [ident field params without query post-mutation fallback parallel refresh] :or {without #{} refresh []}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
@@ -164,11 +165,13 @@
         query' (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
     {::type          :ready
+     ::uuid          (uuid/uuid-string (uuid/make-random-squuid))
      ::ident         ident                                  ; only for component-targeted loads
      ::field         field                                  ; for component-targeted load
      ::query         query'                                 ; query, relative to root of db OR component
      ::post-mutation post-mutation
-     ::parallel    parallel
+     ::refresh       refresh
+     ::parallel      parallel
      ::fallback      fallback}))
 
 (defn mark-ready
@@ -176,12 +179,13 @@
   a mutate function that is abstractly loading something. This is intended for internal use.
 
   See `load-field` for public API."
-  [& {:keys [state query ident field without params post-mutation fallback parallel] :or {:without #{}}}]
+  [& {:keys [state query ident field without params post-mutation fallback parallel refresh] :or {refresh [] without #{}}}]
   (swap! state update :om.next/ready-to-load conj
          (ready-state
            :ident ident
            :field field
            :parallel parallel
+           :refresh refresh
            :params params
            :without without
            :query query
@@ -195,12 +199,13 @@
     [{(data-ident state) (::query state)}]
     (::query state)))
 (defn data-field [state] (::field state))
+(defn data-uuid [state] (::uuid state))
+(defn data-refresh [state] (::refresh state))
 (defn data-query-key [state]
   (let [expr (-> state ::query first)
         key (cond
               (keyword? expr) expr
-              (map? expr) (ffirst expr)
-              )]
+              (map? expr) (ffirst expr))]
     key))
 
 (defn data-path [state] (if (and (nil? (data-ident state)) (nil? (data-field state)))
@@ -218,6 +223,7 @@
     ([state] (set-ready! state nil))
     ([state params] (set-type state :ready params)))
   (defn set-loading!
+    "Sets a marker to loading, ensuring that it has a UUID"
     ([state] (set-loading! state nil))
     ([state params] (let [rv (set-type state :loading params)]
                       (with-meta rv {:state rv}))))
@@ -225,72 +231,70 @@
     ([state] (set-failed! state nil))
     ([state params] (set-type state :failed params))))
 
-(defn swap-data-states
-  "Swaps all data states in a map that satisfy `from-state-pred` to the `to-state-fn` type.
-  The `to-state-fn` methods are intended to be the setters."
-
-  ([state from-state-pred to-state-fn]
-   (swap-data-states state from-state-pred to-state-fn nil))
-
-  ([state from-state-pred to-state-fn params]
-   (->> state
-        (prewalk #(if (from-state-pred %) (to-state-fn % params) %))
-        (prewalk #(when-not (= % {:ui/fetch-state nil}) %)))))
-
 (defn full-query
   "Compose together a sequence of states into a single query."
   [items] (vec (mapcat (fn [item] (data-query item)) items)))
 
-;; TODO: aren't all loading-items in the app-state necessarily from this iteration of the algorithm?
-(defn- active-loads? [loading-items]
-  "Useful for simultaneous `mark-loading` calls, so that loading states from other calls are not cleared accidentally."
-  (fn [fetch-state] (and (loading? fetch-state) (contains? loading-items fetch-state))))
-
-;; TODO: Fix this. Bleh, highly inefficient. Specter anyone?
 (defn- set-global-loading [reconciler]
-  "Sets :ui/loading to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
-  (om/merge! reconciler {:ui/loading-data false})
-
-  (prewalk (fn [value]
-             (cond
-               (:ui/loading-data @reconciler) nil           ;short-circuit traversal if ui/loading-data already true
-               (loading? value) (do (om/merge! reconciler {:ui/loading-data true}) value)
-               :else value))
-           @reconciler))
+  "Sets :ui/loading-data to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
+  (let [state-atom (om/app-state reconciler)
+        loading? (boolean (seq (get @state-atom :untangled/loads-in-progress)))]
+    (swap! state-atom assoc :ui/loading-data loading?)))
 
 (defn- loaded-callback [reconciler]
   (fn [response items]
     (let [query (full-query items)
           loading-items (into #{} (map set-loading! items))
+          refresh-set (into #{:ui/loading-data} (mapcat data-refresh items))
+          to-refresh (vec refresh-set)
           marked-response (plumbing/mark-missing response query)
-          app-state (om/app-state reconciler)]
+          app-state (om/app-state reconciler)
+          ran-mutations (atom false)
+          remove-markers (fn [] (doseq [item loading-items]
+                                  (swap! app-state (fn [s]
+                                                     (-> s
+                                                         (update :untangled/loads-in-progress disj (data-uuid item))
+                                                         (assoc-in (data-path item) nil))))))
+          run-post-mutations (fn [] (doseq [item loading-items]
+                                      (when-let [mutation-symbol (::post-mutation item)]
+                                        (reset! ran-mutations true)
+                                        (some->
+                                          (m/mutate {:state (om/app-state reconciler)} mutation-symbol {})
+                                          :action
+                                          (apply [])))))]
+      (remove-markers)
       (om/merge! reconciler marked-response query)
-      (doseq [item loading-items]
-        (when-let [mutation-symbol (::post-mutation item)]
-          (some->
-            (m/mutate {:state (om/app-state reconciler)} mutation-symbol {})
-            :action
-            (apply []))))
-      (om/force-root-render! reconciler)                    ; Don't love this, but ok for now. TK
-
-      ;; Any loading states that didn't resolve to data are marked as not present
-      (swap! app-state swap-data-states (active-loads? loading-items) (fn [_] nil))
-
-      (set-global-loading reconciler))))
+      (run-post-mutations)
+      (set-global-loading reconciler)
+      (if (contains? refresh-set :untangled/force-root)
+        (udom/force-render reconciler)
+        (udom/force-render reconciler to-refresh)))))
 
 (defn- error-callback [reconciler]
   (fn [error items]
-    (let [loading-items (into #{} (map set-loading! items))]
-      (swap! (om/app-state reconciler)
-             (fn [st]
-               (-> st
-                   (assoc :untangled/server-error error)
-                   (swap-data-states (active-loads? loading-items) #(set-failed! % error)))))
+    (let [loading-items (into #{} (map set-loading! items))
+          app-state (om/app-state reconciler)
+          refresh-set (into #{:ui/loading-data} (mapcat data-refresh items))
+          to-refresh (vec refresh-set)
+          ran-fallbacks (atom false)
+          mark-errors (fn []
+                        (swap! app-state assoc :untangled/server-error error)
+                        (doseq [item loading-items]
+                          (swap! app-state (fn [s]
+                                             (-> s
+                                                 (update :untangled/loads-in-progress disj (data-uuid item))
+                                                 (update-in (data-path item) set-failed! error))))))
+          run-fallbacks (fn [] (doseq [item loading-items]
+                                 (when-let [fallback-symbol (::fallback item)]
+                                   (reset! ran-fallbacks true)
+                                   (some->
+                                     (m/mutate {:state app-state} fallback-symbol {:error error})
+                                     :action
+                                     (apply [])))))]
+      (mark-errors)
       (om/merge! reconciler {:ui/react-key (udom/unique-key)})
-      (doseq [item loading-items]
-        (when-let [fallback-symbol (::fallback item)]
-          (some->
-            (m/mutate {:state (om/app-state reconciler)} fallback-symbol {:error error})
-            :action
-            (apply []))))
-      (set-global-loading reconciler))))
+      (run-fallbacks)
+      (set-global-loading reconciler)
+      (if (contains? refresh-set :untangled/force-root)
+        (udom/force-render reconciler)
+        (udom/force-render reconciler to-refresh)))))

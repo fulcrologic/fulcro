@@ -17,18 +17,30 @@
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
   - `parallel`: Boolean to indicate that this load should happen in the parallel on the server (non-blocking load). Any loads marked this way will happen in parallel.
   - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error in the params under :error.
+  - `refresh`: A vector of keywords indicating data that will be changing. If any of the listed keywords are queried by on-screen
+    components, then those components will be re-rendered after the load has finished and post mutations have run. Note
+    that for load-field the ident of the target component is automatically included, so this parametmer is usually not
+    needed. If the *special* key `:untangled/force-root` is used in the vector (it must always be a vector), then the entire
+    app will be re-rendered. This is discouraged since it is highly inefficient and should be easily avoidable. It is mainly included
+    in case some re-render bug in Om or Untangled pops up and needs a temporary workaround.
+
+  NOTE: The :ui/loading-data attribute is always included in refresh. This means you probably don't want to
+  query for that attribute near the root of your UI. Instead, create some leaf component with an ident that queries for :ui/loading-data
+  using an Om link (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
+  improve your frame rate because Om will not have to run a full root query.
   "
-  [component field & {:keys [without params post-mutation fallback parallel]}]
+  [component field & {:keys [without params post-mutation fallback parallel refresh] :or [refresh []]}]
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
-  (om/transact! component [(list 'untangled/load
-                                 {:ident         (om/get-ident component)
-                                  :field         field
-                                  :query         (om/focus-query (om/get-query component) [field])
-                                  :params        params
-                                  :without       without
-                                  :post-mutation post-mutation
-                                  :parallel      parallel
-                                  :fallback      fallback})]))
+  (om/transact! component (into [(list 'untangled/load
+                                       {:ident         (om/get-ident component)
+                                        :field         field
+                                        :query         (om/focus-query (om/get-query component) [field])
+                                        :params        params
+                                        :without       without
+                                        :post-mutation post-mutation
+                                        :parallel      parallel
+                                        :refresh       refresh
+                                        :fallback      fallback}) :ui/loading-data (om/get-ident component)] refresh)))
 
 (defn load-data
   "Load data from the remote. Runs `om/transact!`. See also `load-field`.
@@ -40,27 +52,28 @@
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
   - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error is in the params under :error.
   - `parallel`: Boolean to indicate that this load should happen in the parallel on the server (non-blocking load). Any loads marked this way will happen in parallel.
+  - `refresh`: A vector of keywords indicating data that will be changing. If any of the listed keywords are queried by on-screen
+    components, then those components will be re-rendered after the load has finished and post mutations have run.
 
   Named parameters `:without` and `:params` are as in `load-field`.
   "
-  [comp-or-reconciler query & {:keys [ident without params post-mutation fallback parallel]}]
+  [comp-or-reconciler query & {:keys [ident without params post-mutation fallback parallel refresh] :or {refresh []}}]
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
-  (om/transact! comp-or-reconciler [(list 'untangled/load
-                                          {:ident         ident
-                                           :query         query
-                                           :params        params
-                                           :without       without
-                                           :post-mutation post-mutation
-                                           :parallel      parallel
-                                           :fallback      fallback})]))
-
-; DEPRECATED NAMES FOR load-data:
-(def load-singleton load-data)
-(def load-collection load-data)
+  (om/transact! comp-or-reconciler (into [(list 'untangled/load
+                                                {:ident         ident
+                                                 :query         query
+                                                 :params        params
+                                                 :without       without
+                                                 :post-mutation post-mutation
+                                                 :refresh       refresh
+                                                 :parallel      parallel
+                                                 :fallback      fallback}) :ui/loading-data] refresh)))
 
 (defn load-field-action
   "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`
-  but usable from within a mutation.
+  but usable from within a mutation. Note the `:refresh` parameter is supported, and defaults to nothing, even for
+  fields, in actions. If you want anything to refresh other than the targeted component you will want to use the
+  :refresh parameter.
 
   To use this function make sure your mutation specifies a return value with a remote. The remote
   should use the helper function `remote-load` as it's value:
@@ -69,7 +82,7 @@
     :action (fn []
        (load-field-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state component-class ident field & {:keys [without params post-mutation fallback parallel]}]
+  [app-state component-class ident field & {:keys [without params post-mutation fallback parallel refresh] :or [refresh []]}]
   (impl/mark-ready
     :state app-state
     :field field
@@ -78,12 +91,16 @@
     :params params
     :without without
     :parallel parallel
+    :refresh refresh
     :post-mutation post-mutation
     :fallback fallback))
 
 (defn load-data-action
   "Queue up a remote load from within an already-running mutation. Similar to `load-data`, but usable from
   within a mutation.
+
+  Note the `:refresh` parameter is supported, and defaults to empty. If you want anything to refresh other than
+  the targeted component you will want to include the :refresh parameter.
 
   To use this function make sure your mutation specifies a return value with a remote. The remote
   should use the helper function `remote-load` as it's value:
@@ -92,7 +109,7 @@
     :action (fn []
        (load-data-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state query & {:keys [ident without params post-mutation fallback parallel]}]
+  [app-state query & {:keys [ident without params post-mutation fallback parallel refresh]}]
   (impl/mark-ready
     :state app-state
     :ident ident
@@ -100,6 +117,7 @@
     :params params
     :without without
     :parallel parallel
+    :refresh refresh
     :post-mutation post-mutation
     :fallback fallback))
 
@@ -118,6 +136,8 @@
 (defn loading? [state] (impl/loading? state))
 (defn failed? [state] (impl/failed? state))
 
+; FIXME: This should NOT use a component. instead it should be embedded within the component. The reason is that the
+; query is marked with metadata that expects the renderer to implement the component of the query. This breaks Om!
 (defn lazily-loaded
   "Custom rendering for use while data is being lazily loaded using the data fetch methods
   load-collection and load-field.

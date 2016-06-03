@@ -56,7 +56,9 @@
 
 (defn resolve-tempids [state tid->rid]
   "Replaces all om-tempids in app-state with the ids returned by the server."
-  (clojure.walk/prewalk #(if (-> % type (= om.tempid/TempId)) (get tid->rid % %) %) state))
+  (if (empty? tid->rid)
+    state
+    (clojure.walk/prewalk #(if (-> % type (= om.tempid/TempId)) (get tid->rid % %) %) state)))
 
 (defn rewrite-tempids-in-request-queue
   "Rewrite any pending requests in the request queue to account for the fact that a response might have
@@ -85,8 +87,8 @@
         ast (om/query->ast query)
         children (:children ast)
         new-children (->> children
-                       (filter (fn [child] (contains? symbols-to-find (:dispatch-key child))))
-                       (map (fn [ast] (update ast :params assoc :execute true :error resp))))
+                          (filter (fn [child] (contains? symbols-to-find (:dispatch-key child))))
+                          (map (fn [ast] (update ast :params assoc :execute true :error resp))))
         new-ast (assoc ast :children new-children)
         fallback-query (om/ast->query new-ast)]
     (when (not-empty fallback-query)
@@ -113,12 +115,12 @@
 
 (defn walk [inner outer form]
   (cond
-    (map? form)    (outer (into (empty form) (map #(inner (with-meta % {:map-entry? true})) form)))
-    (list? form)   (outer (apply list (map inner form)))
-    (seq? form)    (outer (doall (map inner form)))
+    (map? form) (outer (into (empty form) (map #(inner (with-meta % {:map-entry? true})) form)))
+    (list? form) (outer (apply list (map inner form)))
+    (seq? form) (outer (doall (map inner form)))
     (record? form) (outer (reduce (fn [r x] (conj r (inner x))) form form))
-    (coll? form)   (outer (into (empty form) (map inner form)))
-    :else          (outer form)))
+    (coll? form) (outer (into (empty form) (map inner form)))
+    :else (outer form)))
 
 (defn prewalk [f form]
   (walk (partial prewalk f) identity (f form)))
@@ -127,98 +129,114 @@
   (walk (partial postwalk f) f form))
 
 (defn recursive? [qf]
-  (or ;(number? qf)
-      (= '... qf)))
+  (or                                                       ;(number? qf)
+    (= '... qf)))
 (defn add-meta-to-recursive-queries [q]
   (let [a (atom q)]
     (->> q
          (prewalk
            #(cond
-              (and (vector? %)
-                   (-> % meta :map-entry? false?))
-              (do (reset! a %) %)
+             (and (vector? %)
+                  (-> % meta :map-entry? false?))
+             (do (reset! a %) %)
 
-              (number? %) (with-meta '... {:... @a :depth %})
+             (number? %) (with-meta '... {:... @a :depth %})
 
-              (recursive? %) (with-meta % {:... @a})
-              :else %))
+             (recursive? %) (with-meta % {:... @a})
+             :else %))
          (postwalk
            #(cond
-              (and (vector? %)
-                   (not (some-> % meta :map-entry?))
-                   (= (count %) 2)
-                   (some-> % second meta :depth number?))
-              [(first %) (-> % second meta :depth)]
+             (and (vector? %)
+                  (not (some-> % meta :map-entry?))
+                  (= (count %) 2)
+                  (some-> % second meta :depth number?))
+             [(first %) (-> % second meta :depth)]
 
-              :else %)))))
+             :else %)))))
+
+(defn as-leaf
+  "Returns data with meta-data marking it as a leaf in the result."
+  [data]
+  (if (coll? data)
+    (with-meta data {:untangled/leaf true})
+    data))
+
+(defn leaf?
+  "Returns true iff the given data is marked as a leaf in the result (according to the query). Requires pre-marking."
+  [data]
+  (or
+    (not (coll? data))
+    (empty? data)
+    (and (coll? data)
+         (-> data meta :untangled/leaf boolean))))
 
 (defn mark-missing
-  "Walk the query and response, marking anything that was asked for in the query but is not in the response a missing. A
-  later call to sweep-missing can remove these from the result. Returns the result with missing markers in place. NOTE:
-  sweep-missing is integrated into the merge plumbing at the reconciler level (post deep-merge)."
+  "Walk the query and response, marking anything that was asked for in the query but is not in the response a missing. The
+  merge process (see application.cljs definition of merge for the reconciler) looks for these markers and overwrites existing data when they appear.
+  Returns the result with missing markers in place."
   [result query]
   (letfn [(paramterized? [q]
-                         (and (list? q)
-                              (or (symbol? (first q))
-                                  (= 2 (count q)))))
+            (and (list? q)
+                 (or (symbol? (first q))
+                     (= 2 (count q)))))
           (ok*not-found [res k]
-                        (cond
-                          (contains? res k) res
-                          (recursive? k) res
-                          :else (assoc (if (map? res) res {})
-                                       k nf)))
+            (cond
+              (contains? res k) res
+              (recursive? k) res
+              :else (assoc (if (map? res) res {})
+                      k nf)))
           (union->query [u] (->> u vals flatten set))
           (union? [q]
-                  (let [expr (cond-> q (seq? q) first)]
-                    (and (map? expr)
-                         (< 1 (count (seq expr))))))
+            (let [expr (cond-> q (seq? q) first)]
+              (and (map? expr)
+                   (< 1 (count (seq expr))))))
           (step [res q]
-                (let [q (if (paramterized? q) (first q) q)
-                      [query-key ?sub-query] (cond
-                                               (util/join? q)
-                                               [(util/join-key q) (util/join-value q)]
+            (let [q (if (paramterized? q) (first q) q)
+                  [query-key ?sub-query] (cond
+                                           (util/join? q)
+                                           [(util/join-key q) (util/join-value q)]
+                                           :else [q nil])
+                  result-or-not-found (ok*not-found res query-key)
+                  result-or-not-found (if (and (keyword? q) (map? result-or-not-found)) (update result-or-not-found q as-leaf) result-or-not-found)
+                  sub-result (get result-or-not-found query-key)]
+              (cond
+                ;; singleton union result
+                (and (union? ?sub-query) (map? sub-result))
+                (assoc result-or-not-found query-key
+                                           (mark-missing sub-result
+                                                         (union->query (get q query-key))))
 
-                                               :else [q nil])
-                      res+nf (ok*not-found res query-key)
-                      sub-result (get res+nf query-key)]
-                  (cond
-                    ;; singleton union result
-                    (and (union? ?sub-query) (map? sub-result))
-                    (assoc res+nf query-key
-                           (mark-missing sub-result
-                                         (union->query (get q query-key))))
-
-                    ;; list union result
-                    (union? ?sub-query)
-                    (as-> sub-result <>
+                ;; list union result
+                (union? ?sub-query)
+                (as-> sub-result <>
                       (mapv #(mark-missing % (union->query (get q query-key))) <>)
-                      (assoc res+nf query-key <>))
+                      (assoc result-or-not-found query-key <>))
 
-                    ;; ui.*/ fragment's are ignored
-                    (is-ui-query-fragment? q) res
+                ;; ui.*/ fragment's are ignored
+                (is-ui-query-fragment? q) (as-leaf res)
 
-                    ;; recur
-                    (and ?sub-query
-                         (not= nf sub-result)
-                         (not (recursive? ?sub-query)))
-                    (as-> sub-result <>
+                ;; recur
+                (and ?sub-query
+                     (not= nf sub-result)
+                     (not (recursive? ?sub-query)))
+                (as-> sub-result <>
                       (if (vector? <>)
                         (mapv #(mark-missing % ?sub-query) <>)
                         (mark-missing <> ?sub-query))
-                      (assoc res+nf query-key <>))
+                      (assoc result-or-not-found query-key <>))
 
-                    ;; recursive?
-                    (recursive? ?sub-query)
-                    (if-let [res- (get res query-key)]
-                      (as-> res- <>
+                ;; recursive?
+                (recursive? ?sub-query)
+                (if-let [res- (get res query-key)]
+                  (as-> res- <>
                         (if (vector? <>)
                           (mapv #(mark-missing % ?sub-query) <>)
                           (mark-missing <> ?sub-query))
                         (assoc res query-key <>))
-                      res+nf)
+                  result-or-not-found)
 
-                    ;; nf so next step
-                    :else res+nf)))]
+                ;; nf so next step
+                :else result-or-not-found)))]
     (reduce step result
             (if (recursive? query)
               (-> query meta :... add-meta-to-recursive-queries)

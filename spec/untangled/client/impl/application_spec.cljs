@@ -8,7 +8,8 @@
     [untangled.i18n.core :as i18n]
     [untangled.client.impl.application :as app]
     [cljs.core.async :as async]
-    [untangled.client.impl.data-fetch :as f]))
+    [untangled.client.impl.data-fetch :as f]
+    [untangled.client.impl.om-plumbing :as plumbing]))
 
 (defui Thing
   static om/Ident
@@ -112,3 +113,50 @@
           "Updates the react key to ensure render can redraw everything"
           (not= react-key (:ui/react-key @mounted-app-state)) => true)))))
 
+(specification "Sweep one"
+  (assertions
+    "removes not-found values from maps"
+    (app/sweep-one {:a 1 :b ::plumbing/not-found}) => {:a 1}
+    "is not recursive"
+    (app/sweep-one {:a 1 :b {:c ::plumbing/not-found}}) => {:a 1 :b {:c ::plumbing/not-found}}
+    "maps over vectors not recursive"
+    (app/sweep-one [{:a 1 :b ::plumbing/not-found}]) => [{:a 1}]
+    "retains metadata"
+    (-> (app/sweep-one (with-meta {:a 1 :b ::plumbing/not-found} {:meta :data}))
+        meta) => {:meta :data}
+    (-> (app/sweep-one [(with-meta {:a 1 :b ::plumbing/not-found} {:meta :data})])
+        first meta) => {:meta :data}
+    (-> (app/sweep-one (with-meta [{:a 1 :b ::plumbing/not-found}] {:meta :data}))
+        meta) => {:meta :data}))
+
+(specification "Sweep merge"
+  (assertions
+    "recursively merges maps"
+    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c 5}) => {:a 2 :c 5}
+    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:x 1}}) => {:a 2 :c {:b 2 :x 1}}
+    "stops recursive merging if the source element is marked as a leaf"
+    (app/sweep-merge {:a 1 :c {:d {:x 2} :e 4}} {:a 2 :c (plumbing/as-leaf {:d {:x 1}})}) => {:a 2 :c {:d {:x 1}}}
+    "sweeps values that are marked as not found"
+    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:b ::plumbing/not-found}}) => {:a 2 :c {}}
+    (app/sweep-merge {:a 1 :c 2} {:a 2 :c {:b ::plumbing/not-found}}) => {:a 2 :c {}}
+    (app/sweep-merge {:a 1 :c 2} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
+    (app/sweep-merge {:a 1 :c {:data-fetch :loading}} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
+    (app/sweep-merge {:a 1 :c nil} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
+    (app/sweep-merge {:a 1 :b {:c {:ui/fetch-state {:post-mutation 's}}}} {:a 2 :b {:c [{:x 1 :b ::plumbing/not-found}]}}) => {:a 2 :b {:c [{:x 1}]}}
+    "sweeps not-found values from normalized table merges"
+    (app/sweep-merge {:subpanel  [:dashboard :panel]
+                      :dashboard {:panel {:view-mode :detail :surveys {:ui/fetch-state {:post-mutation 's}}}}
+                      }
+                     {:subpanel  [:dashboard :panel]
+                      :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
+                      :s         {
+                                  1 {:db/id 1, :survey/launch-date :untangled.client.impl.om-plumbing/not-found}
+                                  2 {:db/id 2, :survey/launch-date "2012-12-22"}
+                                  }}) => {:subpanel  [:dashboard :panel]
+                                          :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
+                                          :s         {
+                                                      1 {:db/id 1}
+                                                      2 {:db/id 2 :survey/launch-date "2012-12-22"}
+                                                      }}
+    "overwrites target (non-map) value if incoming value is a map"
+    (app/sweep-merge {:a 1 :c 2} {:a 2 :c {:b 1}}) => {:a 2 :c {:b 1}}))

@@ -46,3 +46,10 @@
 - `global-error-callback` now expectes an arity 2 function. First param is the status and the second is the response.
 - Fixed bug that closed over tempids in network callbacks
 - Fixed bug in path-optimized union query parsing
+
+0.5.0
+------
+- Significant optimizations to post-query processing.
+- BREAKING CHANGE: to load-data. You should now include :refresh to trigger re-rendering of components. This removes the
+  internal need for a forced root re-render. Proper refresh after load-data now requires this parameter.
+- Removed deprecated load-collection and load-singleton. Use load-data instead (name change only)
