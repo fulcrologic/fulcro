@@ -64,14 +64,15 @@
                                   (impl/rewrite-tempids
                                     real-omt->fake-omt
                                     omt/tempid?))
-            unsorted-resp-to-check (rewrite-response response-without-tempid-remaps)
-            response-to-check (impl/recursive-sort-by hash unsorted-resp-to-check)
+            response-to-check (rewrite-response response-without-tempid-remaps)
+            sorted-response-to-check (impl/recursive-sort-by hash response-to-check)
             _ (timbre/debug :response-to-check response-to-check)
             om-tempids-to-check (impl/rewrite-tempids
                                   (set (keys om-tempid->datomic-id))
                                   real-omt->fake-omt
                                   omt/tempid?)
-            om-tids (impl/collect-om-tempids server-tx)]
+            om-tids (impl/collect-om-tempids server-tx)
+            sorted-response (impl/recursive-sort-by hash response)]
 
         (behavior (str "Server response should contain tempid remappings for: " om-tids)
           (assertions
@@ -79,7 +80,7 @@
 
         (assertions
           "Server response should match data/response"
-          response-to-check => response)
+          sorted-response-to-check => sorted-response)
 
         (when on-success
           (let [env+seed-result (reduce (fn [env [db-name seed-result]]

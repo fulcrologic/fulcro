@@ -72,7 +72,7 @@
               :audience             "http://webapp.com/rest/v1"
               :unsecured-routes     {"/unsafe"        :ok
                                      ["/unsafe/" :id] :ok
-                                     "/js" {true :ok}}
+                                     "/js"            {true :ok}}
               :grace-period-minutes 1})
 
 (def handler (wrap-access-token options (fn [resp] resp)))
