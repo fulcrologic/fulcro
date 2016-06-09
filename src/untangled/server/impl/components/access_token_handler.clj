@@ -88,9 +88,6 @@
               token (get-token request)]
           (if-not (valid-token? token merged-options)
             (let [{:keys [invalid-token-handler]} merged-options]
-              (when invalid-token-handler
-                (assert (fn? invalid-token-handler)
-                  "invalid-token-handler should be a function"))
               (if-let [_ok-anyway? ((or invalid-token-handler (constantly false)) request)]
                 (handler request)
                 {:status 401}))
