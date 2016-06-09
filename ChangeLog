@@ -8,6 +8,11 @@
 - Open id mock will now deal with multiple users.
 	"user" can be passed as a query param to the open id mock endpoint.
 - Fixing heisenbugs wrt datomic not sorting & protocol-testing randomly failing
+- Adding invalid-token-handler to the :openid config
+	- Takes a request whenever an invalid token
+		is passed to a secured-route (ie: not an unsecured-route)
+		and should return whether the request should be allowed
+		to flow through the handler stack (defaults to false)
 
 0.5.1
 -----

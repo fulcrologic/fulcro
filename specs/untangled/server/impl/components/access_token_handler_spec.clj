@@ -1,5 +1,6 @@
 (ns untangled.server.impl.components.access-token-handler-spec
   (:require [clojure.test :as t]
+            [clojure.set :as set]
             [clj-jwt.core :refer :all]
             [clj-jwt.key :refer [private-key public-key]]
             [clj-time.core :refer [now plus days minus]]
@@ -73,7 +74,8 @@
               :unsecured-routes     {"/unsafe"        :ok
                                      ["/unsafe/" :id] :ok
                                      "/js"            {true :ok}}
-              :grace-period-minutes 1})
+              :grace-period-minutes 1
+              :invalid-token-handler (fn [req] (= "/maybe-ok" (:uri req)))})
 
 (def handler (wrap-access-token options (fn [resp] resp)))
 
@@ -121,6 +123,10 @@
     (test-claim claim "/some-file.fake") =fn=> (comp not :user)
     "nested files are by default secured"
     (test-claim claim "/foo/some-file.fake") =fn=> :user)
+  (behavior "calls :invalid-token-handler if the token is invalid"
+    (assertions
+      (test-claim claim-missing-sub "/maybe-ok")
+      =fn=> (comp empty? (partial set/difference #{:uri :headers}) set keys)))
   (assertions
     "calls the passed in handler"
     (test-handler claim "/does/not/matter") => :ok))

@@ -87,7 +87,10 @@
         (let [_ (log/trace "Securing route: " uri)
               token (get-token request)]
           (if-not (valid-token? token merged-options)
-            {:status 401}
+            (let [{:keys [invalid-token-handler]} merged-options]
+              (if-let [_ok-anyway? ((or invalid-token-handler (constantly false)) request)]
+                (handler request)
+                {:status 401}))
             (handler (add-claims-to-request request token merged-options))))))))
 
 (defn validate-unsecured-route-handlers! [unsecured-routes]
