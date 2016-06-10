@@ -1,3 +1,7 @@
+0.5.2
+-----
+- Fixed bug with initial state and new constructors
+
 0.5.1
 -----
 - Added untangled/Constructor for adding initial state to UI components

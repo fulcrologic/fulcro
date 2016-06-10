@@ -69,8 +69,7 @@
       (if mounted?
         (do (refresh this) this)
         (do
-          (log/info "Using initial state " state)
-          (when (and (seq initial-state) (implements? Constructor root-component))
+          (when (and (or (= Atom (type initial-state)) (seq initial-state)) (implements? Constructor root-component))
             (log/warn "You supplied an initial state AND a root component with a constructor. Using Constructor!"))
           (app/initialize this state root-component dom-id-or-node reconciler-options)))))
 
