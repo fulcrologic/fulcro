@@ -64,9 +64,15 @@
 (defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node]
-    (if mounted?
-      (do (refresh this) this)
-      (app/initialize this initial-state root-component dom-id-or-node reconciler-options)))
+
+    (let [state (or (and (implements? Constructor root-component) (untangled.client.core/initial-state root-component nil)) initial-state)]
+      (if mounted?
+        (do (refresh this) this)
+        (do
+          (log/info "Using initial state " state)
+          (when (and (seq initial-state) (implements? Constructor root-component))
+            (log/warn "You supplied an initial state AND a root component with a constructor. Using Constructor!"))
+          (app/initialize this state root-component dom-id-or-node reconciler-options)))))
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
