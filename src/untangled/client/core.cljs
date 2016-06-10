@@ -5,7 +5,8 @@
     untangled.client.impl.built-in-mutations                ; DO NOT REMOVE. Ensures built-in mutations load on start
     [untangled.client.impl.network :as net]
     [untangled.client.logging :as log]
-    [untangled.dom :as udom])
+    [untangled.dom :as udom]
+    [om.next.protocols :as omp])
   (:import goog.Uri))
 
 (declare map->Application)
@@ -51,6 +52,9 @@
                                                                                     :request-transform request-transform
                                                                                     :global-error-callback network-error-callback))}))
 
+(defprotocol Constructor
+  (initial-state [clz params] "Get the initial state when params are passed. params will be nil when called internally, "))
+
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")
@@ -60,9 +64,15 @@
 (defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node]
-    (if mounted?
-      (do (refresh this) this)
-      (app/initialize this initial-state root-component dom-id-or-node reconciler-options)))
+
+    (let [state (or (and (implements? Constructor root-component) (untangled.client.core/initial-state root-component nil)) initial-state)]
+      (if mounted?
+        (do (refresh this) this)
+        (do
+          (log/info "Using initial state " state)
+          (when (and (seq initial-state) (implements? Constructor root-component))
+            (log/warn "You supplied an initial state AND a root component with a constructor. Using Constructor!"))
+          (app/initialize this state root-component dom-id-or-node reconciler-options)))))
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
@@ -103,3 +113,49 @@
   ([param-name] (get-url-param (get-url) param-name))
   ([url param-name]
    (get (uri-params url) param-name)))
+
+(defn merge-state!
+  "Merge a (sub)tree of application state into the application.
+
+  - app-or-reconciler: The Untangled application or Om reconciler
+  - component: The class of the component that corresponsds to the data. Must have an ident.
+  - object-data: A map (tree) of data to merge. Will be normalized for you.
+  - append-to: Named parameter. A vector (path) to a list in your app state where this new object's ident should be appended.
+  - prepend-to: Named parameter. A vector (path) to a list in your app state where this new object's ident should be prepended.
+  - replace: Named parameter. A vector (path) to the specific element of an app-state vector where this objects ident should be placed. MUST ALREADY EXIST.
+  "
+  [app-or-reconciler component object-data & {:keys [append-to replace prepend-to]}]
+  (assert (implements? om/Ident component) "Component must implement Ident")
+  (let [ident (om/ident component object-data)
+        empty-object (if (implements? Constructor component)
+                       (initial-state component nil)
+                       {})
+        merge-query [{ident (om/get-query component)}]
+        merge-data {ident (merge empty-object object-data)}
+        reconciler (if (= untangled.client.core/Application (type app-or-reconciler))
+                     (:reconciler app-or-reconciler)
+                     app-or-reconciler)
+        state (om/app-state reconciler)]
+    (om/merge! reconciler merge-data merge-query)
+    (cond
+      prepend-to (do
+                   (assert (vector? (get-in @state prepend-to)) (str "Path " prepend-to " for prepend-to must target an app-state vector."))
+                   (swap! state update-in prepend-to #(into [ident] %))
+                   (omp/queue! reconciler prepend-to))
+      append-to (do
+                  (assert (vector? (get-in @state append-to)) (str "Path " append-to " for append-to must target an app-state vector."))
+                  (swap! state update-in append-to conj ident)
+                  (omp/queue! reconciler append-to))
+      replace (let [path-to-vector (butlast replace)
+                    to-many? (and (seq path-to-vector) (vector? (get-in @state path-to-vector)))
+                    index (last replace)
+                    vector (get-in @state path-to-vector)]
+                (assert (vector? replace) (str "Replacement path must be a vector. You passed: " replace))
+                (when to-many?
+                  (do
+                    (assert (vector? vector) "Path for replacement must be a vector")
+                    (assert (number? index) "Path for replacement must end in a vector index")
+                    (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
+                (swap! state assoc-in replace ident)
+                (omp/queue! reconciler replace)))
+    @state))
