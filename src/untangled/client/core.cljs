@@ -114,14 +114,21 @@
    (get (uri-params url) param-name)))
 
 (defn merge-state!
-  "Merge a (sub)tree of application state into the application.
+  "Normalize and merge a (sub)tree of application state into the application using a known UI component's query and ident.
+
+  This utility function obtains the ident of the incoming object-data using the UI component's ident function. Once obtained,
+  it uses the component's query and ident to normalize the data and place the resulting objects in the correct tables.
+  It is also quite common to want those new objects to be linked into lists in other spot in app state, so this function
+  supports optional named parameters for doing this. WARNING: API UNSTABLE. I plan to make it possible to do more than
+  one append/replace/prepend. Still deciding on the desired API.
 
   - app-or-reconciler: The Untangled application or Om reconciler
   - component: The class of the component that corresponsds to the data. Must have an ident.
   - object-data: A map (tree) of data to merge. Will be normalized for you.
   - append-to: Named parameter. A vector (path) to a list in your app state where this new object's ident should be appended.
   - prepend-to: Named parameter. A vector (path) to a list in your app state where this new object's ident should be prepended.
-  - replace: Named parameter. A vector (path) to the specific element of an app-state vector where this objects ident should be placed. MUST ALREADY EXIST.
+  - replace: Named parameter. A vector (path) to a specific locaation in app-state where this object's ident should be placed. Can target a to-one or to-many.
+   If the target is a vector element then that element must already exist.
   "
   [app-or-reconciler component object-data & {:keys [append-to replace prepend-to]}]
   (assert (implements? om/Ident component) "Component must implement Ident")
