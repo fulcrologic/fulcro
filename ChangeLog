@@ -13,6 +13,7 @@
 		is passed to a secured-route (ie: not an unsecured-route)
 		and should return whether the request should be allowed
 		to flow through the handler stack (defaults to false)
+- Removing specter => clojure.walk
 
 0.5.1
 -----

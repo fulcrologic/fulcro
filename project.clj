@@ -23,8 +23,7 @@
                  [clj-jwt "0.1.1"]
                  [clj-http "2.1.0"]
                  [commons-codec "1.10"]
-                 [crypto-equality "1.0.0"]
-                 [com.rpl/specter "0.11.2"]]
+                 [crypto-equality "1.0.0"]]
 
   :plugins [[com.jakemccrary/lein-test-refresh "0.15.0"]]
 
