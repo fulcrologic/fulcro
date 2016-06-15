@@ -6,7 +6,9 @@
     [untangled.client.impl.network :as net]
     [untangled.client.logging :as log]
     [untangled.dom :as udom]
-    [om.next.protocols :as omp])
+    [om.next.protocols :as omp]
+    [untangled.client.impl.util :as util]
+    [untangled.client.impl.om-plumbing :as plumbing])
   (:import goog.Uri))
 
 (declare map->Application)
@@ -113,55 +115,93 @@
   ([url param-name]
    (get (uri-params url) param-name)))
 
+(defn- component-merge-query
+  "Calculates the query that can be used to pull (or merge) a component with an ident
+  to/from a normalized app database. Requires a tree of data that represents the instance of
+  the component in question (e.g. ident will work on it)"
+  [component object-data]
+  (let [ident (om/ident component object-data)
+        object-query (om/get-query component)]
+    [{ident object-query}]))
+
+(defn- preprocess-merge [state-atom component object-data]
+  (let [ident (om/ident component object-data)
+        union? (map? (om/get-query component))
+        empty-object (if (and (not union?) (implements? Constructor component))
+                       (initial-state component nil)
+                       {})
+        object-query (om/get-query component)
+        merge-query (component-merge-query component object-data)
+        existing-data (or (get (om/db->tree merge-query @state-atom @state-atom) ident) empty-object)
+        marked-data (plumbing/mark-missing object-data object-query)
+        merge-data {ident (util/deep-merge existing-data marked-data)}]
+    {:merge-query merge-query
+     :merge-data  merge-data}))
+
+(defn integrate-ident!
+  "Integrate an ident into any number of places in the app state, and queues up re-renders of the affected components.
+
+  The named parameters can be specified any number of times. They are:
+
+  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
+  the ident if that ident is already in the list.
+  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
+  the ident if that ident is already in the list.
+  - replace: A vector (path) to a specific locaation in app-state where this object's ident should be placed. Can target a to-one or to-many.
+   If the target is a vector element then that element must already exist in the vector.
+  "
+  [reconciler ident & named-parameters]
+  (let [state (om/app-state reconciler)
+        already-has-ident-at-path? (fn [data-path] (boolean (seq (filter #(= % ident) (get-in @state data-path)))))
+        actions (partition 2 named-parameters)]
+    (doseq [[command data-path] actions]
+      (case command
+        :prepend (when-not (already-has-ident-at-path? data-path)
+                   (assert (vector? (get-in @state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
+                   (swap! state update-in data-path #(into [ident] %))
+                   (omp/queue! reconciler data-path))
+        :append (when-not (already-has-ident-at-path? data-path)
+                  (assert (vector? (get-in @state data-path)) (str "Path " data-path " for append must target an app-state vector."))
+                  (swap! state update-in data-path conj ident)
+                  (omp/queue! reconciler data-path))
+        :replace (let [path-to-vector (butlast data-path)
+                       to-many? (and (seq path-to-vector) (vector? (get-in @state path-to-vector)))
+                       index (last data-path)
+                       vector (get-in @state path-to-vector)]
+                   (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
+                   (when to-many?
+                     (do
+                       (assert (vector? vector) "Path for replacement must be a vector")
+                       (assert (number? index) "Path for replacement must end in a vector index")
+                       (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
+                   (swap! state assoc-in data-path ident)
+                   (omp/queue! reconciler data-path))
+        :initialize :ignored
+        (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path}))))))
+
 (defn merge-state!
   "Normalize and merge a (sub)tree of application state into the application using a known UI component's query and ident.
 
   This utility function obtains the ident of the incoming object-data using the UI component's ident function. Once obtained,
   it uses the component's query and ident to normalize the data and place the resulting objects in the correct tables.
   It is also quite common to want those new objects to be linked into lists in other spot in app state, so this function
-  supports optional named parameters for doing this. WARNING: API UNSTABLE. I plan to make it possible to do more than
-  one append/replace/prepend. Still deciding on the desired API.
+  supports optional named parameters for doing this. These named parameters can be repeated as many times as you like in order
+  to place the ident of the new object into other data structures of app state.
 
   - app-or-reconciler: The Untangled application or Om reconciler
   - component: The class of the component that corresponsds to the data. Must have an ident.
   - object-data: A map (tree) of data to merge. Will be normalized for you.
-  - append-to: Named parameter. A vector (path) to a list in your app state where this new object's ident should be appended.
-  - prepend-to: Named parameter. A vector (path) to a list in your app state where this new object's ident should be prepended.
-  - replace: Named parameter. A vector (path) to a specific locaation in app-state where this object's ident should be placed. Can target a to-one or to-many.
-   If the target is a vector element then that element must already exist.
+  - named-parameter: Post-processing ident integration steps. see integrate-ident!
+
   "
-  [app-or-reconciler component object-data & {:keys [append-to replace prepend-to]}]
+  [app-or-reconciler component object-data & named-parameters]
   (assert (implements? om/Ident component) "Component must implement Ident")
   (let [ident (om/ident component object-data)
-        empty-object (if (implements? Constructor component)
-                       (initial-state component nil)
-                       {})
-        merge-query [{ident (om/get-query component)}]
-        merge-data {ident (merge empty-object object-data)}
         reconciler (if (= untangled.client.core/Application (type app-or-reconciler))
                      (:reconciler app-or-reconciler)
                      app-or-reconciler)
-        state (om/app-state reconciler)]
+        state (om/app-state reconciler)
+        {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
     (om/merge! reconciler merge-data merge-query)
-    (cond
-      prepend-to (do
-                   (assert (vector? (get-in @state prepend-to)) (str "Path " prepend-to " for prepend-to must target an app-state vector."))
-                   (swap! state update-in prepend-to #(into [ident] %))
-                   (omp/queue! reconciler prepend-to))
-      append-to (do
-                  (assert (vector? (get-in @state append-to)) (str "Path " append-to " for append-to must target an app-state vector."))
-                  (swap! state update-in append-to conj ident)
-                  (omp/queue! reconciler append-to))
-      replace (let [path-to-vector (butlast replace)
-                    to-many? (and (seq path-to-vector) (vector? (get-in @state path-to-vector)))
-                    index (last replace)
-                    vector (get-in @state path-to-vector)]
-                (assert (vector? replace) (str "Replacement path must be a vector. You passed: " replace))
-                (when to-many?
-                  (do
-                    (assert (vector? vector) "Path for replacement must be a vector")
-                    (assert (number? index) "Path for replacement must end in a vector index")
-                    (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
-                (swap! state assoc-in replace ident)
-                (omp/queue! reconciler replace)))
+    (integrate-ident! reconciler ident named-parameters)
     @state))

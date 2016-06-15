@@ -1,3 +1,7 @@
+0.5.3
+-----
+- Refined merge-state!
+
 0.5.2
 -----
 - Fixed bug with initial state and new constructors
