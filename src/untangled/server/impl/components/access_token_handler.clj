@@ -1,11 +1,13 @@
 (ns untangled.server.impl.components.access-token-handler
   (:require [ring.util.response :refer [get-header]]
             [clojure.string :refer [split]]
+            [clojure.walk :as walk]
             [com.stuartsierra.component :as component]
             [clj-http.client :as http]
             [clojure.data.json :as json]
             [taoensso.timbre :as log]
-            [untangled.server.impl.jwt-validation :refer :all]))
+            [untangled.server.impl.jwt-validation :refer :all]
+            [bidi.bidi :as bidi]))
 
 (defn- add-claims-to-request
   "Adds a :user to the request, which is a map of claims."
@@ -57,10 +59,16 @@
    :grace-period-minutes 1
    :claims-transform     default-claims-transform})
 
+(defn unsecured-route? [{:keys [uri request-method] :as request} {:keys [unsecured-routes]}]
+  (bidi/match-route
+    ["" (merge {#"/[^/]*\.[^/]*" :ok "/" :ok}
+               unsecured-routes)]
+    uri :request-method request-method))
+
 (defn wrap-access-token
   "Middleware that validates the request for a JWT access-token that are issued by
   an OpenID Connect server.  Validation rules include access-token signiture, issuer and
-  audience.  The requeste wrapper also calls a specified function after validation to allow for
+  audience.  The request wrapper also calls a specified function after validation to allow for
   claims transformation before associating the claims with the request.
   A :claims-principle map will be associated with the session after the claims
   claims transformation function is called.
@@ -74,21 +82,35 @@
   {:arglists '([options handler])}
   [options handler]
   (let [merged-options (merge default-options options)]
-    (fn [request]
-      (if-not (contains? (:authorized-routes merged-options) (:uri request))
-        (handler request)
-        (let [token (get-token request)]
-          (if (valid-token? token merged-options)
-            (-> request
-              (add-claims-to-request token merged-options)
-              handler)
-            (handler request)))))))
+    (fn [{:as request :keys [uri]}]
+      (if (unsecured-route? request merged-options)
+        (do (log/trace "Unsecured route: " uri)
+            (handler request))
+        (let [_ (log/trace "Securing route: " uri)
+              token (get-token request)]
+          (if-not (valid-token? token merged-options)
+            (let [{:keys [invalid-token-handler]} merged-options]
+              (if-let [_ok-anyway? ((or invalid-token-handler (constantly false)) request)]
+                (handler request)
+                {:status 401}))
+            (handler (add-claims-to-request request token merged-options))))))))
+
+(defn validate-unsecured-route-handlers! [unsecured-routes]
+  (assert (map? unsecured-routes) (str "unsecured-routes was not a map: " unsecured-routes))
+  (walk/prewalk #(do (when (and (map-entry? %)
+                                (not (coll? (val %))))
+                       (assert (= :ok (val %))
+                         (str "unsecured-routes handler <" % "> was not :ok")))
+                     %)
+                unsecured-routes)
+  true)
 
 (defrecord AccessTokenHandler [handler]
   component/Lifecycle
   (start [this]
     (let [pre-hook (.get-pre-hook handler)
           config (-> this :config :value :openid)
+          _ (validate-unsecured-route-handlers! (:unsecured-routes config))
           authority (:authority config)
           discovery-doc-url (str authority "/.well-known/openid-configuration")
           discovery-doc (-> discovery-doc-url http/get :body json/read-str)
@@ -101,4 +123,3 @@
                                 (partial wrap-access-token config')))
       this))
   (stop [this] this))
-

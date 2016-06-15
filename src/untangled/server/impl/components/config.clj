@@ -2,10 +2,9 @@
   (:require [com.stuartsierra.component :as component]
             [clojure.java.classpath :as cp]
             [clojure.java.io :as io]
-            [com.rpl.specter :refer [walker]]
-            [com.rpl.specter.macros :refer [transform]]
             [clojure.edn :as edn]
-            [taoensso.timbre :as log])
+            [taoensso.timbre :as log]
+            [clojure.walk :as walk])
   (:import (java.io File)))
 
 (defn- get-system-prop [prop-name]
@@ -13,8 +12,8 @@
 
 (defn- deep-merge [& xs]
   "Recursively merge maps.
-   If the args are ever not all maps,
-   the last value wins"
+  If the args are ever not all maps,
+  the last value wins"
   (if (every? map? xs)
     (apply merge-with deep-merge xs)
     (last xs)))
@@ -33,11 +32,11 @@
 
 (defn- open-config-file
   "Calls load-edn on `file-path`,
-   and throws an ex-info if that failed."
+  and throws an ex-info if that failed."
   [file-path]
   (or (some-> file-path load-edn)
       (throw (ex-info (str "Invalid config file at '" file-path "'")
-                      {:file-path file-path}))))
+               {:file-path file-path}))))
 
 (def get-defaults open-config-file)
 (def get-config   open-config-file)
@@ -54,22 +53,21 @@
 
 (defn load-config
   "Entry point for config loading, pass it a map with k-v pairs indicating where
-   it should look for configuration in case things are not found.
-   Eg:
-   - config-path is the location of the config file in case there was no system property
-   "
+  it should look for configuration in case things are not found.
+  Eg:
+  - config-path is the location of the config file in case there was no system property
+  "
   ([] (load-config {}))
   ([{:keys [config-path]}]
    (let [defaults (get-defaults "config/defaults.edn")
          config   (get-config   (or (get-system-prop "config") config-path))]
      (->> (deep-merge defaults config)
-          (transform (walker symbol?) resolve-symbol)
-          (transform (walker #(and (keyword? %) (namespace %)
-                                   (re-find #"^env.*" (namespace %))))
-                     (fn [env-kw]
-                       (cond-> (get-system-env (name env-kw))
-                         (= "env.edn" (namespace env-kw))
-                         (edn/read-string))))))))
+       (walk/prewalk #(cond-> % (symbol? %) resolve-symbol
+                        (and (keyword? %) (namespace %)
+                             (re-find #"^env.*" (namespace %)))
+                        (-> name get-system-env
+                          (cond-> (= "env.edn" (namespace %))
+                            (edn/read-string)))))))))
 
 (defrecord Config [value config-path]
   component/Lifecycle

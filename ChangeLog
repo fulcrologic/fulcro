@@ -1,3 +1,21 @@
+0.6.0
+-----
+- :authorized-routes => :unsecured-routes
+	- should be a bidi route map to :ok handlers (enforced on system start)
+	- top level files are always unsecured
+	- root route "/" is also always unsecured
+	- to unsecure a whole sub-route (eg: the js folder)
+		use bidi's catch-all routes, eg: `{"/js" {true :ok}}`
+- Open id mock will now deal with multiple users.
+	"user" can be passed as a query param to the open id mock endpoint.
+- Fixing heisenbugs wrt datomic not sorting & protocol-testing randomly failing
+- Adding invalid-token-handler to the :openid config
+	- Takes a request whenever an invalid token
+		is passed to a secured-route (ie: not an unsecured-route)
+		and should return whether the request should be allowed
+		to flow through the handler stack (defaults to false)
+- Removing specter => clojure.walk
+
 0.5.1
 -----
 - Logging the config on start

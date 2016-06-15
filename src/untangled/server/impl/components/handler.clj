@@ -17,8 +17,8 @@
 
 (def routes
   ["" {"/"    :index
-       "/api" {:get  {[""] :api}
-               :post {[""] :api}}}])
+       "/api" {:get  :api
+               :post :api}}])
 
 (defn index [req]
   (assoc (resource-response (str "index.html") {:root "public"})
@@ -210,7 +210,7 @@
   Parameters:
   - `api-parser`: An Om AST Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
   - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
-  - `extra-routes`: *IN FLUX*, but currently a map from uri path to a fn of type :: req -> env -> res
+  - `extra-routes`: See `make-untangled-server`
   "
   [api-parser injections & {:keys [extra-routes]}]
   (component/using
