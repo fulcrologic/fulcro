@@ -73,6 +73,5 @@
   component/Lifecycle
   (start [this]
     (let [config (or value (load-config {:config-path config-path}))]
-      (log/debug "Loaded config:" config)
       (assoc this :value config)))
   (stop [this] this))
