@@ -81,7 +81,7 @@
 
 (defn test-claim [claim & [path]]
   (let [headers (cond-> claim (seq claim) build-test-header)]
-    (-> (request :get (or path "/"))
+    (-> (request :get (or path "/api"))
       (assoc :headers headers)
       handler)))
 
@@ -121,6 +121,8 @@
     (test-claim claim "/js/bar/baz") =fn=> (comp not :user)
     "top level files are unsecured"
     (test-claim claim "/some-file.fake") =fn=> (comp not :user)
+    "/ root path is also unsecured"
+    (test-claim claim "/") =fn=> (comp not :user)
     "nested files are by default secured"
     (test-claim claim "/foo/some-file.fake") =fn=> :user)
   (behavior "calls :invalid-token-handler if the token is invalid"
@@ -136,8 +138,8 @@
     (validate-unsecured-route-handlers!
       {:foo :ok}) => true
     (validate-unsecured-route-handlers!
-      {:foo :not/ok})
-    =throws=> (AssertionError #"handler was not :ok")
+      {:foo :bar})
+    =throws=> (AssertionError #"handler.*was not :ok")
     (validate-unsecured-route-handlers!
-      {:foo {:bar :not/ok}})
-    =throws=> (AssertionError #"handler was not :ok")))
+      {:foo {:bar :baz}})
+    =throws=> (AssertionError #"handler.*was not :ok")))

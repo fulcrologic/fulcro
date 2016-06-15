@@ -60,8 +60,10 @@
    :claims-transform     default-claims-transform})
 
 (defn unsecured-route? [{:keys [uri request-method] :as request} {:keys [unsecured-routes]}]
-  (bidi/match-route ["" (conj unsecured-routes [#"/[^/]*\.[^/]*" :ok])]
-                    uri :request-method request-method))
+  (bidi/match-route
+    ["" (merge {#"/[^/]*\.[^/]*" :ok "/" :ok}
+               unsecured-routes)]
+    uri :request-method request-method))
 
 (defn wrap-access-token
   "Middleware that validates the request for a JWT access-token that are issued by
@@ -98,7 +100,7 @@
   (walk/prewalk #(do (when (and (map-entry? %)
                                 (not (coll? (val %))))
                        (assert (= :ok (val %))
-                         (str "unsecured-routes handler was not :ok <" % ">")))
+                         (str "unsecured-routes handler <" % "> was not :ok")))
                      %)
                 unsecured-routes)
   true)
