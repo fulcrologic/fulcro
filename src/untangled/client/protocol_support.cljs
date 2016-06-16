@@ -39,6 +39,9 @@
           parse (partial parser {:state state})
           tempid-map (impl/allocate-tempids ui-tx)
           ui-tx (impl/rewrite-tempids ui-tx tempid-map)]
+
+      ;; remote parsing expects that local parsing has executed
+      (parse ui-tx)
       (assertions "Generates the expected server query"
         (-> (parse ui-tx :remote)
           plumbing/remove-loads-and-fallbacks
