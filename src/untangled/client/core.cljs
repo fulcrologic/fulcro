@@ -206,13 +206,13 @@
   Any keywords that appear in ident integration steps will be added to the re-render queue.
   "
   [app-or-reconciler component object-data & named-parameters]
-  (assert (implements? om/Ident component) "Component must implement Ident")
+  (when-not (implements? om/Ident component) (log/warn "merge-state!: component must implement Ident"))
   (let [ident (om/ident component object-data)
         reconciler (if (= untangled.client.core/Application (type app-or-reconciler))
                      (:reconciler app-or-reconciler)
                      app-or-reconciler)
         state (om/app-state reconciler)
-        data-path-keys (->> named-parameters (partition 2) (map second) (filter keyword?) set vec)
+        data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
         {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
     (om/merge! reconciler merge-data merge-query)
     (integrate-ident! state ident named-parameters)

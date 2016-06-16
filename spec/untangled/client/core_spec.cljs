@@ -38,7 +38,23 @@
         "Marks fields that were queried but are not present as plumbing/not-found"
         old-state-merge-data => {[:parent/by-id 42] {:id    42
                                                      :title :untangled.client.impl.om-plumbing/not-found
-                                                     :child :untangled.client.impl.om-plumbing/not-found}}))))
+                                                     :child :untangled.client.impl.om-plumbing/not-found}})))
+  (let [state (atom {})
+        data {}]
+    (when-mocking
+      (uc/preprocess-merge s c d) => {:merge-data :the-data :merge-query :the-query}
+      (uc/integrate-ident! s i rest) => :ignore
+      (om/ident c p) => [:table :id]
+      (om/merge! r d q) => :ignore
+      (om/app-state r) => state
+      (omp/queue! r kw) => (assertions
+                             "schedules re-rendering of all affected paths"
+                             kw => [:children :items])
+
+      (uc/merge-state! :reconciler :component data :append [:children] :replace [:items 0])
+
+      ))
+  )
 
 (specification "integrate-ident!"
   (let [state (atom {:a    {:path [[:table 2]]}
