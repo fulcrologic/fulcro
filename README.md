@@ -116,15 +116,10 @@ We will also need to extend the `untangled.websockets.networking/push-received` 
 (require '[untangled.websockets.networking :as un])
 
 (defmethod un/push-received :app/data-update [{:keys [reconciler] :as app} {:keys [topic msg] :as message}] ;; message => {:topic verb :msg edn}
-  (let [state (om/app-state reconciler)
-        {:keys [db/id]} data
-        ident [:datum/by-id id]]
-    (swap! state update :data (fnil conj []) ident)
-    (swap! state assoc-in ident data)
-    (refresh app)))
+  (om/transact! reconciler `[(do.with/data {:data msg}) :data]))
 ```
 
-Note that you have access to the entire app here. That is so you can call `(refresh app)`, which will reload your entire app. You could also call `(om.next/merge! (:reconciler app) ...)` or `(om.next/transact! reconciler ...)` alternatively. That part is up to you.
+Note that you have access to the reconciler (for that matter the entire app) here. You can call `(om.next/merge! reconciler ...)` or `(om.next/transact! reconciler ...)` alternatively. That part is up to you.
 
 
 Check out the [Untangled Cookbook](https://github.com/untangled-web/untangled-cookbook) for an example usage. Feel free to ping the `untangled` on clojurians slack for help.

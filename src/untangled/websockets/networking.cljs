@@ -82,7 +82,11 @@
                                                                           ;; We are saying that all we care about at this point is the body.
                                                                           (if (= status 200)
                                                                             (valid body)
-                                                                            (error body))
+                                                                            (do
+                                                                              (log/debug (str "SERVER ERROR CODE: " status))
+                                                                              (when @global-error-callback
+                                                                                (@global-error-callback status body))
+                                                                              (error body)))
                                                                           parse-queue)))})]
     (start-router! ch-recv message-received)
     channel-client))
