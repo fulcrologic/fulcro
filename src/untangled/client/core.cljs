@@ -124,7 +124,11 @@
         object-query (om/get-query component)]
     [{ident object-query}]))
 
-(defn- preprocess-merge [state-atom component object-data]
+(defn- preprocess-merge
+  "Does the steps necessary to honor the data merge technique defined by Untangled with respect
+  to data overwrites in the app database. If there is no state already in the database it will also
+  use the initial state of the target component as a base state for merge."
+  [state-atom component object-data]
   (let [ident (om/ident component object-data)
         union? (map? (om/get-query component))
         empty-object (if (and (not union?) (implements? Constructor component))
@@ -139,7 +143,8 @@
      :merge-data  merge-data}))
 
 (defn integrate-ident!
-  "Integrate an ident into any number of places in the app state, and queues up re-renders of the affected components.
+  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
+  implementations as a general helper function.
 
   The named parameters can be specified any number of times. They are:
 
@@ -150,20 +155,17 @@
   - replace: A vector (path) to a specific locaation in app-state where this object's ident should be placed. Can target a to-one or to-many.
    If the target is a vector element then that element must already exist in the vector.
   "
-  [reconciler ident & named-parameters]
-  (let [state (om/app-state reconciler)
-        already-has-ident-at-path? (fn [data-path] (boolean (seq (filter #(= % ident) (get-in @state data-path)))))
+  [state ident & named-parameters]
+  (let [already-has-ident-at-path? (fn [data-path] (boolean (seq (filter #(= % ident) (get-in @state data-path)))))
         actions (partition 2 named-parameters)]
     (doseq [[command data-path] actions]
       (case command
         :prepend (when-not (already-has-ident-at-path? data-path)
                    (assert (vector? (get-in @state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
-                   (swap! state update-in data-path #(into [ident] %))
-                   (omp/queue! reconciler data-path))
+                   (swap! state update-in data-path #(into [ident] %)))
         :append (when-not (already-has-ident-at-path? data-path)
                   (assert (vector? (get-in @state data-path)) (str "Path " data-path " for append must target an app-state vector."))
-                  (swap! state update-in data-path conj ident)
-                  (omp/queue! reconciler data-path))
+                  (swap! state update-in data-path conj ident))
         :replace (let [path-to-vector (butlast data-path)
                        to-many? (and (seq path-to-vector) (vector? (get-in @state path-to-vector)))
                        index (last data-path)
@@ -174,9 +176,7 @@
                        (assert (vector? vector) "Path for replacement must be a vector")
                        (assert (number? index) "Path for replacement must end in a vector index")
                        (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
-                   (swap! state assoc-in data-path ident)
-                   (omp/queue! reconciler data-path))
-        :initialize :ignored
+                   (swap! state assoc-in data-path ident))
         (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path}))))))
 
 (defn merge-state!
@@ -188,11 +188,22 @@
   supports optional named parameters for doing this. These named parameters can be repeated as many times as you like in order
   to place the ident of the new object into other data structures of app state.
 
+  This function honors the data merge story for Untangled: attributes that are queried for but do not appear in the
+  data will be removed from the application. This function also uses the initial state for the component as a base
+  for merge if there was no state for the object already in the database.
+
+  This function will also trigger re-renders of components that directly render object merged, as well as any components
+  into which you integrate that data via the named-parameters.
+
+  This function is primarily meant to be used from things like server push and setTimeout/setInterval, where you're outside
+  of the normal mutation story. Do not use this function within abstract mutations.
+
   - app-or-reconciler: The Untangled application or Om reconciler
   - component: The class of the component that corresponsds to the data. Must have an ident.
   - object-data: A map (tree) of data to merge. Will be normalized for you.
   - named-parameter: Post-processing ident integration steps. see integrate-ident!
 
+  Any keywords that appear in ident integration steps will be added to the re-render queue.
   "
   [app-or-reconciler component object-data & named-parameters]
   (assert (implements? om/Ident component) "Component must implement Ident")
@@ -201,7 +212,10 @@
                      (:reconciler app-or-reconciler)
                      app-or-reconciler)
         state (om/app-state reconciler)
+        data-path-keys (->> named-parameters (partition 2) (map second) (filter keyword?) set vec)
         {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
     (om/merge! reconciler merge-data merge-query)
-    (integrate-ident! reconciler ident named-parameters)
+    (integrate-ident! state ident named-parameters)
+    (omp/queue! reconciler data-path-keys)
     @state))
+

@@ -41,41 +41,36 @@
                                                      :child :untangled.client.impl.om-plumbing/not-found}}))))
 
 (specification "integrate-ident!"
-  (let [state (atom {
-                     :a    {:path [[:table 2]]}
+  (let [state (atom {:a    {:path [[:table 2]]}
                      :b    {:path [[:table 2]]}
                      :d    [:table 6]
                      :many {:path [[:table 99] [:table 88] [:table 77]]}
                      })]
-    (when-mocking
-      (omp/queue! r kw) => :ignored
-      (om/app-state r) => state
-
-      (behavior "Can append to an existing vector"
-        (uc/integrate-ident! :reconciler [:table 3] :append [:a :path])
-        (assertions
-          (get-in @state [:a :path]) => [[:table 2] [:table 3]])
-        (uc/integrate-ident! :reconciler [:table 3] :append [:a :path])
-        (assertions
-          "(is a no-op if the ident is already there)"
-          (get-in @state [:a :path]) => [[:table 2] [:table 3]]))
-      (behavior "Can prepend to an existing vector"
-        (uc/integrate-ident! :reconciler [:table 3] :prepend [:b :path])
-        (assertions
-          (get-in @state [:b :path]) => [[:table 3] [:table 2]])
-        (uc/integrate-ident! :reconciler [:table 3] :prepend [:b :path])
-        (assertions
-          "(is a no-op if already there)"
-          (get-in @state [:b :path]) => [[:table 3] [:table 2]]))
-      (behavior "Can create/replace a to-one ident"
-        (uc/integrate-ident! :reconciler [:table 3] :replace [:c :path])
-        (uc/integrate-ident! :reconciler [:table 3] :replace [:d])
-        (assertions
-          (get-in @state [:d]) => [:table 3]
-          (get-in @state [:c :path]) => [:table 3]
-          ))
-      (behavior "Can replace an existing to-many element in a vector"
-        (uc/integrate-ident! :reconciler [:table 3] :replace [:many :path 1])
-        (assertions
-          (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]])))))
+    (behavior "Can append to an existing vector"
+      (uc/integrate-ident! state [:table 3] :append [:a :path])
+      (assertions
+        (get-in @state [:a :path]) => [[:table 2] [:table 3]])
+      (uc/integrate-ident! state [:table 3] :append [:a :path])
+      (assertions
+        "(is a no-op if the ident is already there)"
+        (get-in @state [:a :path]) => [[:table 2] [:table 3]]))
+    (behavior "Can prepend to an existing vector"
+      (uc/integrate-ident! state [:table 3] :prepend [:b :path])
+      (assertions
+        (get-in @state [:b :path]) => [[:table 3] [:table 2]])
+      (uc/integrate-ident! state [:table 3] :prepend [:b :path])
+      (assertions
+        "(is a no-op if already there)"
+        (get-in @state [:b :path]) => [[:table 3] [:table 2]]))
+    (behavior "Can create/replace a to-one ident"
+      (uc/integrate-ident! state [:table 3] :replace [:c :path])
+      (uc/integrate-ident! state [:table 3] :replace [:d])
+      (assertions
+        (get-in @state [:d]) => [:table 3]
+        (get-in @state [:c :path]) => [:table 3]
+        ))
+    (behavior "Can replace an existing to-many element in a vector"
+      (uc/integrate-ident! state [:table 3] :replace [:many :path 1])
+      (assertions
+        (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
 

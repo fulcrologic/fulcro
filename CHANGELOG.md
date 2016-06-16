@@ -1,5 +1,6 @@
 0.5.3
 -----
+- Added utility function integrate-ident!
 - Refined merge-state!
 
 0.5.2
