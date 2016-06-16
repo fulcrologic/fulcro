@@ -8,10 +8,11 @@
     [untangled.dom :as udom]
     [om.next.protocols :as omp]
     [untangled.client.impl.util :as util]
-    [untangled.client.impl.om-plumbing :as plumbing])
+    [untangled.client.impl.om-plumbing :as plumbing]
+    [clojure.set :as set])
   (:import goog.Uri))
 
-(declare map->Application)
+(declare map->Application merge-alternate-union-elements!)
 
 (defn new-untangled-client
   "Entrypoint for creating a new untangled client. Instantiates an Application with default values, unless
@@ -55,7 +56,25 @@
                                                                                     :global-error-callback network-error-callback))}))
 
 (defprotocol InitialAppState
-  (initial-state [clz params] "Get the initial state when params are passed. params will be nil when called internally, "))
+  (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
+
+(defn get-initial-state [clz params]
+  (let [state (initial-state clz params)
+        q (om/get-query clz)
+        to-one? (map? state)
+        to-many? (vector? state)
+        union? (map? q)
+        keys-of-interest (fn [s] (set/difference (set s) #{:union/default}))
+        ]
+    (if union?
+      (cond
+        to-one? (let [default-key (get state :union/default)]
+                  (assert (set/subset? (keys-of-interest state) (keys-of-interest q)) (str "Initial state for " clz " contains keys that are not in the query"))
+                  (assert default-key (str "Initial state for " clz " does not indicate which state is the :union/default."))
+                  )
+        to-many? (do)
+        :else (log/warn (str "Union on " clz " has a strange initial state")))
+      state)))
 
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
@@ -73,7 +92,9 @@
         (do
           (when (and (or (= Atom (type initial-state)) (seq initial-state)) (implements? InitialAppState root-component))
             (log/warn "You supplied an initial state AND a root component with a constructor. Using InitialAppState!"))
-          (app/initialize this state root-component dom-id-or-node reconciler-options)))))
+          (let [app (app/initialize this state root-component dom-id-or-node reconciler-options)]
+            (merge-alternate-union-elements! app root-component)
+            app)))))
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
@@ -151,11 +172,9 @@
    If the target is a vector element then that element must already exist in the vector.
   "
   [state ident & named-parameters]
-  (js/console.log "integrating" named-parameters)
   (let [already-has-ident-at-path? (fn [data-path] (boolean (seq (filter #(= % ident) (get-in @state data-path)))))
         actions (partition 2 named-parameters)]
     (doseq [[command data-path] actions]
-      (js/console.log :cmd command :dp data-path)
       (case command
         :prepend (when-not (already-has-ident-at-path? data-path)
                    (assert (vector? (get-in @state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
@@ -216,3 +235,27 @@
     (omp/queue! reconciler data-path-keys)
     @state))
 
+(defn- merge-alternate-union-elements! [app root-component]
+  (letfn [(walk-ast
+            ([ast visitor]
+             (walk-ast ast visitor nil))
+            ([ast visitor last-join-component]
+             (visitor ast last-join-component)
+             (when (:children ast)
+               (let [join-component (if (= :join (:type ast))
+                                      (:component ast)
+                                      last-join-component)]
+                 (doseq [c (:children ast)]
+                   (walk-ast c visitor join-component))))))
+          (merge-union [{:keys [type component query children] :as n} last-join-component]
+            (when (= :union type)
+              (let [default-branch (and last-join-component (implements? InitialAppState last-join-component) (initial-state last-join-component nil))
+                    to-many? (vector? default-branch)]
+                (doseq [element (->> query vals (map (comp :component meta)))]
+                  (let [state (and (implements? InitialAppState element) (initial-state element nil))]
+                    (cond
+                      (and state (not default-branch)) (log/warn "Subelements of union with query " query " have initial state, but the union component itself has no initial app state. Your app state may not have been initialized correctly.")
+                      (not to-many?) (merge-state! app last-join-component state)))))))]
+    (walk-ast
+      (om/query->ast (om/get-query root-component))
+      merge-union)))
