@@ -3,6 +3,7 @@
 - Added utility function integrate-ident!
 - Refined merge-state!
 - Renamed Constructor to InitialAppState
+- Automated initialization of alternate branches of to-one unions!
 
 0.5.2
 -----
