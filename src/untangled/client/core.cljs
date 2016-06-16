@@ -151,9 +151,11 @@
    If the target is a vector element then that element must already exist in the vector.
   "
   [state ident & named-parameters]
+  (js/console.log "integrating" named-parameters)
   (let [already-has-ident-at-path? (fn [data-path] (boolean (seq (filter #(= % ident) (get-in @state data-path)))))
         actions (partition 2 named-parameters)]
     (doseq [[command data-path] actions]
+      (js/console.log :cmd command :dp data-path)
       (case command
         :prepend (when-not (already-has-ident-at-path? data-path)
                    (assert (vector? (get-in @state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
@@ -210,7 +212,7 @@
         data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
         {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
     (om/merge! reconciler merge-data merge-query)
-    (integrate-ident! state ident named-parameters)
+    (apply integrate-ident! state ident named-parameters)
     (omp/queue! reconciler data-path-keys)
     @state))
 
