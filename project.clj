@@ -1,4 +1,4 @@
-(defproject navis/untangled-websockets "0.2.0-SNAPSHOT"
+(defproject navis/untangled-websockets "0.2.0"
   :description "Tools for making untangled leverage websockets."
   :url ""
   :license {:name "NAVIS"
@@ -13,7 +13,7 @@
                  [com.taoensso/sente "1.8.1"]]
 
   :plugins [[com.jakemccrary/lein-test-refresh "0.14.0"]
-            [lein-cljsbuild "1.1.2"]]
+            [lein-cljsbuild "1.1.3"]]
 
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
                  :with-repl    true
