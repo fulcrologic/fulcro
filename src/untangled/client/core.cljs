@@ -126,17 +126,12 @@
 
 (defn- preprocess-merge
   "Does the steps necessary to honor the data merge technique defined by Untangled with respect
-  to data overwrites in the app database. If there is no state already in the database it will also
-  use the initial state of the target component as a base state for merge."
+  to data overwrites in the app database."
   [state-atom component object-data]
   (let [ident (om/ident component object-data)
-        union? (map? (om/get-query component))
-        empty-object (if (and (not union?) (implements? Constructor component))
-                       (initial-state component nil)
-                       {})
         object-query (om/get-query component)
         merge-query (component-merge-query component object-data)
-        existing-data (or (get (om/db->tree merge-query @state-atom @state-atom) ident) empty-object)
+        existing-data (get (om/db->tree merge-query @state-atom @state-atom) ident {})
         marked-data (plumbing/mark-missing object-data object-query)
         merge-data {ident (util/deep-merge existing-data marked-data)}]
     {:merge-query merge-query

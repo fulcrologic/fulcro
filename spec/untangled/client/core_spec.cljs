@@ -31,9 +31,7 @@
           id [:parent/by-id 42]
           old-state-merge-data (:merge-data (#'uc/preprocess-merge state-with-old Parent {:id 42}))]
       (assertions
-        "Uses the constructor of the component to generate base data when no existing object is in app state"
-        (get-in no-state-merge-data [id :ui/checked]) => true
-        "Uses the existing object in app state as base for merge when present (does not augment with constructor)"
+        "Uses the existing object in app state as base for merge when present"
         (get-in old-state-merge-data [id :ui/checked]) => nil
         "Marks fields that were queried but are not present as plumbing/not-found"
         old-state-merge-data => {[:parent/by-id 42] {:id    42
@@ -51,10 +49,7 @@
                              "schedules re-rendering of all affected paths"
                              kw => [:children :items])
 
-      (uc/merge-state! :reconciler :component data :append [:children] :replace [:items 0])
-
-      ))
-  )
+      (uc/merge-state! :reconciler :component data :append [:children] :replace [:items 0]))))
 
 (specification "integrate-ident!"
   (let [state (atom {:a    {:path [[:table 2]]}
