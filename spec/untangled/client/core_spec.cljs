@@ -13,7 +13,7 @@
   (query [this] [:id :label]))
 
 (defui Parent
-  static uc/Constructor
+  static uc/InitialAppState
   (uc/initial-state [this params] {:ui/checked true})
   static om/Ident
   (ident [this props] [:parent/by-id (:id props)])

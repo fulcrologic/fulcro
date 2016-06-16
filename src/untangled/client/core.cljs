@@ -54,7 +54,7 @@
                                                                                     :request-transform request-transform
                                                                                     :global-error-callback network-error-callback))}))
 
-(defprotocol Constructor
+(defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state when params are passed. params will be nil when called internally, "))
 
 (defprotocol UntangledApplication
@@ -67,12 +67,12 @@
   UntangledApplication
   (mount [this root-component dom-id-or-node]
 
-    (let [state (or (and (implements? Constructor root-component) (untangled.client.core/initial-state root-component nil)) initial-state)]
+    (let [state (or (and (implements? InitialAppState root-component) (untangled.client.core/initial-state root-component nil)) initial-state)]
       (if mounted?
         (do (refresh this) this)
         (do
-          (when (and (or (= Atom (type initial-state)) (seq initial-state)) (implements? Constructor root-component))
-            (log/warn "You supplied an initial state AND a root component with a constructor. Using Constructor!"))
+          (when (and (or (= Atom (type initial-state)) (seq initial-state)) (implements? InitialAppState root-component))
+            (log/warn "You supplied an initial state AND a root component with a constructor. Using InitialAppState!"))
           (app/initialize this state root-component dom-id-or-node reconciler-options)))))
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))

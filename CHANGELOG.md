@@ -2,6 +2,7 @@
 -----
 - Added utility function integrate-ident!
 - Refined merge-state!
+- Renamed Constructor to InitialAppState
 
 0.5.2
 -----
