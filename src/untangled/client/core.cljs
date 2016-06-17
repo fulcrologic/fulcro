@@ -6,10 +6,13 @@
     [untangled.client.impl.network :as net]
     [untangled.client.logging :as log]
     [untangled.dom :as udom]
-    [om.next.protocols :as omp])
+    [om.next.protocols :as omp]
+    [untangled.client.impl.util :as util]
+    [untangled.client.impl.om-plumbing :as plumbing]
+    [clojure.set :as set])
   (:import goog.Uri))
 
-(declare map->Application)
+(declare map->Application merge-alternate-union-elements!)
 
 (defn new-untangled-client
   "Entrypoint for creating a new untangled client. Instantiates an Application with default values, unless
@@ -52,8 +55,25 @@
                                                                                     :request-transform request-transform
                                                                                     :global-error-callback network-error-callback))}))
 
-(defprotocol Constructor
-  (initial-state [clz params] "Get the initial state when params are passed. params will be nil when called internally, "))
+(defprotocol InitialAppState
+  (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
+
+(defn get-initial-state [clz params]
+  (let [state (initial-state clz params)
+        q (om/get-query clz)
+        to-one? (map? state)
+        to-many? (vector? state)
+        union? (map? q)
+        keys-of-interest (fn [s] (set/difference (set s) #{:union/default}))]
+    (if union?
+      (cond
+        to-one? (let [default-key (get state :union/default)]
+                  (assert (set/subset? (keys-of-interest state) (keys-of-interest q)) (str "Initial state for " clz " contains keys that are not in the query"))
+                  (assert default-key (str "Initial state for " clz " does not indicate which state is the :union/default."))
+                  )
+        to-many? (do)
+        :else (log/warn (str "Union on " clz " has a strange initial state")))
+      state)))
 
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
@@ -65,13 +85,15 @@
   UntangledApplication
   (mount [this root-component dom-id-or-node]
 
-    (let [state (or (and (implements? Constructor root-component) (untangled.client.core/initial-state root-component nil)) initial-state)]
+    (let [state (or (and (implements? InitialAppState root-component) (untangled.client.core/initial-state root-component nil)) initial-state)]
       (if mounted?
         (do (refresh this) this)
         (do
-          (when (and (or (= Atom (type initial-state)) (seq initial-state)) (implements? Constructor root-component))
-            (log/warn "You supplied an initial state AND a root component with a constructor. Using Constructor!"))
-          (app/initialize this state root-component dom-id-or-node reconciler-options)))))
+          (when (and (or (= Atom (type initial-state)) (seq initial-state)) (implements? InitialAppState root-component))
+            (log/warn "You supplied an initial state AND a root component with a constructor. Using InitialAppState!"))
+          (let [app (app/initialize this state root-component dom-id-or-node reconciler-options)]
+            (merge-alternate-union-elements! app root-component)
+            app)))))
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
@@ -113,48 +135,129 @@
   ([url param-name]
    (get (uri-params url) param-name)))
 
+(defn- component-merge-query
+  "Calculates the query that can be used to pull (or merge) a component with an ident
+  to/from a normalized app database. Requires a tree of data that represents the instance of
+  the component in question (e.g. ident will work on it)"
+  [component object-data]
+  (let [ident (om/ident component object-data)
+        object-query (om/get-query component)]
+    [{ident object-query}]))
+
+(defn- preprocess-merge
+  "Does the steps necessary to honor the data merge technique defined by Untangled with respect
+  to data overwrites in the app database."
+  [state-atom component object-data]
+  (let [ident (om/ident component object-data)
+        object-query (om/get-query component)
+        base-query (component-merge-query component object-data)
+        ;; :untangled/merge is way to make unions merge properly when joined by idents
+        merge-query [{:untangled/merge base-query}]
+        existing-data (get (om/db->tree base-query @state-atom @state-atom) ident {})
+        marked-data (plumbing/mark-missing object-data object-query)
+        merge-data {:untangled/merge {ident (util/deep-merge existing-data marked-data)}}]
+    {:merge-query merge-query
+     :merge-data  merge-data}))
+
+(defn integrate-ident!
+  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
+  implementations as a general helper function.
+
+  The named parameters can be specified any number of times. They are:
+
+  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
+  the ident if that ident is already in the list.
+  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
+  the ident if that ident is already in the list.
+  - replace: A vector (path) to a specific locaation in app-state where this object's ident should be placed. Can target a to-one or to-many.
+   If the target is a vector element then that element must already exist in the vector.
+  "
+  [state ident & named-parameters]
+  (let [already-has-ident-at-path? (fn [data-path] (boolean (seq (filter #(= % ident) (get-in @state data-path)))))
+        actions (partition 2 named-parameters)]
+    (doseq [[command data-path] actions]
+      (case command
+        :prepend (when-not (already-has-ident-at-path? data-path)
+                   (assert (vector? (get-in @state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
+                   (swap! state update-in data-path #(into [ident] %)))
+        :append (when-not (already-has-ident-at-path? data-path)
+                  (assert (vector? (get-in @state data-path)) (str "Path " data-path " for append must target an app-state vector."))
+                  (swap! state update-in data-path conj ident))
+        :replace (let [path-to-vector (butlast data-path)
+                       to-many? (and (seq path-to-vector) (vector? (get-in @state path-to-vector)))
+                       index (last data-path)
+                       vector (get-in @state path-to-vector)]
+                   (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
+                   (when to-many?
+                     (do
+                       (assert (vector? vector) "Path for replacement must be a vector")
+                       (assert (number? index) "Path for replacement must end in a vector index")
+                       (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
+                   (swap! state assoc-in data-path ident))
+        (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path}))))))
+
 (defn merge-state!
-  "Merge a (sub)tree of application state into the application.
+  "Normalize and merge a (sub)tree of application state into the application using a known UI component's query and ident.
+
+  This utility function obtains the ident of the incoming object-data using the UI component's ident function. Once obtained,
+  it uses the component's query and ident to normalize the data and place the resulting objects in the correct tables.
+  It is also quite common to want those new objects to be linked into lists in other spot in app state, so this function
+  supports optional named parameters for doing this. These named parameters can be repeated as many times as you like in order
+  to place the ident of the new object into other data structures of app state.
+
+  This function honors the data merge story for Untangled: attributes that are queried for but do not appear in the
+  data will be removed from the application. This function also uses the initial state for the component as a base
+  for merge if there was no state for the object already in the database.
+
+  This function will also trigger re-renders of components that directly render object merged, as well as any components
+  into which you integrate that data via the named-parameters.
+
+  This function is primarily meant to be used from things like server push and setTimeout/setInterval, where you're outside
+  of the normal mutation story. Do not use this function within abstract mutations.
 
   - app-or-reconciler: The Untangled application or Om reconciler
   - component: The class of the component that corresponsds to the data. Must have an ident.
   - object-data: A map (tree) of data to merge. Will be normalized for you.
-  - append-to: Named parameter. A vector (path) to a list in your app state where this new object's ident should be appended.
-  - prepend-to: Named parameter. A vector (path) to a list in your app state where this new object's ident should be prepended.
-  - replace: Named parameter. A vector (path) to the specific element of an app-state vector where this objects ident should be placed. MUST ALREADY EXIST.
+  - named-parameter: Post-processing ident integration steps. see integrate-ident!
+
+  Any keywords that appear in ident integration steps will be added to the re-render queue.
   "
-  [app-or-reconciler component object-data & {:keys [append-to replace prepend-to]}]
-  (assert (implements? om/Ident component) "Component must implement Ident")
+  [app-or-reconciler component object-data & named-parameters]
+  (when-not (implements? om/Ident component) (log/warn "merge-state!: component must implement Ident"))
   (let [ident (om/ident component object-data)
-        empty-object (if (implements? Constructor component)
-                       (initial-state component nil)
-                       {})
-        merge-query [{ident (om/get-query component)}]
-        merge-data {ident (merge empty-object object-data)}
         reconciler (if (= untangled.client.core/Application (type app-or-reconciler))
                      (:reconciler app-or-reconciler)
                      app-or-reconciler)
-        state (om/app-state reconciler)]
+        state (om/app-state reconciler)
+        data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
+        {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
     (om/merge! reconciler merge-data merge-query)
-    (cond
-      prepend-to (do
-                   (assert (vector? (get-in @state prepend-to)) (str "Path " prepend-to " for prepend-to must target an app-state vector."))
-                   (swap! state update-in prepend-to #(into [ident] %))
-                   (omp/queue! reconciler prepend-to))
-      append-to (do
-                  (assert (vector? (get-in @state append-to)) (str "Path " append-to " for append-to must target an app-state vector."))
-                  (swap! state update-in append-to conj ident)
-                  (omp/queue! reconciler append-to))
-      replace (let [path-to-vector (butlast replace)
-                    to-many? (and (seq path-to-vector) (vector? (get-in @state path-to-vector)))
-                    index (last replace)
-                    vector (get-in @state path-to-vector)]
-                (assert (vector? replace) (str "Replacement path must be a vector. You passed: " replace))
-                (when to-many?
-                  (do
-                    (assert (vector? vector) "Path for replacement must be a vector")
-                    (assert (number? index) "Path for replacement must end in a vector index")
-                    (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
-                (swap! state assoc-in replace ident)
-                (omp/queue! reconciler replace)))
+    (swap! state dissoc :untangled/merge)
+    (apply integrate-ident! state ident named-parameters)
+    (omp/queue! reconciler data-path-keys)
     @state))
+
+(defn- merge-alternate-union-elements! [app root-component]
+  (letfn [(walk-ast
+            ([ast visitor]
+             (walk-ast ast visitor nil))
+            ([ast visitor last-join-component]
+             (visitor ast last-join-component)
+             (when (:children ast)
+               (let [join-component (if (= :join (:type ast))
+                                      (:component ast)
+                                      last-join-component)]
+                 (doseq [c (:children ast)]
+                   (walk-ast c visitor join-component))))))
+          (merge-union [{:keys [type component query children] :as n} last-join-component]
+            (when (= :union type)
+              (let [default-branch (and last-join-component (implements? InitialAppState last-join-component) (initial-state last-join-component nil))
+                    to-many? (vector? default-branch)]
+                (doseq [element (->> query vals (map (comp :component meta)))]
+                  (let [state (and (implements? InitialAppState element) (initial-state element nil))]
+                    (cond
+                      (and state (not default-branch)) (log/warn "Subelements of union with query " query " have initial state, but the union component itself has no initial app state. Your app state may not have been initialized correctly.")
+                      (not to-many?) (merge-state! app last-join-component state)))))))]
+    (walk-ast
+      (om/query->ast (om/get-query root-component))
+      merge-union)))

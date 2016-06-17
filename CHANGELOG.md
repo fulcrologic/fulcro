@@ -1,3 +1,10 @@
+0.5.3
+-----
+- Added utility function integrate-ident!
+- Refined merge-state!
+- Renamed Constructor to InitialAppState
+- Automated initialization of to-one unions (to-many was already doable by Om)
+
 0.5.2
 -----
 - Fixed bug with initial state and new constructors
