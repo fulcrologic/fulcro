@@ -18,25 +18,26 @@
   static om/Ident
   (ident [this props] [:parent/by-id (:id props)])
   static om/IQuery
-  (query [this] [:id :title {:child (om/get-query Child)}]))
+  (query [this] [:ui/checked :id :title {:child (om/get-query Child)}]))
 
 (specification "merge-state!"
   (assertions
     "merge-query is the component query joined on it's ident"
-    (#'uc/component-merge-query Parent {:id 42}) => [{[:parent/by-id 42] [:id :title {:child (om/get-query Child)}]}])
+    (#'uc/component-merge-query Parent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (om/get-query Child)}]}])
   (component "preprocessing the object to merge"
     (let [no-state (atom {:parent/by-id {}})
           no-state-merge-data (:merge-data (#'uc/preprocess-merge no-state Parent {:id 42}))
-          state-with-old (atom {:parent/by-id {42 {:id 42 :title "Hello"}}})
+          state-with-old (atom {:parent/by-id {42 {:ui/checked true :id 42 :title "Hello"}}})
           id [:parent/by-id 42]
-          old-state-merge-data (:merge-data (#'uc/preprocess-merge state-with-old Parent {:id 42}))]
+          old-state-merge-data (-> (#'uc/preprocess-merge state-with-old Parent {:id 42}) :merge-data :untangled/merge)]
       (assertions
         "Uses the existing object in app state as base for merge when present"
-        (get-in old-state-merge-data [id :ui/checked]) => nil
+        (get-in old-state-merge-data [id :ui/checked]) => true
         "Marks fields that were queried but are not present as plumbing/not-found"
-        old-state-merge-data => {[:parent/by-id 42] {:id    42
-                                                     :title :untangled.client.impl.om-plumbing/not-found
-                                                     :child :untangled.client.impl.om-plumbing/not-found}})))
+        old-state-merge-data => {[:parent/by-id 42] {:id         42
+                                                     :ui/checked true
+                                                     :title      :untangled.client.impl.om-plumbing/not-found
+                                                     :child      :untangled.client.impl.om-plumbing/not-found}})))
   (let [state (atom {})
         data {}]
     (when-mocking

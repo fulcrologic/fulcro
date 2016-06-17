@@ -64,8 +64,7 @@
         to-one? (map? state)
         to-many? (vector? state)
         union? (map? q)
-        keys-of-interest (fn [s] (set/difference (set s) #{:union/default}))
-        ]
+        keys-of-interest (fn [s] (set/difference (set s) #{:union/default}))]
     (if union?
       (cond
         to-one? (let [default-key (get state :union/default)]
@@ -151,10 +150,12 @@
   [state-atom component object-data]
   (let [ident (om/ident component object-data)
         object-query (om/get-query component)
-        merge-query (component-merge-query component object-data)
-        existing-data (get (om/db->tree merge-query @state-atom @state-atom) ident {})
+        base-query (component-merge-query component object-data)
+        ;; :untangled/merge is way to make unions merge properly when joined by idents
+        merge-query [{:untangled/merge base-query}]
+        existing-data (get (om/db->tree base-query @state-atom @state-atom) ident {})
         marked-data (plumbing/mark-missing object-data object-query)
-        merge-data {ident (util/deep-merge existing-data marked-data)}]
+        merge-data {:untangled/merge {ident (util/deep-merge existing-data marked-data)}}]
     {:merge-query merge-query
      :merge-data  merge-data}))
 
@@ -231,6 +232,7 @@
         data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
         {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
     (om/merge! reconciler merge-data merge-query)
+    (swap! state dissoc :untangled/merge)
     (apply integrate-ident! state ident named-parameters)
     (omp/queue! reconciler data-path-keys)
     @state))
