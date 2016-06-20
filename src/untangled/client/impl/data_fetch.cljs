@@ -13,7 +13,7 @@
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
-(declare data-path data-uuid data-query set-loading! full-query loaded-callback error-callback)
+(declare data-path data-uuid data-query set-loading! full-query loaded-callback error-callback data-marker?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implementation for public api
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -32,9 +32,12 @@
   "Place load markers in the app state at their data paths so that UI rendering can see them."
   [state-atom items-to-load]
   (doseq [item items-to-load]
-    (let [i (set-loading! item)]
+    (let [i (set-loading! item)
+          place-marker (fn [state] (if (data-marker? i)
+                                     (assoc-in state (data-path i) {:ui/fetch-state i})
+                                     state))]
       (swap! state-atom (fn [s] (-> s
-                                    (assoc-in (data-path i) {:ui/fetch-state i})
+                                    place-marker
                                     (update :untangled/loads-in-progress (fnil conj #{}) (data-uuid i))))))))
 
 (defn mark-parallel-loading
@@ -153,7 +156,7 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field params without query post-mutation fallback parallel refresh] :or {without #{} refresh []}}]
+  [& {:keys [ident field params without query post-mutation fallback parallel refresh marker] :or {without #{} refresh [] marker true}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
@@ -171,6 +174,7 @@
      ::query         query'                                 ; query, relative to root of db OR component
      ::post-mutation post-mutation
      ::refresh       refresh
+     ::marker        marker
      ::parallel      parallel
      ::fallback      fallback}))
 
@@ -179,13 +183,14 @@
   a mutate function that is abstractly loading something. This is intended for internal use.
 
   See `load-field` for public API."
-  [& {:keys [state query ident field without params post-mutation fallback parallel refresh] :or {refresh [] without #{}}}]
+  [& {:keys [state query ident field without params post-mutation fallback parallel refresh marker] :or {marker true refresh [] without #{}}}]
   (swap! state update :om.next/ready-to-load conj
          (ready-state
            :ident ident
            :field field
            :parallel parallel
            :refresh refresh
+           :marker marker
            :params params
            :without without
            :query query
@@ -200,6 +205,7 @@
     (::query state)))
 (defn data-field [state] (::field state))
 (defn data-uuid [state] (::uuid state))
+(defn data-marker? [state] (::marker state))
 (defn data-refresh [state] (::refresh state))
 (defn data-query-key [state]
   (let [expr (-> state ::query first)

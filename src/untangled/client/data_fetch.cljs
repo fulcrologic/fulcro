@@ -17,6 +17,7 @@
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
   - `parallel`: Boolean to indicate that this load should happen in the parallel on the server (non-blocking load). Any loads marked this way will happen in parallel.
   - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error in the params under :error.
+  - `marker`: A boolean (default true). If true, a marker is placed in the app state in place of the field during the load. If false, no marker is produced.
   - `refresh`: A vector of keywords indicating data that will be changing. If any of the listed keywords are queried by on-screen
     components, then those components will be re-rendered after the load has finished and post mutations have run. Note
     that for load-field the ident of the target component is automatically included, so this parametmer is usually not
@@ -29,7 +30,7 @@
   using an Om link (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
   improve your frame rate because Om will not have to run a full root query.
   "
-  [component field & {:keys [without params post-mutation fallback parallel refresh] :or [refresh []]}]
+  [component field & {:keys [without params post-mutation fallback parallel refresh marker] :or [refresh [] marker true]}]
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
   (om/transact! component (into [(list 'untangled/load
                                        {:ident         (om/get-ident component)
@@ -39,6 +40,7 @@
                                         :without       without
                                         :post-mutation post-mutation
                                         :parallel      parallel
+                                        :marker        marker
                                         :refresh       refresh
                                         :fallback      fallback}) :ui/loading-data (om/get-ident component)] refresh)))
 
@@ -52,12 +54,13 @@
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
   - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error is in the params under :error.
   - `parallel`: Boolean to indicate that this load should happen in the parallel on the server (non-blocking load). Any loads marked this way will happen in parallel.
+  - `marker`: A boolean (default true). If true, a marker is placed in the app state in place of the target data during the load. If false, no marker is produced.
   - `refresh`: A vector of keywords indicating data that will be changing. If any of the listed keywords are queried by on-screen
     components, then those components will be re-rendered after the load has finished and post mutations have run.
 
   Named parameters `:without` and `:params` are as in `load-field`.
   "
-  [comp-or-reconciler query & {:keys [ident without params post-mutation fallback parallel refresh] :or {refresh []}}]
+  [comp-or-reconciler query & {:keys [ident without params post-mutation fallback parallel refresh marker] :or {refresh [] marker true}}]
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
   (om/transact! comp-or-reconciler (into [(list 'untangled/load
                                                 {:ident         ident
@@ -66,6 +69,7 @@
                                                  :without       without
                                                  :post-mutation post-mutation
                                                  :refresh       refresh
+                                                 :marker        marker
                                                  :parallel      parallel
                                                  :fallback      fallback}) :ui/loading-data] refresh)))
 
@@ -82,7 +86,7 @@
     :action (fn []
        (load-field-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state component-class ident field & {:keys [without params post-mutation fallback parallel refresh] :or [refresh []]}]
+  [app-state component-class ident field & {:keys [without params post-mutation fallback parallel refresh marker] :or [refresh [] marker true]}]
   (impl/mark-ready
     :state app-state
     :field field
@@ -92,6 +96,7 @@
     :without without
     :parallel parallel
     :refresh refresh
+    :marker marker
     :post-mutation post-mutation
     :fallback fallback))
 
@@ -109,7 +114,7 @@
     :action (fn []
        (load-data-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state query & {:keys [ident without params post-mutation fallback parallel refresh]}]
+  [app-state query & {:keys [ident without params post-mutation fallback parallel refresh marker] :or {refresh [] marker true}}]
   (impl/mark-ready
     :state app-state
     :ident ident
@@ -118,6 +123,7 @@
     :without without
     :parallel parallel
     :refresh refresh
+    :marker marker
     :post-mutation post-mutation
     :fallback fallback))
 

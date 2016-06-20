@@ -1,3 +1,7 @@
+0.5.4
+-----
+- Added marker option to loads, so that load markers are optional
+
 0.5.3
 -----
 - Added utility function integrate-ident!
