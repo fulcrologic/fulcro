@@ -1,5 +1,6 @@
 (ns untangled.server.impl.components.access-token-handler
-  (:require [ring.util.response :refer [get-header]]
+  (:require [ring.middleware.cookies :refer [wrap-cookies]]
+            [ring.util.response :refer [get-header]]
             [clojure.string :refer [split]]
             [clojure.walk :as walk]
             [com.stuartsierra.component :as component]
@@ -23,9 +24,13 @@
     (if (and token (= bearer "Bearer")) token nil)))
 
 (defn- get-token [request]
-  (if-let [bearer (-> request :headers (get "authorization"))]
-    (some-> bearer (get-token-from-bearer) read-token)
-    (some-> (get-in request [:params "openid/access-token"]) read-token)))
+  (when-let [token (or
+                     (some-> request :headers (get "authorization") (get-token-from-bearer))
+                     (get-in request [:params "openid/access-token"])
+                     (get-in request [:form-params "access_token"])
+                     (get-in request [:cookies "access_token" :value]) ;; Run cookie last in case token is new.
+                     )]
+    (read-token token)))
 
 (defn- missing-token? [token]
   (nil? token))
@@ -120,6 +125,7 @@
           public-keys' (public-keys-from-jwks public-keys)
           config' (assoc config :public-keys public-keys' :issuer issuer)]
       (.set-pre-hook! handler (comp pre-hook
+                                (partial wrap-cookies)
                                 (partial wrap-access-token config')))
       this))
   (stop [this] this))
