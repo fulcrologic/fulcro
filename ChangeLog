@@ -1,19 +1,36 @@
+0.6.1
+-----
+- Access token handler inspect :headers, :params, :form-params, and :cookies
+
 0.6.0
 -----
 - :authorized-routes => :unsecured-routes
-	- should be a bidi route map to :ok handlers (enforced on system start)
-	- top level files are always unsecured
-	- root route "/" is also always unsecured
-	- to unsecure a whole sub-route (eg: the js folder)
-		use bidi's catch-all routes, eg: `{"/js" {true :ok}}`
+    - should be a bidi route map to :ok handlers (enforced on system start)
+    - top level files are always unsecured
+    - root route "/" is also always unsecured
+    - to unsecure a whole sub-route (eg: the js folder)
+        use bidi's catch-all routes, eg: `{"/js" {true :ok}}`
 - Open id mock will now deal with multiple users.
-	"user" can be passed as a query param to the open id mock endpoint.
+    "user" can be passed as a query param to the open id mock endpoint.
+    The user that is passed will be selected out of the :users,
+    and if there is no user, the first will be selected
+      Example
+      ```clojure
+      {:openid-mock {:users {"123-456" {:role  ["user.awesome"]
+                                        :realm ["14133"]
+                                        :sub   "123-456"
+                                        :name  "Donald Duck"}
+                             "456-789" {:role  ["user.super"]
+                                        :realm ["14133"]
+                                        :sub   "456-789"
+                                        :name  "Mickey Mouse"}}]]
+      ```
 - Fixing heisenbugs wrt datomic not sorting & protocol-testing randomly failing
 - Adding invalid-token-handler to the :openid config
-	- Takes a request whenever an invalid token
-		is passed to a secured-route (ie: not an unsecured-route)
-		and should return whether the request should be allowed
-		to flow through the handler stack (defaults to false)
+    - Takes a request whenever an invalid token
+        is passed to a secured-route (ie: not an unsecured-route)
+        and should return whether the request should be allowed
+        to flow through the handler stack (defaults to false)
 - Removing specter => clojure.walk
 
 0.5.1
@@ -24,7 +41,7 @@
 0.5.0
 -----
 - :extra-routes handlers are now of type (fn [env match] res)
-	the :request is in the env
+    the :request is in the env
 - access-token-handler looks for :client_id if :sub is not present
 
 0.4.8
@@ -37,15 +54,15 @@
 0.4.7
 -----
 - Added build-test-mock-openid-server to grab openid config and put into the
-	server parser env when protocol testing. The component should be placed
-	under the key :test-openid-mock and have information under :openid-mock/claims
-	that gets placed in env [:request :user].
+    server parser env when protocol testing. The component should be placed
+    under the key :test-openid-mock and have information under :openid-mock/claims
+    that gets placed in env [:request :user].
 - check-response-to-client's :on-success callback now has a :remap-fn in its env
-	which is a function to remap a response from real ids to the fake (keyword) ids
-	eg: :datomic.id/* & :om.tempid/*
+    which is a function to remap a response from real ids to the fake (keyword) ids
+    eg: :datomic.id/* & :om.tempid/*
 - check-response-to-client now takes an optional :which-db which is a keyword
-	that specifies from which db a response originates from.
-	This is because :db/id's are not unique across datomic databases.
+    that specifies from which db a response originates from.
+    This is because :db/id's are not unique across datomic databases.
 
 0.4.5
 -----
