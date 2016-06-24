@@ -1,6 +1,7 @@
 0.6.1
 -----
 - Access token handler inspect :headers, :params, :form-params, and :cookies
+- Openid Mock not handles post logout redirect.
 
 0.6.0
 -----
