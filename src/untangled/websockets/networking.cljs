@@ -77,6 +77,7 @@
   - `req-params` (Optional) - Params to be attached to the initial request.
   - `state-callback` (Optional) - Callback that runs when the websocket state of the websocket changes.
       The function takes an old state parameter and a new state parameter (arity 2 function).
+      `state-callback` can be either a function, or an atom containing a function.
   "
   [url & {:keys [global-error-callback req-params state-callback]}]
   (let [parse-queue     (chan)
@@ -106,8 +107,10 @@
                                                                                 (@global-error-callback status body))
                                                                               (error body)))
                                                                           parse-queue)))})]
-    (when state-callback
-      (add-watch state ::state-callback (fn [a k o n]
-                                         (state-callback o n))))
+    (cond
+      (fn? state-callback)            (add-watch state ::state-callback (fn [a k o n]
+                                                                          (state-callback o n)))
+      (instance? Atom state-callback) (add-watch state ::state-callback (fn [a k o n]
+                                                                          (@state-callback o n))))
     (start-router! ch-recv message-received)
     channel-client))
