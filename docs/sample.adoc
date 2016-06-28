@@ -1,8 +1,9 @@
 = A Document
 
-NOTE: This is a test
+NOTE: This is a ((test))
 
 [source,clj]
 ----
 (defn f [] 3)
 ----
+
