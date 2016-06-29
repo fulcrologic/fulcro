@@ -22,7 +22,7 @@
               (s/split params #"&"))))
 
 (defn parse-claims [token]
-  (-> token (s/split #"\.") second js/atob js/JSON.parse))
+  (some-> token (s/split #"\.") second js/atob js/JSON.parse))
 
 (defn setup
   "Installs openid information into the passed in untangled-client app's initial state,
@@ -33,7 +33,7 @@
   (let [tokens (or
                  (get-tokens-from-cookies)
                  (tokens-from-params (params)))
-        id-claims (-> tokens (get "id_token") parse-claims js->clj w/keywordize-keys)]
+        id-claims (some-> tokens (get "id_token") parse-claims js->clj w/keywordize-keys)]
     (swap! app update-in [:initial-state]
            (fn [m]
              (assoc m
