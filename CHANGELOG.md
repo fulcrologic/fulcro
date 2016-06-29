@@ -1,6 +1,7 @@
 0.5.4
 -----
 - Added marker option to loads, so that load markers are optional
+- OpenID client will now extract tokens from cookies as well as the header.
 
 0.5.3
 -----
