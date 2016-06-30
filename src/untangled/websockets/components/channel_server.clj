@@ -13,26 +13,70 @@
 
 (def ajax-get-or-ws-handler (atom nil))
 
+(defn valid-client-id?
+  "Validate that the client id is a guid."
+  [client-id]
+  (try (when (string? client-id)
+         (java.util.UUID/fromString client-id))
+       (catch Exception e
+         false)))
+
+(def valid-client-id-atom (atom valid-client-id?))
+
+(defn valid-origin?
+  "Validates origin based on a collection of whitelisted origin strings received from the config
+  at `:ws-origin-whitelist`."
+  [config request]
+  (if-let [origin-wl (get-in config [:value :ws-origin-whitelist] false)]
+    (let [_          (assert (coll? origin-wl) "The :ws-origin-whitelist must be a collection of strings.")
+          origins    (set (conj origin-wl (get-in config [:value :origin])))
+          req-origin (get-in request [:headers "origin"])]
+      (boolean (origins req-origin)))
+    true))
+
 (defn route-handlers
-  "Route handler that is expected to be passed to `:extra-routes` when creating an untangled app."
-  [env _match]
+  "Route handler that is expected to be passed to `:extra-routes` when creating an untangled app.
+  Route handlers will look at optionally look at `:ws-origin-whitelist` in your config file, and
+  validate origins trying to make a ws connection. If `:ws-origin-whitelist` is nil, origins will
+  not be checked. The `:origin` key will also be treated as a valid origin if checking is enabled.
+
+  Example:
+  Both the values in `:origin` and `:ws-origin-whitelist` will pass. Any other origin will return 403.
+  ```
+  {:origin \"localhost:8080\"
+   :ws-origin-whitelist \"www.example.io:3000\"}
+  ```
+
+  Origins will not be checked.
+  ```
+  {:origin \"localhost:8080\"}
+  ```
+  "
+  [{:keys [config request]} _match]
   (let [ring-ajax-get-or-ws-handshake @ajax-get-or-ws-handler
-        ring-ajax-post                @post-handler
-        req                           (:request env)]
+        ring-ajax-post                @post-handler]
     (assert (not (and
                    (nil? @post-handler)
                    (nil? @ajax-get-or-ws-handler)
-                   (nil? req)))
+                   (nil? request)))
       "Your handlers are nil. Did you start the channel server?")
-    (case (:request-method req)
-      :get  (try (ring-ajax-get-or-ws-handshake req)
-                 (catch Exception e
-                   (let [message (.getMessage e)
-                         type    (str (type e))]
-                     (timbre/error "Sente handler error: " message)
-                     {:status 500
-                      :body   {:type type :message message}})))
-      :post (ring-ajax-post req))))
+    (if (valid-origin? config request)
+      (case (:request-method request)
+        :get  (if (@valid-client-id-atom (get-in request [:params :client-id]))
+                (try (ring-ajax-get-or-ws-handshake request)
+                    (catch Exception e
+                      (let [message (.getMessage e)
+                            type    (str (type e))]
+                        (timbre/error "Sente handler error: " type message)
+                        {:status 500
+                         :body   {:type type :message message}})))
+                  (do
+                    (timbre/info request)
+                    {:status 500
+                     :body "invalid client id"}))
+        :post (ring-ajax-post request))
+      {:status 403
+       :body   "You have tried to connect from an invalid origin."})))
 
 (defn wrap-web-socket [handler]
   (-> handler
@@ -163,7 +207,9 @@
       (dosync (ref-set listeners #{}))
       (assoc component :router (stop-f)))))
 
-(defn make-channel-server [& {:keys [handshake-data-fn server-adapter client-id-fn dependencies]}]
+(defn make-channel-server [& {:keys [handshake-data-fn server-adapter client-id-fn dependencies valid-client-id-fn]}]
+  (when valid-client-id-fn
+    (reset! valid-client-id-atom valid-client-id-fn))
   (component/using
     (map->ChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
                                                                     (get (:headers ring-req) "Authorization")))
