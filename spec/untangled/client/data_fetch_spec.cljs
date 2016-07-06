@@ -332,19 +332,34 @@
                               (contains? resp :ui/react-key) => true)
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
-      (error-cb response items)
+      (error-cb response items))
 
-      (assertions
-        "Runs fallbacks"
-        (:fallback-done @state) => true
-        "Queues the refresh items for refresh"
-        @queued =fn=> #(contains? % :x)
-        @queued =fn=> #(contains? % :y)
-        "Queues the global loading marker for refresh"
-        @queued =fn=> #(contains? % :ui/loading-data)
-        "Triggers render"
-        @rendered => true
-        "Rewrites load markers as error markers"
-        (dfi/failed? (get-in @state (dfi/data-path item) :fail)) => true
-        "Updates the global loading marker"
-        @globally-marked => true))))
+    (assertions
+      "Runs fallbacks"
+      (:fallback-done @state) => true
+      "Queues the refresh items for refresh"
+      @queued =fn=> #(contains? % :x)
+      @queued =fn=> #(contains? % :y)
+      "Queues the global loading marker for refresh"
+      @queued =fn=> #(contains? % :ui/loading-data)
+      "Triggers render"
+      @rendered => true
+      "Rewrites load markers as error markers"
+      (dfi/failed? (get-in @state (dfi/data-path item) :fail)) => true
+      "Updates the global loading marker"
+      @globally-marked => true)))
+
+(specification "Load markers"
+  (let [state (atom {:t {1 {:id 1}
+                         2 {:id 2}}})
+        item-1 (dfi/ready-state :query [:comments] :ident [:t 1] :field :comments)
+        item-2 (dfi/ready-state :query [:comments] :ident [:t 2] :field :comments :marker false)]
+
+    (dfi/place-load-markers state [item-1 item-2])
+
+    (assertions
+      "are placed in app state when the fetch requests a marker"
+      (get-in @state [:t 1 :comments]) =fn=> #(contains? % :ui/fetch-state)
+      (get-in @state [:t 2]) => {:id 2}
+      "are tracked by UUID in :untangled/loads-in-progress"
+      (get @state :untangled/loads-in-progress) =fn=> #(= 2 (count %)))))

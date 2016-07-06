@@ -58,23 +58,6 @@
 (defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
 
-(defn get-initial-state [clz params]
-  (let [state (initial-state clz params)
-        q (om/get-query clz)
-        to-one? (map? state)
-        to-many? (vector? state)
-        union? (map? q)
-        keys-of-interest (fn [s] (set/difference (set s) #{:union/default}))]
-    (if union?
-      (cond
-        to-one? (let [default-key (get state :union/default)]
-                  (assert (set/subset? (keys-of-interest state) (keys-of-interest q)) (str "Initial state for " clz " contains keys that are not in the query"))
-                  (assert default-key (str "Initial state for " clz " does not indicate which state is the :union/default."))
-                  )
-        to-many? (do)
-        :else (log/warn (str "Union on " clz " has a strange initial state")))
-      state)))
-
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")
@@ -254,7 +237,7 @@
               (let [default-branch (and last-join-component (implements? InitialAppState last-join-component) (initial-state last-join-component nil))
                     to-many? (vector? default-branch)]
                 (doseq [element (->> query vals (map (comp :component meta)))]
-                  (let [state (and (implements? InitialAppState element) (initial-state element nil))]
+                  (if-let [state (and (implements? InitialAppState element) (initial-state element nil))]
                     (cond
                       (and state (not default-branch)) (log/warn "Subelements of union with query " query " have initial state, but the union component itself has no initial app state. Your app state may not have been initialized correctly.")
                       (not to-many?) (merge-state! app last-join-component state)))))))]
