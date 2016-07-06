@@ -141,6 +141,13 @@
      :body    (json/write-str {:keys [{:kty "RSA" :use "sig" :e e :n n :x5t x5t :x5c [key-data]}]}
                               :escape-slash false)}))
 
+(defn endsession [request options]
+  (let [redirect-uri (get-in request [:query-params "post_logout_redirect_uri"])]
+    {:status  302
+     :headers {"Content-Type" "text/html"
+               "Location"     (str redirect-uri)}
+     :body    ""}))
+
 (defn wrap-openid-mock
   "Middleware that simulates an openid connect server for development purposes
   only.  This handler is not for production use.
@@ -160,6 +167,7 @@
         (= (str (:path merged-options) "/connect/authorize") (:uri request)) (authorize request merged-options)
         (= (str (:path merged-options) "/.well-known/jwks") (:uri request)) (jwks request merged-options)
         (= (str (:path merged-options) "/.well-known/openid-configuration") (:uri request)) (discovery request merged-options)
+        (= (str (:path merged-options) "/connect/endsession") (:uri request)) (endsession request merged-options)
         :otherwise (handler request)))))
 
 (defrecord MockOpenIdServer [handler]
