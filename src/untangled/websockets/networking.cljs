@@ -10,6 +10,9 @@
             [untangled.client.logging :as log]
             [untangled.websockets.transit-packer :as tp]))
 
+(defprotocol ChannelSocket
+  (reconnect [this] "Reconnect the socket"))
+
 (defonce router_ (atom nil))
 
 (defn stop-router! []
@@ -34,7 +37,11 @@
 (defmethod push-received :default [app msg]
   (log/error (str "Received and unhandled message: " msg)))
 
-(defrecord ChannelClient [url send-fn callback global-error-callback req-params server-push parse-queue completed-app]
+(defrecord ChannelClient [url channel-socket send-fn callback global-error-callback req-params parse-queue completed-app]
+  ChannelSocket
+  (reconnect [this]
+    (sente/chsk-reconnect! channel-socket))
+
   UntangledNetwork
   (send [this edn ok err]
     (do
@@ -61,7 +68,18 @@
       (defmethod message-received :chsk/state [message]
         (log/debug "Message Routed to state handler")))))
 
-(defn make-channel-client [url & {:keys [global-error-callback req-params]}]
+(defn make-channel-client
+  "Creates a client side networking component for use in place of the default untangled networking component.
+
+  Params:
+  - `url` - The url to handle websocket traffic on. (ex. \"\\chsk\")
+  - `global-error-callback` (Optional) - Analagous to the global error callback in untangled client.
+  - `req-params` (Optional) - Params to be attached to the initial request.
+  - `state-callback` (Optional) - Callback that runs when the websocket state of the websocket changes.
+      The function takes an old state parameter and a new state parameter (arity 2 function).
+      `state-callback` can be either a function, or an atom containing a function.
+  "
+  [url & {:keys [global-error-callback req-params state-callback]}]
   (let [parse-queue     (chan)
         {:keys [chsk
                 ch-recv
@@ -72,6 +90,7 @@
                            :params         req-params
                            :wrap-recv-evs? false})
         channel-client  (map->ChannelClient {:url                   url
+                                             :channel-socket        chsk
                                              :send-fn               send-fn
                                              :global-error-callback (atom global-error-callback)
                                              :req-params            req-params
@@ -88,5 +107,10 @@
                                                                                 (@global-error-callback status body))
                                                                               (error body)))
                                                                           parse-queue)))})]
+    (cond
+      (fn? state-callback)            (add-watch state ::state-callback (fn [a k o n]
+                                                                          (state-callback o n)))
+      (instance? Atom state-callback) (add-watch state ::state-callback (fn [a k o n]
+                                                                          (@state-callback o n))))
     (start-router! ch-recv message-received)
     channel-client))
