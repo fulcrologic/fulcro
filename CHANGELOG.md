@@ -1,3 +1,6 @@
+# 0.2.2
+- Fix Issue #1 - `global-error-callback` is no longer stored in an atom.
+
 # 0.2.1
 - `state-callback`, a function of arity 2, can now be passed to the network. This can be used to execute actions based on the websockets state change.
 - Reconnecting is now possible through the `ChannelSocket` protocol's `reconnect` function.
