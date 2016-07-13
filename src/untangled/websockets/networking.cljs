@@ -37,7 +37,7 @@
 (defmethod push-received :default [app msg]
   (log/error (str "Received and unhandled message: " msg)))
 
-(defrecord ChannelClient [url channel-socket send-fn callback global-error-callback req-params parse-queue completed-app]
+(defrecord ChannelClient [url channel-socket send-fn global-error-callback req-params parse-queue completed-app]
   ChannelSocket
   (reconnect [this]
     (sente/chsk-reconnect! channel-socket))
@@ -45,7 +45,17 @@
   UntangledNetwork
   (send [this edn ok err]
     (do
-      (callback ok err)
+      (go
+        (let [{:keys [status body]} (<! parse-queue)]
+          ;; We are saying that all we care about at this point is the body.
+          (if (= status 200)
+            (ok body)
+            (do
+              (log/debug (str "SERVER ERROR CODE: " status))
+              (when global-error-callback
+                (global-error-callback status body))
+              (err body)))
+          parse-queue))
       (send-fn `[:api/parse ~{:action  :send-message
                               :command :send-om-request
                               :content edn}])))
@@ -92,21 +102,9 @@
         channel-client  (map->ChannelClient {:url                   url
                                              :channel-socket        chsk
                                              :send-fn               send-fn
-                                             :global-error-callback (atom global-error-callback)
+                                             :global-error-callback global-error-callback
                                              :req-params            req-params
-                                             :parse-queue           parse-queue
-                                             :callback              (fn [valid error]
-                                                                      (go
-                                                                        (let [{:keys [status body]} (<! parse-queue)]
-                                                                          ;; We are saying that all we care about at this point is the body.
-                                                                          (if (= status 200)
-                                                                            (valid body)
-                                                                            (do
-                                                                              (log/debug (str "SERVER ERROR CODE: " status))
-                                                                              (when @global-error-callback
-                                                                                (@global-error-callback status body))
-                                                                              (error body)))
-                                                                          parse-queue)))})]
+                                             :parse-queue           parse-queue})]
     (cond
       (fn? state-callback)            (add-watch state ::state-callback (fn [a k o n]
                                                                           (state-callback o n)))
