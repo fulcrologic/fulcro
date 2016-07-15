@@ -168,12 +168,24 @@
   ([url param-name]
    (get (uri-params url) param-name)))
 
+(defn get-class-ident
+  "Get the ident using a component class and data. Om's simulated statics are elided by
+  advanced compilation. This function compensates."
+  [comp data]
+  (if (implements? om/Ident comp)
+    (om/ident comp data)
+    ;; in advanced, statics will get killed
+    (when (goog/isFunction comp)
+      (let [resurrection (js/Object.create (. comp -prototype))]
+        (when (implements? om/Ident resurrection)
+          (om/ident resurrection data))))))
+
 (defn- component-merge-query
   "Calculates the query that can be used to pull (or merge) a component with an ident
   to/from a normalized app database. Requires a tree of data that represents the instance of
   the component in question (e.g. ident will work on it)"
   [component object-data]
-  (let [ident (om/ident component object-data)
+  (let [ident (get-class-ident component object-data)
         object-query (om/get-query component)]
     [{ident object-query}]))
 
@@ -181,7 +193,7 @@
   "Does the steps necessary to honor the data merge technique defined by Untangled with respect
   to data overwrites in the app database."
   [state-atom component object-data]
-  (let [ident (om/ident component object-data)
+  (let [ident (get-class-ident component object-data)
         object-query (om/get-query component)
         base-query (component-merge-query component object-data)
         ;; :untangled/merge is way to make unions merge properly when joined by idents
@@ -257,7 +269,7 @@
   "
   [app-or-reconciler component object-data & named-parameters]
   (when-not (implements? om/Ident component) (log/warn "merge-state!: component must implement Ident"))
-  (let [ident (om/ident component object-data)
+  (let [ident (get-class-ident component object-data)
         reconciler (if (= untangled.client.core/Application (type app-or-reconciler))
                      (:reconciler app-or-reconciler)
                      app-or-reconciler)
