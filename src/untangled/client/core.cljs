@@ -2,17 +2,19 @@
   (:require
     [om.next :as om]
     [untangled.client.impl.application :as app]
+    [goog.dom :as gdom]
     untangled.client.impl.built-in-mutations                ; DO NOT REMOVE. Ensures built-in mutations load on start
     [untangled.client.impl.network :as net]
     [untangled.client.logging :as log]
     [untangled.dom :as udom]
+    [cljs.core.async :as async]
     [om.next.protocols :as omp]
     [untangled.client.impl.util :as util]
     [untangled.client.impl.om-plumbing :as plumbing]
     [clojure.set :as set])
   (:import goog.Uri))
 
-(declare map->Application merge-alternate-union-elements!)
+(declare map->Application merge-alternate-union-elements! merge-state!)
 
 (defn new-untangled-client
   "Entrypoint for creating a new untangled client. Instantiates an Application with default values, unless
@@ -64,6 +66,56 @@
   (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work.")
   (history [this] "Return a serialized version of the current history of the application, suitable for network transfer"))
 
+(defn- merge-alternate-union-elements! [app root-component]
+  (letfn [(walk-ast
+            ([ast visitor]
+             (walk-ast ast visitor nil))
+            ([ast visitor last-join-component]
+             (visitor ast last-join-component)
+             (when (:children ast)
+               (let [join-component (if (= :join (:type ast))
+                                      (:component ast)
+                                      last-join-component)]
+                 (doseq [c (:children ast)]
+                   (walk-ast c visitor join-component))))))
+          (merge-union [{:keys [type component query children] :as n} last-join-component]
+            (when (= :union type)
+              (let [default-branch (and last-join-component (implements? InitialAppState last-join-component) (initial-state last-join-component nil))
+                    to-many? (vector? default-branch)]
+                (doseq [element (->> query vals (map (comp :component meta)))]
+                  (if-let [state (and (implements? InitialAppState element) (initial-state element nil))]
+                    (cond
+                      (and state (not default-branch)) (log/warn "Subelements of union with query " query " have initial state, but the union component itself has no initial app state. Your app state may not have been initialized correctly.")
+                      (not to-many?) (merge-state! app last-join-component state)))))))]
+    (walk-ast
+      (om/query->ast (om/get-query root-component))
+      merge-union)))
+
+(defn- initialize
+  "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
+  the initialized app"
+  [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
+  (let [queue (async/chan 1024)
+        rc (async/chan)
+        parser (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
+        initial-app (assoc app :queue queue :response-channel rc :parser parser :mounted? true
+                               :networking networking)
+        rec (app/generate-reconciler initial-app initial-state parser reconciler-options)
+        completed-app (assoc initial-app :reconciler rec)
+        node (if (string? dom-id-or-node)
+               (gdom/getElement dom-id-or-node)
+               dom-id-or-node)]
+
+    (net/start networking completed-app)
+    (app/initialize-internationalization rec)
+    (app/initialize-global-error-callback completed-app)
+    (app/start-network-sequential-processing completed-app)
+    (om/add-root! rec root-component node)
+    (merge-alternate-union-elements! completed-app root-component)
+    (when started-callback
+      (started-callback completed-app))
+    completed-app))
+
 (defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node]
@@ -74,9 +126,7 @@
         (do
           (when (and (or (= Atom (type initial-state)) (seq initial-state)) (implements? InitialAppState root-component))
             (log/warn "You supplied an initial state AND a root component with a constructor. Using InitialAppState!"))
-          (let [app (app/initialize this state root-component dom-id-or-node reconciler-options)]
-            (merge-alternate-union-elements! app root-component)
-            app)))))
+          (initialize this state root-component dom-id-or-node reconciler-options)))))
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
@@ -220,27 +270,4 @@
     (omp/queue! reconciler data-path-keys)
     @state))
 
-(defn- merge-alternate-union-elements! [app root-component]
-  (letfn [(walk-ast
-            ([ast visitor]
-             (walk-ast ast visitor nil))
-            ([ast visitor last-join-component]
-             (visitor ast last-join-component)
-             (when (:children ast)
-               (let [join-component (if (= :join (:type ast))
-                                      (:component ast)
-                                      last-join-component)]
-                 (doseq [c (:children ast)]
-                   (walk-ast c visitor join-component))))))
-          (merge-union [{:keys [type component query children] :as n} last-join-component]
-            (when (= :union type)
-              (let [default-branch (and last-join-component (implements? InitialAppState last-join-component) (initial-state last-join-component nil))
-                    to-many? (vector? default-branch)]
-                (doseq [element (->> query vals (map (comp :component meta)))]
-                  (if-let [state (and (implements? InitialAppState element) (initial-state element nil))]
-                    (cond
-                      (and state (not default-branch)) (log/warn "Subelements of union with query " query " have initial state, but the union component itself has no initial app state. Your app state may not have been initialized correctly.")
-                      (not to-many?) (merge-state! app last-join-component state)))))))]
-    (walk-ast
-      (om/query->ast (om/get-query root-component))
-      merge-union)))
+

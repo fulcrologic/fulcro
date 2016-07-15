@@ -1,5 +1,5 @@
 (ns untangled.client.impl.application
-  (:require [goog.dom :as gdom]
+  (:require
             [untangled.client.logging :as log]
             [om.next :as om]
             [untangled.client.impl.data-fetch :as f]
@@ -143,26 +143,4 @@
                        (partial % (om/app-state (:reconciler app)))
                        (throw (ex-info "Networking error callback must be a function." {})))))))
 
-(defn initialize
-  "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
-  the initialized app"
-  [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
-  (let [queue (async/chan 1024)
-        rc (async/chan)
-        parser (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
-        initial-app (assoc app :queue queue :response-channel rc :parser parser :mounted? true
-                               :networking networking)
-        rec (generate-reconciler initial-app initial-state parser reconciler-options)
-        completed-app (assoc initial-app :reconciler rec)
-        node (if (string? dom-id-or-node)
-               (gdom/getElement dom-id-or-node)
-               dom-id-or-node)]
 
-    (net/start networking completed-app)
-    (initialize-internationalization rec)
-    (initialize-global-error-callback completed-app)
-    (start-network-sequential-processing completed-app)
-    (om/add-root! rec root-component node)
-    (when started-callback
-      (started-callback completed-app))
-    completed-app))
