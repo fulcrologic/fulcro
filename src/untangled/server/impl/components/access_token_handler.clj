@@ -28,6 +28,7 @@
                      (some-> request :headers (get "authorization") (get-token-from-bearer))
                      (get-in request [:params "openid/access-token"])
                      (get-in request [:form-params "access_token"])
+                     (get-in request [:session :access-token])
                      (get-in request [:cookies "access_token" :value]) ;; Run cookie last in case token is new.
                      )]
     (read-token token)))
