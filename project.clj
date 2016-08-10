@@ -1,16 +1,16 @@
-(defproject navis/untangled-websockets "0.2.2"
+(defproject navis/untangled-websockets "0.3.0-SNAPSHOT"
   :description "Tools for making untangled leverage websockets."
   :url ""
   :license {:name "NAVIS"
             :url  "http://www.thenavisway.com"}
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.51"]
-                 [com.taoensso/timbre "4.3.1"]
+                 [com.taoensso/timbre "4.7.3"]
                  [navis/untangled-client "0.5.0" :exclusions [cljsjs/react org.omcljs/om] :scope "provided"]
                  [navis/untangled-server "0.5.1" :scope "provided"]
                  [navis/untangled-spec "0.3.6" :scope "provided"]
                  [org.omcljs/om "1.0.0-alpha36" :scope "provided"]
-                 [com.taoensso/sente "1.8.1"]]
+                 [com.taoensso/sente "1.10.0"]]
 
   :plugins [[com.jakemccrary/lein-test-refresh "0.14.0"]
             [lein-cljsbuild "1.1.3"]]

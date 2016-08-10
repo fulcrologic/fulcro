@@ -1,3 +1,7 @@
+# 0.3.0
+- Fix Issue #2 - use promise channel to validate initilization of channel in send protocol method.
+- Bumped Sente to version "1.10.0" and Timbre to "4.7.3". These versions, are dependent on `com.taoensso/encore 2.67.1`.
+
 # 0.2.2
 - Fix Issue #1 - `global-error-callback` is no longer stored in an atom.
 
