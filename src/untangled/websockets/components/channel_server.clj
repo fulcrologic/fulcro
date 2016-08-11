@@ -188,9 +188,9 @@
                            :env            (assoc env :cid uid :request ring-req)})]
           (send-fn uid [:api/parse result])))
 
-      (defmethod message-received :chsk/uidport-open [{:keys [client-id ?data ring-req uid] :as message}]
-        (timbre/debug "Port opened by client: " (:uid message))
-        (timbre/debug "Port state: " (:state message))
+      (defmethod message-received :chsk/uidport-open [{:keys [client-id ?data ring-req uid state] :as message}]
+        (timbre/debug "Port opened by client: " uid)
+        (timbre/debug "Port state: " state)
         (notify-listeners client-added listeners component uid))
 
       (defmethod message-received :chsk/uidport-close [{:keys [client-id ?data ring-req uid] :as message}]
@@ -198,7 +198,7 @@
         (notify-listeners client-dropped listeners component uid))
 
       (defmethod message-received :chsk/ws-ping [{:keys [client-id ?data ring-req uid] :as message}]
-        #_(timbre/debug "Ping from client" (:client-id message)))
+        (timbre/debug "Ping from client" client-id))
 
       component))
 
