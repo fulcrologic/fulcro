@@ -4,6 +4,8 @@ A set of helpers to use websockets with your untangled applications.
 
 Sente is used to define the websocket layer.
 
+[![Clojars Project](https://img.shields.io/clojars/v/navis/untangled-websockets.svg)](https://clojars.org/navis/untangled-websockets)
+
 ## Usage
 
 #### Server
