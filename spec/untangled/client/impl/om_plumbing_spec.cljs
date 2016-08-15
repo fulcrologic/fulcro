@@ -15,7 +15,9 @@
                                     :sub-key-2 :sub-value-2}
                      :item/by-id   {1 {:survey/title "Howdy!" :survey/description "More stuff"}}
                      :settings     {:tags nil}
-                     :dashboard    {:b {:x 2 :y 1}}
+                     :dashboard    {:b {:x 2 :y 1 :z [:dashboard :c]}
+                                    :c {:x 3 :y 7 :z [[:dashboard :d]]}
+                                    :d {:x 5 :y 10}}
                      :panel        {:a {:x 1 :n 4}}})
         parser (partial (om/parser {:read impl/read-local}) {:state state})]
 
@@ -39,7 +41,25 @@
 
       "read with pathopt turned on"
       (parser [{[:item/by-id 1] [:survey/title]}])
-      => {[:item/by-id 1] {:survey/title "Howdy!"}})))
+      => {[:item/by-id 1] {:survey/title "Howdy!"}}
+
+      "read with recursion"
+      (parser [{:dashboard [{:b [:x :y {:z '...}]}]}]) => {:dashboard {:b {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}}
+
+      "read recursion nested in a union query"
+      (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y {:z '...}]}}]) =>
+      {:union-join-2 {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}})
+
+    (let [state {:curr-view      [:main :view]
+                 :main           {:view {:curr-item [[:sub-item/by-id 2]]}}
+                 :sub-item/by-id {2 {:foo :baz :sub-items [[:sub-item/by-id 4]]}
+                                  4 {:foo :bar}}}
+          parser (partial (om/parser {:read impl/read-local}) {:state (atom state)})]
+
+      (assertions
+        "read recursion nested in a join underneath a union"
+        (parser '[{:curr-view {:settings [*] :main [{:curr-item [:foo {:sub-items ...}]}]}}]) =>
+        {:curr-view {:curr-item [{:foo :baz :sub-items [{:foo :bar}]}]}}))))
 
 (specification "remove-loads-and-fallbacks"
   (behavior "Removes top-level mutations that use the untangled/load or tx/fallback symbols"
