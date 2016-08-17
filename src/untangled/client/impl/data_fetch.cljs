@@ -272,7 +272,7 @@
       (om/merge! reconciler marked-response query)
       (run-post-mutations)
       (set-global-loading reconciler)
-      (if (contains? refresh-set :untangled/force-root)
+      (if (or @ran-mutations (contains? refresh-set :untangled/force-root))
         (udom/force-render reconciler)
         (udom/force-render reconciler to-refresh)))))
 

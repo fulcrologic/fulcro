@@ -1,8 +1,8 @@
 (defproject navis/untangled-client "0.5.5-SNAPSHOT"
   :description "Client-side code for Untangled Webapps"
   :url ""
-  :license {:name "NAVIS"
-            :url  "http://www.thenavisway.com"}
+  :license {:name "MIT"
+            :url  "https://opensource.org/licenses/MIT"}
 
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.51"]
