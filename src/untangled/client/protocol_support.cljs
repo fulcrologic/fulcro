@@ -32,11 +32,11 @@
   `initial-ui-state`: denormalized app state prior to sending the server transaction
   `ui-tx`: the om transaction that modifies the app state locally
   `server-tx`: the server transaction corresponding to ui-tx"
-  [{:keys [initial-ui-state ui-tx server-tx] :as data}]
+  [{:keys [initial-ui-state ui-tx server-tx]} & {:keys [env]}]
   (component "Client Remoting"
     (let [{:keys [parser]} (impl/init-testing)
           state (atom initial-ui-state)
-          parse (partial parser {:state state})
+          parse (partial parser (merge {:state state} env))
           tempid-map (impl/allocate-tempids ui-tx)
           ui-tx (impl/rewrite-tempids ui-tx tempid-map)]
 
