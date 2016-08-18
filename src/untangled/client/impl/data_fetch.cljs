@@ -81,11 +81,16 @@
   ."
   [reconciler]
   (let [state (om/app-state reconciler)
-        items-to-load (get @state :om.next/ready-to-load)]
+        items-to-load (get @state :om.next/ready-to-load)
+        ;; Go through the items-to-load. If there are two that include the same top-level keywords (on a join or prop)
+        ;; then only take the first (placing the latter into a separate collection). The result should be:
+        non-dupe-items items-to-load ; TODO: a sequence of items that contain no dupe keys
+        items-to-defer [] ; TODO: all of the items not in non-dupe-items
+        ]
     (when-not (empty? items-to-load)
       (place-load-markers state items-to-load)
-      (swap! state assoc :ui/loading-data true :om.next/ready-to-load [])
-      {:query         (full-query items-to-load)
+      (swap! state assoc :ui/loading-data true :om.next/ready-to-load items-to-defer)
+      {:query         (full-query non-dupe-items)
        :on-load       (loaded-callback reconciler)
        :on-error      (error-callback reconciler)
        :callback-args items-to-load})))
