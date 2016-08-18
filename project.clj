@@ -1,8 +1,8 @@
 (defproject navis/untangled-websockets "0.3.1-SNAPSHOT"
   :description "Tools for making untangled leverage websockets."
   :url ""
-  :license {:name "NAVIS"
-            :url  "http://www.thenavisway.com"}
+  :license {:name "MIT"
+            :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.51"]
                  [com.taoensso/timbre "4.7.3"]
