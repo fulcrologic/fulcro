@@ -66,6 +66,23 @@
          :on-error      (error-callback reconciler)
          :callback-args [item]}))))
 
+(defn distinct-by
+  "Returns a lazy sequence of the elements of coll with dupes removed.
+   Two elements are duplicates if (= (by-fn elem1) (by-fn elem2))
+   Returns a stateful transducer when no collection is provided."
+  ([by-fn] ;; transducer fn
+   (fn [rf]
+     (let [seen (volatile! #{})]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (if (contains? @seen (by-fn input))
+            result
+            (do (vswap! seen conj (by-fn input))
+                (rf result input))))))))
+  ([by-fn coll] (sequence (distinct-by by-fn) coll)))
+
 (defn mark-loading
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
   in the app state, and returns a map with the keys:
@@ -81,19 +98,24 @@
   ."
   [reconciler]
   (let [state (om/app-state reconciler)
-        items-to-load (get @state :om.next/ready-to-load)
+        items-available-for-loading (get @state :om.next/ready-to-load)
         ;; Go through the items-to-load. If there are two that include the same top-level keywords (on a join or prop)
-        ;; then only take the first (placing the latter into a separate collection). The result should be:
-        non-dupe-items items-to-load ; TODO: a sequence of items that contain no dupe keys
-        items-to-defer [] ; TODO: all of the items not in non-dupe-items
-        ]
-    (when-not (empty? items-to-load)
-      (place-load-markers state items-to-load)
+        ;; then only take the first (placing the latter into a separate collection).
+        items-to-load-now (->> items-available-for-loading
+                               (distinct-by #(if-let [[ident-key _] (data-ident item)]
+                                               ident-key
+                                               (data-uuid item)))
+                               set)
+        items-to-defer (->> items-available-for-loading
+                            (remove items-to-load-now)
+                            vec)]
+    (when-not (empty? items-to-load-now)
+      (place-load-markers state items-to-load-now)
       (swap! state assoc :ui/loading-data true :om.next/ready-to-load items-to-defer)
-      {:query         (full-query non-dupe-items)
+      {:query         (full-query items-to-load-now)
        :on-load       (loaded-callback reconciler)
        :on-error      (error-callback reconciler)
-       :callback-args items-to-load})))
+       :callback-args items-to-load-now})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API, used to write tests against specific data states

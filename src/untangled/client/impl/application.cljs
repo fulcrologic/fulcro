@@ -37,14 +37,16 @@
       (enqueue queue payload))))
 
 (defn enqueue-reads [{:keys [queue reconciler networking]}]
-  (let [parallel-payload (f/mark-parallel-loading reconciler)
-        fetch-payload (f/mark-loading reconciler)]
+  (let [parallel-payload (f/mark-parallel-loading reconciler)]
     (doseq [{:keys [query on-load on-error callback-args]} parallel-payload]
       (let [on-load' #(on-load % callback-args)
             on-error' #(on-error % callback-args)]
         (real-send networking query on-load' on-error')))
-    (when fetch-payload
-      (enqueue queue (assoc fetch-payload :networking networking)))))
+
+    (loop [fetch-payload (f/mark-loading reconciler)]
+      (when fetch-payload
+        (enqueue queue (assoc fetch-payload :networking networking))
+        (recur (f/mark-loading reconciler))))))
 
 (defn server-send
   "Puts queries/mutations (and their corresponding callbacks) onto the send queue. The networking CSP will pull these
