@@ -107,15 +107,18 @@
                         and handlers are map from handler name to a function of type :: Env -> BidiMatch -> Res
                         see `handler/wrap-extra-routes` & handler-spec for more.
 
+  *`app-name`           OPTIONAL, a string that will turn \"\\api\" into \"<app-name>\\api\"
+
   Returns a Sierra system component.
   "
-  [& {:keys [config-path components parser parser-injections extra-routes]
+  [& {:keys [config-path components parser parser-injections extra-routes app-name]
       :or {config-path "/usr/local/etc/untangled.edn"}}]
   {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))
          (or (nil? parser-injections) (every? keyword? parser-injections))]}
   (let [handler (handler/build-handler parser parser-injections
-                                       :extra-routes extra-routes)
+                                       :extra-routes extra-routes
+                                       :app-name app-name)
         built-in-components [:config (new-config config-path)
                              :handler handler
                              :server (make-web-server)]
