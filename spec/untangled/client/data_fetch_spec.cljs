@@ -10,7 +10,8 @@
      [specification behavior assertions provided component when-mocking]]
     [untangled.client.mutations :as m]
     [untangled.client.logging :as log]
-    [om.next.protocols :as omp]))
+    [om.next.protocols :as omp]
+    [untangled.dom :as udom]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -275,8 +276,9 @@
 
 (defmethod m/mutate 'qrp-loaded-callback [{:keys [state]} n p] (swap! state assoc :callback-done true))
 
-(specification "Query response processing (loaded-callback)"
-  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback :refresh [:a]))
+
+(specification "Query response processing (loaded-callback with post mutation)"
+  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback))
         state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
                      :item                        {2 {:id :original-data}}})
         items [item]
@@ -289,8 +291,7 @@
     (when-mocking
       (om/app-state r) => state
       (om/merge! r resp query) => (reset! merged true)
-      (omp/queue! r items) => (reset! queued (set items))
-      (omp/schedule-render! r) => (reset! rendered true)
+      (udom/force-render r) => (reset! rendered true)
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
       (loaded-cb response items)
@@ -300,12 +301,39 @@
         @merged => true
         "Runs post-mutations"
         (:callback-done @state) => true
+        "Force re-renders the entire application"
+        @rendered => true
+        "Removes loading markers for results that didn't materialize"
+        (get-in @state (dfi/data-path item) :fail) => nil
+        "Updates the global loading marker"
+        @globally-marked => true))))
+
+(specification "Query response processing (loaded-callback with no post-mutations)"
+  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :refresh [:a]))
+        state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
+                     :item                        {2 {:id :original-data}}})
+        items [item]
+        queued (atom [])
+        rendered (atom false)
+        merged (atom false)
+        globally-marked (atom false)
+        loaded-cb (dfi/loaded-callback :reconciler)
+        response {:id 2}]
+    (when-mocking
+      (om/app-state r) => state
+      (om/merge! r resp query) => (reset! merged true)
+      (udom/force-render r items) => (reset! queued (set items))
+      (dfi/set-global-loading r) => (reset! globally-marked true)
+
+      (loaded-cb response items)
+
+      (assertions
+        "Merges response with app state"
+        @merged => true
         "Queues the refresh items for refresh"
         @queued =fn=> #(contains? % :a)
         "Queues the global loading marker for refresh"
         @queued =fn=> #(contains? % :ui/loading-data)
-        "Re-renders the application"
-        @rendered => true
         "Removes loading markers for results that didn't materialize"
         (get-in @state (dfi/data-path item) :fail) => nil
         "Updates the global loading marker"
