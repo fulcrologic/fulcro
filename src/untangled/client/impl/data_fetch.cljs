@@ -66,6 +66,44 @@
          :on-error      (error-callback reconciler)
          :callback-args [item]}))))
 
+(defn dedupe-by
+  "Returns a lazy sequence of the elements of coll with dupes removed.
+   An element is a duplicate IFF (keys-fn element) has key collision with any prior element
+   to come before it. E.g. (dedupe-by identity [[:a] [:b] [:a] [:a :c]]) => [[:a] [:b]]
+   Returns a stateful transducer when no collection is provided."
+  ([keys-fn] ;; transducer fn
+   (fn [rf]
+     (let [keys-seen (volatile! #{})]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (let [input-keys (set (keys-fn input))]
+            ;; if no keys seen, include input in the reduction
+            (if (empty? (set/intersection @keys-seen input-keys))
+              (do (vswap! keys-seen set/union input-keys)
+                  (rf result input))
+              result)))))))
+  ([keys-fn coll] (sequence (dedupe-by keys-fn) coll)))
+
+(defn join-key-or-nil [expr]
+  (when (util/join? expr)
+    (let [join-key-or-ident (util/join-key expr)]
+      (if (util/ident? join-key-or-ident)
+        (first join-key-or-ident)
+        join-key-or-ident))))
+
+(defn split-items-ready-to-load [items-ready-to-load]
+  (let [items-to-load-now (->> items-ready-to-load
+                               (dedupe-by (fn [item]
+                                            (->> (data-query item)
+                                                 (map join-key-or-nil))))
+                               set)
+        items-to-defer (->> items-ready-to-load
+                            (remove items-to-load-now)
+                            (vec))]
+    [items-to-load-now items-to-defer]))
+
 (defn mark-loading
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
   in the app state, and returns a map with the keys:
@@ -81,19 +119,15 @@
   ."
   [reconciler]
   (let [state (om/app-state reconciler)
-        items-to-load (get @state :om.next/ready-to-load)
-        ;; Go through the items-to-load. If there are two that include the same top-level keywords (on a join or prop)
-        ;; then only take the first (placing the latter into a separate collection). The result should be:
-        non-dupe-items items-to-load ; TODO: a sequence of items that contain no dupe keys
-        items-to-defer [] ; TODO: all of the items not in non-dupe-items
-        ]
-    (when-not (empty? items-to-load)
-      (place-load-markers state items-to-load)
+        items-ready-to-load (get @state :om.next/ready-to-load)
+        [items-to-load-now items-to-defer] (split-items-ready-to-load items-ready-to-load)]
+    (when-not (empty? items-to-load-now)
+      (place-load-markers state items-to-load-now)
       (swap! state assoc :ui/loading-data true :om.next/ready-to-load items-to-defer)
-      {:query         (full-query non-dupe-items)
+      {:query         (full-query items-to-load-now)
        :on-load       (loaded-callback reconciler)
        :on-error      (error-callback reconciler)
-       :callback-args items-to-load})))
+       :callback-args items-to-load-now})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API, used to write tests against specific data states
