@@ -162,9 +162,13 @@
 
 (defn elide-ast-nodes
   "Remove items from a query (AST) that have a key listed in the elision-set"
-  [{:keys [key] :as ast} elision-set]
-  (when-not (contains? elision-set key)
-    (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-set) c))))))
+  [{:keys [key union-key children] :as ast} elision-set]
+  (let [union-elision? (contains? elision-set union-key)]
+    (when-not (or union-elision? (contains? elision-set key))
+      (when (and union-elision? (<= (count children) 2))
+        (log/warn "Om unions are not designed to be used with fewer than two children. Check your calls to Untangled
+        load functions where the :without set contains " (pr-str union-key)))
+      (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-set) c)))))))
 
 (defn inject-query-params
   "Inject parameters into elements of the top-level query.

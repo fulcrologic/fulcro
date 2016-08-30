@@ -10,7 +10,7 @@
                  [differ "0.2.1"]
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [navis/untangled-spec "0.3.7-1" :scope "test"]
+                 [navis/untangled-spec "0.3.8" :scope "test"]
                  [org.omcljs/om "1.0.0-alpha41" :scope "provided"]]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
