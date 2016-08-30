@@ -84,7 +84,15 @@
 
   (behavior "can include parameters when eliding top-level keys from the query"
     (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:db/id {:x 1}})]
-      (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state))))))
+      (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
+
+  (behavior "can elide keywords from a union query"
+    (assertions
+      (om/ast->query
+        (dfi/elide-ast-nodes
+          (om/query->ast [{:current-tab {:panel [:data] :console [:data] :dashboard [:data]}}])
+          #{:console}))
+      => [{:current-tab {:panel [:data] :dashboard [:data]}}])))
 
 (specification "Lazy loading"
   (component "Loading a field within a component"
