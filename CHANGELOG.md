@@ -1,3 +1,7 @@
+0.5.5
+-----
+- Fixed bug where keywords in a union query were not elided when specified in the `:without` set of data fetches
+
 0.5.4
 -----
 - Added marker option to loads, so that load markers are optional
