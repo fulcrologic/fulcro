@@ -6,6 +6,7 @@
             [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
             [cljs.core.async :as async]
+            [clojure.walk :as walk]
             [clojure.zip :as zip])
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
@@ -58,7 +59,7 @@
   "Replaces all om-tempids in app-state with the ids returned by the server."
   (if (empty? tid->rid)
     state
-    (clojure.walk/prewalk #(if (-> % type (= om.tempid/TempId)) (get tid->rid % %) %) state)))
+    (walk/prewalk #(if (-> % type (= om.tempid/TempId)) (get tid->rid % %) %) state)))
 
 (defn rewrite-tempids-in-request-queue
   "Rewrite any pending requests in the request queue to account for the fact that a response might have
@@ -244,7 +245,7 @@
 
 (defn sweep-missing [result]
   (letfn [(clean [[k v]] (when-not (= v nf) [k v]))]
-    (clojure.walk/prewalk
+    (walk/prewalk
       #(if (map? %)
         (into {} (map clean %)) %)
       result)))
