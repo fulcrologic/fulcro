@@ -26,8 +26,6 @@
     (sente/start-chsk-router!
       ch-recv msg-handler)))
 
-(declare message-received)
-
 (defmulti message-received
   "Multimethod to handle Sente `event-msg`s"
   :id)
