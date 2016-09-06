@@ -37,7 +37,7 @@
 (defmethod push-received :default [app msg]
   (log/error (str "Received and unhandled message: " msg)))
 
-(defrecord ChannelClient [url init-chan channel-socket send-fn global-error-callback req-params parse-queue completed-app]
+(defrecord ChannelClient [ch-recv url init-chan channel-socket send-fn global-error-callback req-params parse-queue completed-app]
   ChannelSocket
   (reconnect [this]
     (sente/chsk-reconnect! channel-socket))
@@ -61,8 +61,8 @@
         (<! init-chan)
         (log/debug "Sending " edn)
         (send-fn `[:api/parse ~{:action  :send-message
-                               :command :send-om-request
-                               :content edn}]))))
+                                :command :send-om-request
+                                :content edn}]))))
   (start [this app]
     (let [this (assoc this :completed-app app)]
       (defmethod message-received :default [{:keys [ch-recv send-fn state event id ?data]}]
@@ -84,7 +84,9 @@
         (log/debug "Event" event)
         (log/debug "State" state)
         (when (:ever-opened? @state)
-          (put! init-chan true))))))
+          (put! init-chan true))))
+    (start-router! ch-recv message-received)
+    ))
 
 (defn make-channel-client
   "Creates a client side networking component for use in place of the default untangled networking component.
@@ -98,26 +100,26 @@
       `state-callback` can be either a function, or an atom containing a function.
   "
   [url & {:keys [global-error-callback req-params state-callback]}]
-  (let [parse-queue     (chan)
+  (let [parse-queue (chan)
         {:keys [chsk
                 ch-recv
                 send-fn
-                state]} (sente/make-channel-socket! url ; path on server
+                state]} (sente/make-channel-socket! url     ; path on server
                           {:packer         tp/packer
-                           :type           :ws ; e/o #{:auto :ajax :ws}
+                           :type           :ws              ; e/o #{:auto :ajax :ws}
                            :params         req-params
                            :wrap-recv-evs? false})
-        channel-client  (map->ChannelClient {:url                   url
-                                             :init-chan             (async/promise-chan)
-                                             :channel-socket        chsk
-                                             :send-fn               send-fn
-                                             :global-error-callback global-error-callback
-                                             :req-params            req-params
-                                             :parse-queue           parse-queue})]
+        channel-client (map->ChannelClient {:ch-recv               ch-recv
+                                            :url                   url
+                                            :init-chan             (async/promise-chan)
+                                            :channel-socket        chsk
+                                            :send-fn               send-fn
+                                            :global-error-callback global-error-callback
+                                            :req-params            req-params
+                                            :parse-queue           parse-queue})]
     (cond
       (fn? state-callback)            (add-watch state ::state-callback (fn [a k o n]
                                                                           (state-callback o n)))
       (instance? Atom state-callback) (add-watch state ::state-callback (fn [a k o n]
                                                                           (@state-callback o n))))
-    (start-router! ch-recv message-received)
     channel-client))
