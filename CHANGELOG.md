@@ -1,3 +1,6 @@
+# 0.3.1
+- Fix initialization timing issue where websockets messages were being received before multimethods were installed.
+
 # 0.3.0
 - Fix Issue #2 - use promise channel to validate initilization of channel in send protocol method.
 - Bumped Sente to version "1.10.0" and Timbre to "4.7.3". These versions, are dependent on `com.taoensso/encore 2.67.1`.

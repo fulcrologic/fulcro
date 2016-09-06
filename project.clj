@@ -1,4 +1,4 @@
-(defproject navis/untangled-websockets "0.3.1-SNAPSHOT"
+(defproject navis/untangled-websockets "0.3.1"
   :description "Tools for making untangled leverage websockets."
   :url ""
   :license {:name "MIT"
