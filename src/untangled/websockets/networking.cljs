@@ -77,7 +77,6 @@
           (push-received app ?data)))
 
       (defmethod message-received :chsk/handshake [{:keys [ch-recv send-fn state event id ?data] :as message}]
-        (js/console.log message)
         (log/debug "Message Routed to handshake handler " state))
 
       (defmethod message-received :chsk/state [{:keys [ch-recv send-fn state event id ?data] :as message}]
