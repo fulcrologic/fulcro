@@ -2,6 +2,7 @@
   (:require
     [untangled-spec.core :refer-macros [assertions behavior]]
     [cljs.test :refer-macros [is]]
+    [clojure.walk :as walk]
     [om.next :as om :refer-macros [defui]]
     [om.dom :as dom]
     [untangled.client.core :as core]))
@@ -14,7 +15,7 @@
   "Rewrite tempid keywords in the given state using the tid->rid map. Leaves the keyword alone if the map
    does not contain an entry for it."
   [state tid->rid & [pred]]
-  (clojure.walk/prewalk #(if ((or pred tempid?) %)
+  (walk/prewalk #(if ((or pred tempid?) %)
                           (get tid->rid % %) %)
     state))
 
@@ -39,7 +40,7 @@
 
 (defn allocate-tempids [tx]
   (let [allocated-ids (atom #{})]
-    (clojure.walk/prewalk
+    (walk/prewalk
       (fn [v] (when (tempid? v) (swap! allocated-ids conj v)) v)
       tx)
     (into {} (map #(vector % (om/tempid)) @allocated-ids))))
