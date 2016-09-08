@@ -1,8 +1,8 @@
-(defproject navis/untangled-client "0.5.4"
+(defproject navis/untangled-client "0.5.5"
   :description "Client-side code for Untangled Webapps"
   :url ""
-  :license {:name "NAVIS"
-            :url  "http://www.thenavisway.com"}
+  :license {:name "MIT"
+            :url  "https://opensource.org/licenses/MIT"}
 
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.51"]
@@ -10,8 +10,8 @@
                  [differ "0.2.1"]
                  [lein-doo "0.1.6" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [navis/untangled-spec "0.3.7-1" :scope "test"]
-                 [org.omcljs/om "1.0.0-alpha36" :scope "provided"]]
+                 [navis/untangled-spec "0.3.8" :scope "test"]
+                 [org.omcljs/om "1.0.0-alpha44" :scope "provided"]]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]

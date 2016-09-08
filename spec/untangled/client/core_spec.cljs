@@ -43,7 +43,7 @@
     (when-mocking
       (uc/preprocess-merge s c d) => {:merge-data :the-data :merge-query :the-query}
       (uc/integrate-ident! s i op args op args) => :ignore
-      (om/ident c p) => [:table :id]
+      (uc/get-class-ident c p) => [:table :id]
       (om/merge! r d q) => :ignore
       (om/app-state r) => state
       (omp/queue! r kw) => (assertions

@@ -10,7 +10,8 @@
      [specification behavior assertions provided component when-mocking]]
     [untangled.client.mutations :as m]
     [untangled.client.logging :as log]
-    [om.next.protocols :as omp]))
+    [om.next.protocols :as omp]
+    [untangled.dom :as udom]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -83,7 +84,15 @@
 
   (behavior "can include parameters when eliding top-level keys from the query"
     (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:db/id {:x 1}})]
-      (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state))))))
+      (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
+
+  (behavior "can elide keywords from a union query"
+    (assertions
+      (om/ast->query
+        (dfi/elide-ast-nodes
+          (om/query->ast [{:current-tab {:panel [:data] :console [:data] :dashboard [:data]}}])
+          #{:console}))
+      => [{:current-tab {:panel [:data] :dashboard [:data]}}])))
 
 (specification "Lazy loading"
   (component "Loading a field within a component"
@@ -275,8 +284,9 @@
 
 (defmethod m/mutate 'qrp-loaded-callback [{:keys [state]} n p] (swap! state assoc :callback-done true))
 
-(specification "Query response processing (loaded-callback)"
-  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback :refresh [:a]))
+
+(specification "Query response processing (loaded-callback with post mutation)"
+  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback))
         state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
                      :item                        {2 {:id :original-data}}})
         items [item]
@@ -289,8 +299,7 @@
     (when-mocking
       (om/app-state r) => state
       (om/merge! r resp query) => (reset! merged true)
-      (omp/queue! r items) => (reset! queued (set items))
-      (omp/schedule-render! r) => (reset! rendered true)
+      (udom/force-render r) => (reset! rendered true)
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
       (loaded-cb response items)
@@ -300,12 +309,39 @@
         @merged => true
         "Runs post-mutations"
         (:callback-done @state) => true
+        "Force re-renders the entire application"
+        @rendered => true
+        "Removes loading markers for results that didn't materialize"
+        (get-in @state (dfi/data-path item) :fail) => nil
+        "Updates the global loading marker"
+        @globally-marked => true))))
+
+(specification "Query response processing (loaded-callback with no post-mutations)"
+  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :refresh [:a]))
+        state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
+                     :item                        {2 {:id :original-data}}})
+        items [item]
+        queued (atom [])
+        rendered (atom false)
+        merged (atom false)
+        globally-marked (atom false)
+        loaded-cb (dfi/loaded-callback :reconciler)
+        response {:id 2}]
+    (when-mocking
+      (om/app-state r) => state
+      (om/merge! r resp query) => (reset! merged true)
+      (udom/force-render r items) => (reset! queued (set items))
+      (dfi/set-global-loading r) => (reset! globally-marked true)
+
+      (loaded-cb response items)
+
+      (assertions
+        "Merges response with app state"
+        @merged => true
         "Queues the refresh items for refresh"
         @queued =fn=> #(contains? % :a)
         "Queues the global loading marker for refresh"
         @queued =fn=> #(contains? % :ui/loading-data)
-        "Re-renders the application"
-        @rendered => true
         "Removes loading markers for results that didn't materialize"
         (get-in @state (dfi/data-path item) :fail) => nil
         "Updates the global loading marker"
@@ -363,3 +399,46 @@
       (get-in @state [:t 2]) => {:id 2}
       "are tracked by UUID in :untangled/loads-in-progress"
       (get @state :untangled/loads-in-progress) =fn=> #(= 2 (count %)))))
+
+(specification "Splits items to load by join key / ident kind."
+  (let [q-a-x {::dfi/query [{:a [:x]}]}
+        q-a-y {::dfi/query [{:a [:y]}]}
+        q-a-z {::dfi/query [{:a [:z]}]}
+        q-a-w {::dfi/query [{:a [:w]}]}
+        q-b-x {::dfi/query [{:b [:x]}]}
+        q-c-x {::dfi/query [{[:c 999] [:x]}]}
+        q-c-y {::dfi/query [{[:c 999] [:y]}]}
+        q-c-z {::dfi/query [{[:c 998] [:z]}]}
+        q-c-w {::dfi/query [{[:c 998] [:w]}]}
+        q-ab-x {::dfi/query [{:a [:x]} {:b [:x]}]}
+        q-bc-x {::dfi/query [{:b [:x]} {:c [:x]}]}
+        q-cd-x {::dfi/query [{:c [:x]} {:d [:x]}]}
+        q-de-x {::dfi/query [{:d [:x]} {:e [:x]}]}]
+    (assertions
+     "loads all items immediately when no join key conflicts"
+     (dfi/split-items-ready-to-load [q-a-x]) => [#{q-a-x} []]
+     (dfi/split-items-ready-to-load [q-a-x q-b-x]) => [#{q-a-x q-b-x} []]
+     (dfi/split-items-ready-to-load [q-a-x q-c-x]) => [#{q-a-x q-c-x} []]
+     (dfi/split-items-ready-to-load [q-a-x q-b-x q-c-x]) => [#{q-a-x q-b-x q-c-x} []]
+
+     "defers loading when join key conflict"
+     (dfi/split-items-ready-to-load [q-a-x q-a-y q-a-z q-a-w]) => [#{q-a-x} [q-a-y q-a-z q-a-w]]
+     (dfi/split-items-ready-to-load [q-a-y q-a-z q-a-w]) => [#{q-a-y} [q-a-z q-a-w]]
+     (dfi/split-items-ready-to-load [q-a-z q-a-w]) => [#{q-a-z} [q-a-w]]
+     (dfi/split-items-ready-to-load [q-a-w]) => [#{q-a-w} []]
+
+     "defers loading when ident key conflict"
+     (dfi/split-items-ready-to-load [q-c-x q-c-y q-c-z q-c-w]) => [#{q-c-x} [q-c-y q-c-z q-c-w]]
+     (dfi/split-items-ready-to-load [q-c-y q-c-z q-c-w]) => [#{q-c-y} [q-c-z q-c-w]]
+     (dfi/split-items-ready-to-load [q-c-z q-c-w]) => [#{q-c-z} [q-c-w]]
+     (dfi/split-items-ready-to-load [q-c-w]) => [#{q-c-w} []]
+
+     "defers loading when any key conflicts"
+     (dfi/split-items-ready-to-load
+      [q-a-x q-a-y q-a-z
+       q-b-x
+       q-c-x q-c-y q-c-z]) => [#{q-a-x q-b-x q-c-x} [q-a-y q-a-z q-c-y q-c-z]]
+
+     "defers loading when join keys partially conflict"
+     (dfi/split-items-ready-to-load [q-ab-x q-bc-x q-cd-x q-de-x]) => [#{q-ab-x q-cd-x} [q-bc-x q-de-x]]
+     (dfi/split-items-ready-to-load [q-bc-x q-de-x]) => [#{q-bc-x q-de-x} []])))

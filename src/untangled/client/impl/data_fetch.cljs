@@ -66,6 +66,44 @@
          :on-error      (error-callback reconciler)
          :callback-args [item]}))))
 
+(defn dedupe-by
+  "Returns a lazy sequence of the elements of coll with dupes removed.
+   An element is a duplicate IFF (keys-fn element) has key collision with any prior element
+   to come before it. E.g. (dedupe-by identity [[:a] [:b] [:a] [:a :c]]) => [[:a] [:b]]
+   Returns a stateful transducer when no collection is provided."
+  ([keys-fn] ;; transducer fn
+   (fn [rf]
+     (let [keys-seen (volatile! #{})]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (let [input-keys (set (keys-fn input))]
+            ;; if no keys seen, include input in the reduction
+            (if (empty? (set/intersection @keys-seen input-keys))
+              (do (vswap! keys-seen set/union input-keys)
+                  (rf result input))
+              result)))))))
+  ([keys-fn coll] (sequence (dedupe-by keys-fn) coll)))
+
+(defn join-key-or-nil [expr]
+  (when (util/join? expr)
+    (let [join-key-or-ident (util/join-key expr)]
+      (if (util/ident? join-key-or-ident)
+        (first join-key-or-ident)
+        join-key-or-ident))))
+
+(defn split-items-ready-to-load [items-ready-to-load]
+  (let [items-to-load-now (->> items-ready-to-load
+                               (dedupe-by (fn [item]
+                                            (->> (data-query item)
+                                                 (map join-key-or-nil))))
+                               set)
+        items-to-defer (->> items-ready-to-load
+                            (remove items-to-load-now)
+                            (vec))]
+    [items-to-load-now items-to-defer]))
+
 (defn mark-loading
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
   in the app state, and returns a map with the keys:
@@ -81,14 +119,15 @@
   ."
   [reconciler]
   (let [state (om/app-state reconciler)
-        items-to-load (get @state :om.next/ready-to-load)]
-    (when-not (empty? items-to-load)
-      (place-load-markers state items-to-load)
-      (swap! state assoc :ui/loading-data true :om.next/ready-to-load [])
-      {:query         (full-query items-to-load)
+        items-ready-to-load (get @state :om.next/ready-to-load)
+        [items-to-load-now items-to-defer] (split-items-ready-to-load items-ready-to-load)]
+    (when-not (empty? items-to-load-now)
+      (place-load-markers state items-to-load-now)
+      (swap! state assoc :ui/loading-data true :om.next/ready-to-load items-to-defer)
+      {:query         (full-query items-to-load-now)
        :on-load       (loaded-callback reconciler)
        :on-error      (error-callback reconciler)
-       :callback-args items-to-load})))
+       :callback-args items-to-load-now})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API, used to write tests against specific data states
@@ -123,9 +162,13 @@
 
 (defn elide-ast-nodes
   "Remove items from a query (AST) that have a key listed in the elision-set"
-  [{:keys [key] :as ast} elision-set]
-  (when-not (contains? elision-set key)
-    (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-set) c))))))
+  [{:keys [key union-key children] :as ast} elision-set]
+  (let [union-elision? (contains? elision-set union-key)]
+    (when-not (or union-elision? (contains? elision-set key))
+      (when (and union-elision? (<= (count children) 2))
+        (log/warn "Om unions are not designed to be used with fewer than two children. Check your calls to Untangled
+        load functions where the :without set contains " (pr-str union-key)))
+      (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-set) c)))))))
 
 (defn inject-query-params
   "Inject parameters into elements of the top-level query.
@@ -272,7 +315,7 @@
       (om/merge! reconciler marked-response query)
       (run-post-mutations)
       (set-global-loading reconciler)
-      (if (contains? refresh-set :untangled/force-root)
+      (if (or @ran-mutations (contains? refresh-set :untangled/force-root))
         (udom/force-render reconciler)
         (udom/force-render reconciler to-refresh)))))
 

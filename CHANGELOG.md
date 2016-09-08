@@ -1,3 +1,11 @@
+0.5.5
+-----
+- Fixed bug where keywords in a union query were not elided when specified in the `:without` set of data fetches
+- Fixed bug with query combining that was causing parallel reads to collide
+- Corrected initialization order so that alternates on unions are done before startup callback
+- Fixed a rendering refresh bug on post mutations
+- Fixed compiler warnings about clojure walk
+
 0.5.4
 -----
 - Added marker option to loads, so that load markers are optional

@@ -67,10 +67,15 @@
     (component "Remote transaction"
       (behavior "are split into reads, mutations, and tx fallbacks"
         (let [fallback-handler app/fallback-handler
-              full-tx '[(a/f) (untangled/load {}) (tx/fallback {:action app/fix-error})]]
+              full-tx '[(a/f) (untangled/load {}) (tx/fallback {:action app/fix-error})]
+              mark-loading! (let [to-be-marked (atom [{:query '[:some-real-query]}])]
+                              (fn []
+                                (when-let [marked (first @to-be-marked)]
+                                  (swap! to-be-marked pop)
+                                  marked)))]
           (when-mocking
             (om/app-state _) => (atom nil)
-            (f/mark-loading r) => {:query '[:some-real-query]}
+            (f/mark-loading r) => (mark-loading!)
             (app/fallback-handler app tx) => (let [rv (fallback-handler app tx)
                                                    app-state (atom {})]
                                                (when-mocking
