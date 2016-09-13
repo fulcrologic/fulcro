@@ -1,3 +1,9 @@
+0.5.6
+-----
+- refactored openid mock setup into install-state! and add-auth-header
+- renamed request-transforms :request parameter to :body
+- install-state! only clears the hash fragment when it didnt get any cookies and had to search the hash
+
 0.5.5
 -----
 - Fixed bug where keywords in a union query were not elided when specified in the `:without` set of data fetches
