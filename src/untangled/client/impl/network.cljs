@@ -65,10 +65,9 @@
   (send [this edn ok err]
     (let [xhrio (make-xhrio)
           headers {"Content-Type" "application/transit+json"}
-          {:keys [request headers]} (cond
-                                      request-transform (request-transform {:request edn :headers headers})
-                                      :else {:request edn :headers headers})
-          post-data (ct/write (t/writer) request)
+          {:keys [body headers]} (cond-> {:body edn :headers headers}
+                                   request-transform request-transform)
+          post-data (ct/write (t/writer) body)
           headers (clj->js headers)]
       (.send xhrio url "POST" post-data headers)
       (events/listen xhrio (.-SUCCESS EventType) #(response-ok this xhrio ok))

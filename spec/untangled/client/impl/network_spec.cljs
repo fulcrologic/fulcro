@@ -39,7 +39,7 @@
     (let [body-sent (atom nil)
           headers-sent (atom nil)
           network (net/make-untangled-network "/api" :request-transform (fn [{:keys [request headers]}]
-                                                                          {:request {:new 2}
+                                                                          {:body {:new 2}
                                                                            :headers {:other 3}}))
           fake-xhrio (js-obj "send" (fn [url typ body headers]
                                       (reset! body-sent body)
