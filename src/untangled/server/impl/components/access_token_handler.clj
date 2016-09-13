@@ -48,11 +48,11 @@
 
 (defn- valid-token? [token {:keys [public-keys issuer audience grace-period-minutes]}]
   (cond
-    (missing-token? token)                           (fail-with token "Token is missing.")
-    (not (valid-signature? token public-keys))       (fail-with token "Invalid signature.")
-    (not (valid-issuer? token issuer))               (fail-with token "Invalid issuer.")
+    (missing-token? token) (fail-with token "Token is missing.")
+    (not (valid-signature? token public-keys)) (fail-with token "Invalid signature.")
+    (not (valid-issuer? token issuer)) (fail-with token "Invalid issuer.")
     (not (valid-expire? token grace-period-minutes)) (fail-with token "Expired token.")
-    (not (valid-audience? token audience))           (fail-with token "Invalid audience.")
+    (not (valid-audience? token audience)) (fail-with token "Invalid audience.")
 
     (and (missing-sub? token) (missing-client-id? token))
     (fail-with token (if (missing-sub? token) "Missing subject." "Missing client id."))
@@ -68,7 +68,7 @@
 (defn unsecured-route? [{:keys [uri request-method] :as request} {:keys [unsecured-routes]}]
   (bidi/match-route
     ["" (merge {#"/[^/]*\.[^/]*" :ok "/" :ok}
-               unsecured-routes)]
+          unsecured-routes)]
     uri :request-method request-method))
 
 (defn wrap-access-token
@@ -92,7 +92,7 @@
       (if (unsecured-route? request merged-options)
         (do (log/trace "Unsecured route: " uri)
             (handler request))
-        (let [_ (log/trace "Securing route: " uri)
+        (let [_     (log/trace "Securing route: " uri)
               token (get-token request)]
           (if-not (valid-token? token merged-options)
             (let [{:keys [invalid-token-handler]} merged-options]
@@ -104,29 +104,32 @@
 (defn validate-unsecured-route-handlers! [unsecured-routes]
   (assert (map? unsecured-routes) (str "unsecured-routes was not a map: " unsecured-routes))
   (walk/prewalk #(do (when (and (map-entry? %)
-                                (not (coll? (val %))))
+                             (not (coll? (val %))))
                        (assert (= :ok (val %))
                          (str "unsecured-routes handler <" % "> was not :ok")))
                      %)
-                unsecured-routes)
+    unsecured-routes)
   true)
 
 (defrecord AccessTokenHandler [handler]
   component/Lifecycle
   (start [this]
-    (let [pre-hook (.get-pre-hook handler)
-          config (-> this :config :value :openid)
-          _ (validate-unsecured-route-handlers! (:unsecured-routes config))
-          authority (:authority config)
-          discovery-doc-url (str authority "/.well-known/openid-configuration")
-          discovery-doc (-> discovery-doc-url http/get :body json/read-str)
-          issuer (get discovery-doc "issuer")
-          public-keys-url (get discovery-doc "jwks_uri")
-          public-keys (-> public-keys-url http/get :body json/read-str (get "keys"))
-          public-keys' (public-keys-from-jwks public-keys)
-          config' (assoc config :public-keys public-keys' :issuer issuer)]
-      (.set-pre-hook! handler (comp pre-hook
-                                (partial wrap-cookies)
-                                (partial wrap-access-token config')))
-      this))
+    (log/info "Starting Access Token Handler")
+    (http/with-connection-pool {:timeout 5 :threads 2}
+      (let [pre-hook          (.get-pre-hook handler)
+            config            (-> this :config :value :openid)
+            _                 (validate-unsecured-route-handlers! (:unsecured-routes config))
+            authority         (:authority config)
+            discovery-doc-url (str authority "/.well-known/openid-configuration")]
+        (if-let [discovery-doc (-> discovery-doc-url http/get :body json/read-str)]
+          (let [issuer          (get discovery-doc "issuer")
+                public-keys-url (get discovery-doc "jwks_uri")
+                public-keys     (-> public-keys-url http/get :body json/read-str (get "keys"))
+                public-keys'    (public-keys-from-jwks public-keys)
+                config'         (assoc config :public-keys public-keys' :issuer issuer)]
+            (.set-pre-hook! handler (comp pre-hook
+                                      (partial wrap-cookies)
+                                      (partial wrap-access-token config'))))
+          (log/error "AccessTokenHandler: Error retrieving discovery document."))
+        this)))
   (stop [this] this))
