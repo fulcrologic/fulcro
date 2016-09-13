@@ -1,6 +1,8 @@
-(defproject navis/untangled-server "0.6.1-1"
+(defproject navis/untangled-server "0.6.1-2"
   :description "Library for creating Untangled web servers"
   :url ""
+  :license {:name "MIT"
+            :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
                  [org.clojure/math.combinatorics "0.1.1"]
                  [org.clojure/tools.namespace "0.2.10"]

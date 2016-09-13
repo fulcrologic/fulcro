@@ -116,7 +116,7 @@
 (def run #(%1 %2))
 (specification "the handler"
   (behavior "takes an extra-routes map containing bidi :routes & :handlers"
-    (let [make-handler (fn [extra-routes] (h/handler (constantly nil) {} extra-routes identity identity))]
+    (let [make-handler (fn [extra-routes] (h/handler (constantly nil) {} extra-routes identity identity identity))]
       (assertions
         (-> {:routes   ["test" :test]
              :handlers {:test (fn [env match]

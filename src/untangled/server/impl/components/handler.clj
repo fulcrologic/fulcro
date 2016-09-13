@@ -15,11 +15,6 @@
     [clojure.data.json :as json])
   (:import (clojure.lang ExceptionInfo)))
 
-(def routes
-  ["" {"/"    :index
-       "/api" {:get  :api
-               :post :api}}])
-
 (defn index [req]
   (assoc (resource-response (str "index.html") {:root "public"})
     :headers {"Content-Type" "text/html"}))
@@ -110,13 +105,30 @@
    :headers (merge headers {"Content-Type" "application/transit+json"})
    :body    body})
 
+(def default-api-key "/api")
+
+(defn app-namify-api [default-routes app-name]
+  (if app-name
+    (update default-routes 1 (fn [m]
+                               (let [api-val (get m default-api-key)]
+                                 (-> m
+                                     (dissoc default-api-key)
+                                     (assoc (str "/" app-name default-api-key) api-val)))))
+    default-routes))
+
+(def default-routes
+  ["" {"/"             :index
+       default-api-key {:get  :api
+                        :post :api}}])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Handler Code
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn route-handler [req]
-  (let [match (bidi/match-route routes (:uri req)
-                :request-method (:request-method req))]
+  (let [routes (app-namify-api default-routes (:app-name req))
+        match (bidi/match-route routes (:uri req)
+                                :request-method (:request-method req))]
     (case (:handler match)
       ;; explicit handling of / as index.html. wrap-resources does the rest
       :index (index req)
@@ -125,9 +137,12 @@
 
 (defn wrap-connection
   "Ring middleware function that invokes the general handler with the parser and parsing environgment on the request."
-  [handler route-handler api-parser om-parsing-env]
+  [handler route-handler api-parser om-parsing-env app-name]
   (fn [req]
-    (if-let [res (route-handler (assoc req :parser api-parser :env (assoc om-parsing-env :request req)))]
+    (if-let [res (route-handler (assoc req
+                                  :parser api-parser
+                                  :env (assoc om-parsing-env :request req)
+                                  :app-name app-name))]
       res
       (handler req))))
 
@@ -149,20 +164,20 @@
   will include any components that were injected into the handler.
 
   Returns a function that handles requests."
-  [api-parser om-parsing-env extra-routes pre-hook fallback-hook]
+  [api-parser om-parsing-env extra-routes app-name pre-hook fallback-hook]
   ;; NOTE: ALL resources served via wrap-resources (from the public subdirectory). The BIDI route maps / -> index.html
   (-> (not-found-handler)
-    (fallback-hook)
-    (wrap-connection route-handler api-parser om-parsing-env)
-    (middleware/wrap-transit-params)
-    (middleware/wrap-transit-response)
-    (wrap-resource "public")
-    (wrap-extra-routes extra-routes om-parsing-env)
-    (pre-hook)
-    ;;TODO: wrap-decode-url
-    (wrap-content-type)
-    (wrap-not-modified)
-    (wrap-gzip)))
+      (fallback-hook)
+      (wrap-connection route-handler api-parser om-parsing-env app-name)
+      (middleware/wrap-transit-params)
+      (middleware/wrap-transit-response)
+      (wrap-resource "public")
+      (wrap-extra-routes extra-routes om-parsing-env)
+      (pre-hook)
+      ;;TODO: wrap-decode-url
+      (wrap-content-type)
+      (wrap-not-modified)
+      (wrap-gzip)))
 
 (defprotocol IHandler
   (set-pre-hook! [this pre-hook] "sets the handler before any important handlers are run")
@@ -170,7 +185,7 @@
   (set-fallback-hook! [this fallback-hook] "sets the fallback handler in case nothing else returned")
   (get-fallback-hook [this] "gets the current fallback-hook handler"))
 
-(defrecord Handler [stack api-parser injected-keys extra-routes pre-hook fallback-hook]
+(defrecord Handler [stack api-parser injected-keys extra-routes app-name pre-hook fallback-hook]
   component/Lifecycle
   (start [component]
     (assert (every? (set (keys component)) injected-keys)
@@ -179,8 +194,8 @@
         " do not exist."))
     (timbre/info "Creating web server handler.")
     (let [om-parsing-env (select-keys component injected-keys)
-          req-handler (handler api-parser om-parsing-env extra-routes
-                        @pre-hook @fallback-hook)]
+          req-handler (handler api-parser om-parsing-env extra-routes app-name
+                               @pre-hook @fallback-hook)]
       (reset! stack req-handler)
       (assoc component :env om-parsing-env
                        :all-routes (fn [req] (@stack req)))))
@@ -192,15 +207,15 @@
   (set-pre-hook! [this new-pre-hook]
     (reset! pre-hook new-pre-hook)
     (reset! stack
-      (handler api-parser (select-keys this injected-keys)
-        extra-routes @pre-hook @fallback-hook))
+            (handler api-parser (select-keys this injected-keys)
+                     extra-routes app-name @pre-hook @fallback-hook))
     this)
   (get-pre-hook [this] @pre-hook)
   (set-fallback-hook! [this new-fallback-hook]
     (reset! fallback-hook new-fallback-hook)
     (reset! stack
-      (handler api-parser (select-keys this injected-keys)
-        extra-routes @pre-hook @fallback-hook))
+            (handler api-parser (select-keys this injected-keys)
+                     extra-routes app-name @pre-hook @fallback-hook))
     this)
   (get-fallback-hook [this] @fallback-hook))
 
@@ -211,13 +226,15 @@
   - `api-parser`: An Om AST Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
   - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
   - `extra-routes`: See `make-untangled-server`
+  - `app-name`: See `make-untangled-server`
   "
-  [api-parser injections & {:keys [extra-routes]}]
+  [api-parser injections & {:keys [extra-routes app-name]}]
   (component/using
     (map->Handler {:api-parser    api-parser
                    :injected-keys injections
                    :stack         (atom nil)
                    :pre-hook      (atom identity)
                    :fallback-hook (atom identity)
-                   :extra-routes  (or extra-routes {})})
+                   :extra-routes  (or extra-routes {})
+                   :app-name      app-name})
     (vec (into #{:config} injections))))
