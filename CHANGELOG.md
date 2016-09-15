@@ -1,8 +1,6 @@
 0.5.6
 -----
-- refactored openid mock setup into install-state! and add-auth-header
-- renamed request-transforms :request parameter to :body
-- install-state! only clears the hash fragment when it didnt get any cookies and had to search the hash
+- Fixed bug with global-error-callback not being called with a server error returns no body
 
 0.5.5
 -----

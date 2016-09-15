@@ -2,7 +2,8 @@
   (:require [untangled.client.logging :as log]
             [cognitect.transit :as ct]
             [goog.events :as events]
-            [om.transit :as t])
+            [om.transit :as t]
+            [clojure.string :as str])
   (:require-macros
     [cljs.core.async.macros :refer [go]])
   (:import [goog.net XhrIo EventType]))
@@ -25,9 +26,12 @@
   (response-error [this xhrio err-cb] "Called by XhrIo on ERROR"))
 
 (defn parse-response [xhr-io]
-  (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))
-                                 "u" cljs.core/uuid}})
-           (.getResponseText xhr-io)))
+  (let [text (.getResponseText xhr-io)]
+    (if (str/blank? text)
+      (.getStatus xhr-io)
+      (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))
+                                     "u" cljs.core/uuid}})
+        (.getResponseText xhr-io)))))
 
 (defrecord Network [url request-transform global-error-callback complete-app]
   IXhrIOCallbacks
