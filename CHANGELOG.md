@@ -1,3 +1,7 @@
+0.5.6
+-----
+- Fixed bug with global-error-callback not being called with a server error returns no body
+
 0.5.5
 -----
 - Fixed bug where keywords in a union query were not elided when specified in the `:without` set of data fetches

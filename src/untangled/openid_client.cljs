@@ -1,6 +1,7 @@
 (ns untangled.openid-client
   (:require [clojure.string :as s]
-            [clojure.walk :as w])
+            [clojure.walk :as w]
+            [om.next :as om])
   (:import goog.net.Cookies))
 
 (defn params []
@@ -24,25 +25,27 @@
 (defn parse-claims [token]
   (some-> token (s/split #"\.") second js/atob js/JSON.parse))
 
-(defn setup
+(defn add-auth-header
+  "Adds an Authorization header for each request based on the claims in the cookies or the url's hash fragments"
+  [req]
+  (let [access-token (-> (or (get-tokens-from-cookies)
+                             (tokens-from-params (params)))
+                       (get "access_token"))]
+    (assoc-in req [:headers "Authorization"] (str "Bearer " access-token))))
+
+(defn install-state!
   "Installs openid information into the passed in untangled-client app's initial state,
-  based on the token claims in the url's hash fragments.
-  Also composes in a request-transform in networking's send function
-  to add an Authorization header for each request."
-  [app]
-  (let [tokens (or
-                 (get-tokens-from-cookies)
-                 (tokens-from-params (params)))
+  based on the token claims in the cookies or the url's hash fragments."
+  [reconciler & {:keys [custom-state-fn] :or {custom-state-fn (constantly {})}}]
+  (let [hash-tokens (tokens-from-params (params))
+        tokens (or (get-tokens-from-cookies)
+                   hash-tokens)
         id-claims (some-> tokens (get "id_token") parse-claims js->clj w/keywordize-keys)]
-    (swap! app update-in [:initial-state]
-           (fn [m]
-             (assoc m
-                    :app/header {:current-username (:name id-claims)}
-                    :openid/claims id-claims
-                    :openid/access-token (get tokens "access_token"))))
-    (swap! app update-in [:networking :request-transform]
-           #(comp (or % identity)
-                  (fn [req]
-                      (let [access-token (:openid/access-token @(:reconciler @app))]
-                        (assoc-in req [:headers "Authorization"] (str "Bearer " access-token))))))
-    (aset js/window.location "hash" "")))
+    (when (= tokens hash-tokens)
+      ;ie: dont always clear the hash, as it might be used by routing
+      (aset js/window.location "hash" ""))
+    (swap! (om/app-state reconciler) merge
+      (merge
+        (custom-state-fn id-claims)
+        {:openid/claims id-claims
+         :openid/access-token (get tokens "access_token")}))))
