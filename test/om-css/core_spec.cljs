@@ -1,6 +1,6 @@
 (ns om-css.core-spec
   (:require [untangled-spec.core :refer-macros [specification assertions behavior]]
-            [om-css.core :as css]
+            [om-css.core :as css :refer-macros [apply-css]]
             [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]))
 
@@ -38,28 +38,32 @@
 (specification "CSS merge"
   (assertions
     "Allows a component to specify a single rule"
-    (css/css-merge Child) => [[:.app_css-spec_Child__p {:font-weight 'bold}]]
+    (css/css-merge Child) => [[:.om-css_core-spec_Child__p {:font-weight 'bold}]]
     "Allows a component to specify multiple rules"
-    (css/css-merge Child2) => [[:.app_css-spec_Child2__p {:font-weight 'bold}]
-                               [:.app_css-spec_Child2__p2 {:font-weight 'normal}]]
+    (css/css-merge Child2) => [[:.om-css_core-spec_Child2__p {:font-weight 'bold}]
+                               [:.om-css_core-spec_Child2__p2 {:font-weight 'normal}]]
     "Allows component combinations"
-    (css/css-merge Child Child2) => [[:.app_css-spec_Child__p {:font-weight 'bold}]
-                                     [:.app_css-spec_Child2__p {:font-weight 'bold}]
-                                     [:.app_css-spec_Child2__p2 {:font-weight 'normal}]]
+    (css/css-merge Child Child2) => [[:.om-css_core-spec_Child__p {:font-weight 'bold}]
+                                     [:.om-css_core-spec_Child2__p {:font-weight 'bold}]
+                                     [:.om-css_core-spec_Child2__p2 {:font-weight 'normal}]]
     "Merges rules in with component css"
-    (css/css-merge Child [:a {:x 1}] Child2) => [[:.app_css-spec_Child__p {:font-weight 'bold}]
+    (css/css-merge Child [:a {:x 1}] Child2) => [[:.om-css_core-spec_Child__p {:font-weight 'bold}]
                                                  [:a {:x 1}]
-                                                 [:.app_css-spec_Child2__p {:font-weight 'bold}]
-                                                 [:.app_css-spec_Child2__p2 {:font-weight 'normal}]]
-    ))
+                                                 [:.om-css_core-spec_Child2__p {:font-weight 'bold}]
+                                                 [:.om-css_core-spec_Child2__p2 {:font-weight 'normal}]]))
 
 (defrecord X [])
 
-#_(specification "apply-css macro"
+(defui Boo
+  static css/CSS
+  (css [this] [:a {:x 1}]))
+
+(specification "apply-css macro"
   (assertions
-    "Converts :class entries to localized names"
-    (css/apply-css X (pr-str [:a {:b [:c {:d #js {:class :a}}]}])) => "[:a {:b [:c {:d {:className \"app_css-spec_X__a\"}}]}]"
-    ))
+    "Converts :class entries to localized names for record types"
+    (apply-css X (pr-str [:a {:b [:c {:d #js {:class :a}}]}])) => "[:a {:b [:c {:d #js {:className \"om-css_core-spec_X__a\"}}]}]"
+    "Converts :class entries to localized names for defui types"
+    (apply-css Boo (pr-str [:a {:b [:c {:d #js {:class :a}}]}])) => "[:a {:b [:c {:d #js {:className \"om-css_core-spec_Boo__a\"}}]}]"))
 
 
 

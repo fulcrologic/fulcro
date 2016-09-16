@@ -4,8 +4,7 @@
   (:require [clojure.string :as str]
             [garden.core :as g]
     #?(:clj
-            [cljs.tagged-literals])
-            [om.next :as om])
+            [cljs.tagged-literals]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
@@ -111,7 +110,7 @@
                              (let [cn (name c)]
                                (if (str/starts-with? cn "$")
                                  (str/replace cn #"^[$]" "")
-                                 `(app.css/local-class ~class ~cn))))
+                                 `(om-css.core/local-class ~class ~cn))))
                      subclasses (if (vector? subclass)
                                   (apply list (reduce (fn [acc c] (conj acc (entry c) " ")) ['str] subclass))
                                   (entry subclass))]

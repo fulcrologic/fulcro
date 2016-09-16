@@ -3,8 +3,7 @@
     [untangled-spec.reporters.suite :as ts])
   (:require
     untangled-spec.reporters.impl.suite
-    ;; TODO: Require your specs here
-    app.css-spec
+    om-css.core-spec
     [devtools.core :as devtools]))
 
 (enable-console-print!)
