@@ -15,24 +15,21 @@
 
   :source-paths ["src"]
   :resource-paths []
-  :jvm-opts ["-server" "-Xmx1024m" "-Xms512m" "-XX:-OmitStackTraceInFastThrow"]
   :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
-  :cljsbuild {:builds
-              [{:id           "test"
-                :source-paths ["test" "src" "dev"]
-                :figwheel     true
-                :compiler     {:main          om-css.suite
-                               :output-to     "resources/public/js/specs/specs.js"
-                               :output-dir    "resources/public/js/compiled/specs"
-                               :asset-path    "js/compiled/specs"
-                               :optimizations :none}}]}
+  :cljsbuild {:builds [{:id           "dev"
+                        :source-paths ["src" "test"]
+                        :figwheel     true
+                        :compiler     {:main          om-css.suite
+                                       :output-to     "resources/public/js/specs/specs.js"
+                                       :output-dir    "resources/public/js/compiled/specs"
+                                       :asset-path    "js/compiled/specs"
+                                       :optimizations :none}}]}
 
-  :profiles {:dev {:source-paths ["src" "dev"]
+  :profiles {:dev {:source-paths   ["src" "dev"]
                    :resource-paths ["src" "resources"]
-                   :dependencies [[binaryage/devtools "0.5.2" :scope "test"]
-                                  [figwheel-sidecar "0.5.5" :scope "test" :exclusions [ring/ring-core joda-time org.clojure/tools.reader]]]}}
+                   :dependencies   [[binaryage/devtools "0.5.2"]
+                                    [figwheel-sidecar "0.5.5" :exclusions [org.clojure/tools.nrepl]]]}}
 
   :repl-options {:init-ns          user
-                 :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-  )
+                 :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]})
