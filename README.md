@@ -26,7 +26,7 @@ don't use it, you don't end up emitting it!
 
 ### Component samples 
 
-```
+```clj
 (ns my-ns
   (:require 
      [om-css.core :as css :refer-macros [localize-classnames]
