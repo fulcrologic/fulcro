@@ -11,8 +11,8 @@ component CSS.
 ## Usage
 
 First, co-locate your rules on the components, and use the localized class
-names in your rendering. The primary tools for this are garden syntax,
-`css/local-kw` to generate localized classname keywords for garden,
+names in your rendering. The primary tools for this are [garden](https://github.com/noprompt/garden) syntax,
+`css/local-kw` to generate localized classname keywords for [garden](https://github.com/noprompt/garden),
 `css/local-class` to generate localized classname strings for use in
 the `:className` attribute of DOM elements, and `localize-classnames`
 which is a macro that will rewrite a render body from simple a `:class`
