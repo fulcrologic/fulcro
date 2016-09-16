@@ -1,6 +1,6 @@
 (ns om-css.core-spec
   (:require [untangled-spec.core :refer-macros [specification assertions behavior]]
-            [om-css.core :as css :refer-macros [apply-css]]
+            [om-css.core :as css :refer-macros [localize-classnames]]
             [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]))
 
@@ -61,9 +61,9 @@
 (specification "apply-css macro"
   (assertions
     "Converts :class entries to localized names for record types"
-    (apply-css X (pr-str [:a {:b [:c {:d #js {:class :a}}]}])) => "[:a {:b [:c {:d #js {:className \"om-css_core-spec_X__a\"}}]}]"
+    (localize-classnames X (pr-str [:a {:b [:c {:d #js {:class :a}}]}])) => "[:a {:b [:c {:d #js {:className \"om-css_core-spec_X__a\"}}]}]"
     "Converts :class entries to localized names for defui types"
-    (apply-css Boo (pr-str [:a {:b [:c {:d #js {:class :a}}]}])) => "[:a {:b [:c {:d #js {:className \"om-css_core-spec_Boo__a\"}}]}]"))
+    (localize-classnames Boo (pr-str [:a {:b [:c {:d #js {:class :a}}]}])) => "[:a {:b [:c {:d #js {:className \"om-css_core-spec_Boo__a\"}}]}]"))
 
 
 

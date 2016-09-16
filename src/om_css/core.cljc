@@ -89,12 +89,12 @@
        (.appendChild (.-body js/document) style-ele))))
 
 #?(:clj
-   (defmacro apply-css
+   (defmacro localize-classnames
      "Localizes class names specified in DOM elements as keywords or vectors of keywords set in the :class property
      of their attributes map and outputs them as a proper :className string. Starting a keyword's name with `$` will
      prevent localization.
 
-        (render [this] (apply-css ClassName (dom/div #js { :class [:p :$r] } ...)))
+        (render [this] (localize-classnames ClassName (dom/div #js { :class [:p :$r] } ...)))
 
      will result in:
 
