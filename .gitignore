@@ -3,4 +3,4 @@ resources/public/js
 .idea
 *.iml
 *.log
-pom.xml
+pom.xml*

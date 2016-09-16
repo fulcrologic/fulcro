@@ -77,4 +77,4 @@ in the co-located CSS generation.
 
 # More Information
 
-Coming soon: See the Untangled Cookbook css recipe for a working example.
+See the Untangled Cookbook [css recipe](https://github.com/untangled-web/untangled-cookbook/tree/master/recipes/css) for a working example.
