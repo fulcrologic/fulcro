@@ -18,6 +18,12 @@ the `:className` attribute of DOM elements, and `localize-classnames`
 which is a macro that will rewrite a render body from simple a `:class`
 attribute to the proper `:className` attribute.
 
+**IMPORTANT NOTE:** The composition rules for CSS are just like Om queries and
+Untangled initial app state: it has to all compose to some root, and you obtain
+the total result from that root. The obvious disadvantage is that if you forget
+to compose it, it won't appear. However, it has the distinct advantage: if you
+don't use it, you don't end up emitting it!
+
 ### Component samples 
 
 ```
