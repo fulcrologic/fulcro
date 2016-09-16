@@ -1,4 +1,4 @@
-(ns app.css
+(ns om-css.core
   #?(:clj
      (:use com.rpl.specter))
   (:require [clojure.string :as str]

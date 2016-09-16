@@ -1,8 +1,7 @@
-(ns app.css-spec
+(ns om-css.core-spec
   (:require [untangled-spec.core :refer-macros [specification assertions behavior]]
-            [app.css :as css]
+            [om-css.core :as css]
             [om.next :as om :refer-macros [defui]]
-            [app.ui :as ui]
             [om.dom :as dom]))
 
 (defui Child
@@ -30,11 +29,11 @@
   (behavior "can be generated for a class"
     (assertions
       "with a keyword"
-      (css/local-class ui/Child :root) => "app_ui_Child__root"
+      (css/local-class Child :root) => "om-css_core-spec_Child__root"
       "with a string"
-      (css/local-class ui/Child "root") => "app_ui_Child__root"
+      (css/local-class Child "root") => "om-css_core-spec_Child__root"
       "with a symbol"
-      (css/local-class ui/Child 'root) => "app_ui_Child__root")))
+      (css/local-class Child 'root) => "om-css_core-spec_Child__root")))
 
 (specification "CSS merge"
   (assertions

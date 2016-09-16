@@ -16,13 +16,13 @@
 
   :plugins [[lein-cljsbuild "1.1.3"]]
 
-  :source-paths ["dev/server" "src/shared"]
+  :source-paths ["src"]
   :jvm-opts ["-server" "-Xmx1024m" "-Xms512m" "-XX:-OmitStackTraceInFastThrow"]
   :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
   :cljsbuild {:builds
               [{:id           "test"
-                :source-paths ["test/client" "src/client" "src/shared"]
+                :source-paths ["test" "src"]
                 :figwheel     true
                 :compiler     {:main                 app.suite
                                :output-to            "resources/public/js/specs/specs.js"

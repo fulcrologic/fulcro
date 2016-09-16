@@ -1,4 +1,4 @@
-(ns app.suite
+(ns om-css.suite
   (:require-macros
     [untangled-spec.reporters.suite :as ts])
   (:require
