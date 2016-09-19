@@ -1,6 +1,7 @@
 0.5.6
 -----
 - Fixed bug with global-error-callback not being called with a server error returns no body
+- Fixed bug that prevents error processing if the server is completely down
 
 0.5.5
 -----
