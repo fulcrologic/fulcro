@@ -2,6 +2,9 @@
 
 The client library for the Untangled Web framework.
 
+[![Clojars
+Project](https://img.shields.io/clojars/v/navis/untangled-client.svg)](https://clojars.org/navis/untangled-client)
+
 ## Usage
 
 The following instructions assume:
