@@ -1,6 +1,7 @@
 0.5.6
 -----
 - Fixed bug with global-error-callback not being called with a server error returns no body
+- Added reset-history function to reset UntangledApplication Om cache history.
 
 0.5.5
 -----

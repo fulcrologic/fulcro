@@ -1,6 +1,7 @@
 (ns untangled.client.core
   (:require
     [om.next :as om]
+    [om.next.cache :as omc]
     [untangled.client.impl.application :as app]
     [goog.dom :as gdom]
     untangled.client.impl.built-in-mutations                ; DO NOT REMOVE. Ensures built-in mutations load on start
@@ -64,7 +65,8 @@
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")
   (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work.")
-  (history [this] "Return a serialized version of the current history of the application, suitable for network transfer"))
+  (history [this] "Return a serialized version of the current history of the application, suitable for network transfer")
+  (reset-history [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
 (defn- merge-alternate-union-elements! [app root-component]
   (letfn [(walk-ast
@@ -136,6 +138,8 @@
       {:steps   history-steps
        :history (into {} (map (fn [[k v]]
                                 [k (assoc v :untangled/meta (meta v))]) history-map))}))
+  (reset-history [this]
+    (assoc this :reconciler (update-in reconciler [:config :history] #(omc/cache (.-size %)))))
 
   (refresh [this]
     (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
