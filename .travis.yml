@@ -1,0 +1,3 @@
+language: clojure
+script: 
+  - lein test-refresh :run-once
