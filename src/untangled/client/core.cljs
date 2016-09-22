@@ -64,9 +64,11 @@
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")
+  (reset-app! [this root-component callback] "Replace the entire app state with the initial app state defined on the root component (includes auto-merging of unions). callback can be nil, a function, or :original (to call original started-callback).")
+  (clear-pending-remote-requests! [this] "Remove all pending network requests. Useful on failures to eliminate cascading failures.")
   (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work.")
   (history [this] "Return a serialized version of the current history of the application, suitable for network transfer")
-  (reset-history [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
+  (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
 (defn- merge-alternate-union-elements! [app root-component]
   (letfn [(walk-ast
@@ -118,6 +120,13 @@
       (started-callback completed-app))
     completed-app))
 
+(defn clear-queue
+  "Needed for mocking in tests. Do not use directly"
+  [queue]
+  (loop [element (async/poll! queue)]
+    (if element
+      (recur (async/poll! queue)))))
+
 (defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node]
@@ -132,13 +141,28 @@
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
+  (reset-app! [this root-component callback]
+    (if (not (implements? InitialAppState root-component))
+      (log/error "The specified root component does not implement InitialAppState!")
+      (let [base-state (om/tree->db root-component (untangled.client.core/initial-state root-component nil) true)]
+        (clear-pending-remote-requests! this)
+        (reset! (om/app-state reconciler) base-state)
+        (merge-alternate-union-elements! this root-component)
+        (log/info "updated app state to original " (om/app-state reconciler))
+        (cond
+          (= callback :original) (started-callback this)
+          callback (callback this))
+        (refresh this))))
+
+  (clear-pending-remote-requests! [this] (clear-queue queue))
+
   (history [this]
     (let [history-steps (-> reconciler :config :history .-arr)
           history-map (-> reconciler :config :history .-index deref)]
       {:steps   history-steps
        :history (into {} (map (fn [[k v]]
                                 [k (assoc v :untangled/meta (meta v))]) history-map))}))
-  (reset-history [this]
+  (reset-history! [this]
     (assoc this :reconciler (update-in reconciler [:config :history] #(omc/cache (.-size %)))))
 
   (refresh [this]

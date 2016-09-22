@@ -2,7 +2,10 @@
 -----
 - Fixed bug with global-error-callback not being called with a server error returns no body
 - Fixed bug that prevents error processing if the server is completely down
-- Added reset-history function to reset UntangledApplication Om cache history.
+- Added reset-history! function to reset UntangledApplication Om cache history.
+- Added to UntangledApplication protocol:
+  (reset-app! [this root-component callback] "Replace the entire app state with the initial app state defined on the root component (includes auto-merging of unions). callback can be nil, a function, or :original (to call original started-callback).")
+  (clear-pending-remote-requests! [this] "Remove all pending network requests. Useful on failures to eliminate cascading failures.")
 
 0.5.5
 -----
