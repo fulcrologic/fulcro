@@ -1,4 +1,4 @@
 language: clojure
 script: 
   - npm install
-  - lein do test-refresh :run-once, doo chrome automated-tests once
+  - lein doo chrome automated-tests once
