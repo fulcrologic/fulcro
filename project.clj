@@ -18,8 +18,8 @@
 
   :resource-paths ["src" "resources"] ; maven deploy to internal artifactory needs src here
 
-  :plugins [[lein-cljsbuild "1.1.3"]
-            [lein-doo "0.1.6"]]
+  :plugins [[lein-cljsbuild "1.1.4"]
+            [lein-doo "0.1.7"]]
 
   ;:hooks [leiningen.cljsbuild]
 
