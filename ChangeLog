@@ -1,3 +1,8 @@
+0.6.2
+-----
+- A Few openid fixes
+- Ability to set the API endpoint
+
 0.6.1
 -----
 - Access token handler inspect :headers, :params, :form-params, and :cookies
