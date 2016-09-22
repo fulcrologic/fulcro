@@ -8,10 +8,10 @@
                  [org.clojure/clojurescript "1.8.51"]
                  [org.clojure/core.async "0.2.374"]
                  [differ "0.2.1"]
-                 [lein-doo "0.1.6" :scope "test"]
+                 [lein-doo "0.1.7" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [navis/untangled-spec "0.3.8" :scope "test"]
-                 [org.omcljs/om "1.0.0-alpha44" :scope "provided"]]
+                 [navis/untangled-spec "0.3.9" :scope "test"]
+                 [org.omcljs/om "1.0.0-alpha45" :scope "provided"]]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
