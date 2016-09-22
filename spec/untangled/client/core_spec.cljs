@@ -115,6 +115,7 @@
         mock-app (uc/map->Application {:started-callback (fn [] (swap! scb-calls inc))})
         cleared-network? (atom false)
         merged-unions? (atom false)
+        history-reset? (atom false)
         re-rendered? (atom false)
         state (atom {})]
     (behavior "Logs an error if the supplied component does not implement InitialAppState"
@@ -128,6 +129,7 @@
         (uc/clear-queue t) => (reset! cleared-network? true)
         (om/app-state r) => state
         (uc/merge-alternate-union-elements! app r) => (reset! merged-unions? true)
+        (uc/reset-history-impl a) => (reset! history-reset? true)
         (udom/force-render a) => (reset! re-rendered? true)
 
         (uc/reset-app! mock-app ResetAppRoot nil)
@@ -138,6 +140,8 @@
       (assertions
         "Clears the network queue"
         @cleared-network? => true
+        "Resets Om's app history"
+        @history-reset? => true
         "Sets the base state from component"
         @state => {:x 1 :om.next/tables #{}}
         "Attempts to merge alternate union branches into state"

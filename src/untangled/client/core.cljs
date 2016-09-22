@@ -127,6 +127,11 @@
     (if element
       (recur (async/poll! queue)))))
 
+(defn reset-history-impl
+  "Needed for mocking in tests"
+  [app]
+  (assoc app :reconciler (update-in (:reconciler app) [:config :history] #(omc/cache (.-size %)))))
+
 (defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node]
@@ -147,6 +152,7 @@
       (let [base-state (om/tree->db root-component (untangled.client.core/initial-state root-component nil) true)]
         (clear-pending-remote-requests! this)
         (reset! (om/app-state reconciler) base-state)
+        (reset-history! this)
         (merge-alternate-union-elements! this root-component)
         (log/info "updated app state to original " (om/app-state reconciler))
         (cond
@@ -163,7 +169,7 @@
        :history (into {} (map (fn [[k v]]
                                 [k (assoc v :untangled/meta (meta v))]) history-map))}))
   (reset-history! [this]
-    (assoc this :reconciler (update-in reconciler [:config :history] #(omc/cache (.-size %)))))
+    (reset-history-impl this))
 
   (refresh [this]
     (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
