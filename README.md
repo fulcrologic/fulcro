@@ -4,8 +4,10 @@ The client library for the Untangled Web framework.
 
 [![Clojars
 Project](https://img.shields.io/clojars/v/navis/untangled-client.svg)](https://clojars.org/navis/untangled-client)
-[![Master](https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=master)](https://github.com/untangled-web/untangled-client/tree/master)
-[![SNAPSHOT](https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=develop)](https://github.com/untangled-web/untangled-client/tree/develop)
+
+Release: [![Master](https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=master)](https://github.com/untangled-web/untangled-client/tree/master)
+
+Snapshot: [![SNAPSHOT](https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=develop)](https://github.com/untangled-web/untangled-client/tree/develop)
 
 ## Usage
 
