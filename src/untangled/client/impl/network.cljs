@@ -26,12 +26,13 @@
   (response-error [this xhrio err-cb] "Called by XhrIo on ERROR"))
 
 (defn parse-response [xhr-io]
-  (let [text (.getResponseText xhr-io)]
-    (if (str/blank? text)
-      (.getStatus xhr-io)
-      (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))
-                                     "u" cljs.core/uuid}})
-        (.getResponseText xhr-io)))))
+  (try (let [text (.getResponseText xhr-io)]
+         (if (str/blank? text)
+           (.getStatus xhr-io)
+           (ct/read (t/reader {:handlers {"f" (fn [v] (js/parseFloat v))
+                                          "u" cljs.core/uuid}})
+                    (.getResponseText xhr-io))))
+       (catch js/Object e {:error 404 :message "Server down"})))
 
 (defrecord Network [url request-transform global-error-callback complete-app]
   IXhrIOCallbacks

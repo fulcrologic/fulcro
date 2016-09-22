@@ -4,7 +4,10 @@
     [untangled.client.core :as uc]
     [untangled-spec.core :refer-macros
      [specification behavior assertions provided component when-mocking]]
-    [om.next.protocols :as omp]))
+    [om.next.protocols :as omp]
+    [cljs.core.async :as async]
+    [untangled.client.logging :as log]
+    [untangled.dom :as udom]))
 
 (defui Child
   static om/Ident
@@ -86,3 +89,66 @@
       (assertions
         (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
 
+
+(specification "Untangled Application -- clear-pending-remote-requests!"
+  (let [channel (async/chan 1000)
+        mock-app (uc/map->Application {:queue channel})]
+    (async/put! channel 1 #(async/put! channel 2 (fn [] (async/put! channel 3 (fn [] (async/put! channel 4))))))
+
+    (uc/clear-pending-remote-requests! mock-app)
+
+    (assertions
+      "Removes any pending items in the network queue channel"
+      (async/poll! channel) => nil)))
+
+(defui BadResetAppRoot
+  Object
+  (render [this] nil))
+
+(defui ResetAppRoot
+  static uc/InitialAppState
+  (initial-state [this params] {:x 1}))
+
+(specification "Untangled Application -- reset-app!"
+  (let [scb-calls (atom 0)
+        custom-calls (atom 0)
+        mock-app (uc/map->Application {:started-callback (fn [] (swap! scb-calls inc))})
+        cleared-network? (atom false)
+        merged-unions? (atom false)
+        history-reset? (atom false)
+        re-rendered? (atom false)
+        state (atom {})]
+    (behavior "Logs an error if the supplied component does not implement InitialAppState"
+      (when-mocking
+        (log/error e) => (assertions
+                           e => "The specified root component does not implement InitialAppState!")
+        (uc/reset-app! mock-app BadResetAppRoot nil)))
+
+    (behavior "On a proper app root"
+      (when-mocking
+        (uc/clear-queue t) => (reset! cleared-network? true)
+        (om/app-state r) => state
+        (uc/merge-alternate-union-elements! app r) => (reset! merged-unions? true)
+        (uc/reset-history-impl a) => (reset! history-reset? true)
+        (udom/force-render a) => (reset! re-rendered? true)
+
+        (uc/reset-app! mock-app ResetAppRoot nil)
+        (uc/reset-app! mock-app ResetAppRoot :original)
+        (uc/reset-app! mock-app ResetAppRoot (fn [a] (swap! custom-calls inc)))
+        )
+
+      (assertions
+        "Clears the network queue"
+        @cleared-network? => true
+        "Resets Om's app history"
+        @history-reset? => true
+        "Sets the base state from component"
+        @state => {:x 1 :om.next/tables #{}}
+        "Attempts to merge alternate union branches into state"
+        @merged-unions? => true
+        "Re-renders the app"
+        @re-rendered? => true
+        "Calls the original started-callback when callback is :original"
+        @scb-calls => 1
+        "Calls the supplied started-callback when callback is a function"
+        @custom-calls => 1))))
