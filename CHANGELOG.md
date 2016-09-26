@@ -1,3 +1,9 @@
+0.5.7
+-----
+- The `:marker` keyword actually works now!
+- Fix: data fetch with parameters places the load marker in the correct location in app state
+- Fix: error callback doesn't attempt to modify data state in app state db when the data state's marker is false
+
 0.5.6
 -----
 - Fixed bug with global-error-callback not being called with a server error returns no body
