@@ -12,29 +12,34 @@
   (fn [e]
     (let [possible-nodes (array-seq (js/document.elementsFromPoint (.-clientX e) (.-clientY e)))
           current-node (first (filter #(.getAttribute % "data-untangled-ui") possible-nodes))]
-      (when-not (or (not current-node)
-                    (#{js/document.documentElement js/document.body} current-node)
-                    (= current-node @last-node))
-        (when (.-classList @last-node)
-          (when (.getAttribute @last-node "onclick")
-            (reset! prev-on-click (.getAttribute @node-clone "onclick"))
-            (.setAttribute @last-node "onclick" @prev-on-click))
-          (.. @last-node -classList (remove "highlight-element")))
-        (reset! node-clone (.cloneNode current-node))
-        (when (.getAttribute current-node "onclick")
-          (.setAttribute current-node "onclick" (constantly false)))
-        (.. current-node -classList (add "highlight-element"))
-        (reset! last-node current-node)))))
+      (if current-node
+        (when-not (or (#{js/document.documentElement js/document.body} current-node)
+                      (= current-node @last-node))
+          (when (.-classList @last-node)
+            (when (.getAttribute @last-node "onclick")
+              (reset! prev-on-click (.getAttribute @node-clone "onclick"))
+              (.setAttribute @last-node "onclick" @prev-on-click))
+            (.. @last-node -classList (remove "highlight-element")))
+          (reset! node-clone (.cloneNode current-node))
+          (when (.getAttribute current-node "onclick")
+            (.setAttribute current-node "onclick" (constantly false)))
+          (.. current-node -classList (add "highlight-element"))
+          (reset! last-node current-node))
+        (do
+          (when (.-classList @last-node)
+            (when (.getAttribute @last-node "onclick")
+              (reset! prev-on-click (.getAttribute @node-clone "onclick"))
+              (.setAttribute @last-node "onclick" @prev-on-click))
+            (.. @last-node -classList (remove "highlight-element")))
+          (reset! node-clone #js {}))))))
 
-(defn inspect-element [{:keys [node-clone select-file]}]
+(defn inspect-element [{:keys [node-clone select-file show-panel]}]
   (fn [evt]
-    ;TODO: ?? disable all other clicks?
-    ;(let [e (.getBrowserEvent evt)]
-    ;  (.preventDefault e)
-    ;  (.stopPropagation e)
-    ;  (.stopImmediatePropagation e))
-    (js/console.log @node-clone)
-    (select-file (cljs.reader/read-string (.getAttribute @node-clone "data-untangled-ui")))))
+    (when (and (.-getAttribute @node-clone)
+            (.getAttribute @node-clone "data-untangled-ui"))
+      (js/console.log @node-clone)
+      (select-file (cljs.reader/read-string (.getAttribute @node-clone "data-untangled-ui")))
+      (show-panel "test data please ignore"))))
 
 (defn toggle-devtools [{:keys [last-node node-clone prev-on-click remove-all-listeners install-listeners]}]
   (fn [e]
@@ -57,7 +62,7 @@
           (gobj/set js/window "attached-listeners" (atom #{})))
     (gobj/get js/window "attached-listeners")))
 
-(defn install-listeners [& {:keys [select-file]}]
+(defn install-listeners [& {:keys [select-file show-panel]}]
   (let [add-listener (fn [et f] (swap! attached-listeners conj (gevt/listen js/document et f)))
         remove-and-add-listener
         (fn [et f]
@@ -78,7 +83,11 @@
                                   #js {:figwheelEvent "file-selected"
                                        :fileName file
                                        :fileLine (str line)
-                                       :fileColumn (str column)})))}]
+                                       :fileColumn (str column)})))
+             :show-panel (or show-panel
+                             (fn [msg]
+                               (figwheel.client.heads-up/display-heads-up
+                                 {} (str (figwheel.client.heads-up/close-link) msg))))}]
     (remove-all-listeners)
     (add-listener EventType.MOUSEMOVE (highlight-element ctx))
     (add-listener EventType.CLICK (inspect-element ctx))
