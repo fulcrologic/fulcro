@@ -4,14 +4,10 @@
     [om.dom :as dom]
     [goog.object :as gobj]
     [goog.dom :as gdom]
-    [goog.events :as gevt])
+    [goog.events :as gevt]
+    [figwheel.client.heads-up :refer [heads-up-event-dispatch]])
   (:import
     goog.events.EventType))
-
-(def attached-listeners
-  (do (or (gobj/get js/window "attached-listeners")
-          (gobj/set js/window "attached-listeners" (atom #{})))
-    (gobj/get js/window "attached-listeners")))
 
 (defn highlight-element [{:keys [node-clone prev-on-click last-node]}]
   (fn [e]
@@ -37,7 +33,13 @@
     ;  (.preventDefault e)
     ;  (.stopPropagation e)
     ;  (.stopImmediatePropagation e))
-    (js/console.log @node-clone)))
+    (js/console.log @node-clone)
+    (let [{:keys [file line column]} (cljs.reader/read-string (.getAttribute @node-clone "data-untangled-ui"))]
+      (heads-up-event-dispatch
+        #js {:figwheelEvent "file-selected"
+             :fileName file
+             :fileLine (str line)
+             :fileColumn (str column)}))))
 
 (defn toggle-devtools [{:keys [last-node node-clone prev-on-click remove-all-listeners install-listeners]}]
   (fn [e]
@@ -54,6 +56,11 @@
                 (.setAttribute @last-node "onclick" @prev-on-click))
               (.. @last-node -classList (remove "highlight-element")))
             (remove-all-listeners)))))))
+
+(def attached-listeners
+  (do (or (gobj/get js/window "attached-listeners")
+          (gobj/set js/window "attached-listeners" (atom #{})))
+    (gobj/get js/window "attached-listeners")))
 
 (defn install-listeners []
   (let [add-listener (fn [et f] (swap! attached-listeners conj (gevt/listen js/document et f)))
