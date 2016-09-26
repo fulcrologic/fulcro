@@ -4,8 +4,7 @@
     [om.dom :as dom]
     [goog.object :as gobj]
     [goog.dom :as gdom]
-    [goog.events :as gevt]
-    [figwheel.client.heads-up :refer [heads-up-event-dispatch]])
+    [goog.events :as gevt])
   (:import
     goog.events.EventType))
 
@@ -27,19 +26,15 @@
         (.. current-node -classList (add "highlight-element"))
         (reset! last-node current-node)))))
 
-(defn inspect-element [{:keys [node-clone]}]
+(defn inspect-element [{:keys [node-clone select-file]}]
   (fn [evt]
+    ;TODO: ?? disable all other clicks?
     ;(let [e (.getBrowserEvent evt)]
     ;  (.preventDefault e)
     ;  (.stopPropagation e)
     ;  (.stopImmediatePropagation e))
     (js/console.log @node-clone)
-    (let [{:keys [file line column]} (cljs.reader/read-string (.getAttribute @node-clone "data-untangled-ui"))]
-      (heads-up-event-dispatch
-        #js {:figwheelEvent "file-selected"
-             :fileName file
-             :fileLine (str line)
-             :fileColumn (str column)}))))
+    (select-file (cljs.reader/read-string (.getAttribute @node-clone "data-untangled-ui")))))
 
 (defn toggle-devtools [{:keys [last-node node-clone prev-on-click remove-all-listeners install-listeners]}]
   (fn [e]
@@ -62,9 +57,9 @@
           (gobj/set js/window "attached-listeners" (atom #{})))
     (gobj/get js/window "attached-listeners")))
 
-(defn install-listeners []
+(defn install-listeners [& {:keys [select-file]}]
   (let [add-listener (fn [et f] (swap! attached-listeners conj (gevt/listen js/document et f)))
-        add-and-remove-listener
+        remove-and-add-listener
         (fn [et f]
           (gevt/unlistenByKey (gobj/get js/window "keypress-listener"))
           (gobj/set js/window "keypress-listener"
@@ -76,12 +71,18 @@
              :node-clone (atom #js {})
              :prev-on-click (atom #js {})
              :remove-all-listeners remove-all-listeners
-             :install-listeners install-listeners}]
+             :install-listeners install-listeners
+             :select-file (or select-file
+                              (fn [{:keys [file line column]}]
+                                (figwheel.client.heads-up/heads-up-event-dispatch
+                                  #js {:figwheelEvent "file-selected"
+                                       :fileName file
+                                       :fileLine (str line)
+                                       :fileColumn (str column)})))}]
     (remove-all-listeners)
     (add-listener EventType.MOUSEMOVE (highlight-element ctx))
     (add-listener EventType.CLICK (inspect-element ctx))
-    (add-and-remove-listener EventType.KEYPRESS (toggle-devtools ctx))))
+    (remove-and-add-listener EventType.KEYPRESS (toggle-devtools ctx))))
 
 (defn wrap-render [meta-info {:keys [this class]} body]
-  (dom/div #js {:data-untangled-ui meta-info}
-    body))
+  (dom/div #js {:data-untangled-ui meta-info} body))
