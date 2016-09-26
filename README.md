@@ -29,7 +29,7 @@ don't use it, you don't end up emitting it!
 ```clj
 (ns my-ns
   (:require 
-     [om-css.core :as css :refer-macros [localize-classnames]
+     [om-css.core :as css :refer-macros [localize-classnames]]
      [om.next :as om :refer-macros [defui]]))
   
 (defui Component
