@@ -5,6 +5,6 @@ before_script:
   - npm install
   - "export DISPLAY=:99.0"
   - "sh -e /etc/init.d/xvfb start"
-  - sleep 3
+  - sleep 8
 script: 
   - lein doo firefox automated-tests once
