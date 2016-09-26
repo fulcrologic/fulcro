@@ -333,7 +333,7 @@
                           (swap! app-state (fn [s]
                                              (cond-> s
                                                (data-marker? item) (update-in (data-path item) set-failed! error)
-                                               (update :untangled/loads-in-progress disj (data-uuid item)))))))
+                                               :always (update :untangled/loads-in-progress disj (data-uuid item)))))))
           run-fallbacks (fn [] (doseq [item loading-items]
                                  (when-let [fallback-symbol (::fallback item)]
                                    (reset! ran-fallbacks true)
