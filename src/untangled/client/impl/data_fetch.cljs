@@ -254,7 +254,8 @@
   (let [expr (-> state ::query first)
         key (cond
               (keyword? expr) expr
-              (map? expr) (ffirst expr))]
+              (map? expr) (ffirst expr)
+              (list? expr) (ffirst (first expr)))]
     key))
 
 (defn data-path [state] (if (and (nil? (data-ident state)) (nil? (data-field state)))
