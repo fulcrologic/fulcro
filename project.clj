@@ -13,7 +13,7 @@
                  [navis/untangled-spec "0.3.9" :scope "test"]
                  [org.omcljs/om "1.0.0-alpha45" :scope "provided"]]
 
-  :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
+  :jvm-opts ["-XX:-OmitStackTraceInFastThrow -Xmx512m -Xms256m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
 
   :resource-paths ["src" "resources"] ; maven deploy to internal artifactory needs src here
