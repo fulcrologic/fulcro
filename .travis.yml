@@ -1,4 +1,6 @@
 language: clojure
+addons:
+  firefox: "49.0"
 before_script:
   - npm install
   - "export DISPLAY=:99.0"
