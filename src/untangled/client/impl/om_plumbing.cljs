@@ -11,8 +11,6 @@
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
-(defn has-remote-query? [ast] (or (:target ast) (some has-remote-query? (:children ast))))
-
 (defn read-local
   "Read function for the Om parser.
 
