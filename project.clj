@@ -21,8 +21,6 @@
   :plugins [[lein-cljsbuild "1.1.4"]
             [lein-doo "0.1.7"]]
 
-  ;:hooks [leiningen.cljsbuild]
-
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
 
