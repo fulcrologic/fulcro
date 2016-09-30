@@ -26,7 +26,7 @@
        (om/force-root-render! reconciler)))))
 
 (defn append-class
-  "Given a component and a local state key or keys, to be passed to `om/get-state`,
+  "Append a CSS class. Given a component and a local state key or keys, to be passed to `om/get-state`,
   returns a function that takes the `state-value` to test, a `default-class-string`,
   and optionaol `:when-true` and `:when-false`. The values `:when-false` and `when-true`
   are appended to `default-class-string` after the test against `state-value`.
@@ -43,7 +43,7 @@
       (str default-class-string " " append-string))))
 
 (defn toggle-class
-  "Adds the 'visible' class and removes the 'hidden' class to the pre-supplied class string based on the truthiness
+  "Adds the 'visible' CSS class and removes the 'hidden' class to the pre-supplied class string based on the truthiness
   of the value in data at key.
 
   Parameters:
