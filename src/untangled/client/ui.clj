@@ -53,8 +53,7 @@
 
 (defonce defui-xform (fn [ctx body] body))
 (defn set-defui-xform! [& fns]
-  (let [dbg (fn [n x]
-              (println "console.log('" (str n "=> " x) "');"))]
+  (let [dbg (fn [n x] (println "console.log('" (str n "=> " x) "');"))]
     (alter-var-root #'defui-xform
       (constantly
         (fn [ctx body]
