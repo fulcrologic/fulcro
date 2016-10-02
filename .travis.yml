@@ -7,4 +7,5 @@ before_script:
   - sh -e /etc/init.d/xvfb start
   - while [ ! -e /tmp/.X11-unix/X99 ]; do sleep 0.1; done
 script:
+  - lein test-refresh :run-once
   - lein doo firefox automated-tests once
