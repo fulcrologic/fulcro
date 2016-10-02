@@ -35,10 +35,10 @@
 
 (defn inspect-element [{:keys [node-clone select-file show-panel]}]
   (fn [evt]
-    (when (and (.-getAttribute @node-clone)
-            (.getAttribute @node-clone "data-untangled-ui"))
+    (when-let [meta-info (and (.-getAttribute @node-clone)
+                           (.getAttribute @node-clone "data-untangled-ui"))]
       (js/console.log @node-clone)
-      (select-file (cljs.reader/read-string (.getAttribute @node-clone "data-untangled-ui")))
+      (select-file (cljs.reader/read-string meta-info))
       (show-panel "test data please ignore"))))
 
 (defn toggle-devtools [{:keys [last-node node-clone prev-on-click remove-all-listeners install-listeners]}]

@@ -4,8 +4,8 @@
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
 
-  :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.8.51"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha13"]
+                 [org.clojure/clojurescript "1.9.229"]
                  [org.clojure/core.async "0.2.374"]
                  [differ "0.2.1"]
                  [lein-doo "0.1.7" :scope "test"]
