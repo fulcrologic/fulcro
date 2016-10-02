@@ -1,0 +1,80 @@
+.highlight-element {
+    background-color: rgba(130, 180, 230, 0.4);
+    outline: solid 1px #0F4D9A;
+    box-sizing: border-box;
+}
+
+div.dev-panel-bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+body {
+    padding     : 1.5em;
+    background  : #f8f8f8;
+    font-family : sans-serif;
+    line-height : 1.5;
+}
+
+.tabbed {
+    float : left;
+    width : 100%;
+}
+
+.tabbed > input {
+    display : none;
+}
+
+.tabbed > section > h1 {
+    float       : left;
+    box-sizing  : border-box;
+    margin      : 0;
+    padding     : 0.5em 0.5em 0;
+    overflow    : hidden;
+    font-size   : 1em;
+    font-weight : normal;
+}
+
+.tabbed > input:first-child + section > h1 {
+    padding-left : 1em;
+}
+
+.tabbed > section > h1 > label {
+    display                 : block;
+    padding                 : 0.25em 0.75em;
+    border                  : 1px solid #ddd;
+    border-bottom           : none;
+    border-top-left-radius  : 4px;
+    border-top-right-radius : 4px;
+    box-shadow              : 0 0 0.5em rgba(0,0,0,0.0625);
+    background              : #fff;
+    cursor                  : pointer;
+       -moz-user-select     : none;
+        -ms-user-select     : none;
+    -webkit-user-select     : none;
+}
+
+.tabbed > section > div {
+    position      : relative;
+    z-index       : 1;
+    float         : right;
+    box-sizing    : border-box;
+    width         : 100%;
+    margin        : 2.5em 0 0 -100%;
+    padding       : 0.5em 0.75em;
+    border        : 1px solid #ddd;
+    border-radius : 4px;
+    box-shadow    : 0 0 0.5em rgba(0,0,0,0.0625);
+    background    : #fff;
+}
+
+.tabbed > input:checked + section > h1 {
+    position : relative;
+    z-index  : 2;
+}
+
+.tabbed > input:not(:checked) + section > div {
+    display : none;
+}

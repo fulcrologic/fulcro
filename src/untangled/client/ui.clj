@@ -73,5 +73,7 @@
           (base-defui-middleware ctx
             (conform! ::defui body)))))))
 
+;;TODO use spec to parse args
+;; - optional doclist/meta
 (defmacro defui [ui-name factory-opts & body]
   (defui* ui-name factory-opts body (meta &form)))
