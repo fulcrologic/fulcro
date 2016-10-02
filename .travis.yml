@@ -3,8 +3,8 @@ addons:
   firefox: latest
 before_script:
   - npm install
-  - "export DISPLAY=:99.0"
-  - "sh -e /etc/init.d/xvfb start"
-  - sleep 3
-script: 
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start
+  - while [ ! -e /tmp/.X11-unix/X99 ]; do sleep 0.1; done
+script:
   - lein doo firefox automated-tests once
