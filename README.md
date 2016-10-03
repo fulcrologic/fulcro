@@ -19,6 +19,11 @@ Snapshot: [![SNAPSHOT](https://api.travis-ci.org/untangled-web/untangled-server.
 
 ### Configuration
 
+First, you need to have `defaults.edn` file in your `:resources-path`, this will always be the base configuration data, so make sure the default values are safe for production.
+Next you will need to set your `:config-path` in `untangled-make-server` to be a reasonable value for development and potentially production. Note: this can be parameterized, so you can do things like have different paths in development and production.
+
+Example [system.clj](https://github.com/untangled-web/untangled-todomvc/blob/master/src/server/todomvc/system.clj#L15) & [defaults.edn](https://github.com/untangled-web/untangled-todomvc/blob/master/resources/config/defaults.edn) from untangled-todomvc.
+
 ### Ring Handler Injection
 
 ### API Routes
