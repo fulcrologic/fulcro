@@ -24,6 +24,25 @@ Next you will need to set your `:config-path` in `untangled-make-server` to be a
 
 Example [system.clj](https://github.com/untangled-web/untangled-todomvc/blob/master/src/server/todomvc/system.clj#L15) & [defaults.edn](https://github.com/untangled-web/untangled-todomvc/blob/master/resources/config/defaults.edn) from untangled-todomvc.
 
+### Component Injection
+
+To inject components into the untangled-server's system, add a `:components` map to `make-untangled-server` with keys being the name of the component in your `:parser-injections`, and the value being the component you created with `defrecord` or some function to inject depencies with `component/using`.
+Eg:
+```
+(declare build-hooks)
+
+(defrecord Database [conn]
+  component/Lifecycle
+  (start [this] ...)
+  (stop [this] ...))
+  
+(core/make-untangled-server
+  ...
+  :components {:db (map->Database {})
+               :hooks (build-hooks)})
+```
+see [Ring Handler Injection](https://github.com/untangled-web/untangled-server/tree/feature/documentation#ring-handler-injection) for the `build-hooks` implementation
+
 ### Ring Handler Injection
 
 NOTE: May be subject to change/improvement
