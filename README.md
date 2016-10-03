@@ -26,7 +26,7 @@ Example [system.clj](https://github.com/untangled-web/untangled-todomvc/blob/mas
 
 ### Component Injection
 
-To inject components into the untangled-server's system, add a `:components` map to `make-untangled-server` with keys being the name of the component in your `:parser-injections`, and the value being the component you created with `defrecord` or some function to inject depencies with `component/using`.
+To inject [components](https://github.com/stuartsierra/component) into the untangled-server's system, add a `:components` map to `make-untangled-server` with keys being the name of the component in your `:parser-injections`, and the value being the component you created with `defrecord` or some function to inject depencies with `component/using`.
 Eg:
 ```
 (declare build-hooks)
