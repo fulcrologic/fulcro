@@ -26,6 +26,26 @@ Example [system.clj](https://github.com/untangled-web/untangled-todomvc/blob/mas
 
 ### Ring Handler Injection
 
+NOTE: May be subject to change/improvement
+
+There are two locations in untangled-server's pre-built handler stack, [pre-hook](https://github.com/untangled-web/untangled-server/blob/8dba26aafe36a5f0dab36d0dc89a98f43212df1d/src/untangled/server/impl/components/handler.clj#L176) and [fallback-hook](https://github.com/untangled-web/untangled-server/blob/8dba26aafe36a5f0dab36d0dc89a98f43212df1d/src/untangled/server/impl/components/handler.clj#L170), that are made publically accessible.
+The first step is to create a component that depends (`component/using`) on the `:handler`, and then on start to get and set the desired hook.
+```
+(defrecord Hooks [handler]
+  component/Lifecycle
+  (start [this]
+    (let [pre-hook (h/get-pre-hook handler)]
+      (h/set-pre-hook! handler
+        (comp
+          ... your-wrap-handlers-here ...
+          pre-hook 
+          ...or-here...)))))
+(defn build-hooks []
+  (component/using
+    (map->Hooks {})
+    [:handler]))
+```
+
 ### API Routes
 
 Simply add an :extra-routes map to `make-untangled-server` with keys `:routes` and `:handlers`.
