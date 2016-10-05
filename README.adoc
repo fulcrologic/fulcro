@@ -7,9 +7,6 @@
 :sectanchors:
 :sectnums:
 
-This is a library that adds server-side support for Untangled. See the TodoMVC application or the Untangled
-Tutorial for details.
-
 image::https://img.shields.io/clojars/v/navis/untangled-server.svg[link=https://clojars.org/navis/untangled-server]
 
 Release: image:https://api.travis-ci.org/untangled-web/untangled-server.svg?branch=master[link=https://github.com/untangled-web/untangled-server/tree/master]
@@ -17,10 +14,26 @@ Snapshot: image:https://api.travis-ci.org/untangled-web/untangled-server.svg?bra
 
 ## Features
 
-- Configurable configuration component that supports: a defaults.edn file, a path to a config edn file for merging into the defaults, and support for environmental variable access.
+The Untangled server library provides a full-stack development experience for Untangled Web applications.
+When combined with the client library, you get a number of base features that are useful for most applications:
+
+- An easy-to-use pluggable architecture for adding in databases and other components
+- A clear way to add read/write semantics for handling Untangled queries and mutations
+- Processing pipeline hooks for pre-processing, post-processing, and non-API routes (e.g. file serving)
+- General data compression and file resource cache headers
+
+The overall network plumbing of Untangled includes a number of additional features that assist with some
+common patterns needed by most applications:
+
+- JSON+Transit for API encoding
+- The ability to elide UI-only bits of query when using a general UI query against a server
+- A clean story for app-state merging that includes attribute "stomping" semantics
+- Clear network communication ordering to prevent out-of-order execution reasoning
+- The ability to send queries in parallel when sequential reads are not necessary for clear reasoning (parallel loading)
 - A pluggable ring handler middleware stack for injecting your own middleware as needed.
 - Provides access to the underlying https://github.com/stuartsierra/component[stuartsierra component system] for injecting your own components.
 - Lets you write your own api routes using a thin wrapper around https://github.com/juxt/bidi[bidi]
+- Configurable configuration component that supports: a defaults.edn file, a path to a config edn file for merging into the defaults, and support for environmental variable access.
 
 ifdef::env-github[]
 == Read our docs
