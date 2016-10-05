@@ -142,8 +142,6 @@
 (defn loading? [state] (impl/loading? state))
 (defn failed? [state] (impl/failed? state))
 
-; FIXME: This should NOT use a component. instead it should be embedded within the component. The reason is that the
-; query is marked with metadata that expects the renderer to implement the component of the query. This breaks Om!
 (defn lazily-loaded
   "Custom rendering for use while data is being lazily loaded using the data fetch methods
   load-collection and load-field.
@@ -179,7 +177,7 @@
 
     (render [this]
       (let [thing2 (:thing2 (om/props this))]
-        (lazily-loaded Thing2 thing2))))
+        (lazily-loaded ui-thing2 thing2))))
 
   (defui Thing2
     static om/IQuery
@@ -187,6 +185,8 @@
     Object
     (render [this]
       (display-thing-2))
+
+  (def ui-thing2 (om/factory Thing2))
   ```"
   [data-render props & {:keys [ready-render loading-render failed-render not-present-render]
                         :or   {loading-render (fn [_] (dom/div #js {:className "lazy-loading-load"} "Loading..."))
