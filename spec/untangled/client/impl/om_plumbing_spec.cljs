@@ -140,21 +140,6 @@
       "does not remove ui prefixed data from parameters"
       (impl/strip-ui query) => query)))
 
-(specification "sweep-missing"
-  (behavior "props"
-    (are [act exp] (= (impl/sweep-missing act) exp)
-         {:a impl/nf :b 1}
-         {:b 1}))
-  (behavior "nested"
-    (are [act exp] (= (impl/sweep-missing act) exp)
-         {:a {:b impl/nf} :c 1}
-         {:a {}
-          :c 1}
-
-         {:a {:b [:c {:d impl/nf}]
-              :e impl/nf}}
-         {:a {:b [:c {}]}})))
-
 (specification "mark-missing"
   (behavior "correctly marks missing properties"
     (are [query ?missing-result exp]

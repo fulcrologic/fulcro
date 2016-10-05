@@ -1,4 +1,4 @@
-(defproject navis/untangled-client "0.5.7-SNAPSHOT"
+(defproject navis/untangled-client "0.5.7"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "MIT"
@@ -8,20 +8,18 @@
                  [org.clojure/clojurescript "1.8.51"]
                  [org.clojure/core.async "0.2.374"]
                  [differ "0.2.1"]
-                 [lein-doo "0.1.6" :scope "test"]
+                 [lein-doo "0.1.7" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [navis/untangled-spec "0.3.8" :scope "test"]
-                 [org.omcljs/om "1.0.0-alpha44" :scope "provided"]]
+                 [navis/untangled-spec "0.3.9" :scope "test"]
+                 [org.omcljs/om "1.0.0-alpha45" :scope "provided"]]
 
-  :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
+  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx512m" "-Xms256m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
 
   :resource-paths ["src" "resources"] ; maven deploy to internal artifactory needs src here
 
-  :plugins [[lein-cljsbuild "1.1.3"]
-            [lein-doo "0.1.6"]]
-
-  ;:hooks [leiningen.cljsbuild]
+  :plugins [[lein-cljsbuild "1.1.4"]
+            [lein-doo "0.1.7"]]
 
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}

@@ -11,8 +11,6 @@
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
-(defn has-remote-query? [ast] (or (:target ast) (some has-remote-query? (:children ast))))
-
 (defn read-local
   "Read function for the Om parser.
 
@@ -35,7 +33,13 @@
            top-level-prop data
            :else (om/db->tree query data @state))}))))
 
-(defn write-entry-point [env k params]
+(defn write-entry-point
+  "This is the Om entry point for writes. In general this is simply a call to the multi-method
+  defined by Untangled (mutate); however, Untangled supports the concept of a global `post-mutate`
+  function that will be called anytime the general mutate has an action that is desired. This
+  can be useful, for example, in cases where you have some post-processing that needs
+  to happen for a given (sub)set of mutations (that perhaps you did not define)."
+  [env k params]
   (let [rv (try
              (m/mutate env k params)
              (catch :default e
@@ -55,8 +59,9 @@
                               (throw e)))))
       rv)))
 
-(defn resolve-tempids [state tid->rid]
+(defn resolve-tempids
   "Replaces all om-tempids in app-state with the ids returned by the server."
+  [state tid->rid]
   (if (empty? tid->rid)
     state
     (walk/prewalk #(if (-> % type (= om.tempid/TempId)) (get tid->rid % %) %) state)))
@@ -95,11 +100,13 @@
     (when (not-empty fallback-query)
       fallback-query)))
 
-(defn- is-ui-query-fragment? [kw]
+(defn- is-ui-query-fragment?
+  "Check the given keyword to see if it is in the :ui namespace."
+  [kw]
   (when (keyword? kw) (some->> kw namespace (re-find #"^ui(?:\.|$)"))))
 
 (defn strip-ui
-  "Returns a new query with fragments beginning with `ui` removed."
+  "Returns a new query with fragments that are in the `ui` namespace removed."
   [query]
   (let [ast (om/query->ast query)
         drop-ui-children (fn drop-ui-children [ast-node]
@@ -172,9 +179,13 @@
          (-> data meta :untangled/leaf boolean))))
 
 (defn mark-missing
-  "Walk the query and response, marking anything that was asked for in the query but is not in the response a missing. The
-  merge process (see application.cljs definition of merge for the reconciler) looks for these markers and overwrites existing data when they appear.
-  Returns the result with missing markers in place."
+  "Recursively walk the query and response marking anything that was *asked for* in the query but is *not* in the response as missing.
+  The merge process (which happens later in the plumbing) looks for these markers as indicators to remove any existing
+  data in the database (which has provably disappeared).
+
+  The naive approach to data merging (even recursive) would fail to remove such data.
+
+  Returns the result with missing markers in place (which are then used/removed in a later stage)."
   [result query]
   (letfn [(paramterized? [q]
             (and (list? q)
@@ -243,9 +254,3 @@
               (-> query meta :... add-meta-to-recursive-queries)
               (add-meta-to-recursive-queries query)))))
 
-(defn sweep-missing [result]
-  (letfn [(clean [[k v]] (when-not (= v nf) [k v]))]
-    (walk/prewalk
-      #(if (map? %)
-        (into {} (map clean %)) %)
-      result)))

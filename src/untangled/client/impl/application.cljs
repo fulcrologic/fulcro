@@ -9,7 +9,10 @@
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
-(defn fallback-handler [{:keys [reconciler]} query]
+(defn fallback-handler
+  "This internal function is responsible for generating and returning a function that can accomplish calling the fallbacks that
+  appear in an incoming Om transaction, which is in turn used by the error-handling logic of the plumbing."
+  [{:keys [reconciler]} query]
   (fn [error]
     (swap! (om/app-state reconciler) assoc :untangled/server-error error)
     (if-let [q (plumbing/fallback-query query error)]
@@ -18,14 +21,21 @@
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
 
 ;; this is here so we can do testing (can mock core async stuff out of the way)
-(defn- enqueue [q v] (go (async/>! q v)))
+(defn- enqueue
+  "Enqueue a send to the network queue. This is a standalone function because we cannot mock core async functions."
+  [q v]
+  (go (async/>! q v)))
 
 (defn real-send
-  "Do a properly-plumbed network send that strips ui attributes from the tx"
+  "Do a properly-plumbed network send. This function recursively strips ui attributes from the tx and pushes the tx over
+  the network. It installs the given on-load and on-error handlers to deal with the network response."
   [net tx on-load on-error]
   (net/send net (plumbing/strip-ui tx) on-load on-error))
 
-(defn enqueue-mutations [{:keys [queue] :as app} remote-tx-map cb]
+(defn enqueue-mutations
+  "Splits out the (remote) mutations and fallbacks in a transaction, creates an error handler that can
+   trigger fallbacks, and enqueues the remote mutations on the network queue."
+  [{:keys [queue] :as app} remote-tx-map cb]
   (let [full-remote-transaction (:remote remote-tx-map)
         fallback (fallback-handler app full-remote-transaction)
         desired-remote-mutations (plumbing/remove-loads-and-fallbacks full-remote-transaction)
@@ -36,27 +46,39 @@
     (when has-mutations?
       (enqueue queue payload))))
 
-(defn enqueue-reads [{:keys [queue reconciler networking]}]
+(defn enqueue-reads
+  "Finds any loads marked `parallel` and triggers real network requests immediately. Remaining loads
+  are pulled into a single fetch payload (combined into one query) and enqueued behind any prior mutations/reads that
+  were already requested in a prior UI/event cycle. Thus non-parallel reads are processed in clusters grouped due to UI
+  events (a single event might trigger many reads which will all go to the server as a single combined request).
+  Further UI events that trigger remote interaction will end up waiting until prior network request(s) are complete.
+
+  This ensures that default reasoning is simple and sequential in the face of optimistic UI updates (real network
+  traffic characteristics could cause out of order processing, and you would not want
+  a 'create list' to be processed on the server *after* an 'add an item to the list'). "
+  [{:keys [queue reconciler networking]}]
   (let [parallel-payload (f/mark-parallel-loading reconciler)]
     (doseq [{:keys [query on-load on-error callback-args]} parallel-payload]
       (let [on-load' #(on-load % callback-args)
             on-error' #(on-error % callback-args)]
         (real-send networking query on-load' on-error')))
-
     (loop [fetch-payload (f/mark-loading reconciler)]
       (when fetch-payload
         (enqueue queue (assoc fetch-payload :networking networking))
         (recur (f/mark-loading reconciler))))))
 
 (defn server-send
-  "Puts queries/mutations (and their corresponding callbacks) onto the send queue. The networking CSP will pull these
+  "Puts queries/mutations (and their corresponding callbacks) onto the send queue. The networking code will pull these
   off one at a time and send them through the real networking layer. Reads are guaranteed to *follow* writes."
   [app remote-tx-map cb]
   (enqueue-mutations app remote-tx-map cb)
   (enqueue-reads app))
 
 (defn start-network-sequential-processing
-  "Starts a communicating sequential process that sends network requests from the request queue."
+  "Starts a async go loop that sends network requests on a networking object's request queue. Must be called once and only
+  once for each active networking object on the UI. Each iteration of the loop pulls off a
+  single request, sends it, waits for the response, and then repeats. Gives the appearance of a separate networking
+  'thread' using core async."
   [{:keys [networking queue response-channel]}]
   (letfn [(make-process-response [action callback-args]
             (fn [resp]
@@ -72,7 +94,8 @@
         (recur (async/<! queue))))))
 
 (defn initialize-internationalization
-  "Configured Om to re-render when locale changes."
+  "Configure a re-render when the locale changes. During startup this function will be called once for each
+  reconciler that is running on a page."
   [reconciler]
   (remove-watch i18n/*current-locale* :locale)
   (add-watch i18n/*current-locale* :locale (fn [k r o n]
@@ -96,6 +119,11 @@
     :else m))
 
 (defn sweep-merge
+  "Do a recursive merge of source into target, but remove any target data that is marked as missing in the response. The
+  missing marker is generated in the source when something has been asked for in the query, but had no value in the
+  response. This allows us to correctly remove 'empty' data from the database without accidentally removing something
+  that may still exist on the server (in truth we don't know its status, since it wasn't asked for, but we leave
+  it as our 'best guess')"
   [target source]
   (reduce (fn [acc [k v]]
             (cond
@@ -137,7 +165,8 @@
     (reset! rec-atom rec)
     rec))
 
-(defn initialize-global-error-callback [app]
+(defn initialize-global-error-callback
+  [app]
   (let [cb-atom (-> app (get-in [:networking :global-error-callback]))]
     (when (= Atom (type cb-atom))
       (swap! cb-atom #(if (fn? %)

@@ -1,8 +1,13 @@
 language: clojure
+lein: 2.7.0
+jdk:
+    - oraclejdk8
+addons:
+  firefox: "49.0"
 before_script:
-    - "export DISPLAY=:99.0"
-    - "sh -e /etc/init.d/xvfb start"
-    - sleep 3
-script: 
   - npm install
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+  - sleep 3
+script: 
   - lein doo firefox automated-tests once

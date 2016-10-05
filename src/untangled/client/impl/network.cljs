@@ -10,8 +10,7 @@
 
 (declare make-untangled-network)
 
-(defn make-xhrio []
-  (XhrIo.))
+(defn make-xhrio "This is here (not inlined) to make mocking easier." [] (XhrIo.))
 
 (defprotocol UntangledNetwork
   (send [this edn ok-callback error-callback]
@@ -19,13 +18,15 @@
         or a map with key `:error` on errors. optional options may include `:headers`, but you may NOT override content
         type. The method CANNOT be used for parallel network requests.")
   (start [this complete-app]
-    "Starts the network, passing in the app for any components that may need it."))
+         "Starts the network, passing in the app for any components that may need it."))
 
 (defprotocol IXhrIOCallbacks
   (response-ok [this xhrio ok-cb] "Called by XhrIo on OK")
   (response-error [this xhrio err-cb] "Called by XhrIo on ERROR"))
 
-(defn parse-response [xhr-io]
+(defn parse-response
+  "An XhrIo-specific implementation method for interpreting the server response."
+  [xhr-io]
   (try (let [text (.getResponseText xhr-io)]
          (if (str/blank? text)
            (.getStatus xhr-io)
@@ -43,7 +44,6 @@
       (let [query-response (parse-response xhr-io)]
         (when (and query-response valid-data-callback) (valid-data-callback query-response)))
       (finally (.dispose xhr-io))))
-
   (response-error [this xhr-io error-callback]
     ;; Implies:  request was sent.
     ;; *Always* called if completed (even in the face of network errors).
@@ -55,7 +55,7 @@
                                      ;; app-state as the first arg to global-error-callback
                                      (log/error str)
                                      (when @global-error-callback
-                                         (@global-error-callback status error))
+                                       (@global-error-callback status error))
                                      (error-callback error))]
         (if (zero? status)
           (log-and-dispatch-error
@@ -71,7 +71,7 @@
     (let [xhrio (make-xhrio)
           headers {"Content-Type" "application/transit+json"}
           {:keys [body headers]} (cond-> {:body edn :headers headers}
-                                   request-transform request-transform)
+                                         request-transform request-transform)
           post-data (ct/write (t/writer) body)
           headers (clj->js headers)]
       (.send xhrio url "POST" post-data headers)
@@ -81,13 +81,25 @@
   (start [this app]
     (assoc this :complete-app app)))
 
-(defn make-untangled-network [url & {:keys [request-transform global-error-callback]}]
+(defn make-untangled-network
+  "TODO: This is PUBLIC API! Should not be in impl ns.
+
+  Build an Untangled Network object using the default implementation.
+
+  Features:
+
+  - Can configure the target URL on the server for Om network requests
+  - Can supply a (fn [{:keys [body headers] :as req}] req') to transform arbitrary requests (e.g. to add things like auth headers)
+  - Supports a global error callback (fn [status-code error] ) that is notified when a 400+ status code or hard network error occurs
+  "
+  [url & {:keys [request-transform global-error-callback]}]
   (map->Network {:url                   url
                  :request-transform     request-transform
                  :global-error-callback (atom global-error-callback)
                  }))
 
-(defrecord MockNetwork [complete-app]
+(defrecord MockNetwork
+  [complete-app]
   UntangledNetwork
   (send [this edn ok err]
     (log/info "Ignored (mock) Network request " edn))

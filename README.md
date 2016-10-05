@@ -32,8 +32,8 @@ If you copy/paste the following file into a `project.clj` it will serve as a goo
   :description "My Project"
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.51"]
-                 [org.omcljs/om "1.0.0-alpha36"]
-                 [navis/untangled-client "0.5.3"]]
+                 [org.omcljs/om "1.0.0-alpha45"]
+                 [navis/untangled-client "0.5.6"]]
 
   ; needed or compiled js files won't get cleaned
   :clean-targets ^{:protect false} ["resources/public/js/compiled" "target" "i18n/out"]
@@ -222,17 +222,17 @@ which you should clone and work through on your local machine.
 
 ## A More Complete Project
 
-We recommend cloning an existing full-stack application for real development.
+An Untanged template is in progress. A pretty complete version is available at
+[https://github.com/awkay/untangled-template-workspace](https://github.com/awkay/untangled-template-workspace)
+and has:
 
-The [Untangled TodoMVC project](https://github.com/untangled-web/untangled-todomvc) 
-is set up as above, but includes additional setup:
-
-- A more interesting, working, API
-- Web Server
-- Datomic Integration
-- Testing (client and server) with Untangled Spec
-- Running cljs tests in browsers via figwheel
-- CI testing from command line
-- More cljs builds, including a production one
-
-
+- Full stack with sample UI for login/sign up.
+- Newer version of figwheel (better errors, etc.)
+- Bootstrap CSS
+- Examples of adding REST routes to the server
+- Examples of hooking into the Ring handlers
+- Sample tests for the server and client
+- Uberjar building
+- Deployment to Heroku (or similar environments)
+- CI (command-line runnable) testing for UI (via karma) and server
+- Devcards

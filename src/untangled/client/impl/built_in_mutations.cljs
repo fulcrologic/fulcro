@@ -5,7 +5,10 @@
             [untangled.dom :refer [unique-key]]
             [untangled.i18n.core :as i18n]))
 
-(defmethod mutate 'untangled/load [{:keys [state]} _ {:keys [root field query params without post-mutation fallback ident callback parallel refresh]}]
+; Built-in mutation for adding a remote query to the network requests.
+(defmethod mutate 'untangled/load
+  [{:keys [state]} _ {:keys [root field query params without post-mutation
+                             marker fallback ident callback parallel refresh]}]
   (when callback (log/error "Callback no longer supported. Use post-mutation instead."))
   (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
   {:remote true
@@ -16,6 +19,7 @@
                :field field
                :ident ident
                :query query
+               :marker marker
                :params params
                :without without
                :refresh refresh
@@ -23,6 +27,7 @@
                :post-mutation post-mutation
                :fallback fallback))})
 
+; Built-in i18n mutation for changing the locale of the application. Causes a re-render.
 (defmethod mutate 'ui/change-locale [{:keys [state]} _ {:keys [lang]}]
   {:action (fn []
              (reset! i18n/*current-locale* lang)
@@ -30,15 +35,23 @@
                                (assoc :ui/locale lang)
                                (assoc :ui/react-key (unique-key)))))})
 
+; A mutation that requests the installation of a fallback mutation on a transaction that should run if that transaction
+; fails in a 'hard' way (e.g. network/server error). Data-related error handling should either be implemented as causing
+; such a hard error, or as a post-mutation step.
 (defmethod mutate 'tx/fallback [env _ {:keys [action execute] :as params}]
   (if execute
     {:action #(some-> (mutate env action (dissoc params :action :execute)) :action (apply []))}
     {:remote true}))
 
+; A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
+; Specifically, merge the given `params` into the state of the database object at the component's ident.
+; In general, it is recommended this be used for ui-only properties that have no real use outside of the component.
 (defmethod mutate 'ui/set-props [{:keys [state ref]} _ params]
   (when (nil? ref) (log/error "ui/set-props requires component to have an ident."))
   {:action #(swap! state update-in ref (fn [st] (merge st params)))})
 
+; A helper method that toggles the true/false nature of a component's state by ident.
+; Use for local UI data only. Use your own mutations for things that have a good abstract meaning.
 (defmethod mutate 'ui/toggle [{:keys [state ref]} _ {:keys [field]}]
   (when (nil? ref) (log/error "ui/toggle requires component to have an ident."))
   {:action #(swap! state update-in (conj ref field) not)})
@@ -47,4 +60,5 @@
   (when (nil? target)
     (log/error (log/value-message "Unknown app state mutation. Have you required the file with your mutations?" k))))
 
+;
 (defmethod post-mutate :default [env k p] nil)

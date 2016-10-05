@@ -12,23 +12,29 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn toggle!
-  "Toggle the given boolean `field` on the specified component."
+  "Toggle the given boolean `field` on the specified component. It is recommended you use this function only on
+  UI-related data (e.g. form checkbox checked status) and write clear top-level transactions for anything more complicated."
   [comp field]
   (om/transact! comp `[(ui/toggle {:field ~field})]))
 
 (defn set-value!
-  "Set a raw value on the given `field` of a `component`."
+  "Set a raw value on the given `field` of a `component`. It is recommended you use this function only on
+  UI-related data (e.g. form inputs that are used by the UI, and not persisted data)."
   [component field value]
   (om/transact! component `[(ui/set-props ~{field value})]))
 
 (defn- ensure-integer
-  "Helper for set-integer!, use that instead."
+  "Helper for set-integer!, use that instead. It is recommended you use this function only on UI-related
+  data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else."
   [v]
   (let [rv (js/parseInt v)]
     (if (js/isNaN v) 0 rv)))
 
 (defn set-integer!
-  "Set the given integer on the given `field` of a `component`. Allows same parameters as `set-string!`"
+  "Set the given integer on the given `field` of a `component`. Allows same parameters as `set-string!`.
+
+   It is recommended you use this function only on UI-related data (e.g. data that is used for display purposes)
+   and write clear top-level transactions for anything else."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (ensure-integer (if event (.. event -target -value) value))]
@@ -44,7 +50,9 @@
   (set-string! this :ui/name :value \"Hello\") ; set from literal (or var)
   (set-string! this :ui/name :event evt) ; extract from UI event target value
   ```
-  "
+
+  It is recommended you use this function only on UI-related
+  data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (if event (.. event -target -value) value)]

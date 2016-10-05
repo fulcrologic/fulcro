@@ -121,14 +121,14 @@
     completed-app))
 
 (defn clear-queue
-  "Needed for mocking in tests. Do not use directly"
+  "Needed for mocking in tests. Do not use directly. Use UntangledApplication protocol methods instead."
   [queue]
   (loop [element (async/poll! queue)]
     (if element
       (recur (async/poll! queue)))))
 
 (defn reset-history-impl
-  "Needed for mocking in tests"
+  "Needed for mocking in tests. Use UntangledApplication protocol methods instead."
   [app]
   (assoc app :reconciler (update-in (:reconciler app) [:config :history] #(omc/cache (.-size %)))))
 
@@ -176,7 +176,7 @@
     (udom/force-render reconciler)))
 
 (defn new-untangled-test-client
-  "A test client that has no networking. Useful for UI testing with a real Untangled app container."
+  "Create a test client that has no networking. Useful for UI testing with a real Untangled app container."
   [& {:keys [initial-state started-callback]
       :or   {initial-state {} started-callback nil}}]
   (map->Application {:initial-state    initial-state
