@@ -20,18 +20,19 @@ ifdef::env-github[]
 toc::[]
 endif::[]
 
-## Configuration
+== Configuration
 
 First, you need to have `defaults.edn` file in your `:resources-path`, this will always be the base configuration data, so make sure the default values are safe for production.
 Next you will need to set your `:config-path` in `untangled-make-server` to be a reasonable value for development and potentially production. Note: this can be parameterized, so you can do things like have different paths in development and production.
 
 Example https://github.com/untangled-web/untangled-todomvc/blob/master/src/server/todomvc/system.clj#L15[system.clj] & https://github.com/untangled-web/untangled-todomvc/blob/master/resources/config/defaults.edn[defaults.edn] from untangled-todomvc.
 
-## Component Injection
+== Component Injection
 
 To inject https://github.com/stuartsierra/component[components] into the untangled-server's system, add a `:components` map to `make-untangled-server` with keys being the name of the component in your `:parser-injections`, and the value being the component you created with `defrecord` or some function to inject depencies with `component/using`.
 Eg:
-```
+[source]
+----
 (declare build-hooks)
 
 (defrecord Database [conn]
@@ -43,16 +44,17 @@ Eg:
   ...
   :components {:db (map->Database {})
                :hooks (build-hooks)})
-```
+----
 see https://github.com/untangled-web/untangled-server/tree/feature/documentation#ring-handler-injection[Ring Handler Injection] for the `build-hooks` implementation
 
-## Ring Handler Injection
+== Ring Handler Injection
 
 NOTE: May be subject to change/improvement
 
 There are two locations in untangled-server's pre-built handler stack, https://github.com/untangled-web/untangled-server/blob/8dba26aafe36a5f0dab36d0dc89a98f43212df1d/src/untangled/server/impl/components/handler.clj#L176[pre-hook] and https://github.com/untangled-web/untangled-server/blob/8dba26aafe36a5f0dab36d0dc89a98f43212df1d/src/untangled/server/impl/components/handler.clj#L170[fallback-hook], that are made publically accessible.
 The first step is to create a component that depends (`component/using`) on the `:handler`, and then on start to get and set the desired hook.
-```
+[source]
+----
 (defrecord Hooks [handler]
   component/Lifecycle
   (start [this]
@@ -66,18 +68,36 @@ The first step is to create a component that depends (`component/using`) on the 
   (component/using
     (map->Hooks {})
     [:handler]))
-```
+----
 
-## API Routes
+An alternative to injecting middleware into the global stack is to wrap the function/component that uses that middleware with that handler directly. Here's an example:
+[source]
+----
+(defn wrap-with-user [handler] ;;<1>
+  (fn [req] (assoc req :user ...get-user...))) ;;<2>
+(defn authorize-request! [req] ;;<3>
+  ((-> (fn [req] ...assert-authorized...) ;;<4>
+     wrap-with-user
+     ...more handlers...)
+   req)) ;;<5>
+----
+<1> Can be your own or from a library (eg: `ring.middleware.*`)
+<2> Takes a handler, and returns a fn that takes a req and returns a response
+<3> Can be a function, a component, a whatever, so long as it can take request
+<4> Wrap/thread your original function into the handlers
+<6> DON'T forget to pass the resulting composition of handlers the request
+
+== API Routes
 
 Simply add an :extra-routes map to `make-untangled-server` with keys `:routes` and `:handlers`.
 `:routes` contains a https://github.com/juxt/bidi[bidi] mapping from url route to a key in the `:handlers` map.
 `:handlers` is a mapping from handler key (from `:routes`) to a function (fn [env match] ... res)
 
 Eg:
-```
+[source]
+----
 (make-untangled-server
   :extra-routes
   {:routes ["" {"/store-file" :store-file}]
    :handlers {:store-file (fn [env match] (store-file (:db env) (get-in env [:request :body]))))})
-```
+----
