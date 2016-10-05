@@ -57,7 +57,7 @@ If you copy/paste the following file into a `project.clj` it will serve as a goo
                                        :optimizations        :none}}]}
 
   ; figwheel dependency and chrome data structure formatting tools (formatting cljs in source debugging and logging)
-  :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.4-6"]
+  :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.7"]
                                   [binaryage/devtools "0.6.1"]]}})
 ```
 
