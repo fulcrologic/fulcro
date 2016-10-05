@@ -373,7 +373,7 @@ Configuration for your application is about tweaking the behavior of your progra
 Traditionally configuration is an formed by aggregating a plethera of sources, untangled config believes that constraining you to one file and some defaults, leads to more a maintanable and debuggable system.
 
 [NOTE]
-===
+====
 Config edn files can contain arbitrary *edn data* that will be read in as soon as your server starts up. +
 You can inject config into your parser environment by putting it in your `:parser-injections`.
 [source]
@@ -382,7 +382,7 @@ You can inject config into your parser environment by putting it in your `:parse
   :parser-injections #{:config})
 ----
 See <<Building your own components>> for more detail on parser injections.
-===
+====
 
 === Default values
 Your application must have a `config/defaults.edn` available in your `:resource-paths`,
