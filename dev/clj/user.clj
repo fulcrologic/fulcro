@@ -1,26 +1,24 @@
 (ns clj.user
-  (:require [figwheel-sidecar.repl-api :as ra]
-            [clojure.set :as set]
-            [clojure.tools.namespace.repl :refer [refresh]]))
+  (:require [figwheel-sidecar.system :as fig]
+            [com.stuartsierra.component :as component]))
 
-(def figwheel-config
-  {:figwheel-options {:server-port 3050
-                      :css-dirs    ["resources/public/css"]}
-   :default-build-ids ["test"]
-   :all-builds        (figwheel-sidecar.repl/get-project-cljs-builds)})
+;;FIGWHEEL
+(def figwheel-config (fig/fetch-config))
+(def figwheel (atom nil))
 
 (defn start-figwheel
-  "Start Figwheel on the given builds, or defaults to `default-build-ids` in `figwheel-config`."
-  ([] (let [props (System/getProperties)
-            all-builds (->> figwheel-config :all-builds (mapv :id))]
-        (start-figwheel (keys (select-keys props all-builds)))))
+  "Start Figwheel on the given builds, or defaults to build-ids in `figwheel-config`."
+  ([]
+   (let [props (System/getProperties)
+         all-builds (->> figwheel-config :data :all-builds (mapv :id))]
+     (start-figwheel (keys (select-keys props all-builds)))))
   ([build-ids]
-   (let [build-ids (or (seq build-ids) (:default-build-ids figwheel-config))]
-     (assert (set/subset? (set build-ids)
-                          (set (map :id (:all-builds figwheel-config))))
-             (str "\nInvalid build ids: " (set/difference (set build-ids)
-                                                          (set (map :id (:all-builds figwheel-config))))
-                  "\nValid ids are: " (set (map :id (:all-builds figwheel-config)))))
+   (let [default-build-ids (-> figwheel-config :data :build-ids)
+         build-ids (if (empty? build-ids) default-build-ids build-ids)
+         preferred-config (assoc-in figwheel-config [:data :build-ids] build-ids)]
+     (reset! figwheel (component/system-map
+                        :figwheel-system (fig/figwheel-system preferred-config)
+                        :css-watcher (fig/css-watcher {:watch-paths ["resources/public/css"]})))
      (println "STARTING FIGWHEEL ON BUILDS: " build-ids)
-     (ra/start-figwheel! (assoc figwheel-config :build-ids build-ids))
-     (ra/cljs-repl))))
+     (swap! figwheel component/start)
+     (fig/cljs-repl (:figwheel-system @figwheel)))))
