@@ -1,0 +1,32 @@
+# Untangled Server
+:source-highlighter: coderay
+:source-language: clojure
+:toc:
+:toc-placement: preamble
+:sectlinks:
+:sectanchors:
+:sectnums:
+
+This is a library that adds server-side support for Untangled. See the TodoMVC application or the Untangled
+Tutorial for details.
+
+image::https://img.shields.io/clojars/v/navis/untangled-server.svg[link=https://clojars.org/navis/untangled-server]
+
+Release: image:https://api.travis-ci.org/untangled-web/untangled-server.svg?branch=master[link=https://github.com/untangled-web/untangled-server/tree/master]
+Snapshot: image:https://api.travis-ci.org/untangled-web/untangled-server.svg?branch=develop[link=https://github.com/untangled-web/untangled-server/tree/develop]
+
+## Features
+
+- Configurable configuration component that supports: a defaults.edn file, a path to a config edn file for merging into the defaults, and support for environmental variable access.
+- A pluggable ring handler middleware stack for injecting your own middleware as needed.
+- Provides access to the underlying https://github.com/stuartsierra/component[stuartsierra component system] for injecting your own components.
+- Lets you write your own api routes using a thin wrapper around https://github.com/juxt/bidi[bidi]
+
+ifdef::env-github[]
+== Read our docs
+endif::[]
+include::docs/index.adoc[]
+
+## License
+
+The MIT License (MIT) Copyright © 2016 NAVIS
