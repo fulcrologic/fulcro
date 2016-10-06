@@ -179,6 +179,7 @@ All of the standard HTML tags have pre-built React components, accessible from t
 
 Untangled applications use the default Om database format. This is a simple graph database format made from
 standard Clojurescript persistent data structures: Maps and vectors. The entire database is a map.
+Check out the http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.C_App_Database[tutorial] for more information.
 
 === Tables
 
