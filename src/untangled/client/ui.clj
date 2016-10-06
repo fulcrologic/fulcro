@@ -6,8 +6,17 @@
 
 (defn process-meta-info {:doc "for mocking"} [meta-info] meta-info)
 
+(defn dbg [& args]
+  (println "console.log('" (str args) "');"))
+
 (defn my-group-by [f coll]
   (into {} (map (fn [[k [v]]] [(name k) v]) (group-by f coll))))
+
+(defn conform! [spec x]
+  (let [rt (s/conform spec x)]
+    (when (s/invalid? rt)
+      (throw (ex-info (s/explain-str spec x) {})))
+    rt))
 
 (s/def ::defui-name symbol?)
 (s/def ::method
@@ -17,27 +26,24 @@
 (s/def ::protocol-impls
   (s/cat :static (s/? '#{static})
     :protocol symbol?
-    :methods (s/and (s/+ ::method)
-               (s/conformer
-                 #(my-group-by :name %)
-                 vals))))
+    :methods (s/+ (s/spec ::method))))
 (s/def ::defui (s/and (s/+ ::protocol-impls)
                  (s/conformer
-                   #(my-group-by :protocol %)
-                   vals)))
+                   #(->> %
+                      (mapv (fn [x] (update x :methods (partial my-group-by :name))))
+                      (my-group-by :protocol))
+                   #(->> % vals
+                      (mapv (fn [x] (update x :methods vals)))))))
 
-(defn conform! [spec x]
-  (s/assert spec x)
-  (s/conform spec x))
-
-(defn base-defui-middleware [{:keys [meta-info ui-name factory-opts]} body]
+(defn base-defui-middleware [{:keys [meta-info ui-name]} body]
   (letfn [(inject-deref-factory [body]
             (assoc-in body ["IDeref"]
               {:static 'static
                :protocol 'IDeref
-               :methods {"-deref" {:name '-deref
-                                   :param-list '[_]
-                                   :body `[(om.next/factory ~ui-name ~factory-opts)]}}}))
+               :methods {"-deref"
+                         {:name '-deref
+                          :param-list '[_]
+                          :body `[(om.next/factory ~ui-name ~{})]}}}))
           (wrap-render-with-meta-info [body]
             (update-in body ["Object" :methods "render"]
               (fn [{:as method :keys [body param-list]}]
@@ -51,29 +57,22 @@
       (inject-deref-factory)
       (wrap-render-with-meta-info))))
 
-(defonce defui-xform (fn [ctx body] body))
-(defn set-defui-xform! [& fns]
-  (let [dbg (fn [n x] (println "console.log('" (str n "=> " x) "');"))]
-    (alter-var-root #'defui-xform
-      (constantly
-        (fn [ctx body]
-          (reduce (fn [body f]
-                    (f (assoc ctx :dbg dbg) body))
-                  body fns))))))
-
-(defn defui* [ui-name factory-opts body meta-data]
+(defn defui* [ui-name body form env xforms]
   (let [ctx {:meta-info (process-meta-info
-                          (merge meta-data
+                          (merge (meta form)
                                  {:file cljs.analyzer/*cljs-file*}))
-             :ui-name ui-name
-             :factory-opts factory-opts}]
+             :ui-name ui-name}
+        apply-xforms
+        (fn [ctx body]
+          (reduce (fn [body xf]
+                    (xf ctx body))
+                  body xforms))]
     (om/defui* (vary-meta ui-name assoc :once true)
-      (s/unform ::defui
-        (defui-xform ctx
-          (base-defui-middleware ctx
-            (conform! ::defui body)))))))
+      (->> body
+        (conform! ::defui)
+        (apply-xforms ctx)
+        (s/unform ::defui)))))
 
-;;TODO use spec to parse args
-;; - optional doclist/meta
-(defmacro defui [ui-name factory-opts & body]
-  (defui* ui-name factory-opts body (meta &form)))
+(defmacro defui [ui-name & body]
+  (defui* ui-name body &form &env
+    [base-defui-middleware]))
