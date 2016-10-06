@@ -16,6 +16,7 @@
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
 
+  :source-paths ["src" "src-cards"]
   :resource-paths ["src" "resources"] ; maven deploy to internal artifactory needs src here
 
   :plugins [[lein-cljsbuild "1.1.4"]

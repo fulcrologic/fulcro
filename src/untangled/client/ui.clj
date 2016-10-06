@@ -2,7 +2,8 @@
   (:require
     cljs.analyzer
     [clojure.spec :as s]
-    [om.next :as om]))
+    [om.next :as om]
+    [untangled.client.xforms]))
 
 (defn process-meta-info {:doc "for mocking"} [meta-info] meta-info)
 
@@ -35,7 +36,18 @@
                    #(->> % vals
                       (mapv (fn [x] (update x :methods vals)))))))
 
-(defn base-defui-middleware [{:keys [meta-info ui-name]} body]
+(defn DevTools [{:keys [meta-info ui-name cljs?]} body]
+  (cond-> body cljs?
+    (update-in ["Object" :methods "render"]
+      (fn [{:as method :keys [body param-list]}]
+        (assoc method :body
+          (conj (vec (butlast body))
+                `(wrap-render ~meta-info
+                   ~{:klass ui-name
+                     :this (first param-list)}
+                   ~(last body))))))))
+
+(defn DerefFactory [{:keys [meta-info ui-name cljs?]} body]
   (letfn [(get-factory-opts [body]
             (when-let [{:keys [static methods]} (get body "Defui")]
               (assert static "Defui should be a static protocol")
@@ -47,48 +59,42 @@
             (when-let [{:keys [param-list body]} (get-in body ["Defui" :methods "factory-opts"])]
               (assert (and (vector? param-list) (empty? param-list)))
               (assert (and (= 1 (count body))))
-              (last body)))
-          (inject-deref-factory [body]
-            (let [?factoryOpts (get-factory-opts body)]
-              (-> body
-                (assoc-in ["IDeref"]
-                  {:static 'static
-                   :protocol 'IDeref
-                   :methods {"-deref"
-                             {:name '-deref
-                              :param-list '[_]
-                              :body `[(om.next/factory ~ui-name
-                                        ~(or ?factoryOpts {}))]}}})
-                (dissoc "Defui"))))
-          (wrap-render-with-meta-info [body]
-            (update-in body ["Object" :methods "render"]
-              (fn [{:as method :keys [body param-list]}]
-                (assoc method :body
-                  (conj (vec (butlast body))
-                        `(wrap-render ~meta-info
-                           ~{:klass ui-name
-                             :this (first param-list)}
-                           ~(last body)))))))]
-    (-> body
-      (inject-deref-factory)
-      (wrap-render-with-meta-info))))
+              (last body)))]
+    (let [?factoryOpts (get-factory-opts body)]
+      (-> body
+        (assoc-in [(if cljs? "IDeref" "clojure.lang.IDeref")]
+          {:static 'static
+           :protocol (if cljs? 'IDeref 'clojure.lang.IDeref)
+           :methods {(if cljs? "-deref" "deref")
+                     {:name (if cljs? '-deref 'deref)
+                      :param-list '[_]
+                      :body `[(om.next/factory ~ui-name
+                                ~(or ?factoryOpts {}))]}}})
+        (dissoc "Defui")))))
 
 (defn defui* [ui-name body form env xforms]
-  (let [ctx {:meta-info (process-meta-info
+  (let [cljs? (boolean (:ns env))
+        ctx {:meta-info (process-meta-info
                           (merge (meta form)
                                  {:file cljs.analyzer/*cljs-file*}))
-             :ui-name ui-name}
+             :ui-name ui-name
+             :cljs? cljs?}
         apply-xforms
         (fn [ctx body]
           (reduce (fn [body xf]
                     (xf ctx body))
                   body xforms))]
-    (om/defui* (vary-meta ui-name assoc :once true)
-      (->> body
-        (conform! ::defui)
-        (apply-xforms ctx)
-        (s/unform ::defui)))))
+    ((if cljs? om/defui* om/defui*-clj)
+     (vary-meta ui-name assoc :once true)
+     (->> body
+       (conform! ::defui)
+       (apply-xforms ctx)
+       (s/unform ::defui)))))
 
-(defmacro defui [ui-name & body]
-  (defui* ui-name body &form &env
-    [base-defui-middleware]))
+(defmacro defui [ui-name xform-syms & body]
+  (let [xforms (mapv #(some->> % (ns-resolve *ns* &env) var-get) xform-syms)]
+    (assert (not-any? nil? xforms)
+      (str {:failing-xforms (into [] (remove #(last %) (map vector xform-syms (repeat "=>") xforms)))
+            :ui-name ui-name, :meta-info (meta &form), :env &env
+            :*ns* *ns*, :ns cljs.analyzer/*cljs-ns*}))
+    (defui* ui-name body &form &env xforms)))
