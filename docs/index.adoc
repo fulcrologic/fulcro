@@ -79,8 +79,9 @@ The first opportunity for an Untangled app to load data from a remote server is 
 
 [source]
 ----
-(require [untangled.client.core :as uc]
-         [untangled.client.data-fetch :as df])
+(:require
+  [untangled.client.core :as uc]
+  [untangled.client.data-fetch :as df])
 
 (uc/new-untangled-client
     :started-callback (fn [reconciler]
@@ -131,31 +132,36 @@ The Untangled design patterns favor the first execution path over the second, ho
 execution path is made possible by specifying both a `:remote` keyword and an `:action` keyword in the map returned
 by your mutation, which follow standard Om patterns:
 
-```
-(require [untangled.client.mutations :refer [mutate]])
+[source]
+----
+(:require
+  [untangled.client.mutations :refer [mutate]])
 
 (defmutation mutate 'person/add-friend [env k params]
     {:remote true
      :action (fn []
-                ;; code to optimistically add friend of `friend-id` to the person `person-id` in the client-side database
+                ;; code to optimistically add friend of `friend-id`
+                ;; to the person `person-id` in the client-side database
                 )})
 
-```
+----
 
 You can utilize the second execution path by adding a server read to a transaction that also contains a mutation.
 In this case the mutations and reads will be split, the mutations will run, then the reads will run (ordered using the
 network queue). Server reads take the form of an `untangled/load` built-in client mutation, including all of the
 parameters supported by a call to `load-data`:
 
-```
-(require [om.next :as om]
-         [untangled.client.mutations])
+[source]
+----
+(:require
+  [om.next :as om]
+  [untangled.client.mutations])
 
 (om/transact! component '[(app/remote-action)
                           (untangled/load {:query [:data-changed-by-remote-action]
                                            :post-mutation data/modify-server-response
                                            :fallback app/handle-failures})])
-```
+----
 
 For a walkthrough of this remote mutation and load execution path, see the getting started video about
 https://youtu.be/t49JYB27fv8?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R&t=1535[server basics at roughly 25:20]
@@ -173,7 +179,12 @@ moment that the component is rendered.
 The `:ui/loading-data` keyword is set to true when *any load* is occurring. If you want to be sure that a particular
 piece of data is being loaded at a given moment, then you will want to access the data fetch state on that field:
 
-```
+[source]
+----
+(:require
+  [om.next :as om]
+  [om.dom :as dom])
+
 (defui Item
     static om/IQuery (query [this] [:id :title :ui/fetch-state])
     ;; note that the *subcomponent* queries for :ui/fetch-state
@@ -195,7 +206,7 @@ piece of data is being loaded at a given moment, then you will want to access th
                 (dom/div nil "Loading...")
                 (dom/div nil (map ui-item items))))))
 
-```
+----
 
 In this case, we might be loading items in the `ItemList` component, and we might not. If we are, then we can tell
 that the field `:items` is being loaded because the map at the `:items` key in props has a `:ui/fetch-state` key.
@@ -278,6 +289,9 @@ custom app specific https://github.com/stuartsierra/component[Stuart Sierra Comp
 `make-untangled-server` takes a `:component` map keyed by component name with the components as values.
 [source]
 ----
+(:require
+  [com.stuartsierra.component :as component])
+
 (defrecord MyComp [name]
   component/Lifecycle ;;<5>
   (start [this] ...)
@@ -319,6 +333,10 @@ There are two locations in untangled-server's pre-built handler stack, https://g
 The first step is to create a component that depends (`component/using`) on the `:handler`, and then on start to get and set the desired hook.
 [source]
 ----
+(:require
+  [com.stuartsierra.component :as component]
+  [untangled.server.impl.components.handler :as h])
+
 (defrecord Hooks [handler]
   component/Lifecycle
   (start [this]
@@ -360,6 +378,9 @@ Simply add an :extra-routes map to `make-untangled-server` with keys `:routes` a
 Eg:
 [source]
 ----
+(:require
+  [untangled.server.core :refer [make-untangled-server])
+
 (make-untangled-server
   :extra-routes
   {:routes ["" {"/store-file" :store-file}]
@@ -380,6 +401,10 @@ It then does a deep merging of the two files, where the defaults are always over
 You can inject config into your parser environment by putting it in your `:parser-injections`, or in your component by using `component/using`.
 [source]
 ----
+(:require
+  [com.stuartsierra.component :as component]
+  [untangled.server.core :refer [make-untangled-server])
+
 (make-untangled-server
   :parser-injections #{:config})
 
@@ -438,6 +463,9 @@ This lets you use different config paths when developing in the repl, but keep a
 [source]
 .src/yourapp/system.clj
 ----
+(:require
+  [untangled.server.core :refer [make-untangled-server])
+
 (defn make-system [cfg-path]
   (make-untangled-server
     :config-path cfg-path))
@@ -446,6 +474,9 @@ This lets you use different config paths when developing in the repl, but keep a
 .dev/server/user.clj (see: https://github.com/stuartsierra/component#reloading[here] for more info)
 ----
 ;;development
+(:require
+  [my.app.system :refer [make-system]])
+
 (def config-paths
   {:dev "config/dev.edn"
    :secure "config/secure.edn"})
@@ -456,6 +487,10 @@ This lets you use different config paths when developing in the repl, but keep a
 .src/yourapp/core.clj (see: http://clojure.org/reference/compilation#_gen_class_examples[here] for info on -main)
 ----
 ;;production
+(:require
+  [com.stuartsierra.component :as component]
+  [untangled.server.core :refer [make-untangled-server])
+
 (defn -main [& args]
   (component/start (make-system "/usr/local/etc/my_app.edn")))
 ----
@@ -496,6 +531,11 @@ The new config component must satisfy two criteria:
 [source]
 .a naive but simple example
 ----
+(:require
+  [untangled.server.core :refer [make-untangled-server]]
+  [com.stuartsierra.component :as component]
+  [clojure.java.io :as io])
+
 (defrecord MyConfig [value]
   component/Lifecycle
   (start [this]
