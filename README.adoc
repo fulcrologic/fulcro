@@ -1,18 +1,23 @@
 # Untangled Client
+:source-highlighter: coderay
+:source-language: clojure
+:toc:
+:toc-placement: preamble
+:sectlinks:
+:sectanchors:
+:sectnums:
 
-The client library for the Untangled Web framework. 
+The client library for the Untangled Web framework.
 
-What follows is a quick start tutorial that assumes at least a passing familiarity with ClojureScript and Figwheel. For 
-an interactive tutorial, see [the official Untangled tutorial](https://github.com/untangled-web/untangled-tutorial). 
-For more in depth information on the framework, see our [main site](http://untangled-web.github.io/untangled/index.html) 
-and [reference guide](http://untangled-web.github.io/untangled/reference/reference.html).
+What follows is a quick start tutorial that assumes at least a passing familiarity with ClojureScript and Figwheel. For
+an interactive tutorial, see https://github.com/untangled-web/untangled-tutorial[the official Untangled tutorial].
+For more in depth information on the framework, see our http://untangled-web.github.io/untangled/index.htm[main site]l
+and http://untangled-web.github.io/untangled/reference/reference.html[reference guide].
 
-[![Clojars
-Project](https://img.shields.io/clojars/v/navis/untangled-client.svg)](https://clojars.org/navis/untangled-client)
+image::https://img.shields.io/clojars/v/navis/untangled-client.svg[link=https://clojars.org/navis/untangled-client]
 
-Release: [![Master](https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=master)](https://github.com/untangled-web/untangled-client/tree/master)
-
-Snapshot: [![SNAPSHOT](https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=develop)](https://github.com/untangled-web/untangled-client/tree/develop)
+Release: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=master[link=https://github.com/untangled-web/untangled-client/tree/master]
+Snapshot: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=develop[link=https://github.com/untangled-web/untangled-client/tree/develop]
 
 ## Usage
 
@@ -163,12 +168,12 @@ technically, only the `ns` declaration and last line are necessary.
 
 ### Setting up Figwheel
 
-We don't use the lein plugin for figwheel, as we'd rather have IntelliJ 
+We don't use the lein plugin for figwheel, as we'd rather have IntelliJ
 REPL integration, which we find works better with a figwheel sidecar
-setup. 
+setup.
 
-The setup can read the cljs builds from the project file, and can also 
-support specifying which builds you'd like to initially start via JVM 
+The setup can read the cljs builds from the project file, and can also
+support specifying which builds you'd like to initially start via JVM
 options (e.g. -Dtest -Ddev will cause it to build the test and dev builds).
 
 To get this, place the following in `dev/server/user.clj`:
@@ -229,14 +234,18 @@ and see the UI. Any changes you make to the UI or to the CSS will automatically 
 
 ## Next Steps
 
-We recommend going through the [Untangled Tutorial](https://github.com/untangled-web/untangled-tutorial), 
-which you should clone and work through on your local machine. For more comprehensive documentation, see the
-[Untangled Reference Guide](http://untangled-web.github.io/untangled/reference/reference.html).
+We recommend going through the https://github.com/untangled-web/untangled-tutorial[Untangled Tutorial],
+which you should clone and work through on your local machine.
+
+## Docs & Reference Guide
+For more untangled-client documentation read: link:docs/index.adoc[the docs].
+
+For comprehensive untangled documentation checkout: http://untangled-web.github.io/untangled/reference/reference.html[our Reference Guide].
 
 ## A More Complete Project
 
 An Untanged template is in progress. A pretty complete version is available at
-[https://github.com/awkay/untangled-template-workspace](https://github.com/awkay/untangled-template-workspace)
+https://github.com/awkay/untangled-template-workspace[https://github.com/awkay/untangled-template-workspace]
 and has:
 
 - Full stack with sample UI for login/sign up.
