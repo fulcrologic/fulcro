@@ -8,21 +8,24 @@
     [untangled.client.ui :as ui #?@(:cljs (:include-macros true))]
     [untangled.client.xforms :as xf]))
 
-(ui/defui ListItem [ui/DevTools ui/DerefFactory]
+(def dflt-mixins
+  [xf/DevTools xf/DerefFactory])
+
+(ui/defui ListItem (conj dflt-mixins (xf/with-exclamation "LIST-ITEM!"))
   static Defui (factory-opts [] {:keyfn :value})
   Object
   (render [this]
     (dom/li nil
       (:value (om/props this)))))
 
-(ui/defui ThingB [ui/DevTools ui/DerefFactory]
+(ui/defui ThingB dflt-mixins
   Object
   (render [this]
     (dom/div nil
       (dom/ul nil
         (map @ListItem (map hash-map (repeat :value) (range 5)))))))
 
-(ui/defui ThingA [ui/DevTools ui/DerefFactory xf/with-exclamation]
+(ui/defui ThingA [xf/DevTools (xf/with-exclamation "EXCLAMATION!")]
   Object
   (render [this]
     (let [{:keys [ui/react-key]} (om/props this)]
