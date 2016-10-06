@@ -237,6 +237,7 @@ person has a pointer to the person that is their mate. This creates a graph with
 
 The query language is a subset of Datomic Pull syntax. It is a syntax that is designed to walk a graph and produce a
 tree (which is suitable for a UI, which is naturally a tree).
+Check out the http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.D_Queries[tutorial] for more information.
 
 Queries are written as a vector.
 
