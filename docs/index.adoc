@@ -370,16 +370,22 @@ Eg:
 
 === Abstract
 Configuration for your application is about tweaking the behavior of your program statically before it even runs.
-Traditionally configuration is an formed by aggregating a plethera of sources, untangled config believes that constraining you to one file and some defaults, leads to more a maintanable and debuggable system.
+Traditionally configuration is an formed by aggregating a plethera of sources, however, untangled holds that constraining you to one file and some sane defaults, leads to more a maintanable and debuggable system.
 
-[NOTE]
+Untangled configuration is done by reading two *edn* files, a `config/defaults.edn` and one specified by you when creating an untangled-server.
+It then does a deep merging of the two files, where the defaults are always overriden if specified in the other file.
+
+[TIP]
 ====
-Config edn files can contain arbitrary *edn data* that will be read in as soon as your server starts up. +
-You can inject config into your parser environment by putting it in your `:parser-injections`.
+You can inject config into your parser environment by putting it in your `:parser-injections`, or in your component by using `component/using`.
 [source]
 ----
 (make-untangled-server
   :parser-injections #{:config})
+
+(component/using
+  (map->MyComponent {})
+  [:config])
 ----
 See <<Building your own components>> for more detail on parser injections.
 ====
@@ -398,17 +404,46 @@ An example of a "safe" default is not auto migrating or dropping tables on start
        :auto-drop    false}
 ----
 
-=== Development
-Parameterizing your `:config-path` when calling `make-untangled-server` lets you use different config paths at development (or production) time.
+The values in your `defaults.edn` file are deep merged underneath the file you specify in <<Specifying a config file>>.
 [source]
-.system.clj
+.for example
+----
+;;defaults.edn
+{:override {:me 13}
+ :keep :me}
+
+;;myconfig.edn
+{:override {:me 42
+            :seven 7}
+ :hello "world"}
+
+;;results in =>
+{:override {:me 42
+            :seven 7}
+ :hello "world"
+ :keep :me}
+----
+
+=== Specifying a config file
+Simply pass `make-untangled-server` a `:config-path`.
+[WARNING]
+====
+- If it begins with a slash "/" => it should be an absolute path.
+- If it doesn't => it should be on your classpath, eg: your `resources` folder.
+====
+
+==== Configurable config path
+An useful pattern to follow is to parameterize the `:config-path` passed to `make-untangled-server`. +
+This lets you use different config paths when developing in the repl, but keep a single production configuration path.
+[source]
+.src/yourapp/system.clj
 ----
 (defn make-system [cfg-path]
   (make-untangled-server
     :config-path cfg-path))
 ----
 [source]
-.user.clj
+.dev/server/user.clj (see: https://github.com/stuartsierra/component#reloading[here] for more info)
 ----
 ;;development
 (def config-paths
@@ -418,19 +453,21 @@ Parameterizing your `:config-path` when calling `make-untangled-server` lets you
   (make-system (get config-paths path)))
 ----
 [source]
-.core.clj
+.src/yourapp/core.clj (see: http://clojure.org/reference/compilation#_gen_class_examples[here] for info on -main)
 ----
 ;;production
 (defn -main [& args]
-  (.start (make-system "/usr/local/etc/my_app.edn")))
+  (component/start (make-system "/usr/local/etc/my_app.edn")))
 ----
 
-=== Production
+==== Production override
 In production builds however it is convenient to be able to point to switch between configs at run time. +
 So when running your server you can specify the path of the config file using the `-Dconfig=...` config system property.
 
 TIP: Options come before the jar +
 `java [-options] -jar jarfile [args...]`.
+
+WARNING: Use this option sparingly and as needed, as you should be relying on the previously described methods first.
 
 === Environmental Variables
 It is often convenient & useful to be able to reference environmental variables, so we provide a way to access env vars from your config file as follows:
