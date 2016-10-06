@@ -37,7 +37,8 @@ In addition to the base untangled client library, the following are the minimum 
 
 If you copy/paste the following file into a `project.clj` it will serve as a good start:
 
-```
+[source]
+----
 (defproject client-demo "1.0.0"
   :description "Untangled Client Quickstart"
   :dependencies [[org.clojure/clojure "1.8.0"]
@@ -64,19 +65,21 @@ If you copy/paste the following file into a `project.clj` it will serve as a goo
   ; figwheel dependency and chrome data structure formatting tools (formatting cljs in source debugging and logging)
   :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.7"]
                                   [binaryage/devtools "0.6.1"]]}})
-```
+----
 
 ### Setting up Folders and Supporting files
 
 Create the directories as follows (OSX/Linux):
 
-```
+[source]
+----
 mkdir -p src/client/app dev/client/cljs dev/server resources/public/css resources/public/js script
-```
+----
 
 then create a base HTML file in `resources/public/index.html`:
 
-```
+[source]
+----
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -89,19 +92,21 @@ then create a base HTML file in `resources/public/index.html`:
         <script src="js/compiled/app.js"></script>
     </body>
 </html>
-```
+----
 
 and an empty CSS file:
 
-```
+[source]
+----
 touch resources/public/css/app.css
-```
+----
 
 ### Add base application source
 
 Make the application itself, with an initial state, in `src/client/app/core.cljs`:
 
-```
+[source]
+----
 (ns app.core
   (:require [untangled.client.core :as uc]))
 
@@ -110,13 +115,14 @@ Make the application itself, with an initial state, in `src/client/app/core.cljs
 ; The initial state is the starting data for the entire UI
 ; see dev/client/user.cljs for the actual DOM mount
 (defonce app (atom (uc/new-untangled-client)))
-```
+----
 
 Notice that making the application is a single line of code.
 
 then create the base UI in `src/client/app/ui.cljs`:
 
-```
+[source]
+----
 (ns app.ui
   (:require [om.next :as om :refer-macros [defui]]
             [untangled.client.mutations :as mut]
@@ -136,12 +142,13 @@ then create the base UI in `src/client/app/ui.cljs`:
     (let [{:keys [ui/react-key some-data]} (om/props this)]
       (dom/div #js {:key react-key}
         (str "Hello world: " some-data)))))
-```
+----
 
 
 Create an application entry point for development mode in `dev/client/cljs/user.cljs`:
 
-```
+[source]
+----
 (ns cljs.user
   (:require
     [cljs.pprint :refer [pprint]]
@@ -162,7 +169,7 @@ Create an application entry point for development mode in `dev/client/cljs/user.
 
 ;; Mount the Root UI component in the DOM div named "app"
 (swap! core/app uc/mount ui/Root "app")
-```
+----
 
 technically, only the `ns` declaration and last line are necessary.
 
@@ -178,7 +185,8 @@ options (e.g. -Dtest -Ddev will cause it to build the test and dev builds).
 
 To get this, place the following in `dev/server/user.clj`:
 
-```
+[source]
+----
 (ns user
   (:require [figwheel-sidecar.system :as fig]
             [com.stuartsierra.component :as component]))
@@ -202,21 +210,23 @@ To get this, place the following in `dev/server/user.clj`:
      (println "STARTING FIGWHEEL ON BUILDS: " build-ids)
      (swap! figwheel component/start)
      (fig/cljs-repl (:figwheel-system @figwheel)))))
-```
+----
 
 and you'll also want the following startup script in `script/figwheel.clj`:
 
-```
+[source]
+----
 (require '[user :refer [start-figwheel]])
 
 (start-figwheel)
-```
+----
 
 and now you can either start figwheel from the command prompt with:
 
-```
+[source]
+----
 lein run -m clojure.main script/figwheel.clj
-```
+----
 
 or from Cursive in IntelliJ with a run profile:
 
@@ -226,9 +236,7 @@ or from Cursive in IntelliJ with a run profile:
 
 Once you've started figwheel you should be able to browse to:
 
-```
 http://localhost:3449
-```
 
 and see the UI. Any changes you make to the UI or to the CSS will automatically reload.
 

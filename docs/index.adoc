@@ -30,6 +30,10 @@ The mechanism for creating components is the `defui` macro:
 
 [source]
 ----
+(:require
+  [om.next :refer-macros [defui]]
+  [om.dom :as dom])
+
 (defui ComponentClassName
   Object
   (componentWillUpdate [this nextprops nextstate] (println "Component will update"))
@@ -54,6 +58,10 @@ define them under the Object section of the UI:
 
 [source]
 ----
+(:require
+  [om.next :refer-macros [defui]]
+  [om.dom :as dom])
+
 (defui WidgetWithHook
   Object
   (componentWillUpdate [this nextprops nextstate] (println "Component will update"))
@@ -99,6 +107,8 @@ be given a key function for generating unique React keys on the component.
 
 [source]
 ----
+(:require [om.next :as om])
+
 (def ui-widget (om/factory Widget {:keyfn (fn [props] (get props :some-prop))}))
 ----
 
@@ -110,6 +120,10 @@ You access properties in a component using `om/props`:"
 
 [source]
 ----
+(:require
+  [om.next :as om :refer-macros [defui]]
+  [om.dom :as dom])
+
 (defui Widget
   Object
   (render [this]
@@ -166,8 +180,9 @@ All of the standard HTML tags have pre-built React components, accessible from t
 
 [source]
 ----
-(ns ui
-  (:require [om.dom :as dom]))
+(:require
+  [om.next :refer-macros [defui]]
+  [om.dom :as dom])
 
 (defui Widget
   Object
@@ -367,6 +382,10 @@ do with queries:
 
 [source]
 ----
+(:require
+  [om.next :refer-macros [defui]]
+  [untangled.client.core :as uc])
+
 (defui Child
   static uc/InitialAppState
   (initial-state [clz params] { :a 1 })
@@ -468,6 +487,8 @@ like the query notation, but looks to include method calls (which will invoke th
 
 [source]
 ----
+(:require [om.next :as om])
+
 (om/transact! this '[(my/mutation-symbol {:x 1}) (other/mutations)])
 ----
 
