@@ -14,7 +14,7 @@
                  [hiccups "0.3.0"]]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
-  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
+  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "resources/public/js/cards" "target"]
 
   :source-paths ["src" "src-cards"]
   :resource-paths ["src" "resources"] ; maven deploy to internal artifactory needs src here

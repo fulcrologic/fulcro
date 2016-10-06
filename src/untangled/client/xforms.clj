@@ -1,17 +1,17 @@
 (ns untangled.client.xforms)
 
-(defn DevTools [{:keys [meta-info ui-name cljs?]} body]
+(defn DevTools [{:keys [defui/loc defui/ui-name env/cljs?]} body _]
   (cond-> body cljs?
     (update-in ["Object" :methods "render"]
       (fn [{:as method :keys [body param-list]}]
         (assoc method :body
           (conj (vec (butlast body))
-                `(untangled.client.ui/wrap-render ~meta-info
+                `(untangled.client.ui/wrap-render ~loc
                    ~{:klass ui-name
                      :this (first param-list)}
                    ~(last body))))))))
 
-(defn DerefFactory [{:keys [meta-info ui-name cljs?]} body]
+(defn DerefFactory [{:keys [defui/ui-name env/cljs?]} body _]
   (letfn [(get-factory-opts [body]
             (when-let [{:keys [static methods]} (get body "Defui")]
               (assert static "Defui should be a static protocol")
@@ -36,11 +36,10 @@
                                 ~(or ?factoryOpts {}))]}}})
         (dissoc "Defui")))))
 
-(defn with-exclamation [excl]
-  (fn [ctx body]
-    (update-in body ["Object" :methods "render" :body]
-      (fn [body]
-        (conj (vec (butlast body))
-              `(om.dom/div nil
-                 (om.dom/p nil ~(str excl))
-                 ~(last body)))))))
+(defn with-exclamation [_ body excl]
+  (update-in body ["Object" :methods "render" :body]
+    (fn [body]
+      (conj (vec (butlast body))
+            `(om.dom/div nil
+               (om.dom/p nil ~(str excl))
+               ~(last body))))))

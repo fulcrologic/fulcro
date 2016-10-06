@@ -3,7 +3,7 @@
     cljs.analyzer
     [clojure.spec :as s]
     [om.next :as om]
-    [untangled.client.xforms]))
+    [untangled.client.xforms :as xf]))
 
 (defn process-meta-info {:doc "for mocking"} [meta-info] meta-info)
 
@@ -36,17 +36,30 @@
                    #(->> % vals
                       (mapv (fn [x] (update x :methods vals)))))))
 
-(defn defui* [ui-name body form env xforms]
-  (let [cljs? (boolean (:ns env))
-        ctx {:meta-info (process-meta-info
+(defn resolve-mixins [mixins mixin->xform]
+  (mapv (fn step [x]
+          (or
+            (cond
+              (list? x)
+              #_>> (let [[kw params] x]
+                     (with-meta (step kw) {:params params}))
+              (keyword? x)
+              #_>> (get mixin->xform x))
+            (throw (ex-info (str "<" x "> mixin not supported") {}))))
+    mixins))
+
+(defn defui* [ui-name mixins body form env mixin->xform]
+  (let [xforms (resolve-mixins mixins mixin->xform)
+        cljs? (boolean (:ns env))
+        ctx {:defui/loc (process-meta-info
                           (merge (meta form)
                                  {:file cljs.analyzer/*cljs-file*}))
-             :ui-name ui-name
-             :cljs? cljs?}
+             :defui/ui-name ui-name
+             :env/cljs? cljs?}
         apply-xforms
         (fn [ctx body]
           (reduce (fn [body xf]
-                    (xf ctx body))
+                    (xf ctx body (:params (meta xf))))
                   body xforms))]
     ((if cljs? om/defui* om/defui*-clj)
      (vary-meta ui-name assoc :once true)
@@ -56,10 +69,7 @@
        (s/unform ::defui)))))
 
 (defmacro defui [ui-name mixins & body]
-  (let [xforms (if ((some-fn list? symbol?) mixins) (eval mixins)
-                 (mapv #(eval %) mixins))]
-    (assert (not-any? nil? xforms)
-      (str {:failing-xforms (into [] (remove #(last %) (map vector mixins (repeat "=>") xforms)))
-            :ui-name ui-name, :meta-info (meta &form), :env &env
-            :*ns* *ns*, :ns cljs.analyzer/*cljs-ns*}))
-    (defui* ui-name body &form &env xforms)))
+  (defui* ui-name mixins body &form &env
+    {:DevTools xf/DevTools
+     :DerefFactory xf/DerefFactory
+     :WithExclamation xf/with-exclamation}))
