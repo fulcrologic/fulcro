@@ -6,12 +6,19 @@
     [untangled.client.core :as uc]
     [untangled.client.ui :as ui :include-macros true]))
 
+(ui/defui ListItem
+  static Defui (factory-opts [] {:keyfn :value})
+  Object
+  (render [this]
+    (dom/li nil
+      (:value (om/props this)))))
+
 (ui/defui ThingB
   Object
   (render [this]
     (dom/div nil
-      (dom/button #js {:onClick #(js/alert "Try pressing ?")}
-        "Click me!"))))
+      (dom/ul nil
+        (map @ListItem (map hash-map (repeat :value) (range 5)))))))
 
 (ui/defui ThingA
   Object

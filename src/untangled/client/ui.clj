@@ -36,14 +36,30 @@
                       (mapv (fn [x] (update x :methods vals)))))))
 
 (defn base-defui-middleware [{:keys [meta-info ui-name]} body]
-  (letfn [(inject-deref-factory [body]
-            (assoc-in body ["IDeref"]
-              {:static 'static
-               :protocol 'IDeref
-               :methods {"-deref"
-                         {:name '-deref
-                          :param-list '[_]
-                          :body `[(om.next/factory ~ui-name ~{})]}}}))
+  (letfn [(get-factory-opts [body]
+            (when-let [{:keys [static methods]} (get body "Defui")]
+              (assert static "Defui should be a static protocol")
+              (assert (>= 1 (count methods))
+                (str "There can only be factory-opts implemented on Defui, failing methods: " methods))
+              (when (= 1 (count methods))
+                (assert (get methods "factory-opts")
+                  (str "You did not implement factory-opts, instead found: " methods))))
+            (when-let [{:keys [param-list body]} (get-in body ["Defui" :methods "factory-opts"])]
+              (assert (and (vector? param-list) (empty? param-list)))
+              (assert (and (= 1 (count body))))
+              (last body)))
+          (inject-deref-factory [body]
+            (let [?factoryOpts (get-factory-opts body)]
+              (-> body
+                (assoc-in ["IDeref"]
+                  {:static 'static
+                   :protocol 'IDeref
+                   :methods {"-deref"
+                             {:name '-deref
+                              :param-list '[_]
+                              :body `[(om.next/factory ~ui-name
+                                        ~(or ?factoryOpts {}))]}}})
+                (dissoc "Defui"))))
           (wrap-render-with-meta-info [body]
             (update-in body ["Object" :methods "render"]
               (fn [{:as method :keys [body param-list]}]
