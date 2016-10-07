@@ -10,14 +10,17 @@
 The client library for the Untangled Web framework.
 
 What follows is a quick start tutorial that assumes at least a passing familiarity with ClojureScript and Figwheel. For
-an interactive tutorial, see https://github.com/untangled-web/untangled-tutorial[the official Untangled tutorial].
-For more in depth information on the framework, see our http://untangled-web.github.io/untangled/index.htm[main site]l
-and http://untangled-web.github.io/untangled/reference/reference.html[reference guide].
+an more information & depth, checkout the links in <<Learn more>>.
 
 image::https://img.shields.io/clojars/v/navis/untangled-client.svg[link=https://clojars.org/navis/untangled-client]
 
 Release: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=master[link=https://github.com/untangled-web/untangled-client/tree/master]
 Snapshot: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=develop[link=https://github.com/untangled-web/untangled-client/tree/develop]
+
+== Learn more
+- about link:docs/index.adoc#untangled-spec-docs[Untangled Client]
+- about link:http://untangled-web.github.io/untangled/index.html[Untangled] & checkout the link:http://untangled-web.github.io/untangled/index.html[Documentation Reference]
+- interactively with the link:http://untangled-web.github.io/untangled/tutorial.html[Untangled Tutorial]
 
 ## Usage
 
@@ -244,11 +247,6 @@ and see the UI. Any changes you make to the UI or to the CSS will automatically 
 
 We recommend going through the https://github.com/untangled-web/untangled-tutorial[Untangled Tutorial],
 which you should clone and work through on your local machine.
-
-## Docs & Reference Guide
-For more untangled-client documentation read: link:docs/index.adoc[the docs].
-
-For comprehensive untangled documentation checkout: http://untangled-web.github.io/untangled/reference/reference.html[our Reference Guide].
 
 ## A More Complete Project
 
