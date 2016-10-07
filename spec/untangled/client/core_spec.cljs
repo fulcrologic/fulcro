@@ -152,3 +152,63 @@
         @scb-calls => 1
         "Calls the supplied started-callback when callback is a function"
         @custom-calls => 1))))
+
+(specification "Mounting an Untangled Application"
+  (let [mounted-mock-app {:mounted? true :initial-state {}}]
+    (provided "When it is already mounted"
+      (uc/refresh* a) =1x=> (do
+                              (assertions
+                                "Refreshes the UI"
+                                1 => 1)
+                              a)
+
+      (uc/mount* mounted-mock-app :fake-root :dom-id)))
+  (behavior "When is is not already mounted"
+    (let [mock-app {:mounted? false :initial-state {:a 1} :reconciler-options :OPTIONS}]
+      (when-mocking
+        (uc/initialize app state root dom opts) => (do
+                                                     (assertions
+                                                       "Initializes the app with a plain map when root does not implement InitialAppState"
+                                                       state => {:a 1}
+                                                       ))
+
+        (uc/mount* mock-app :fake-root :dom-id)))
+    (let [supplied-atom (atom {:a 1})
+          mock-app {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
+      (when-mocking
+        (uc/initialize app state root dom opts) => (do
+                                                     (assertions
+                                                       "Initializes the app with a supplied atom when root does not implement InitialAppState"
+                                                       {:a 1} => @state))
+
+        (uc/mount* mock-app :fake-root :dom-id)))
+    (let [mock-app {:mounted? false :initial-state {:a 1} :reconciler-options :OPTIONS}]
+      (when-mocking
+        (log/warn msg) =1x=> (do (assertions "warns about duplicate initialization"
+                                   msg =fn=> (partial re-matches #"^You supplied.*")))
+        (uc/initialize app state root dom opts) => (do
+                                                     (assertions
+                                                       "Initializes the app with the InitialAppState"
+                                                       state => (uc/initial-state Parent nil)))
+
+        (uc/mount* mock-app Parent :dom-id)))
+    (let [mock-app {:mounted? false :initial-state (atom {:a 1}) :reconciler-options :OPTIONS}]
+      (behavior "When both atom and InitialAppState are present:"
+        (when-mocking
+          (log/warn msg) =1x=> true
+          (om/tree->db c d merge-idents) => (do
+                                              (behavior "Normalizes InitialAppState:"
+                                                (assertions
+                                                  "includes Om tables"
+                                                  merge-idents => true
+                                                  "uses the Root UI component query"
+                                                  c => Parent
+                                                  "uses InitialAppState as the data"
+                                                  d => (uc/initial-state Parent nil)))
+                                              :NORMALIZED-STATE)
+          (uc/initialize app state root dom opts) => (do
+                                                       (assertions
+                                                         "Overwrites the supplied atom with the normalized InitialAppState"
+                                                         @state => :NORMALIZED-STATE))
+
+          (uc/mount* mock-app Parent :dom-id))))))

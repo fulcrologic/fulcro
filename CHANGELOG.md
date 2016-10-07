@@ -1,3 +1,8 @@
+0.5.8
+-----
+- Changed InitialAppState to overwrite any supplied initial app state atom.
+  This allows you to inspect data (the app state) when embedding an Untangled application in a devcard.
+
 0.5.7
 -----
 - The `:marker` keyword actually works now!

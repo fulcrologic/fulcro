@@ -132,17 +132,29 @@
   [app]
   (assoc app :reconciler (update-in (:reconciler app) [:config :history] #(omc/cache (.-size %)))))
 
+(defn refresh* [{:keys [reconciler] :as app}]
+  (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
+  (udom/force-render reconciler))
+
+(defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
+  (if mounted?
+    (do (refresh* app) app)
+    (let [ui-declared-state (and (implements? InitialAppState root-component) (untangled.client.core/initial-state root-component nil))
+          atom-supplied? (= Atom (type initial-state))
+          init-conflict? (and (or atom-supplied? (seq initial-state)) (implements? InitialAppState root-component))
+          state (cond
+                  (and init-conflict? atom-supplied?) (do
+                                                        (reset! initial-state (om/tree->db root-component ui-declared-state true))
+                                                        initial-state)
+                  init-conflict? ui-declared-state
+                  :else initial-state)]
+      (when init-conflict?
+        (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
+      (initialize app state root-component dom-id-or-node reconciler-options))))
+
 (defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
-  (mount [this root-component dom-id-or-node]
-
-    (let [state (or (and (implements? InitialAppState root-component) (untangled.client.core/initial-state root-component nil)) initial-state)]
-      (if mounted?
-        (do (refresh this) this)
-        (do
-          (when (and (or (= Atom (type initial-state)) (seq initial-state)) (implements? InitialAppState root-component))
-            (log/warn "You supplied an initial state AND a root component with a constructor. Using InitialAppState!"))
-          (initialize this state root-component dom-id-or-node reconciler-options)))))
+  (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
