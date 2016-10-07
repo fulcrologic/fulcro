@@ -194,6 +194,7 @@ All of the standard HTML tags have pre-built React components, accessible from t
 
 Untangled applications use the default Om database format. This is a simple graph database format made from
 standard Clojurescript persistent data structures: Maps and vectors. The entire database is a map.
+Check out the http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.C_App_Database[tutorial] for more information.
 
 === Tables
 
@@ -251,6 +252,7 @@ person has a pointer to the person that is their mate. This creates a graph with
 
 The query language is a subset of Datomic Pull syntax. It is a syntax that is designed to walk a graph and produce a
 tree (which is suitable for a UI, which is naturally a tree).
+Check out the http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.D_Queries[tutorial] for more information.
 
 Queries are written as a vector.
 
