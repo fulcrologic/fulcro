@@ -1,7 +1,19 @@
 (ns clj.user
-  (:require [figwheel-sidecar.repl-api :as ra]
-            [clojure.set :as set]
-            [clojure.tools.namespace.repl :refer [refresh]]))
+  (:require
+    [clojure.pprint :refer [pprint]]
+    [clojure.repl :refer [doc source]]
+    [clojure.set :as set]
+    [clojure.spec :as s]
+    [clojure.spec.gen :as sg]
+    [clojure.tools.namespace.repl :refer [refresh]]
+    [figwheel-sidecar.repl-api :as ra]))
+
+(defn conform! [spec x]
+  (let [rt (s/conform spec x)]
+    (when (s/invalid? rt)
+      (throw (ex-info (s/explain-str spec x)
+               (s/explain-data spec x))))
+    rt))
 
 (def figwheel-config
   {:figwheel-options {:server-port 3050

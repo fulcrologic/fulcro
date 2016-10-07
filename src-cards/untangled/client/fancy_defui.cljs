@@ -6,7 +6,7 @@
     [om.dom :as dom]
     [untangled.client.ui :as ui :include-macros true]))
 
-(ui/defui ListItem [:DevTools :DerefFactory (:dev/WithExclamation "Li")]
+(ui/defui ListItem [:DevTools :DerefFactory (:dev/WithExclamation {:excl "Li"})]
   static Defui (factory-opts [] {:keyfn :value})
   Object
   (render [this]
@@ -20,7 +20,7 @@
       (dom/ul nil
         (map @ListItem (map hash-map (repeat :value) (range 6)))))))
 
-(ui/defui ThingA [:DevTools (:WithExclamation "ThingA")]
+(ui/defui ThingA [:DevTools (:WithExclamation {:excl "ThingA"})]
   Object
   (render [this]
     (let [{:keys [ui/react-key]} (om/props this)]

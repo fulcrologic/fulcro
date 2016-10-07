@@ -11,6 +11,7 @@
                  [org.clojure/clojurescript "1.9.229"]
                  [org.clojure/core.async "0.2.374"]
                  [org.omcljs/om "1.0.0-alpha45" :scope "provided"]
+                 [org.clojure/test.check "0.9.0" :scope "test"]
                  [hiccups "0.3.0"]]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
@@ -71,5 +72,6 @@
                                   [com.cemerick/piggieback "0.2.1"]
                                   [devcards "0.2.1" :exclusions [org.omcljs/om]]
                                   [figwheel-sidecar "0.5.3-1"]
+                                  [org.clojure/test.check "0.9.0"]
                                   [org.clojure/tools.namespace "0.2.11"]
                                   [org.clojure/tools.nrepl "0.2.12"]]}})
