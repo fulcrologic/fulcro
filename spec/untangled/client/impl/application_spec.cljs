@@ -11,7 +11,7 @@
     [untangled.client.impl.data-fetch :as f]
     [untangled.client.impl.om-plumbing :as plumbing]))
 
-(defui Thing
+(defui ^:once Thing
   static om/Ident
   (ident [this props] [:thing/by-id (:id props)])
   static om/IQuery
@@ -19,7 +19,7 @@
   Object
   (render [this] (dom/div nil "")))
 
-(defui Root
+(defui ^:once Root
   static om/IQuery
   (query [this] [:ui/react-key :ui/locale {:things (om/get-query Thing)}])
   Object
