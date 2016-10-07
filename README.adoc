@@ -18,7 +18,7 @@ Release: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?bran
 Snapshot: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=develop[link=https://github.com/untangled-web/untangled-client/tree/develop]
 
 == Learn more
-- about link:docs/index.adoc#untangled-spec-docs[Untangled Client]
+- about link:docs/index.adoc#untangled-client-docs[Untangled Client]
 - about link:http://untangled-web.github.io/untangled/index.html[Untangled] & checkout the link:http://untangled-web.github.io/untangled/index.html[Documentation Reference]
 - interactively with the link:http://untangled-web.github.io/untangled/tutorial.html[Untangled Tutorial]
 
