@@ -6,7 +6,7 @@
     [om.dom :as dom]
     [untangled.client.ui :as ui :include-macros true]))
 
-(ui/defui ListItem [:DevTools :DerefFactory]
+(ui/defui ListItem [:DevTools :DerefFactory (:dev/WithExclamation "Li")]
   static Defui (factory-opts [] {:keyfn :value})
   Object
   (render [this]
