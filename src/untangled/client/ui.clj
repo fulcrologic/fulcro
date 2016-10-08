@@ -1,6 +1,8 @@
 (ns untangled.client.ui
   (:require
-    cljs.analyzer
+    [untangled.client.defui-augment :refer [defui-augment]]
+    [untangled.client.augments]
+    [cljs.analyzer :as ana]
     [clojure.spec :as s]
     [clojure.spec.gen :as sg]
     [clojure.string :as str]
@@ -51,52 +53,6 @@
          (update :impls vals)
          (update :impls (partial mapv (fn [x] (update x :methods vals))))))))
 
-(defmulti defui-augment (fn [ctx _ _] (::augment-dispatch ctx)))
-
-(defmethod defui-augment :DevTools [{:keys [defui/loc defui/ui-name env/cljs?]} ast _]
-  (cond-> ast cljs?
-    (update-in [:impls "Object" :methods "render"]
-      (fn [{:as method :keys [body param-list]}]
-        (assoc method :body
-          (conj (vec (butlast body))
-                `(untangled.client.ui/wrap-render ~loc
-                   ~{:klass ui-name
-                     :this (first param-list)}
-                   ~(last body))))))))
-
-(defmethod defui-augment :DerefFactory [{:keys [defui/ui-name env/cljs?]} ast _]
-  (letfn [(get-factory-opts [ast]
-            (when-let [{:keys [static methods]} (get-in ast [:impls "Defui"])]
-              (assert static "Defui should be a static protocol")
-              (assert (>= 1 (count methods))
-                (str "There can only be factory-opts implemented on Defui, failing methods: " methods))
-              (when (= 1 (count methods))
-                (assert (get methods "factory-opts")
-                  (str "You did not implement factory-opts, instead found: " methods))))
-            (when-let [{:keys [param-list body]} (get-in ast [:impls "Defui" :methods "factory-opts"])]
-              (assert (and (vector? param-list) (empty? param-list)))
-              (assert (and (= 1 (count body))))
-              (last body)))]
-    (let [?factoryOpts (get-factory-opts ast)]
-      (-> ast
-        (assoc-in [:impls (if cljs? "IDeref" "clojure.lang.IDeref")]
-          {:static 'static
-           :protocol (if cljs? 'IDeref 'clojure.lang.IDeref)
-           :methods {(if cljs? "-deref" "deref")
-                     {:name (if cljs? '-deref 'deref)
-                      :param-list '[_]
-                      :body `[(om.next/factory ~ui-name
-                                ~(or ?factoryOpts {}))]}}})
-        (update-in [:impls] #(dissoc % "Defui"))))))
-
-(defmethod defui-augment :WithExclamation [_ ast {:keys [excl]}]
-  (update-in ast [:impls "Object" :methods "render" :body]
-    (fn [body]
-      (conj (vec (butlast body))
-            `(om.dom/div nil
-               (om.dom/p nil ~(str excl))
-               ~(last body))))))
-
 (def defui-augment-mode
   (str/lower-case
     (or (System/getenv "DEFUI_AUGMENT_MODE")
@@ -126,13 +82,13 @@
 
 (defn install-augments [ctx ast]
   (reduce (fn [ast {:keys [aug params]}]
-            (defui-augment (assoc ctx ::augment-dispatch aug) ast params))
+            (defui-augment (assoc ctx :augment/dispatch aug) ast params))
           (dissoc ast :augments :defui-name) (get-augments ast)))
 
 (defn make-ctx [ast form env]
   {:defui/loc (process-meta-info
                 (merge (meta form)
-                       {:file cljs.analyzer/*cljs-file*}))
+                       {:file ana/*cljs-file*}))
    :defui/ui-name (:defui-name ast)
    :env/cljs? (boolean (:ns env))})
 
