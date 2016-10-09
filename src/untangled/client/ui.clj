@@ -1,7 +1,8 @@
 (ns untangled.client.ui
   (:require
-    [untangled.client.defui-augment :refer [defui-augment]]
-    [untangled.client.augments]
+    [untangled.client.augmentation :as aug]
+    [untangled.client.built-in-augments]
+    [untangled.client.impl.util :as utl]
     [cljs.analyzer :as ana]
     [clojure.spec :as s]
     [clojure.spec.gen :as sg]
@@ -10,26 +11,16 @@
 
 (defn process-meta-info {:doc "for mocking"} [meta-info] meta-info)
 
-(defn dbg [& args]
-  (println "console.log('" (str args) "');"))
-
 (defn my-group-by [f coll]
   (into {} (map (fn [[k v]]
                   (assert (= 1 (count v))
                     (str "Cannot implement " k " more than once!"))
                   [(name k) (first v)]) (group-by f coll))))
 
-(defn conform! [spec x]
-  (let [rt (s/conform spec x)]
-    (when (s/invalid? rt)
-      (throw (ex-info (s/explain-str spec x)
-               (s/explain-data spec x))))
-    rt))
-
 (s/def ::method
   (s/cat :name symbol?
     :param-list (s/coll-of symbol? :into [] :kind vector?)
-    :body (s/+ (s/with-gen (constantly true) sg/int))))
+    :body (s/+ utl/TRUE)))
 (s/def ::impls
   (s/cat :static (s/? '#{static})
     :protocol symbol?
@@ -58,14 +49,15 @@
     (or (System/getenv "DEFUI_AUGMENT_MODE")
         (System/getProperty "DEFUI_AUGMENT_MODE")
         "prod")))
+(.println System/out (str "INITIALIZED DEFUI_AUGMENT_MODE TO: " defui-augment-mode))
 
-(defn active-aug? [aug]
-  (case (namespace aug)
+(defn active-aug? [{:keys [aug params]}]
+  (case (::mode params)
     nil    true
-    "dev"  (#{"dev"} defui-augment-mode)
-    "prod" (#{"prod"} defui-augment-mode)
+    :dev  (re-find #"^dev" defui-augment-mode)
+    :prod (re-find #"^prod" defui-augment-mode)
     (throw (ex-info "Invalid augment namespace"
-             {:aug aug :supported-namespaces #{"dev" "prod"}}))))
+             {:aug aug :supported-namespaces #{:dev :prod}}))))
 
 (defn resolve-augment [[aug-type augment]]
   (case aug-type
@@ -76,13 +68,12 @@
   (into []
     (comp
       (map resolve-augment)
-      (filter (comp active-aug? :aug))
-      (map #(update % :aug (comp keyword name))))
+      (filter active-aug?))
     (:augments ast)))
 
 (defn install-augments [ctx ast]
   (reduce (fn [ast {:keys [aug params]}]
-            (defui-augment (assoc ctx :augment/dispatch aug) ast params))
+            (aug/defui-augmentation (assoc ctx :augment/dispatch aug) ast params))
           (dissoc ast :augments :defui-name) (get-augments ast)))
 
 (defn make-ctx [ast form env]
@@ -93,10 +84,10 @@
    :env/cljs? (boolean (:ns env))})
 
 (defn defui* [body form env]
-  (let [ast (conform! ::defui body)
+  (let [ast (utl/conform! ::defui body)
         {:keys [defui/ui-name env/cljs?] :as ctx} (make-ctx ast form env)]
     ((if cljs? om/defui* om/defui*-clj)
-     (vary-meta ui-name merge (meta form) {:once true})
+     (vary-meta ui-name assoc :once true)
      (->> ast
        (install-augments ctx)
        (s/unform ::defui)))))
