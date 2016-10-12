@@ -97,12 +97,12 @@
 
 
 (specification "Load parameters"
-  (let [query-with-params (:query (df/load-params* :prop Person :params {:n 1}))]
+  (let [query-with-params (:query (df/load-params* :prop Person {:params {:n 1}}))]
     (assertions
       "Always include a vector for refresh"
-      (df/load-params* :prop Person) =fn=> #(vector? (:refresh %))
+      (df/load-params* :prop Person {}) =fn=> #(vector? (:refresh %))
       "Constructs a JOIN query (without params)"
-      (:query (df/load-params* :prop Person)) => [{:prop (om/get-query Person)}]
+      (:query (df/load-params* :prop Person {})) => [{:prop (om/get-query Person)}]
       "Constructs a JOIN query (with params)"
       query-with-params =fn=> (fn [q] (= q `[({:prop ~(om/get-query Person)} {:n 1})])))))
 
@@ -479,8 +479,7 @@
 (specification "relocating server results"
   (behavior "Does nothing if the item is based on a simple query with no targeting"
     (let [simple-state-atom (atom {:a [[:x 1]]})
-          simple-items [(dfi/ready-state {:query [:a]})]
-          targeted-items [(dfi/ready-state {:query [:a] :target [:obj 1 :boo]})]]
+          simple-items #{(dfi/ready-state {:query [{:a [:x]}]})}]
 
       (dfi/relocate-targeted-results simple-state-atom simple-items)
 
@@ -488,7 +487,7 @@
         @simple-state-atom => {:a [[:x 1]]})))
   (behavior "Does nothing if the item is a field query"
     (let [simple-state-atom (atom {:a [[:x 1]]})
-          mistargeted-items [(dfi/ready-state {:ident [:obj 1] :field :boo :query [:boo] :target [:obj 1 :boo]})]]
+          mistargeted-items #{(dfi/ready-state {:ident [:obj 1] :field :boo :query [:boo] :target [:obj 1 :boo]})}]
 
       (dfi/relocate-targeted-results simple-state-atom mistargeted-items)
 
@@ -500,7 +499,7 @@
                                       :obj {1 {:boo {:n 1}}}})
           vectarget-state-atom (atom {:a   [[:x 1]]
                                       :obj {1 {:boo []}}})
-          targeted-items [(dfi/ready-state {:query [:a] :target [:obj 1 :boo]})]]
+          targeted-items #{(dfi/ready-state {:query [{:a [:x]}] :target [:obj 1 :boo]})}]
 
       (dfi/relocate-targeted-results simple-state-atom targeted-items)
       (dfi/relocate-targeted-results maptarget-state-atom targeted-items)
