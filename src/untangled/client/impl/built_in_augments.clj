@@ -1,4 +1,4 @@
-(ns untangled.client.built-in-augments
+(ns untangled.client.impl.built-in-augments
   (:require
     [untangled.client.impl.util :as utl]
     [untangled.client.augmentation :as aug]))
@@ -27,3 +27,8 @@
       `(om.dom/div nil
          (om.dom/p nil ~(str excl))
          ~body))))
+
+(aug/add-defui-augmentation-group :untangled.client.ui/BuiltIns
+  (fn [_augment]
+    '[:untangled.client.ui/DevTools :untangled.client.ui/DerefFactory
+      (:untangled.client.ui/WithExclamation {:excl "BuiltIns Engaged!"})]))

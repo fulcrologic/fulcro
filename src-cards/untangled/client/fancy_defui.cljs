@@ -12,16 +12,17 @@
     (dom/li nil
       (:value (om/props this)))))
 
-(ui/defui ThingB
-  [::ui/DevTools ::ui/DerefFactory
-   (::ui/WithExclamation {:excl "THINGB" ::ui/mode :dev})]
+(ui/defui ThingB [(::ui/BuiltIns {::ui/WithExclamation {:excl "THING B OVERRIDE!"}})]
   Object
   (render [this]
     (dom/div nil
       (dom/ul nil
         (map @ListItem (map hash-map (repeat :value) (range 6)))))))
 
-(ui/defui ThingA [::ui/DevTools]
+(ui/defui ThingA
+  {:always [::ui/DevTools]
+   :prod [(::ui/WithExclamation {:excl "IN PROD MODE"})]
+   :dev  [(::ui/WithExclamation {:excl "IN DEV MODE"})]}
   Object
   (render [this]
     (let [{:keys [ui/react-key]} (om/props this)]

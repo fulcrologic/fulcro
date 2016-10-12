@@ -18,7 +18,7 @@
 (def figwheel-config
   {:figwheel-options {:server-port 3050
                       :css-dirs    ["resources/public/css"]}
-   :default-build-ids ["test"]
+   :default-build-ids ["test" "cards"]
    :all-builds        (figwheel-sidecar.repl/get-project-cljs-builds)})
 
 (defn start-figwheel
