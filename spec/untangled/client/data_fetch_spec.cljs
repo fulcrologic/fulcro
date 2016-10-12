@@ -136,20 +136,19 @@
                                  tx => :mutation))
     (om/component? c) => true
 
-    (df/load :component :x Person)))
+    (df/load :component :x Person {})))
 
 (specification "The load-action function"
   (let [state-atom (atom {})]
     (when-mocking
       (df/load-params* key query config) => {:refresh [] :query [:x]}
 
-      (df/load-action state-atom :component :x Person)
+      (df/load-action state-atom :x Person {})
 
       (let [query (-> @state-atom ::om/ready-to-load first ::dfi/query)]
         (assertions
           "State atom ends up with a proper load marker"
-          query => [:x]
-          )))))
+          query => [:x])))))
 
 (specification "Lazy loading"
   (component "Loading a field within a component"

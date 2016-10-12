@@ -102,7 +102,7 @@
     :action (fn []
        (load-action ...)
        ; other optimistic updates/state changes)}"
-  (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)
+  (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
         (impl/mark-ready (assoc (load-params* server-property SubqueryClass config) :state state-atom))))
 
 (defn load-field
