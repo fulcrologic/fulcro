@@ -1,7 +1,11 @@
-0.5.8
+0.6.0
 -----
 - Changed InitialAppState to overwrite any supplied initial app state atom.
   This allows you to inspect data (the app state) when embedding an Untangled application in a devcard.
+- Added new `load` and `load-action` functions with cleaner interface. Deprecated `load-data` and `load-data-action`.
+    - Now have the ability to target a top-level query to a spot in app state. Reduces need for post mutations
+    - Reduced arguments for better clarity
+    - Added ability to pass untangled app, so that use in started-callback is easier.
 
 0.5.7
 -----

@@ -452,7 +452,7 @@
       "Updates the global loading marker"
       @globally-marked => true)))
 
-(specification "Data fetch marker data-path"
+(specification "fetch marker data-path"
   (assertions
     "is the field path for a load-field marker"
     (dfi/data-path {::dfi/ident [:obj 1] ::dfi/field :f}) => [:obj 1 :f]
@@ -475,6 +475,43 @@
       (get-in @state [:t 2]) => {:id 2}
       "are tracked by UUID in :untangled/loads-in-progress"
       (get @state :untangled/loads-in-progress) =fn=> #(= 2 (count %)))))
+
+(specification "relocating server results"
+  (behavior "Does nothing if the item is based on a simple query with no targeting"
+    (let [simple-state-atom (atom {:a [[:x 1]]})
+          simple-items [(dfi/ready-state {:query [:a]})]
+          targeted-items [(dfi/ready-state {:query [:a] :target [:obj 1 :boo]})]]
+
+      (dfi/relocate-targeted-results simple-state-atom simple-items)
+
+      (assertions
+        @simple-state-atom => {:a [[:x 1]]})))
+  (behavior "Does nothing if the item is a field query"
+    (let [simple-state-atom (atom {:a [[:x 1]]})
+          mistargeted-items [(dfi/ready-state {:ident [:obj 1] :field :boo :query [:boo] :target [:obj 1 :boo]})]]
+
+      (dfi/relocate-targeted-results simple-state-atom mistargeted-items)
+
+      (assertions
+        @simple-state-atom => {:a [[:x 1]]})))
+  (behavior "Moves simple query results to explicit target"
+    (let [simple-state-atom (atom {:a [[:x 1]]})
+          maptarget-state-atom (atom {:a   [[:x 1]]
+                                      :obj {1 {:boo {:n 1}}}})
+          vectarget-state-atom (atom {:a   [[:x 1]]
+                                      :obj {1 {:boo []}}})
+          targeted-items [(dfi/ready-state {:query [:a] :target [:obj 1 :boo]})]]
+
+      (dfi/relocate-targeted-results simple-state-atom targeted-items)
+      (dfi/relocate-targeted-results maptarget-state-atom targeted-items)
+      (dfi/relocate-targeted-results vectarget-state-atom targeted-items)
+
+      (assertions
+        @simple-state-atom => {:obj {1 {:boo [[:x 1]]}}}
+        @maptarget-state-atom => {:obj {1 {:boo [[:x 1]]}}}
+        @vectarget-state-atom => {:obj {1 {:boo [[:x 1]]}}}
+        )))
+  )
 
 (specification "Splits items to load by join key / ident kind."
   (let [q-a-x {::dfi/query [{:a [:x]}]}

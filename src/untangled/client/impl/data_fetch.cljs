@@ -320,6 +320,23 @@
         loading? (boolean (seq (get @state-atom :untangled/loads-in-progress)))]
     (swap! state-atom assoc :ui/loading-data loading?)))
 
+(defn relocate-targeted-results
+  "For items that are manually targeted, move them in app state from their result location to their target location."
+  [state-atom items]
+  (doseq [item items]
+    (let [default-target [(data-query-key item)]
+          field-target (conj (or (data-ident item) []) (::field item))
+          explicit-target (or (::target item) [])
+          relocate? (and (not-empty explicit-target)
+                         (not= explicit-target field-target)
+                         (not= explicit-target default-target))]
+      (when relocate?
+        (let [value (get-in @state-atom default-target)]
+          (swap! state-atom (fn [m]
+                              (-> m
+                                  (dissoc (data-query-key item))
+                                  (assoc-in explicit-target value)))))))))
+
 (defn- loaded-callback
   "Generates a callback that processes all of the post-processing steps once a remote load has completed. This includes:
 
@@ -342,9 +359,9 @@
           ran-mutations (atom false)
           remove-markers (fn [] (doseq [item loading-items]
                                   (swap! app-state (fn [s]
-                                                     (-> s
-                                                         (update :untangled/loads-in-progress disj (data-uuid item))
-                                                         (assoc-in (data-path item) nil))))))
+                                                     (cond-> s
+                                                             :always (update :untangled/loads-in-progress disj (data-uuid item))
+                                                             (data-marker? item) (assoc-in (data-path item) nil))))))
           run-post-mutations (fn [] (doseq [item loading-items]
                                       (when-let [mutation-symbol (::post-mutation item)]
                                         (reset! ran-mutations true)
@@ -354,6 +371,7 @@
                                           (apply [])))))]
       (remove-markers)
       (om/merge! reconciler marked-response query)
+      (relocate-targeted-results app-state loading-items)
       (run-post-mutations)
       (set-global-loading reconciler)
       (if (or @ran-mutations (contains? refresh-set :untangled/force-root))
