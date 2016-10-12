@@ -227,14 +227,16 @@
   - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
   - `extra-routes`: See `make-untangled-server`
   - `app-name`: See `make-untangled-server`
+   - `middleware`: TODO WIP
   "
-  [api-parser injections & {:keys [extra-routes app-name]}]
-  (component/using
-    (map->Handler {:api-parser    api-parser
-                   :injected-keys injections
-                   :stack         (atom nil)
-                   :pre-hook      (atom identity)
-                   :fallback-hook (atom identity)
-                   :extra-routes  (or extra-routes {})
-                   :app-name      app-name})
-    (vec (into #{:config} injections))))
+  [api-parser injections & {:keys [extra-routes app-name middleware]}]
+  (let [{:keys [pre fallback] :or {pre [identity] fallback [identity]}} middleware]
+    (component/using
+      (map->Handler {:api-parser    api-parser
+                     :injected-keys injections
+                     :stack         (atom nil)
+                     :pre-hook      (atom (apply comp pre))
+                     :fallback-hook (atom (apply comp fallback))
+                     :extra-routes  (or extra-routes {})
+                     :app-name      app-name})
+      (vec (into #{:config} injections)))))

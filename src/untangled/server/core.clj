@@ -111,14 +111,16 @@
 
   Returns a Sierra system component.
   "
-  [& {:keys [config-path components parser parser-injections extra-routes app-name]
+  [& {:keys [app-name parser parser-injections config-path
+             components extra-routes middleware libraries]
       :or {config-path "/usr/local/etc/untangled.edn"}}]
   {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))
          (or (nil? parser-injections) (every? keyword? parser-injections))]}
   (let [handler (handler/build-handler parser parser-injections
-                                       :extra-routes extra-routes
-                                       :app-name app-name)
+                  :middleware middleware
+                  :extra-routes extra-routes
+                  :app-name app-name)
         built-in-components [:config (new-config config-path)
                              :handler handler
                              :server (make-web-server)]
