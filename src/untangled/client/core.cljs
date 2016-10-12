@@ -139,15 +139,16 @@
 (defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
   (if mounted?
     (do (refresh* app) app)
-    (let [ui-declared-state (and (implements? InitialAppState root-component) (untangled.client.core/initial-state root-component nil))
+    (let [uses-initial-app-state? (implements? InitialAppState root-component)
+          ui-declared-state (and uses-initial-app-state? (untangled.client.core/initial-state root-component nil))
           atom-supplied? (= Atom (type initial-state))
           init-conflict? (and (or atom-supplied? (seq initial-state)) (implements? InitialAppState root-component))
           state (cond
-                  (and init-conflict? atom-supplied?) (do
-                                                        (reset! initial-state (om/tree->db root-component ui-declared-state true))
-                                                        initial-state)
-                  init-conflict? ui-declared-state
-                  :else initial-state)]
+                  (not uses-initial-app-state?) (if initial-state initial-state {})
+                  atom-supplied? (do
+                                   (reset! initial-state (om/tree->db root-component ui-declared-state true))
+                                   initial-state)
+                  :otherwise ui-declared-state)]
       (when init-conflict?
         (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
