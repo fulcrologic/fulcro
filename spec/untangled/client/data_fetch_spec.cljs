@@ -509,9 +509,7 @@
       (assertions
         @simple-state-atom => {:obj {1 {:boo [[:x 1]]}}}
         @maptarget-state-atom => {:obj {1 {:boo [[:x 1]]}}}
-        @vectarget-state-atom => {:obj {1 {:boo [[:x 1]]}}}
-        )))
-  )
+        @vectarget-state-atom => {:obj {1 {:boo [[:x 1]]}}}))))
 
 (specification "Splits items to load by join key / ident kind."
   (let [q-a-x {::dfi/query [{:a [:x]}]}
