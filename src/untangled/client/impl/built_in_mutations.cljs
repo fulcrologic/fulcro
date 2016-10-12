@@ -7,25 +7,11 @@
 
 ; Built-in mutation for adding a remote query to the network requests.
 (defmethod mutate 'untangled/load
-  [{:keys [state]} _ {:keys [root field query params without post-mutation
-                             marker fallback ident callback parallel refresh]}]
-  (when callback (log/error "Callback no longer supported. Use post-mutation instead."))
+  [{:keys [state]} _ {:keys [post-mutation]
+                      :as   config}]
   (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
   {:remote true
-   :action (fn []
-             (df/mark-ready
-               :state state
-               :root root
-               :field field
-               :ident ident
-               :query query
-               :marker marker
-               :params params
-               :without without
-               :refresh refresh
-               :parallel parallel
-               :post-mutation post-mutation
-               :fallback fallback))})
+   :action (fn [] (df/mark-ready (assoc config :state state)))})
 
 ; Built-in i18n mutation for changing the locale of the application. Causes a re-render.
 (defmethod mutate 'ui/change-locale [{:keys [state]} _ {:keys [lang]}]

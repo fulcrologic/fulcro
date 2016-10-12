@@ -11,7 +11,8 @@
     [untangled.client.mutations :as m]
     [untangled.client.logging :as log]
     [om.next.protocols :as omp]
-    [untangled.dom :as udom]))
+    [untangled.dom :as udom]
+    [untangled.client.core :as uc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -58,10 +59,10 @@
 (specification "Processed ready states"
   (let [make-ready-marker (fn [without-set]
                             (dfi/ready-state
-                              :ident [:item/by-id 1]
-                              :field :comments
-                              :without without-set
-                              :query (om/focus-query (om/get-query Item) [:comments])))
+                              {:ident   [:item/by-id 1]
+                               :field   :comments
+                               :without without-set
+                               :query   (om/focus-query (om/get-query Item) [:comments])}))
 
         without-join (make-ready-marker #{:author})
         without-prop (make-ready-marker #{:username})
@@ -79,11 +80,11 @@
       (dfi/data-query without-multi-prop) => [{[:item/by-id 1] [{:comments [:title {:author [:username :name]}]}]}]))
 
   (behavior "can elide top-level keys from the query"
-    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name})]
+    (let [ready-state (dfi/ready-state {:query (om/get-query Item) :without #{:name}})]
       (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
 
   (behavior "can include parameters when eliding top-level keys from the query"
-    (let [ready-state (dfi/ready-state :query (om/get-query Item) :without #{:name} :params {:db/id {:x 1}})]
+    (let [ready-state (dfi/ready-state {:query (om/get-query Item) :without #{:name} :params {:db/id {:x 1}}})]
       (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
 
   (behavior "can elide keywords from a union query"
@@ -94,39 +95,95 @@
           #{:console}))
       => [{:current-tab {:panel [:data] :dashboard [:data]}}])))
 
+
+(specification "Load parameters"
+  (let [query-with-params (:query (df/load-params* :prop Person :params {:n 1}))]
+    (assertions
+      "Always include a vector for refresh"
+      (df/load-params* :prop Person) =fn=> #(vector? (:refresh %))
+      "Constructs a JOIN query (without params)"
+      (:query (df/load-params* :prop Person)) => [{:prop (om/get-query Person)}]
+      "Constructs a JOIN query (with params)"
+      query-with-params =fn=> (fn [q] (= q `[({:prop ~(om/get-query Person)} {:n 1})])))))
+
+(specification "Load mutation expressions"
+  (let [mutation-expr (df/load-mutation {:refresh [:a :b] :query [:my-query]})
+        mutation (first mutation-expr)]
+    (assertions
+      "are vectors"
+      mutation-expr =fn=> vector?
+      "include an untangled/load with mutation arguments"
+      mutation =fn=> list?
+      (first mutation) => 'untangled/load
+      "always do a follow-on read for :ui/loading-data"
+      mutation-expr =fn=> #(some (fn [k] (= k :ui/loading-data)) %)
+      "include user-driven follow-on-reads"
+      mutation-expr =fn=> #(some (fn [k] (= k :a)) %)
+      mutation-expr =fn=> #(some (fn [k] (= k :b)) %))))
+
+(specification "The load function"
+  (when-mocking
+    (df/load-params* key query config) => :mutation-args
+    (df/load-mutation args) => (do
+                                 (assertions
+                                   "creates mutation arguments"
+                                   args => :mutation-args)
+                                 :mutation)
+    (om/transact! c tx) => (do (assertions
+                                 "uses the passed component/app in transact!"
+                                 c => :component
+                                 "uses the mutation created by load-mutation"
+                                 tx => :mutation))
+    (om/component? c) => true
+
+    (df/load :component :x Person)))
+
+(specification "The load-action function"
+  (let [state-atom (atom {})]
+    (when-mocking
+      (df/load-params* key query config) => {:refresh [] :query [:x]}
+
+      (df/load-action state-atom :component :x Person)
+
+      (let [query (-> @state-atom ::om/ready-to-load first ::dfi/query)]
+        (assertions
+          "State atom ends up with a proper load marker"
+          query => [:x]
+          )))))
+
 (specification "Lazy loading"
   (component "Loading a field within a component"
     (let [query (om/get-query Item)]
       (provided "properly calls transact"
-                (om/get-ident c) =2x=> [:item/by-id 10]
-                (om/get-query c) =1x=> query
-                (om/transact! c tx) =1x=> (let [params (-> tx first second)
-                                                follow-on-reads (set (-> tx rest))]
-                                            (assertions
-                                              "includes :ui/loading-data in the follow-on reads"
-                                              (contains? follow-on-reads :ui/loading-data) => true
-                                              "includes ident of component in the follow-on reads"
-                                              (contains? follow-on-reads [:item/by-id 10]) => true
-                                              "does the transact on the component"
-                                              c => 'component
-                                              "includes the component's ident in the marker."
-                                              (:ident params) => [:item/by-id 10]
-                                              "focuses the query to the specified field."
-                                              (:query params) => [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
-                                              "includes the parameters."
-                                              (:params params) => {:sort :by-name}
-                                              "includes the subquery exclusions."
-                                              (:without params) => #{:excluded-attr}
-                                              "includes the post-processing callback."
-                                              (:post-mutation params) => 'foo
-                                              "includes the error fallback"
-                                              (:fallback params) => 'bar))
+        (om/get-ident c) =2x=> [:item/by-id 10]
+        (om/get-query c) =1x=> query
+        (om/transact! c tx) =1x=> (let [params (-> tx first second)
+                                        follow-on-reads (set (-> tx rest))]
+                                    (assertions
+                                      "includes :ui/loading-data in the follow-on reads"
+                                      (contains? follow-on-reads :ui/loading-data) => true
+                                      "includes ident of component in the follow-on reads"
+                                      (contains? follow-on-reads [:item/by-id 10]) => true
+                                      "does the transact on the component"
+                                      c => 'component
+                                      "includes the component's ident in the marker."
+                                      (:ident params) => [:item/by-id 10]
+                                      "focuses the query to the specified field."
+                                      (:query params) => [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
+                                      "includes the parameters."
+                                      (:params params) => {:sort :by-name}
+                                      "includes the subquery exclusions."
+                                      (:without params) => #{:excluded-attr}
+                                      "includes the post-processing callback."
+                                      (:post-mutation params) => 'foo
+                                      "includes the error fallback"
+                                      (:fallback params) => 'bar))
 
-                (df/load-field 'component :comments
-                               :without #{:excluded-attr}
-                               :params {:sort :by-name}
-                               :post-mutation 'foo
-                               :fallback 'bar))))
+        (df/load-field 'component :comments
+                       :without #{:excluded-attr}
+                       :params {:sort :by-name}
+                       :post-mutation 'foo
+                       :fallback 'bar))))
 
   (component "Loading a field from within another mutation"
     (let [app-state (atom {})]
@@ -141,28 +198,28 @@
 
   (behavior "Loading data for the app in general"
     (provided "when requesting data for a specific ident"
-              (om/transact! c tx) => (let [params (-> tx first second)]
-                                       (behavior "includes without."
-                                         (is (= :without (:without params))))
-                                       (behavior "includes params."
-                                         (is (= :params (:params params))))
-                                       (behavior "includes post-processing callback."
-                                         (let [cb (:post-mutation params)]
-                                           (is (= 'foo cb))))
-                                       (behavior "includes error fallback."
-                                         (let [fb (:fallback params)]
-                                           (is (= 'bar fb))))
-                                       (behavior "includes the ident in the data state."
-                                         (is (= [:item/id 99] (:ident params))))
-                                       (behavior "includes the query joined to the ident."
-                                         (is (= (om/get-query Item) (:query params)))))
+      (om/transact! c tx) => (let [params (-> tx first second)]
+                               (behavior "includes without."
+                                 (is (= :without (:without params))))
+                               (behavior "includes params."
+                                 (is (= :params (:params params))))
+                               (behavior "includes post-processing callback."
+                                 (let [cb (:post-mutation params)]
+                                   (is (= 'foo cb))))
+                               (behavior "includes error fallback."
+                                 (let [fb (:fallback params)]
+                                   (is (= 'bar fb))))
+                               (behavior "includes the ident in the data state."
+                                 (is (= [:item/id 99] (:ident params))))
+                               (behavior "includes the query joined to the ident."
+                                 (is (= (om/get-query Item) (:query params)))))
 
-              (df/load-data 'reconciler (om/get-query Item)
-                            :ident [:item/id 99]
-                            :params :params
-                            :without :without
-                            :post-mutation 'foo
-                            :fallback 'bar))
+      (df/load-data 'reconciler (om/get-query Item)
+                    :ident [:item/id 99]
+                    :params :params
+                    :without :without
+                    :post-mutation 'foo
+                    :fallback 'bar))
 
     (component "when requesting data for a collection"
       (when-mocking
@@ -190,10 +247,10 @@
           (dfi/data-query marker) => [{:panel [:db/id]}])))))
 
 (specification "full-query"
-  (let [item-ready-markers [(dfi/ready-state :ident [:db/id 1] :field :author :query [{:author [:name]}])
-                            (dfi/ready-state :ident [:db/id 2] :field :author :query [{:author [:name]}])]
-        top-level-markers [(dfi/ready-state :query [{:questions [:db/id :name]}])
-                           (dfi/ready-state :query [{:answers [:db/id :name]}])]]
+  (let [item-ready-markers [(dfi/ready-state {:ident [:db/id 1] :field :author :query [{:author [:name]}]})
+                            (dfi/ready-state {:ident [:db/id 2] :field :author :query [{:author [:name]}]})]
+        top-level-markers [(dfi/ready-state {:query [{:questions [:db/id :name]}]})
+                           (dfi/ready-state {:query [{:answers [:db/id :name]}]})]]
     (behavior "composes items queries"
       (is (= [{[:db/id 1] [{:author [:name]}]} {[:db/id 2] [{:author [:name]}]}] (dfi/full-query item-ready-markers))))
     (behavior "composes top-level queries"
@@ -286,7 +343,7 @@
 
 
 (specification "Query response processing (loaded-callback with post mutation)"
-  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback))
+  (let [item (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback}))
         state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
                      :item                        {2 {:id :original-data}}})
         items [item]
@@ -317,7 +374,7 @@
         @globally-marked => true))))
 
 (specification "Query response processing (loaded-callback with no post-mutations)"
-  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :refresh [:a]))
+  (let [item (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :refresh [:a]}))
         state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
                      :item                        {2 {:id :original-data}}})
         items [item]
@@ -350,7 +407,7 @@
 (defmethod m/mutate 'qrp-error-fallback [{:keys [state]} n p] (swap! state assoc :fallback-done true))
 
 (specification "Query response processing (error-callback)"
-  (let [item (dfi/set-loading! (dfi/ready-state :ident [:item 2] :query [:id :b] :fallback 'qrp-error-fallback :refresh [:x :y]))
+  (let [item (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :fallback 'qrp-error-fallback :refresh [:x :y]}))
         state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
                      :item                        {2 {:id :original-data}}})
         items [item]
@@ -388,8 +445,8 @@
 (specification "Load markers"
   (let [state (atom {:t {1 {:id 1}
                          2 {:id 2}}})
-        item-1 (dfi/ready-state :query [:comments] :ident [:t 1] :field :comments)
-        item-2 (dfi/ready-state :query [:comments] :ident [:t 2] :field :comments :marker false)]
+        item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments})
+        item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})]
 
     (dfi/place-load-markers state [item-1 item-2])
 
@@ -415,30 +472,30 @@
         q-cd-x {::dfi/query [{:c [:x]} {:d [:x]}]}
         q-de-x {::dfi/query [{:d [:x]} {:e [:x]}]}]
     (assertions
-     "loads all items immediately when no join key conflicts"
-     (dfi/split-items-ready-to-load [q-a-x]) => [#{q-a-x} []]
-     (dfi/split-items-ready-to-load [q-a-x q-b-x]) => [#{q-a-x q-b-x} []]
-     (dfi/split-items-ready-to-load [q-a-x q-c-x]) => [#{q-a-x q-c-x} []]
-     (dfi/split-items-ready-to-load [q-a-x q-b-x q-c-x]) => [#{q-a-x q-b-x q-c-x} []]
+      "loads all items immediately when no join key conflicts"
+      (dfi/split-items-ready-to-load [q-a-x]) => [#{q-a-x} []]
+      (dfi/split-items-ready-to-load [q-a-x q-b-x]) => [#{q-a-x q-b-x} []]
+      (dfi/split-items-ready-to-load [q-a-x q-c-x]) => [#{q-a-x q-c-x} []]
+      (dfi/split-items-ready-to-load [q-a-x q-b-x q-c-x]) => [#{q-a-x q-b-x q-c-x} []]
 
-     "defers loading when join key conflict"
-     (dfi/split-items-ready-to-load [q-a-x q-a-y q-a-z q-a-w]) => [#{q-a-x} [q-a-y q-a-z q-a-w]]
-     (dfi/split-items-ready-to-load [q-a-y q-a-z q-a-w]) => [#{q-a-y} [q-a-z q-a-w]]
-     (dfi/split-items-ready-to-load [q-a-z q-a-w]) => [#{q-a-z} [q-a-w]]
-     (dfi/split-items-ready-to-load [q-a-w]) => [#{q-a-w} []]
+      "defers loading when join key conflict"
+      (dfi/split-items-ready-to-load [q-a-x q-a-y q-a-z q-a-w]) => [#{q-a-x} [q-a-y q-a-z q-a-w]]
+      (dfi/split-items-ready-to-load [q-a-y q-a-z q-a-w]) => [#{q-a-y} [q-a-z q-a-w]]
+      (dfi/split-items-ready-to-load [q-a-z q-a-w]) => [#{q-a-z} [q-a-w]]
+      (dfi/split-items-ready-to-load [q-a-w]) => [#{q-a-w} []]
 
-     "defers loading when ident key conflict"
-     (dfi/split-items-ready-to-load [q-c-x q-c-y q-c-z q-c-w]) => [#{q-c-x} [q-c-y q-c-z q-c-w]]
-     (dfi/split-items-ready-to-load [q-c-y q-c-z q-c-w]) => [#{q-c-y} [q-c-z q-c-w]]
-     (dfi/split-items-ready-to-load [q-c-z q-c-w]) => [#{q-c-z} [q-c-w]]
-     (dfi/split-items-ready-to-load [q-c-w]) => [#{q-c-w} []]
+      "defers loading when ident key conflict"
+      (dfi/split-items-ready-to-load [q-c-x q-c-y q-c-z q-c-w]) => [#{q-c-x} [q-c-y q-c-z q-c-w]]
+      (dfi/split-items-ready-to-load [q-c-y q-c-z q-c-w]) => [#{q-c-y} [q-c-z q-c-w]]
+      (dfi/split-items-ready-to-load [q-c-z q-c-w]) => [#{q-c-z} [q-c-w]]
+      (dfi/split-items-ready-to-load [q-c-w]) => [#{q-c-w} []]
 
-     "defers loading when any key conflicts"
-     (dfi/split-items-ready-to-load
-      [q-a-x q-a-y q-a-z
-       q-b-x
-       q-c-x q-c-y q-c-z]) => [#{q-a-x q-b-x q-c-x} [q-a-y q-a-z q-c-y q-c-z]]
+      "defers loading when any key conflicts"
+      (dfi/split-items-ready-to-load
+        [q-a-x q-a-y q-a-z
+         q-b-x
+         q-c-x q-c-y q-c-z]) => [#{q-a-x q-b-x q-c-x} [q-a-y q-a-z q-c-y q-c-z]]
 
-     "defers loading when join keys partially conflict"
-     (dfi/split-items-ready-to-load [q-ab-x q-bc-x q-cd-x q-de-x]) => [#{q-ab-x q-cd-x} [q-bc-x q-de-x]]
-     (dfi/split-items-ready-to-load [q-bc-x q-de-x]) => [#{q-bc-x q-de-x} []])))
+      "defers loading when join keys partially conflict"
+      (dfi/split-items-ready-to-load [q-ab-x q-bc-x q-cd-x q-de-x]) => [#{q-ab-x q-cd-x} [q-bc-x q-de-x]]
+      (dfi/split-items-ready-to-load [q-bc-x q-de-x]) => [#{q-bc-x q-de-x} []])))

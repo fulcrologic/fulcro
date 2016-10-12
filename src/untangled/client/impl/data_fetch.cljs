@@ -82,7 +82,7 @@
    An element is a duplicate IFF (keys-fn element) has key collision with any prior element
    to come before it. E.g. (dedupe-by identity [[:a] [:b] [:a] [:a :c]]) => [[:a] [:b]]
    Returns a stateful transducer when no collection is provided."
-  ([keys-fn] ;; transducer fn
+  ([keys-fn]                                                ;; transducer fn
    (fn [rf]
      (let [keys-seen (volatile! #{})]
        (fn
@@ -210,7 +210,7 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field params without query post-mutation fallback parallel refresh marker] :or {without #{} refresh [] marker true}}]
+  [{:keys [ident field params without query post-mutation fallback parallel refresh marker] :or {without #{} refresh [] marker true}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
@@ -236,22 +236,10 @@
   "Place a ready-to-load marker into the application state. This should be done from
   a mutate function that is abstractly loading something. This is intended for internal use.
 
-  See `load-field` for public API."
-  [& {:keys [state query ident field without params post-mutation fallback parallel refresh marker] :or {marker true refresh [] without #{}}}]
-  (swap! state update :om.next/ready-to-load conj
-         (ready-state
-           :ident ident
-           :field field
-           :parallel parallel
-           :refresh refresh
-           :marker marker
-           :params params
-           :without without
-           :query query
-           :post-mutation post-mutation
-           :fallback fallback)))
+  See the `load-data` and `load-field` functions in `untangled.client.data-fetch` for the public API."
+  [{:keys [state] :as config}]
+  (swap! state update :om.next/ready-to-load (fnil conj []) (ready-state (merge {:marker true :refresh [] :without #{}} config))))
 
-;; TODO: Rename "getters"
 (defn data-ident
   "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
   to be present if the marker is targeting a field."
@@ -288,8 +276,8 @@
 (defn data-path
   "Get the app-state database path of the target of the load that the given data state marker is trying to load."
   [state] (if (and (nil? (data-ident state)) (nil? (data-field state)))
-                          [(data-query-key state)]
-                          (conj (data-ident state) (data-field state))))
+            [(data-query-key state)]
+            (conj (data-ident state) (data-field state))))
 (defn data-params
   "Get the parameters that the user wants to add to the first join/keyword of the data fetch query."
   [state] (::params state))
@@ -388,8 +376,8 @@
                         (doseq [item loading-items]
                           (swap! app-state (fn [s]
                                              (cond-> s
-                                               (data-marker? item) (update-in (data-path item) set-failed! error)
-                                               :always (update :untangled/loads-in-progress disj (data-uuid item)))))))
+                                                     (data-marker? item) (update-in (data-path item) set-failed! error)
+                                                     :always (update :untangled/loads-in-progress disj (data-uuid item)))))))
           run-fallbacks (fn [] (doseq [item loading-items]
                                  (when-let [fallback-symbol (::fallback item)]
                                    (reset! ran-fallbacks true)
