@@ -256,6 +256,16 @@
     (behavior "composes top-level queries"
       (is (= [{:questions [:db/id :name]} {:answers [:db/id :name]}] (dfi/full-query top-level-markers))))))
 
+(specification "data-query-key of a fetch marker's query"
+  (assertions
+    "is the first keyword of simple props"
+    (dfi/data-query-key {::dfi/query [:a :b :c]}) => :a
+    "is the first keyword the first join"
+    (dfi/data-query-key {::dfi/query [{:a [:x :y]} :b {:c [:z]}]}) => :a
+    "tolerates parameters"
+    (dfi/data-query-key {::dfi/query '[({:a [:x :y]} {:n 1}) :b {:c [:z]}]}) => :a
+    (dfi/data-query-key {::dfi/query '[(:a {:n 1}) :b {:c [:z]}]}) => :a))
+
 (defn mark-loading-mutate [])
 (defn mark-loading-fallback [])
 
@@ -441,6 +451,15 @@
       (dfi/failed? (get-in @state (dfi/data-path item) :fail)) => true
       "Updates the global loading marker"
       @globally-marked => true)))
+
+(specification "Data fetch marker data-path"
+  (assertions
+    "is the field path for a load-field marker"
+    (dfi/data-path {::dfi/ident [:obj 1] ::dfi/field :f}) => [:obj 1 :f]
+    "is the data-query-key by default"
+    (dfi/data-path {::dfi/query [:obj]}) => [:obj]
+    "is the explicit target if supplied"
+    (dfi/data-path {::dfi/target [:a :b]}) => [:a :b]))
 
 (specification "Load markers"
   (let [state (atom {:t {1 {:id 1}
