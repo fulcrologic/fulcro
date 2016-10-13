@@ -5,11 +5,12 @@
     [untangled.client.impl.data-fetch :as impl]
     [untangled.i18n :refer-macros [tr]]
     [om.dom :as dom]
-    [untangled.client.core :as uc]))
+    [untangled.client.core :as uc]
+    [om.util :as util]))
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
-  [server-property SubqueryClass {:keys [target params marker refresh parallel post-mutation fallback without]
+  [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation fallback without]
                                   :or   {marker true parallel false refresh [] without #{}}}]
   {:pre [(or (nil? target) (vector? target))
          (or (nil? post-mutation) (symbol? post-mutation))
@@ -17,13 +18,13 @@
          (vector? refresh)
          (or (nil? params) (map? params))
          (set? without)
-         (keyword? server-property)
+         (or (util/ident? server-property-or-ident) (keyword? server-property-or-ident))
          (implements? om/IQuery SubqueryClass)]}
   (let [query (if (map? params)
-                `[({~server-property ~(om/get-query SubqueryClass)} ~params)]
-                [{server-property (om/get-query SubqueryClass)}])]
+                `[({~server-property-or-ident ~(om/get-query SubqueryClass)} ~params)]
+                [{server-property-or-ident (om/get-query SubqueryClass)}])]
     {:query         query
-     :target        target
+     :target        (if (util/ident? server-property-or-ident) server-property-or-ident target)
      :without       without
      :post-mutation post-mutation
      :refresh       refresh
@@ -54,14 +55,15 @@
 
   Parameters:
   - `app-or-comp-or-reconciler` : An Om component instance, Untangled application, or Om reconciler
-  - `server-property` : A keyword that represents the root of the query to send to the server
-  - `SubqueryClass` : An Om componenet that implements IQuery. This will be combined with `server-property` into a join for the server query
+  - `server-property-or-ident` : A keyword or ident that represents the root of the query to send to the server. If this is an ident
+  you are loading a specific entity from the database into a local app db table. A custom target will be ignored.
+  - `SubqueryClass` : An Om componenet that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
   - `config` : A map of load configuration parameters.
 
   Config (all optional):
   - `target` - An assoc-in path at which to put the result of the Subquery. If supplied, the data AND load marker will appear
     at this path. If not supplied the data and marker will appear at `server-property` in the top-level of the client app state
-    database.
+    database. Ignored if you're loading via ident (the ident is your target).
   - `params` - Optional parameters to add to the generated query
   - `marker` - Boolean to determine if you want a fetch-state marker in your app state. Defaults to true. Add `:ui/fetch-state` to the
   target component in order to see this data in your component.
@@ -73,7 +75,7 @@
   - `fallback` - A mutation (symbol) to run if there is a server/network error.
   - `without` - An optional set of keywords that should (recursively) be removed from the query.
   "
-  [app-or-comp-or-reconciler server-property SubqueryClass config]
+  [app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
   {:pre [(or (om/component? app-or-comp-or-reconciler)
              (om/reconciler? app-or-comp-or-reconciler)
              (instance? uc/UntangledApplication app-or-comp-or-reconciler))]}
@@ -81,11 +83,11 @@
         reconciler (if (instance? uc/UntangledApplication app-or-comp-or-reconciler)
                      (get app-or-comp-or-reconciler :reconciler)
                      app-or-comp-or-reconciler)
-        mutation-args (load-params* server-property SubqueryClass config)]
+        mutation-args (load-params* server-property-or-ident SubqueryClass config)]
     (om/transact! reconciler (load-mutation mutation-args))))
 
 (defn load-action
-  [state-atom server-property SubqueryClass config]
+  [state-atom server-property-or-ident SubqueryClass config]
   "
   See `load` for descriptions of parameters and config.
 
@@ -103,7 +105,7 @@
        (load-action ...)
        ; other optimistic updates/state changes)}"
   (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
-        (impl/mark-ready (assoc (load-params* server-property SubqueryClass config) :state state-atom))))
+        (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :state state-atom))))
 
 (defn load-field
   "Load a field of the current component. Runs `om/transact!`.
