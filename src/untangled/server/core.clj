@@ -115,7 +115,7 @@
   (let [params' (assoc params :extra-routes [])
         step (fn [params {:as lib :keys [parser parser-injections components extra-routes]}]
                (cond-> params
-                 parser (update :parser (comp om/parser (partial install-parser parser)))
+                 parser (update :parser (partial install-parser parser))
                  parser-injections (update :parser-injections #(into % parser-injections))
                  components (update :components
                               #(reduce (fn [params [k v]]
@@ -125,7 +125,8 @@
                                        % components))
                  extra-routes (update :extra-routes conj extra-routes)))]
     (-> (reduce step params' libraries)
-      (update :extra-routes #(if-not extra-routes % (conj % extra-routes))))))
+      (update :extra-routes #(if-not extra-routes % (conj % extra-routes)))
+      (update :parser #(cond-> % (map? %) om/parser)))))
 
 (defn make-untangled-server
   "Make a new untangled server.
