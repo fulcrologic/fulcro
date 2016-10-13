@@ -188,11 +188,19 @@
 
       [{[:c 1] [:x]}]
       {}
-      {[:c 1] {:x impl/nf}}
+      {[:c 1] {:ui/fetch-state {:untangled.client.impl.data-fetch/type :not-found}
+               :x              impl/nf}}
+
+      [{[:e 1] [:x :y :z]}]
+      {}
+      {[:e 1] {:ui/fetch-state {:untangled.client.impl.data-fetch/type :not-found}
+               :x              impl/nf
+               :y              impl/nf
+               :z              impl/nf}}
 
       [[:d 1]]
       {}
-      {[:d 1] nil}))
+      {[:d 1] {:ui/fetch-state {:untangled.client.impl.data-fetch/type :not-found}}}))
 
   (behavior "paramterized"
     (are [query ?missing-result exp]
