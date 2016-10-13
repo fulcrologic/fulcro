@@ -6,6 +6,8 @@
     - Now have the ability to target a top-level query to a spot in app state. Reduces need for post mutations
     - Reduced arguments for better clarity
     - Added ability to pass untangled app, so that use in started-callback is easier.
+- Fixed bug in failed loading markers
+- Fixed bug with removal/addition of markers when markers are off
 
 0.5.7
 -----
