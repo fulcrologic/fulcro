@@ -113,40 +113,43 @@
                 (get-error baz-result) => {:type    "class java.lang.IllegalArgumentException",
                                            :message nil}))))))))
 
-(def run #(%1 %2))
+(defn run [handler req]
+  ((:all-routes (component/start handler)) req))
 (specification "the handler"
   (behavior "takes an extra-routes map containing bidi :routes & :handlers"
-    (let [make-handler (fn [extra-routes] (h/handler (constantly nil) {} extra-routes identity identity identity))]
+    (let [make-handler (fn [extra-routes]
+                         (h/build-handler (constantly nil) #{}
+                           :extra-routes [extra-routes]))]
       (assertions
-        (-> {:routes   ["test" :test]
+        (-> {:routes   ["/" {"test" :test}]
              :handlers {:test (fn [env match]
                                 {:body "test"
                                  :status 200})}}
             (make-handler)
-            (run {:uri "test"}))
+            (run {:uri "/test"}))
         => {:body "test"
             :headers {"Content-Type" "application/octet-stream"}
             :status 200}
 
         "handler functions get passed the bidi match as an arg"
-        (-> {:routes   ["" {["test/" :id] :test-with-params}]
+        (-> {:routes   ["/" {["test/" :id] :test-with-params}]
              :handlers {:test-with-params (fn [env match]
                                             {:body (:id (:route-params match))
                                              :status 200})}}
             (make-handler)
-            (run {:uri "test/foo"}))
+            (run {:uri "/test/foo"}))
         => {:body "foo"
             :status 200
             :headers {"Content-Type" "application/octet-stream"}}
 
         "and the request in the environment"
-        (-> {:routes   ["" {["test"] :test}]
+        (-> {:routes   ["/" {["test"] :test}]
              :handlers {:test (fn [env match]
                                 {:body {:req (:request env)}
                                  :status 200})}}
             (make-handler)
-            (run {:uri "test"}))
-        => {:body {:req {:uri "test"}}
+            (run {:uri "/test"}))
+        => {:body {:req {:uri "/test"}}
             :status 200
             :headers {"Content-Type" "application/octet-stream"}}
 
@@ -162,8 +165,8 @@
             :headers {"Content-Type" "application/octet-stream"}
             :status 200}
 
-        "can take an empty map & still work"
-        (-> {}
+        "has to at least take a valid (but empty) :routes & :handlers"
+        (-> {:routes ["" {}], :handlers {}}
             make-handler
             (run {:uri "/"})
             (dissoc :body))

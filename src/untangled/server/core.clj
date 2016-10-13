@@ -1,11 +1,13 @@
 (ns untangled.server.core
-  (:require [untangled.server.impl.components.web-server :as web-server]
-            [untangled.server.impl.components.handler :as handler]
-            [untangled.server.impl.components.config :as config]
-            [untangled.server.impl.components.access-token-handler :as access-token-handler]
-            [untangled.server.impl.components.openid-mock-server :as openid-mock-server]
-            [com.stuartsierra.component :as component]
-            [clojure.data.json :as json]))
+  (:require
+    [com.stuartsierra.component :as component]
+    [clojure.data.json :as json]
+    [om.next.server :as om]
+    [untangled.server.impl.components.web-server :as web-server]
+    [untangled.server.impl.components.handler :as handler]
+    [untangled.server.impl.components.config :as config]
+    [untangled.server.impl.components.access-token-handler :as access-token-handler]
+    [untangled.server.impl.components.openid-mock-server :as openid-mock-server]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mutation Helpers
@@ -86,6 +88,45 @@
 ;; Server Construction
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn install-parser
+  [{:keys [reads mutates]} read+mutate]
+  (let [wrap-with
+        (fn [new-fns]
+          (fn [old-fn]
+            (assert old-fn
+              (str "Cannot wrap a non-existing method with: " new-fns))
+            (fn [env k params]
+              (let [F (or (get new-fns k) old-fn)]
+                (F env k params)))))]
+    (cond-> read+mutate
+      reads (update :read (wrap-with reads))
+      mutates (update :mutate (wrap-with mutates)))))
+
+(defn assoc-in-or-fail-if-found [m k-ks v & {:keys [on-fail-msg on-fail-info]}]
+  (update-in m (cond-> k-ks (not (vector? k-ks)) vector)
+    (fn [old]
+      (when-not (nil? old)
+        (throw (ex-info (str "failed to install component for library, because: " on-fail-msg)
+                 (merge on-fail-info
+                   {:found old, :path k-ks, :tried v}))))
+      v)))
+
+(defn with-libraries [{:keys [extra-routes] :as params} libraries]
+  (let [params' (assoc params :extra-routes [])
+        step (fn [params {:as lib :keys [parser parser-injections components extra-routes]}]
+               (cond-> params
+                 parser (update :parser (comp om/parser (partial install-parser parser)))
+                 parser-injections (update :parser-injections #(into % parser-injections))
+                 components (update :components
+                              #(reduce (fn [params [k v]]
+                                         (assoc-in-or-fail-if-found params k v
+                                           :on-fail-msg "conflicting component"
+                                           :on-fail-info {:failing-library lib}))
+                                       % components))
+                 extra-routes (update :extra-routes conj extra-routes)))]
+    (-> (reduce step params' libraries)
+      (update :extra-routes #(if-not extra-routes % (conj % extra-routes))))))
+
 (defn make-untangled-server
   "Make a new untangled server.
 
@@ -113,11 +154,22 @@
   "
   [& {:keys [app-name parser parser-injections config-path
              components extra-routes middleware libraries]
-      :or {config-path "/usr/local/etc/untangled.edn"}}]
-  {:pre [(some-> parser fn?)
+      :or {config-path "/usr/local/etc/untangled.edn"}
+      :as params}]
+  {:pre [(if-not libraries true
+           (and (vector? libraries)
+             (every? map? libraries)))
+         (some-> parser ((if libraries map? fn?)))
          (or (nil? components) (map? components))
-         (or (nil? parser-injections) (every? keyword? parser-injections))]}
-  (let [handler (handler/build-handler parser parser-injections
+         (or (nil? extra-routes)
+             (and (map? extra-routes)
+               (:routes extra-routes)
+               (map? (:handlers extra-routes))))
+         (or (nil? parser-injections)
+             (and (set? parser-injections)
+               (every? keyword? parser-injections)))]}
+  (let [{:keys [parser parser-injections components extra-routes]} (with-libraries params libraries)
+        handler (handler/build-handler parser parser-injections
                   :middleware middleware
                   :extra-routes extra-routes
                   :app-name app-name)

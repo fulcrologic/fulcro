@@ -8,7 +8,7 @@
                  [org.clojure/tools.namespace "0.2.10"]
                  [org.omcljs/om "1.0.0-alpha32"]
                  [http-kit "2.1.19"]
-                 [bidi "1.21.1"]
+                 [bidi "2.0.12"]
                  [ring/ring-defaults "0.1.5"]
                  [ring/ring-mock "0.3.0" :scope "test"]
                  [bk/ring-gzip "0.1.1"]
