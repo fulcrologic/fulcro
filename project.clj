@@ -6,7 +6,7 @@
 
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.9.229"]
-                 [org.clojure/core.async "0.2.374"]
+                 [org.clojure/core.async "0.2.385"]
                  [differ "0.2.1"]
                  [lein-doo "0.1.7" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
@@ -46,7 +46,7 @@
                    :repl-options {:init-ns          clj.user
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :env          {:dev true}
-                   :dependencies [[figwheel-sidecar "0.5.4-6"]
+                   :dependencies [[figwheel-sidecar "0.5.7"]
                                   [binaryage/devtools "0.5.2"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [org.clojure/tools.namespace "0.2.11"]

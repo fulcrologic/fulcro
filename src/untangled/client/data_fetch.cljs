@@ -265,7 +265,6 @@
   on the response
 
   `failed-render` : render method when the server returns a failure state for the requested data
-  ALPHA WARNING: The transfer of read errors to failed data states is not implemented in this alpha version.
 
   `not-present-render` : called when props is nil (helpful for differentiating between a nil and
   empty response from the server).
@@ -295,8 +294,8 @@
   ```"
   [data-render props & {:keys [ready-render loading-render failed-render not-present-render]
                         :or   {loading-render (fn [_] (dom/div #js {:className "lazy-loading-load"} "Loading..."))
-                               ready-render   (fn [_] (dom/div #js {:className "lazy-loading-ready"} nil))
-                               failed-render  (fn [_] (dom/div #js {:className "lazy-loading-failed"} nil))}}]
+                               ready-render   (fn [_] (dom/div #js {:className "lazy-loading-ready"} "Queued"))
+                               failed-render  (fn [_] (dom/div #js {:className "lazy-loading-failed"} "Loading error!"))}}]
 
   (let [state (:ui/fetch-state props)]
     (cond

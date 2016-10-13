@@ -308,7 +308,8 @@
   (defn set-failed!
     "Returns a marker (based on the input state) that is in the error state"
     ([state] (set-failed! state nil))
-    ([state params] (set-type state :failed params))))
+    ([state params]
+     (set-type state :failed params))))
 
 (defn full-query
   "Composes together the queries of a sequence of data states into a single query."
@@ -400,7 +401,7 @@
                         (doseq [item loading-items]
                           (swap! app-state (fn [s]
                                              (cond-> s
-                                                     (data-marker? item) (update-in (data-path item) set-failed! error)
+                                                     (data-marker? item) (update-in (conj (data-path item) :ui/fetch-state) set-failed! error)
                                                      :always (update :untangled/loads-in-progress disj (data-uuid item)))))))
           run-fallbacks (fn [] (doseq [item loading-items]
                                  (when-let [fallback-symbol (::fallback item)]
