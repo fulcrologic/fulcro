@@ -195,8 +195,8 @@
             (cond
               (contains? res k) res
               (recursive? k) res
-              :else (assoc (if (map? res) res {})
-                      k nf)))
+              (util/ident? k) (assoc (if (map? res) res {}) k nil)
+              :else (assoc (if (map? res) res {}) k nf)))
           (union->query [u] (->> u vals flatten set))
           (union? [q]
             (let [expr (cond-> q (seq? q) first)]

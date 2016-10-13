@@ -64,21 +64,21 @@
 (specification "remove-loads-and-fallbacks"
   (behavior "Removes top-level mutations that use the untangled/load or tx/fallback symbols"
     (are [q q2] (= (impl/remove-loads-and-fallbacks q) q2)
-         '[:a {:j [:a]} (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[:a {:j [:a]} (f) (app/l)]
-         '[(untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[(app/l)]
-         '[(untangled/load {:x 1}) (tx/fallback {:a 3})] '[]
-         '[:a {:j [:a]}] '[:a {:j [:a]}])))
+                '[:a {:j [:a]} (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[:a {:j [:a]} (f) (app/l)]
+                '[(untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[(app/l)]
+                '[(untangled/load {:x 1}) (tx/fallback {:a 3})] '[]
+                '[:a {:j [:a]}] '[:a {:j [:a]}])))
 
 (specification "fallback-query"
   (behavior "extracts the fallback expressions of a query, adds execute flags, and includes errors in params"
     (are [q q2] (= (impl/fallback-query q {:error 42}) q2)
-         '[:a :b] nil
+                '[:a :b] nil
 
-         '[:a {:j [:a]} (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})]
-         '[(tx/fallback {:a 3 :execute true :error {:error 42}})]
+                '[:a {:j [:a]} (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})]
+                '[(tx/fallback {:a 3 :execute true :error {:error 42}})]
 
-         '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})]
-         '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (tx/fallback {:a 3 :execute true :error {:error 42}})])))
+                '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})]
+                '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (tx/fallback {:a 3 :execute true :error {:error 42}})])))
 
 (specification "tempid handling"
   (behavior "rewrites all tempids used in pending requests in the request queue"
@@ -143,169 +143,175 @@
 (specification "mark-missing"
   (behavior "correctly marks missing properties"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
-         [:a :b]
-         {:a 1}
-         {:a 1 :b impl/nf}))
+      (= exp (impl/mark-missing ?missing-result query))
+      [:a :b]
+      {:a 1}
+      {:a 1 :b impl/nf}))
 
   (behavior "joins -> one"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
-         [:a {:b [:c]}]
-         {:a 1}
-         {:a 1 :b impl/nf}
+      (= exp (impl/mark-missing ?missing-result query))
+      [:a {:b [:c]}]
+      {:a 1}
+      {:a 1 :b impl/nf}
 
-         [{:b [:c]}]
-         {:b {}}
-         {:b {:c impl/nf}}
+      [{:b [:c]}]
+      {:b {}}
+      {:b {:c impl/nf}}
 
-         [{:b [:c]}]
-         {:b {:c 0}}
-         {:b {:c 0}}
+      [{:b [:c]}]
+      {:b {:c 0}}
+      {:b {:c 0}}
 
-         [{:b [:c :d]}]
-         {:b {:c 1}}
-         {:b {:c 1 :d impl/nf}}))
+      [{:b [:c :d]}]
+      {:b {:c 1}}
+      {:b {:c 1 :d impl/nf}}))
 
   (behavior "join -> many"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
+      (= exp (impl/mark-missing ?missing-result query))
 
-         [{:a [:b :c]}]
-         {:a [{:b 1 :c 2} {:b 1}]}
-         {:a [{:b 1 :c 2} {:b 1 :c impl/nf}]}))
+      [{:a [:b :c]}]
+      {:a [{:b 1 :c 2} {:b 1}]}
+      {:a [{:b 1 :c 2} {:b 1 :c impl/nf}]}))
 
-  (behavior "idents"
+  (behavior "idents and ident joins"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
-         [{[:a 1] [:x]}]
-         {[:a 1] {}}
-         {[:a 1] {:x impl/nf}}
+      (= exp (impl/mark-missing ?missing-result query))
+      [{[:a 1] [:x]}]
+      {[:a 1] {}}
+      {[:a 1] {:x impl/nf}}
 
-         [{[:a 1] [:x]}]
-         {[:a 1] {:x 2}}
-         {[:a 1] {:x 2}}
+      [{[:b 1] [:x]}]
+      {[:b 1] {:x 2}}
+      {[:b 1] {:x 2}}
 
-         ))
+      [{[:c 1] [:x]}]
+      {}
+      {[:c 1] {:x impl/nf}}
+
+      [[:d 1]]
+      {}
+      {[:d 1] nil}))
 
   (behavior "paramterized"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
-         '[:z (:y {})]
-         {:z 1}
-         {:z 1 :y impl/nf}
+      (= exp (impl/mark-missing ?missing-result query))
+      '[:z (:y {})]
+      {:z 1}
+      {:z 1 :y impl/nf}
 
-         '[:z (:y {})]
-         {:z 1 :y 0}
-         {:z 1 :y 0}
+      '[:z (:y {})]
+      {:z 1 :y 0}
+      {:z 1 :y 0}
 
-         '[:z ({:y [:x]} {})]
-         {:z 1 :y {}}
-         {:z 1 :y {:x impl/nf}}))
+      '[:z ({:y [:x]} {})]
+      {:z 1 :y {}}
+      {:z 1 :y {:x impl/nf}}))
 
   (behavior "nested"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
-         [{:b [:c {:d [:e]}]}]
-         {:b {:c 1}}
-         {:b {:c 1 :d impl/nf}}
+      (= exp (impl/mark-missing ?missing-result query))
+      [{:b [:c {:d [:e]}]}]
+      {:b {:c 1}}
+      {:b {:c 1 :d impl/nf}}
 
-         [{:b [:c {:d [:e]}]}]
-         {:b {:c 1 :d {}}}
-         {:b {:c 1 :d {:e impl/nf}}}))
+      [{:b [:c {:d [:e]}]}]
+      {:b {:c 1 :d {}}}
+      {:b {:c 1 :d {:e impl/nf}}}))
 
   (behavior "upgrades value to maps if necessary"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
-         [{:l [:m]}]
-         {:l 0}
-         {:l {:m impl/nf}}
+      (= exp (impl/mark-missing ?missing-result query))
+      [{:l [:m]}]
+      {:l 0}
+      {:l {:m impl/nf}}
 
-         [{:b [:c]}]
-         {:b nil}
-         {:b {:c impl/nf}}))
+      [{:b [:c]}]
+      {:b nil}
+      {:b {:c impl/nf}}))
 
   (behavior "unions"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
+      (= exp (impl/mark-missing ?missing-result query))
 
-         ;singleton
-         [{:j {:a [:c]
-               :b [:d]}}]
-         {:j {:c {}}}
-         {:j {:c {}
-              :d impl/nf}}
+      ;singleton
+      [{:j {:a [:c]
+            :b [:d]}}]
+      {:j {:c {}}}
+      {:j {:c {}
+           :d impl/nf}}
 
-         ;list
-         [{:j {:a [:c]
-               :b [:d]}}]
-         {:j [{:c "c"}]}
-         {:j [{:c "c" :d impl/nf}]}
+      ;list
+      [{:j {:a [:c]
+            :b [:d]}}]
+      {:j [{:c "c"}]}
+      {:j [{:c "c" :d impl/nf}]}
 
-         [{:items
-           {:photo [:id :image]
-            :text  [:id :text]}}]
-         {:items
-          [{:id 0 :image "img1"}
-           {:id 1 :text "text1"}]}
-         {:items [{:id 0 :image "img1" :text impl/nf}
-                  {:id 1 :image impl/nf :text "text1"}]}))
+      [{:items
+        {:photo [:id :image]
+         :text  [:id :text]}}]
+      {:items
+       [{:id 0 :image "img1"}
+        {:id 1 :text "text1"}]}
+      {:items [{:id 0 :image "img1" :text impl/nf}
+               {:id 1 :image impl/nf :text "text1"}]}))
 
   (behavior "if the query has a ui.*/ attribute, it should not be marked as missing"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
+      (= exp (impl/mark-missing ?missing-result query))
 
-         [:a :ui/b :c]
-         {:a {}
-          :c {}}
-         {:a {}
-          :c {}}
+      [:a :ui/b :c]
+      {:a {}
+       :c {}}
+      {:a {}
+       :c {}}
 
-         [{:j [:ui/b :c]}]
-         {:j {:c 5}}
-         {:j {:c 5}}))
+      [{:j [:ui/b :c]}]
+      {:j {:c 5}}
+      {:j {:c 5}}))
 
   (behavior "mutations!"
     (are [query ?missing-result exp]
-         (= exp (impl/mark-missing ?missing-result query))
+      (= exp (impl/mark-missing ?missing-result query))
 
-         '[(f) {:j [:a]}]
-         {'f {}
-          :j {}}
-         {'f {}
-          :j {:a impl/nf}}
+      '[(f) {:j [:a]}]
+      {'f {}
+       :j {}}
+      {'f {}
+       :j {:a impl/nf}}
 
-         '[(app/add-q {:p 1}) {:j1 [:p1]} {:j2 [:p2]}]
-         {'app/add-q {:tempids {}}
-          :j1        {}
-          :j2        [{:p2 2} {}]}
-         {'app/add-q {:tempids {}}
-          :j1        {:p1 impl/nf}
-          :j2        [{:p2 2} {:p2 impl/nf}]}))
+      '[(app/add-q {:p 1}) {:j1 [:p1]} {:j2 [:p2]}]
+      {'app/add-q {:tempids {}}
+       :j1        {}
+       :j2        [{:p2 2} {}]}
+      {'app/add-q {:tempids {}}
+       :j1        {:p1 impl/nf}
+       :j2        [{:p2 2} {:p2 impl/nf}]}))
 
   (behavior "correctly walks recursive queries to mark missing data"
     (behavior "when the recursive target is a singleton"
       (are [query ?missing-result exp]
-           (= exp (impl/mark-missing ?missing-result query))
-           [:a {:b '...}]
-           {:a 1 :b {:a 2}}
-           {:a 1 :b {:a 2 :b impl/nf}}
+        (= exp (impl/mark-missing ?missing-result query))
+        [:a {:b '...}]
+        {:a 1 :b {:a 2}}
+        {:a 1 :b {:a 2 :b impl/nf}}
 
-           [:a {:b '...}]
-           {:a 1 :b {:a 2 :b {:a 3}}}
-           {:a 1 :b {:a 2 :b {:a 3 :b impl/nf}}}
+        [:a {:b '...}]
+        {:a 1 :b {:a 2 :b {:a 3}}}
+        {:a 1 :b {:a 2 :b {:a 3 :b impl/nf}}}
 
-           [:a {:b 9}]
-           {:a 1 :b {:a 2 :b {:a 3 :b {:a 4}}}}
-           {:a 1 :b {:a 2 :b {:a 3 :b {:a 4 :b impl/nf}}}}))
+        [:a {:b 9}]
+        {:a 1 :b {:a 2 :b {:a 3 :b {:a 4}}}}
+        {:a 1 :b {:a 2 :b {:a 3 :b {:a 4 :b impl/nf}}}}))
     (behavior "when the recursive target is to-many"
       (are [query ?missing-result exp]
-           (= exp (impl/mark-missing ?missing-result query))
-           [:a {:b '...}]
-           {:a 1 :b [{:a 2 :b [{:a 3}]}
-                     {:a 4}]}
-           {:a 1 :b [{:a 2 :b [{:a 3 :b impl/nf}]}
-                     {:a 4 :b impl/nf}]})))
+        (= exp (impl/mark-missing ?missing-result query))
+        [:a {:b '...}]
+        {:a 1 :b [{:a 2 :b [{:a 3}]}
+                  {:a 4}]}
+        {:a 1 :b [{:a 2 :b [{:a 3 :b impl/nf}]}
+                  {:a 4 :b impl/nf}]})))
   (behavior "marks leaf data based on the query where"
     (letfn [(has-leaves [leaf-paths] (fn [result] (every? #(impl/leaf? (get-in result %)) leaf-paths)))]
       (assertions

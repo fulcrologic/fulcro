@@ -447,7 +447,7 @@
       "Triggers render"
       @rendered => true
       "Rewrites load markers as error markers"
-      (dfi/failed? (get-in @state (dfi/data-path item) :fail)) => true
+      (dfi/failed? (get-in @state (conj (dfi/data-path item) :ui/fetch-state) :fail)) => true
       "Updates the global loading marker"
       @globally-marked => true)))
 
