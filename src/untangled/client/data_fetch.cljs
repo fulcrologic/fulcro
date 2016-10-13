@@ -11,7 +11,7 @@
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation fallback without]
-                                  :or   {marker true parallel false refresh [] without #{}}}]
+                                           :or   {marker true parallel false refresh [] without #{}}}]
   {:pre [(or (nil? target) (vector? target))
          (or (nil? post-mutation) (symbol? post-mutation))
          (or (nil? fallback) (symbol? fallback))
@@ -75,19 +75,19 @@
   - `fallback` - A mutation (symbol) to run if there is a server/network error.
   - `without` - An optional set of keywords that should (recursively) be removed from the query.
   "
-  [app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
-  {:pre [(or (om/component? app-or-comp-or-reconciler)
-             (om/reconciler? app-or-comp-or-reconciler)
-             (instance? uc/UntangledApplication app-or-comp-or-reconciler))]}
-  (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)
-        reconciler (if (instance? uc/UntangledApplication app-or-comp-or-reconciler)
-                     (get app-or-comp-or-reconciler :reconciler)
-                     app-or-comp-or-reconciler)
-        mutation-args (load-params* server-property-or-ident SubqueryClass config)]
-    (om/transact! reconciler (load-mutation mutation-args))))
+  ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass] (load app-or-comp-or-reconciler server-property-or-ident SubqueryClass {}))
+  ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
+   {:pre [(or (om/component? app-or-comp-or-reconciler)
+              (om/reconciler? app-or-comp-or-reconciler)
+              (instance? uc/UntangledApplication app-or-comp-or-reconciler))]}
+   (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)
+         reconciler (if (instance? uc/UntangledApplication app-or-comp-or-reconciler)
+                      (get app-or-comp-or-reconciler :reconciler)
+                      app-or-comp-or-reconciler)
+         mutation-args (load-params* server-property-or-ident SubqueryClass config)]
+     (om/transact! reconciler (load-mutation mutation-args)))))
 
 (defn load-action
-  [state-atom server-property-or-ident SubqueryClass config]
   "
   See `load` for descriptions of parameters and config.
 
@@ -104,8 +104,10 @@
     :action (fn []
        (load-action ...)
        ; other optimistic updates/state changes)}"
-  (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
-        (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :state state-atom))))
+  ([state-atom server-property-or-ident SubqueryClass] (load-action state-atom server-property-or-ident SubqueryClass {}))
+  ([state-atom server-property-or-ident SubqueryClass config]
+   (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
+     (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :state state-atom)))))
 
 (defn load-field
   "Load a field of the current component. Runs `om/transact!`.
