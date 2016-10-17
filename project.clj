@@ -6,8 +6,9 @@
 
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.9.229"]
-                 [org.clojure/core.async "0.2.385"]
+                 [org.clojure/core.async "0.2.391"]
                  [differ "0.2.1"]
+                 [devcards "0.2.2" :exclusions [org.omcljs/om org.omcljs/om org.clojure/core.async] :scope "provided"]
                  [lein-doo "0.1.7" :scope "test"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [navis/untangled-spec "0.3.9" :scope "test"]
