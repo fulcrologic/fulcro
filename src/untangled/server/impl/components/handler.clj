@@ -217,19 +217,25 @@
 
   IHandler
   (set-pre-hook! [this new-pre-hook]
+    (timbre/debug "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.")
     (reset! pre-hook new-pre-hook)
     (reset! stack
             (handler api-parser (select-keys this injected-keys)
                      extra-routes app-name @pre-hook @fallback-hook))
     this)
-  (get-pre-hook [this] @pre-hook)
+  (get-pre-hook [this]
+    (timbre/debug "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.")
+    @pre-hook)
   (set-fallback-hook! [this new-fallback-hook]
+    (timbre/debug "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.")
     (reset! fallback-hook new-fallback-hook)
     (reset! stack
             (handler api-parser (select-keys this injected-keys)
                      extra-routes app-name @pre-hook @fallback-hook))
     this)
-  (get-fallback-hook [this] @fallback-hook))
+  (get-fallback-hook [this]
+    (timbre/debug "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.")
+    @fallback-hook))
 
 (defn build-handler
   "Build a web request handler.
