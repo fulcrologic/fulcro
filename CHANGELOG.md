@@ -8,6 +8,7 @@
     - Added ability to pass untangled app, so that use in started-callback is easier.
 - Fixed bug in failed loading markers
 - Fixed bug with removal/addition of markers when markers are off
+- Added jump to and playback speed features to the support viewer.
 
 0.5.7
 -----
