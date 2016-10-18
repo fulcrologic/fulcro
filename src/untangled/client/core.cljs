@@ -136,9 +136,12 @@
   (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
   (udom/force-render reconciler))
 
-(defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
+(defn mount* [{:keys [mounted? reconciler initial-state reconciler-options] :as app} root-component dom-id-or-node]
   (if mounted?
-    (do (refresh* app) app)
+    (do
+      (om/add-root! reconciler root-component dom-id-or-node)
+      (refresh* app)
+      app)
     (let [uses-initial-app-state? (implements? InitialAppState root-component)
           ui-declared-state (and uses-initial-app-state? (untangled.client.core/initial-state root-component nil))
           atom-supplied? (= Atom (type initial-state))
