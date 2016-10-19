@@ -356,11 +356,14 @@
         "When props are loaded, runs data-render."
         (df/lazily-loaded present props) => :bar))))
 
-(defmethod m/mutate 'qrp-loaded-callback [{:keys [state]} n p] (swap! state assoc :callback-done true))
+(defmethod m/mutate 'qrp-loaded-callback [{:keys [state]} n p] (swap! state assoc :callback-done true :callback-params p))
 
 
 (specification "Query response processing (loaded-callback with post mutation)"
-  (let [item (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :post-mutation 'qrp-loaded-callback}))
+  (let [item (dfi/set-loading! (dfi/ready-state {:ident                [:item 2]
+                                                 :query                [:id :b]
+                                                 :post-mutation        'qrp-loaded-callback
+                                                 :post-mutation-params {:x 1}}))
         state (atom {:untangled/loads-in-progress #{(dfi/data-uuid item)}
                      :item                        {2 {:id :original-data}}})
         items [item]
@@ -383,6 +386,8 @@
         @merged => true
         "Runs post-mutations"
         (:callback-done @state) => true
+        "Runs post-mutations"
+        (:callback-params @state) => {:x 1}
         "Force re-renders the entire application"
         @rendered => true
         "Removes loading markers for results that didn't materialize"

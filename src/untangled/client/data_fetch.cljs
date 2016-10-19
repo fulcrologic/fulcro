@@ -10,11 +10,13 @@
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
-  [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation fallback without]
+  [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation post-mutation-params
+                                                  fallback without]
                                            :or   {marker true parallel false refresh [] without #{}}}]
   {:pre [(or (nil? target) (vector? target))
          (or (nil? post-mutation) (symbol? post-mutation))
          (or (nil? fallback) (symbol? fallback))
+         (or (nil? post-mutation-params) (map? post-mutation-params))
          (vector? refresh)
          (or (nil? params) (map? params))
          (set? without)
@@ -23,14 +25,15 @@
   (let [query (if (map? params)
                 `[({~server-property-or-ident ~(om/get-query SubqueryClass)} ~params)]
                 [{server-property-or-ident (om/get-query SubqueryClass)}])]
-    {:query         query
-     :target        (if (util/ident? server-property-or-ident) server-property-or-ident target)
-     :without       without
-     :post-mutation post-mutation
-     :refresh       refresh
-     :marker        marker
-     :parallel      parallel
-     :fallback      fallback}))
+    {:query                query
+     :target               (if (util/ident? server-property-or-ident) server-property-or-ident target)
+     :without              without
+     :post-mutation        post-mutation
+     :post-mutation-params post-mutation-params
+     :refresh              refresh
+     :marker               marker
+     :parallel             parallel
+     :fallback             fallback}))
 
 (defn load-mutation
   "Generates an Om transaction expression for a load mutation. It includes a follow-on read for :ui/loading-data. The args
@@ -72,6 +75,7 @@
   - `parallel` - If true, indicates that this load does not have to go through the sequential network queue. Defaults to false.
   - `post-mutation` - A mutation (symbol) to run after the data is merged. Note, if target is supplied be sure your post mutation
   should expect the data at the targeted location.
+  - `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
   - `fallback` - A mutation (symbol) to run if there is a server/network error.
   - `without` - An optional set of keywords that should (recursively) be removed from the query.
   "

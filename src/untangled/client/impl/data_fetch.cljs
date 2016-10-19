@@ -210,7 +210,8 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [{:keys [ident field params without query post-mutation fallback parallel refresh marker target] :or {without #{} refresh [] marker true}}]
+  [{:keys [ident field params without query post-mutation post-mutation-params fallback parallel refresh marker target]
+    :or   {without #{} refresh [] marker true}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
@@ -221,17 +222,18 @@
         key (if (util/join? query-field) (util/join-key query-field) query-field)
         query' (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
-    {::type          :ready
-     ::uuid          (uuid/uuid-string (uuid/make-random-squuid))
-     ::target        target
-     ::ident         ident                                  ; only for component-targeted loads
-     ::field         field                                  ; for component-targeted load
-     ::query         query'                                 ; query, relative to root of db OR component
-     ::post-mutation post-mutation
-     ::refresh       refresh
-     ::marker        marker
-     ::parallel      parallel
-     ::fallback      fallback}))
+    {::type                 :ready
+     ::uuid                 (uuid/uuid-string (uuid/make-random-squuid))
+     ::target               target
+     ::ident                ident                           ; only for component-targeted loads
+     ::field                field                           ; for component-targeted load
+     ::query                query'                          ; query, relative to root of db OR component
+     ::post-mutation        post-mutation
+     ::post-mutation-params post-mutation-params
+     ::refresh              refresh
+     ::marker               marker
+     ::parallel             parallel
+     ::fallback             fallback}))
 
 (defn mark-ready
   "Place a ready-to-load marker into the application state. This should be done from
@@ -366,10 +368,11 @@
           run-post-mutations (fn [] (doseq [item loading-items]
                                       (when-let [mutation-symbol (::post-mutation item)]
                                         (reset! ran-mutations true)
-                                        (some->
-                                          (m/mutate {:state (om/app-state reconciler)} mutation-symbol {})
-                                          :action
-                                          (apply [])))))]
+                                        (let [params (or (::post-mutation-params item) {})]
+                                          (some->
+                                           (m/mutate {:state (om/app-state reconciler)} mutation-symbol params)
+                                           :action
+                                           (apply []))))))]
       (remove-markers)
       (om/merge! reconciler marked-response query)
       (relocate-targeted-results app-state loading-items)
