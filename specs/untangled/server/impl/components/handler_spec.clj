@@ -119,7 +119,7 @@
   (behavior "takes an extra-routes map containing bidi :routes & :handlers"
     (let [make-handler (fn [extra-routes]
                          (h/build-handler (constantly nil) #{}
-                           :extra-routes [extra-routes]))]
+                           :extra-routes extra-routes))]
       (assertions
         (-> {:routes   ["/" {"test" :test}]
              :handlers {:test (fn [env match]

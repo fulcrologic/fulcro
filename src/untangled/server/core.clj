@@ -2,6 +2,7 @@
   (:require
     [com.stuartsierra.component :as component]
     [clojure.data.json :as json]
+    [clojure.set :as set]
     [om.next.server :as om]
     [untangled.server.impl.components.web-server :as web-server]
     [untangled.server.impl.components.handler :as handler]
@@ -88,46 +89,6 @@
 ;; Server Construction
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn install-parser
-  [{:keys [reads mutates]} read+mutate]
-  (let [wrap-with
-        (fn [new-fns]
-          (fn [old-fn]
-            (assert old-fn
-              (str "Cannot wrap a non-existing method with: " new-fns))
-            (fn [env k params]
-              (let [F (or (get new-fns k) old-fn)]
-                (F env k params)))))]
-    (cond-> read+mutate
-      reads (update :read (wrap-with reads))
-      mutates (update :mutate (wrap-with mutates)))))
-
-(defn assoc-in-or-fail-if-found [m k-ks v & {:keys [on-fail-msg on-fail-info]}]
-  (update-in m (cond-> k-ks (not (vector? k-ks)) vector)
-    (fn [old]
-      (when-not (nil? old)
-        (throw (ex-info (str "failed to install component for library, because: " on-fail-msg)
-                 (merge on-fail-info
-                   {:found old, :path k-ks, :tried v}))))
-      v)))
-
-(defn with-libraries [{:keys [extra-routes] :as params} libraries]
-  (let [params' (assoc params :extra-routes [])
-        step (fn [params {:as lib :keys [parser parser-injections components extra-routes]}]
-               (cond-> params
-                 parser (update :parser (partial install-parser parser))
-                 parser-injections (update :parser-injections #(into % parser-injections))
-                 components (update :components
-                              #(reduce (fn [params [k v]]
-                                         (assoc-in-or-fail-if-found params k v
-                                           :on-fail-msg "conflicting component"
-                                           :on-fail-info {:failing-library lib}))
-                                       % components))
-                 extra-routes (update :extra-routes conj extra-routes)))]
-    (-> (reduce step params' libraries)
-      (update :extra-routes #(if-not extra-routes % (conj % extra-routes)))
-      (update :parser #(cond-> % (map? %) om/parser)))))
-
 (defn make-untangled-server
   "Make a new untangled server.
 
@@ -153,14 +114,10 @@
 
   Returns a Sierra system component.
   "
-  [& {:keys [app-name parser parser-injections config-path
-             components extra-routes middleware libraries]
+  [& {:keys [app-name parser parser-injections config-path components extra-routes]
       :or {config-path "/usr/local/etc/untangled.edn"}
       :as params}]
-  {:pre [(if-not libraries true
-           (and (vector? libraries)
-             (every? map? libraries)))
-         (some-> parser ((if libraries map? fn?)))
+  {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))
          (or (nil? extra-routes)
              (and (map? extra-routes)
@@ -169,9 +126,7 @@
          (or (nil? parser-injections)
              (and (set? parser-injections)
                (every? keyword? parser-injections)))]}
-  (let [{:keys [parser parser-injections components extra-routes]} (with-libraries params libraries)
-        handler (handler/build-handler parser parser-injections
-                  :middleware middleware
+  (let [handler (handler/build-handler parser parser-injections
                   :extra-routes extra-routes
                   :app-name app-name)
         built-in-components [:config (new-config config-path)
@@ -188,3 +143,68 @@
                              :handler handler]
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
+
+(defprotocol Module
+  (system-key [this])
+  (components [this]))
+
+(defprotocol APIHandler
+  (api-read [this R] "(~fn~ [env k params] ...)")
+  (api-mutate [this M] "(~fn~ [env k params] ...)"))
+
+(defn comp-api-modules [{:as this :keys [modules]}]
+  (reduce
+    (fn [r+m module-key]
+      (let [module (get this module-key)]
+        (-> r+m
+          (update :read
+            #(if-not (satisfies? APIHandler module) %
+               (.api-read module %)))
+          (update :mutate
+            #(if-not (satisfies? APIHandler module) %
+               (.api-mutate module %))))))
+    {:read (constantly nil)
+     :mutate (constantly nil)}
+    (reverse modules)))
+(defrecord ApiHandler [app-name transit-opts modules]
+  component/Lifecycle
+  (start [this]
+    (let [api-url (cond->> "/api" app-name (str "/" app-name))
+          api-parser (om/parser (comp-api-modules this))
+          make-response
+          (fn [parser env query]
+            (handler/generate-response
+              (let [parse-result (handler/raise-response
+                                   (try (parser env query)
+                                     (catch Exception e e)))]
+                (if (handler/valid-response? parse-result)
+                  {:status 200 :body parse-result}
+                  (handler/process-errors parse-result)))))]
+      (assoc this :value
+        (fn [h]
+          (fn [req]
+            (if-let [resp (and (= (:uri req) api-url)
+                            (make-response api-parser
+                              {:request req} (:transit-params req)))]
+              resp (h req)))))))
+  (stop [this] (dissoc this :api-handler)))
+(defn api-handler [opts]
+  (component/using
+    (map->ApiHandler
+      (update (select-keys opts
+        [:app-name :transit-opts :modules])
+        :modules #(mapv system-key %)))
+    (mapv system-key (:modules opts))))
+
+(defn untangled-system
+  [{:keys [api-handler-key modules] :as opts}]
+  (apply component/system-map
+    (apply concat
+      (merge (:components opts)
+             (into {}
+               (mapcat (juxt (juxt system-key identity) components))
+               modules)
+             {(or api-handler-key ::api-handler)
+              (api-handler
+                (select-keys opts
+                  [:modules :app-name :transit-opts]))}))))

@@ -3,7 +3,7 @@
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha13" :scope "provided"]
                  [org.clojure/math.combinatorics "0.1.1"]
                  [org.clojure/tools.namespace "0.2.10"]
                  [org.omcljs/om "1.0.0-alpha32"]
@@ -27,7 +27,7 @@
                  [commons-codec "1.10"]
                  [crypto-equality "1.0.0"]]
 
-  :plugins [[com.jakemccrary/lein-test-refresh "0.15.0"]]
+  :plugins [[com.jakemccrary/lein-test-refresh "0.17.0"]]
 
   :source-paths ["src"]
   :test-paths ["specs" "specs/config"]

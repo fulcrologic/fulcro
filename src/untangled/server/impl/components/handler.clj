@@ -146,17 +146,14 @@
       res
       (handler req))))
 
-(defn wrap-extra-routes [dflt-handler extra-routes om-parsing-env]
-  (fn [request]
-    (let [res (reduce
-                (fn [req {:keys [routes handlers]}]
-                  (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
-                    (if-let [bidi-handler (get handlers (:handler match))]
-                      (reduced (bidi-handler (assoc om-parsing-env :request req) match))
-                      req)))
-                request extra-routes)]
-      (cond-> res (= res request)
-        (dflt-handler)))))
+(defn wrap-extra-routes [dflt-handler {:as extra-routes :keys [routes handlers]} om-parsing-env]
+  (if-not extra-routes dflt-handler
+    (do (assert (and routes handlers) extra-routes)
+      (fn [req]
+        (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
+          (if-let [bidi-handler (get handlers (:handler match))]
+            (bidi-handler (assoc om-parsing-env :request req) match)
+            (dflt-handler req)))))))
 
 (defn not-found-handler []
   (fn [req]
@@ -185,17 +182,13 @@
 
 (defprotocol IHandler
   (set-pre-hook! [this pre-hook]
-    "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.
-     Sets the handler before any important handlers are run.")
+    "Sets the handler before any important handlers are run.")
   (get-pre-hook [this]
-    "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.
-     Gets the current pre-hook handler.")
+    "Gets the current pre-hook handler.")
   (set-fallback-hook! [this fallback-hook]
-    "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.
-     Sets the fallback handler in case nothing else returned.")
+    "Sets the fallback handler in case nothing else returned.")
   (get-fallback-hook [this]
-    "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.
-     Gets the current fallback-hook handler."))
+    "Gets the current fallback-hook handler."))
 
 (defrecord Handler [stack api-parser injected-keys extra-routes app-name pre-hook fallback-hook]
   component/Lifecycle
@@ -217,24 +210,20 @@
 
   IHandler
   (set-pre-hook! [this new-pre-hook]
-    (timbre/debug "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.")
     (reset! pre-hook new-pre-hook)
     (reset! stack
             (handler api-parser (select-keys this injected-keys)
                      extra-routes app-name @pre-hook @fallback-hook))
     this)
   (get-pre-hook [this]
-    (timbre/debug "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.")
     @pre-hook)
   (set-fallback-hook! [this new-fallback-hook]
-    (timbre/debug "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.")
     (reset! fallback-hook new-fallback-hook)
     (reset! stack
             (handler api-parser (select-keys this injected-keys)
                      extra-routes app-name @pre-hook @fallback-hook))
     this)
   (get-fallback-hook [this]
-    (timbre/debug "DEPRECATED: use the `:libraries` parameter to `make-untangled-server` instead.")
     @fallback-hook))
 
 (defn build-handler
@@ -245,20 +234,14 @@
    - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
    - `extra-routes`: See `make-untangled-server`
    - `app-name`: See `make-untangled-server`
-   - `middleware`: TODO WIP
    "
-  [api-parser injections & {:keys [extra-routes app-name middleware]
-                            :or {extra-routes []}}]
-  (assert (and (vector? extra-routes)
-            (every? (every-pred :routes :handlers) extra-routes))
-    (str "extra-routes should match [{:routes # :handlers #}], instead found: <" extra-routes ">"))
-  (let [{:keys [pre fallback] :or {pre [identity] fallback [identity]}} middleware]
-    (component/using
-      (map->Handler {:api-parser    api-parser
-                     :injected-keys injections
-                     :stack         (atom nil)
-                     :pre-hook      (atom (apply comp pre))
-                     :fallback-hook (atom (apply comp fallback))
-                     :extra-routes  extra-routes
-                     :app-name      app-name})
-      (vec (into #{:config} injections)))))
+  [api-parser injections & {:keys [extra-routes app-name]}]
+  (component/using
+    (map->Handler {:api-parser    api-parser
+                   :injected-keys injections
+                   :stack         (atom nil)
+                   :pre-hook      (atom identity)
+                   :fallback-hook (atom identity)
+                   :extra-routes  extra-routes
+                   :app-name      app-name})
+    (vec (into #{:config} injections))))

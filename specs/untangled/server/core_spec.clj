@@ -1,6 +1,7 @@
 (ns untangled.server.core-spec
   (:require
     [clojure.test :as t]
+    [com.stuartsierra.component :as component]
     [untangled.server.core :as core]
     [untangled-spec.core :refer [specification behavior provided component assertions]])
   (:import (clojure.lang ExceptionInfo)))
@@ -18,61 +19,172 @@
     "requires that :components be a map"
     (core/make-untangled-server :parser #() :components [1 2 3]) =throws=> (AssertionError #"")
     "throws an exception if injections are not keywords"
-    (core/make-untangled-server :parser #() :parser-injections [:a :x 'sym]) =throws=> (AssertionError #""))
+    (core/make-untangled-server :parser #() :parser-injections [:a :x 'sym]) =throws=> (AssertionError #"")))
 
-  (let [wrap-test (fn [x] (fn [h] (fn [req] (assoc (h req) :test x))))]
-    (assertions
-      "accepts pre and post middleware seqs"
-      (-> (core/make-untangled-server :parser #()
-            :middleware {:pre [(wrap-test 1) (wrap-test 2)]
-                         :fallback [(wrap-test true) (wrap-test false)]})
-        :handler)
-      =fn=> (fn [{:keys [pre-hook fallback-hook]}]
-              (t/is (= 1 (:test ((@pre-hook identity) {}))))
-              (t/is (= true (:test ((@fallback-hook identity) {}))))
-              true)))
+(comment
 
-  (behavior (str "accepts a seq of libraries for use in xform-ing the params"
-              ", are applied in order: left->right libraries + top-level")
+  (defrecord datomic-meta-store [auth-database]
+    Module
+    (components [this]
+      {:auth-database auth-database}))
+  (defn make-datomic-meta-store []
+    (component/using
+      (map->DatomicMetaStore {})
+      [:auth-database]))
+
+  (untangled-system
+    :modules [(image-library {:meta (make-datomic-meta-store)})]
+    :components {:config {:hello "world"}})
+
+  #_comment)
+
+(defrecord SimpleTestModule []
+  core/Module
+  (system-key [this] ::SimpleTestModule)
+  (components [this] {}))
+(defn make-simple-test-module []
+  (component/using
+    (map->SimpleTestModule {})
+    []))
+
+(defrecord DepTestModule [test-dep]
+  core/Module
+  (system-key [this] ::DepTestModule)
+  (components [this]
+    {:test-dep
+     (or test-dep
+         (reify
+           component/Lifecycle
+           (start [this] {:value "test-dep"})
+           (stop [this] this)))})
+  component/Lifecycle
+  (start [this] (assoc this :value "DepTestModule"))
+  (stop [this] this))
+(defn make-dep-test-module [& [{:keys [test-dep]}]]
+  (component/using
+    (map->DepTestModule {:test-dep test-dep})
+    [:test-dep]))
+
+(defrecord TestApiModule [sys-key reads mutates]
+  core/Module
+  (system-key [this] (or sys-key ::TestApiModule))
+  (components [this] {})
+  core/APIHandler
+  (api-read [this R]
+    (if-not reads (constantly {:value :read/ok})
+      (fn [env k ps]
+        (if-let [value (get reads k)]
+          {:value value}
+          (R env k ps)))))
+  (api-mutate [this M]
+    (if-not mutates (constantly {:action (constantly :mutate/ok)})
+      (fn [env k ps]
+        (if-let [value (get mutates k)]
+          {:action (constantly value)}
+          (M env k ps))))))
+(defn make-test-api-module [& [opts]]
+  (map->TestApiModule
+    (select-keys opts
+      [:reads :mutates :sys-key])))
+
+(defn test-untangled-system [opts]
+  (component/start (core/untangled-system opts)))
+(specification "untangled-system"
+  (component ":api-handler-key - defines location in the system of the api handler"
     (assertions
-      "can wrap the parser :read and :mutate"
-      (-> (core/make-untangled-server :parser {:read (constantly "read") :mutate (constantly "mutate")}
-            :libraries [{:parser {:reads {::test-read (fn [env k params] {:value ::ok})}
-                                  :mutates {'test-mutate (fn [env k params] {:action (constantly ::ok)})}}}])
-        :handler :api-parser)
-      =fn=> (fn [parser]
-              (t/is (= ::ok (::test-read (parser {} [::test-read] nil))))
-              (t/is (= ::ok (:result ('test-mutate (parser {} '[(test-mutate)] nil)))))
+      (test-untangled-system {:api-handler-key ::here})
+      =fn=> (fn [sys]
+              (t/is (fn? (get-in sys [::here :value])))
               true)
-      "can add :parser-injections"
-      (-> (core/make-untangled-server :parser {}
-            :parser-injections #{:foo :bar}
-            :libraries [{:parser-injections #{:foo :qux}}])
-        :handler :injected-keys)
-      => #{:foo :bar :qux}
-      "can add :components"
-      (-> (core/make-untangled-server :parser {}
-            :libraries [{:components {::test-comp {:test :comp}}}])
-        ::test-comp)
-      => {:test :comp}
-      "if they conflict, throws an error"
-      (core/make-untangled-server :parser {}
-        :components {:bad "old"}
-        :libraries [{:components {:bad "new"}}])
-      =throws=> (ExceptionInfo #"conflicting component"
-                  #(-> % ex-data
-                     (= {:failing-library {:components {:bad "new"}}
-                         :found "old" , :path :bad, :tried "new"})))
-      "can add :extra-routes"
-      (-> (core/make-untangled-server :parser {}
-            :extra-routes {:routes ["/" {"foo" :foo}]
-                           :handlers {:foo (constantly :foo)}}
-            :libraries [{:extra-routes {:routes ["/lib1/" {"test" :test}]
-                                        :handlers {:test (fn [env match] :test.ok)}}}
-                        {:extra-routes {:routes ["/lib2/" {}]
-                                        :handlers {}}}])
-        :handler :extra-routes)
-      =fn=> (fn [extra-routes]
-              (t/is (= (map :routes extra-routes)
-                       [["/lib1/" {"test" :test}] ["/lib2/" {}] ["/" {"foo" :foo}]]))
-              true))))
+      "defaults to :untangled.server.core/api-handler"
+      (test-untangled-system {})
+      =fn=> (fn [sys]
+              (t/is (fn? (get-in sys [::core/api-handler :value])))
+              true)))
+  (component ":app-name - prefixes the /api route"
+    (assertions
+      (-> (test-untangled-system {:app-name "asdf"})
+        ::core/api-handler :value
+        (#(% (constantly {:status 404}))))
+      =fn=> (fn [h]
+              (t/is (= {:status 404} (h {:uri "/api"})))
+              (t/is (= 200 (:status (h {:uri "/asdf/api"}))))
+              true)))
+  (component ":components"
+    (behavior "get put into the system as is"
+      (assertions
+        (test-untangled-system
+          {:components {:c1 (reify
+                              component/Lifecycle
+                              (start [this] {:value "c1"})
+                              (stop [this] this))
+                        :c2 {:test "c2"}}})
+        =fn=> (fn [sys]
+                (t/is (= #{::core/api-handler :c1 :c2} (set (keys sys))))
+                (t/is (not-any? nil? (vals sys)))
+                true))))
+  (component ":modules - implement:"
+    (component "Module (required)"
+      (component "system-key"
+        (assertions "is used to locate them in the system"
+          (test-untangled-system
+            {:modules [(make-simple-test-module)]})
+          =fn=> (fn [sys]
+                  (t/is (not (nil? (get-in sys [::SimpleTestModule]))))
+                  true)))
+      (component "components"
+        (assertions
+          (core/components (make-dep-test-module)) =fn=> :test-dep
+          "are sub components raised into the system"
+          (test-untangled-system
+            {:modules [(make-dep-test-module)]})
+          =fn=> (fn [sys]
+                  (t/is (= "DepTestModule" (get-in sys [::DepTestModule :value])))
+                  (t/is (= (get-in sys [::DepTestModule :test-dep])
+                           (get-in sys [:test-dep])))
+                  true)
+          "they can have their own deps"
+          (test-untangled-system
+            {:modules [(make-dep-test-module
+                         {:test-dep (component/using {:test-dep "yeah"} [:dep2])})]
+             :components {:dep2 {:value "dep2"}}})
+          =fn=> (fn [sys]
+                  (t/is (= (get-in sys [::DepTestModule :test-dep :dep2])
+                           (get-in sys [:dep2])))
+                  true))))
+    (component "APIHandler (optional)"
+      (behavior "is used to compose reads&mutates like (ring) middleware"
+        (assertions
+          (((get-in
+              (test-untangled-system
+                {:modules [(make-test-api-module)]})
+              [::core/api-handler :value])
+            (constantly {:status 404}))
+           {:uri "/api"
+            :transit-params '[(launch-rocket!) :rocket-status]})
+          => {:status 200
+              :headers {"Content-Type" "application/transit+json"}
+              :body {'launch-rocket! :mutate/ok
+                     :rocket-status :read/ok}}
+          "get executed in the order of :modules, but you must use the chain if you dont handle the dispatch-key for it to work right"
+          (((get-in
+              (test-untangled-system
+                {:modules [(make-test-api-module
+                             {:sys-key :always-working
+                              :reads {:rocket-status :working
+                                      :working :working/true}})
+                           (make-test-api-module
+                             {:sys-key :always-broken
+                              :reads {:rocket-status :broken
+                                      :broken :broken/true}})]})
+              [::core/api-handler :value])
+            (constantly {:status 404}))
+           {:uri "/api"
+            :transit-params '[:rocket-status :working :broken]})
+          => {:status 200
+              :headers {"Content-Type" "application/transit+json"}
+              :body {:rocket-status :working
+                     :working :working/true
+                     :broken :broken/true}}))))
+  (behavior ":transit-opts - allows configuration of transit middleware for api-handler use"
+    #_TODO))
