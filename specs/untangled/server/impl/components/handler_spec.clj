@@ -114,7 +114,7 @@
                                            :message nil}))))))))
 
 (defn run [handler req]
-  ((:all-routes (component/start handler)) req))
+  ((:middleware (component/start handler)) req))
 (specification "the handler"
   (behavior "takes an extra-routes map containing bidi :routes & :handlers"
     (let [make-handler (fn [extra-routes]
@@ -187,7 +187,7 @@
                                                 :headers {"Content-Type" "text/text"}
                                                 :body "pre-hook"})))
 
-          (:body ((:all-routes handler) {})))
+          (:body ((:middleware handler) {})))
         => "pre-hook"
 
         "the fallback hook will only get called if all other handlers do nothing"
@@ -196,7 +196,7 @@
                                           (fn [req] {:status 200
                                                      :headers {"Content-Type" "text/text"}
                                                      :body "fallback-hook"})))
-          (:body ((:all-routes handler) {:uri "/i/should/fail"})))
+          (:body ((:middleware handler) {:uri "/i/should/fail"})))
         => "fallback-hook"
 
         "get-(pre/fallback)-hook returns whatever hook is currently installed"

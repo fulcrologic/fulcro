@@ -203,10 +203,10 @@
                                @pre-hook @fallback-hook)]
       (reset! stack req-handler)
       (assoc component :env om-parsing-env
-                       :all-routes (fn [req] (@stack req)))))
+                       :middleware (fn [req] (@stack req)))))
   (stop [component]
     (timbre/info "Tearing down web server handler.")
-    (assoc component :all-routes nil :stack nil :pre-hook nil :fallback-hook nil))
+    (assoc component :middleware nil :stack nil :pre-hook nil :fallback-hook nil))
 
   IHandler
   (set-pre-hook! [this new-pre-hook]

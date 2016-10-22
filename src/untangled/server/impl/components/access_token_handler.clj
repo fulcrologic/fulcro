@@ -52,7 +52,7 @@
     (not (valid-signature? token public-keys)) (fail-with token "Invalid signature.")
     (not (valid-issuer? token issuer)) (fail-with token "Invalid issuer.")
     (not (valid-expire? token grace-period-minutes)) (fail-with token "Expired token.")
-    (not (valid-audience? token audience)) (fail-with token "Invalid audience.")
+    (not (valid-audience? token audience)) (fail-with token (str "Invalid audience. cfg-aud<" audience ">."))
 
     (and (missing-sub? token) (missing-client-id? token))
     (fail-with token (if (missing-sub? token) "Missing subject." "Missing client id."))
@@ -111,25 +111,30 @@
     unsecured-routes)
   true)
 
-(defrecord AccessTokenHandler [handler]
+(defrecord OpenIdConfig [config]
   component/Lifecycle
   (start [this]
-    (log/info "Starting Access Token Handler")
+    (log/info "Starting openid config download")
     (http/with-connection-pool {:timeout 5 :threads 2}
-      (let [pre-hook          (.get-pre-hook handler)
-            config            (-> this :config :value :openid)
-            _                 (validate-unsecured-route-handlers! (:unsecured-routes config))
-            authority         (:authority config)
+      (let [openid-config     (-> config :value :openid)
+            _                 (validate-unsecured-route-handlers! (:unsecured-routes openid-config))
+            authority         (:authority openid-config)
             discovery-doc-url (str authority "/.well-known/openid-configuration")]
         (if-let [discovery-doc (-> discovery-doc-url http/get :body json/read-str)]
           (let [issuer          (get discovery-doc "issuer")
                 public-keys-url (get discovery-doc "jwks_uri")
                 public-keys     (-> public-keys-url http/get :body json/read-str (get "keys"))
                 public-keys'    (public-keys-from-jwks public-keys)
-                config'         (assoc config :public-keys public-keys' :issuer issuer)]
-            (.set-pre-hook! handler (comp pre-hook
-                                      (partial wrap-cookies)
-                                      (partial wrap-access-token config'))))
-          (log/error "AccessTokenHandler: Error retrieving discovery document."))
-        this)))
+                openid-config'  (assoc openid-config :public-keys public-keys' :issuer issuer)]
+            (assoc this :value openid-config'
+              :middleware identity))
+          (throw (ex-info "AccessTokenHandler: Error retrieving discovery document." {}))))))
+  (stop [this] this))
+
+(defrecord AccessTokenHandler [openid-config]
+  component/Lifecycle
+  (start [this]
+    (log/info "Starting Access Token Handler")
+    (assoc this :middleware
+      (partial wrap-access-token (:value openid-config))))
   (stop [this] this))

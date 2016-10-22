@@ -94,17 +94,17 @@
     (assertions
       (test-untangled-system {:api-handler-key ::here})
       =fn=> (fn [sys]
-              (t/is (fn? (get-in sys [::here :value])))
+              (t/is (fn? (get-in sys [::here :middleware])))
               true)
       "defaults to :untangled.server.core/api-handler"
       (test-untangled-system {})
       =fn=> (fn [sys]
-              (t/is (fn? (get-in sys [::core/api-handler :value])))
+              (t/is (fn? (get-in sys [::core/api-handler :middleware])))
               true)))
   (component ":app-name - prefixes the /api route"
     (assertions
       (-> (test-untangled-system {:app-name "asdf"})
-        ::core/api-handler :value
+        ::core/api-handler :middleware
         (#(% (constantly {:status 404}))))
       =fn=> (fn [h]
               (t/is (= {:status 404} (h {:uri "/api"})))
@@ -158,7 +158,7 @@
           (((get-in
               (test-untangled-system
                 {:modules [(make-test-api-module)]})
-              [::core/api-handler :value])
+              [::core/api-handler :middleware])
             (constantly {:status 404}))
            {:uri "/api"
             :transit-params '[(launch-rocket!) :rocket-status]})
@@ -177,7 +177,7 @@
                              {:sys-key :always-broken
                               :reads {:rocket-status :broken
                                       :broken :broken/true}})]})
-              [::core/api-handler :value])
+              [::core/api-handler :middleware])
             (constantly {:status 404}))
            {:uri "/api"
             :transit-params '[:rocket-status :working :broken]})

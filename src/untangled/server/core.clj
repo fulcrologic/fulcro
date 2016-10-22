@@ -69,20 +69,24 @@
   [config-path]
   (config/map->Config {:config-path config-path}))
 
-(defn build-access-token-handler [& {:keys [dependencies]}]
+(defn build-access-token-handler [& [openid-config]]
   (component/using
     (access-token-handler/map->AccessTokenHandler {})
-    (into [] (cond-> [:config :handler :server :openid-mock]
-               dependencies (concat dependencies)))))
+    [(or openid-config :openid-config)]))
 
-(defn build-mock-openid-server []
-  (component/using
-    (openid-mock-server/map->MockOpenIdServer {})
-    [:config :handler]))
+(defrecord VirtualOpenIdConfig [config]
+  component/Lifecycle
+  (start [this]
+    (component/start
+      (if (-> config :value :openid-mock)
+        (openid-mock-server/map->MockOpenIdConfig this)
+        (access-token-handler/map->OpenIdConfig this))))
+  (stop [this]
+    (component/stop this)))
 
-(defn build-test-mock-openid-server []
+(defn build-openid-config []
   (component/using
-    (openid-mock-server/map->TestMockOpenIdServer {})
+    (map->VirtualOpenIdConfig {})
     [:config]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -174,20 +178,20 @@
           make-response
           (fn [parser env query]
             (handler/generate-response
-              (let [parse-result (handler/raise-response
-                                   (try (parser env query)
-                                     (catch Exception e e)))]
+              (let [parse-result (try (handler/raise-response
+                                        (parser env query))
+                                   (catch Exception e e))]
                 (if (handler/valid-response? parse-result)
                   {:status 200 :body parse-result}
                   (handler/process-errors parse-result)))))]
-      (assoc this :value
+      (assoc this :middleware
         (fn [h]
           (fn [req]
             (if-let [resp (and (= (:uri req) api-url)
                             (make-response api-parser
                               {:request req} (:transit-params req)))]
               resp (h req)))))))
-  (stop [this] (dissoc this :api-handler)))
+  (stop [this] (dissoc this :middleware)))
 (defn api-handler [opts]
   (component/using
     (map->ApiHandler

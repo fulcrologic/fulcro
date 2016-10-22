@@ -20,7 +20,7 @@
   ([cfg]
    (component/system-map
      :config {:value cfg}
-     :handler {:all-routes :fake/all-routes}
+     :handler {:middleware :fake/all-routes}
      :web-server (make-web-server))))
 
 (specification "WebServer"
