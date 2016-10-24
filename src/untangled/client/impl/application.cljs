@@ -133,6 +133,18 @@
               :else (assoc acc k (sweep v)))
             ) target source))
 
+(defn merge-handler [state-atom return-handler target source]
+  (letfn [(doreturn [trigger-symbol return-value]
+            (return-handler {:state state-atom} trigger-symbol return-value))]
+    (let [handled-source (reduce (fn [acc [k v]]
+                                   (cond
+                                     (symbol? k) (do
+                                                   (when return-handler
+                                                     (doreturn k (and (map? v) (:result v))))
+                                                   (dissoc acc k))
+                                     :else acc)) source source)]
+      (sweep-merge target handled-source))))
+
 (defn generate-reconciler
   "The reconciler's send method calls UntangledApplication/server-send, which itself requires a reconciler with a
   send method already defined. This creates a catch-22 / circular dependency on the reconciler and :send field within
@@ -141,7 +153,7 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [queue] :as app} initial-state parser {:keys [migrate] :or {migrate nil}}]
+  [{:keys [queue return-handler] :as app} initial-state parser {:keys [migrate] :or {migrate nil}}]
   (let [rec-atom (atom nil)
         state-migrate (or migrate plumbing/resolve-tempids)
         tempid-migrate (fn [pure _ tempids _]
@@ -158,7 +170,8 @@
                 :migrate    (or migrate tempid-migrate)
                 :normalize  true
                 :pathopt    true
-                :merge-tree sweep-merge
+                :merge-tree (fn [target source]
+                              (merge-handler (om/app-state @rec-atom) return-handler target source))
                 :parser     parser}
         rec (om/reconciler config)]
 
