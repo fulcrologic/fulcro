@@ -47,10 +47,12 @@
 ;; Component Constructor Functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn make-web-server []
+(defn make-web-server [handler]
   (component/using
-    (web-server/map->WebServer {})
-    [:handler :config]))
+    (component/using
+      (web-server/map->WebServer {})
+      [:config])
+    {:handler handler}))
 
 (defn raw-config
   "Creates a configuration component using the value passed in,

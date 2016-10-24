@@ -21,7 +21,7 @@
         (timbre/fatal "Failed to start web server " e)
         (throw e))))
   (stop [this]
-    (when server
-      (server)
-      (timbre/info "web server stopped.")
-      (assoc this :server nil))))
+    (if-not server this
+      (do (server)
+        (timbre/info "web server stopped.")
+        (assoc this :server nil)))))
