@@ -184,9 +184,9 @@
       (assertions
         "Returns the result of an actual sweep-merge"
         ;; Function under test:
-        (app/merge-handler state rh {} {'f {:x 1} 'g {:y 2}}) => :return-of-sweep
+        (app/merge-handler state rh {} {'f {:x 1 :tempids {1 2}} 'g {:y 2}}) => :return-of-sweep
 
-        "triggers return-handler on symbols, passing in :result of return"
+        "triggers return-handler on symbols, passing in :result of return (while eliding tempids)"
         (get @triggers 'f) => {:x 1}
         (get @triggers 'g) => {:y 2}))))
 

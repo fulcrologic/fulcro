@@ -138,9 +138,11 @@
             (return-handler {:state state-atom} trigger-symbol return-value))]
     (let [handled-source (reduce (fn [acc [k v]]
                                    (cond
-                                     (symbol? k) (do
+                                     (symbol? k) (let [v-without-tempids (if (map? v)
+                                                                           (dissoc v :tempids)
+                                                                           v)]
                                                    (when return-handler
-                                                     (doreturn k v))
+                                                     (doreturn k v-without-tempids))
                                                    (dissoc acc k))
                                      :else acc)) source source)]
       (sweep-merge target handled-source))))
