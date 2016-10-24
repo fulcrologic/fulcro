@@ -49,9 +49,10 @@
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state started-callback networking request-transform network-error-callback migrate]
+  [& {:keys [initial-state return-handler started-callback networking request-transform network-error-callback migrate]
       :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil}}]
   (map->Application {:initial-state      initial-state
+                     :return-handler return-handler
                      :started-callback   started-callback
                      :reconciler-options {:migrate migrate}
                      :networking         (or networking (net/make-untangled-network "/api"
@@ -153,7 +154,7 @@
         (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
-(defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
+(defrecord Application [initial-state return-handler started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 

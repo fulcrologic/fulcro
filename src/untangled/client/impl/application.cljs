@@ -140,7 +140,7 @@
                                    (cond
                                      (symbol? k) (do
                                                    (when return-handler
-                                                     (doreturn k v))
+                                                     (doreturn k (and (map? v) (:result v))))
                                                    (dissoc acc k))
                                      :else acc)) source source)]
       (sweep-merge target handled-source))))
@@ -153,7 +153,7 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [queue] :as app} initial-state parser {:keys [migrate return-handler] :or {migrate nil}}]
+  [{:keys [queue return-handler] :as app} initial-state parser {:keys [migrate] :or {migrate nil}}]
   (let [rec-atom (atom nil)
         state-migrate (or migrate plumbing/resolve-tempids)
         tempid-migrate (fn [pure _ tempids _]

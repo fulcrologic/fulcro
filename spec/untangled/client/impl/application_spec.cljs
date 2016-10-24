@@ -184,9 +184,9 @@
       (assertions
         "Returns the result of an actual sweep-merge"
         ;; Function under test:
-        (app/merge-handler state rh {} {'f :value 'g :other}) => :return-of-sweep
+        (app/merge-handler state rh {} {'f {:result :value} 'g {:result :other}}) => :return-of-sweep
 
-        "triggers return-handler on symbols"
+        "triggers return-handler on symbols, passing in :result of return"
         (get @triggers 'f) => :value
         (get @triggers 'g) => :other))))
 
