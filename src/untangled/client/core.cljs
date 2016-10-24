@@ -46,17 +46,21 @@
   algorithm against all data in the app-state, which is correct but possibly slow).  Note that tempids will have an Om tempid data type.
   See Om reconciler documentation for further information.
 
+  `:transit-handlers` (optional). A map with keys for `:read` and `:write`, which contain maps to be used for the read
+  and write side of transit to extend the supported data types. See `make-untangled-network` in network.cljs.
+
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state return-handler started-callback networking request-transform network-error-callback migrate]
+  [& {:keys [initial-state return-handler started-callback networking request-transform network-error-callback migrate transit-handlers]
       :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil}}]
   (map->Application {:initial-state      initial-state
-                     :return-handler return-handler
+                     :return-handler     return-handler
                      :started-callback   started-callback
                      :reconciler-options {:migrate migrate}
                      :networking         (or networking (net/make-untangled-network "/api"
                                                                                     :request-transform request-transform
+                                                                                    :transit-handlers transit-handlers
                                                                                     :global-error-callback network-error-callback))}))
 
 (defprotocol InitialAppState
