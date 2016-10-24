@@ -140,7 +140,7 @@
                                    (cond
                                      (symbol? k) (do
                                                    (when return-handler
-                                                     (doreturn k (and (map? v) (:result v))))
+                                                     (doreturn k v))
                                                    (dissoc acc k))
                                      :else acc)) source source)]
       (sweep-merge target handled-source))))
