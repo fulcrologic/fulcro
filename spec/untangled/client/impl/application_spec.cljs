@@ -165,3 +165,28 @@
                                                       }}
     "overwrites target (non-map) value if incoming value is a map"
     (app/sweep-merge {:a 1 :c 2} {:a 2 :c {:b 1}}) => {:a 2 :c {:b 1}}))
+
+(specification "Merge handler"
+  (let [triggers (atom {})
+        state (atom {:sa true})
+        rh (fn [env k v]
+             (assertions "return handler is passed state atom"
+               (-> env :state deref :sa) => true)
+             (swap! triggers assoc k v))]
+    (when-mocking
+      (app/sweep-merge t s) => (do
+                                 (assertions
+                                   "Passes source, cleaned of symbols, to sweep-merge"
+                                   s => {})
+                                 :return-of-sweep)
+
+
+      (assertions
+        "Returns the result of an actual sweep-merge"
+        ;; Function under test:
+        (app/merge-handler state rh {} {'f :value 'g :other}) => :return-of-sweep
+
+        "triggers return-handler on symbols"
+        (get @triggers 'f) => :value
+        (get @triggers 'g) => :other))))
+
