@@ -21,23 +21,6 @@
     "throws an exception if injections are not keywords"
     (core/make-untangled-server :parser #() :parser-injections [:a :x 'sym]) =throws=> (AssertionError #"")))
 
-(comment
-
-  (defrecord datomic-meta-store [auth-database]
-    Module
-    (components [this]
-      {:auth-database auth-database}))
-  (defn make-datomic-meta-store []
-    (component/using
-      (map->DatomicMetaStore {})
-      [:auth-database]))
-
-  (untangled-system
-    :modules [(image-library {:meta (make-datomic-meta-store)})]
-    :components {:config {:hello "world"}})
-
-  #_comment)
-
 (defrecord SimpleTestModule []
   core/Module
   (system-key [this] ::SimpleTestModule)
@@ -70,18 +53,16 @@
   (system-key [this] (or sys-key ::TestApiModule))
   (components [this] {})
   core/APIHandler
-  (api-read [this R]
+  (api-read [this]
     (if-not reads (constantly {:value :read/ok})
       (fn [env k ps]
-        (if-let [value (get reads k)]
-          {:value value}
-          (R env k ps)))))
-  (api-mutate [this M]
+        (when-let [value (get reads k)]
+          {:value value}))))
+  (api-mutate [this]
     (if-not mutates (constantly {:action (constantly :mutate/ok)})
       (fn [env k ps]
-        (if-let [value (get mutates k)]
-          {:action (constantly value)}
-          (M env k ps))))))
+        (when-let [value (get mutates k)]
+          {:action (constantly value)})))))
 (defn make-test-api-module [& [opts]]
   (map->TestApiModule
     (select-keys opts
@@ -166,7 +147,7 @@
               :headers {"Content-Type" "application/transit+json"}
               :body {'launch-rocket! :mutate/ok
                      :rocket-status :read/ok}}
-          "get executed in the order of :modules, but you must use the chain if you dont handle the dispatch-key for it to work right"
+          "get executed in the order of :modules, you should return nil if you do not handle the dispatch-key"
           (((get-in
               (test-untangled-system
                 {:modules [(make-test-api-module

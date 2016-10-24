@@ -3,6 +3,7 @@
     [com.stuartsierra.component :as component]
     [clojure.data.json :as json]
     [clojure.set :as set]
+    [clojure.spec :as s]
     [om.next.server :as om]
     [untangled.server.impl.components.web-server :as web-server]
     [untangled.server.impl.components.handler :as handler]
@@ -148,29 +149,35 @@
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
 
+;;==================== NEW UNTANGLED SERVER SYSTEM ====================
+
 (defprotocol Module
   (system-key [this])
   (components [this]))
 
 (defprotocol APIHandler
-  (api-read [this R] "(~fn~ [env k params] ...)")
-  (api-mutate [this M] "(~fn~ [env k params] ...)"))
+  (api-read [this] "(~fn~ [env k params] ...)")
+  (api-mutate [this] "(~fn~ [env k params] ...)"))
+
+(defn chain [F api-fn module]
+  (if-not (satisfies? APIHandler module) F
+    (let [parser-fn (api-fn module)]
+      (fn [env k p]
+        (or (parser-fn (merge module env) k p)
+            (F env k p))))))
 
 (defn comp-api-modules [{:as this :keys [modules]}]
   (reduce
     (fn [r+m module-key]
       (let [module (get this module-key)]
         (-> r+m
-          (update :read
-            #(if-not (satisfies? APIHandler module) %
-               (.api-read module %)))
-          (update :mutate
-            #(if-not (satisfies? APIHandler module) %
-               (.api-mutate module %))))))
+          (update :read chain api-read module)
+          (update :mutate chain api-mutate module))))
     {:read (constantly nil)
      :mutate (constantly nil)}
-    (reverse modules)))
-(defrecord ApiHandler [app-name transit-opts modules]
+    (rseq modules)))
+
+(defrecord ApiHandler [app-name modules]
   component/Lifecycle
   (start [this]
     (let [api-url (cond->> "/api" app-name (str "/" app-name))
@@ -192,13 +199,13 @@
                               {:request req} (:transit-params req)))]
               resp (h req)))))))
   (stop [this] (dissoc this :middleware)))
+
 (defn api-handler [opts]
-  (component/using
-    (map->ApiHandler
-      (update (select-keys opts
-        [:app-name :transit-opts :modules])
-        :modules #(mapv system-key %)))
-    (mapv system-key (:modules opts))))
+  (let [module-keys (mapv system-key (:modules opts))]
+    (component/using
+      (map->ApiHandler
+        (assoc opts :modules module-keys))
+      module-keys)))
 
 (defn untangled-system
   [{:keys [api-handler-key modules] :as opts}]
@@ -209,6 +216,4 @@
                (mapcat (juxt (juxt system-key identity) components))
                modules)
              {(or api-handler-key ::api-handler)
-              (api-handler
-                (select-keys opts
-                  [:modules :app-name :transit-opts]))}))))
+              (api-handler opts)}))))
