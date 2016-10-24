@@ -49,15 +49,18 @@
   `:transit-handlers` (optional). A map with keys for `:read` and `:write`, which contain maps to be used for the read
   and write side of transit to extend the supported data types. See `make-untangled-network` in network.cljs.
 
+  `:pathopt` (optional, defaults to true).  Turn on/off Om path optimization. This is here in case you're experiencing problems with rendering.
+  Path optimization is a rendering optimization that may still have bugs.
+
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state return-handler started-callback networking request-transform network-error-callback migrate transit-handlers]
+  [& {:keys [initial-state return-handler started-callback networking request-transform network-error-callback migrate pathopt transit-handlers]
       :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil}}]
   (map->Application {:initial-state      initial-state
                      :return-handler     return-handler
                      :started-callback   started-callback
-                     :reconciler-options {:migrate migrate}
+                     :reconciler-options {:migrate migrate :pathopt pathopt}
                      :networking         (or networking (net/make-untangled-network "/api"
                                                                                     :request-transform request-transform
                                                                                     :transit-handlers transit-handlers

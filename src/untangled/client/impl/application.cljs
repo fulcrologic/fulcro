@@ -155,7 +155,7 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [queue return-handler] :as app} initial-state parser {:keys [migrate] :or {migrate nil}}]
+  [{:keys [queue return-handler] :as app} initial-state parser {:keys [pathopt migrate] :or {pathopt true migrate nil}}]
   (let [rec-atom (atom nil)
         state-migrate (or migrate plumbing/resolve-tempids)
         tempid-migrate (fn [pure _ tempids _]
@@ -171,7 +171,7 @@
                               (server-send (assoc app :reconciler @rec-atom) tx cb))
                 :migrate    (or migrate tempid-migrate)
                 :normalize  true
-                :pathopt    true
+                :pathopt    pathopt
                 :merge-tree (fn [target source]
                               (merge-handler (om/app-state @rec-atom) return-handler target source))
                 :parser     parser}
