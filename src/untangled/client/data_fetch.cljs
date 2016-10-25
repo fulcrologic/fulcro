@@ -301,9 +301,9 @@
   (def ui-thing2 (om/factory Thing2))
   ```"
   [data-render props & {:keys [ready-render loading-render failed-render not-present-render]
-                        :or   {loading-render (fn [_] (dom/div #js {:className "lazy-loading-load"} "Loading..."))
-                               ready-render   (fn [_] (dom/div #js {:className "lazy-loading-ready"} "Queued"))
-                               failed-render  (fn [_] (dom/div #js {:className "lazy-loading-failed"} "Loading error!"))}}]
+                        :or   {loading-render (fn [_] (dom/div (js-obj :className "lazy-loading-load") "Loading..."))
+                               ready-render   (fn [_] (dom/div (js-obj :className "lazy-loading-ready") "Queued"))
+                               failed-render  (fn [_] (dom/div (js-obj :className "lazy-loading-failed") "Loading error!"))}}]
 
   (let [state (:ui/fetch-state props)]
     (cond
