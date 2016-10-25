@@ -75,7 +75,7 @@
 (defn build-access-token-handler [& [openid-config]]
   (component/using
     (access-token-handler/map->AccessTokenHandler {})
-    [(or openid-config :openid-config)]))
+    {:openid-config (or openid-config :openid-config)}))
 
 (defrecord VirtualOpenIdConfig [config]
   component/Lifecycle

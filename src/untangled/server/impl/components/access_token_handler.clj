@@ -136,5 +136,8 @@
   (start [this]
     (log/info "Starting Access Token Handler")
     (assoc this :middleware
-      (partial wrap-access-token (:value openid-config))))
+      (fn [h]
+        (->> h
+          (wrap-access-token (:value openid-config))
+          ((:middleware openid-config))))))
   (stop [this] this))

@@ -166,6 +166,4 @@
               :headers {"Content-Type" "application/transit+json"}
               :body {:rocket-status :working
                      :working :working/true
-                     :broken :broken/true}}))))
-  (behavior ":transit-opts - allows configuration of transit middleware for api-handler use"
-    #_TODO))
+                     :broken :broken/true}})))))
