@@ -89,26 +89,10 @@
   [options handler]
   (let [merged-options (merge default-options options)]
     (fn [{:as request :keys [uri]}]
-      (if (unsecured-route? request merged-options)
-        (do (log/trace "Unsecured route: " uri)
-            (handler request))
-        (let [_     (log/trace "Securing route: " uri)
-              token (get-token request)]
-          (if-not (valid-token? token merged-options)
-            (let [{:keys [invalid-token-handler]} merged-options]
-              ((or invalid-token-handler (constantly false)) request)
-              (handler request))
-            (handler (add-claims-to-request request token merged-options))))))))
-
-(defn validate-unsecured-route-handlers! [unsecured-routes]
-  (assert (map? unsecured-routes) (str "unsecured-routes was not a map: " unsecured-routes))
-  (walk/prewalk #(do (when (and (map-entry? %)
-                             (not (coll? (val %))))
-                       (assert (= :ok (val %))
-                         (str "unsecured-routes handler <" % "> was not :ok")))
-                     %)
-    unsecured-routes)
-  true)
+      (let [token (get-token request)]
+        (if-not (valid-token? token merged-options)
+          (handler request)
+          (handler (add-claims-to-request request token merged-options)))))))
 
 (defrecord OpenIdConfig [config]
   component/Lifecycle
@@ -116,7 +100,6 @@
     (log/info "Starting openid config download")
     (http/with-connection-pool {:timeout 5 :threads 2}
       (let [openid-config     (-> config :value :openid)
-            _                 (validate-unsecured-route-handlers! (:unsecured-routes openid-config))
             authority         (:authority openid-config)
             discovery-doc-url (str authority "/.well-known/openid-configuration")]
         (if-let [discovery-doc (-> discovery-doc-url http/get :body json/read-str)]

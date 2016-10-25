@@ -83,8 +83,7 @@
               :unsecured-routes     {"/unsafe"        :ok
                                      ["/unsafe/" :id] :ok
                                      "/js"            {true :ok}}
-              :grace-period-minutes 1
-              :invalid-token-handler (fn [req] (= "/maybe-ok" (:uri req)))})
+              :grace-period-minutes 1})
 
 (def handler (wrap-access-token options (fn [resp] resp)))
 
@@ -138,33 +137,6 @@
     "Sub can 'fallback' to client-id"
     (test-header-claim claim-missing-sub-with-client-id) =fn=> :user)
   (assertions
-    "does not add claims if its an :unsecured-routes"
-    (test-header-claim claim "/unsafe") =fn=> (comp not :user)
-    (test-header-claim claim "/unsafe/13") =fn=> (comp not :user)
-    (test-header-claim claim "/unsafe/or/not!") =fn=> :user
-    "we can unsecure a whole folder (eg: /js)"
-    (test-header-claim claim "/js/bar/baz") =fn=> (comp not :user)
-    "top level files are unsecured"
-    (test-header-claim claim "/some-file.fake") =fn=> (comp not :user)
-    "/ root path is also unsecured"
-    (test-header-claim claim "/") =fn=> (comp not :user)
-    "nested files are by default secured"
-    (test-header-claim claim "/foo/some-file.fake") =fn=> :user)
-  (behavior "calls :invalid-token-handler if the token is invalid"
-    (assertions
-      (test-header-claim claim-missing-sub "/maybe-ok")
-      =fn=> (comp empty? (partial set/difference #{:uri :headers}) set keys)))
-  (assertions
     "calls the passed in handler"
     (test-handler claim "/does/not/matter") => :ok))
 
-(specification "validate-unsecured-route-handlers!"
-  (assertions
-    (validate-unsecured-route-handlers!
-      {:foo :ok}) => true
-    (validate-unsecured-route-handlers!
-      {:foo :bar})
-    =throws=> (AssertionError #"handler.*was not :ok")
-    (validate-unsecured-route-handlers!
-      {:foo {:bar :baz}})
-    =throws=> (AssertionError #"handler.*was not :ok")))
