@@ -96,9 +96,8 @@
               token (get-token request)]
           (if-not (valid-token? token merged-options)
             (let [{:keys [invalid-token-handler]} merged-options]
-              (if-let [_ok-anyway? ((or invalid-token-handler (constantly false)) request)]
-                (handler request)
-                {:status 401}))
+              ((or invalid-token-handler (constantly false)) request)
+              (handler request))
             (handler (add-claims-to-request request token merged-options))))))))
 
 (defn validate-unsecured-route-handlers! [unsecured-routes]

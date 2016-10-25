@@ -116,7 +116,7 @@
       dummy-hander-test)))
 
 (defn unauthorized? [{:keys [user status]}]
-  (and (not user) (= status 401)))
+  (not user))
 
 (specification "wrap-access-token"
   (assertions
