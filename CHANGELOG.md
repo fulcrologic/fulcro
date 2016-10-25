@@ -13,6 +13,7 @@
 - Added support for handling return values from server mutations.
 - Added support for custom transit handlers on the client side. Server side is coming in a release soon.
 - Added support for turning on/off Om path optimization
+- Fix for latest cljs support (PR 47)
 
 0.5.7
 -----
