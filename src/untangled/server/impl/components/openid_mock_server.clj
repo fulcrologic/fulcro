@@ -6,7 +6,8 @@
     [clj-jwt.key :as jwtk]
     [clj-time.core :as time]
     [com.stuartsierra.component :as component]
-    [clojure.data.json :as json])
+    [clojure.data.json :as json]
+    [untangled.server.impl.jwt-validation :as jwtv])
   (:import (java.net URLEncoder URLDecoder)
            (org.apache.commons.codec.binary Base64)))
 
@@ -163,26 +164,23 @@
   [options handler]
   (let [merged-options (merge default-options options)]
     (fn [request]
-      (cond
-        (= (str (:path merged-options) "/connect/authorize") (:uri request)) (authorize request merged-options)
-        (= (str (:path merged-options) "/.well-known/jwks") (:uri request)) (jwks request merged-options)
-        (= (str (:path merged-options) "/.well-known/openid-configuration") (:uri request)) (discovery request merged-options)
-        (= (str (:path merged-options) "/connect/endsession") (:uri request)) (endsession request merged-options)
-        :otherwise (handler request)))))
+      (condp #(= (str (:path merged-options) %1) %2) (:uri request)
+        "/connect/authorize" (authorize request merged-options)
+        "/.well-known/jwks" (jwks request merged-options)
+        "/.well-known/openid-configuration" (discovery request merged-options)
+        "/connect/endsession" (endsession request merged-options)
+        (handler request)))))
 
-(defrecord MockOpenIdServer [handler]
-  component/Lifecycle
-  (start [this]
-    (let [mock-config (-> this :config :value :openid-mock)
-          fallback-hook (.get-fallback-hook handler)]
-      (.set-fallback-hook! handler (comp fallback-hook
-                                     (partial wrap-openid-mock mock-config)))
-      this))
-  (stop [this] this))
+(defn read-keys [config]
+  (assoc config :public-keys
+    (jwtv/public-keys-from-jwks
+      (get (json/read-str (:body (jwks {} config)))
+           "keys"))))
 
-(defrecord TestMockOpenIdServer [config]
+(defrecord MockOpenIdConfig [config]
   component/Lifecycle
   (start [this]
     (let [mock-config (-> config :value :openid-mock)]
-      (assoc this :openid-mock/claims (merge default-options mock-config))))
+      (assoc this :value (read-keys (merge default-options mock-config))
+        :middleware (partial wrap-openid-mock mock-config))))
   (stop [this] this))

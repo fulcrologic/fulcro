@@ -14,14 +14,14 @@
     (try
       (let [server-opts (select-keys (-> this :config :value) http-kit-opts)
             port (:port server-opts)
-            started-server (run-server (:all-routes handler) server-opts)]
+            started-server (run-server (:middleware handler) server-opts)]
         (timbre/info "Web server started successfully. With options:" server-opts)
         (assoc this :port port :server started-server))
       (catch Exception e
         (timbre/fatal "Failed to start web server " e)
         (throw e))))
   (stop [this]
-    (when server
-      (server)
-      (timbre/info "web server stopped.")
-      (assoc this :server nil))))
+    (if-not server this
+      (do (server)
+        (timbre/info "web server stopped.")
+        (assoc this :server nil)))))

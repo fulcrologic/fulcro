@@ -1,11 +1,15 @@
 (ns untangled.server.core
-  (:require [untangled.server.impl.components.web-server :as web-server]
-            [untangled.server.impl.components.handler :as handler]
-            [untangled.server.impl.components.config :as config]
-            [untangled.server.impl.components.access-token-handler :as access-token-handler]
-            [untangled.server.impl.components.openid-mock-server :as openid-mock-server]
-            [com.stuartsierra.component :as component]
-            [clojure.data.json :as json]))
+  (:require
+    [com.stuartsierra.component :as component]
+    [clojure.data.json :as json]
+    [clojure.set :as set]
+    [clojure.spec :as s]
+    [om.next.server :as om]
+    [untangled.server.impl.components.web-server :as web-server]
+    [untangled.server.impl.components.handler :as handler]
+    [untangled.server.impl.components.config :as config]
+    [untangled.server.impl.components.access-token-handler :as access-token-handler]
+    [untangled.server.impl.components.openid-mock-server :as openid-mock-server]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mutation Helpers
@@ -43,10 +47,12 @@
 ;; Component Constructor Functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn make-web-server []
+(defn make-web-server [& [handler]]
   (component/using
-    (web-server/map->WebServer {})
-    [:handler :config]))
+    (component/using
+      (web-server/map->WebServer {})
+      [:config])
+    {:handler (or handler :handler)}))
 
 (defn raw-config
   "Creates a configuration component using the value passed in,
@@ -66,20 +72,24 @@
   [config-path]
   (config/map->Config {:config-path config-path}))
 
-(defn build-access-token-handler [& {:keys [dependencies]}]
+(defn build-access-token-handler [& [openid-config]]
   (component/using
     (access-token-handler/map->AccessTokenHandler {})
-    (into [] (cond-> [:config :handler :server :openid-mock]
-               dependencies (concat dependencies)))))
+    {:openid-config (or openid-config :openid-config)}))
 
-(defn build-mock-openid-server []
-  (component/using
-    (openid-mock-server/map->MockOpenIdServer {})
-    [:config :handler]))
+(defrecord VirtualOpenIdConfig [config]
+  component/Lifecycle
+  (start [this]
+    (component/start
+      (if (-> config :value :openid-mock)
+        (openid-mock-server/map->MockOpenIdConfig this)
+        (access-token-handler/map->OpenIdConfig this))))
+  (stop [this]
+    (component/stop this)))
 
-(defn build-test-mock-openid-server []
+(defn build-openid-config []
   (component/using
-    (openid-mock-server/map->TestMockOpenIdServer {})
+    (map->VirtualOpenIdConfig {})
     [:config]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -111,14 +121,21 @@
 
   Returns a Sierra system component.
   "
-  [& {:keys [config-path components parser parser-injections extra-routes app-name]
-      :or {config-path "/usr/local/etc/untangled.edn"}}]
+  [& {:keys [app-name parser parser-injections config-path components extra-routes]
+      :or {config-path "/usr/local/etc/untangled.edn"}
+      :as params}]
   {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))
-         (or (nil? parser-injections) (every? keyword? parser-injections))]}
+         (or (nil? extra-routes)
+             (and (map? extra-routes)
+               (:routes extra-routes)
+               (map? (:handlers extra-routes))))
+         (or (nil? parser-injections)
+             (and (set? parser-injections)
+               (every? keyword? parser-injections)))]}
   (let [handler (handler/build-handler parser parser-injections
-                                       :extra-routes extra-routes
-                                       :app-name app-name)
+                  :extra-routes extra-routes
+                  :app-name app-name)
         built-in-components [:config (new-config config-path)
                              :handler handler
                              :server (make-web-server)]
@@ -133,3 +150,72 @@
                              :handler handler]
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
+
+;;==================== NEW UNTANGLED SERVER SYSTEM ====================
+
+(defprotocol Module
+  (system-key [this])
+  (components [this]))
+
+(defprotocol APIHandler
+  (api-read [this] "(~fn~ [env k params] ...)")
+  (api-mutate [this] "(~fn~ [env k params] ...)"))
+
+(defn chain [F api-fn module]
+  (if-not (satisfies? APIHandler module) F
+    (let [parser-fn (api-fn module)]
+      (fn [env k p]
+        (or (parser-fn (merge module env) k p)
+            (F env k p))))))
+
+(defn comp-api-modules [{:as this :keys [modules]}]
+  (reduce
+    (fn [r+m module-key]
+      (let [module (get this module-key)]
+        (-> r+m
+          (update :read chain api-read module)
+          (update :mutate chain api-mutate module))))
+    {:read (constantly nil)
+     :mutate (constantly nil)}
+    (rseq modules)))
+
+(defrecord ApiHandler [app-name modules]
+  component/Lifecycle
+  (start [this]
+    (let [api-url (cond->> "/api" app-name (str "/" app-name))
+          api-parser (om/parser (comp-api-modules this))
+          make-response
+          (fn [parser env query]
+            (handler/generate-response
+              (let [parse-result (try (handler/raise-response
+                                        (parser env query))
+                                   (catch Exception e e))]
+                (if (handler/valid-response? parse-result)
+                  {:status 200 :body parse-result}
+                  (handler/process-errors parse-result)))))]
+      (assoc this :middleware
+        (fn [h]
+          (fn [req]
+            (if-let [resp (and (= (:uri req) api-url)
+                            (make-response api-parser
+                              {:request req} (:transit-params req)))]
+              resp (h req)))))))
+  (stop [this] (dissoc this :middleware)))
+
+(defn api-handler [opts]
+  (let [module-keys (mapv system-key (:modules opts))]
+    (component/using
+      (map->ApiHandler
+        (assoc opts :modules module-keys))
+      module-keys)))
+
+(defn untangled-system
+  [{:keys [api-handler-key modules] :as opts}]
+  (apply component/system-map
+    (apply concat
+      (merge (:components opts)
+             (into {}
+               (mapcat (juxt (juxt system-key identity) components))
+               modules)
+             {(or api-handler-key ::api-handler)
+              (api-handler opts)}))))
