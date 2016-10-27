@@ -87,14 +87,14 @@
     (map->TestApiHandler {})
     deps))
 
-(def test-server
+(def test-system
   (core/untangled-system
     {:components {:db         (build-database :protocol-support)
                   :config     (core/new-config "test.edn")
                   ::ps/seeder (make-seeder (:seed-data protocol-support-data))}
      :modules [(api-handler [:db])]}))
 
-(def bad-test-server
+(def bad-test-system
   (core/untangled-system
     {:modules [(api-handler [:db :db2 :db3])]
      :components {:db         (build-database :protocol-support)
@@ -103,14 +103,57 @@
                   :config     (core/new-config "test.edn")
                   ::ps/seeder (make-seeder (:seed-data bad-protocol-support-data))}}))
 
-(def mutate-test-server
+(def mutate-test-system
   (core/untangled-system
     {:modules [(api-handler [:db])]
      :components {:db         (build-database :protocol-support)
                   :config     (core/new-config "test.edn")
                   ::ps/seeder (make-seeder (:seed-data mutate-protocol-support-data))}}))
 
-(specification "test server response"
+(specification "test server response (untangled-system)"
+  (behavior "test server response w/ protocol data"
+    (ps/check-response-to-client test-system protocol-support-data))
+  (behavior "test server response w/ bad protocol data"
+    (assertions
+      (ps/check-response-to-client bad-test-system bad-protocol-support-data)
+      =throws=> (AssertionError #"seed data tempids must have no overlap")))
+  (behavior "test server response w/ mutate protocol data"
+    (ps/check-response-to-client mutate-test-system mutate-protocol-support-data
+      :on-success (fn [system resp]
+                    (assertions
+                      (set (keys system)) => #{:config :db ::api-handler
+                                               ::core/api-handler :remap-fn
+                                               ::ps/seeder}
+                      "seed data is put inside each database"
+                      (keys (:seed-result (udb/get-info (:db system))))
+                      => [:datomic.id/cthulhu])))))
+
+;; ======= TESTING BACKWARDS COMPATABILITY (make-untangled-test-server) =======
+
+(def test-server
+  (core/make-untangled-test-server
+    :parser (om/parser {:read api-read})
+    :parser-injections #{:db}
+    :components {:db     (build-database :protocol-support)
+                 :seeder (make-seeder (:seed-data protocol-support-data))}))
+
+(def bad-test-server
+  (core/make-untangled-test-server
+    :parser (om/parser {:read api-read})
+    :parser-injections #{:db :db2 :db3}
+    :components {:db     (build-database :protocol-support)
+                 :db2    (build-database :protocol-support-2)
+                 :db3    (build-database :protocol-support-3)
+                 :seeder (make-seeder (:seed-data bad-protocol-support-data))}))
+
+(def mutate-test-server
+  (core/make-untangled-test-server
+    :parser (om/parser {:read api-read :mutate mutate})
+    :parser-injections #{:db}
+    :components {:db     (build-database :protocol-support)
+                 :seeder (make-seeder (:seed-data mutate-protocol-support-data))}))
+
+(specification "test server response (make-untangled-test-server)"
   (behavior "test server response w/ protocol data"
     (ps/check-response-to-client test-server protocol-support-data))
   (behavior "test server response w/ bad protocol data"
@@ -119,11 +162,9 @@
       =throws=> (AssertionError #"seed data tempids must have no overlap")))
   (behavior "test server response w/ mutate protocol data"
     (ps/check-response-to-client mutate-test-server mutate-protocol-support-data
-                                 :on-success (fn [env resp]
-                                               (assertions
-                                                 (set (keys env)) => #{:config :db ::api-handler
-                                                                       ::core/api-handler :remap-fn
-                                                                       ::ps/seeder}
-                                                 "seed data is put inside each database"
-                                                 (keys (:seed-result (udb/get-info (:db env))))
-                                                 => [:datomic.id/cthulhu])))))
+      :on-success (fn [system resp]
+                    (assertions
+                      (set (keys system)) => #{:config :db :handler :remap-fn :seeder}
+                      "seed data is put inside each database"
+                      (keys (:seed-result (udb/get-info (:db system))))
+                      => [:datomic.id/cthulhu])))))

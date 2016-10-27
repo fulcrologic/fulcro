@@ -9,6 +9,22 @@
     [untangled.server.impl.components.handler :as h]
     [untangled.server.impl.protocol-support :as impl]))
 
+(defn process-tx
+  "For backwards compatability between make-untangled-test-server & untangled-system"
+  [system tx]
+  (let [mock-user-claims (get-in system
+                                 (if (:openid-config system)
+                                   [:openid-config :value]
+                                   [:test-openid-mock :openid-mock/claims]))
+        api-handler-key (:untangled.server.core/api-handler-key (meta system))
+        {:keys [env handler]} (if api-handler-key
+                                {:env {} :handler (:handler (get system api-handler-key))}
+                                (let [{:keys [api-parser env]} (:handler system)]
+                                  {:env env :handler (fn [env tx]
+                                                       (h/api {:parser api-parser :env env :transit-params tx}))}))
+        env (cond-> env mock-user-claims (assoc-in [:request :user] mock-user-claims))]
+    (:body (handler env tx))))
+
 (defn check-response-to-client
   "Tests that the server responds to a client transaction as specificied by the passed-in protocol data.
   See Protocol Testing README.
@@ -23,7 +39,13 @@
   [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx which-db]}]
   (let [system (component/start app)]
     (try
-      (let [seeder-result (get-in system [::seeder :seed-result])
+      (let [;; for backwards compatability
+            seeder ((some-fn ::seeder :seeder) system)
+            _ (assert (or (not seeder)
+                          (contains? seeder :seed-result))
+                (str "Seeder component was not of expected type: <" seeder "> in system w/ keys: " (keys system)))
+
+            seeder-result (get seeder :seed-result)
             _ (timbre/debug :seeder-result seeder-result)
             _ (when (= :disjoint seeder-result)
                 (component/stop system)
@@ -44,11 +66,8 @@
                                                 (update 0 prepare-server-tx+))
             _ (timbre/debug :server-tx server-tx+)
 
-            mock-user-claims (-> system :openid-config :value)
-            env {:request {:user mock-user-claims}}
-
-            {:keys [handler]} ((:untangled.server.core/api-handler-key (meta system)) system)
-            server-response (:body (handler env server-tx+))
+            ;; for backwards compatability
+            server-response (process-tx system server-tx+)
 
             _ (timbre/debug :server-response server-response)
             [response-without-tempid-remaps om-tempid->datomic-id] (impl/extract-tempids server-response)
