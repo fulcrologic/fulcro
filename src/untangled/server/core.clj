@@ -199,7 +199,9 @@
             (if-let [resp (and (= (:uri req) api-url)
                             (make-response api-parser
                               {:request req} (:transit-params req)))]
-              resp (h req)))))))
+              resp (h req))))
+        :handler (fn [env query]
+                   (make-response api-parser env query)))))
   (stop [this] (dissoc this :middleware)))
 
 (defn api-handler [opts]
@@ -211,11 +213,13 @@
 
 (defn untangled-system
   [{:keys [api-handler-key modules] :as opts}]
-  (apply component/system-map
-    (apply concat
-      (merge (:components opts)
-             (into {}
-               (mapcat (juxt (juxt system-key identity) components))
-               modules)
-             {(or api-handler-key ::api-handler)
-              (api-handler opts)}))))
+  (vary-meta
+    (apply component/system-map
+      (apply concat
+        (merge (:components opts)
+               (into {}
+                 (mapcat (juxt (juxt system-key identity) components))
+                 modules)
+               {(or api-handler-key ::api-handler)
+                (api-handler opts)})))
+    assoc ::api-handler-key (or api-handler-key ::api-handler)))

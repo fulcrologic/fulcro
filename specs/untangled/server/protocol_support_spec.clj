@@ -1,15 +1,16 @@
 (ns untangled.server.protocol-support-spec
   (:require
-    [taoensso.timbre :as timbre]
-    [datomic.api :as d]
-    [untangled.server.protocol-support :as ps]
-    [untangled.server.core :as core]
-    [om.next.server :as om]
-    [untangled.datomic.core :refer [resolve-ids build-database]]
-    [untangled.datomic.test-helpers :refer [make-seeder]]
-    [untangled.datomic.protocols :as udb]
     [clojure.test :as t]
-    [untangled-spec.core :refer [specification behavior provided component assertions]]))
+    [com.stuartsierra.component :as component]
+    [datomic.api :as d]
+    [om.next.server :as om]
+    [taoensso.timbre :as timbre]
+    [untangled-spec.core :refer [specification behavior provided component assertions]]
+    [untangled.datomic.core :refer [resolve-ids build-database]]
+    [untangled.datomic.protocols :as udb]
+    [untangled.datomic.test-helpers :refer [make-seeder]]
+    [untangled.server.core :as core]
+    [untangled.server.protocol-support :as ps]))
 
 (t/use-fixtures
   :once #(timbre/with-merged-config
@@ -52,7 +53,8 @@
   ;(throw (ex-info "" {:db db}))
   (let [conn (:connection db)]
     (case k
-      :old-one {:value (vec (flatten (d/q `[:find (~'pull ?e ~query) :where [?e :old-one/madness]] (d/db conn))))})))
+      :old-one {:value (vec (flatten (d/q `[:find (~'pull ?e ~query) :where [?e :old-one/madness]] (d/db conn))))}
+      nil)))
 
 (defn mutate [env k {:keys [old-one-id follower-id follower-name follower-devotion]}]
   (case k
@@ -71,31 +73,42 @@
                      {:tempids omids->realids})
                    (catch Throwable e
                      (throw e)))))}
-    :else
-    (throw (ex-info "Bad you!" {}))))
+    nil))
+
+(defrecord TestApiHandler []
+    core/Module
+    (system-key [_] ::api-handler)
+    (components [_] {})
+    core/APIHandler
+    (api-read [_] api-read)
+    (api-mutate [_] mutate))
+(defn api-handler [deps]
+  (component/using
+    (map->TestApiHandler {})
+    deps))
 
 (def test-server
-  (core/make-untangled-test-server
-    :parser (om/parser {:read api-read})
-    :parser-injections #{:db}
-    :components {:db     (build-database :protocol-support)
-                 :seeder (make-seeder (:seed-data protocol-support-data))}))
+  (core/untangled-system
+    {:components {:db         (build-database :protocol-support)
+                  :config     (core/new-config "test.edn")
+                  ::ps/seeder (make-seeder (:seed-data protocol-support-data))}
+     :modules [(api-handler [:db])]}))
 
 (def bad-test-server
-  (core/make-untangled-test-server
-    :parser (om/parser {:read api-read})
-    :parser-injections #{:db :db2 :db3}
-    :components {:db     (build-database :protocol-support)
-                 :db2    (build-database :protocol-support-2)
-                 :db3    (build-database :protocol-support-3)
-                 :seeder (make-seeder (:seed-data bad-protocol-support-data))}))
+  (core/untangled-system
+    {:modules [(api-handler [:db :db2 :db3])]
+     :components {:db         (build-database :protocol-support)
+                  :db2        (build-database :protocol-support-2)
+                  :db3        (build-database :protocol-support-3)
+                  :config     (core/new-config "test.edn")
+                  ::ps/seeder (make-seeder (:seed-data bad-protocol-support-data))}}))
 
 (def mutate-test-server
-  (core/make-untangled-test-server
-    :parser (om/parser {:read api-read :mutate mutate})
-    :parser-injections #{:db}
-    :components {:db     (build-database :protocol-support)
-                 :seeder (make-seeder (:seed-data mutate-protocol-support-data))}))
+  (core/untangled-system
+    {:modules [(api-handler [:db])]
+     :components {:db         (build-database :protocol-support)
+                  :config     (core/new-config "test.edn")
+                  ::ps/seeder (make-seeder (:seed-data mutate-protocol-support-data))}}))
 
 (specification "test server response"
   (behavior "test server response w/ protocol data"
@@ -108,7 +121,9 @@
     (ps/check-response-to-client mutate-test-server mutate-protocol-support-data
                                  :on-success (fn [env resp]
                                                (assertions
-                                                 (keys env) => [:db :remap-fn]
+                                                 (set (keys env)) => #{:config :db ::api-handler
+                                                                       ::core/api-handler :remap-fn
+                                                                       ::ps/seeder}
                                                  "seed data is put inside each database"
                                                  (keys (:seed-result (udb/get-info (:db env))))
                                                  => [:datomic.id/cthulhu])))))
