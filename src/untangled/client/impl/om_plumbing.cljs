@@ -219,7 +219,7 @@
                                                          (union->query (get q query-key))))
 
                 ;; list union result
-                (union? ?sub-query)
+                (and (union? ?sub-query) (coll? sub-result))
                 (as-> sub-result <>
                       (mapv #(mark-missing % (union->query (get q query-key))) <>)
                       (assoc result-or-not-found query-key <>))
