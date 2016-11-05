@@ -29,8 +29,8 @@
                      (get-in request [:params "openid/access-token"])
                      (get-in request [:form-params "access_token"])
                      (get-in request [:session :access-token])
-                     (get-in request [:cookies "access_token" :value]) ;; Run cookie last in case token is new.
-                     )]
+                     ;; Run cookie last in case token is new.
+                     (get-in request [:cookies "access_token" :value]))]
     (read-token token)))
 
 (defn- missing-token? [token]
@@ -43,12 +43,12 @@
   (nil? (:client_id (:claims token))))
 
 (defn- fail-with [token message]
-  (log/debug "Token: " (:claims token) " Failed because: " message)
+  (log/trace "Token: " (:claims token) " Failed because: " message)
   false)
 
 (defn- valid-token? [token {:keys [public-keys issuer audience grace-period-minutes]}]
   (cond
-    (missing-token? token) (fail-with token "Token is missing.")
+    (missing-token? token) false
     (not (valid-signature? token public-keys)) (fail-with token "Invalid signature.")
     (not (valid-issuer? token issuer)) (fail-with token "Invalid issuer.")
     (not (valid-expire? token grace-period-minutes)) (fail-with token "Expired token.")
@@ -64,12 +64,6 @@
    :audience             "api"
    :grace-period-minutes 1
    :claims-transform     default-claims-transform})
-
-(defn unsecured-route? [{:keys [uri request-method] :as request} {:keys [unsecured-routes]}]
-  (bidi/match-route
-    ["" (merge {#"/[^/]*\.[^/]*" :ok "/" :ok}
-          unsecured-routes)]
-    uri :request-method request-method))
 
 (defn wrap-access-token
   "Middleware that validates the request for a JWT access-token that are issued by
@@ -90,9 +84,9 @@
   (let [merged-options (merge default-options options)]
     (fn [{:as request :keys [uri]}]
       (let [token (get-token request)]
-        (if-not (valid-token? token merged-options)
-          (handler request)
-          (handler (add-claims-to-request request token merged-options)))))))
+        (handler
+          (cond-> request (valid-token? token merged-options)
+            (add-claims-to-request token merged-options)))))))
 
 (defrecord OpenIdConfig [config]
   component/Lifecycle

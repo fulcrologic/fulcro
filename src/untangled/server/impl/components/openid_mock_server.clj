@@ -48,6 +48,7 @@
         claims            {:iss   (:issuer options)
                            :exp   (time/plus (time/now) (time/hours (:exp-in-hours options)))
                            :iat   (time/now)
+                           :aud   (:aud options)
                            :name  (:name user)
                            :role  (:role user)
                            :sub   (:sub user)

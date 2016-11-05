@@ -114,8 +114,7 @@
       (assoc :headers headers)
       dummy-hander-test)))
 
-(defn unauthorized? [{:keys [user status]}]
-  (not user))
+(defn unauthorized? [req] (not (:user req)))
 
 (specification "wrap-access-token"
   (assertions
@@ -139,4 +138,3 @@
   (assertions
     "calls the passed in handler"
     (test-handler claim "/does/not/matter") => :ok))
-
