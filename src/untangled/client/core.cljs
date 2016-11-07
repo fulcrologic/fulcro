@@ -52,15 +52,17 @@
   `:pathopt` (optional, defaults to true).  Turn on/off Om path optimization. This is here in case you're experiencing problems with rendering.
   Path optimization is a rendering optimization that may still have bugs.
 
+  `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (om/shared this)
+
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state return-handler started-callback networking request-transform network-error-callback migrate pathopt transit-handlers]
-      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil}}]
+  [& {:keys [initial-state return-handler started-callback networking request-transform network-error-callback migrate pathopt transit-handlers shared]
+      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil shared nil}}]
   (map->Application {:initial-state      initial-state
                      :return-handler     return-handler
                      :started-callback   started-callback
-                     :reconciler-options {:migrate migrate :pathopt pathopt}
+                     :reconciler-options {:migrate migrate :pathopt pathopt :shared shared}
                      :networking         (or networking (net/make-untangled-network "/api"
                                                                                     :request-transform request-transform
                                                                                     :transit-handlers transit-handlers
