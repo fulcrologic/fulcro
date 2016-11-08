@@ -42,6 +42,9 @@
 
         my-mutate (fn [_ key _] {:action (condp = key
                                            'foo (fn [] "success")
+                                           'overrides (fn [] (with-response {} #(assoc % :body "override"
+                                                                                         :status 201
+                                                                                         :cookies {:foo "bar"})))
                                            'bar (fn [] (throw (ex-info "Oops" {:my :bad})))
                                            'bar' (fn [] (throw (ex-info "Oops'" {:status 402 :body "quite an error"})))
                                            'baz (fn [] (throw (IllegalArgumentException.))))})
@@ -119,7 +122,11 @@
       (behavior "adds the response keys to the ring response"
         (let [result (parse-result [:foo-session])]
           (assertions
-            (:session result) => {:foo "bar"}))))))
+            (:session result) => {:foo "bar"})))
+      (behavior "user can override response status and body"
+        (assertions
+          (parse-result ['(overrides)])
+          => {:status 201, :body "override", :cookies {:foo "bar"}})))))
 
 (def run #(%1 %2))
 (specification "the handler"
