@@ -1,6 +1,7 @@
 (ns untangled.server.impl.components.handler-spec
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
             [clojure.test :as t]
+            [untangled.server.core :refer [with-response]]
             [untangled.server.impl.components.handler :as h]
             [com.stuartsierra.component :as component]
             [om.next.server :as om]
@@ -34,6 +35,8 @@
 (specification "An API Response"
   (let [my-read (fn [_ key _] {:value (case key
                                         :foo "success"
+                                        :foo-session (with-response {:some "data"} {:session {:foo "bar"}})
+                                        :foo-cookie (with-response {:some "data"} {:cookie {:foo "cookie"}})
                                         :bar (throw (ex-info "Oops" {:my :bad}))
                                         :bar' (throw (ex-info "Oops'" {:status 402 :body "quite an error"}))
                                         :baz (throw (IllegalArgumentException.)))})
@@ -111,7 +114,18 @@
                                             :data    {:my :bad}}
 
                 (get-error baz-result) => {:type    "class java.lang.IllegalArgumentException",
-                                           :message nil}))))))))
+                                           :message nil}))))))
+
+    (behavior "for updating the response"
+      (behavior "adds the response keys to the ring response"
+        (let [result (parse-result [:foo-session])]
+          (assertions
+            (:session result) => {:foo "bar"})))
+      (behavior "merges multiple results into a single response map"
+        (let [result (parse-result [:foo-session :foo-cookie])]
+          (assertions
+            (:cookie result) => {:foo "cookie"}
+            (:session result) => {:foo "bar"}))))))
 
 (def run #(%1 %2))
 (specification "the handler"

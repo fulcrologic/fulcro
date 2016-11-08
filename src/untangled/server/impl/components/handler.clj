@@ -82,6 +82,15 @@
               (assoc acc k v)))
     {} resp))
 
+(defn collect-responses [data]
+  (let [maps (atom [])]
+    (clojure.walk/prewalk
+      (fn [x]
+        (if-let [res (some-> x meta :untangled.server.core/with-response)]
+          (swap! maps conj res))
+        x) data)
+    (apply merge @maps)))
+
 (defn api
   "The /api Request handler. The incoming request will have a database connection, parser, and error handler
   already injected. This function should be fairly static, in that it calls the parser, and if the parser
@@ -91,7 +100,7 @@
   [{:keys [transit-params parser env] :as req}]
   (let [parse-result (try (raise-response (parser env transit-params)) (catch Exception e e))]
     (if (valid-response? parse-result)
-      {:status 200 :body parse-result}
+      (merge {:status 200 :body parse-result} (collect-responses parse-result))
       (process-errors parse-result))))
 
 (defn generate-response
