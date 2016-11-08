@@ -83,13 +83,8 @@
     {} resp))
 
 (defn collect-response [data]
-  (let [response (atom {})]
-    (clojure.walk/prewalk
-      (fn [x]
-        (if-let [res (some-> x meta :untangled.server.core/with-response)]
-          (swap! response res))
-        x) data)
-    @response))
+  (->> (keep #(some-> (second %) meta :untangled.server.core/with-response) data)
+       (reduce (fn [response f] (f response)) {})))
 
 (defn api
   "The /api Request handler. The incoming request will have a database connection, parser, and error handler
