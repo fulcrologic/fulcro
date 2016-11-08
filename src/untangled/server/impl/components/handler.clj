@@ -83,7 +83,7 @@
     {} resp))
 
 (defn collect-response [data]
-  (->> (keep #(some-> (second %) meta :untangled.server.core/with-response) data)
+  (->> (keep #(some-> (second %) meta :untangled.server.core/augment-response) data)
        (reduce (fn [response f] (f response)) {})))
 
 (defn api

@@ -1,7 +1,7 @@
 (ns untangled.server.impl.components.handler-spec
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
             [clojure.test :as t]
-            [untangled.server.core :refer [with-response]]
+            [untangled.server.core :refer [augment-response]]
             [untangled.server.impl.components.handler :as h]
             [com.stuartsierra.component :as component]
             [om.next.server :as om]
@@ -35,16 +35,16 @@
 (specification "An API Response"
   (let [my-read (fn [_ key _] {:value (case key
                                         :foo "success"
-                                        :foo-session (with-response {:some "data"} #(assoc-in % [:session :foo] "bar"))
+                                        :foo-session (augment-response {:some "data"} #(assoc-in % [:session :foo] "bar"))
                                         :bar (throw (ex-info "Oops" {:my :bad}))
                                         :bar' (throw (ex-info "Oops'" {:status 402 :body "quite an error"}))
                                         :baz (throw (IllegalArgumentException.)))})
 
         my-mutate (fn [_ key _] {:action (condp = key
                                            'foo (fn [] "success")
-                                           'overrides (fn [] (with-response {} #(assoc % :body "override"
-                                                                                         :status 201
-                                                                                         :cookies {:foo "bar"})))
+                                           'overrides (fn [] (augment-response {} #(assoc % :body "override"
+                                                                                            :status 201
+                                                                                            :cookies {:foo "bar"})))
                                            'bar (fn [] (throw (ex-info "Oops" {:my :bad})))
                                            'bar' (fn [] (throw (ex-info "Oops'" {:status 402 :body "quite an error"})))
                                            'baz (fn [] (throw (IllegalArgumentException.))))})
