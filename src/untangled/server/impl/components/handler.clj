@@ -82,14 +82,14 @@
               (assoc acc k v)))
     {} resp))
 
-(defn collect-responses [data]
-  (let [maps (atom [])]
+(defn collect-response [data]
+  (let [response (atom {})]
     (clojure.walk/prewalk
       (fn [x]
         (if-let [res (some-> x meta :untangled.server.core/with-response)]
-          (swap! maps conj res))
+          (swap! response res))
         x) data)
-    (apply merge @maps)))
+    @response))
 
 (defn api
   "The /api Request handler. The incoming request will have a database connection, parser, and error handler
@@ -100,7 +100,7 @@
   [{:keys [transit-params parser env] :as req}]
   (let [parse-result (try (raise-response (parser env transit-params)) (catch Exception e e))]
     (if (valid-response? parse-result)
-      (merge {:status 200 :body parse-result} (collect-responses parse-result))
+      (merge {:status 200 :body parse-result} (collect-response parse-result))
       (process-errors parse-result))))
 
 (defn generate-response

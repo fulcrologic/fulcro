@@ -35,8 +35,7 @@
 (specification "An API Response"
   (let [my-read (fn [_ key _] {:value (case key
                                         :foo "success"
-                                        :foo-session (with-response {:some "data"} {:session {:foo "bar"}})
-                                        :foo-cookie (with-response {:some "data"} {:cookie {:foo "cookie"}})
+                                        :foo-session (with-response {:some "data"} #(assoc-in % [:session :foo] "bar"))
                                         :bar (throw (ex-info "Oops" {:my :bad}))
                                         :bar' (throw (ex-info "Oops'" {:status 402 :body "quite an error"}))
                                         :baz (throw (IllegalArgumentException.)))})
@@ -120,11 +119,6 @@
       (behavior "adds the response keys to the ring response"
         (let [result (parse-result [:foo-session])]
           (assertions
-            (:session result) => {:foo "bar"})))
-      (behavior "merges multiple results into a single response map"
-        (let [result (parse-result [:foo-session :foo-cookie])]
-          (assertions
-            (:cookie result) => {:foo "cookie"}
             (:session result) => {:foo "bar"}))))))
 
 (def run #(%1 %2))
