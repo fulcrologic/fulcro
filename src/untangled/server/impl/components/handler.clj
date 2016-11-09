@@ -82,6 +82,10 @@
               (assoc acc k v)))
     {} resp))
 
+(defn collect-response [data]
+  (->> (keep #(some-> (second %) meta :untangled.server.core/augment-response) data)
+       (reduce (fn [response f] (f response)) {})))
+
 (defn api
   "The /api Request handler. The incoming request will have a database connection, parser, and error handler
   already injected. This function should be fairly static, in that it calls the parser, and if the parser
@@ -91,7 +95,7 @@
   [{:keys [transit-params parser env] :as req}]
   (let [parse-result (try (raise-response (parser env transit-params)) (catch Exception e e))]
     (if (valid-response? parse-result)
-      {:status 200 :body parse-result}
+      (merge {:status 200 :body parse-result} (collect-response parse-result))
       (process-errors parse-result))))
 
 (defn generate-response

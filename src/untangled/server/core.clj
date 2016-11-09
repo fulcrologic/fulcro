@@ -28,6 +28,26 @@
   [a->b b->c]
   (reduce (fn [result k] (assoc result k (->> k (get a->b) (get b->c)))) {} (keys a->b)))
 
+(defn augment-response [core-response ring-response-fn]
+  "Augments the Ring response that's returned from the handler.
+
+  Use this function when you need to add information into the handler response, for
+  example when you need to add cookies or session data. Example:
+
+      (defmethod my-mutate 'user/sign-in [_ _ _]
+        {:action
+         (fn []
+           (augment-response
+             {:uid 42} ; your regular response
+             #(assoc-in % [:session :user-id] 42) ; a function resp -> resp
+             ))})
+
+  If your parser has multiple responses with `augment-response`, they will be applied
+  in order, the first one will receive an empty map as input. Only root keys of your
+  response will be checked for augmented response.
+  "
+  (with-meta core-response {::augment-response ring-response-fn}))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; OpenID helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

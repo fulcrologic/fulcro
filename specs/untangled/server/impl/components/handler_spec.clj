@@ -1,6 +1,7 @@
 (ns untangled.server.impl.components.handler-spec
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
             [clojure.test :as t]
+            [untangled.server.core :refer [augment-response]]
             [untangled.server.impl.components.handler :as h]
             [com.stuartsierra.component :as component]
             [om.next.server :as om]
@@ -34,12 +35,16 @@
 (specification "An API Response"
   (let [my-read (fn [_ key _] {:value (case key
                                         :foo "success"
+                                        :foo-session (augment-response {:some "data"} #(assoc-in % [:session :foo] "bar"))
                                         :bar (throw (ex-info "Oops" {:my :bad}))
                                         :bar' (throw (ex-info "Oops'" {:status 402 :body "quite an error"}))
                                         :baz (throw (IllegalArgumentException.)))})
 
         my-mutate (fn [_ key _] {:action (condp = key
                                            'foo (fn [] "success")
+                                           'overrides (fn [] (augment-response {} #(assoc % :body "override"
+                                                                                            :status 201
+                                                                                            :cookies {:foo "bar"})))
                                            'bar (fn [] (throw (ex-info "Oops" {:my :bad})))
                                            'bar' (fn [] (throw (ex-info "Oops'" {:status 402 :body "quite an error"})))
                                            'baz (fn [] (throw (IllegalArgumentException.))))})
@@ -111,7 +116,17 @@
                                             :data    {:my :bad}}
 
                 (get-error baz-result) => {:type    "class java.lang.IllegalArgumentException",
-                                           :message nil}))))))))
+                                           :message nil}))))))
+
+    (behavior "for updating the response"
+      (behavior "adds the response keys to the ring response"
+        (let [result (parse-result [:foo-session])]
+          (assertions
+            (:session result) => {:foo "bar"})))
+      (behavior "user can override response status and body"
+        (assertions
+          (parse-result ['(overrides)])
+          => {:status 201, :body "override", :cookies {:foo "bar"}})))))
 
 (defn run [handler req]
   ((:middleware (component/start handler)) req))
