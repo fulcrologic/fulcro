@@ -26,7 +26,7 @@
                 `[({~server-property-or-ident ~(om/get-query SubqueryClass)} ~params)]
                 [{server-property-or-ident (om/get-query SubqueryClass)}])]
     {:query                query
-     :target               (if (util/ident? server-property-or-ident) server-property-or-ident target)
+     :target               target
      :without              without
      :post-mutation        post-mutation
      :post-mutation-params post-mutation-params
@@ -83,9 +83,9 @@
   ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
    {:pre [(or (om/component? app-or-comp-or-reconciler)
               (om/reconciler? app-or-comp-or-reconciler)
-              (instance? uc/UntangledApplication app-or-comp-or-reconciler))]}
+              (implements? uc/UntangledApplication app-or-comp-or-reconciler))]}
    (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)
-         reconciler (if (instance? uc/UntangledApplication app-or-comp-or-reconciler)
+         reconciler (if (implements? uc/UntangledApplication app-or-comp-or-reconciler)
                       (get app-or-comp-or-reconciler :reconciler)
                       app-or-comp-or-reconciler)
          mutation-args (load-params* server-property-or-ident SubqueryClass config)]

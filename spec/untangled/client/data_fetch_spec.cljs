@@ -108,8 +108,6 @@
       (:query (df/load-params* [:person/by-id 1] Person {})) => [{[:person/by-id 1] (om/get-query Person)}]
       "Honors target for property-based join"
       (:target (df/load-params* :prop Person {:target [:a :b]})) => [:a :b]
-      "Ident joins force the target to the ident"
-      (:target (df/load-params* [:person/by-id 1] Person {:target [:a :b]})) => [:person/by-id 1]
       "Constructs a JOIN query (with params)"
       query-with-params =fn=> (fn [q] (= q `[({:prop ~(om/get-query Person)} {:n 1})]))
       ident-query-with-params =fn=> (fn [q] (= q `[({[:person/by-id 1] ~(om/get-query Person)} {:n 1})])))))
