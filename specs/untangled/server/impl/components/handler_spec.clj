@@ -16,11 +16,19 @@
 (specification "generate-response"
   (assertions
     "returns a map with status, header, and body."
-    (keys (h/generate-response {})) => [:status :headers :body]
+    (keys (h/generate-response {})) => [:status :body :headers]
 
     "merges Content-Type of transit json to the passed-in headers."
     (:headers (h/generate-response {:headers {:my :header}})) => {:my            :header
-                                                                  "Content-Type" "application/transit+json"})
+                                                                  "Content-Type" "application/transit+json"}
+
+    "preserves extra response keys from input"
+    (h/generate-response {:status 200 :body {} :session {:user-id 123}})
+    => {:status  200
+        :headers {"Content-Type" "application/transit+json"}
+        :body    {}
+        :session {:user-id 123}})
+
   (behavior "does not permit"
     (assertions
       "a \"Content-Type\" key in the header."
