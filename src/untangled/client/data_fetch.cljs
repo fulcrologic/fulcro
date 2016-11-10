@@ -150,8 +150,6 @@
 
 (defn load-data
   "
-  DEPRECATED: use `load` and `load-field` instead.
-
   Load data from the remote. Runs `om/transact!`. See also `load-field`.
 
   Parameters
@@ -159,7 +157,6 @@
   - `query`: The query for the element(s) attributes. Use defui to generate arbitrary queries so normalization will work.
 
   Optional Named parameters
-  - `ident`: An ident, used if loading a singleton and you wish to specify 'which one'.
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
   - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error is in the params under :error.
   - `parallel`: Boolean to indicate that this load should happen in the parallel on the server (non-blocking load). Any loads marked this way will happen in parallel.
@@ -212,8 +209,6 @@
 
 (defn load-data-action
   "
-  DEPRECATED: Use `load-action` instead.
-
   Queue up a remote load from within an already-running mutation. Similar to `load-data`, but usable from
   within a mutation.
 
