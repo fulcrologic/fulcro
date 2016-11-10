@@ -108,9 +108,8 @@
   [{:keys [status body headers] :or {status 200} :as input}]
   {:pre [(not (contains? headers "Content-Type"))
          (and (>= status 100) (< status 600))]}
-  {:status  status
-   :headers (merge headers {"Content-Type" "application/transit+json"})
-   :body    body})
+  (-> (assoc input :status status :body body)
+      (update :headers assoc "Content-Type" "application/transit+json")))
 
 (def default-api-key "/api")
 
