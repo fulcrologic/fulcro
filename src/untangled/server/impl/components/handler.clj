@@ -82,8 +82,11 @@
               (assoc acc k v)))
     {} resp))
 
-(defn collect-response [data]
-  (->> (keep #(some-> (second %) meta :untangled.server.core/augment-response) data)
+(defn augment-map
+  "Parses response the top level values processing the augmented response. This function
+  expects the parser mutation results to be raised (use the raise-response function)."
+  [response]
+  (->> (keep #(some-> (second %) meta :untangled.server.core/augment-response) response)
        (reduce (fn [response f] (f response)) {})))
 
 (defn api
@@ -95,7 +98,7 @@
   [{:keys [transit-params parser env] :as req}]
   (let [parse-result (try (raise-response (parser env transit-params)) (catch Exception e e))]
     (if (valid-response? parse-result)
-      (merge {:status 200 :body parse-result} (collect-response parse-result))
+      (merge {:status 200 :body parse-result} (augment-map parse-result))
       (process-errors parse-result))))
 
 (defn generate-response
