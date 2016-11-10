@@ -28,7 +28,7 @@
   [a->b b->c]
   (reduce (fn [result k] (assoc result k (->> k (get a->b) (get b->c)))) {} (keys a->b)))
 
-(defn augment-response [core-response ring-response-fn]
+(defn augment-response
   "Augments the Ring response that's returned from the handler.
 
   Use this function when you need to add information into the handler response, for
@@ -43,9 +43,10 @@
              ))})
 
   If your parser has multiple responses with `augment-response`, they will be applied
-  in order, the first one will receive an empty map as input. Only root keys of your
-  response will be checked for augmented response.
-  "
+  in order, the first one will receive an empty map as input. Only top level values
+  of your response will be checked for augmented response."
+  [core-response ring-response-fn]
+  (assert (instance? clojure.lang.IObj core-response) "Scalar values can't be augmented.")
   (with-meta core-response {::augment-response ring-response-fn}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
