@@ -1,15 +1,12 @@
 (ns untangled.server.core
   (:require
     [com.stuartsierra.component :as component]
-    [clojure.data.json :as json]
     [clojure.set :as set]
     [clojure.spec :as s]
     [om.next.server :as om]
     [untangled.server.impl.components.web-server :as web-server]
     [untangled.server.impl.components.handler :as handler]
-    [untangled.server.impl.components.config :as config]
-    [untangled.server.impl.components.access-token-handler :as access-token-handler]
-    [untangled.server.impl.components.openid-mock-server :as openid-mock-server]))
+    [untangled.server.impl.components.config :as config]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mutation Helpers
@@ -50,21 +47,6 @@
   (with-meta core-response {::augment-response ring-response-fn}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; OpenID helpers
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn openid-location [{:keys [config] :as env} match]
-  "A helper endpoint that can be injected via untangled server's :extra-routes.
-  This allows untangled clients to access the configuration they require to begin the OpenID auth process."
-  (let [openid-config (-> config :value :openid)
-        url (str (:authority openid-config) "/connect/authorize")]
-    {:status  200
-     :headers {"Content-Type" "application/json"}
-     :body    (json/write-str {:authUrl  url
-                               :scope    (:scope openid-config)
-                               :clientId (:client-id openid-config)})}))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Component Constructor Functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -92,26 +74,6 @@
    "
   [config-path]
   (config/map->Config {:config-path config-path}))
-
-(defn build-access-token-handler [& [openid-config]]
-  (component/using
-    (access-token-handler/map->AccessTokenHandler {})
-    {:openid-config (or openid-config :openid-config)}))
-
-(defrecord VirtualOpenIdConfig [config]
-  component/Lifecycle
-  (start [this]
-    (component/start
-      (if (-> config :value :openid-mock)
-        (openid-mock-server/map->MockOpenIdConfig this)
-        (access-token-handler/map->OpenIdConfig this))))
-  (stop [this]
-    (component/stop this)))
-
-(defn build-openid-config []
-  (component/using
-    (map->VirtualOpenIdConfig {})
-    [:config]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Server Construction
