@@ -60,7 +60,7 @@
   - `app-or-comp-or-reconciler` : An Om component instance, Untangled application, or Om reconciler
   - `server-property-or-ident` : A keyword or ident that represents the root of the query to send to the server. If this is an ident
   you are loading a specific entity from the database into a local app db table. A custom target will be ignored.
-  - `SubqueryClass` : An Om componenet that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
+  - `SubqueryClass` : An Om component that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
   - `config` : A map of load configuration parameters.
 
   Config (all optional):

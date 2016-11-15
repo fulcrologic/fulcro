@@ -271,7 +271,7 @@
   the ident if that ident is already in the list.
   - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
   the ident if that ident is already in the list.
-  - replace: A vector (path) to a specific locaation in app-state where this object's ident should be placed. Can target a to-one or to-many.
+  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
    If the target is a vector element then that element must already exist in the vector.
   "
   [state ident & named-parameters]
