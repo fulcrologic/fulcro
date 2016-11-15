@@ -28,7 +28,7 @@ Snapshot: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?bra
 ** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.F_Untangled_Client[F_Untangled_Client]
 ** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.F_Untangled_Initial_App_State[F_Untangled_Initial_App_State]
 ** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.G_Mutation[G_Mutation]
-** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.H_Server_Interaction[H_Server_Interaction]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.H_Server_Interactions[H_Server_Interactions]
 
 ## Usage
 
