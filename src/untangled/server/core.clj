@@ -1,7 +1,6 @@
 (ns untangled.server.core
   (:require
     [com.stuartsierra.component :as component]
-    [clojure.data.json :as json]
     [clojure.set :as set]
     [clojure.spec :as s]
     [om.next.server :as om]

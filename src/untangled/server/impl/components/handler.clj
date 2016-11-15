@@ -11,8 +11,7 @@
     [ring.util.response :refer [resource-response]]
     [ring.util.response :as rsp :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
-    [taoensso.timbre :as timbre]
-    [clojure.data.json :as json])
+    [taoensso.timbre :as timbre])
   (:import (clojure.lang ExceptionInfo)))
 
 (defn index [req]
