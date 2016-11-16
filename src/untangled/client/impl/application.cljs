@@ -133,19 +133,19 @@
               :else (assoc acc k (sweep v)))
             ) target source))
 
-(defn merge-handler [state-atom return-handler target source]
-  (letfn [(doreturn [trigger-symbol return-value]
-            (return-handler {:state state-atom} trigger-symbol return-value))]
-    (let [handled-source (reduce (fn [acc [k v]]
-                                   (cond
-                                     (symbol? k) (let [v-without-tempids (if (map? v)
-                                                                           (dissoc v :tempids)
-                                                                           v)]
-                                                   (when return-handler
-                                                     (doreturn k v-without-tempids))
-                                                   (dissoc acc k))
-                                     :else acc)) source source)]
-      (sweep-merge target handled-source))))
+(defn merge-handler [mutation-merge target source]
+  (let [source-to-merge (->> source
+                             (filter (fn [[k _]] (not (symbol? k))))
+                             (into {}))
+        merged-state (sweep-merge target source-to-merge)]
+    (reduce (fn [acc [k v]]
+              (if (and mutation-merge (symbol? k))
+                (if-let [updated-state (mutation-merge acc k (dissoc v :tempids))]
+                  updated-state
+                  (do
+                    (log/info "Return value handler for" k "returned nil. Ignored.")
+                    acc))
+                acc)) merged-state source)))
 
 (defn generate-reconciler
   "The reconciler's send method calls UntangledApplication/server-send, which itself requires a reconciler with a
@@ -155,7 +155,7 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [queue return-handler] :as app} initial-state parser {:keys [pathopt migrate shared] :or {pathopt true migrate nil shared nil}}]
+  [{:keys [queue mutation-merge] :as app} initial-state parser {:keys [pathopt migrate shared] :or {pathopt true migrate nil shared nil}}]
   (let [rec-atom (atom nil)
         state-migrate (or migrate plumbing/resolve-tempids)
         tempid-migrate (fn [pure _ tempids _]
@@ -173,7 +173,7 @@
                 :normalize  true
                 :pathopt    pathopt
                 :merge-tree (fn [target source]
-                              (merge-handler (om/app-state @rec-atom) return-handler target source))
+                              (merge-handler mutation-merge target source))
                 :parser     parser
                 :shared     shared}
         rec (om/reconciler config)]

@@ -54,13 +54,19 @@
 
   `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (om/shared this)
 
+  `:mutation-merge (optional). A function `(fn [state mutation-symbol return-value])` that receives the app state as a
+  map (NOT an atom) and should return the new state as a map. This function is run when network results are being merged,
+  and is called once for each mutation that had a return value on the server. Returning nil from this function is safe, and will be ignored
+  with a console message for debugging. If you need information about the original mutation arguments then you must reflect
+  them back from the server in your return value. By default such values are discarded.
+
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state return-handler started-callback networking request-transform network-error-callback migrate pathopt transit-handlers shared]
+  [& {:keys [initial-state mutation-merge started-callback networking request-transform network-error-callback migrate pathopt transit-handlers shared]
       :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil shared nil}}]
   (map->Application {:initial-state      initial-state
-                     :return-handler     return-handler
+                     :mutation-merge     mutation-merge
                      :started-callback   started-callback
                      :reconciler-options {:migrate migrate :pathopt pathopt :shared shared}
                      :networking         (or networking (net/make-untangled-network "/api"
@@ -163,7 +169,7 @@
         (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
-(defrecord Application [initial-state return-handler started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
+(defrecord Application [initial-state mutation-merge started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 

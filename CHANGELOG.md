@@ -9,8 +9,9 @@
 - Fixed bug in failed loading markers
 - Fixed bug with removal/addition of markers when markers are off
 - Added jump to and playback speed features to the support viewer.
-- Added support for Post Mutation parameters.
-- Added support for handling return values from server mutations.
+- Added support for post-mutation parameters in load API.
+- Added support for custom handling of merge of return values from server mutations (see `:mutation-merge` 
+  in `new-untangled-client`).
 - Added support for custom transit handlers on the client side. Server side is coming in a release soon.
 - Added support for turning on/off Om path optimization
 - Fix for latest cljs support (PR 47)
