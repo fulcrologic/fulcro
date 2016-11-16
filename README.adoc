@@ -20,15 +20,15 @@ Snapshot: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?bra
 == Learn more
 * about link:docs/index.adoc#untangled-client-docs[Untangled Client]
 * about link:http://untangled-web.github.io/untangled/index.html[Untangled] & checkout the link:http://untangled-web.github.io/untangled/index.html[Documentation Reference]
-* interactively with the link:http://untangled-web.github.io/untangled/tutorial.html[Untangled Tutorial]
-** http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.B_UI[B_UI]
-** http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.C_App_Database[C_App_Database]
-** http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.D_Queries[D_Queries]
-** http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.E_UI_Queries_and_State[E_UI_Queries_and_State]
-** http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.F_Untangled_Client[F_Untangled_Client]
-** http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.F_Untangled_Initial_App_State[F_Untangled_Initial_App_State]
-** http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.G_Mutation[G_Mutation]
-** http://untangled-web.github.io/untangled/tutorial.html#!/untangled_tutorial.H_Server_Interaction[H_Server_Interaction]
+* interactively with the link:http://untangled-web.github.io/untangled/guide.html[Untangled Tutorial]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.B_UI[B_UI]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.C_App_Database[C_App_Database]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.D_Queries[D_Queries]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.E_UI_Queries_and_State[E_UI_Queries_and_State]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.F_Untangled_Client[F_Untangled_Client]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.F_Untangled_Initial_App_State[F_Untangled_Initial_App_State]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.G_Mutation[G_Mutation]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.H_Server_Interactions[H_Server_Interactions]
 
 ## Usage
 
@@ -253,7 +253,7 @@ and see the UI. Any changes you make to the UI or to the CSS will automatically 
 
 ## Next Steps
 
-We recommend going through the https://github.com/untangled-web/untangled-tutorial[Untangled Tutorial],
+We recommend going through the https://github.com/untangled-web/untangled-devguide[Untangled Developers Guide],
 which you should clone and work through on your local machine.
 
 ## A More Complete Project

@@ -46,16 +46,32 @@
   algorithm against all data in the app-state, which is correct but possibly slow).  Note that tempids will have an Om tempid data type.
   See Om reconciler documentation for further information.
 
+  `:transit-handlers` (optional). A map with keys for `:read` and `:write`, which contain maps to be used for the read
+  and write side of transit to extend the supported data types. See `make-untangled-network` in network.cljs.
+
+  `:pathopt` (optional, defaults to true).  Turn on/off Om path optimization. This is here in case you're experiencing problems with rendering.
+  Path optimization is a rendering optimization that may still have bugs.
+
+  `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (om/shared this)
+
+  `:mutation-merge (optional). A function `(fn [state mutation-symbol return-value])` that receives the app state as a
+  map (NOT an atom) and should return the new state as a map. This function is run when network results are being merged,
+  and is called once for each mutation that had a return value on the server. Returning nil from this function is safe, and will be ignored
+  with a console message for debugging. If you need information about the original mutation arguments then you must reflect
+  them back from the server in your return value. By default such values are discarded.
+
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state started-callback networking request-transform network-error-callback migrate]
-      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil}}]
+  [& {:keys [initial-state mutation-merge started-callback networking request-transform network-error-callback migrate pathopt transit-handlers shared]
+      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil shared nil}}]
   (map->Application {:initial-state      initial-state
+                     :mutation-merge     mutation-merge
                      :started-callback   started-callback
-                     :reconciler-options {:migrate migrate}
+                     :reconciler-options {:migrate migrate :pathopt pathopt :shared shared}
                      :networking         (or networking (net/make-untangled-network "/api"
                                                                                     :request-transform request-transform
+                                                                                    :transit-handlers transit-handlers
                                                                                     :global-error-callback network-error-callback))}))
 
 (defprotocol InitialAppState
@@ -139,20 +155,21 @@
 (defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
   (if mounted?
     (do (refresh* app) app)
-    (let [ui-declared-state (and (implements? InitialAppState root-component) (untangled.client.core/initial-state root-component nil))
+    (let [uses-initial-app-state? (implements? InitialAppState root-component)
+          ui-declared-state (and uses-initial-app-state? (untangled.client.core/initial-state root-component nil))
           atom-supplied? (= Atom (type initial-state))
           init-conflict? (and (or atom-supplied? (seq initial-state)) (implements? InitialAppState root-component))
           state (cond
-                  (and init-conflict? atom-supplied?) (do
-                                                        (reset! initial-state (om/tree->db root-component ui-declared-state true))
-                                                        initial-state)
-                  init-conflict? ui-declared-state
-                  :else initial-state)]
+                  (not uses-initial-app-state?) (if initial-state initial-state {})
+                  atom-supplied? (do
+                                   (reset! initial-state (om/tree->db root-component ui-declared-state true))
+                                   initial-state)
+                  :otherwise ui-declared-state)]
       (when init-conflict?
         (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
-(defrecord Application [initial-state started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
+(defrecord Application [initial-state mutation-merge started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 
@@ -260,7 +277,7 @@
   the ident if that ident is already in the list.
   - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
   the ident if that ident is already in the list.
-  - replace: A vector (path) to a specific locaation in app-state where this object's ident should be placed. Can target a to-one or to-many.
+  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
    If the target is a vector element then that element must already exist in the vector.
   "
   [state ident & named-parameters]

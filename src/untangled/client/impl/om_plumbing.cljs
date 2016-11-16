@@ -195,8 +195,8 @@
             (cond
               (contains? res k) res
               (recursive? k) res
-              :else (assoc (if (map? res) res {})
-                      k nf)))
+              (util/ident? k) (assoc (if (map? res) res {}) k {:ui/fetch-state {:untangled.client.impl.data-fetch/type :not-found}})
+              :else (assoc (if (map? res) res {}) k nf)))
           (union->query [u] (->> u vals flatten set))
           (union? [q]
             (let [expr (cond-> q (seq? q) first)]
@@ -219,7 +219,7 @@
                                                          (union->query (get q query-key))))
 
                 ;; list union result
-                (union? ?sub-query)
+                (and (union? ?sub-query) (coll? sub-result))
                 (as-> sub-result <>
                       (mapv #(mark-missing % (union->query (get q query-key))) <>)
                       (assoc result-or-not-found query-key <>))

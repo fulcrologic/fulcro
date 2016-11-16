@@ -3,17 +3,18 @@
             [com.stuartsierra.component :as component]))
 
 ;;FIGWHEEL
-(def figwheel-config (fig/fetch-config))
 (def figwheel (atom nil))
 
 (defn start-figwheel
   "Start Figwheel on the given builds, or defaults to build-ids in `figwheel-config`."
   ([]
-   (let [props (System/getProperties)
+   (let [figwheel-config (fig/fetch-config)
+         props (System/getProperties)
          all-builds (->> figwheel-config :data :all-builds (mapv :id))]
      (start-figwheel (keys (select-keys props all-builds)))))
   ([build-ids]
-   (let [default-build-ids (-> figwheel-config :data :build-ids)
+   (let [figwheel-config (fig/fetch-config)
+         default-build-ids (-> figwheel-config :data :build-ids)
          build-ids (if (empty? build-ids) default-build-ids build-ids)
          preferred-config (assoc-in figwheel-config [:data :build-ids] build-ids)]
      (reset! figwheel (component/system-map

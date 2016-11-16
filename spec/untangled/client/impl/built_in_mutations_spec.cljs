@@ -1,9 +1,11 @@
 (ns untangled.client.impl.built-in-mutations-spec
   (:require [om.next :as om]
             [untangled.client.mutations :as m]
+            [untangled.client.impl.built-in-mutations]
             [untangled.client.impl.om-plumbing :as plumb]
             [untangled.i18n.core :as i18n]
-            [untangled.client.logging :as log])
+            [untangled.client.logging :as log]
+            [untangled.client.impl.data-fetch :as df])
   (:require-macros
     [cljs.test :refer [is]]
     [untangled-spec.core :refer [specification assertions behavior provided component when-mocking]]))
@@ -107,3 +109,14 @@
 
     (finally
       (-remove-method m/mutate 'my-undo))))
+
+(specification "Load triggering mutation"
+  (provided "triggers a mark-ready on the application state"
+    (df/mark-ready args) => :marked
+
+    (let [result (m/mutate {} 'untangled/load {})]
+      ((:action result))
+
+      (assertions
+        "is remote"
+        (:remote result) => true))))

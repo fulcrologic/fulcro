@@ -133,6 +133,20 @@
               :else (assoc acc k (sweep v)))
             ) target source))
 
+(defn merge-handler [mutation-merge target source]
+  (let [source-to-merge (->> source
+                             (filter (fn [[k _]] (not (symbol? k))))
+                             (into {}))
+        merged-state (sweep-merge target source-to-merge)]
+    (reduce (fn [acc [k v]]
+              (if (and mutation-merge (symbol? k))
+                (if-let [updated-state (mutation-merge acc k (dissoc v :tempids))]
+                  updated-state
+                  (do
+                    (log/info "Return value handler for" k "returned nil. Ignored.")
+                    acc))
+                acc)) merged-state source)))
+
 (defn generate-reconciler
   "The reconciler's send method calls UntangledApplication/server-send, which itself requires a reconciler with a
   send method already defined. This creates a catch-22 / circular dependency on the reconciler and :send field within
@@ -141,7 +155,7 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [queue] :as app} initial-state parser {:keys [migrate] :or {migrate nil}}]
+  [{:keys [queue mutation-merge] :as app} initial-state parser {:keys [pathopt migrate shared] :or {pathopt true migrate nil shared nil}}]
   (let [rec-atom (atom nil)
         state-migrate (or migrate plumbing/resolve-tempids)
         tempid-migrate (fn [pure _ tempids _]
@@ -157,9 +171,11 @@
                               (server-send (assoc app :reconciler @rec-atom) tx cb))
                 :migrate    (or migrate tempid-migrate)
                 :normalize  true
-                :pathopt    true
-                :merge-tree sweep-merge
-                :parser     parser}
+                :pathopt    pathopt
+                :merge-tree (fn [target source]
+                              (merge-handler mutation-merge target source))
+                :parser     parser
+                :shared     shared}
         rec (om/reconciler config)]
 
     (reset! rec-atom rec)
@@ -172,5 +188,3 @@
       (swap! cb-atom #(if (fn? %)
                        (partial % (om/app-state (:reconciler app)))
                        (throw (ex-info "Networking error callback must be a function." {})))))))
-
-
