@@ -1,28 +1,29 @@
-(defproject navis/untangled-client "0.5.7-SNAPSHOT"
+(defproject navis/untangled-client "0.6.0"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
 
   :dependencies [[com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
+                 [devcards "0.2.2" :exclusions [org.omcljs/om org.omcljs/om org.clojure/core.async] :scope "provided"]
+                 [hiccups "0.3.0"]
                  [lein-doo "0.1.7" :scope "test"]
                  [navis/untangled-spec "0.3.9" :scope "test"]
-                 [org.clojure/clojure "1.9.0-alpha13"]
-                 [org.clojure/clojurescript "1.9.229"]
-                 [org.clojure/core.async "0.2.374"]
-                 [org.omcljs/om "1.0.0-alpha45" :scope "provided"]
-                 [org.clojure/test.check "0.9.0" :scope "test"]
-                 [hiccups "0.3.0"]]
-
-  :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]
-  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "resources/public/js/cards" "target"]
+                 [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.293" :scope "provided"]
+                 [org.clojure/core.async "0.2.391"]
+                 [org.omcljs/om "1.0.0-alpha47" :scope "provided"]
+                 [org.clojure/test.check "0.9.0" :scope "test"]]
 
   :source-paths ["src" "src-cards"]
   :resource-paths ["src" "resources"] ; maven deploy to internal artifactory needs src here
 
+  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx512m" "-Xms256m"]
+  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
+
   :plugins [[lein-cljsbuild "1.1.4"]
             [lein-doo "0.1.7"]
-            [com.jakemccrary/lein-test-refresh "0.15.0"]]
+            [com.jakemccrary/lein-test-refresh "0.17.0"]]
 
   :test-paths ["spec"]
   :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
@@ -31,12 +32,11 @@
   :test-selectors {:test/in-progress :test/in-progress
                    :focused :focused}
 
-  ;:hooks [leiningen.cljsbuild]
-
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
 
-  :figwheel {:open-file-command "fw-open-file"}
+  :figwheel {:open-file-command "fw-open-file"
+             :server-port 8080}
 
   :cljsbuild {:builds
               [{:id           "test"
@@ -70,8 +70,7 @@
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[binaryage/devtools "0.5.2"]
                                   [com.cemerick/piggieback "0.2.1"]
-                                  [devcards "0.2.1" :exclusions [org.omcljs/om]]
-                                  [figwheel-sidecar "0.5.3-1"]
+                                  [figwheel-sidecar "0.5.7"]
                                   [org.clojure/test.check "0.9.0"]
                                   [org.clojure/tools.namespace "0.2.11"]
                                   [org.clojure/tools.nrepl "0.2.12"]]}})

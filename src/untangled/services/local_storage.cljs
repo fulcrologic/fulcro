@@ -7,9 +7,7 @@
 
 (defn similate-delay [simulated-delay async-fn]
   (cond (= simulated-delay 0) (async-fn)
-        :otherwise (js/setTimeout async-fn simulated-delay)
-        )
-  )
+        :otherwise (js/setTimeout async-fn simulated-delay)))
 
 (defrecord LocalStorageIO
   [async-report simulated-delay]
@@ -23,9 +21,7 @@
           updated-data (conj item-removed-data data-with-id)]
       (similate-delay simulated-delay
                       (fn [] (do (.setItem js/localStorage uri (pr-str updated-data))
-                                 (goodfn data-with-id))))
-      )
-    )
+                                 (goodfn data-with-id))))))
   (delete [this uri goodfn errorfn id]
     (let [current-data (r/read-string (.getItem js/localStorage uri))
           data (first (filter #(= id (:id %)) current-data))
@@ -35,34 +31,24 @@
         (let [updated-data (remove #(= id (:id %)) current-data)]
           (similate-delay simulated-delay
                           (fn [] (do (.setItem js/localStorage uri (pr-str updated-data))
-                                     (goodfn id))))
-          )
-        )
-      )
-    )
+                                     (goodfn id))))))))
 
   (fetch [this uri goodfn errorfn id]
     (let [current-str (.getItem js/localStorage uri)
-          current-data (if (nil? current-str) []  (r/read-string current-str))
+          current-data (if (nil? current-str) [] (r/read-string current-str))
           data (first (filter #(= id (:id %)) current-data))
           ]
       (if (nil? data)
         (errorfn {:error :not-found :id id})
         (similate-delay simulated-delay
-                        (fn [] (goodfn data)))
-        )
-      )
-    )
+                        (fn [] (goodfn data))))))
 
   (query [this uri goodfn errorfn]
     (let [current-str (.getItem js/localStorage uri)
           current-data (if (nil? current-str) [] (r/read-string current-str))
           ]
       (similate-delay simulated-delay
-                      (fn [] (goodfn current-data)))
-      )
-    )
-  )
+                      (fn [] (goodfn current-data))))))
 
 (defn new-local-storage
   "Create a new local storage async io component:
@@ -75,6 +61,4 @@
                                       })]
 
     (.clear js/localStorage)
-    localio
-    )
-  )
+    localio))

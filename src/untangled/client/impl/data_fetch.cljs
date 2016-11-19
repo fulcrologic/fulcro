@@ -13,20 +13,31 @@
   (:require-macros
     [cljs.core.async.macros :refer [go]]))
 
-(declare data-path data-uuid data-query set-loading! full-query loaded-callback error-callback data-marker?)
+
+; TODO: Some of this API is public, and should be in the non-impl ns.
+
+(declare data-target data-path data-uuid data-query set-loading! full-query loaded-callback error-callback data-marker?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implementation for public api
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn data-state? [state] (contains? state ::type))
+(defn data-state?
+  "Test if the given bit of state is a data fetch state-tracking marker"
+  [state] (contains? state ::type))
 
 (letfn [(is-kind? [state type]
           (if (data-state? state)
             (= type (::type state))
             false))]
-  (defn ready? [state] (is-kind? state :ready))
-  (defn loading? [state] (is-kind? state :loading))
-  (defn failed? [state] (is-kind? state :failed)))
+  (defn ready?
+    "Test if the given item is a data state marker that is in the ready state"
+    [state] (is-kind? state :ready))
+  (defn loading?
+    "Test if the given item is a data state marker in the loading state"
+    [state] (is-kind? state :loading))
+  (defn failed?
+    "Test if the given item is a data state marker in the failed state"
+    [state] (is-kind? state :failed)))
 
 (defn- place-load-markers
   "Place load markers in the app state at their data paths so that UI rendering can see them."
@@ -71,7 +82,7 @@
    An element is a duplicate IFF (keys-fn element) has key collision with any prior element
    to come before it. E.g. (dedupe-by identity [[:a] [:b] [:a] [:a :c]]) => [[:a] [:b]]
    Returns a stateful transducer when no collection is provided."
-  ([keys-fn] ;; transducer fn
+  ([keys-fn]                                                ;; transducer fn
    (fn [rf]
      (let [keys-seen (volatile! #{})]
        (fn
@@ -199,7 +210,8 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [& {:keys [ident field params without query post-mutation fallback parallel refresh marker] :or {without #{} refresh [] marker true}}]
+  [{:keys [ident field params without query post-mutation post-mutation-params fallback parallel refresh marker target]
+    :or   {without #{} refresh [] marker true}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
   (let [old-ast (om/query->ast query)
@@ -210,87 +222,136 @@
         key (if (util/join? query-field) (util/join-key query-field) query-field)
         query' (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
-    {::type          :ready
-     ::uuid          (uuid/uuid-string (uuid/make-random-squuid))
-     ::ident         ident                                  ; only for component-targeted loads
-     ::field         field                                  ; for component-targeted load
-     ::query         query'                                 ; query, relative to root of db OR component
-     ::post-mutation post-mutation
-     ::refresh       refresh
-     ::marker        marker
-     ::parallel      parallel
-     ::fallback      fallback}))
+    {::type                 :ready
+     ::uuid                 (uuid/uuid-string (uuid/make-random-squuid))
+     ::target               target
+     ::ident                ident                           ; only for component-targeted loads
+     ::field                field                           ; for component-targeted load
+     ::query                query'                          ; query, relative to root of db OR component
+     ::post-mutation        post-mutation
+     ::post-mutation-params post-mutation-params
+     ::refresh              refresh
+     ::marker               marker
+     ::parallel             parallel
+     ::fallback             fallback}))
 
 (defn mark-ready
   "Place a ready-to-load marker into the application state. This should be done from
   a mutate function that is abstractly loading something. This is intended for internal use.
 
-  See `load-field` for public API."
-  [& {:keys [state query ident field without params post-mutation fallback parallel refresh marker] :or {marker true refresh [] without #{}}}]
-  (swap! state update :om.next/ready-to-load conj
-         (ready-state
-           :ident ident
-           :field field
-           :parallel parallel
-           :refresh refresh
-           :marker marker
-           :params params
-           :without without
-           :query query
-           :post-mutation post-mutation
-           :fallback fallback)))
+  See the `load-data` and `load-field` functions in `untangled.client.data-fetch` for the public API."
+  [{:keys [state] :as config}]
+  (swap! state update :om.next/ready-to-load (fnil conj []) (ready-state (merge {:marker true :refresh [] :without #{}} config))))
 
-;; TODO: Rename "getters"
-(defn data-ident [state] (::ident state))
-(defn data-query [state]
+(defn data-target
+  "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
+  to be present if the marker is targeting a field."
+  [state] (::target state))
+(defn data-ident
+  "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
+  to be present if the marker is targeting a field."
+  [state] (::ident state))
+(defn data-query
+  "Get the query that will be sent to the server as a result of the given data state marker"
+  [state]
   (if (data-ident state)
     [{(data-ident state) (::query state)}]
     (::query state)))
-(defn data-field [state] (::field state))
-(defn data-uuid [state] (::uuid state))
-(defn data-marker? [state] (::marker state))
-(defn data-refresh [state] (::refresh state))
-(defn data-query-key [state]
-  (let [expr (-> state ::query first)
-        key (cond
-              (keyword? expr) expr
-              (map? expr) (ffirst expr))]
-    key))
+(defn data-field
+  "Get the target field (if any) from the data state marker"
+  [state] (::field state))
+(defn data-uuid
+  "Get the UUID of the data fetch"
+  [state] (::uuid state))
+(defn data-marker?
+  "Test if the user desires a copy of the state marker to appear in the app state at the data path of the target data."
+  [state] (::marker state))
+(defn data-refresh
+  "Get the list of query keywords that should be refreshed (re-rendered) when this load completes."
+  [state] (::refresh state))
+(defn data-query-key
+  "Get the 'primary' query key of the data fetch. This is defined as the first keyword of the overall query (which might
+  be a simple prop or join key for example)"
+  [state]
+  (let [ast (om/query->ast (-> state ::query))
+        node (-> ast :children first)]
+    (:key node)))
 
-(defn data-path [state] (if (and (nil? (data-ident state)) (nil? (data-field state)))
-                          [(data-query-key state)]
-                          (conj (data-ident state) (data-field state))))
-(defn data-params [state] (::params state))
+(defn data-path
+  "Get the app-state database path of the target of the load that the given data state marker is trying to load."
+  [state]
+  (let [target (data-target state)]
+    (cond
+      (and (vector? target) (not-empty target)) target
+      (and (vector? (data-ident state)) (keyword? (data-field state))) (conj (data-ident state) (data-field state))
+      :otherwise [(data-query-key state)])))
 
-(defn data-exclusions [state] (::without state))
+(defn data-params
+  "Get the parameters that the user wants to add to the first join/keyword of the data fetch query."
+  [state] (::params state))
+
+(defn data-exclusions
+  "Get the keywords that should be (recursively) removed from the query that will be sent to the server."
+  [state] (::without state))
 
 ;; Setters
 (letfn [(set-type [state type params]
           (merge state {::type   type
                         ::params params}))]
   (defn set-ready!
+    "Returns a state (based on the input state) that is in the 'ready' to load state."
     ([state] (set-ready! state nil))
     ([state params] (set-type state :ready params)))
   (defn set-loading!
-    "Sets a marker to loading, ensuring that it has a UUID"
+    "Returns a marker (based on the input state) that is in the loading state (and ensures that it has a UUID)"
     ([state] (set-loading! state nil))
     ([state params] (let [rv (set-type state :loading params)]
                       (with-meta rv {:state rv}))))
   (defn set-failed!
+    "Returns a marker (based on the input state) that is in the error state"
     ([state] (set-failed! state nil))
-    ([state params] (set-type state :failed params))))
+    ([state params]
+     (set-type state :failed params))))
 
 (defn full-query
-  "Compose together a sequence of states into a single query."
+  "Composes together the queries of a sequence of data states into a single query."
   [items] (vec (mapcat (fn [item] (data-query item)) items)))
 
 (defn- set-global-loading [reconciler]
-  "Sets :ui/loading-data to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
+  "Sets the global :ui/loading-data to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
   (let [state-atom (om/app-state reconciler)
         loading? (boolean (seq (get @state-atom :untangled/loads-in-progress)))]
     (swap! state-atom assoc :ui/loading-data loading?)))
 
-(defn- loaded-callback [reconciler]
+(defn relocate-targeted-results
+  "For items that are manually targeted, move them in app state from their result location to their target location."
+  [state-atom items]
+  (doseq [item items]
+    (let [default-target [(data-query-key item)]
+          field-target (conj (or (data-ident item) []) (::field item))
+          explicit-target (or (::target item) [])
+          relocate? (and (not-empty explicit-target)
+                         (not= explicit-target field-target)
+                         (not= explicit-target default-target))]
+      (when relocate?
+        (let [value (get-in @state-atom default-target)]
+          (swap! state-atom (fn [m]
+                              (-> m
+                                  (dissoc (data-query-key item))
+                                  (assoc-in explicit-target value)))))))))
+
+(defn- loaded-callback
+  "Generates a callback that processes all of the post-processing steps once a remote load has completed. This includes:
+
+  - Marking the items that were queries for but not returned as 'missing' (see documentation on mark and sweep of db)
+  - Refreshing elements of the UI that were included in the data fetch :refresh option
+  - Removing loading markers related to the executed loads that were not overwritten by incoming data
+  - Merging the incoming data into the normalized database
+  - Running post-mutations for any fetches that completed
+  - Updating the global loading marker
+  - Forcing a global re-render if post-mutations ran (may change in future versions)
+  "
+  [reconciler]
   (fn [response items]
     (let [query (full-query items)
           loading-items (into #{} (map set-loading! items))
@@ -301,25 +362,37 @@
           ran-mutations (atom false)
           remove-markers (fn [] (doseq [item loading-items]
                                   (swap! app-state (fn [s]
-                                                     (-> s
-                                                         (update :untangled/loads-in-progress disj (data-uuid item))
-                                                         (assoc-in (data-path item) nil))))))
+                                                     (cond-> s
+                                                             :always (update :untangled/loads-in-progress disj (data-uuid item))
+                                                             (data-marker? item) (assoc-in (data-path item) nil))))))
           run-post-mutations (fn [] (doseq [item loading-items]
                                       (when-let [mutation-symbol (::post-mutation item)]
                                         (reset! ran-mutations true)
-                                        (some->
-                                          (m/mutate {:state (om/app-state reconciler)} mutation-symbol {})
-                                          :action
-                                          (apply [])))))]
+                                        (let [params (or (::post-mutation-params item) {})]
+                                          (some->
+                                           (m/mutate {:state (om/app-state reconciler)} mutation-symbol params)
+                                           :action
+                                           (apply []))))))]
       (remove-markers)
       (om/merge! reconciler marked-response query)
+      (relocate-targeted-results app-state loading-items)
       (run-post-mutations)
       (set-global-loading reconciler)
       (if (or @ran-mutations (contains? refresh-set :untangled/force-root))
         (udom/force-render reconciler)
         (udom/force-render reconciler to-refresh)))))
 
-(defn- error-callback [reconciler]
+(defn- error-callback
+  "Generates a callback that is used whenever a hard server error occurs (status code 400+ or network error).
+
+  The generated callback:
+
+  - Replaces affected loading markers with error markers (if :marker is true on the load item)
+  - Runs fallbacks associated with the loads
+  - Sets the global error marker (:untangled/server-error)
+  - Refreshes UI
+  "
+  [reconciler]
   (fn [error items]
     (let [loading-items (into #{} (map set-loading! items))
           app-state (om/app-state reconciler)
@@ -330,9 +403,9 @@
                         (swap! app-state assoc :untangled/server-error error)
                         (doseq [item loading-items]
                           (swap! app-state (fn [s]
-                                             (-> s
-                                                 (update :untangled/loads-in-progress disj (data-uuid item))
-                                                 (update-in (data-path item) set-failed! error))))))
+                                             (cond-> s
+                                                     (data-marker? item) (update-in (conj (data-path item) :ui/fetch-state) set-failed! error)
+                                                     :always (update :untangled/loads-in-progress disj (data-uuid item)))))))
           run-fallbacks (fn [] (doseq [item loading-items]
                                  (when-let [fallback-symbol (::fallback item)]
                                    (reset! ran-fallbacks true)

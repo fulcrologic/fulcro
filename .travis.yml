@@ -1,6 +1,9 @@
 language: clojure
+lein: 2.7.0
+jdk:
+    - oraclejdk8
 addons:
-  firefox: latest
+  firefox: "49.0"
 before_script:
   - npm install
   - export DISPLAY=:99.0

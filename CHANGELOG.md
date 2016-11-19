@@ -1,3 +1,28 @@
+0.6.0
+-----
+- Changed InitialAppState to overwrite any supplied initial app state atom.
+  This allows you to inspect data (the app state) when embedding an Untangled application in a devcard.
+- Added new `load` and `load-action` functions with cleaner interface. Deprecated `load-data` and `load-data-action`.
+    - Now have the ability to target a top-level query to a spot in app state. Reduces need for post mutations
+    - Reduced arguments for better clarity
+    - Added ability to pass untangled app, so that use in started-callback is easier.
+- Fixed bug in failed loading markers
+- Fixed bug with removal/addition of markers when markers are off
+- Added jump to and playback speed features to the support viewer.
+- Added support for post-mutation parameters in load API.
+- Added support for custom handling of merge of return values from server mutations (see `:mutation-merge` 
+  in `new-untangled-client`).
+- Added support for custom transit handlers on the client side. Server side is coming in a release soon.
+- Added support for turning on/off Om path optimization
+- Fix for latest cljs support (PR 47)
+- DEPRECATED: load-data will soon no longer supports the :ident parameter. Use load instead.
+
+0.5.7
+-----
+- The `:marker` keyword actually works now!
+- Fix: data fetch with parameters places the load marker in the correct location in app state
+- Fix: error callback doesn't attempt to modify data state in app state db when the data state's marker is false
+
 0.5.6
 -----
 - Fixed bug with global-error-callback not being called with a server error returns no body

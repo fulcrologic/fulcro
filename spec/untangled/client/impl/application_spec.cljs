@@ -11,7 +11,7 @@
     [untangled.client.impl.data-fetch :as f]
     [untangled.client.impl.om-plumbing :as plumbing]))
 
-(defui Thing
+(defui ^:once Thing
   static om/Ident
   (ident [this props] [:thing/by-id (:id props)])
   static om/IQuery
@@ -19,7 +19,7 @@
   Object
   (render [this] (dom/div nil "")))
 
-(defui Root
+(defui ^:once Root
   static om/IQuery
   (query [this] [:ui/react-key :ui/locale {:things (om/get-query Thing)}])
   Object
@@ -165,3 +165,31 @@
                                                       }}
     "overwrites target (non-map) value if incoming value is a map"
     (app/sweep-merge {:a 1 :c 2} {:a 2 :c {:b 1}}) => {:a 2 :c {:b 1}}))
+
+(specification "Merge handler"
+  (let [swept-state {:state 1}
+        data-response {:v 1}
+        mutation-response {'f {:x 1 :tempids {1 2}} 'g {:y 2}}
+        mutation-response-without-tempids (update mutation-response 'f dissoc :tempids)
+        response (merge data-response mutation-response)
+        rh (fn [state k v]
+             (assertions
+               "return handler is passed the swept state as a map"
+               state => swept-state
+               "tempids are stripped from return value before calling handler"
+               (:tempids v) => nil)
+             (vary-meta state assoc k v))]
+    (when-mocking
+      (app/sweep-merge t s) => (do
+                                 (assertions
+                                   "Passes source, cleaned of symbols, to sweep-merge"
+                                   s => {:v 1})
+                                 swept-state)
+
+      (let [actual (app/merge-handler rh {} response)]
+        (assertions
+          "Returns the swept state reduced over the return handlers"
+          ;; Function under test:
+          actual => swept-state
+          (meta actual) => mutation-response-without-tempids)))))
+

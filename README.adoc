@@ -1,20 +1,41 @@
 # Untangled Client
+:source-highlighter: coderay
+:source-language: clojure
+:toc:
+:toc-placement: preamble
+:sectlinks:
+:sectanchors:
+:sectnums:
 
 The client library for the Untangled Web framework.
 
-[![Clojars
-Project](https://img.shields.io/clojars/v/navis/untangled-client.svg)](https://clojars.org/navis/untangled-client)
+What follows is a quick start tutorial that assumes at least a passing familiarity with ClojureScript and Figwheel. For
+an more information & depth, checkout the links in <<Learn more>>.
 
-Release: [![Master](https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=master)](https://github.com/untangled-web/untangled-client/tree/master)
+image::https://img.shields.io/clojars/v/navis/untangled-client.svg[link=https://clojars.org/navis/untangled-client]
 
-Snapshot: [![SNAPSHOT](https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=develop)](https://github.com/untangled-web/untangled-client/tree/develop)
+Release: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=master[link=https://github.com/untangled-web/untangled-client/tree/master]
+Snapshot: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=develop[link=https://github.com/untangled-web/untangled-client/tree/develop]
+
+== Learn more
+* about link:docs/index.adoc#untangled-client-docs[Untangled Client]
+* about link:http://untangled-web.github.io/untangled/index.html[Untangled] & checkout the link:http://untangled-web.github.io/untangled/index.html[Documentation Reference]
+* interactively with the link:http://untangled-web.github.io/untangled/guide.html[Untangled Tutorial]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.B_UI[B_UI]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.C_App_Database[C_App_Database]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.D_Queries[D_Queries]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.E_UI_Queries_and_State[E_UI_Queries_and_State]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.F_Untangled_Client[F_Untangled_Client]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.F_Untangled_Initial_App_State[F_Untangled_Initial_App_State]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.G_Mutation[G_Mutation]
+** http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.H_Server_Interactions[H_Server_Interactions]
 
 ## Usage
 
 The following instructions assume:
 
 - You're using leiningen
-- You'd like to be able to use Cursive REPL integration
+- You'd like to be able to use Cursive REPL integration with IntelliJ
 - You'll use Chrome and would like to have nice support for looking at cljs data structures in the browser and
 console log messages.
 
@@ -27,12 +48,13 @@ In addition to the base untangled client library, the following are the minimum 
 
 If you copy/paste the following file into a `project.clj` it will serve as a good start:
 
-```
-(defproject sample "1.0.0"
-  :description "My Project"
+[source]
+----
+(defproject client-demo "1.0.0"
+  :description "Untangled Client Quickstart"
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.51"]
-                 [org.omcljs/om "1.0.0-alpha45"]
+                 [org.omcljs/om "1.0.0-alpha46"]
                  [navis/untangled-client "0.5.6"]]
 
   ; needed or compiled js files won't get cleaned
@@ -52,21 +74,23 @@ If you copy/paste the following file into a `project.clj` it will serve as a goo
                                        :optimizations        :none}}]}
 
   ; figwheel dependency and chrome data structure formatting tools (formatting cljs in source debugging and logging)
-  :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.3-1"]
+  :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.7"]
                                   [binaryage/devtools "0.6.1"]]}})
-```
+----
 
 ### Setting up Folders and Supporting files
 
 Create the directories as follows (OSX/Linux):
 
-```
+[source]
+----
 mkdir -p src/client/app dev/client/cljs dev/server resources/public/css resources/public/js script
-```
+----
 
 then create a base HTML file in `resources/public/index.html`:
 
-```
+[source]
+----
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -79,19 +103,21 @@ then create a base HTML file in `resources/public/index.html`:
         <script src="js/compiled/app.js"></script>
     </body>
 </html>
-```
+----
 
 and an empty CSS file:
 
-```
+[source]
+----
 touch resources/public/css/app.css
-```
+----
 
 ### Add base application source
 
 Make the application itself, with an initial state, in `src/client/app/core.cljs`:
 
-```
+[source]
+----
 (ns app.core
   (:require [untangled.client.core :as uc]))
 
@@ -99,33 +125,41 @@ Make the application itself, with an initial state, in `src/client/app/core.cljs
 ; of the application.
 ; The initial state is the starting data for the entire UI
 ; see dev/client/user.cljs for the actual DOM mount
-(defonce app (atom (uc/new-untangled-client :initial-state {:some-data 42})))
-```
+(defonce app (atom (uc/new-untangled-client)))
+----
 
 Notice that making the application is a single line of code.
 
 then create the base UI in `src/client/app/ui.cljs`:
 
-```
+[source]
+----
 (ns app.ui
   (:require [om.next :as om :refer-macros [defui]]
             [untangled.client.mutations :as mut]
+            [untangled.client.core :as uc]
             [om.dom :as dom]))
 
-;; A UI node, with a co-located query of app state.
-(defui Root
+;; A UI node, with a co-located query of app state and a definition of the application's initial state.
+;; The `:once` metadata ensures that figwheel does not redefine the static component with each re-render
+(defui ^:once Root
+  static uc/InitialAppState
+  (initial-state [this params] {:ui/react-key "ROOT"
+                                :some-data    42})
   static om/IQuery
-  (query [this] [:some-data])
+  (query [this] [:ui/react-key :some-data])
   Object
   (render [this]
-    (let [{:keys [some-data]} (om/props this)]
-      (dom/div nil (str "Hello world: " some-data)))))
-```
+    (let [{:keys [ui/react-key some-data]} (om/props this)]
+      (dom/div #js {:key react-key}
+        (str "Hello world: " some-data)))))
+----
 
 
 Create an application entry point for development mode in `dev/client/cljs/user.cljs`:
 
-```
+[source]
+----
 (ns cljs.user
   (:require
     [cljs.pprint :refer [pprint]]
@@ -142,64 +176,68 @@ Create an application entry point for development mode in `dev/client/cljs/user.
 (log/set-level :debug)
 
 ;; Enable devtools in chrome for data structure formatting
-(defonce cljs-build-tools
-         (do (devtools/enable-feature! :sanity-hints)
-             (devtools.core/install!)))
+(defonce cljs-build-tools (devtools/install!))
 
-;; Mount the UI on the DOM
-(reset! core/app (uc/mount @core/app ui/Root "app"))
-```
+;; Mount the Root UI component in the DOM div named "app"
+(swap! core/app uc/mount ui/Root "app")
+----
 
 technically, only the `ns` declaration and last line are necessary.
 
 ### Setting up Figwheel
 
-We don't use the lein plugin for figwheel, as we'd rather have IntelliJ 
+We don't use the lein plugin for figwheel, as we'd rather have IntelliJ
 REPL integration, which we find works better with a figwheel sidecar
-setup. 
+setup.
 
-The setup can read the cljs builds from the project file, and can also 
-support specifying which builds you'd like to initially start via JVM 
+The setup can read the cljs builds from the project file, and can also
+support specifying which builds you'd like to initially start via JVM
 options (e.g. -Dtest -Ddev will cause it to build the test and dev builds).
 
 To get this, place the following in `dev/server/user.clj`:
 
-```
+[source]
+----
 (ns user
-  (:require [figwheel-sidecar.repl-api :as ra]))
+  (:require [figwheel-sidecar.system :as fig]
+            [com.stuartsierra.component :as component]))
 
-(def figwheel-config
-  {:figwheel-options {:css-dirs ["resources/public/css"]}
-   :build-ids        ["dev"]
-   :all-builds       (figwheel-sidecar.repl/get-project-cljs-builds)})
+(def figwheel-config (fig/fetch-config))
+(def figwheel (atom nil))
 
 (defn start-figwheel
   "Start Figwheel on the given builds, or defaults to build-ids in `figwheel-config`."
   ([]
    (let [props (System/getProperties)
-         all-builds (->> figwheel-config :all-builds (mapv :id))]
+         all-builds (->> figwheel-config :data :all-builds (mapv :id))]
      (start-figwheel (keys (select-keys props all-builds)))))
   ([build-ids]
-   (let [default-build-ids (:build-ids figwheel-config)
-         build-ids (if (empty? build-ids) default-build-ids build-ids)]
+   (let [default-build-ids (-> figwheel-config :data :build-ids)
+         build-ids (if (empty? build-ids) default-build-ids build-ids)
+         preferred-config (assoc-in figwheel-config [:data :build-ids] build-ids)]
+     (reset! figwheel (component/system-map
+                        :figwheel-system (fig/figwheel-system preferred-config)
+                        :css-watcher (fig/css-watcher {:watch-paths ["resources/public/css"]})))
      (println "STARTING FIGWHEEL ON BUILDS: " build-ids)
-     (ra/start-figwheel! (assoc figwheel-config :build-ids build-ids))
-     (ra/cljs-repl))))
-```
+     (swap! figwheel component/start)
+     (fig/cljs-repl (:figwheel-system @figwheel)))))
+----
 
 and you'll also want the following startup script in `script/figwheel.clj`:
 
-```
+[source]
+----
 (require '[user :refer [start-figwheel]])
 
 (start-figwheel)
-```
+----
 
 and now you can either start figwheel from the command prompt with:
 
-```
+[source]
+----
 lein run -m clojure.main script/figwheel.clj
-```
+----
 
 or from Cursive in IntelliJ with a run profile:
 
@@ -209,21 +247,19 @@ or from Cursive in IntelliJ with a run profile:
 
 Once you've started figwheel you should be able to browse to:
 
-```
 http://localhost:3449
-```
 
-and see the UI.
+and see the UI. Any changes you make to the UI or to the CSS will automatically reload.
 
 ## Next Steps
 
-We recommend going through the [Untangled Tutorial](https://github.com/untangled-web/untangled-tutorial), 
+We recommend going through the https://github.com/untangled-web/untangled-devguide[Untangled Developers Guide],
 which you should clone and work through on your local machine.
 
 ## A More Complete Project
 
 An Untanged template is in progress. A pretty complete version is available at
-[https://github.com/awkay/untangled-template-workspace](https://github.com/awkay/untangled-template-workspace)
+https://github.com/awkay/untangled-template-workspace[https://github.com/awkay/untangled-template-workspace]
 and has:
 
 - Full stack with sample UI for login/sign up.
