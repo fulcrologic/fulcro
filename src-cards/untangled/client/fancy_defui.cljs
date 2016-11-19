@@ -1,12 +1,13 @@
 (ns untangled.client.fancy-defui
+  (:require-macros
+    [untangled.client.ui :as ui])
   (:require
     [devcards.core :as dc :include-macros true]
     [untangled.client.core :as uc]
     [om.next :as om]
-    [om.dom :as dom]
-    [untangled.client.ui :as ui :include-macros true]))
+    [om.dom :as dom]))
 
-(ui/defui ListItem [::ui/DevTools (::ui/DerefFactory {:keyfn :value})]
+(ui/defui ListItem [(::ui/DerefFactory {:keyfn :value})]
   Object
   (render [this]
     (dom/li nil
@@ -20,8 +21,7 @@
         (map @ListItem (map hash-map (repeat :value) (range 6)))))))
 
 (ui/defui ThingA
-  {:always [::ui/DevTools]
-   :prod [(::ui/WithExclamation {:excl "IN PROD MODE"})]
+  {:prod [(::ui/WithExclamation {:excl "IN PROD MODE"})]
    :dev  [(::ui/WithExclamation {:excl "IN DEV MODE"})]}
   Object
   (render [this]

@@ -6,7 +6,6 @@
 
   :dependencies [[com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [devcards "0.2.2" :exclusions [org.omcljs/om org.omcljs/om org.clojure/core.async] :scope "provided"]
-                 [hiccups "0.3.0"]
                  [lein-doo "0.1.7" :scope "test"]
                  [navis/untangled-spec "0.3.9" :scope "test"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
