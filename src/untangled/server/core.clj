@@ -50,7 +50,11 @@
 ;; Component Constructor Functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn make-web-server [& [handler]]
+(defn make-web-server
+  "Builds a web server with an optional argument that
+   specifies which component to get `:middleware` from,
+   defaults to `:handler`."
+  [& [handler]]
   (component/using
     (component/using
       (web-server/map->WebServer {})
@@ -134,24 +138,36 @@
         all-components (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
 
-;;==================== NEW UNTANGLED SERVER SYSTEM ====================
+;;==================== NEW (& IMPROVED) UNTANGLED SERVER SYSTEM ====================
 
 (defprotocol Module
-  (system-key [this])
-  (components [this]))
+  (system-key [this]
+    "Should return the key under which the module will be located in the system map.")
+  (components [this]
+    "Should return a map of components that this Module should bring in to work.
+     Make sure the keys are unique, or things will get overridden without warning (for now).
+     Can be nil or {} (empty)."))
 
 (defprotocol APIHandler
-  (api-read [this] "(~fn~ [env k params] ...)")
-  (api-mutate [this] "(~fn~ [env k params] ...)"))
+  (api-read [this]
+    "Returns an untangled read emitter for parsing queries, ie: (fn [env k params] ...).
+     Can return nil, which tells the api-handler to try the next `:module`.")
+  (api-mutate [this]
+    "Returns an untangled mutate emitter for parsing mutations, ie: (fn [env k params] ...).
+     Can return nil, which tells the api-handler to try the next `:module`."))
 
-(defn chain [F api-fn module]
+(defn- chain
+  "INTERNAL use only, use `untangled-system` instead."
+  [F api-fn module]
   (if-not (satisfies? APIHandler module) F
     (let [parser-fn (api-fn module)]
       (fn [env k p]
         (or (parser-fn (merge module env) k p)
             (F env k p))))))
 
-(defn comp-api-modules [{:as this :keys [modules]}]
+(defn- comp-api-modules
+  "INTERNAL use only, use `untangled-system` instead."
+  [{:as this :keys [modules]}]
   (reduce
     (fn [r+m module-key]
       (let [module (get this module-key)]
@@ -187,7 +203,9 @@
                    (make-response api-parser env query)))))
   (stop [this] (dissoc this :middleware)))
 
-(defn api-handler [opts]
+(defn- api-handler
+  "INTERNAL use only, use `untangled-system` instead."
+  [opts]
   (let [module-keys (mapv system-key (:modules opts))]
     (component/using
       (map->ApiHandler
@@ -195,14 +213,35 @@
       module-keys)))
 
 (defn untangled-system
+  "More powerful variant of `make-untangled-server` that allows for libraries to provide
+   components and api methods (by implementing `APIHandler` and `components` respectively).
+   However note that `untangled-system` does not include any components for you,
+   so you'll have to include things like a web-server (eg: `make-web-server`), middleware,
+   config, etc...
+
+   Takes a map with keys:
+   * `:api-handler-key` - OPTIONAL, Where to place the api-handler in the system-map, will have `:middleware`
+                          and is a (fn [h] (fn [req] resp)) that handles /api requests.
+                          Should only really be of use if you want to embed an untangled-server inside
+                          some other application or language, eg: java servlet (or jvm hosted language).
+                          Defaults to `::api-handler`.
+   * `:app-name` - OPTIONAL, a string that will turn \"/api\" into \"/<app-name>/api\".
+   * `:components` - A `com.stuartsierra.component/system-map`.
+   * `:modules` - A vector of implementations of Module (& optionally APIHandler),
+                  that will be composed in the order they were passed in.
+                  Eg: [mod1 mod2 ...] => mod1 will be tried first, mod2 next, etc...
+                  This should be used to compose libraries api methods with your own,
+                  with full control over execution order.
+
+   NOTE: Stores the key api-handler is located in the meta data under `::api-handler-key`.
+         Currently used by protocol support to test your api methods without needing networking."
   [{:keys [api-handler-key modules] :as opts}]
-  (vary-meta
-    (apply component/system-map
-      (apply concat
-        (merge (:components opts)
-               (into {}
-                 (mapcat (juxt (juxt system-key identity) components))
-                 modules)
-               {(or api-handler-key ::api-handler)
-                (api-handler opts)})))
-    assoc ::api-handler-key (or api-handler-key ::api-handler)))
+  (-> (apply component/system-map
+        (apply concat
+          (merge (:components opts)
+                 (into {}
+                   (mapcat (juxt (juxt system-key identity) components))
+                   modules)
+                 {(or api-handler-key ::api-handler)
+                  (api-handler opts)})))
+    (vary-meta assoc ::api-handler-key (or api-handler-key ::api-handler))))
