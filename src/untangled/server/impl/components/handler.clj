@@ -11,8 +11,7 @@
     [ring.util.response :refer [resource-response]]
     [ring.util.response :as rsp :refer [response file-response resource-response]]
     [untangled.server.impl.middleware :as middleware]
-    [taoensso.timbre :as timbre]
-    [clojure.data.json :as json])
+    [taoensso.timbre :as timbre])
   (:import (clojure.lang ExceptionInfo)))
 
 (defn index [req]
@@ -82,6 +81,13 @@
               (assoc acc k v)))
     {} resp))
 
+(defn augment-map
+  "Parses response the top level values processing the augmented response. This function
+  expects the parser mutation results to be raised (use the raise-response function)."
+  [response]
+  (->> (keep #(some-> (second %) meta :untangled.server.core/augment-response) response)
+       (reduce (fn [response f] (f response)) {})))
+
 (defn api
   "The /api Request handler. The incoming request will have a database connection, parser, and error handler
   already injected. This function should be fairly static, in that it calls the parser, and if the parser
@@ -91,7 +97,7 @@
   [{:keys [transit-params parser env] :as req}]
   (let [parse-result (try (raise-response (parser env transit-params)) (catch Exception e e))]
     (if (valid-response? parse-result)
-      {:status 200 :body parse-result}
+      (merge {:status 200 :body parse-result} (augment-map parse-result))
       (process-errors parse-result))))
 
 (defn generate-response
@@ -101,9 +107,8 @@
   [{:keys [status body headers] :or {status 200} :as input}]
   {:pre [(not (contains? headers "Content-Type"))
          (and (>= status 100) (< status 600))]}
-  {:status  status
-   :headers (merge headers {"Content-Type" "application/transit+json"})
-   :body    body})
+  (-> (assoc input :status status :body body)
+      (update :headers assoc "Content-Type" "application/transit+json")))
 
 (def default-api-key "/api")
 
@@ -146,12 +151,14 @@
       res
       (handler req))))
 
-(defn wrap-extra-routes [dflt-handler {:keys [routes handlers] :or {routes ["" {}] handlers {}}} om-parsing-env]
-  (fn [{:keys [uri] :as req}]
-    (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
-      (if-let [bidi-handler (get handlers (:handler match))]
-        (bidi-handler (assoc om-parsing-env :request req) match)
-        (dflt-handler req)))))
+(defn wrap-extra-routes [dflt-handler {:as extra-routes :keys [routes handlers]} om-parsing-env]
+  (if-not extra-routes dflt-handler
+    (do (assert (and routes handlers) extra-routes)
+      (fn [req]
+        (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
+          (if-let [bidi-handler (get handlers (:handler match))]
+            (bidi-handler (assoc om-parsing-env :request req) match)
+            (dflt-handler req)))))))
 
 (defn not-found-handler []
   (fn [req]
@@ -174,16 +181,19 @@
       (wrap-resource "public")
       (wrap-extra-routes extra-routes om-parsing-env)
       (pre-hook)
-      ;;TODO: wrap-decode-url
       (wrap-content-type)
       (wrap-not-modified)
       (wrap-gzip)))
 
 (defprotocol IHandler
-  (set-pre-hook! [this pre-hook] "sets the handler before any important handlers are run")
-  (get-pre-hook [this] "gets the current pre-hook handler")
-  (set-fallback-hook! [this fallback-hook] "sets the fallback handler in case nothing else returned")
-  (get-fallback-hook [this] "gets the current fallback-hook handler"))
+  (set-pre-hook! [this pre-hook]
+    "Sets the handler before any important handlers are run.")
+  (get-pre-hook [this]
+    "Gets the current pre-hook handler.")
+  (set-fallback-hook! [this fallback-hook]
+    "Sets the fallback handler in case nothing else returned.")
+  (get-fallback-hook [this]
+    "Gets the current fallback-hook handler."))
 
 (defrecord Handler [stack api-parser injected-keys extra-routes app-name pre-hook fallback-hook]
   component/Lifecycle
@@ -198,10 +208,10 @@
                                @pre-hook @fallback-hook)]
       (reset! stack req-handler)
       (assoc component :env om-parsing-env
-                       :all-routes (fn [req] (@stack req)))))
+                       :middleware (fn [req] (@stack req)))))
   (stop [component]
     (timbre/info "Tearing down web server handler.")
-    (assoc component :all-routes nil :stack nil :pre-hook nil :fallback-hook nil))
+    (assoc component :middleware nil :stack nil :pre-hook nil :fallback-hook nil))
 
   IHandler
   (set-pre-hook! [this new-pre-hook]
@@ -210,24 +220,26 @@
             (handler api-parser (select-keys this injected-keys)
                      extra-routes app-name @pre-hook @fallback-hook))
     this)
-  (get-pre-hook [this] @pre-hook)
+  (get-pre-hook [this]
+    @pre-hook)
   (set-fallback-hook! [this new-fallback-hook]
     (reset! fallback-hook new-fallback-hook)
     (reset! stack
             (handler api-parser (select-keys this injected-keys)
                      extra-routes app-name @pre-hook @fallback-hook))
     this)
-  (get-fallback-hook [this] @fallback-hook))
+  (get-fallback-hook [this]
+    @fallback-hook))
 
 (defn build-handler
   "Build a web request handler.
 
-  Parameters:
-  - `api-parser`: An Om AST Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
-  - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
-  - `extra-routes`: See `make-untangled-server`
-  - `app-name`: See `make-untangled-server`
-  "
+   Parameters:
+   - `api-parser`: An Om AST Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
+   - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
+   - `extra-routes`: See `make-untangled-server`
+   - `app-name`: See `make-untangled-server`
+   "
   [api-parser injections & {:keys [extra-routes app-name]}]
   (component/using
     (map->Handler {:api-parser    api-parser
@@ -235,6 +247,6 @@
                    :stack         (atom nil)
                    :pre-hook      (atom identity)
                    :fallback-hook (atom identity)
-                   :extra-routes  (or extra-routes {})
+                   :extra-routes  extra-routes
                    :app-name      app-name})
     (vec (into #{:config} injections))))

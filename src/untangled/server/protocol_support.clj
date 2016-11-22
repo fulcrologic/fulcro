@@ -1,18 +1,35 @@
 (ns untangled.server.protocol-support
   (:require
-    [untangled.server.impl.protocol-support :as impl]
-    [clojure.walk :as walk]
-    [om.tempid :as omt]
-    [untangled-spec.core :refer [specification behavior provided component assertions]]
     [clojure.test]
+    [clojure.walk :as walk]
+    [com.stuartsierra.component :as component]
+    [om.tempid :as omt]
+    [taoensso.timbre :as timbre]
+    [untangled-spec.core :refer [specification behavior provided component assertions]]
     [untangled.server.impl.components.handler :as h]
-    [taoensso.timbre :as timbre]))
+    [untangled.server.impl.protocol-support :as impl]))
+
+(defn process-tx
+  "For backwards compatability between make-untangled-test-server & untangled-system"
+  [system tx]
+  (let [mock-user-claims (get-in system
+                                 (if (:openid-config system)
+                                   [:openid-config :value]
+                                   [:test-openid-mock :openid-mock/claims]))
+        api-handler-key (:untangled.server.core/api-handler-key (meta system))
+        {:keys [env handler]} (if api-handler-key
+                                {:env {} :handler (:handler (get system api-handler-key))}
+                                (let [{:keys [api-parser env]} (:handler system)]
+                                  {:env env :handler (fn [env tx]
+                                                       (h/api {:parser api-parser :env env :transit-params tx}))}))
+        env (cond-> env mock-user-claims (assoc-in [:request :user] mock-user-claims))]
+    (:body (handler env tx))))
 
 (defn check-response-to-client
   "Tests that the server responds to a client transaction as specificied by the passed-in protocol data.
   See Protocol Testing README.
 
-  1. `app`: an instance of UntangledServer injected with a `Seeder` component. See Protocl Testing README.
+  1. `app`: an instance of UntangledSystem injected with a `::seeder` component. See Protocol Testing README.
   2. `data`: a map with `server-tx`, the transaction sent from the client to execute on the server, and `response`,
   the expected return value when the server runs the transaction
   3. Optional named parameters
@@ -20,12 +37,18 @@
   `prepare-server-tx`: allows you to modify the transaction recevied from the client before running it, using the
   seed result to remap seeded tempids."
   [app {:keys [server-tx response] :as data} & {:keys [on-success prepare-server-tx which-db]}]
-  (let [started-app (.start app)]
+  (let [system (component/start app)]
     (try
-      (let [seeder-result (get-in started-app [:seeder :seed-result])
+      (let [;; for backwards compatability
+            seeder ((some-fn ::seeder :seeder) system)
+            _ (assert (or (not seeder)
+                          (contains? seeder :seed-result))
+                (str "Seeder component was not of expected type: <" seeder "> in system w/ keys: " (keys system)))
+
+            seeder-result (get seeder :seed-result)
             _ (timbre/debug :seeder-result seeder-result)
             _ (when (= :disjoint seeder-result)
-                (.stop started-app)
+                (component/stop system)
                 (assert false "seed data tempids must have no overlap"))
 
             datomic-tid->rid (if which-db
@@ -43,12 +66,9 @@
                                                 (update 0 prepare-server-tx+))
             _ (timbre/debug :server-tx server-tx+)
 
-            {:keys [api-parser env]} (:handler started-app)
-            mock-user-claims (-> started-app :test-openid-mock :openid-mock/claims)
-            server-response (-> (h/api {:parser api-parser
-                                        :env (assoc-in env [:request :user] mock-user-claims)
-                                        :transit-params server-tx+})
-                                :body)
+            ;; for backwards compatability
+            server-response (process-tx system server-tx+)
+
             _ (timbre/debug :server-response server-response)
             [response-without-tempid-remaps om-tempid->datomic-id] (impl/extract-tempids server-response)
             rewrite-response #(-> %
@@ -85,11 +105,11 @@
         (when on-success
           (let [env+seed-result (reduce (fn [env [db-name seed-result]]
                                           (assoc-in env [db-name :seed-result] seed-result))
-                                        env seeder-result)]
+                                        system seeder-result)]
             (on-success (assoc env+seed-result :remap-fn rewrite-response)
                         server-response))))
 
       (finally
-        (.stop started-app)))))
+        (component/stop system)))))
 
 (defn with-behavior [_ value] value)

@@ -1,6 +1,7 @@
 (ns untangled.server.impl.components.handler-spec
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
             [clojure.test :as t]
+            [untangled.server.core :refer [augment-response]]
             [untangled.server.impl.components.handler :as h]
             [com.stuartsierra.component :as component]
             [om.next.server :as om]
@@ -15,11 +16,19 @@
 (specification "generate-response"
   (assertions
     "returns a map with status, header, and body."
-    (keys (h/generate-response {})) => [:status :headers :body]
+    (keys (h/generate-response {})) => [:status :body :headers]
 
     "merges Content-Type of transit json to the passed-in headers."
     (:headers (h/generate-response {:headers {:my :header}})) => {:my            :header
-                                                                  "Content-Type" "application/transit+json"})
+                                                                  "Content-Type" "application/transit+json"}
+
+    "preserves extra response keys from input"
+    (h/generate-response {:status 200 :body {} :session {:user-id 123}})
+    => {:status  200
+        :headers {"Content-Type" "application/transit+json"}
+        :body    {}
+        :session {:user-id 123}})
+
   (behavior "does not permit"
     (assertions
       "a \"Content-Type\" key in the header."
@@ -34,12 +43,16 @@
 (specification "An API Response"
   (let [my-read (fn [_ key _] {:value (case key
                                         :foo "success"
+                                        :foo-session (augment-response {:some "data"} #(assoc-in % [:session :foo] "bar"))
                                         :bar (throw (ex-info "Oops" {:my :bad}))
                                         :bar' (throw (ex-info "Oops'" {:status 402 :body "quite an error"}))
                                         :baz (throw (IllegalArgumentException.)))})
 
         my-mutate (fn [_ key _] {:action (condp = key
                                            'foo (fn [] "success")
+                                           'overrides (fn [] (augment-response {} #(assoc % :body "override"
+                                                                                            :status 201
+                                                                                            :cookies {:foo "bar"})))
                                            'bar (fn [] (throw (ex-info "Oops" {:my :bad})))
                                            'bar' (fn [] (throw (ex-info "Oops'" {:status 402 :body "quite an error"})))
                                            'baz (fn [] (throw (IllegalArgumentException.))))})
@@ -111,42 +124,55 @@
                                             :data    {:my :bad}}
 
                 (get-error baz-result) => {:type    "class java.lang.IllegalArgumentException",
-                                           :message nil}))))))))
+                                           :message nil}))))))
 
-(def run #(%1 %2))
+    (behavior "for updating the response"
+      (behavior "adds the response keys to the ring response"
+        (let [result (parse-result [:foo-session])]
+          (assertions
+            (:session result) => {:foo "bar"})))
+      (behavior "user can override response status and body"
+        (assertions
+          (parse-result ['(overrides)])
+          => {:status 201, :body "override", :cookies {:foo "bar"}})))))
+
+(defn run [handler req]
+  ((:middleware (component/start handler)) req))
 (specification "the handler"
   (behavior "takes an extra-routes map containing bidi :routes & :handlers"
-    (let [make-handler (fn [extra-routes] (h/handler (constantly nil) {} extra-routes identity identity identity))]
+    (let [make-handler (fn [extra-routes]
+                         (h/build-handler (constantly nil) #{}
+                           :extra-routes extra-routes))]
       (assertions
-        (-> {:routes   ["test" :test]
+        (-> {:routes   ["/" {"test" :test}]
              :handlers {:test (fn [env match]
                                 {:body "test"
                                  :status 200})}}
             (make-handler)
-            (run {:uri "test"}))
+            (run {:uri "/test"}))
         => {:body "test"
             :headers {"Content-Type" "application/octet-stream"}
             :status 200}
 
         "handler functions get passed the bidi match as an arg"
-        (-> {:routes   ["" {["test/" :id] :test-with-params}]
+        (-> {:routes   ["/" {["test/" :id] :test-with-params}]
              :handlers {:test-with-params (fn [env match]
                                             {:body (:id (:route-params match))
                                              :status 200})}}
             (make-handler)
-            (run {:uri "test/foo"}))
+            (run {:uri "/test/foo"}))
         => {:body "foo"
             :status 200
             :headers {"Content-Type" "application/octet-stream"}}
 
         "and the request in the environment"
-        (-> {:routes   ["" {["test"] :test}]
+        (-> {:routes   ["/" {["test"] :test}]
              :handlers {:test (fn [env match]
                                 {:body {:req (:request env)}
                                  :status 200})}}
             (make-handler)
-            (run {:uri "test"}))
-        => {:body {:req {:uri "test"}}
+            (run {:uri "/test"}))
+        => {:body {:req {:uri "/test"}}
             :status 200
             :headers {"Content-Type" "application/octet-stream"}}
 
@@ -162,8 +188,8 @@
             :headers {"Content-Type" "application/octet-stream"}
             :status 200}
 
-        "can take an empty map & still work"
-        (-> {}
+        "has to at least take a valid (but empty) :routes & :handlers"
+        (-> {:routes ["" {}], :handlers {}}
             make-handler
             (run {:uri "/"})
             (dissoc :body))
@@ -184,7 +210,7 @@
                                                 :headers {"Content-Type" "text/text"}
                                                 :body "pre-hook"})))
 
-          (:body ((:all-routes handler) {})))
+          (:body ((:middleware handler) {})))
         => "pre-hook"
 
         "the fallback hook will only get called if all other handlers do nothing"
@@ -193,7 +219,7 @@
                                           (fn [req] {:status 200
                                                      :headers {"Content-Type" "text/text"}
                                                      :body "fallback-hook"})))
-          (:body ((:all-routes handler) {:uri "/i/should/fail"})))
+          (:body ((:middleware handler) {:uri "/i/should/fail"})))
         => "fallback-hook"
 
         "get-(pre/fallback)-hook returns whatever hook is currently installed"

@@ -1,3 +1,10 @@
+0.7.0
+-----
+- Added ability to manipulate respose from API handler
+- Significant refactoring to support more modular & flexible server creation.
+	See `untangled.server.core/untangled-system` for more docs.
+- Various documentation improvements
+
 0.6.2
 -----
 - A Few openid fixes
