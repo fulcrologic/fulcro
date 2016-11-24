@@ -21,10 +21,13 @@
          (or (nil? params) (map? params))
          (set? without)
          (or (util/ident? server-property-or-ident) (keyword? server-property-or-ident))
-         (implements? om/IQuery SubqueryClass)]}
-  (let [query (if (map? params)
-                `[({~server-property-or-ident ~(om/get-query SubqueryClass)} ~params)]
-                [{server-property-or-ident (om/get-query SubqueryClass)}])]
+         (or (nil? SubqueryClass) (implements? om/IQuery SubqueryClass))]}
+  (let [query (cond
+                (and SubqueryClass (map? params)) `[({~server-property-or-ident ~(om/get-query SubqueryClass)} ~params)]
+                SubqueryClass [{server-property-or-ident (om/get-query SubqueryClass)}]
+                (map? params) [(list server-property-or-ident params)]
+                :else [server-property-or-ident])]
+
     {:query                query
      :target               target
      :without              without
@@ -61,6 +64,7 @@
   - `server-property-or-ident` : A keyword or ident that represents the root of the query to send to the server. If this is an ident
   you are loading a specific entity from the database into a local app db table. A custom target will be ignored.
   - `SubqueryClass` : An Om component that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
+    SubqueryClass can be nil, in which case the resulting server query will not be a join.
   - `config` : A map of load configuration parameters.
 
   Config (all optional):

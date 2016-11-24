@@ -1,3 +1,7 @@
+0.6.1
+-----
+- Added support for nil as subquery class in load
+
 0.6.0
 -----
 - Changed InitialAppState to overwrite any supplied initial app state atom.

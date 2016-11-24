@@ -103,6 +103,10 @@
       "Always include a vector for refresh"
       (df/load-params* :prop Person {}) =fn=> #(vector? (:refresh %))
       (df/load-params* [:person/by-id 1] Person {}) =fn=> #(vector? (:refresh %))
+      "Accepts nil for subquery and params"
+      (:query (df/load-params* [:person/by-id 1] nil {})) => [[:person/by-id 1]]
+      "Constructs query with parameters when subquery is nil"
+      (:query (df/load-params* [:person/by-id 1] nil {:params {:x 1}})) => '[([:person/by-id 1] {:x 1})]
       "Constructs a JOIN query (without params)"
       (:query (df/load-params* :prop Person {})) => [{:prop (om/get-query Person)}]
       (:query (df/load-params* [:person/by-id 1] Person {})) => [{[:person/by-id 1] (om/get-query Person)}]
@@ -355,7 +359,6 @@
         (df/lazily-loaded present props) => :bar))))
 
 (defmethod m/mutate 'qrp-loaded-callback [{:keys [state]} n p] (swap! state assoc :callback-done true :callback-params p))
-
 
 (specification "Query response processing (loaded-callback with post mutation)"
   (let [item (dfi/set-loading! (dfi/ready-state {:ident                [:item 2]
