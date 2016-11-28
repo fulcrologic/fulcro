@@ -178,7 +178,7 @@
      :mutate (constantly nil)}
     (rseq modules)))
 
-(defrecord ApiHandler [app-name modules]
+(defrecord UntangledApiHandler [app-name modules]
   component/Lifecycle
   (start [this]
     (let [api-url (cond->> "/api" app-name (str "/" app-name))
@@ -208,7 +208,7 @@
   [opts]
   (let [module-keys (mapv system-key (:modules opts))]
     (component/using
-      (map->ApiHandler
+      (map->UntangledApiHandler
         (assoc opts :modules module-keys))
       module-keys)))
 
