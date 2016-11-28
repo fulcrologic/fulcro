@@ -19,6 +19,9 @@
    :defui/ui-name (:defui-name ast)
    :env/cljs? (boolean (:ns env))})
 
+(s/fdef defui*
+  :args ::aug/defui
+  :ret ::aug/defui)
 (defn defui* [body form env]
   (try
     (let [ast (utl/conform! ::aug/defui body)
@@ -32,5 +35,24 @@
       (.println System/out e)
       (.println System/out (with-out-str (pprint (into [] (.getStackTrace e))))))))
 
-(defmacro defui [& body]
-  (defui* body &form &env))
+(s/fdef defui
+  :args ::aug/defui
+  :ret ::aug/defui)
+(defmacro defui
+  "Untangled's defui provides a way to compose transformations and behavior to your om next components.
+   We're calling them *augments*, and they let you consume and provide behaviors
+   in a declarative and transparent way.
+
+   The untangled defui only provides an addition to the standard om.next/defui, a vector of augments,
+   which are defined in `:untangled.client.augmentation/augments`, but roughly take the shape:
+   [:some/augment ...] or a more granular approach {:always [...] :dev [...] :prod [...]}.
+
+   Augments under `:always` are always used, and those under :dev and :prod are controlled by
+   `untangled.client.augmentation/defui-augment-mode` (env var or jvm system prop `\"DEFUI_AUGMENT_MODE\"`).
+
+   WARNING: Should be considered alpha tech, and the interface may be subject to changes
+   depending on feedback and hammock time.
+
+   NOTE: If anything isn't working right, or you just have some questions/comments/feedback,
+   let @adambros know on the clojurians slack channel #untangled"
+  [& body] (defui* body &form &env))

@@ -4,7 +4,16 @@
     [clojure.string :as str]
     [clojure.spec :as s]))
 
-(defmulti defui-augmentation (fn [ctx _ _] (:augment/dispatch ctx)))
+(defmulti defui-augmentation
+   "Multimethod for defining augments for use in `untangled.client.ui/defui`.
+    * `ctx` contains various (& in flux) information about the context in which
+    the augment is being run (eg: :defui/ui-name, :env/cljs?, :defui/loc).
+    * `ast` contains the conformed methods of the defui, and is the subject and focus of your transformations.
+    * `params` contains the parameters the user of your augment has passed to you
+    when using the augment to make their defui.
+    eg: `(defui MyComp [(:your/augment {:fake :params})] ...)`"
+   {:arglists '([ctx ast params])}
+  (fn [ctx _ _] (:augment/dispatch ctx)))
 
 (defmulti defui-augmentation-group (fn [{:keys [aug]}] aug))
 (defmethod defui-augmentation-group :default [& _] nil)
@@ -14,6 +23,14 @@
                   (assert (= 1 (count v))
                     (str "Cannot implement " k " more than once!"))
                   [(name k) (first v)]) (group-by f coll))))
+(defn group-impls [x]
+  (-> x
+    (update :impls (partial mapv (fn [x] (update x :methods (partial my-group-by :name)))))
+    (update :impls (partial my-group-by :protocol))))
+(defn ungroup-impls [x]
+  (-> x
+    (update :impls vals)
+    (update :impls (partial mapv (fn [x] (update x :methods vals))))))
 
 (s/def ::method
   (s/cat :name symbol?
@@ -42,12 +59,8 @@
            :augments (s/? ::augments)
            :impls (s/+ ::impls))
     (s/conformer
-      #(-> %
-         (update :impls (partial mapv (fn [x] (update x :methods (partial my-group-by :name)))))
-         (update :impls (partial my-group-by :protocol)))
-      #(-> %
-         (update :impls vals)
-         (update :impls (partial mapv (fn [x] (update x :methods vals))))))))
+      group-impls
+      ungroup-impls)))
 
 (def ^:private defui-augment-mode
   (let [allowed-modes {"prod" :prod, "dev" :dev}
@@ -72,14 +85,21 @@
     (cb (parse-augments (utl/conform! ::augments aug-group)))
     [augment]))
 
-(defn parse-augments [[augs-type augs]]
+(defn parse-augments "WARNING: FOR INTERNAL USE" [[augs-type augs]]
   (case augs-type
     :vector (into [] (comp (map parse) (mapcat expand-augment)) augs)
     :map (parse-augments [:vector (apply concat (vals (select-keys augs [:always defui-augment-mode])))])))
 
 ;;==================== AUGMENT BUILDER HELPERS ====================
 
-(defn add-defui-augmentation-group [group-dispatch build-augs]
+(defn add-defui-augmentation-group
+  "Used for defining a one to many alias for augments,
+   so that you can bundle up various augments under a single augment.
+   Has the same augment syntax as `untangled.client.ui/defui`,
+   but see ::augments for exact and up to date syntax.
+
+   Example: `:untangled.client.ui/BuiltIns` in `untangled.client.impl.built-in-augments`"
+  [group-dispatch build-augs]
   (defmethod defui-augmentation-group group-dispatch [augment]
     [(build-augs augment)
      (partial mapv
@@ -95,7 +115,16 @@
     :method symbol?
     :body utl/TRUE))
 
-(defn inject-augment [& args]
+(defn inject-augment
+  "EXPERIMENTAL, may change to some sort of def-augment-injection macro
+
+   For use in a defui-augmentation for injecting a method under a protocol.
+
+   WARNING: Does not currently check that the method does not exist,
+   so this may override the targeted method if it existed before.
+
+   EXAMPLE: `:untangled.client.ui/DerefFactory` in `untangled.client.impl.built-in-augments`"
+  [& args]
   (let [{:keys [ast static protocol method body]}
         (utl/conform! ::inject-augment args)]
     ;;TODO: Check protocol & method dont already exist
@@ -117,7 +146,18 @@
     :method symbol?
     :wrapper fn?))
 
-(defn wrap-augment [& args]
+(defn wrap-augment
+  "EXPERIMENTAL: May change to some sort of def-augment-behavior macro.
+
+   For use in `defui-augmentation` for wrapping an existing method with a behavior.
+   Is run at compile time, and can be used to transform the method body, or simply add a run time function call.
+
+   WARNING: Does not check that the method (& protocol) existed,
+   so it may crash unexpectedly if the method is not found until fixed
+   (if so do tell us on the clojurians slack channel #untangled, and/or make a github issue).
+
+   EXAMPLE: `:untangled.client.ui/WithExclamation` in `untangled.client.impl.built-in-augments`"
+  [& args]
   (let [{:keys [ast protocol method wrapper]}
         (utl/conform! ::wrap-augment args)]
     ;;TODO: Check protocol & method already exist
