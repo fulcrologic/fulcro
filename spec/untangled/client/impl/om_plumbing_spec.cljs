@@ -250,6 +250,12 @@
       {:j {:c {}
            :d impl/nf}}
 
+      ;singleton with no result
+      [{:j {:a [:c]
+            :b [:d]}}]
+      {}
+      {:j impl/nf}
+
       ;list
       [{:j {:a [:c]
             :b [:d]}}]
@@ -263,7 +269,15 @@
        [{:id 0 :image "img1"}
         {:id 1 :text "text1"}]}
       {:items [{:id 0 :image "img1" :text impl/nf}
-               {:id 1 :image impl/nf :text "text1"}]}))
+               {:id 1 :image impl/nf :text "text1"}]}
+
+      ;list with no results
+      [{:j {:a [:c]
+            :b [:d]}}]
+      {:j []}
+      {:j []}
+
+      ))
 
   (behavior "if the query has a ui.*/ attribute, it should not be marked as missing"
     (are [query ?missing-result exp]

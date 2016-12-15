@@ -7,7 +7,9 @@
     [om.next.protocols :as omp]
     [cljs.core.async :as async]
     [untangled.client.logging :as log]
-    [untangled.dom :as udom]))
+    [untangled.dom :as udom]
+    [untangled.client.impl.om-plumbing :as plumbing]
+    [untangled.client.impl.util :as util]))
 
 (defui Child
   static om/Ident
@@ -40,7 +42,23 @@
         old-state-merge-data => {[:parent/by-id 42] {:id         42
                                                      :ui/checked true
                                                      :title      :untangled.client.impl.om-plumbing/not-found
-                                                     :child      :untangled.client.impl.om-plumbing/not-found}})))
+                                                     :child      :untangled.client.impl.om-plumbing/not-found}}))
+    (let [union-query {:union-a [:b] :union-b [:c]}
+          state (atom {})]
+      (when-mocking
+        (uc/get-class-ident c d) => :ident
+        (om/get-query comp) => union-query
+        (uc/component-merge-query comp data) => :merge-query
+        (om/db->tree q d r) => {:ident :data}
+        (plumbing/mark-missing d q) => (do
+                                         (assertions
+                                           "wraps union queries in a vector"
+                                           q => [union-query])
+
+                                         {:ident :data})
+        (util/deep-merge d1 d2) => :merge-result
+
+        (#'uc/preprocess-merge state :comp :data))))
   (let [state (atom {})
         data {}]
     (when-mocking

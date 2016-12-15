@@ -106,7 +106,8 @@
                   (if-let [state (and (implements? InitialAppState element) (initial-state element nil))]
                     (cond
                       (and state (not default-branch)) (log/warn "Subelements of union with query " query " have initial state, but the union component itself has no initial app state. Your app state may not have been initialized correctly.")
-                      (not to-many?) (merge-state! app last-join-component state)))))))]
+                      (not to-many?) (do
+                                       (merge-state! app last-join-component state))))))))]
     (walk-ast
       (om/query->ast (om/get-query root-component))
       merge-union)))
@@ -258,6 +259,7 @@
   [state-atom component object-data]
   (let [ident (get-class-ident component object-data)
         object-query (om/get-query component)
+        object-query (if (map? object-query) [object-query] object-query)
         base-query (component-merge-query component object-data)
         ;; :untangled/merge is way to make unions merge properly when joined by idents
         merge-query [{:untangled/merge base-query}]

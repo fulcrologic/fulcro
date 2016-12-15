@@ -1,6 +1,7 @@
 0.6.1
 -----
 - Added support for nil as subquery class in load
+- Fixed preprocess-merge to eliminate litter in app state
 
 0.6.0
 -----
