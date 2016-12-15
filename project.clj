@@ -50,7 +50,7 @@
                {:id           "cards"
                 :source-paths ["src" "src-cards" "dev"]
                 :figwheel     {:devcards true}
-                :compiler     {:main untangled.client.cards
+                :compiler     {:main untangled.client.card-ui
                                :output-to "resources/public/js/cards/cards.js"
                                :output-dir "resources/public/js/cards/out"
                                :asset-path "js/cards/out"

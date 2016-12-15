@@ -195,7 +195,7 @@
             (cond
               (contains? res k) res
               (recursive? k) res
-              (util/ident? k) (assoc (if (map? res) res {}) k {:ui/fetch-state {:untangled.client.impl.data-fetch/type :not-found}})
+              (util/ident? k) (assoc (if (map? res) res {}) k nf)
               :else (assoc (if (map? res) res {}) k nf)))
           (union->query [u] (->> u vals flatten set))
           (union? [q]
