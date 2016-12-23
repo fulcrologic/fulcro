@@ -100,13 +100,13 @@
       The function takes an old state parameter and a new state parameter (arity 2 function).
       `state-callback` can be either a function, or an atom containing a function.
   "
-  [url & {:keys [global-error-callback host req-params state-callback]}]
+  [url & {:keys [global-error-callback host req-params state-callback transit-handlers]}]
   (let [parse-queue (chan)
         {:keys [chsk
                 ch-recv
                 send-fn
                 state]} (sente/make-channel-socket! url     ; path on server
-                          {:packer         tp/packer
+                          {:packer         (tp/make-packer transit-handlers)
                            :host           host
                            :type           :ws              ; e/o #{:auto :ajax :ws}
                            :params         req-params

@@ -6,13 +6,18 @@
                    [om.tempid TempId])))
 
 
-(def packer
-  "A json packer for use with sente."
+(defn make-packer
+  "Returns a json packer for use with sente."
+  [{:keys [read write]}]
   #?(:clj (st/->TransitPacker :json
-            {:handlers {TempId (ot/->TempIdHandler)}}
-            {:handlers {"om/id" (reify
-                                  ReadHandler
-                                  (fromRep [_ id] (TempId. id)))}})
+                              {:handlers (cond-> {TempId (ot/->TempIdHandler)}
+                                           write (merge write))}
+                              {:handlers (cond-> {"om/id" (reify
+                                                            ReadHandler
+                                                            (fromRep [_ id] (TempId. id)))}
+                                           read (merge read))})
      :cljs (st/->TransitPacker :json
-             {:handlers {TempId (ot/->TempIdHandler)}}
-             {:handlers {"om/id" (fn [id] (tempid/tempid id))}})))
+                               {:handlers (cond-> {TempId (ot/->TempIdHandler)}
+                                            write (merge write))}
+                               {:handlers (cond-> {"om/id" (fn [id] (tempid/tempid id))}
+                                            read (merge read))})))
