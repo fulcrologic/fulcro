@@ -208,7 +208,18 @@
       (dosync (ref-set listeners #{}))
       (assoc component :router (stop-f)))))
 
-(defn make-channel-server [& {:keys [handshake-data-fn server-adapter client-id-fn dependencies valid-client-id-fn transit-handlers]}]
+(defn make-channel-server
+  "Creates `ChannelServer`.
+
+  Params:
+  - `handshake-data-fn` (Optional) - Used by sente for adding data at the handshake.
+  - `server-adapter` (Optional) - adapter for handling servers implemented by sente. Default is http-kit.
+  - `client-id-fn` (Optional) - returns a client id from the request.
+  - `dependencies` (Optional) - adds dependecies to the untangled handler.
+  - `valid-client-id-fn` (Optional) - Function for validating websocket clients. Expects a client-id.
+  - `transit-handlers` (Optional) - Expects a map with `:read` and/or `:write` key containing a map of transit handlers,
+  "
+  [& {:keys [handshake-data-fn server-adapter client-id-fn dependencies valid-client-id-fn transit-handlers]}]
   (when valid-client-id-fn
     (reset! valid-client-id-atom valid-client-id-fn))
   (component/using
