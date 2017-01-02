@@ -3,7 +3,7 @@
     [clojure.walk :refer [walk prewalk]]
     [om.next :as om]
     [untangled.client.impl.data-fetch :as impl]
-    [untangled.i18n :refer-macros [tr]]
+    [untangled.i18n :refer [tr]]
     [om.dom :as dom]
     [untangled.client.core :as uc]
     [om.util :as util]))

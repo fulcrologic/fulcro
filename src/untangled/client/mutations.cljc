@@ -23,12 +23,20 @@
   [component field value]
   (om/transact! component `[(ui/set-props ~{field value})]))
 
-(defn- ensure-integer
-  "Helper for set-integer!, use that instead. It is recommended you use this function only on UI-related
-  data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else."
-  [v]
-  (let [rv (js/parseInt v)]
-    (if (js/isNaN v) 0 rv)))
+#?(:cljs
+   (defn- ensure-integer
+     "Helper for set-integer!, use that instead. It is recommended you use this function only on UI-related
+     data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else."
+     [v]
+     (let [rv (js/parseInt v)]
+       (if (js/isNaN v) 0 rv)))
+   :clj
+   (defn- ensure-integer [v] (Integer/parseInt v)))
+
+#?(:cljs
+   (defn target-value [evt] (.. event -target -value))
+   :clj
+   (defn target-value [evt] evt))
 
 (defn set-integer!
   "Set the given integer on the given `field` of a `component`. Allows same parameters as `set-string!`.
@@ -37,7 +45,7 @@
    and write clear top-level transactions for anything else."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
-  (let [value (ensure-integer (if event (.. event -target -value) value))]
+  (let [value (ensure-integer (if event (target-value event) value))]
     (set-value! component field value)))
 
 (defn set-string!
@@ -55,6 +63,6 @@
   data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
-  (let [value (if event (.. event -target -value) value)]
+  (let [value (if event (target-value event) value)]
     (set-value! component field value)))
 

@@ -3,9 +3,9 @@
              [untangled.i18n.core :as ic]
              [untangled.client.logging :as log])))
 
-#?(:cljs (defn current-locale [] @ic/*current-locale*))
+(defn current-locale [] @ic/*current-locale*)
 
-#?(:cljs (defn translations-for-locale [] (get @ic/*loaded-translations* (current-locale))))
+(defn translations-for-locale [] (get @ic/*loaded-translations* (current-locale)))
 
 #?(:cljs (set! js/tr
            (fn [msg]
@@ -40,16 +40,7 @@
           variables)."
           [msg]
           (assert (string? msg) (str "In call to tr(" msg "). Argument MUST be a literal string, not a symbol or expression. Use trf for formatting."))
-          `(js/tr
-
-             ; lookup translation
-             ; ... get the current-locale atom
-             ; ... find translations in loaded-translations atom
-             ; ... ... need to prepend a | before lookup
-             ; if found, return translation
-             ; else return engrish
-
-             ~msg)))
+          `(js/tr ~msg)))
 
 #?(:clj (defmacro tr-unsafe
           "Look up the given message. UNSAFE: you can use a variable with this, and thus string extraction will NOT
