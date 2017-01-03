@@ -209,7 +209,7 @@
           (uc/initialize app state root dom opts) => (do
                                                        (assertions
                                                          "Initializes the app with the InitialAppState"
-                                                         state => (uc/initial-state Parent nil)))
+                                                         state => (uc/get-initial-state Parent nil)))
 
           (uc/mount* mock-app Parent :dom-id)))
       (let [mock-app {:mounted? false :initial-state (atom {:a 1}) :reconciler-options :OPTIONS}]

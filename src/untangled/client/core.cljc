@@ -91,6 +91,14 @@
 (defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
 
+(defn get-initial-state
+  "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
+  [class params]
+  #?(:clj  (when-let [initial-state (-> class meta :initial-state)]
+             (initial-state class params))
+     :cljs (when (implements? InitialAppState class)
+             (initial-state class params))))
+
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")

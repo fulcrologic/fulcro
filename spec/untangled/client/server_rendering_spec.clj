@@ -1,11 +1,8 @@
-(ns untangled.client.server-rendering
+(ns untangled.client.server-rendering-spec
   (:require [om.next :as om :refer [defui]]
             [om.dom :as dom]
             [untangled-spec.core :refer [specification behavior assertions]]
             [untangled.client.core :as uc]))
-
-(defn get-initial-state [clz params]
-  ((-> clz meta :initial-state) clz params))
 
 (defui Item
   static uc/InitialAppState
@@ -24,8 +21,8 @@
 
 (defui Root
   static uc/InitialAppState
-  (initial-state [cls params] {:items [(get-initial-state Item {:id 1 :label "A"})
-                                       (get-initial-state Item {:id 2 :label "B"})]})
+  (initial-state [cls params] {:items [(uc/get-initial-state Item {:id 1 :label "A"})
+                                       (uc/get-initial-state Item {:id 2 :label "B"})]})
   static om/IQuery
   (query [this] [{:items (om/get-query Item)}])
   Object
@@ -39,4 +36,4 @@
 (specification "Server-side rendering"
   (assertions
     "Can generate a string from UI with initial state"
-    (dom/render-to-str (ui-root (get-initial-state Root {}))) => "<div class=\"root\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"830295248\"><div class=\"item\" data-reactid=\"2\"><span class=\"label\" data-reactid=\"3\">A</span></div><div class=\"item\" data-reactid=\"4\"><span class=\"label\" data-reactid=\"5\">B</span></div></div>"))
+    (dom/render-to-str (ui-root (uc/get-initial-state Root {}))) => "<div class=\"root\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"830295248\"><div class=\"item\" data-reactid=\"2\"><span class=\"label\" data-reactid=\"3\">A</span></div><div class=\"item\" data-reactid=\"4\"><span class=\"label\" data-reactid=\"5\">B</span></div></div>"))
