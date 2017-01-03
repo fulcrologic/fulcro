@@ -33,10 +33,7 @@
    :clj
    (defn- ensure-integer [v] (Integer/parseInt v)))
 
-#?(:cljs
-   (defn target-value [evt] (.. event -target -value))
-   :clj
-   (defn target-value [evt] evt))
+(defn target-value [evt] (.. evt -target -value))
 
 (defn set-integer!
   "Set the given integer on the given `field` of a `component`. Allows same parameters as `set-string!`.

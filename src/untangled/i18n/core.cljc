@@ -1,5 +1,5 @@
 (ns untangled.i18n.core)
 
-(def *current-locale* (atom "en-US"))
+(def ^:dynamic *current-locale* (atom "en-US"))
 
-(def *loaded-translations* (atom {}))
+(def ^:dynamic *loaded-translations* (atom {}))
