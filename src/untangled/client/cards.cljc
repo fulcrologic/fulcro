@@ -1,5 +1,7 @@
 (ns untangled.client.cards
   #?(:cljs (:require
+             untangled.client.core
+             untangled.dom
              [devcards.core :as dc])))
 
 (defmacro untangled-app [root-ui & args]

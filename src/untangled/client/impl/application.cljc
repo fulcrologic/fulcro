@@ -2,12 +2,15 @@
   (:require [untangled.client.logging :as log]
             [om.next :as om]
             [untangled.client.impl.data-fetch :as f]
-            [cljs.core.async :as async]
+            [untangled.client.impl.util :as util]
+    #?(:cljs [cljs.core.async :as async]
+       :clj
+            [clojure.core.async :as async :refer [go]])
             [untangled.client.impl.network :as net]
             [untangled.client.impl.om-plumbing :as plumbing]
             [untangled.i18n.core :as i18n])
-  (:require-macros
-    [cljs.core.async.macros :refer [go]]))
+  #?(:cljs (:require-macros
+             [cljs.core.async.macros :refer [go]])))
 
 (defn fallback-handler
   "This internal function is responsible for generating and returning a function that can accomplish calling the fallbacks that
@@ -161,7 +164,7 @@
         tempid-migrate (fn [pure _ tempids _]
                          (plumbing/rewrite-tempids-in-request-queue queue tempids)
                          (state-migrate pure tempids))
-        initial-state-with-locale (if (= Atom (type initial-state))
+        initial-state-with-locale (if (util/atom? initial-state)
                                     (do
                                       (swap! initial-state assoc :ui/locale "en-US")
                                       initial-state)
@@ -184,7 +187,7 @@
 (defn initialize-global-error-callback
   [app]
   (let [cb-atom (-> app (get-in [:networking :global-error-callback]))]
-    (when (= Atom (type cb-atom))
+    (when (util/atom? cb-atom)
       (swap! cb-atom #(if (fn? %)
                        (partial % (om/app-state (:reconciler app)))
                        (throw (ex-info "Networking error callback must be a function." {})))))))

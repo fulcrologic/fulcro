@@ -3,10 +3,11 @@
     [clojure.walk :refer [walk prewalk]]
     [om.next :as om]
     [untangled.client.impl.data-fetch :as impl]
-    [untangled.i18n :refer-macros [tr]]
     [om.dom :as dom]
     [untangled.client.core :as uc]
     [om.util :as util]))
+
+(declare load-data load-data-action load load-action load-field load-field-action)
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
@@ -21,7 +22,8 @@
          (or (nil? params) (map? params))
          (set? without)
          (or (util/ident? server-property-or-ident) (keyword? server-property-or-ident))
-         (or (nil? SubqueryClass) (implements? om/IQuery SubqueryClass))]}
+         (or (nil? SubqueryClass) #?(:cljs (implements? om/IQuery SubqueryClass)
+                                     :clj  (satisfies? om/IQuery SubqueryClass)))]}
   (let [query (cond
                 (and SubqueryClass (map? params)) `[({~server-property-or-ident ~(om/get-query SubqueryClass)} ~params)]
                 SubqueryClass [{server-property-or-ident (om/get-query SubqueryClass)}]
@@ -87,35 +89,38 @@
   ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
    {:pre [(or (om/component? app-or-comp-or-reconciler)
               (om/reconciler? app-or-comp-or-reconciler)
-              (implements? uc/UntangledApplication app-or-comp-or-reconciler))]}
+              #?(:cljs (implements? uc/UntangledApplication app-or-comp-or-reconciler)
+                 :clj  (satisfies? uc/UntangledApplication app-or-comp-or-reconciler)))]}
    (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)
-         reconciler (if (implements? uc/UntangledApplication app-or-comp-or-reconciler)
+         reconciler (if #?(:cljs (implements? uc/UntangledApplication app-or-comp-or-reconciler)
+                           :clj  (satisfies? uc/UntangledApplication app-or-comp-or-reconciler))
                       (get app-or-comp-or-reconciler :reconciler)
                       app-or-comp-or-reconciler)
          mutation-args (load-params* server-property-or-ident SubqueryClass config)]
      (om/transact! reconciler (load-mutation mutation-args)))))
 
-(defn load-action
-  "
-  See `load` for descriptions of parameters and config.
+#?(:cljs
+   (defn load-action
+     "
+     See `load` for descriptions of parameters and config.
 
-  Queue up a remote load from within an already-running mutation. Similar to `load`, but usable from
-  within a mutation.
+     Queue up a remote load from within an already-running mutation. Similar to `load`, but usable from
+     within a mutation.
 
-  Note the `:refresh` parameter is supported, and defaults to empty. If you want anything to refresh other than
-  the targeted component you will want to include the :refresh parameter.
+     Note the `:refresh` parameter is supported, and defaults to empty. If you want anything to refresh other than
+     the targeted component you will want to include the :refresh parameter.
 
-  To use this function make sure your mutation specifies a return value with a remote. The remote
-  should use the helper function `remote-load` as it's value:
+     To use this function make sure your mutation specifies a return value with a remote. The remote
+     should use the helper function `remote-load` as it's value:
 
-  { :remote (df/remote-load env)
-    :action (fn []
-       (load-action ...)
-       ; other optimistic updates/state changes)}"
-  ([state-atom server-property-or-ident SubqueryClass] (load-action state-atom server-property-or-ident SubqueryClass {}))
-  ([state-atom server-property-or-ident SubqueryClass config]
-   (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
-     (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :state state-atom)))))
+     { :remote (df/remote-load env)
+       :action (fn []
+          (load-action ...)
+          ; other optimistic updates/state changes)}"
+     ([state-atom server-property-or-ident SubqueryClass] (load-action state-atom server-property-or-ident SubqueryClass {}))
+     ([state-atom server-property-or-ident SubqueryClass config]
+      (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
+        (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :state state-atom))))))
 
 (defn load-field
   "Load a field of the current component. Runs `om/transact!`.
@@ -138,7 +143,7 @@
   using an Om link (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
   improve your frame rate because Om will not have to run a full root query.
   "
-  [component field & {:keys [without params post-mutation fallback parallel refresh marker] :or [refresh [] marker true]}]
+  [component field & {:keys [without params post-mutation fallback parallel refresh marker] :or {refresh [] marker true}}]
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
   (om/transact! component (into [(list 'untangled/load
                                        {:ident         (om/get-ident component)
@@ -197,7 +202,7 @@
     :action (fn []
        (load-field-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state component-class ident field & {:keys [without params post-mutation fallback parallel refresh marker] :or [refresh [] marker true]}]
+  [app-state component-class ident field & {:keys [without params post-mutation fallback parallel refresh marker] :or {refresh [] marker true}}]
   (impl/mark-ready
     {:state         app-state
      :field         field
@@ -254,6 +259,8 @@
 (defn loading? [state] (impl/loading? state))
 (defn failed? [state] (impl/failed? state))
 
+#?(:clj (defn clj->js [m] m))
+
 (defn lazily-loaded
   "Custom rendering for use while data is being lazily loaded using the data fetch methods
   load-collection and load-field.
@@ -300,9 +307,9 @@
   (def ui-thing2 (om/factory Thing2))
   ```"
   [data-render props & {:keys [ready-render loading-render failed-render not-present-render]
-                        :or   {loading-render (fn [_] (dom/div (js-obj "className" "lazy-loading-load") "Loading..."))
-                               ready-render   (fn [_] (dom/div (js-obj "className" "lazy-loading-ready") "Queued"))
-                               failed-render  (fn [_] (dom/div (js-obj "className" "lazy-loading-failed") "Loading error!"))}}]
+                        :or   {loading-render (fn [_] (dom/div (clj->js {"className" "lazy-loading-load"}) "Loading..."))
+                               ready-render   (fn [_] (dom/div (clj->js {"className" "lazy-loading-ready"}) "Queued"))
+                               failed-render  (fn [_] (dom/div (clj->js {"className" "lazy-loading-failed"}) "Loading error!"))}}]
 
   (let [state (:ui/fetch-state props)]
     (cond

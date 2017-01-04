@@ -11,11 +11,12 @@
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/clojurescript "1.9.293" :scope "provided"]
                  [org.clojure/core.async "0.2.391"]
+                 [com.ibm.icu/icu4j "58.2"] ; needed for i18n on server-side rendering
                  [org.omcljs/om "1.0.0-alpha47" :scope "provided"]
                  [org.clojure/test.check "0.9.0" :scope "test"]]
 
   :source-paths ["src" "src-cards"]
-  :resource-paths ["src" "resources"] ; maven deploy to internal artifactory needs src here
+  :resource-paths ["src" "resources"]                       ; maven deploy to internal artifactory needs src here
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx512m" "-Xms256m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
@@ -25,17 +26,17 @@
             [com.jakemccrary/lein-test-refresh "0.17.0"]]
 
   :test-paths ["spec"]
-  :test-refresh {:report untangled-spec.reporters.terminal/untangled-report
+  :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
                  :changes-only true
-                 :with-repl true}
+                 :with-repl    true}
   :test-selectors {:test/in-progress :test/in-progress
-                   :focused :focused}
+                   :focused          :focused}
 
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
 
   :figwheel {:open-file-command "fw-open-file"
-             :server-port 8080}
+             :server-port       8080}
 
   :cljsbuild {:builds
               [{:id           "test"
@@ -50,12 +51,12 @@
                {:id           "cards"
                 :source-paths ["src" "src-cards" "dev"]
                 :figwheel     {:devcards true}
-                :compiler     {:main untangled.client.card-ui
-                               :output-to "resources/public/js/cards/cards.js"
-                               :output-dir "resources/public/js/cards/out"
-                               :asset-path "js/cards/out"
+                :compiler     {:main                 untangled.client.card-ui
+                               :output-to            "resources/public/js/cards/cards.js"
+                               :output-dir           "resources/public/js/cards/out"
+                               :asset-path           "js/cards/out"
                                :source-map-timestamp true
-                               :optimizations :none}}
+                               :optimizations        :none}}
                {:id           "automated-tests"
                 :source-paths ["spec" "src"]
                 :compiler     {:output-to     "resources/private/js/unit-tests.js"
