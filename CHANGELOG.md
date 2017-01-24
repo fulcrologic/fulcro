@@ -1,3 +1,12 @@
+0.6.1
+-----
+- Added support for nil as subquery class in load
+- Fixed preprocess-merge to eliminate litter in app state
+- Added support for server-side rendering.
+- Removed forced root re-render on post mutations. POTENTIALLY BREAKING CHANGE!
+   - The intended use is to include :refresh with your loads that indicate what to re-render
+- Fixed bug in InitialAppState that was missing the merge of nested unions on startup
+
 0.6.0
 -----
 - Changed InitialAppState to overwrite any supplied initial app state atom.
@@ -10,7 +19,7 @@
 - Fixed bug with removal/addition of markers when markers are off
 - Added jump to and playback speed features to the support viewer.
 - Added support for post-mutation parameters in load API.
-- Added support for custom handling of merge of return values from server mutations (see `:mutation-merge` 
+- Added support for custom handling of merge of return values from server mutations (see `:mutation-merge`
   in `new-untangled-client`).
 - Added support for custom transit handlers on the client side. Server side is coming in a release soon.
 - Added support for turning on/off Om path optimization

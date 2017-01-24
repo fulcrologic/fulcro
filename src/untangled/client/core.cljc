@@ -1,21 +1,35 @@
 (ns untangled.client.core
-  (:require
-    [om.next :as om]
-    [om.next.cache :as omc]
-    [untangled.client.impl.application :as app]
-    [goog.dom :as gdom]
-    untangled.client.impl.built-in-mutations                ; DO NOT REMOVE. Ensures built-in mutations load on start
-    [untangled.client.impl.network :as net]
-    [untangled.client.logging :as log]
-    [untangled.dom :as udom]
-    [cljs.core.async :as async]
-    [om.next.protocols :as omp]
-    [untangled.client.impl.util :as util]
-    [untangled.client.impl.om-plumbing :as plumbing]
-    [clojure.set :as set])
-  (:import goog.Uri))
+  #?(:cljs
+     (:require
+       [om.next :as om]
+       [om.next.cache :as omc]
+       [untangled.client.impl.application :as app]
+       [goog.dom :as gdom]
+       untangled.client.impl.built-in-mutations             ; DO NOT REMOVE. Ensures built-in mutations load on start
+       [untangled.client.impl.network :as net]
+       [untangled.client.logging :as log]
+       [untangled.dom :as udom]
+       [cljs.core.async :as async]
+       [om.next.protocols :as omp]
+       [untangled.client.impl.util :as util]
+       [untangled.client.impl.om-plumbing :as plumbing]
+       [clojure.set :as set])
+     :clj
+     (:require
+       [om.next :as om]
+       [untangled.client.impl.application :as app]
+       [untangled.client.impl.network :as net]
+       [untangled.client.logging :as log]
+       [untangled.dom :as udom]
+       [clojure.core.async :as async]
+       [om.next.protocols :as omp]
+       [untangled.client.impl.util :as util]
+       [untangled.client.impl.om-plumbing :as plumbing]
+       [clojure.set :as set])
+     )
+  #?(:cljs (:import goog.Uri)))
 
-(declare map->Application merge-alternate-union-elements! merge-state!)
+(declare map->Application merge-alternate-union-elements! merge-state! new-untangled-client new-untangled-test-client)
 
 (defn new-untangled-client
   "Entrypoint for creating a new untangled client. Instantiates an Application with default values, unless
@@ -69,13 +83,21 @@
                      :mutation-merge     mutation-merge
                      :started-callback   started-callback
                      :reconciler-options {:migrate migrate :pathopt pathopt :shared shared}
-                     :networking         (or networking (net/make-untangled-network "/api"
-                                                                                    :request-transform request-transform
-                                                                                    :transit-handlers transit-handlers
-                                                                                    :global-error-callback network-error-callback))}))
+                     :networking         (or networking #?(:clj nil :cljs (net/make-untangled-network "/api"
+                                                                                                      :request-transform request-transform
+                                                                                                      :transit-handlers transit-handlers
+                                                                                                      :global-error-callback network-error-callback)))}))
 
 (defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
+
+(defn get-initial-state
+  "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
+  [class params]
+  #?(:clj  (when-let [initial-state (-> class meta :initial-state)]
+             (initial-state class params))
+     :cljs (when (implements? InitialAppState class)
+             (initial-state class params))))
 
 (defprotocol UntangledApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
@@ -86,30 +108,34 @@
   (history [this] "Return a serialized version of the current history of the application, suitable for network transfer")
   (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
-(defn- merge-alternate-union-elements! [app root-component]
-  (letfn [(walk-ast
-            ([ast visitor]
-             (walk-ast ast visitor nil))
-            ([ast visitor last-join-component]
-             (visitor ast last-join-component)
-             (when (:children ast)
-               (let [join-component (if (= :join (:type ast))
-                                      (:component ast)
-                                      last-join-component)]
-                 (doseq [c (:children ast)]
-                   (walk-ast c visitor join-component))))))
-          (merge-union [{:keys [type component query children] :as n} last-join-component]
-            (when (= :union type)
-              (let [default-branch (and last-join-component (implements? InitialAppState last-join-component) (initial-state last-join-component nil))
-                    to-many? (vector? default-branch)]
-                (doseq [element (->> query vals (map (comp :component meta)))]
-                  (if-let [state (and (implements? InitialAppState element) (initial-state element nil))]
+;q: {:a (gq A) :b (gq B)
+;is: (is A)  <-- default branch
+;state:   { kw { id [:page :a]  }}
+#?(:cljs
+   (defn- merge-alternate-union-elements! [app root-component]
+     (letfn [(walk-ast
+               ([ast visitor]
+                (walk-ast ast visitor nil))
+               ([{:keys [children component type dispatch-key union-key key] :as parent-ast} visitor parent-union]
+                (when (and component parent-union (= :union-entry type))
+                  (visitor component parent-union))
+                (when children
+                  (doseq [ast children]
                     (cond
-                      (and state (not default-branch)) (log/warn "Subelements of union with query " query " have initial state, but the union component itself has no initial app state. Your app state may not have been initialized correctly.")
-                      (not to-many?) (merge-state! app last-join-component state)))))))]
-    (walk-ast
-      (om/query->ast (om/get-query root-component))
-      merge-union)))
+                      (= (:type ast) :union) (walk-ast ast visitor component) ; the union's component is on the parent join
+                      (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
+                      ast (walk-ast ast visitor nil))))))
+             (merge-union [component parent-union]
+               (let [default-initial-state (and parent-union (implements? InitialAppState parent-union) (initial-state parent-union {}))
+                     to-many? (vector? default-initial-state)
+                     component-initial-state (and component (implements? InitialAppState component) (initial-state component {}))]
+                 (when-not default-initial-state
+                   (log/warn "Subelements of union " parent-union " have initial state, but the union itself has no initial state. Your app state may suffer."))
+                 (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
+                   (merge-state! app parent-union component-initial-state))))]
+       (walk-ast
+         (om/query->ast (om/get-query root-component))
+         merge-union))))
 
 (defn- initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
@@ -122,9 +148,10 @@
                                :networking networking)
         rec (app/generate-reconciler initial-app initial-state parser reconciler-options)
         completed-app (assoc initial-app :reconciler rec)
-        node (if (string? dom-id-or-node)
-               (gdom/getElement dom-id-or-node)
-               dom-id-or-node)]
+        node #?(:cljs (if (string? dom-id-or-node)
+                        (gdom/getElement dom-id-or-node)
+                        dom-id-or-node)
+                :clj  dom-id-or-node)]
 
     (net/start networking completed-app)
     (app/initialize-internationalization rec)
@@ -146,7 +173,7 @@
 (defn reset-history-impl
   "Needed for mocking in tests. Use UntangledApplication protocol methods instead."
   [app]
-  (assoc app :reconciler (update-in (:reconciler app) [:config :history] #(omc/cache (.-size %)))))
+  #?(:cljs (assoc app :reconciler (update-in (:reconciler app) [:config :history] #(omc/cache (.-size %))))))
 
 (defn refresh* [{:keys [reconciler] :as app}]
   (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
@@ -155,10 +182,12 @@
 (defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
   (if mounted?
     (do (refresh* app) app)
-    (let [uses-initial-app-state? (implements? InitialAppState root-component)
+    (let [uses-initial-app-state? #?(:cljs (implements? InitialAppState root-component)
+                                     :clj  (satisfies? InitialAppState root-component))
           ui-declared-state (and uses-initial-app-state? (untangled.client.core/initial-state root-component nil))
-          atom-supplied? (= Atom (type initial-state))
-          init-conflict? (and (or atom-supplied? (seq initial-state)) (implements? InitialAppState root-component))
+          atom-supplied? (util/atom? initial-state)
+          init-conflict? (and (or atom-supplied? (seq initial-state)) #?(:cljs (implements? InitialAppState root-component)
+                                                                         :clj  (satisfies? InitialAppState root-component)))
           state (cond
                   (not uses-initial-app-state?) (if initial-state initial-state {})
                   atom-supplied? (do
@@ -176,7 +205,8 @@
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
   (reset-app! [this root-component callback]
-    (if (not (implements? InitialAppState root-component))
+    (if (not #?(:cljs (implements? InitialAppState root-component)
+                :clj  (satisfies? InitialAppState root-component)))
       (log/error "The specified root component does not implement InitialAppState!")
       (let [base-state (om/tree->db root-component (untangled.client.core/initial-state root-component nil) true)]
         (clear-pending-remote-requests! this)
@@ -192,11 +222,12 @@
   (clear-pending-remote-requests! [this] (clear-queue queue))
 
   (history [this]
-    (let [history-steps (-> reconciler :config :history .-arr)
-          history-map (-> reconciler :config :history .-index deref)]
-      {:steps   history-steps
-       :history (into {} (map (fn [[k v]]
-                                [k (assoc v :untangled/meta (meta v))]) history-map))}))
+    #?(:cljs
+       (let [history-steps (-> reconciler :config :history .-arr)
+             history-map (-> reconciler :config :history .-index deref)]
+         {:steps   history-steps
+          :history (into {} (map (fn [[k v]]
+                                   [k (assoc v :untangled/meta (meta v))]) history-map))})))
   (reset-history! [this]
     (reset-history-impl this))
 
@@ -212,43 +243,40 @@
                      :started-callback started-callback
                      :networking       (net/mock-network)}))
 
-(defn get-url
-  "Get the current window location from the browser"
-  [] (-> js/window .-location .-href))
+#?(:cljs
+   (defn get-url
+     "Get the current window location from the browser"
+     [] (-> js/window .-location .-href)))
 
-(defn uri-params
-  "Get the current URI parameters from the browser url or one you supply"
-  ([] (uri-params (get-url)))
-  ([url]
-   (let [query-data (.getQueryData (goog.Uri. url))]
-     (into {}
-           (for [k (.getKeys query-data)]
-             [k (.get query-data k)])))))
+#?(:cljs
+   (defn uri-params
+     "Get the current URI parameters from the browser url or one you supply"
+     ([] (uri-params (get-url)))
+     ([url]
+      (let [query-data (.getQueryData (goog.Uri. url))]
+        (into {}
+              (for [k (.getKeys query-data)]
+                [k (.get query-data k)]))))))
 
-(defn get-url-param
-  "Get the value of the named parameter from the browser URL (or an explicit one)"
-  ([param-name] (get-url-param (get-url) param-name))
-  ([url param-name]
-   (get (uri-params url) param-name)))
+#?(:cljs
+   (defn get-url-param
+     "Get the value of the named parameter from the browser URL (or an explicit one)"
+     ([param-name] (get-url-param (get-url) param-name))
+     ([url param-name]
+      (get (uri-params url) param-name))))
 
 (defn get-class-ident
   "Get the ident using a component class and data. Om's simulated statics are elided by
   advanced compilation. This function compensates."
   [comp data]
-  (if (implements? om/Ident comp)
-    (om/ident comp data)
-    ;; in advanced, statics will get killed
-    (when (goog/isFunction comp)
-      (let [resurrection (js/Object.create (. comp -prototype))]
-        (when (implements? om/Ident resurrection)
-          (om/ident resurrection data))))))
+  (om/ident comp data))
 
 (defn- component-merge-query
   "Calculates the query that can be used to pull (or merge) a component with an ident
   to/from a normalized app database. Requires a tree of data that represents the instance of
   the component in question (e.g. ident will work on it)"
   [component object-data]
-  (let [ident (get-class-ident component object-data)
+  (let [ident (om/ident component object-data)
         object-query (om/get-query component)]
     [{ident object-query}]))
 
@@ -258,6 +286,7 @@
   [state-atom component object-data]
   (let [ident (get-class-ident component object-data)
         object-query (om/get-query component)
+        object-query (if (map? object-query) [object-query] object-query)
         base-query (component-merge-query component object-data)
         ;; :untangled/merge is way to make unions merge properly when joined by idents
         merge-query [{:untangled/merge base-query}]
@@ -331,9 +360,11 @@
   Any keywords that appear in ident integration steps will be added to the re-render queue.
   "
   [app-or-reconciler component object-data & named-parameters]
-  (when-not (implements? om/Ident component) (log/warn "merge-state!: component must implement Ident"))
+  (when-not #?(:cljs (implements? om/Ident component)
+               :clj  (satisfies? om/Ident component)) (log/warn "merge-state!: component must implement Ident"))
   (let [ident (get-class-ident component object-data)
-        reconciler (if (= untangled.client.core/Application (type app-or-reconciler))
+        reconciler (if #?(:cljs (implements? UntangledApplication app-or-reconciler)
+                          :clj  (satisfies? UntangledApplication app-or-reconciler))
                      (:reconciler app-or-reconciler)
                      app-or-reconciler)
         state (om/app-state reconciler)

@@ -1,8 +1,21 @@
 (ns clj.user
-  (:require [figwheel-sidecar.system :as fig]
-            [com.stuartsierra.component :as component]))
+  (:require
+    [clojure.pprint :refer [pprint]]
+    [clojure.repl :refer [doc source]]
+    [clojure.set :as set]
+    [clojure.spec :as s]
+    [clojure.spec.gen :as sg]
+    [clojure.tools.namespace.repl :refer [refresh]]
+    [figwheel-sidecar.system :as fig]
+    [com.stuartsierra.component :as component]))
 
-;;FIGWHEEL
+(defn conform! [spec x]
+  (let [rt (s/conform spec x)]
+    (when (s/invalid? rt)
+      (throw (ex-info (s/explain-str spec x)
+               (s/explain-data spec x))))
+    rt))
+
 (def figwheel (atom nil))
 
 (defn start-figwheel

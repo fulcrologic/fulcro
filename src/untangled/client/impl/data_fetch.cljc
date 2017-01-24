@@ -9,9 +9,7 @@
             [untangled.client.logging :as log]
             [untangled.client.impl.om-plumbing :as plumbing]
             [untangled.dom :as udom]
-            [cljs-uuid-utils.core :as uuid])
-  (:require-macros
-    [cljs.core.async.macros :refer [go]]))
+    #?(:cljs [cljs-uuid-utils.core :as uuid])))
 
 
 ; TODO: Some of this API is public, and should be in the non-impl ns.
@@ -223,7 +221,9 @@
         query' (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
     {::type                 :ready
-     ::uuid                 (uuid/uuid-string (uuid/make-random-squuid))
+     ::uuid                 #?(:cljs
+                                    (uuid/uuid-string (uuid/make-random-squuid))
+                               :clj (str (System/currentTimeMillis)))
      ::target               target
      ::ident                ident                           ; only for component-targeted loads
      ::field                field                           ; for component-targeted load
@@ -370,15 +370,15 @@
                                         (reset! ran-mutations true)
                                         (let [params (or (::post-mutation-params item) {})]
                                           (some->
-                                           (m/mutate {:state (om/app-state reconciler)} mutation-symbol params)
-                                           :action
-                                           (apply []))))))]
+                                            (m/mutate {:state (om/app-state reconciler)} mutation-symbol params)
+                                            :action
+                                            (apply []))))))]
       (remove-markers)
       (om/merge! reconciler marked-response query)
       (relocate-targeted-results app-state loading-items)
       (run-post-mutations)
       (set-global-loading reconciler)
-      (if (or @ran-mutations (contains? refresh-set :untangled/force-root))
+      (if (contains? refresh-set :untangled/force-root)
         (udom/force-render reconciler)
         (udom/force-render reconciler to-refresh)))))
 

@@ -1,13 +1,15 @@
 (ns untangled.dom
   (:require [clojure.string :as str]
-            [cljs-uuid-utils.core :as uuid]
             [om.next :as om]
             [untangled.client.logging :as log]
             [om.next.protocols :as omp]))
 
 (defn unique-key
   "Get a unique string-based key. Never returns the same value."
-  [] (uuid/uuid-string (uuid/make-random-squuid)))
+  []
+  (let [s #?(:clj  (System/currentTimeMillis)
+             :cljs (system-time))]
+    (str s)))
 
 (defn force-render
   "Re-render components. If only a reconciler is supplied then it forces a full DOM re-render by updating the :ui/react-key
@@ -67,4 +69,4 @@
   [evt]
   (try
     (.-value (.-target evt))
-    (catch js/Object e (log/warn "Event had no target when trying to pull text"))))
+    (catch #?(:clj Exception :cljs js/Object) e (log/warn "Event had no target when trying to pull text"))))

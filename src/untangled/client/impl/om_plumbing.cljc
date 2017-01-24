@@ -1,15 +1,13 @@
 (ns untangled.client.impl.om-plumbing
   (:require [om.next :as om]
-            [om.next.impl.parser :as op]
             [om.util :as util]
-            [untangled.i18n.core :as i18n]
             [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
-            [cljs.core.async :as async]
-            [clojure.walk :as walk]
-            [clojure.zip :as zip])
-  (:require-macros
-    [cljs.core.async.macros :refer [go]]))
+    #?(:cljs
+       [cljs.core.async :as async]
+       :clj
+            [clojure.core.async :as async])
+            [clojure.walk :as walk]))
 
 (defn read-local
   "Read function for the Om parser.
@@ -42,7 +40,7 @@
   [env k params]
   (let [rv (try
              (m/mutate env k params)
-             (catch :default e
+             (catch #?(:cljs :default :clj Exception) e
                (log/error (str "Mutation " k " failed with exception") e)
                nil))
         action (:action rv)]
@@ -52,9 +50,9 @@
                             (let [action-result (action env k params)]
                               (try
                                 (m/post-mutate env k params)
-                                (catch :default e (log/error (str "Post mutate failed on dispatch to " k))))
+                                (catch #?(:cljs :default :clj Exception) e (log/error (str "Post mutate failed on dispatch to " k))))
                               action-result)
-                            (catch :default e
+                            (catch #?(:cljs :default :clj Exception) e
                               (log/error (str "Mutation " k " failed with exception") e)
                               (throw e)))))
       rv)))
@@ -64,7 +62,7 @@
   [state tid->rid]
   (if (empty? tid->rid)
     state
-    (walk/prewalk #(if (-> % type (= om.tempid/TempId)) (get tid->rid % %) %) state)))
+    (walk/prewalk #(if (om/tempid? %) (get tid->rid % %) %) state)))
 
 (defn rewrite-tempids-in-request-queue
   "Rewrite any pending requests in the request queue to account for the fact that a response might have
