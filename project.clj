@@ -1,4 +1,4 @@
-(defproject navis/untangled-client "0.6.1-SNAPSHOT"
+(defproject navis/untangled-client "0.6.1"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "MIT"
