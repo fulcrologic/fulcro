@@ -242,3 +242,136 @@
                                                            state => :INITIAL-UI-STATE))
 
             (uc/mount* mock-app Parent :dom-id)))))))
+
+
+(defui MergeX
+  static uc/InitialAppState
+  (initial-state [this params] {:n :x})
+  static om/IQuery
+  (query [this] [:n]))
+
+(defui MergeY
+  static uc/InitialAppState
+  (initial-state [this params] {:n :y})
+  static om/IQuery
+  (query [this] [:n]))
+
+
+(defui MergeA
+  static uc/InitialAppState
+  (initial-state [this params] {:n :a})
+  static om/IQuery
+  (query [this] [:n]))
+
+(defui MergeB
+  static uc/InitialAppState
+  (initial-state [this params] {:n :b})
+  static om/IQuery
+  (query [this] [:n]))
+
+(defui MergeUnion
+  static uc/InitialAppState
+  (initial-state [this params] (uc/initial-state MergeA {}))
+  static om/IQuery
+  (query [this] {:a (om/get-query MergeA) :b (om/get-query MergeB)}))
+
+(defui MergeRoot
+  static uc/InitialAppState
+  (initial-state [this params] {:a 1 :b (uc/initial-state MergeUnion {})})
+  static om/IQuery
+  (query [this] [:a {:b (om/get-query MergeUnion)}]))
+
+;; Nested routing tree
+;; NestedRoot
+;;     |
+;;     U1
+;;    /  B    A = MergeRoot B = MergeB
+;;    R2
+;;   U2       A2
+;;  X  Y
+
+(defui U2
+  static uc/InitialAppState
+  (initial-state [this params] (uc/initial-state MergeX {}))
+  static om/IQuery
+  (query [this] {:x (om/get-query MergeX) :y (om/get-query MergeY)}))
+
+(defui R2
+  static uc/InitialAppState
+  (initial-state [this params] {:id 1 :u2 (uc/initial-state U2 {})})
+  static om/IQuery
+  (query [this] [:id {:u2 (om/get-query U2)}]))
+
+(defui U1
+  static uc/InitialAppState
+  (initial-state [this params] (uc/initial-state MergeB {}))
+  static om/IQuery
+  (query [this] {:r2 (om/get-query R2) :b (om/get-query MergeB)}))
+
+(defui NestedRoot
+  static uc/InitialAppState
+  (initial-state [this params] {:u1 (uc/initial-state U1 {})})
+  static om/IQuery
+  (query [this] [{:u1 (om/get-query U1)}]))
+
+;; Sibling routing tree
+;; SiblingRoot
+;;     |   \
+;;   SU1   SU2
+;;  A   B  X  Y
+
+(defui SU1
+  static uc/InitialAppState
+  (initial-state [this params] (uc/initial-state MergeB {}))
+  static om/IQuery
+  (query [this] {:a (om/get-query MergeA) :b (om/get-query MergeB)}))
+
+(defui SU2
+  static uc/InitialAppState
+  (initial-state [this params] (uc/initial-state MergeX {}))
+  static om/IQuery
+  (query [this] {:x (om/get-query MergeX) :y (om/get-query MergeY)}))
+
+
+(defui SiblingRoot
+  static uc/InitialAppState
+  (initial-state [this params] {:su1 (uc/initial-state SU1 {}) :su2 (uc/initial-state SU2 {})})
+  static om/IQuery
+  (query [this] [{:su1 (om/get-query SU1)} {:su2 (om/get-query SU2)}]))
+
+
+(specification "merge-alternate-union-elements!"
+  (behavior "For applications with sibling unions"
+    (when-mocking
+      (uc/merge-state! app comp state) =1x=> (do
+                                               (assertions
+                                                 "Merges level one elements"
+                                                 state => (uc/initial-state MergeA {})))
+      (uc/merge-state! app comp state) =1x=> (do
+                                               (assertions
+                                                 "Merges only the state of branches that are not already initialized"
+                                                 state => (uc/initial-state MergeY {})))
+
+      (uc/merge-alternate-union-elements! :app SiblingRoot)))
+
+  (behavior "For applications with nested unions"
+    (when-mocking
+      (uc/merge-state! app comp state) =1x=> (do
+                                               (assertions
+                                                 "Merges level one elements"
+                                                 state => (uc/initial-state R2 {})))
+      (uc/merge-state! app comp state) =1x=> (do
+                                               (assertions
+                                                 "Merges only the state of branches that are not already initialized"
+                                                 state => (uc/initial-state MergeY {})))
+
+      (uc/merge-alternate-union-elements! :app NestedRoot)))
+  (behavior "For applications with non-nested unions"
+    (when-mocking
+      (uc/merge-state! app comp state) => (do
+                                            (assertions
+                                              "Merges only the state of branches that are not already initialized"
+                                              state => (uc/initial-state MergeB {})))
+
+      (uc/merge-alternate-union-elements! :app MergeRoot))))
+

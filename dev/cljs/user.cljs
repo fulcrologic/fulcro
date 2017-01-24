@@ -6,6 +6,7 @@
     [clojure.test :as test :include-macros true :refer [report]]
     [clojure.spec :as s]
     [devtools.core :as devtools]
+    [om.next :as om]
     untangled.tests-to-run
     [untangled-spec.reporters.suite :refer-macros [deftest-all-suite]]))
 

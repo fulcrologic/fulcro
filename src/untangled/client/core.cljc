@@ -108,29 +108,31 @@
   (history [this] "Return a serialized version of the current history of the application, suitable for network transfer")
   (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
+;q: {:a (gq A) :b (gq B)
+;is: (is A)  <-- default branch
+;state:   { kw { id [:page :a]  }}
 #?(:cljs
    (defn- merge-alternate-union-elements! [app root-component]
      (letfn [(walk-ast
                ([ast visitor]
                 (walk-ast ast visitor nil))
-               ([ast visitor last-join-component]
-                (visitor ast last-join-component)
-                (when (:children ast)
-                  (let [join-component (if (= :join (:type ast))
-                                         (:component ast)
-                                         last-join-component)]
-                    (doseq [c (:children ast)]
-                      (walk-ast c visitor join-component))))))
-             (merge-union [{:keys [type component query children] :as n} last-join-component]
-               (when (= :union type)
-                 (let [default-branch (and last-join-component (implements? InitialAppState last-join-component) (initial-state last-join-component nil))
-                       to-many? (vector? default-branch)]
-                   (doseq [element (->> query vals (map (comp :component meta)))]
-                     (if-let [state (and (implements? InitialAppState element) (initial-state element nil))]
-                       (cond
-                         (and state (not default-branch)) (log/warn "Subelements of union with query " query " have initial state, but the union component itself has no initial app state. Your app state may not have been initialized correctly.")
-                         (not to-many?) (do
-                                          (merge-state! app last-join-component state))))))))]
+               ([{:keys [children component type dispatch-key union-key key] :as parent-ast} visitor parent-union]
+                (when (and component parent-union (= :union-entry type))
+                  (visitor component parent-union))
+                (when children
+                  (doseq [ast children]
+                    (cond
+                      (= (:type ast) :union) (walk-ast ast visitor component) ; the union's component is on the parent join
+                      (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
+                      ast (walk-ast ast visitor nil))))))
+             (merge-union [component parent-union]
+               (let [default-initial-state (and parent-union (implements? InitialAppState parent-union) (initial-state parent-union {}))
+                     to-many? (vector? default-initial-state)
+                     component-initial-state (and component (implements? InitialAppState component) (initial-state component {}))]
+                 (when-not default-initial-state
+                   (log/warn "Subelements of union " parent-union " have initial state, but the union itself has no initial state. Your app state may suffer."))
+                 (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
+                   (merge-state! app parent-union component-initial-state))))]
        (walk-ast
          (om/query->ast (om/get-query root-component))
          merge-union))))

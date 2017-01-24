@@ -5,6 +5,7 @@
 - Added support for server-side rendering.
 - Removed forced root re-render on post mutations. POTENTIALLY BREAKING CHANGE!
    - The intended use is to include :refresh with your loads that indicate what to re-render
+- Fixed bug in InitialAppState that was missing the merge of nested unions on startup
 
 0.6.0
 -----
