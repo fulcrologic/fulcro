@@ -9,13 +9,6 @@
     [figwheel-sidecar.system :as fig]
     [com.stuartsierra.component :as component]))
 
-(defn conform! [spec x]
-  (let [rt (s/conform spec x)]
-    (when (s/invalid? rt)
-      (throw (ex-info (s/explain-str spec x)
-               (s/explain-data spec x))))
-    rt))
-
 (def figwheel (atom nil))
 
 (defn start-figwheel

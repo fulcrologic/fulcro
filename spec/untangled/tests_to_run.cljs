@@ -5,11 +5,11 @@
     untangled.client.impl.util-spec
     untangled.client.impl.application-spec
     untangled.client.impl.built-in-mutations-spec
-    untangled.client.cache-manager-spec
     untangled.client.data-fetch-spec
     untangled.client.impl.om-plumbing-spec
     untangled.client.logging-spec
     untangled.client.core-spec
+    untangled.client.routing-spec
     untangled.i18n-spec
     untangled.client.impl.network-spec))
 

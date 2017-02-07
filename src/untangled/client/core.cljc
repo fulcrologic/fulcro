@@ -1,32 +1,19 @@
 (ns untangled.client.core
-  #?(:cljs
-     (:require
-       [om.next :as om]
-       [om.next.cache :as omc]
-       [untangled.client.impl.application :as app]
-       [goog.dom :as gdom]
-       untangled.client.impl.built-in-mutations             ; DO NOT REMOVE. Ensures built-in mutations load on start
-       [untangled.client.impl.network :as net]
-       [untangled.client.logging :as log]
-       [untangled.dom :as udom]
-       [cljs.core.async :as async]
-       [om.next.protocols :as omp]
-       [untangled.client.impl.util :as util]
-       [untangled.client.impl.om-plumbing :as plumbing]
-       [clojure.set :as set])
-     :clj
-     (:require
-       [om.next :as om]
-       [untangled.client.impl.application :as app]
-       [untangled.client.impl.network :as net]
-       [untangled.client.logging :as log]
-       [untangled.dom :as udom]
-       [clojure.core.async :as async]
-       [om.next.protocols :as omp]
-       [untangled.client.impl.util :as util]
-       [untangled.client.impl.om-plumbing :as plumbing]
-       [clojure.set :as set])
-     )
+  (:require
+    [om.next :as om]
+    [untangled.client.impl.application :as app]
+    #?(:cljs untangled.client.impl.built-in-mutations)      ; DO NOT REMOVE. Ensures built-in mutations load on start
+    [untangled.client.impl.network :as net]
+    [untangled.client.logging :as log]
+    [untangled.dom :as udom]
+    #?(:clj
+    [clojure.core.async :as async] :cljs [cljs.core.async :as async])
+    [om.next.protocols :as omp]
+    [untangled.client.impl.util :as util]
+    [untangled.client.impl.om-plumbing :as plumbing]
+    [clojure.set :as set]
+    #?(:cljs [om.next.cache :as omc])
+    #?(:cljs [goog.dom :as gdom]))
   #?(:cljs (:import goog.Uri)))
 
 (declare map->Application merge-alternate-union-elements! merge-state! new-untangled-client new-untangled-test-client)

@@ -2,7 +2,7 @@
   <configuration default="false" name="Figwheel" type="ClojureREPL" factoryName="Local" activateToolWindowBeforeRun="false">
     <setting name="replType" value="2" />
     <module name="untangled-client" />
-    <setting name="jvmArgs" value="-Dtest" />
+    <setting name="jvmArgs" value="-Dtest -Dcards" />
     <setting name="parameters" value="script/figwheel.clj" />
     <setting name="workingDir" value="$PROJECT_DIR$" />
     <setting name="profiles" value="" />

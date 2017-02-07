@@ -1,3 +1,8 @@
+0.7.0
+-----
+- Removed cache 
+- Adding UI routing helpers
+
 0.6.1
 -----
 - Added support for nil as subquery class in load
