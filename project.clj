@@ -1,4 +1,4 @@
-(defproject navis/untangled-client "0.6.1"
+(defproject navis/untangled-client "0.7.0-SNAPSHOT"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "MIT"
@@ -9,7 +9,7 @@
                  [lein-doo "0.1.7" :scope "test"]
                  [navis/untangled-spec "0.3.9" :scope "test"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.293" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.456" :scope "provided"]
                  [org.clojure/core.async "0.2.391"]
                  [com.ibm.icu/icu4j "58.2"] ; needed for i18n on server-side rendering
                  [org.omcljs/om "1.0.0-alpha47" :scope "provided"]
@@ -21,9 +21,9 @@
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx512m" "-Xms256m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
 
-  :plugins [[lein-cljsbuild "1.1.4"]
+  :plugins [[lein-cljsbuild "1.1.5"]
             [lein-doo "0.1.7"]
-            [com.jakemccrary/lein-test-refresh "0.17.0"]]
+            [com.jakemccrary/lein-test-refresh "0.18.0"]]
 
   :test-paths ["spec"]
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
@@ -70,7 +70,7 @@
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[binaryage/devtools "0.5.2"]
                                   [com.cemerick/piggieback "0.2.1"]
-                                  [figwheel-sidecar "0.5.7"]
+                                  [figwheel-sidecar "0.5.9"]
                                   [org.clojure/test.check "0.9.0"]
                                   [org.clojure/tools.namespace "0.2.11"]
                                   [org.clojure/tools.nrepl "0.2.12"]]}})
