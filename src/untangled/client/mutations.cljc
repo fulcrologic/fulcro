@@ -99,7 +99,7 @@
                        The arglist should be the *parameter* arglist of the mutation, NOT the complete argument list
                        for the equivalent defmethod. For example:
 
-                          (defmutation boo [id] ...) => (defmethod m/mutate *ns*/boo [{:keys [state ref]} _ {:keys [id]}] ...)
+                          (defmutation boo [{:keys [id]} ...) => (defmethod m/mutate *ns*/boo [{:keys [state ref]} _ {:keys [id]}] ...)
 
                        The mutation may include an action and remote. Both are optional:
 
@@ -119,7 +119,7 @@
                                                (conform! ::remote remote)
                                                {:remote-args ['env] :remote-body [false]})
            remote-val `(do ~@remote-body)]
-       `(defmethod untangled.client.mutations/mutate '~fqsym [env# ~'_ {:keys ~arglist}]
+       `(defmethod untangled.client.mutations/mutate '~fqsym [env# ~'_ ~(first arglist)]
           (merge
             (let [~(first action-args) env#]
               {:action (fn [] ~@action-body)})

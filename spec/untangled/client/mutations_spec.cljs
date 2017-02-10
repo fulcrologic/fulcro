@@ -9,7 +9,7 @@
 
 (defmutation sample
   "Doc string"
-  [id]
+  [{:keys [id]}]
   (action [{:keys [state]}]
     (swap! state assoc :sample id))
   (remote [{:keys [ast]}]
