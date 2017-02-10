@@ -1,5 +1,7 @@
 (ns untangled.client.mutations
-  (:require [om.next :as om]))
+  (:require
+    #?(:clj [clojure.spec :as s])
+            [om.next :as om]))
 
 ;; Add methods to this to implement your local mutations
 (defmulti mutate om/dispatch)
@@ -62,4 +64,65 @@
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (if event (target-value event) value)]
     (set-value! component field value)))
+
+
+#?(:clj (s/def ::action (s/cat
+                          :action-name (fn [sym] (= sym 'action))
+                          :action-args (fn [a] (and (vector? a) (= 1 (count a))))
+                          :action-body (s/+ (constantly true)))))
+
+#?(:clj (s/def ::remote (s/cat
+                          :remote-name (fn [sym] (= sym 'remote))
+                          :remote-args (fn [a] (and (vector? a) (= 1 (count a))))
+                          :remote-body (s/+ (constantly true)))))
+
+#?(:clj (s/def ::mutation-args (s/cat
+                                 :sym symbol?
+                                 :doc (s/? string?)
+                                 :arglist vector?
+                                 :action (s/? #(and (list? %) (= 'action (first %))))
+                                 :remote (s/? #(and (list? %) (= 'remote (first %)))))))
+
+#?(:clj (defn- conform! [spec x]
+          (let [rt (s/conform spec x)]
+            (when (s/invalid? rt)
+              (throw (ex-info (s/explain-str spec x)
+                       (s/explain-data spec x))))
+            rt)))
+
+#?(:clj
+   (defmacro ^{:doc      "Define an Untangled mutation.
+
+                       The given symbol will be prefixed with the namespace of the current namespace, as if
+                       it were def'd into the namespace.
+
+                       The arglist should be the *parameter* arglist of the mutation, NOT the complete argument list
+                       for the equivalent defmethod. For example:
+
+                          (defmutation boo [id] ...) => (defmethod m/mutate *ns*/boo [{:keys [state ref]} _ {:keys [id]}] ...)
+
+                       The mutation may include an action and remote. Both are optional:
+
+                       (defmutation boo \"docstring\" [params-map]
+                         (action [env] ...)
+                         (remote [env] ...))"
+               :arglists '([sym docstring? arglist action]
+                            [sym docstring? arglist action remote]
+                            [sym docstring? arglist remote])} defmutation
+     [& args]
+     (let [{:keys [sym doc arglist action remote]} (conform! ::mutation-args args)
+           fqsym      (symbol (name (ns-name *ns*)) (name sym))
+           {:keys [action-args action-body]} (if action
+                                               (conform! ::action action)
+                                               {:action-args ['env] :action-body []})
+           {:keys [remote-args remote-body]} (if remote
+                                               (conform! ::remote remote)
+                                               {:remote-args ['env] :remote-body [false]})
+           remote-val `(do ~@remote-body)]
+       `(defmethod untangled.client.mutations/mutate '~fqsym [env# ~'_ {:keys ~arglist}]
+          (merge
+            (let [~(first action-args) env#]
+              {:action (fn [] ~@action-body)})
+            (let [~(first remote-args) env#]
+              {:remote ~remote-val}))))))
 

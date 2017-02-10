@@ -1,7 +1,11 @@
+0.7.1
+-----
+- Added defmutation 
+
 0.7.0
 -----
 - Removed cache 
-- Adding UI routing helpers
+- Added UI routing helpers
 
 0.6.1
 -----
