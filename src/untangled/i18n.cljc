@@ -1,45 +1,54 @@
 (ns untangled.i18n
-  #?(:clj
-     (:require js
-               [untangled.i18n.core :as ic]
-               [untangled.client.logging :as log]
-               ))
-  #?(:cljs (:require
-             [untangled.i18n.core :as ic]
-             yahoo.intl-messageformat-with-locales
-             [untangled.client.logging :as log])))
+  #?(:cljs (:require-macros untangled.i18n))
+  (:require
+    #?(:clj js)
+            [untangled.i18n.core :as ic]
+            [untangled.client.logging :as log]
+    #?(:cljs yahoo.intl-messageformat-with-locales)))
 
 (defn current-locale [] @ic/*current-locale*)
 
 (defn translations-for-locale [] (get @ic/*loaded-translations* (current-locale)))
 
+;; This set of constructions probably looks pretty screwy. In order for xgettext to work right, it
+;; must see `tr("hello")` in the output JS, but by default the compiler outputs a call(tr, args)
+;; construction. By explicitly setting (and using) a Javascript function we don't have to
+;; worry about compiler options for static calls.
+
+;; The other thing we're doing is wrapping that in a macro. The macro serves two purposes: One
+;; it makes better syntatic sugar than having to type `(js/tr ...)`, but the real consideration
+;; is that we want `tr` to fail to compile if you use it with a variable. This is another important
+;; consideration for ensuring that translations can be extracted. The `tr-unsafe` macro exists
+;; for cases where you must have logic invoved, but lets you know that you must have some other
+;; way of ensuring those translations make it into your final product.
+
 #?(:cljs
    (set! js/tr
-         (fn [msg]
-           (let [msg-key (str "|" msg)
-                 translations (translations-for-locale)
-                 translation (get translations msg-key msg)]
-             translation))))
+     (fn [msg]
+       (let [msg-key      (str "|" msg)
+             translations (translations-for-locale)
+             translation  (get translations msg-key msg)]
+         translation))))
 
 #?(:cljs
    (set! js/trc
-         (fn [ctxt msg]
-           (let [msg-key (str ctxt "|" msg)
-                 translations (translations-for-locale)
-                 translation (get translations msg-key msg)]
-             translation))))
+     (fn [ctxt msg]
+       (let [msg-key      (str ctxt "|" msg)
+             translations (translations-for-locale)
+             translation  (get translations msg-key msg)]
+         translation))))
 
 #?(:cljs
    (set! js/trf
-         (fn [fmt & {:keys [] :as argmap}]
-           (try
-             (let [msg-key (str "|" fmt)
-                   translations (translations-for-locale)
-                   translation (get translations msg-key fmt)
-                   formatter (js/IntlMessageFormat. translation (current-locale))]
-               (.format formatter (clj->js argmap)))
-             (catch :default e (log/error "Failed to format " fmt " args: " argmap " exception: " e)
-                               "???")))))
+     (fn [fmt & {:keys [] :as argmap}]
+       (try
+         (let [msg-key      (str "|" fmt)
+               translations (translations-for-locale)
+               translation  (get translations msg-key fmt)
+               formatter    (js/IntlMessageFormat. translation (current-locale))]
+           (.format formatter (clj->js argmap)))
+         (catch :default e (log/error "Failed to format " fmt " args: " argmap " exception: " e)
+                           "???")))))
 
 #?(:clj
    (defmacro tr

@@ -1,7 +1,7 @@
 (ns untangled.client.impl.application-spec
   (:require
     [untangled.client.core :as uc]
-    [om.next :as om :refer-macros [defui]]
+    [om.next :as om :refer [defui]]
     [untangled-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
     untangled.client.impl.built-in-mutations
     [om.dom :as dom]

@@ -1,6 +1,9 @@
 (ns untangled.client.routing
+  (:require-macros untangled.client.routing)
   (:require [untangled.client.mutations :as m]
-            [untangled.client.core]
+            untangled.client.core
+            om.next
+            om.dom
             [untangled.client.logging :as log]))
 
 (def routing-tree-key ::routing-tree)
@@ -37,7 +40,7 @@
           (if (and (keyword? element) (= "param" (namespace element)))
             (keyword (get route-params (keyword (name element)) element))
             element))
-        ident))
+    ident))
 
 (defn set-route
   "Set the given screen-ident as the current route on the router with the given ID. Returns a new application

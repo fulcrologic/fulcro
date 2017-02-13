@@ -6,7 +6,7 @@
     [untangled.client.core :as core]
     [untangled.client.mutations :as m]
     [yahoo.intl-messageformat-with-locales]
-    [untangled.i18n :refer-macros [tr trf]]
+    [untangled.i18n :refer [tr trf]]
     [untangled.client.impl.network :as net]))
 
 (defui ^:once SupportViewerRoot

@@ -1,9 +1,7 @@
 (ns untangled.i18n-spec
   (:require-macros [cljs.test :refer (is deftest testing are)]
-                   [untangled-spec.core :refer (specification behavior provided assertions)]
-                   )
-  (:require [untangled.i18n :refer [current-locale] :refer-macros [tr trf trc trlambda]]
-            yahoo.intl-messageformat-with-locales
+                   [untangled-spec.core :refer (specification behavior provided assertions)])
+  (:require [untangled.i18n :refer [current-locale tr trf trc trlambda]]
             [cljs.test :refer [do-report]]
             [untangled.i18n.core :as i18n]))
 

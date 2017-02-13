@@ -1,7 +1,7 @@
 (ns untangled.client.mutations-spec
   (:require
     [untangled-spec.core :refer-macros [specification behavior assertions component]]
-    [untangled.client.mutations :as m :refer-macros [defmutation]]
+    [untangled.client.mutations :as m :refer [defmutation]]
     [goog.debug.Logger.Level :as level]
     [goog.log :as glog]
     [om.next :refer [*logger*]]

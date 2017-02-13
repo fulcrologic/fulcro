@@ -1,6 +1,7 @@
 0.7.1
 -----
 - Added defmutation 
+- Fixed up namespaces that defined macros to allow for implicit macro usage by adding self-references
 
 0.7.0
 -----

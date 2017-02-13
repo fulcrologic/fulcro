@@ -2,7 +2,7 @@
   (:require [devcards.core :as dc :refer-macros [defcard]]
             [om.dom :as dom]
             [untangled.client.core :as uc :refer [InitialAppState initial-state]]
-            [untangled.client.cards :refer-macros [untangled-app]]
+            [untangled.client.cards :refer [untangled-app]]
             [om.next :as om :refer [defui]]))
 
 (defui ^:once ActiveUsersTab

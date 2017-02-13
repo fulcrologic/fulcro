@@ -1,4 +1,5 @@
 (ns untangled.client.mutations
+  #?(:cljs (:require-macros untangled.client.mutations))
   (:require
     #?(:clj [clojure.spec :as s])
             [om.next :as om]))
