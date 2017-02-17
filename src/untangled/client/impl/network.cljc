@@ -1,4 +1,5 @@
 (ns untangled.client.impl.network
+  (:refer-clojure :exclude [send])
   (:require [untangled.client.logging :as log]
             [cognitect.transit :as ct]
     #?(:cljs [goog.events :as events])

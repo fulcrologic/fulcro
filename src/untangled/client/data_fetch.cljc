@@ -1,4 +1,5 @@
 (ns untangled.client.data-fetch
+  (:refer-clojure :exclude [load])
   (:require
     [clojure.walk :refer [walk prewalk]]
     [om.next :as om]
