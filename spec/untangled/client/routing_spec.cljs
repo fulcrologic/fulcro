@@ -35,38 +35,40 @@
 
 (specification "update-routing-links"
   (component "on non-parameterized routes"
-    (let [r (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
-          r2 (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
-                                 (r/router-instruction :router-1 [:screen1 :other])])
-          tree (r/routing-tree r r2)
-          state-map {r/routing-tree-key tree
-                     r/routers-table    {:router-1 {:id :router-1 :current-route [:unset :unset]}
-                                         :router-2 {:id :router-2 :current-route [:unset :unset]}}}
+    (let [r             (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
+          r2            (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
+                                            (r/router-instruction :router-1 [:screen1 :other])])
+          tree          (r/routing-tree r r2)
+          state-map     (merge
+                          tree
+                          {r/routers-table {:router-1 {:id :router-1 :current-route [:unset :unset]}
+                                            :router-2 {:id :router-2 :current-route [:unset :unset]}}})
           new-state-map (r/update-routing-links state-map {:handler :foo})]
       (assertions
         "Switches the current routes according to the route instructions"
         (r/current-route new-state-map :router-1) => [:screen1 :other]
         (r/current-route new-state-map :router-2) => [:screen2 :top])))
   (component "on parameterized routes"
-    (let [r (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :param/some-id])])
-          tree (r/routing-tree r)
-          state-map {r/routing-tree-key tree
-                     r/routers-table    {:router-1 {:id :router-1 :current-route [:unset :unset]}}}
+    (let [r             (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :param/some-id])])
+          tree          (r/routing-tree r)
+          state-map     (merge
+                          tree
+                          {r/routers-table {:router-1 {:id :router-1 :current-route [:unset :unset]}}})
           new-state-map (r/update-routing-links state-map {:handler :boo :route-params {:some-id :target-id}})]
       (assertions
         "Switches the current routes with parameter substitutions"
         (r/current-route new-state-map :router-1) => [:screen1 :target-id]))))
 
 (specification "route-to mutation"
-  (let [r (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
-        r2 (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
-                               (r/router-instruction :router-1 [:screen1 :other])])
-        tree (r/routing-tree r r2)
-        state-map {r/routing-tree-key tree
-                   r/routers-table    {:router-1 {:id :router-1 :current-route [:initial :top]}
-                                       :router-2 {:id :router-2 :current-route [:initial :top]}}}
-        state (atom state-map)
-        action (:action (m/mutate {:state state} `r/route-to {:handler :boo}))]
+  (let [r         (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
+        r2        (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
+                                      (r/router-instruction :router-1 [:screen1 :other])])
+        tree      (r/routing-tree r r2)
+        state-map (merge tree
+                    {r/routers-table {:router-1 {:id :router-1 :current-route [:initial :top]}
+                                      :router-2 {:id :router-2 :current-route [:initial :top]}}})
+        state     (atom state-map)
+        action    (:action (m/mutate {:state state} `r/route-to {:handler :boo}))]
 
     (action)
 
