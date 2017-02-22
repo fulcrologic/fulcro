@@ -283,6 +283,12 @@
     {:merge-query merge-query
      :merge-data  merge-data}))
 
+(defn- is-atom?
+  "Returns TRUE when x is an atom."
+  [x]
+  (instance? #?(:cljs cljs.core.Atom
+                :clj  clojure.lang.Atom) x))
+
 (defn integrate-ident!
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
   implementations as a general helper function.
