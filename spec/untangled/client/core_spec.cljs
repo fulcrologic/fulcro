@@ -109,36 +109,35 @@
 
 (specification "integrate-ident"
   (let [state {:a {:path [[:table 2]]}
-                  :b     {:path [[:table 2]]}
-                  :d     [:table 6]
-                  :many  {:path [[:table 99] [:table 88] [:table 77]]}
-                  }]
-    (behavior "Can append to an existing vector"
-      (assertions
+                   :b     {:path [[:table 2]]}
+                   :d     [:table 6]
+                   :many  {:path [[:table 99] [:table 88] [:table 77]]}}]
+     (assertions
+       "Can append to an existing vector"
        (-> state
            (uc/integrate-ident [:table 3] :append [:a :path])
            (get-in [:a :path]))
-       => [[:table 2] [:table 3]])
-      (assertions
+       => [[:table 2] [:table 3]]
+
        "(is a no-op if the ident is already there)"
        (-> state
            (uc/integrate-ident [:table 3] :append [:a :path])
            (get-in [:a :path]))
-       => [[:table 2] [:table 3]]))
-    (behavior "Can prepend to an existing vector"
-      (assertions
+       => [[:table 2] [:table 3]]
+
+       "Can prepend to an existing vector"
        (-> state
            (uc/integrate-ident [:table 3] :prepend [:b :path])
            (get-in [:b :path]))
-       => [[:table 3] [:table 2]])
-      (assertions
+       => [[:table 3] [:table 2]]
+
        "(is a no-op if already there)"
        (-> state
            (uc/integrate-ident [:table 3] :prepend [:b :path])
            (get-in [:b :path]))
-       => [[:table 3] [:table 2]]))
-    (behavior "Can create/replace a to-one ident"
-      (assertions
+       => [[:table 3] [:table 2]]
+
+       "Can create/replace a to-one ident"
        (-> state
            (uc/integrate-ident [:table 3] :replace [:d])
            (get-in [:d]))
@@ -146,13 +145,13 @@
        (-> state
            (uc/integrate-ident [:table 3] :replace [:c :path])
            (get-in [:c :path]))
-       => [:table 3]))
-    (behavior "Can replace an existing to-many element in a vector"
-      (assertions
+       => [:table 3]
+
+       "Can replace an existing to-many element in a vector"
        (-> state
            (uc/integrate-ident [:table 3] :replace [:many :path 1])
            (get-in [:many :path]))
-       => [[:table 99] [:table 3] [:table 77]]))))
+       => [[:table 99] [:table 3] [:table 77]])))
 
 (specification "Untangled Application -- clear-pending-remote-requests!"
   (let [channel (async/chan 1000)
