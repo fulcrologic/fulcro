@@ -290,7 +290,7 @@
                 :clj  clojure.lang.Atom) x))
 
 (defn- generic-integrate-ident
-  [state ident & named-parameters]
+  [state ident named-parameters]
   (let [is-state-atom?             (is-atom? state)
         tmp-state                  (if is-state-atom? @state state)
         already-has-ident-at-path? (fn [data-path] (boolean (seq (filter #(= % ident) (get-in tmp-state data-path)))))
@@ -340,7 +340,7 @@
   [state ident & named-parameters]
   (assert (not (is-atom? state))
           "The state can't be an atom. Use 'integrate-ident!' instead.")
-  (apply generic-integrate-ident state ident named-parameters))
+  (generic-integrate-ident state ident named-parameters))
 
 (defn integrate-ident!
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
@@ -358,7 +358,7 @@
   [state ident & named-parameters]
   (assert (is-atom? state)
           "The state has to be an atom. Use 'integrate-ident' instead.")
-  (apply generic-integrate-ident state ident named-parameters))
+  (generic-integrate-ident state ident named-parameters))
 
 
 (defn merge-state!
