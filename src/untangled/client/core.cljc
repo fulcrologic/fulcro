@@ -71,9 +71,9 @@
                      :started-callback   started-callback
                      :reconciler-options {:migrate migrate :pathopt pathopt :shared shared}
                      :networking         (or networking #?(:clj nil :cljs (net/make-untangled-network "/api"
-                                                                                                      :request-transform request-transform
-                                                                                                      :transit-handlers transit-handlers
-                                                                                                      :global-error-callback network-error-callback)))}))
+                                                                            :request-transform request-transform
+                                                                            :transit-handlers transit-handlers
+                                                                            :global-error-callback network-error-callback)))}))
 
 (defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
@@ -113,8 +113,8 @@
                       (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
                       ast (walk-ast ast visitor nil))))))
              (merge-union [component parent-union]
-               (let [default-initial-state (and parent-union (implements? InitialAppState parent-union) (initial-state parent-union {}))
-                     to-many? (vector? default-initial-state)
+               (let [default-initial-state   (and parent-union (implements? InitialAppState parent-union) (initial-state parent-union {}))
+                     to-many?                (vector? default-initial-state)
                      component-initial-state (and component (implements? InitialAppState component) (initial-state component {}))]
                  (when-not default-initial-state
                    (log/warn "Subelements of union " parent-union " have initial state, but the union itself has no initial state. Your app state may suffer."))
@@ -128,12 +128,12 @@
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
   [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
-  (let [queue (async/chan 1024)
-        rc (async/chan)
-        parser (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
-        initial-app (assoc app :queue queue :response-channel rc :parser parser :mounted? true
-                               :networking networking)
-        rec (app/generate-reconciler initial-app initial-state parser reconciler-options)
+  (let [queue         (async/chan 1024)
+        rc            (async/chan)
+        parser        (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
+        initial-app   (assoc app :queue queue :response-channel rc :parser parser :mounted? true
+                                 :networking networking)
+        rec           (app/generate-reconciler initial-app initial-state parser reconciler-options)
         completed-app (assoc initial-app :reconciler rec)
         node #?(:cljs (if (string? dom-id-or-node)
                         (gdom/getElement dom-id-or-node)
@@ -170,17 +170,17 @@
   (if mounted?
     (do (refresh* app) app)
     (let [uses-initial-app-state? #?(:cljs (implements? InitialAppState root-component)
-                                     :clj  (satisfies? InitialAppState root-component))
-          ui-declared-state (and uses-initial-app-state? (untangled.client.core/initial-state root-component nil))
-          atom-supplied? (util/atom? initial-state)
-          init-conflict? (and (or atom-supplied? (seq initial-state)) #?(:cljs (implements? InitialAppState root-component)
-                                                                         :clj  (satisfies? InitialAppState root-component)))
-          state (cond
-                  (not uses-initial-app-state?) (if initial-state initial-state {})
-                  atom-supplied? (do
-                                   (reset! initial-state (om/tree->db root-component ui-declared-state true))
-                                   initial-state)
-                  :otherwise ui-declared-state)]
+                                     :clj (satisfies? InitialAppState root-component))
+          ui-declared-state               (and uses-initial-app-state? (untangled.client.core/initial-state root-component nil))
+          atom-supplied?                  (util/atom? initial-state)
+          init-conflict?                  (and (or atom-supplied? (seq initial-state)) #?(:cljs (implements? InitialAppState root-component)
+                                                                                          :clj  (satisfies? InitialAppState root-component)))
+          state                           (cond
+                                            (not uses-initial-app-state?) (if initial-state initial-state {})
+                                            atom-supplied? (do
+                                                             (reset! initial-state (om/tree->db root-component ui-declared-state true))
+                                                             initial-state)
+                                            :otherwise ui-declared-state)]
       (when init-conflict?
         (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
@@ -211,7 +211,7 @@
   (history [this]
     #?(:cljs
        (let [history-steps (-> reconciler :config :history .-arr)
-             history-map (-> reconciler :config :history .-index deref)]
+             history-map   (-> reconciler :config :history .-index deref)]
          {:steps   history-steps
           :history (into {} (map (fn [[k v]]
                                    [k (assoc v :untangled/meta (meta v))]) history-map))})))
@@ -242,8 +242,8 @@
      ([url]
       (let [query-data (.getQueryData (goog.Uri. url))]
         (into {}
-              (for [k (.getKeys query-data)]
-                [k (.get query-data k)]))))))
+          (for [k (.getKeys query-data)]
+            [k (.get query-data k)]))))))
 
 #?(:cljs
    (defn get-url-param
@@ -263,7 +263,7 @@
   to/from a normalized app database. Requires a tree of data that represents the instance of
   the component in question (e.g. ident will work on it)"
   [component object-data]
-  (let [ident (om/ident component object-data)
+  (let [ident        (om/ident component object-data)
         object-query (om/get-query component)]
     [{ident object-query}]))
 
@@ -271,15 +271,15 @@
   "Does the steps necessary to honor the data merge technique defined by Untangled with respect
   to data overwrites in the app database."
   [state-atom component object-data]
-  (let [ident (get-class-ident component object-data)
-        object-query (om/get-query component)
-        object-query (if (map? object-query) [object-query] object-query)
-        base-query (component-merge-query component object-data)
+  (let [ident         (get-class-ident component object-data)
+        object-query  (om/get-query component)
+        object-query  (if (map? object-query) [object-query] object-query)
+        base-query    (component-merge-query component object-data)
         ;; :untangled/merge is way to make unions merge properly when joined by idents
-        merge-query [{:untangled/merge base-query}]
+        merge-query   [{:untangled/merge base-query}]
         existing-data (get (om/db->tree base-query @state-atom @state-atom) ident {})
-        marked-data (plumbing/mark-missing object-data object-query)
-        merge-data {:untangled/merge {ident (util/deep-merge existing-data marked-data)}}]
+        marked-data   (plumbing/mark-missing object-data object-query)
+        merge-data    {:untangled/merge {ident (util/deep-merge existing-data marked-data)}}]
     {:merge-query merge-query
      :merge-data  merge-data}))
 
@@ -288,41 +288,6 @@
   [x]
   (instance? #?(:cljs cljs.core.Atom
                 :clj  clojure.lang.Atom) x))
-
-(defn- generic-integrate-ident
-  [state ident named-parameters]
-  (let [is-state-atom?             (is-atom? state)
-        tmp-state                  (if is-state-atom? @state state)
-        already-has-ident-at-path? (fn [data-path] (boolean (seq (filter #(= % ident) (get-in tmp-state data-path)))))
-        actions (partition 2 named-parameters)]
-
-    (reduce (fn [state [command data-path]]
-              (case command
-                :prepend (when-not (already-has-ident-at-path? data-path)
-                           (assert (vector? (get-in tmp-state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
-                           (if is-state-atom?
-                             (swap! state update-in data-path #(into [ident] %))
-                             (update-in state data-path #(into [ident] %))))
-                :append  (when-not (already-has-ident-at-path? data-path)
-                           (assert (vector? (get-in tmp-state data-path)) (str "Path " data-path " for append must target an app-state vector."))
-                           (if is-state-atom?
-                             (swap! state update-in data-path conj ident)
-                             (update-in state data-path conj ident)))
-                :replace (let [path-to-vector (butlast data-path)
-                               to-many?       (and (seq path-to-vector) (vector? (get-in tmp-state path-to-vector)))
-                               index          (last data-path)
-                               vector         (get-in tmp-state path-to-vector)]
-                           (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
-                           (when to-many?
-                             (do
-                               (assert (vector? vector) "Path for replacement must be a vector")
-                               (assert (number? index) "Path for replacement must end in a vector index")
-                               (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
-                           (if is-state-atom?
-                             (swap! state assoc-in data-path ident)
-                             (assoc-in state data-path ident)))
-                (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path}))))
-            state actions)))
 
 (defn integrate-ident
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
@@ -335,12 +300,36 @@
   - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
   the ident if that ident is already in the list.
   - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
-   If the target is a vector element then that element must already exist in the vector.
-  "
+   If the target is a vector element then that element must already exist in the vector."
   [state ident & named-parameters]
-  (assert (not (is-atom? state))
-          "The state can't be an atom. Use 'integrate-ident!' instead.")
-  (generic-integrate-ident state ident named-parameters))
+  {:pre [(map? state)]}
+  (let [actions (partition 2 named-parameters)]
+    (reduce (fn [state [command data-path]]
+              (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
+                (case command
+                  :prepend (if (already-has-ident-at-path? data-path)
+                             state
+                             (do
+                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
+                               (update-in state data-path #(into [ident] %))))
+                  :append (if (already-has-ident-at-path? data-path)
+                            state
+                            (do
+                              (assert (vector? (get-in state data-path)) (str "Path " data-path " for append must target an app-state vector."))
+                              (update-in state data-path conj ident)))
+                  :replace (let [path-to-vector (butlast data-path)
+                                 to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
+                                 index          (last data-path)
+                                 vector         (get-in state path-to-vector)]
+                             (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
+                             (when to-many?
+                               (do
+                                 (assert (vector? vector) "Path for replacement must be a vector")
+                                 (assert (number? index) "Path for replacement must end in a vector index")
+                                 (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
+                             (assoc-in state data-path ident))
+                  (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
+      state actions)))
 
 (defn integrate-ident!
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
@@ -357,8 +346,8 @@
   "
   [state ident & named-parameters]
   (assert (is-atom? state)
-          "The state has to be an atom. Use 'integrate-ident' instead.")
-  (generic-integrate-ident state ident named-parameters))
+    "The state has to be an atom. Use 'integrate-ident' instead.")
+  (apply swap! state integrate-ident ident named-parameters))
 
 
 (defn merge-state!
@@ -390,12 +379,12 @@
   [app-or-reconciler component object-data & named-parameters]
   (when-not #?(:cljs (implements? om/Ident component)
                :clj  (satisfies? om/Ident component)) (log/warn "merge-state!: component must implement Ident"))
-  (let [ident (get-class-ident component object-data)
-        reconciler (if #?(:cljs (implements? UntangledApplication app-or-reconciler)
-                          :clj  (satisfies? UntangledApplication app-or-reconciler))
-                     (:reconciler app-or-reconciler)
-                     app-or-reconciler)
-        state (om/app-state reconciler)
+  (let [ident          (get-class-ident component object-data)
+        reconciler     (if #?(:cljs (implements? UntangledApplication app-or-reconciler)
+                              :clj  (satisfies? UntangledApplication app-or-reconciler))
+                         (:reconciler app-or-reconciler)
+                         app-or-reconciler)
+        state          (om/app-state reconciler)
         data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
         {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
     (om/merge! reconciler merge-data merge-query)
