@@ -178,7 +178,7 @@
      :mutate (constantly nil)}
     (rseq modules)))
 
-(defrecord ApiHandler [app-name modules]
+(defrecord UntangledApiHandler [app-name modules]
   component/Lifecycle
   (start [this]
     (let [api-url (cond->> "/api" app-name (str "/" app-name))
@@ -208,13 +208,13 @@
   [opts]
   (let [module-keys (mapv system-key (:modules opts))]
     (component/using
-      (map->ApiHandler
+      (map->UntangledApiHandler
         (assoc opts :modules module-keys))
       module-keys)))
 
 (defn untangled-system
   "More powerful variant of `make-untangled-server` that allows for libraries to provide
-   components and api methods (by implementing `APIHandler` and `components` respectively).
+   components and api methods (by implementing `components` and `APIHandler` respectively).
    However note that `untangled-system` does not include any components for you,
    so you'll have to include things like a web-server (eg: `make-web-server`), middleware,
    config, etc...

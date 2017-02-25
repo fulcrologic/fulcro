@@ -1,12 +1,12 @@
-(defproject navis/untangled-server "0.6.2-1"
+(defproject navis/untangled-server "0.7.0"
   :description "Library for creating Untangled web servers"
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.9.0-alpha13" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/math.combinatorics "0.1.1"]
                  [org.clojure/tools.namespace "0.2.10"]
-                 [org.omcljs/om "1.0.0-alpha32"]
+                 [org.omcljs/om "1.0.0-alpha48"]
                  [http-kit "2.1.19"]
                  [bidi "2.0.12"]
                  [ring/ring-defaults "0.1.5"]
@@ -17,6 +17,7 @@
                  [org.bouncycastle/bcpkix-jdk15on "1.54"]
                  [navis/untangled-spec "0.3.6" :scope "test" :exclusions [org.clojure/google-closure-library-third-party org.clojure/google-closure-library io.aviso/pretty org.clojure/clojurescript]]
                  [navis/untangled-datomic "0.4.4" :scope "test"]
+                 [commons-codec "1.10"]
                  [com.datomic/datomic-free "0.9.5206" :scope "test" :exclusions [joda-time]] ]
 
   :plugins [[com.jakemccrary/lein-test-refresh "0.17.0"]]
