@@ -1,4 +1,4 @@
-(defproject navis/untangled-server "0.7.0"
+(defproject navis/untangled-server "0.7.1-SNAPSHOT"
   :description "Library for creating Untangled web servers"
   :url ""
   :license {:name "MIT"
