@@ -259,7 +259,7 @@ which you should clone and work through on your local machine.
 ## A More Complete Project
 
 An Untanged template is in progress. A pretty complete version is available at
-https://github.com/awkay/untangled-template-workspace[https://github.com/awkay/untangled-template-workspace]
+https://github.com/untangled-web/untangled-template[https://github.com/untangled-web/untangled-template]
 and has:
 
 - Full stack with sample UI for login/sign up.
