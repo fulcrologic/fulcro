@@ -154,10 +154,10 @@
 
 (specification "Untangled Application -- clear-pending-remote-requests!"
   (let [channel  (async/chan 1000)
-        mock-app (uc/map->Application {:queue channel})]
+        mock-app (uc/map->Application {:send-queues {:remote channel}})]
     (async/put! channel 1 #(async/put! channel 2 (fn [] (async/put! channel 3 (fn [] (async/put! channel 4))))))
 
-    (uc/clear-pending-remote-requests! mock-app)
+    (uc/clear-pending-remote-requests! mock-app nil)
 
     (assertions
       "Removes any pending items in the network queue channel"
@@ -174,7 +174,8 @@
 (specification "Untangled Application -- reset-app!"
   (let [scb-calls        (atom 0)
         custom-calls     (atom 0)
-        mock-app         (uc/map->Application {:started-callback (fn [] (swap! scb-calls inc))})
+        mock-app         (uc/map->Application {:send-queues {:remote :fake-queue}
+                                               :started-callback (fn [] (swap! scb-calls inc))})
         cleared-network? (atom false)
         merged-unions?   (atom false)
         history-reset?   (atom false)
@@ -196,8 +197,7 @@
 
         (uc/reset-app! mock-app ResetAppRoot nil)
         (uc/reset-app! mock-app ResetAppRoot :original)
-        (uc/reset-app! mock-app ResetAppRoot (fn [a] (swap! custom-calls inc)))
-        )
+        (uc/reset-app! mock-app ResetAppRoot (fn [a] (swap! custom-calls inc))))
 
       (assertions
         "Clears the network queue"

@@ -30,7 +30,8 @@
   ```
 
   it can replace the outgoing EDN or headers (returning both as a vector). NOTE: Both of these are clojurescript types.
-  The edn will be encoded with transit, and the headers will be converted to a js map.
+  The edn will be encoded with transit, and the headers will be converted to a js map. IMPORTANT: Only supported
+  when using the default built-in single-remote networking.
 
   `:initial-state` is your applications initial state. If it is an atom, it *must* be normalized. Untangled databases
   always have normalization turned on (for server data merging). If it is not an atom, it will be auto-normalized.
@@ -40,7 +41,8 @@
   under the `:reconciler` key (and you can access the app state, root node, etc from there.)
 
   `:network-error-callback` is a function of two arguments, the app state atom and the error, which will be invoked for
-  every network error (status code >= 400, or no network found), should you choose to use the built-in networking record.
+  every network error (status code >= 400, or no network found), should you choose to use the default built-in
+  networking.
 
   `:migrate` is optional. It is a (fn [state tid->rid] ... state') that should return a new state where all tempids
   (the keys of `tid->rid`) are rewritten to real ids (the values of tid->rid). This defaults to a full recursive
@@ -48,12 +50,17 @@
   See Om reconciler documentation for further information.
 
   `:transit-handlers` (optional). A map with keys for `:read` and `:write`, which contain maps to be used for the read
-  and write side of transit to extend the supported data types. See `make-untangled-network` in network.cljs.
+  and write side of transit to extend the supported data types. See `make-untangled-network` in network.cljs. Only used
+  when you default to the built-in networking.
 
   `:pathopt` (optional, defaults to true).  Turn on/off Om path optimization. This is here in case you're experiencing problems with rendering.
   Path optimization is a rendering optimization that may still have bugs.
 
   `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (om/shared this)
+
+  `:networking` (optional). An instance of UntangledNetwork that will act as the default remote (named :remote). If
+  you want to support multiple remotes, then this should be a map whose keys are the keyword names of the remotes
+  and whose values are UntangledNetwork instances.
 
   `:mutation-merge (optional). A function `(fn [state mutation-symbol return-value])` that receives the app state as a
   map (NOT an atom) and should return the new state as a map. This function is run when network results are being merged,
@@ -64,8 +71,10 @@
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state mutation-merge started-callback networking request-transform network-error-callback migrate pathopt transit-handlers shared]
-      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil) migrate nil shared nil}}]
+  [& {:keys [initial-state mutation-merge started-callback networking
+             request-transform network-error-callback migrate pathopt transit-handlers shared]
+      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil)
+             migrate       nil shared nil}}]
   (map->Application {:initial-state      initial-state
                      :mutation-merge     mutation-merge
                      :started-callback   started-callback
@@ -90,7 +99,7 @@
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")
   (reset-app! [this root-component callback] "Replace the entire app state with the initial app state defined on the root component (includes auto-merging of unions). callback can be nil, a function, or :original (to call original started-callback).")
-  (clear-pending-remote-requests! [this] "Remove all pending network requests. Useful on failures to eliminate cascading failures.")
+  (clear-pending-remote-requests! [this remotes] "Remove all pending network requests on the given remote(s). Useful on failures to eliminate cascading failures. Remote can be a keyword, set, or nil. `nil` means all remotes.")
   (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work.")
   (history [this] "Return a serialized version of the current history of the application, suitable for network transfer")
   (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
@@ -124,25 +133,30 @@
          (om/query->ast (om/get-query root-component))
          merge-union))))
 
+; TODO: CONTINUE HERE...app is a bit messed up
 (defn- initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
   [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
-  (let [queue         (async/chan 1024)
-        rc            (async/chan)
-        parser        (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
-        initial-app   (assoc app :queue queue :response-channel rc :parser parser :mounted? true
-                                 :networking networking)
-        rec           (app/generate-reconciler initial-app initial-state parser reconciler-options)
-        completed-app (assoc initial-app :reconciler rec)
+  (let [network-map        #?(:cljs (if (implements? net/UntangledNetwork networking) {:remote networking} networking)
+                              :clj {})
+        remotes            (keys network-map)
+        reconciler-options (assoc reconciler-options :remotes remotes)
+        send-queues        (zipmap remotes (map #(async/chan 1024) remotes))
+        response-channels  (zipmap remotes (map #(async/chan) remotes))
+        parser             (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
+        initial-app        (assoc app :send-queues send-queues :response-channels response-channels
+                                      :parser parser :mounted? true :networking network-map)
+        rec                (app/generate-reconciler initial-app initial-state parser reconciler-options)
+        completed-app      (assoc initial-app :reconciler rec)
         node #?(:cljs (if (string? dom-id-or-node)
                         (gdom/getElement dom-id-or-node)
                         dom-id-or-node)
-                :clj  dom-id-or-node)]
-
-    (net/start networking completed-app)
+                :clj       dom-id-or-node)]
+    (doseq [r remotes]
+      (net/start (get network-map r) completed-app))
     (app/initialize-internationalization rec)
-    (app/initialize-global-error-callback completed-app)
+    (app/initialize-global-error-callbacks completed-app)
     (app/start-network-sequential-processing completed-app)
     (om/add-root! rec root-component node)
     (merge-alternate-union-elements! completed-app root-component)
@@ -185,7 +199,7 @@
         (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
-(defrecord Application [initial-state mutation-merge started-callback networking queue response-channel reconciler parser mounted? reconciler-options]
+(defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues response-channels reconciler parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 
@@ -196,7 +210,7 @@
                 :clj  (satisfies? InitialAppState root-component)))
       (log/error "The specified root component does not implement InitialAppState!")
       (let [base-state (om/tree->db root-component (untangled.client.core/initial-state root-component nil) true)]
-        (clear-pending-remote-requests! this)
+        (clear-pending-remote-requests! this nil)
         (reset! (om/app-state reconciler) base-state)
         (reset-history! this)
         (merge-alternate-union-elements! this root-component)
@@ -206,7 +220,13 @@
           callback (callback this))
         (refresh this))))
 
-  (clear-pending-remote-requests! [this] (clear-queue queue))
+  (clear-pending-remote-requests! [this remotes]
+    (let [remotes (cond
+                    (nil? remotes) (keys send-queues)
+                    (keyword? remotes) [remotes]
+                    :else remotes)]
+      (doseq [r remotes]
+        (clear-queue (get send-queues r)))))
 
   (history [this]
     #?(:cljs

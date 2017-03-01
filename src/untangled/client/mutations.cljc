@@ -73,7 +73,7 @@
                           :action-body (s/+ (constantly true)))))
 
 #?(:clj (s/def ::remote (s/cat
-                          :remote-name (fn [sym] (= sym 'remote))
+                          :remote-name symbol?
                           :remote-args (fn [a] (and (vector? a) (= 1 (count a))))
                           :remote-body (s/+ (constantly true)))))
 
@@ -82,7 +82,7 @@
                                  :doc (s/? string?)
                                  :arglist vector?
                                  :action (s/? #(and (list? %) (= 'action (first %))))
-                                 :remote (s/? #(and (list? %) (= 'remote (first %)))))))
+                                 :remote (s/* #(and (list? %) (not= 'action (first %)))))))
 
 #?(:clj (defn- conform! [spec x]
           (let [rt (s/conform spec x)]
@@ -102,28 +102,35 @@
 
                           (defmutation boo [{:keys [id]} ...) => (defmethod m/mutate *ns*/boo [{:keys [state ref]} _ {:keys [id]}] ...)
 
-                       The mutation may include an action and remote. Both are optional:
+                       The mutation may include any combination of action and any number of remotes (by the remote name).
+
+                       If `action` is supplied, it must be first.
 
                        (defmutation boo \"docstring\" [params-map]
                          (action [env] ...)
+                         (my-remote [env] ...)
+                         (other-remote [env] ...)
                          (remote [env] ...))"
                :arglists '([sym docstring? arglist action]
                             [sym docstring? arglist action remote]
                             [sym docstring? arglist remote])} defmutation
      [& args]
      (let [{:keys [sym doc arglist action remote]} (conform! ::mutation-args args)
-           fqsym      (symbol (name (ns-name *ns*)) (name sym))
+           fqsym         (symbol (name (ns-name *ns*)) (name sym))
            {:keys [action-args action-body]} (if action
                                                (conform! ::action action)
                                                {:action-args ['env] :action-body []})
-           {:keys [remote-args remote-body]} (if remote
-                                               (conform! ::remote remote)
-                                               {:remote-args ['env] :remote-body [false]})
-           remote-val `(do ~@remote-body)]
-       `(defmethod untangled.client.mutations/mutate '~fqsym [env# ~'_ ~(first arglist)]
+           remotes       (if (seq remote)
+                           (map #(conform! ::remote %) remote)
+                           [{:remote-name :remote :remote-args ['env] :remote-body [false]}])
+           env-symbol    (gensym "env")
+           remote-blocks (map (fn [{:keys [remote-name remote-args remote-body]}]
+                                `(let [~(first remote-args) ~env-symbol]
+                                   {~(keyword (name remote-name)) (do ~@remote-body)})
+                                ) remotes)]
+       `(defmethod untangled.client.mutations/mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
           (merge
-            (let [~(first action-args) env#]
+            (let [~(first action-args) ~env-symbol]
               {:action (fn [] ~@action-body)})
-            (let [~(first remote-args) env#]
-              {:remote ~remote-val}))))))
+            ~@remote-blocks)))))
 

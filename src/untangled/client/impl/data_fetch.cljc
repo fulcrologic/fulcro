@@ -14,7 +14,7 @@
 
 ; TODO: Some of this API is public, and should be in the non-impl ns.
 
-(declare data-target data-path data-uuid data-query set-loading! full-query loaded-callback error-callback data-marker?)
+(declare data-remote data-target data-path data-uuid data-query set-loading! full-query loaded-callback error-callback data-marker?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implementation for public api
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -41,13 +41,13 @@
   "Place load markers in the app state at their data paths so that UI rendering can see them."
   [state-atom items-to-load]
   (doseq [item items-to-load]
-    (let [i (set-loading! item)
+    (let [i            (set-loading! item)
           place-marker (fn [state] (if (data-marker? i)
                                      (assoc-in state (data-path i) {:ui/fetch-state i})
                                      state))]
       (swap! state-atom (fn [s] (-> s
-                                    place-marker
-                                    (update :untangled/loads-in-progress (fnil conj #{}) (data-uuid i))))))))
+                                  place-marker
+                                  (update :untangled/loads-in-progress (fnil conj #{}) (data-uuid i))))))))
 
 (defn mark-parallel-loading
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
@@ -62,13 +62,17 @@
 
   response-channel will have the response posted to it when the request is done.
   ."
-  [reconciler]
-  (let [state (om/app-state reconciler)
-        queued-items (get @state :om.next/ready-to-load)
-        items-to-load (filter ::parallel queued-items)]
+  [remote-name reconciler]
+  (let [state                (om/app-state reconciler)
+        queued-items         (get @state :untangled/ready-to-load)
+        is-eligible?         (fn [item] (and (::parallel item) (= remote-name (data-remote item))))
+        other-items-loading? (boolean (seq (get @state :untangled/loads-in-progress)))
+        items-to-load        (filter is-eligible? queued-items)
+        remaining-items      (filter (comp not is-eligible?) queued-items)
+        loading?             (or (seq items-to-load) other-items-loading?)]
     (when-not (empty? items-to-load)
       (place-load-markers state items-to-load)
-      (swap! state assoc :ui/loading-data true :om.next/ready-to-load (filter (comp not ::parallel) queued-items))
+      (swap! state assoc :ui/loading-data loading? :untangled/ready-to-load remaining-items)
       (for [item items-to-load]
         {:query         (full-query [item])
          :on-load       (loaded-callback reconciler)
@@ -102,13 +106,23 @@
         (first join-key-or-ident)
         join-key-or-ident))))
 
-(defn split-items-ready-to-load [items-ready-to-load]
+(defn split-items-ready-to-load
+  "This function is used to split accidental colliding queries into separate network
+  requests. The most general description of this issue is
+  from two unrelated `load` calls when black-box composing functions. The two
+  separate queries: One issues `[{:entitlements [:foo]}]`, and the other
+  asks for `[{:entitlements [:bar]}]`. Untangled merges these into a single query
+  [{:entitlements [:foo]} {:entitlements [:bar]}]. However, the response to a query
+  is a map, and such a query would result in the backend parser being called twice (once per key in the subquery)
+  but one would stomp on the other. Thus, this function ensures such accidental collisions are
+  not combined into a single network request."
+  [items-ready-to-load]
   (let [items-to-load-now (->> items-ready-to-load
-                               (dedupe-by (fn [item]
-                                            (->> (data-query item)
-                                                 (map join-key-or-nil))))
-                               set)
-        items-to-defer (->> items-ready-to-load
+                            (dedupe-by (fn [item]
+                                         (->> (data-query item)
+                                           (map join-key-or-nil))))
+                            set)
+        items-to-defer    (->> items-ready-to-load
                             (remove items-to-load-now)
                             (vec))]
     [items-to-load-now items-to-defer]))
@@ -126,13 +140,19 @@
 
   response-channel will have the response posted to it when the request is done.
   ."
-  [reconciler]
-  (let [state (om/app-state reconciler)
-        items-ready-to-load (get @state :om.next/ready-to-load)
-        [items-to-load-now items-to-defer] (split-items-ready-to-load items-ready-to-load)]
+  [remote reconciler]
+  (let [state                   (om/app-state reconciler)
+        is-eligible?            (fn [item] (= remote (data-remote item)))
+        all-items               (get @state :untangled/ready-to-load)
+        items-ready-to-load     (filter is-eligible? all-items)
+        items-for-other-remotes (filter (comp not is-eligible?) all-items)
+        other-items-loading?    (boolean (seq (get @state :untangled/loads-in-progress)))
+        [items-to-load-now items-to-defer] (split-items-ready-to-load items-ready-to-load)
+        remaining-items         (concat items-for-other-remotes items-to-defer)
+        loading?                (or (seq items-to-load-now) other-items-loading?)]
     (when-not (empty? items-to-load-now)
       (place-load-markers state items-to-load-now)
-      (swap! state assoc :ui/loading-data true :om.next/ready-to-load items-to-defer)
+      (swap! state assoc :ui/loading-data loading? :untangled/ready-to-load remaining-items)
       {:query         (full-query items-to-load-now)
        :on-load       (loaded-callback reconciler)
        :on-error      (error-callback reconciler)
@@ -161,7 +181,7 @@
   "Get the query for items that are ready to load into the given app state. Can be called any number of times
   (side effect free)."
   [state]
-  (let [items-to-load (get @state :om.next/ready-to-load)]
+  (let [items-to-load (get @state :untangled/ready-to-load)]
     (when-not (empty? items-to-load)
       (op/expr->ast {:items-to-load (vec (mapcat data-query items-to-load))}))))
 
@@ -196,8 +216,8 @@
   "
   [ast params]
   (let [top-level-keys (set (map :dispatch-key (:children ast)))
-        param-keys (set (keys params))
-        unknown-keys (set/difference param-keys top-level-keys)]
+        param-keys     (set (keys params))
+        unknown-keys   (set/difference param-keys top-level-keys)]
     (when (not (empty? unknown-keys))
       (log/error (str "Error: You attempted to add parameters for " (pr-str unknown-keys) " to top-level key(s) of " (pr-str (om/ast->query ast)))))
     (update-in ast [:children] #(map (fn [c] (if-let [new-params (get params (:dispatch-key c))]
@@ -208,23 +228,24 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [{:keys [ident field params without query post-mutation post-mutation-params fallback parallel refresh marker target]
-    :or   {without #{} refresh [] marker true}}]
+  [{:keys [ident field params remote without query post-mutation post-mutation-params fallback parallel refresh marker target]
+    :or   {remote :remote without #{} refresh [] marker true}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
-  (let [old-ast (om/query->ast query)
-        ast (cond-> old-ast
-                    (not-empty without) (elide-ast-nodes without)
-                    params (inject-query-params params))
+  (let [old-ast     (om/query->ast query)
+        ast         (cond-> old-ast
+                      (not-empty without) (elide-ast-nodes without)
+                      params (inject-query-params params))
         query-field (first query)
-        key (if (util/join? query-field) (util/join-key query-field) query-field)
-        query' (om/ast->query ast)]
+        key         (if (util/join? query-field) (util/join-key query-field) query-field)
+        query'      (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
     {::type                 :ready
      ::uuid                 #?(:cljs
                                     (uuid/uuid-string (uuid/make-random-squuid))
                                :clj (str (System/currentTimeMillis)))
      ::target               target
+     ::remote               remote
      ::ident                ident                           ; only for component-targeted loads
      ::field                field                           ; for component-targeted load
      ::query                query'                          ; query, relative to root of db OR component
@@ -241,7 +262,7 @@
 
   See the `load-data` and `load-field` functions in `untangled.client.data-fetch` for the public API."
   [{:keys [state] :as config}]
-  (swap! state update :om.next/ready-to-load (fnil conj []) (ready-state (merge {:marker true :refresh [] :without #{}} config))))
+  (swap! state update :untangled/ready-to-load (fnil conj []) (ready-state (merge {:marker true :refresh [] :without #{}} config))))
 
 (defn data-target
   "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
@@ -269,11 +290,14 @@
 (defn data-refresh
   "Get the list of query keywords that should be refreshed (re-rendered) when this load completes."
   [state] (::refresh state))
+(defn data-remote
+  "Get the remote that this marker is meant to talk to"
+  [state] (::remote state))
 (defn data-query-key
   "Get the 'primary' query key of the data fetch. This is defined as the first keyword of the overall query (which might
   be a simple prop or join key for example)"
   [state]
-  (let [ast (om/query->ast (-> state ::query))
+  (let [ast  (om/query->ast (-> state ::query))
         node (-> ast :children first)]
     (:key node)))
 
@@ -320,25 +344,25 @@
 (defn- set-global-loading [reconciler]
   "Sets the global :ui/loading-data to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
   (let [state-atom (om/app-state reconciler)
-        loading? (boolean (seq (get @state-atom :untangled/loads-in-progress)))]
+        loading?   (boolean (seq (get @state-atom :untangled/loads-in-progress)))]
     (swap! state-atom assoc :ui/loading-data loading?)))
 
 (defn relocate-targeted-results
   "For items that are manually targeted, move them in app state from their result location to their target location."
   [state-atom items]
   (doseq [item items]
-    (let [default-target [(data-query-key item)]
-          field-target (conj (or (data-ident item) []) (::field item))
+    (let [default-target  [(data-query-key item)]
+          field-target    (conj (or (data-ident item) []) (::field item))
           explicit-target (or (::target item) [])
-          relocate? (and (not-empty explicit-target)
-                         (not= explicit-target field-target)
-                         (not= explicit-target default-target))]
+          relocate?       (and (not-empty explicit-target)
+                            (not= explicit-target field-target)
+                            (not= explicit-target default-target))]
       (when relocate?
         (let [value (get-in @state-atom default-target)]
           (swap! state-atom (fn [m]
                               (-> m
-                                  (dissoc (data-query-key item))
-                                  (assoc-in explicit-target value)))))))))
+                                (dissoc (data-query-key item))
+                                (assoc-in explicit-target value)))))))))
 
 (defn- loaded-callback
   "Generates a callback that processes all of the post-processing steps once a remote load has completed. This includes:
@@ -353,18 +377,18 @@
   "
   [reconciler]
   (fn [response items]
-    (let [query (full-query items)
-          loading-items (into #{} (map set-loading! items))
-          refresh-set (into #{:ui/loading-data} (mapcat data-refresh items))
-          to-refresh (vec refresh-set)
-          marked-response (plumbing/mark-missing response query)
-          app-state (om/app-state reconciler)
-          ran-mutations (atom false)
-          remove-markers (fn [] (doseq [item loading-items]
-                                  (swap! app-state (fn [s]
-                                                     (cond-> s
-                                                             :always (update :untangled/loads-in-progress disj (data-uuid item))
-                                                             (data-marker? item) (assoc-in (data-path item) nil))))))
+    (let [query              (full-query items)
+          loading-items      (into #{} (map set-loading! items))
+          refresh-set        (into #{:ui/loading-data} (mapcat data-refresh items))
+          to-refresh         (vec refresh-set)
+          marked-response    (plumbing/mark-missing response query)
+          app-state          (om/app-state reconciler)
+          ran-mutations      (atom false)
+          remove-markers     (fn [] (doseq [item loading-items]
+                                      (swap! app-state (fn [s]
+                                                         (cond-> s
+                                                           :always (update :untangled/loads-in-progress disj (data-uuid item))
+                                                           (data-marker? item) (assoc-in (data-path item) nil))))))
           run-post-mutations (fn [] (doseq [item loading-items]
                                       (when-let [mutation-symbol (::post-mutation item)]
                                         (reset! ran-mutations true)
@@ -395,17 +419,17 @@
   [reconciler]
   (fn [error items]
     (let [loading-items (into #{} (map set-loading! items))
-          app-state (om/app-state reconciler)
-          refresh-set (into #{:ui/loading-data} (mapcat data-refresh items))
-          to-refresh (vec refresh-set)
+          app-state     (om/app-state reconciler)
+          refresh-set   (into #{:ui/loading-data} (mapcat data-refresh items))
+          to-refresh    (vec refresh-set)
           ran-fallbacks (atom false)
-          mark-errors (fn []
-                        (swap! app-state assoc :untangled/server-error error)
-                        (doseq [item loading-items]
-                          (swap! app-state (fn [s]
-                                             (cond-> s
-                                                     (data-marker? item) (update-in (conj (data-path item) :ui/fetch-state) set-failed! error)
-                                                     :always (update :untangled/loads-in-progress disj (data-uuid item)))))))
+          mark-errors   (fn []
+                          (swap! app-state assoc :untangled/server-error error)
+                          (doseq [item loading-items]
+                            (swap! app-state (fn [s]
+                                               (cond-> s
+                                                 (data-marker? item) (update-in (conj (data-path item) :ui/fetch-state) set-failed! error)
+                                                 :always (update :untangled/loads-in-progress disj (data-uuid item)))))))
           run-fallbacks (fn [] (doseq [item loading-items]
                                  (when-let [fallback-symbol (::fallback item)]
                                    (reset! ran-fallbacks true)
