@@ -178,6 +178,7 @@
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
   [{:keys [send-queues mutation-merge] :as app} initial-state parser {:keys [pathopt migrate shared] :or {pathopt true migrate nil shared nil}}]
   (let [rec-atom                  (atom nil)
+        remotes                   (keys send-queues)
         tempid-migrate            (fn [pure _ tempids _]
                                     (doseq [queue (vals send-queues)]
                                       (plumbing/rewrite-tempids-in-request-queue queue tempids))
@@ -193,6 +194,7 @@
                                                  (server-send (assoc app :reconciler @rec-atom) tx cb))
                                    :migrate    (or migrate tempid-migrate)
                                    :normalize  true
+                                   :remotes    remotes
                                    :pathopt    pathopt
                                    :merge-tree (fn [target source]
                                                  (merge-handler mutation-merge target source))

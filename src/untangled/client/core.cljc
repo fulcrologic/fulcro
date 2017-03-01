@@ -133,7 +133,6 @@
          (om/query->ast (om/get-query root-component))
          merge-union))))
 
-; TODO: CONTINUE HERE...app is a bit messed up
 (defn- initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
@@ -141,7 +140,6 @@
   (let [network-map        #?(:cljs (if (implements? net/UntangledNetwork networking) {:remote networking} networking)
                               :clj {})
         remotes            (keys network-map)
-        reconciler-options (assoc reconciler-options :remotes remotes)
         send-queues        (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels  (zipmap remotes (map #(async/chan) remotes))
         parser             (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
