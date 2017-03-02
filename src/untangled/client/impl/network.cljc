@@ -60,9 +60,9 @@
                                         ;; note that impl.application/initialize will partially apply the
                                         ;; app-state as the first arg to global-error-callback
                                         (log/error str)
+                                        (error-callback error)
                                         (when @global-error-callback
-                                          (@global-error-callback status error))
-                                        (error-callback error))]
+                                          (@global-error-callback status error)))]
            (if (zero? status)
              (log-and-dispatch-error
                (str "UNTANGLED NETWORK ERROR: No connection established.")
