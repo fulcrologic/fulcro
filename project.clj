@@ -12,7 +12,7 @@
                  [org.clojure/clojurescript "1.9.456" :scope "provided"]
                  [org.clojure/core.async "0.2.391"]
                  [com.ibm.icu/icu4j "58.2"] ; needed for i18n on server-side rendering
-                 [org.omcljs/om "1.0.0-alpha47" :scope "provided"]
+                 [org.omcljs/om "1.0.0-alpha48" :scope "provided"]
                  [org.clojure/test.check "0.9.0" :scope "test"]]
 
   :source-paths ["src" "src-cards"]

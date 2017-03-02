@@ -102,9 +102,22 @@
           network          (get networking remote)
           response-channel (get response-channels remote)]
       (letfn [(make-process-response [action callback-args]
-                (fn [resp]
-                  (try (action resp callback-args)
-                       (finally (go (async/>! response-channel :complete))))))]
+                ; NOTE: callback-args are nil for mutations!
+                ; note action is the Om callback, which is a multi-arity function
+                ; (f [resp]), (f [resp query]), or (f [resp query remote])
+                (fn send-cb
+                  ([resp]
+                   (try
+                     (if callback-args
+                       (action resp callback-args)
+                       (action resp))
+                     (finally (go (async/>! response-channel :complete)))))
+                  ([resp query]
+                   (try (action resp query)
+                        (finally (go (async/>! response-channel :complete)))))
+                  ([resp query remote]
+                   (try (action resp query remote)
+                        (finally (go (async/>! response-channel :complete)))))))]
         (go
           (loop [payload (async/<! queue)]
             (let [{:keys [query on-load on-error callback-args]} payload
