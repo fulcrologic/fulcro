@@ -32,7 +32,7 @@
 (defn real-send
   "Do a properly-plumbed network send. This function recursively strips ui attributes from the tx and pushes the tx over
   the network. It installs the given on-load and on-error handlers to deal with the network response."
-  [net tx on-load on-error on-done]
+  [net tx on-done on-error on-load]
   ; server-side rendering doesn't do networking. Don't care.
   (if #?(:clj  false
          :cljs (implements? net/ProgressiveTransfer net))
@@ -128,9 +128,12 @@
     (let [queue            (get send-queues remote)
           network          (get networking remote)
           response-channel (get response-channels remote)
-          send-complete    (fn [] (go (async/>! response-channel :complete)))]
+          send-complete    (fn []
+                             (log/info "Send complete")
+                             (go (async/>! response-channel :complete)))]
       (go
         (loop [payload (async/<! queue)]
+          (log/info "Payload pulled")
           (send-payload network payload send-complete)      ; async call. Calls send-complete when done
           (async/<! response-channel)                       ; block until send-complete
           (recur (async/<! queue)))))))
