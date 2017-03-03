@@ -32,13 +32,17 @@
 (defn real-send
   "Do a properly-plumbed network send. This function recursively strips ui attributes from the tx and pushes the tx over
   the network. It installs the given on-load and on-error handlers to deal with the network response."
-  [net tx on-load on-error]
-  (net/send net (plumbing/strip-ui tx) on-load on-error))
+  [net tx on-load on-error on-done]
+  ; server-side rendering doesn't do networking. Don't care.
+  (if #?(:clj  false
+         :cljs (implements? net/ProgressiveTransfer net))
+    (net/updating-send net (plumbing/strip-ui tx) on-load on-error on-done)
+    (net/send net (plumbing/strip-ui tx) on-done on-error)))
 
 (defn enqueue-mutations
   "Splits out the (remote) mutations and fallbacks in a transaction, creates an error handler that can
    trigger fallbacks, and enqueues the remote mutations on the network queue."
-  [{:keys [send-queues] :as app} remote-tx-map cb]
+  [{:keys [send-queues networking] :as app} remote-tx-map cb]
   (doseq [remote (keys remote-tx-map)]
     (let [queue                    (get send-queues remote)
           full-remote-transaction  (get remote-tx-map remote)
@@ -66,10 +70,10 @@
     (let [queue            (get send-queues remote)
           network          (get networking remote)
           parallel-payload (f/mark-parallel-loading remote reconciler)]
-      (doseq [{:keys [query on-load on-error callback-args]} parallel-payload]
-        (let [on-load'  #(on-load % callback-args)
-              on-error' #(on-error % callback-args)]
-          (real-send network query on-load' on-error')))
+      (doseq [{:keys [query on-load on-error load-descriptors]} parallel-payload]
+        (let [on-load'  #(on-load % load-descriptors)
+              on-error' #(on-error % load-descriptors)]
+          (real-send network query on-load' on-error' on-load')))
       (loop [fetch-payload (f/mark-loading remote reconciler)]
         (when fetch-payload
           (enqueue queue (assoc fetch-payload :networking network))
@@ -101,31 +105,17 @@
     (let [queue            (get send-queues remote)
           network          (get networking remote)
           response-channel (get response-channels remote)]
-      (letfn [(make-process-response [action callback-args]
-                ; NOTE: callback-args are nil for mutations!
-                ; note action is the Om callback, which is a multi-arity function
-                ; (f [resp]), (f [resp query]), or (f [resp query remote])
-                (fn send-cb
-                  ([resp]
-                   (try
-                     (if callback-args
-                       (action resp callback-args)
-                       (action resp))
-                     (finally (go (async/>! response-channel :complete)))))
-                  ([resp query]
-                   (try (action resp query)
-                        (finally (go (async/>! response-channel :complete)))))
-                  ([resp query remote]
-                   (try (action resp query remote)
-                        (finally (go (async/>! response-channel :complete)))))))]
-        (go
-          (loop [payload (async/<! queue)]
-            (let [{:keys [query on-load on-error callback-args]} payload
-                  on-load  (make-process-response on-load callback-args)
-                  on-error (make-process-response on-error callback-args)]
-              (real-send network query on-load on-error))
-            (async/<! response-channel)                     ; expect to block
-            (recur (async/<! queue))))))))
+      (go
+        (loop [payload (async/<! queue)]
+          ; Note, only data-fetch reads will have load-descriptors,
+          ; in which case on-load is data-fetch/loaded-callback
+          (let [{:keys [query on-load on-error load-descriptors]} payload
+                on-load  (if load-descriptors #(on-load % load-descriptors) on-load)
+                on-error (if load-descriptors #(on-error % load-descriptors) on-error)
+                on-done  (comp (fn [_] (go (async/>! response-channel :complete))) on-load)]
+            (real-send network query on-load on-error on-done))
+          (async/<! response-channel)                       ; expect to block
+          (recur (async/<! queue)))))))
 
 (defn initialize-internationalization
   "Configure a re-render when the locale changes. During startup this function will be called once for each

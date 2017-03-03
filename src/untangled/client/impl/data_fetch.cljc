@@ -56,7 +56,7 @@
   `query` : The full query to send to the server.
   `on-load` : The function to call to merge a response. Detects missing data and sets failure markers for those.
   `on-error` : The function to call to set network/server error(s) in place of loading markers.
-  `callback-args` : Args to pass back to on-load and on-error. These are separated
+  `load-descriptors` : Args to pass back to on-load and on-error. These are separated
     so that `rewrite-tempids-in-request-queue` can rewrite tempids for merge and
     error callbacks
 
@@ -74,10 +74,10 @@
       (place-load-markers state items-to-load)
       (swap! state assoc :ui/loading-data loading? :untangled/ready-to-load remaining-items)
       (for [item items-to-load]
-        {:query         (full-query [item])
-         :on-load       (loaded-callback reconciler)
-         :on-error      (error-callback reconciler)
-         :callback-args [item]}))))
+        {:query            (full-query [item])
+         :on-load          (loaded-callback reconciler)
+         :on-error         (error-callback reconciler)
+         :load-descriptors [item]}))))
 
 (defn dedupe-by
   "Returns a lazy sequence of the elements of coll with dupes removed.
@@ -134,7 +134,7 @@
   `query` : The full query to send to the server.
   `on-load` : The function to call to merge a response. Detects missing data and sets failure markers for those.
   `on-error` : The function to call to set network/server error(s) in place of loading markers.
-  `callback-args` : Args to pass back to on-load and on-error. These are separated
+  `load-descriptors` : Args to pass back to on-load and on-error. These are separated
     so that `rewrite-tempids-in-request-queue` can rewrite tempids for merge and
     error callbacks
 
@@ -153,10 +153,10 @@
     (when-not (empty? items-to-load-now)
       (place-load-markers state items-to-load-now)
       (swap! state assoc :ui/loading-data loading? :untangled/ready-to-load remaining-items)
-      {:query         (full-query items-to-load-now)
-       :on-load       (loaded-callback reconciler)
-       :on-error      (error-callback reconciler)
-       :callback-args items-to-load-now})))
+      {:query            (full-query items-to-load-now)
+       :on-load          (loaded-callback reconciler)
+       :on-error         (error-callback reconciler)
+       :load-descriptors items-to-load-now})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API, used to write tests against specific data states
