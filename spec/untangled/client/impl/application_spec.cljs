@@ -148,6 +148,131 @@
           "Remaps ids in all queues"
           @queues-remapped => #{a-queue b-queue})))))
 
+(specification "Network payload processing (sequential networking)"
+  (component "send-payload"
+    (let [error          (atom 0)
+          update         (atom 0)
+          done           (atom 0)
+          query          :the-tx
+          on-error       (fn [] (swap! error inc))
+          send-complete  (fn [] (swap! done inc))
+          on-update      (fn [] (swap! update inc))
+          reset-test     (fn [] (reset! error 0) (reset! update 0) (reset! done 0))
+          load-payload   {:query query :on-load on-update :on-error on-error :load-descriptors []}
+          mutate-payload {:query query :on-load on-update :on-error on-error}]
+      (behavior "On queries (with load-descriptor payloads)"
+        (provided "When real send completes without updates or errors"
+          (app/real-send net tx send-done send-error send-update) => (do
+                                                                       (assertions
+                                                                         "Sends the transaction to the network handler"
+                                                                         net => :network
+                                                                         tx => :the-tx)
+                                                                       (send-done))
+
+          (app/send-payload :network load-payload send-complete)
+
+          (assertions
+            "Triggers update and send-complete once"
+            @update => 1
+            @done => 1
+            @error => 0))
+
+        (reset-test)
+
+        (provided "When real send completes with an error"
+          (app/real-send net tx send-done send-error send-update) => (do
+                                                                       (assertions
+                                                                         "Sends the transaction to the network handler"
+                                                                         net => :network
+                                                                         tx => :the-tx)
+                                                                       (send-error))
+
+          (app/send-payload :network load-payload send-complete)
+
+          (assertions
+            "Triggers error and send-complete once"
+            @update => 0
+            @done => 1
+            @error => 1))
+
+        (reset-test)
+
+        (provided "When real send triggers multiple updates"
+          (app/real-send net tx send-done send-error send-update) => (do
+                                                                       (assertions
+                                                                         "Sends the transaction to the network handler"
+                                                                         net => :network
+                                                                         tx => :the-tx)
+                                                                       (send-update)
+                                                                       (send-update)
+                                                                       (send-update)
+                                                                       (send-done))
+
+          (app/send-payload :network load-payload send-complete)
+
+          (assertions
+            "Only one update is actually done."
+            @update => 1
+            @done => 1
+            @error => 0)))
+
+      (reset-test)
+      (behavior "On mutations (no load-descriptor payloads)"
+        (provided "When real send completes without updates or errors"
+          (app/real-send net tx send-done send-error send-update) => (do
+                                                                       (assertions
+                                                                         "Sends the transaction to the network handler"
+                                                                         net => :network
+                                                                         tx => :the-tx)
+                                                                       (send-done))
+
+          (app/send-payload :network mutate-payload send-complete)
+
+          (assertions
+            "Triggers update and send-complete once"
+            @update => 1
+            @done => 1
+            @error => 0))
+
+        (reset-test)
+
+        (provided "When real send completes with an error"
+          (app/real-send net tx send-done send-error send-update) => (do
+                                                                       (assertions
+                                                                         "Sends the transaction to the network handler"
+                                                                         net => :network
+                                                                         tx => :the-tx)
+                                                                       (send-error))
+
+          (app/send-payload :network mutate-payload send-complete)
+
+          (assertions
+            "Triggers error and send-complete once"
+            @update => 0
+            @done => 1
+            @error => 1))
+
+        (reset-test)
+
+        (provided "When real send triggers multiple updates"
+          (app/real-send net tx send-done send-error send-update) => (do
+                                                                       (assertions
+                                                                         "Sends the transaction to the network handler"
+                                                                         net => :network
+                                                                         tx => :the-tx)
+                                                                       (send-update)
+                                                                       (send-update)
+                                                                       (send-update)
+                                                                       (send-done))
+
+          (app/send-payload :network mutate-payload send-complete)
+
+          (assertions
+            "Updates are triggered for each update and once at completion"
+            @update => 4
+            @done => 1
+            @error => 0))))))
+
 (specification "Sweep one"
   (assertions
     "removes not-found values from maps"

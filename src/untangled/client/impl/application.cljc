@@ -32,12 +32,8 @@
 (defn real-send
   "Do a properly-plumbed network send. This function recursively strips ui attributes from the tx and pushes the tx over
   the network. It installs the given on-load and on-error handlers to deal with the network response."
-  [net tx on-load on-error on-done]
-  ; server-side rendering doesn't do networking. Don't care.
-  (if #?(:clj  false
-         :cljs (implements? net/ProgressiveTransfer net))
-    (net/updating-send net (plumbing/strip-ui tx) on-load on-error on-done)
-    (net/send net (plumbing/strip-ui tx) on-done on-error)))
+  [net tx on-done on-error on-update]
+  (net/send net (plumbing/strip-ui tx) on-done on-error on-update))
 
 (defn enqueue-mutations
   "Splits out the (remote) mutations and fallbacks in a transaction, creates an error handler that can
@@ -73,7 +69,8 @@
       (doseq [{:keys [query on-load on-error load-descriptors]} parallel-payload]
         (let [on-load'  #(on-load % load-descriptors)
               on-error' #(on-error % load-descriptors)]
-          (real-send network query on-load' on-error' on-load')))
+          ; TODO: queries cannot report progress, yet. Could update the payload marker in app state.
+          (real-send network query on-load' on-error' nil)))
       (loop [fetch-payload (f/mark-loading remote reconciler)]
         (when fetch-payload
           (enqueue queue (assoc fetch-payload :networking network))
@@ -95,6 +92,28 @@
   (enqueue-mutations app remote-tx-map cb)
   (enqueue-reads app))
 
+(defn- send-payload
+  "Sends a network payload. There are two kinds of payloads in Untanged. The first is
+  for reads, which are tracked by load descriptors in the app state. These load descriptors
+  tell the plumbing how to handle the response, and expect to only be merged in once. Mutations
+  do not have a payload, and can technically received progress updates from the network. The built-in
+  networking does not (currently) give progress events, but plugin networking can. It is currently not
+  supported to give an update on a load, so this function is careful to detect that a payload is a send
+  and turns all but the last update into a no-op. The send-complete function comes from the
+  network sequential processing loop, and when called unblocks the network processing to allow the
+  next request to go. Be very careful with this code, as bugs will cause applications to stop responding
+  to remote requests."
+  [network payload send-complete]
+  ; Note, only data-fetch reads will have load-descriptors,
+  ; in which case the payload on-load is data-fetch/loaded-callback, and cannot handle updates.
+  (let [{:keys [query on-load on-error load-descriptors]} payload
+        merge-data (if load-descriptors #(on-load % load-descriptors) on-load)
+        on-update  (if load-descriptors identity merge-data) ; TODO: queries cannot handle progress
+        on-error   (if load-descriptors #(on-error % load-descriptors) on-error)
+        on-error   (comp send-complete on-error)
+        on-done    (comp send-complete merge-data)]
+    (real-send network query on-done on-error on-update)))
+
 (defn start-network-sequential-processing
   "Starts a async go loop that sends network requests on a networking object's request queue. Must be called once and only
   once for each active networking object on the UI. Each iteration of the loop pulls off a
@@ -104,17 +123,12 @@
   (doseq [remote (keys send-queues)]
     (let [queue            (get send-queues remote)
           network          (get networking remote)
-          response-channel (get response-channels remote)]
+          response-channel (get response-channels remote)
+          send-complete    (fn [] (go (async/>! response-channel :complete)))]
       (go
         (loop [payload (async/<! queue)]
-          ; Note, only data-fetch reads will have load-descriptors,
-          ; in which case on-load is data-fetch/loaded-callback
-          (let [{:keys [query on-load on-error load-descriptors]} payload
-                on-load  (if load-descriptors #(on-load % load-descriptors) on-load)
-                on-error (if load-descriptors #(on-error % load-descriptors) on-error)
-                on-done  (comp (fn [_] (go (async/>! response-channel :complete))) on-load)]
-            (real-send network query on-load on-error on-done))
-          (async/<! response-channel)                       ; expect to block
+          (send-payload network payload send-complete)      ; async call. Calls send-complete when done
+          (async/<! response-channel)                       ; block until send-complete
           (recur (async/<! queue)))))))
 
 (defn initialize-internationalization
