@@ -128,12 +128,9 @@
     (let [queue            (get send-queues remote)
           network          (get networking remote)
           response-channel (get response-channels remote)
-          send-complete    (fn []
-                             (log/info "Send complete")
-                             (go (async/>! response-channel :complete)))]
+          send-complete    (fn [] (go (async/>! response-channel :complete)))]
       (go
         (loop [payload (async/<! queue)]
-          (log/info "Payload pulled")
           (send-payload network payload send-complete)      ; async call. Calls send-complete when done
           (async/<! response-channel)                       ; block until send-complete
           (recur (async/<! queue)))))))
