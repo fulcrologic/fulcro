@@ -308,6 +308,7 @@
     (cond
       (and (vector? target) (not-empty target)) target
       (and (vector? (data-ident state)) (keyword? (data-field state))) (conj (data-ident state) (data-field state))
+      (vector? (data-ident state)) (data-ident state)
       :otherwise [(data-query-key state)])))
 
 (defn data-params
