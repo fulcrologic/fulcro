@@ -12,8 +12,12 @@
 #?(:cljs
    (defn make-xhrio "This is here (not inlined) to make mocking easier." [] (XhrIo.)))
 
+(defprotocol ProgressiveTransfer
+  (updating-send [this edn done-callback error-callback update-callback] "Send EDN. The update-callback will merge the state
+  given to it. The done-callback will merge the state given to it, and indicates completion."))
+
 (defprotocol UntangledNetwork
-  (send [this edn done-callback error-callback] [this edn done-callback error-callback update-callback]
+  (send [this edn done-callback error-callback]
     "Send EDN. Calls either the done or error callback when the send is done, and optionally calls the update-callback
     one or more times during the transfer (if not nil and supported)")
   (start [this complete-app]
@@ -71,8 +75,7 @@
                (parse-response xhr-io transit-handlers))))
          (finally (.dispose xhr-io)))))
   UntangledNetwork
-  (send [this edn ok error] (send this edn ok error identity))
-  (send [this edn ok error update]
+  (send [this edn ok error]
     #?(:cljs
        (let [xhrio     (make-xhrio)
              handlers  (or (:write transit-handlers) {})
@@ -123,7 +126,6 @@
   [complete-app]
   UntangledNetwork
   (send [this edn ok err] (log/info "Ignored (mock) Network request " edn))
-  (send [this edn ok err update] (log/info "Ignored (mock) Network request " edn))
   (start [this app]
     (assoc this :complete-app app)))
 

@@ -32,8 +32,12 @@
 (defn real-send
   "Do a properly-plumbed network send. This function recursively strips ui attributes from the tx and pushes the tx over
   the network. It installs the given on-load and on-error handlers to deal with the network response."
-  [net tx on-done on-error on-update]
-  (net/send net (plumbing/strip-ui tx) on-done on-error on-update))
+  [net tx on-load on-error on-done]
+  ; server-side rendering doesn't do networking. Don't care.
+  (if #?(:clj  false
+         :cljs (implements? net/ProgressiveTransfer net))
+    (net/updating-send net (plumbing/strip-ui tx) on-done on-error on-load)
+    (net/send net (plumbing/strip-ui tx) on-done on-error)))
 
 (defn enqueue-mutations
   "Splits out the (remote) mutations and fallbacks in a transaction, creates an error handler that can
