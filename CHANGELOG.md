@@ -1,9 +1,11 @@
-0.7.1
+0.8.0
 -----
 - Added defmutation 
 - Fixed up namespaces that defined macros to allow for implicit macro usage by adding self-references
 - Added support for multiple remotes (networking option now accepts a map)
    - NOTE: `clear-pending-remote-requests!` now requires a remote parameter.
+- Added support for progressive load updates (nice for file
+upload support)
 
 0.7.0
 -----
