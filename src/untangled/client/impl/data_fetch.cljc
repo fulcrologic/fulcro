@@ -306,6 +306,7 @@
   [state]
   (let [target (data-target state)]
     (cond
+      (vector? (data-ident state)) (data-ident state)
       (and (vector? target) (not-empty target)) target
       (and (vector? (data-ident state)) (keyword? (data-field state))) (conj (data-ident state) (data-field state))
       :otherwise [(data-query-key state)])))
