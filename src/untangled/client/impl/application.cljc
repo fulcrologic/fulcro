@@ -217,6 +217,8 @@
                                    :normalize  true
                                    :remotes    remotes
                                    :pathopt    pathopt
+                                   :merge-ident (fn [reconciler app-state ident props]
+                                                  (update-in app-state ident (comp sweep-one merge) props))
                                    :merge-tree (fn [target source]
                                                  (merge-handler mutation-merge target source))
                                    :parser     parser
