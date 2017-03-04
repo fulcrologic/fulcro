@@ -12,6 +12,9 @@
 #?(:cljs
    (defn make-xhrio "This is here (not inlined) to make mocking easier." [] (XhrIo.)))
 
+(defprotocol NetworkBehavior
+  (serialize-requests? [this] "Returns true if the network is configured to desire one request at a time."))
+
 (defprotocol ProgressiveTransfer
   (updating-send [this edn done-callback error-callback update-callback] "Send EDN. The update-callback will merge the state
   given to it. The done-callback will merge the state given to it, and indicates completion."))
@@ -42,6 +45,8 @@
            (catch js/Object e {:error 404 :message "Server down"})))))
 
 (defrecord Network [url request-transform global-error-callback complete-app transit-handlers]
+  NetworkBehavior
+  (serialize-requests? [this] true)
   IXhrIOCallbacks
   (response-ok [this xhr-io valid-data-callback]
     ;; Implies:  everything went well and we have a good response

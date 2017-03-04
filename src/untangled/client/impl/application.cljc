@@ -118,6 +118,10 @@
         on-done    (comp send-complete merge-data)]
     (real-send network query on-done on-error on-update)))
 
+(defn is-sequential? [network]
+  (and #?(:clj false :cljs (implements? net/NetworkBehavior network))
+    (net/serialize-requests? network)))
+
 (defn start-network-sequential-processing
   "Starts a async go loop that sends network requests on a networking object's request queue. Must be called once and only
   once for each active networking object on the UI. Each iteration of the loop pulls off a
@@ -127,12 +131,16 @@
   (doseq [remote (keys send-queues)]
     (let [queue            (get send-queues remote)
           network          (get networking remote)
+          sequential?      (is-sequential? network)
           response-channel (get response-channels remote)
-          send-complete    (fn [] (go (async/>! response-channel :complete)))]
+          send-complete    (if sequential?
+                             (fn [] (go (async/>! response-channel :complete)))
+                             identity)]
       (go
         (loop [payload (async/<! queue)]
           (send-payload network payload send-complete)      ; async call. Calls send-complete when done
-          (async/<! response-channel)                       ; block until send-complete
+          (when sequential?
+            (async/<! response-channel))                    ; block until send-complete
           (recur (async/<! queue)))))))
 
 (defn initialize-internationalization
@@ -210,19 +218,19 @@
                                       (swap! initial-state assoc :ui/locale "en-US")
                                       initial-state)
                                     (assoc initial-state :ui/locale "en-US"))
-        config                    {:state      initial-state-with-locale
-                                   :send       (fn [tx cb]
-                                                 (server-send (assoc app :reconciler @rec-atom) tx cb))
-                                   :migrate    (or migrate tempid-migrate)
-                                   :normalize  true
-                                   :remotes    remotes
-                                   :pathopt    pathopt
+        config                    {:state       initial-state-with-locale
+                                   :send        (fn [tx cb]
+                                                  (server-send (assoc app :reconciler @rec-atom) tx cb))
+                                   :migrate     (or migrate tempid-migrate)
+                                   :normalize   true
+                                   :remotes     remotes
+                                   :pathopt     pathopt
                                    :merge-ident (fn [reconciler app-state ident props]
                                                   (update-in app-state ident (comp sweep-one merge) props))
-                                   :merge-tree (fn [target source]
-                                                 (merge-handler mutation-merge target source))
-                                   :parser     parser
-                                   :shared     shared}
+                                   :merge-tree  (fn [target source]
+                                                  (merge-handler mutation-merge target source))
+                                   :parser      parser
+                                   :shared      shared}
         rec                       (om/reconciler config)]
     (reset! rec-atom rec)
     rec))
