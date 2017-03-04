@@ -1,4 +1,4 @@
-(defproject navis/untangled-client "0.8.0-SNAPSHOT"
+(defproject navis/untangled-client "0.8.0"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "MIT"
@@ -9,7 +9,7 @@
                  [lein-doo "0.1.7" :scope "test"]
                  [navis/untangled-spec "0.3.9" :scope "test"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.456" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.473" :scope "provided"]
                  [org.clojure/core.async "0.2.391"]
                  [com.ibm.icu/icu4j "58.2"] ; needed for i18n on server-side rendering
                  [org.omcljs/om "1.0.0-alpha48" :scope "provided"]
