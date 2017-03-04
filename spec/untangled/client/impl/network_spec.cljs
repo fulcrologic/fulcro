@@ -28,6 +28,7 @@
       (when-mocking
           (net/make-xhrio) => fake-xhrio
           (events/listen _ _ _) => nil
+
           (net/send network {:original 1} nil nil))
 
       (assertions
@@ -48,6 +49,7 @@
       (when-mocking
           (net/make-xhrio) => fake-xhrio
           (events/listen _ _ _) => nil
+
           (net/send network {:original 1} nil nil))
 
       (assertions

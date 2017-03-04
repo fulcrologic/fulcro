@@ -1,6 +1,9 @@
 (ns untangled.client.routing
+  (:require-macros untangled.client.routing)
   (:require [untangled.client.mutations :as m]
-            [untangled.client.core]
+            untangled.client.core
+            om.next
+            om.dom
             [untangled.client.logging :as log]))
 
 (def routing-tree-key ::routing-tree)
@@ -9,16 +12,31 @@
 (defn make-route
   "Make a route name that executes the provided routing instructions to change which screen in on the UI. routing-instructions
   must be a vector. Returns an item that can be passed to `routing-tree` to generate your overall application's routing
-  plan."
+  plan.
+
+  `(make-route :route/a [(router-instruction ...) ...])`
+
+  "
   [name routing-instructions]
   {:pre [(vector? routing-instructions)]}
   {:name name :instructions routing-instructions})
 
 (defn routing-tree
   "Generate initial state for your application's routing tree. The return value of this should be merged into your overall
-  app state (e.g., in InitialAppState: `(merge your-apps-initial-state (routing-tree routes))`)"
+  app state in your Root UI component
+
+  ```
+  (defui Root
+    static uc/InitialAppState
+    (initial-state [cls params]  (merge {:child-key (uc/get-initial-state Child)}
+                                        (routing-tree
+                                          (make-route :route/a [(router-instruction ...)])
+                                          ...)))
+    ...
+  ```
+  "
   [& routes]
-  (reduce (fn [tree {:keys [name instructions]}] (assoc tree name instructions)) {} routes))
+  {routing-tree-key (reduce (fn [tree {:keys [name instructions]}] (assoc tree name instructions)) {} routes)})
 
 (defn router-instruction
   "Return the definition of a change-route instruction."
@@ -37,7 +55,7 @@
           (if (and (keyword? element) (= "param" (namespace element)))
             (keyword (get route-params (keyword (name element)) element))
             element))
-        ident))
+    ident))
 
 (defn set-route
   "Set the given screen-ident as the current route on the router with the given ID. Returns a new application

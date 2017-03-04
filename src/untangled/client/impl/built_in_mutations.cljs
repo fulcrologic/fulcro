@@ -7,19 +7,19 @@
 
 ; Built-in mutation for adding a remote query to the network requests.
 (defmethod mutate 'untangled/load
-  [{:keys [state]} _ {:keys [post-mutation]
+  [{:keys [state]} _ {:keys [post-mutation remote]
                       :as   config}]
   (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
-  {:remote true
-   :action (fn [] (df/mark-ready (assoc config :state state)))})
+  {(if remote remote :remote) true
+   :action                    (fn [] (df/mark-ready (assoc config :state state)))})
 
 ; Built-in i18n mutation for changing the locale of the application. Causes a re-render.
 (defmethod mutate 'ui/change-locale [{:keys [state]} _ {:keys [lang]}]
   {:action (fn []
              (reset! i18n/*current-locale* lang)
              (swap! state #(-> %
-                               (assoc :ui/locale lang)
-                               (assoc :ui/react-key (unique-key)))))})
+                             (assoc :ui/locale lang)
+                             (assoc :ui/react-key (unique-key)))))})
 
 ; A mutation that requests the installation of a fallback mutation on a transaction that should run if that transaction
 ; fails in a 'hard' way (e.g. network/server error). Data-related error handling should either be implemented as causing

@@ -5,6 +5,7 @@
     untangled.client.impl.util-spec
     untangled.client.impl.application-spec
     untangled.client.impl.built-in-mutations-spec
+    untangled.client.mutations-spec
     untangled.client.data-fetch-spec
     untangled.client.impl.om-plumbing-spec
     untangled.client.logging-spec

@@ -1,4 +1,4 @@
-(defproject navis/untangled-client "0.7.0"
+(defproject navis/untangled-client "0.8.0"
   :description "Client-side code for Untangled Webapps"
   :url ""
   :license {:name "MIT"
@@ -9,17 +9,17 @@
                  [lein-doo "0.1.7" :scope "test"]
                  [navis/untangled-spec "0.3.9" :scope "test"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.456" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.473" :scope "provided"]
                  [org.clojure/core.async "0.2.391"]
                  [com.ibm.icu/icu4j "58.2"] ; needed for i18n on server-side rendering
-                 [org.omcljs/om "1.0.0-alpha47" :scope "provided"]
+                 [org.omcljs/om "1.0.0-alpha48" :scope "provided"]
                  [org.clojure/test.check "0.9.0" :scope "test"]]
 
   :source-paths ["src" "src-cards"]
   :resource-paths ["src" "resources"]                       ; maven deploy to internal artifactory needs src here
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx512m" "-Xms256m"]
-  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/test" "resources/public/js/compiled" "target"]
+  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/cards" "resources/public/js/test" "resources/public/js/compiled" "target"]
 
   :plugins [[lein-cljsbuild "1.1.5"]
             [lein-doo "0.1.7"]

@@ -29,3 +29,6 @@ resources/public/js/test
 resources/public/js/cards
 pom.xml.asc
 !.idea/runConfigurations/Figwheel.xml
+docs/.asciidoctor/
+docs/basic-db.png
+docs/mutations.png

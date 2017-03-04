@@ -3,7 +3,7 @@
     [untangled-spec.core :refer-macros [assertions behavior]]
     [cljs.test :refer-macros [is]]
     [clojure.walk :as walk]
-    [om.next :as om :refer-macros [defui]]
+    [om.next :as om :refer [defui]]
     [om.dom :as dom]
     [untangled.client.core :as core]))
 

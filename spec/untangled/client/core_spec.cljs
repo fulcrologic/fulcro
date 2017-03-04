@@ -1,6 +1,6 @@
 (ns untangled.client.core-spec
   (:require
-    [om.next :as om :refer-macros [defui]]
+    [om.next :as om :refer [defui]]
     [untangled.client.core :as uc]
     [untangled-spec.core :refer-macros
      [specification behavior assertions provided component when-mocking]]
@@ -30,10 +30,10 @@
     "merge-query is the component query joined on it's ident"
     (#'uc/component-merge-query Parent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (om/get-query Child)}]}])
   (component "preprocessing the object to merge"
-    (let [no-state (atom {:parent/by-id {}})
-          no-state-merge-data (:merge-data (#'uc/preprocess-merge no-state Parent {:id 42}))
-          state-with-old (atom {:parent/by-id {42 {:ui/checked true :id 42 :title "Hello"}}})
-          id [:parent/by-id 42]
+    (let [no-state             (atom {:parent/by-id {}})
+          no-state-merge-data  (:merge-data (#'uc/preprocess-merge no-state Parent {:id 42}))
+          state-with-old       (atom {:parent/by-id {42 {:ui/checked true :id 42 :title "Hello"}}})
+          id                   [:parent/by-id 42]
           old-state-merge-data (-> (#'uc/preprocess-merge state-with-old Parent {:id 42}) :merge-data :untangled/merge)]
       (assertions
         "Uses the existing object in app state as base for merge when present"
@@ -44,7 +44,7 @@
                                                      :title      :untangled.client.impl.om-plumbing/not-found
                                                      :child      :untangled.client.impl.om-plumbing/not-found}}))
     (let [union-query {:union-a [:b] :union-b [:c]}
-          state (atom {})]
+          state       (atom {})]
       (when-mocking
         (uc/get-class-ident c d) => :ident
         (om/get-query comp) => union-query
@@ -60,7 +60,7 @@
 
         (#'uc/preprocess-merge state :comp :data))))
   (let [state (atom {})
-        data {}]
+        data  {}]
     (when-mocking
       (uc/preprocess-merge s c d) => {:merge-data :the-data :merge-query :the-query}
       (uc/integrate-ident! s i op args op args) => :ignore
@@ -77,8 +77,7 @@
   (let [state (atom {:a    {:path [[:table 2]]}
                      :b    {:path [[:table 2]]}
                      :d    [:table 6]
-                     :many {:path [[:table 99] [:table 88] [:table 77]]}
-                     })]
+                     :many {:path [[:table 99] [:table 88] [:table 77]]}})]
     (behavior "Can append to an existing vector"
       (uc/integrate-ident! state [:table 3] :append [:a :path])
       (assertions
@@ -107,13 +106,58 @@
       (assertions
         (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
 
+(specification "integrate-ident"
+  (let [state {:a    {:path [[:table 2]]}
+               :b    {:path [[:table 2]]}
+               :d    [:table 6]
+               :many {:path [[:table 99] [:table 88] [:table 77]]}}]
+    (assertions
+      "Can append to an existing vector"
+      (-> state
+        (uc/integrate-ident [:table 3] :append [:a :path])
+        (get-in [:a :path]))
+      => [[:table 2] [:table 3]]
+
+      "(is a no-op if the ident is already there)"
+      (-> state
+        (uc/integrate-ident [:table 3] :append [:a :path])
+        (get-in [:a :path]))
+      => [[:table 2] [:table 3]]
+
+      "Can prepend to an existing vector"
+      (-> state
+        (uc/integrate-ident [:table 3] :prepend [:b :path])
+        (get-in [:b :path]))
+      => [[:table 3] [:table 2]]
+
+      "(is a no-op if already there)"
+      (-> state
+        (uc/integrate-ident [:table 3] :prepend [:b :path])
+        (get-in [:b :path]))
+      => [[:table 3] [:table 2]]
+
+      "Can create/replace a to-one ident"
+      (-> state
+        (uc/integrate-ident [:table 3] :replace [:d])
+        (get-in [:d]))
+      => [:table 3]
+      (-> state
+        (uc/integrate-ident [:table 3] :replace [:c :path])
+        (get-in [:c :path]))
+      => [:table 3]
+
+      "Can replace an existing to-many element in a vector"
+      (-> state
+        (uc/integrate-ident [:table 3] :replace [:many :path 1])
+        (get-in [:many :path]))
+      => [[:table 99] [:table 3] [:table 77]])))
 
 (specification "Untangled Application -- clear-pending-remote-requests!"
-  (let [channel (async/chan 1000)
-        mock-app (uc/map->Application {:queue channel})]
+  (let [channel  (async/chan 1000)
+        mock-app (uc/map->Application {:send-queues {:remote channel}})]
     (async/put! channel 1 #(async/put! channel 2 (fn [] (async/put! channel 3 (fn [] (async/put! channel 4))))))
 
-    (uc/clear-pending-remote-requests! mock-app)
+    (uc/clear-pending-remote-requests! mock-app nil)
 
     (assertions
       "Removes any pending items in the network queue channel"
@@ -128,14 +172,15 @@
   (initial-state [this params] {:x 1}))
 
 (specification "Untangled Application -- reset-app!"
-  (let [scb-calls (atom 0)
-        custom-calls (atom 0)
-        mock-app (uc/map->Application {:started-callback (fn [] (swap! scb-calls inc))})
+  (let [scb-calls        (atom 0)
+        custom-calls     (atom 0)
+        mock-app         (uc/map->Application {:send-queues {:remote :fake-queue}
+                                               :started-callback (fn [] (swap! scb-calls inc))})
         cleared-network? (atom false)
-        merged-unions? (atom false)
-        history-reset? (atom false)
-        re-rendered? (atom false)
-        state (atom {})]
+        merged-unions?   (atom false)
+        history-reset?   (atom false)
+        re-rendered?     (atom false)
+        state            (atom {})]
     (behavior "Logs an error if the supplied component does not implement InitialAppState"
       (when-mocking
         (log/error e) => (assertions
@@ -152,8 +197,7 @@
 
         (uc/reset-app! mock-app ResetAppRoot nil)
         (uc/reset-app! mock-app ResetAppRoot :original)
-        (uc/reset-app! mock-app ResetAppRoot (fn [a] (swap! custom-calls inc)))
-        )
+        (uc/reset-app! mock-app ResetAppRoot (fn [a] (swap! custom-calls inc))))
 
       (assertions
         "Clears the network queue"
@@ -193,7 +237,7 @@
 
           (uc/mount* mock-app :fake-root :dom-id)))
       (let [supplied-atom (atom {:a 1})
-            mock-app {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
+            mock-app      {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
         (when-mocking
           (uc/initialize app state root dom opts) => (do
                                                        (assertions

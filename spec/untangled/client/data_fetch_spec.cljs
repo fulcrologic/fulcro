@@ -155,7 +155,7 @@
 
       (df/load-action state-atom :x Person {})
 
-      (let [query (-> @state-atom ::om/ready-to-load first ::dfi/query)]
+      (let [query (-> @state-atom :untangled/ready-to-load first ::dfi/query)]
         (assertions
           "State atom ends up with a proper load marker"
           query => [:x])))))
@@ -198,7 +198,7 @@
     (let [app-state (atom {})]
       (df/load-field-action app-state Item [:item/by-id 3] :comments :without #{:author})
 
-      (let [marker (first (get-in @app-state [::om/ready-to-load]))]
+      (let [marker (first (get-in @app-state [:untangled/ready-to-load]))]
         (assertions
           "places a ready marker in the app state"
           marker =fn=> (fn [marker] (df/ready? marker))
@@ -248,7 +248,7 @@
 
       (df/load-data-action app-state (om/get-query PanelRoot) :without #{:items})
 
-      (let [marker (first (get-in @app-state [::om/ready-to-load]))]
+      (let [marker (first (get-in @app-state [:untangled/ready-to-load]))]
         (assertions
           "places a ready marker in the app state"
           marker =fn=> (fn [marker] (df/ready? marker))
