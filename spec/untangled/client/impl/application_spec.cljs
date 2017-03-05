@@ -35,7 +35,8 @@
         unmounted-app     (uc/new-untangled-client
                             :initial-state state
                             :started-callback callback
-                            :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
+                            :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1]))
+                            :reconciler-options {:root-unmount identity})
         app               (uc/mount unmounted-app Root "application-mount-point")
         mounted-app-state (om/app-state (:reconciler app))
         reconciler        (:reconciler app)
@@ -43,6 +44,10 @@
         migrate           (:migrate reconciler-config)]
 
     (component "Initialization"
+      (behavior "custom reconciler options"
+        (assertions
+          (:root-unmount reconciler-config) => identity))
+
       (behavior "returns untangled client app record with"
         (assertions
           "a request queue"

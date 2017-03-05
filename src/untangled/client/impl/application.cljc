@@ -205,7 +205,7 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [send-queues mutation-merge] :as app} initial-state parser {:keys [pathopt migrate shared] :or {pathopt true migrate nil shared nil}}]
+  [{:keys [send-queues mutation-merge] :as app} initial-state parser {:keys [migrate] :as reconciler-options}]
   (let [rec-atom                  (atom nil)
         remotes                   (keys send-queues)
         tempid-migrate            (fn [pure _ tempids _]
@@ -218,19 +218,21 @@
                                       (swap! initial-state assoc :ui/locale "en-US")
                                       initial-state)
                                     (assoc initial-state :ui/locale "en-US"))
-        config                    {:state       initial-state-with-locale
-                                   :send        (fn [tx cb]
-                                                  (server-send (assoc app :reconciler @rec-atom) tx cb))
-                                   :migrate     (or migrate tempid-migrate)
-                                   :normalize   true
-                                   :remotes     remotes
-                                   :pathopt     pathopt
-                                   :merge-ident (fn [reconciler app-state ident props]
-                                                  (update-in app-state ident (comp sweep-one merge) props))
-                                   :merge-tree  (fn [target source]
-                                                  (merge-handler mutation-merge target source))
-                                   :parser      parser
-                                   :shared      shared}
+        reconciler-options        (update reconciler-options :migrate #(or % tempid-migrate))
+        config                    (merge {:state       initial-state-with-locale
+                                          :send        (fn [tx cb]
+                                                         (server-send (assoc app :reconciler @rec-atom) tx cb))
+                                          :migrate     nil
+                                          :normalize   true
+                                          :remotes     remotes
+                                          :pathopt     true
+                                          :merge-ident (fn [reconciler app-state ident props]
+                                                         (update-in app-state ident (comp sweep-one merge) props))
+                                          :merge-tree  (fn [target source]
+                                                         (merge-handler mutation-merge target source))
+                                          :parser      parser
+                                          :shared      nil}
+                                    reconciler-options)
         rec                       (om/reconciler config)]
     (reset! rec-atom rec)
     rec))
