@@ -1,3 +1,8 @@
+0.8.1
+-----
+- Fixed load markers for ident-based loading: They will appear iff the entity is already present (refresh)
+- Cleaned up logic around data markers related to markers and data targeting
+
 0.8.0
 -----
 - Added defmutation 
