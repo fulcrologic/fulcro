@@ -352,7 +352,9 @@
   "For items that are manually targeted, move them in app state from their result location to their target location."
   [state-atom items]
   (doseq [item items]
-    (let [default-target  [(data-query-key item)]
+    (let [default-target  (if (vector? (data-query-key item))
+                            (data-query-key item)
+                            [(data-query-key item)])
           field-target    (conj (or (data-ident item) []) (::field item))
           explicit-target (or (::target item) [])
           relocate?       (and (not-empty explicit-target)
