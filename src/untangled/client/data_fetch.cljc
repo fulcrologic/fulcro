@@ -335,3 +335,6 @@
       (failed? state) (failed-render props)
       (and not-present-render (nil? props)) (not-present-render props)
       :else (data-render props))))
+
+(defn refresh! [component]
+  (load component (om/get-ident component) (om/react-type component)))
