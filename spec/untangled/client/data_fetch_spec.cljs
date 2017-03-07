@@ -575,30 +575,30 @@
         q-cd-x {::dfi/query [{:c [:x]} {:d [:x]}]}
         q-de-x {::dfi/query [{:d [:x]} {:e [:x]}]}]
     (assertions
-      "loads all items immediately when no join key conflicts"
-      (dfi/split-items-ready-to-load [q-a-x]) => [#{q-a-x} []]
-      (dfi/split-items-ready-to-load [q-a-x q-b-x]) => [#{q-a-x q-b-x} []]
-      (dfi/split-items-ready-to-load [q-a-x q-c-x]) => [#{q-a-x q-c-x} []]
-      (dfi/split-items-ready-to-load [q-a-x q-b-x q-c-x]) => [#{q-a-x q-b-x q-c-x} []]
+      "loads all items immediately when no join key conflicts, preserving order"
+      (dfi/split-items-ready-to-load [q-a-x]) => [[q-a-x] []]
+      (dfi/split-items-ready-to-load [q-a-x q-b-x]) => [[q-a-x q-b-x] []]
+      (dfi/split-items-ready-to-load [q-a-x q-c-x]) => [[q-a-x q-c-x] []]
+      (dfi/split-items-ready-to-load [q-a-x q-b-x q-c-x]) => [[q-a-x q-b-x q-c-x] []]
 
-      "defers loading when join key conflict"
-      (dfi/split-items-ready-to-load [q-a-x q-a-y q-a-z q-a-w]) => [#{q-a-x} [q-a-y q-a-z q-a-w]]
-      (dfi/split-items-ready-to-load [q-a-y q-a-z q-a-w]) => [#{q-a-y} [q-a-z q-a-w]]
-      (dfi/split-items-ready-to-load [q-a-z q-a-w]) => [#{q-a-z} [q-a-w]]
-      (dfi/split-items-ready-to-load [q-a-w]) => [#{q-a-w} []]
+      "defers loading when join key conflict, preserving order where possible"
+      (dfi/split-items-ready-to-load [q-a-x q-a-y q-a-z q-a-w]) => [[q-a-x] [q-a-y q-a-z q-a-w]]
+      (dfi/split-items-ready-to-load [q-a-y q-a-z q-a-w]) => [[q-a-y] [q-a-z q-a-w]]
+      (dfi/split-items-ready-to-load [q-a-z q-a-w]) => [[q-a-z] [q-a-w]]
+      (dfi/split-items-ready-to-load [q-a-w]) => [[q-a-w] []]
 
-      "defers loading when ident key conflict"
-      (dfi/split-items-ready-to-load [q-c-x q-c-y q-c-z q-c-w]) => [#{q-c-x} [q-c-y q-c-z q-c-w]]
-      (dfi/split-items-ready-to-load [q-c-y q-c-z q-c-w]) => [#{q-c-y} [q-c-z q-c-w]]
-      (dfi/split-items-ready-to-load [q-c-z q-c-w]) => [#{q-c-z} [q-c-w]]
-      (dfi/split-items-ready-to-load [q-c-w]) => [#{q-c-w} []]
+      "defers loading when ident key conflict, preserving order where possible"
+      (dfi/split-items-ready-to-load [q-c-x q-c-y q-c-z q-c-w]) => [[q-c-x] [q-c-y q-c-z q-c-w]]
+      (dfi/split-items-ready-to-load [q-c-y q-c-z q-c-w]) => [[q-c-y] [q-c-z q-c-w]]
+      (dfi/split-items-ready-to-load [q-c-z q-c-w]) => [[q-c-z] [q-c-w]]
+      (dfi/split-items-ready-to-load [q-c-w]) => [[q-c-w] []]
 
-      "defers loading when any key conflicts"
+      "defers loading when any key conflicts, preserving order where possible"
       (dfi/split-items-ready-to-load
         [q-a-x q-a-y q-a-z
          q-b-x
-         q-c-x q-c-y q-c-z]) => [#{q-a-x q-b-x q-c-x} [q-a-y q-a-z q-c-y q-c-z]]
+         q-c-x q-c-y q-c-z]) => [[q-a-x q-b-x q-c-x] [q-a-y q-a-z q-c-y q-c-z]]
 
-      "defers loading when join keys partially conflict"
-      (dfi/split-items-ready-to-load [q-ab-x q-bc-x q-cd-x q-de-x]) => [#{q-ab-x q-cd-x} [q-bc-x q-de-x]]
-      (dfi/split-items-ready-to-load [q-bc-x q-de-x]) => [#{q-bc-x q-de-x} []])))
+      "defers loading when join keys partially conflict, preserving order where possible"
+      (dfi/split-items-ready-to-load [q-ab-x q-bc-x q-cd-x q-de-x]) => [[q-ab-x q-cd-x] [q-bc-x q-de-x]]
+      (dfi/split-items-ready-to-load [q-bc-x q-de-x]) => [[q-bc-x q-de-x] []])))

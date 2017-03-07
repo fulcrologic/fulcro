@@ -48,7 +48,7 @@
   (swap! state-atom
     (fn [state-map]
       (reduce (fn [s item]
-    (let [i            (set-loading! item)
+                (let [i            (set-loading! item)
                       place-marker (fn [current-val marker]
                                      (if (is-direct-table-load? marker)
                                        (when (map? current-val) (assoc current-val :ui/fetch-state marker))
@@ -129,9 +129,10 @@
                             (dedupe-by (fn [item]
                                          (->> (data-query item)
                                            (map join-key-or-nil))))
-                            set)
+                            vec)
+        is-loading-now?   (set items-to-load-now)
         items-to-defer    (->> items-ready-to-load
-                            (remove items-to-load-now)
+                            (remove is-loading-now?)
                             (vec))]
     [items-to-load-now items-to-defer]))
 
@@ -371,7 +372,7 @@
                   (if relocate?
                     (let [value (get state default-target)]
                       (-> state
-                                (dissoc (data-query-key item))
+                        (dissoc (data-query-key item))
                         (assoc-in explicit-target value)))
                     state))) state-map items))))
 
