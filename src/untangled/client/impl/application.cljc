@@ -219,21 +219,21 @@
                                       initial-state)
                                     (assoc initial-state :ui/locale "en-US"))
         reconciler-options        (update reconciler-options :migrate #(or % tempid-migrate))
-        config                    (merge {:state       initial-state-with-locale
+        config                    (merge {:migrate     nil
+                                          :pathopt     true
+                                          :shared      nil}
+                                         reconciler-options
+                                         {:state       initial-state-with-locale
                                           :send        (fn [tx cb]
                                                          (server-send (assoc app :reconciler @rec-atom) tx cb))
-                                          :migrate     nil
                                           :normalize   true
                                           :remotes     remotes
-                                          :pathopt     true
                                           :merge-ident (fn [reconciler app-state ident props]
                                                          (update-in app-state ident (comp sweep-one merge) props))
                                           :merge-tree  (fn [target source]
                                                          (merge-handler mutation-merge target source))
-                                          :parser      parser
-                                          :shared      nil}
-                                    reconciler-options)
-        rec                       (om/reconciler config)]
+                                          :parser      parser})
+        rec (om/reconciler config)]
     (reset! rec-atom rec)
     rec))
 
