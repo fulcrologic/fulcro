@@ -218,10 +218,8 @@
                                       (swap! initial-state assoc :ui/locale "en-US")
                                       initial-state)
                                     (assoc initial-state :ui/locale "en-US"))
-        reconciler-options        (update reconciler-options :migrate #(or % tempid-migrate))
-        config                    (merge {:migrate     nil
-                                          :pathopt     true
-                                          :shared      nil}
+        config                    (merge {:migrate tempid-migrate
+                                          :pathopt true}
                                          reconciler-options
                                          {:state       initial-state-with-locale
                                           :send        (fn [tx cb]

@@ -78,8 +78,11 @@
   (map->Application {:initial-state      initial-state
                      :mutation-merge     mutation-merge
                      :started-callback   started-callback
-                     :reconciler-options (merge {:migrate migrate :pathopt pathopt :shared shared}
-                                           reconciler-options)
+                     :reconciler-options (merge (cond-> {}
+                                                  migrate (assoc :migrate migrate)
+                                                  pathopt (assoc :pathopt pathopt)
+                                                  shared (assoc :shared shared))
+                                                reconciler-options)
                      :networking         (or networking #?(:clj nil :cljs (net/make-untangled-network "/api"
                                                                             :request-transform request-transform
                                                                             :transit-handlers transit-handlers
