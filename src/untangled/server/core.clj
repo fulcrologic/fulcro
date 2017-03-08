@@ -142,19 +142,21 @@
 
 (defprotocol Module
   (system-key [this]
-    "Should return the key under which the module will be located in the system map.")
+    "Should return the key under which the module will be located in the system map.
+     Unique-ness is checked and will be asserted.")
   (components [this]
-    "Should return a map of components that this Module should bring in to work.
-     Make sure the keys are unique, or things will get overridden without warning (for now).
-     Can be nil or {} (empty)."))
+    "Should return a map of components that this Module needs to bring in to work.
+     Unique-ness is checked and will be asserted."))
 
 (defprotocol APIHandler
   (api-read [this]
-    "Returns an untangled read emitter for parsing queries, ie: (fn [env k params] ...).
-     Can return nil, which tells the api-handler to try the next `:module`.")
+    "Returns an untangled read emitter for parsing read queries, ie: `(fn [env k params] ...)`.
+     The emitter can return an untruthy value (`nil` or `false`),
+     which tells the untangled api-handler to try the next `Module` in the `:modules` chain.")
   (api-mutate [this]
-    "Returns an untangled mutate emitter for parsing mutations, ie: (fn [env k params] ...).
-     Can return nil, which tells the api-handler to try the next `:module`."))
+    "Returns an untangled mutate emitter for parsing mutations, ie: `(fn [env k params] ...)`.
+     The emitter can return an untruthy value (`nil` or `false`),
+     which tells the untangled api-handler to try the next `Module` in the `:modules` chain."))
 
 (defn- chain
   "INTERNAL use only, use `untangled-system` instead."
@@ -212,6 +214,18 @@
         (assoc opts :modules module-keys))
       module-keys)))
 
+(defn- merge-with-no-duplicates!
+  "INTERNAL use only, for checking that a merge doesn't override anything silently."
+  [ctx & maps]
+  (when (some identity maps)
+    (let [merge-entry
+          (fn [m e]
+            (let [[k v] ((juxt key val) e)]
+              (if-not (contains? m k) (assoc m k v)
+                (throw (ex-info (str "Duplicate entries for key <" k "> found for " ctx ", see ex-data.")
+                         {:key k :prev-value (get m k) :new-value v})))))]
+      (reduce (fn [m1 m2] (reduce merge-entry (or m1 {}) (seq m2))) maps))))
+
 (defn untangled-system
   "More powerful variant of `make-untangled-server` that allows for libraries to provide
    components and api methods (by implementing `components` and `APIHandler` respectively).
@@ -238,10 +252,12 @@
   [{:keys [api-handler-key modules] :as opts}]
   (-> (apply component/system-map
         (apply concat
-          (merge (:components opts)
-                 (into {}
-                   (mapcat (juxt (juxt system-key identity) components))
-                   modules)
-                 {(or api-handler-key ::api-handler)
-                  (api-handler opts)})))
+          (merge-with-no-duplicates! "untangled-system"
+            (:components opts)
+            (apply merge-with-no-duplicates! "Module/system-key"
+              (map (comp (partial apply hash-map) (juxt system-key identity)) modules))
+            (apply merge-with-no-duplicates! "Module/components"
+              (map components modules))
+            {(or api-handler-key ::api-handler)
+             (api-handler opts)})))
     (vary-meta assoc ::api-handler-key (or api-handler-key ::api-handler))))

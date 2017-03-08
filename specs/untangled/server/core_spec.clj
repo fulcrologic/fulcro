@@ -48,10 +48,10 @@
     (map->DepTestModule {:test-dep test-dep})
     [:test-dep]))
 
-(defrecord TestApiModule [sys-key reads mutates]
+(defrecord TestApiModule [sys-key reads mutates cmps]
   core/Module
   (system-key [this] (or sys-key ::TestApiModule))
-  (components [this] {})
+  (components [this] (or cmps {}))
   core/APIHandler
   (api-read [this]
     (if-not reads (constantly {:value :read/ok})
@@ -66,7 +66,7 @@
 (defn make-test-api-module [& [opts]]
   (map->TestApiModule
     (select-keys opts
-      [:reads :mutates :sys-key])))
+      [:reads :mutates :sys-key :cmps])))
 
 (defn test-untangled-system [opts]
   (component/start (core/untangled-system opts)))
@@ -166,4 +166,29 @@
               :headers {"Content-Type" "application/transit+json"}
               :body {:rocket-status :working
                      :working :working/true
-                     :broken :broken/true}})))))
+                     :broken :broken/true}}))))
+  (behavior "all system keys must be unique, (Module/system-key and Module/components keys)"
+    (assertions
+      (core/untangled-system {:components {:foo {}}
+                              :modules [(make-test-api-module
+                                          {:sys-key :foo})]})
+      =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*untangled-system")
+      (core/untangled-system {:components {:foo {}}
+                              :modules [(make-test-api-module
+                                          {:cmps {:foo "test-api"}})]})
+      =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*untangled-system"
+                  #(do (t/is
+                         (= (ex-data %)  {:key :foo :prev-value {} :new-value "test-api"}))
+                     true))
+      (core/untangled-system {:modules [(make-test-api-module
+                                          {:sys-key :foo})
+                                        (make-test-api-module
+                                          {:sys-key :foo})]})
+      =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*Module/system-key")
+      (core/untangled-system {:modules [(make-test-api-module
+                                          {:sys-key :foo1
+                                           :cmps {:foo "foo1"}})
+                                        (make-test-api-module
+                                          {:sys-key :foo2
+                                           :cmps {:foo "foo2"}})]})
+      =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*Module/components"))))
