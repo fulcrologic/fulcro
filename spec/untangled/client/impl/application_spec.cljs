@@ -27,6 +27,59 @@
   (render [this]
     (dom/div nil "")))
 
+(defn reconciler-with-config [config]
+  (-> (app/generate-reconciler {} {} (om/parser {:read identity}) config)
+      :config))
+
+(specification "generate-reconciler"
+  (behavior "open reconciler options"
+    (assertions
+      ":shared"
+      (-> (reconciler-with-config {:shared {:res :value}}) :shared)
+      => {:res :value}
+
+      ":pathopt"
+      (-> (reconciler-with-config {:pathopt false}) :pathopt)
+      => false
+
+      ":migrate"
+      (-> (reconciler-with-config {:migrate identity}) :migrate)
+      => identity
+
+      ":root-unmount"
+      (-> (reconciler-with-config {:root-unmount identity}) :root-unmount)
+      => identity))
+
+  (behavior "locked reconciler options"
+    (assertions
+      ":state"
+      (-> (reconciler-with-config {:state {}}) :state)
+      =fn=> #(not= % {})
+
+      ":send"
+      (-> (reconciler-with-config {:send identity}) :send)
+      =fn=> #(not= % identity)
+
+      ":normalize"
+      (-> (reconciler-with-config {:normalize false}) :normalize)
+      => true
+
+      ":remotes"
+      (-> (reconciler-with-config {:remotes []}) :remotes)
+      =fn=> #(not= % [])
+
+      ":merge-ident"
+      (-> (reconciler-with-config {:merge-ident identity}) :merge-ident)
+      =fn=> #(not= % identity)
+
+      ":merge-tree"
+      (-> (reconciler-with-config {:merge-tree identity}) :merge-tree)
+      =fn=> #(not= % identity)
+
+      ":parser"
+      (-> (reconciler-with-config {:parser identity}) :parser)
+      =fn=> #(not= % identity))))
+
 (specification "Untangled Application (integration tests)"
   (let [startup-called    (atom false)
         thing-1           {:id 1 :name "A"}
@@ -35,8 +88,7 @@
         unmounted-app     (uc/new-untangled-client
                             :initial-state state
                             :started-callback callback
-                            :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1]))
-                            :reconciler-options {:root-unmount identity})
+                            :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
         app               (uc/mount unmounted-app Root "application-mount-point")
         mounted-app-state (om/app-state (:reconciler app))
         reconciler        (:reconciler app)
@@ -44,10 +96,6 @@
         migrate           (:migrate reconciler-config)]
 
     (component "Initialization"
-      (behavior "custom reconciler options"
-        (assertions
-          (:root-unmount reconciler-config) => identity))
-
       (behavior "returns untangled client app record with"
         (assertions
           "a request queue"
