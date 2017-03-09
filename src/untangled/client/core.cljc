@@ -71,14 +71,18 @@
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state mutation-merge started-callback networking
+  [& {:keys [initial-state mutation-merge started-callback networking reconciler-options
              request-transform network-error-callback migrate pathopt transit-handlers shared]
       :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil)
              migrate       nil shared nil}}]
   (map->Application {:initial-state      initial-state
                      :mutation-merge     mutation-merge
                      :started-callback   started-callback
-                     :reconciler-options {:migrate migrate :pathopt pathopt :shared shared}
+                     :reconciler-options (merge (cond-> {}
+                                                  migrate (assoc :migrate migrate)
+                                                  pathopt (assoc :pathopt pathopt)
+                                                  shared (assoc :shared shared))
+                                                reconciler-options)
                      :networking         (or networking #?(:clj nil :cljs (net/make-untangled-network "/api"
                                                                             :request-transform request-transform
                                                                             :transit-handlers transit-handlers
@@ -242,11 +246,12 @@
 
 (defn new-untangled-test-client
   "Create a test client that has no networking. Useful for UI testing with a real Untangled app container."
-  [& {:keys [initial-state started-callback]
+  [& {:keys [initial-state started-callback reconciler-options]
       :or   {initial-state {} started-callback nil}}]
-  (map->Application {:initial-state    initial-state
-                     :started-callback started-callback
-                     :networking       (net/mock-network)}))
+  (map->Application {:initial-state      initial-state
+                     :started-callback   started-callback
+                     :reconciler-options reconciler-options
+                     :networking         (net/mock-network)}))
 
 #?(:cljs
    (defn get-url
