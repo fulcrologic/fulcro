@@ -284,13 +284,16 @@ There are a few things to understand when implementing a mutation:
      entities changed during the server mutation.
 
 == Building your own components
+
 When creating an untangled server, it is often desirable to create
 custom app specific https://github.com/stuartsierra/component[Stuart Sierra Components]. +
 `make-untangled-server` takes a `:component` map keyed by component name with the components as values.
+
 [source]
 ----
 (:require
-  [com.stuartsierra.component :as component])
+  [com.stuartsierra.component :as component]
+  [om.next.server :as oms])
 
 (defrecord MyComp [name]
   component/Lifecycle ;;<5>
@@ -304,7 +307,8 @@ custom app specific https://github.com/stuartsierra/component[Stuart Sierra Comp
 (make-untangled-server
   :parser-injections #{:config :database} ;;<1>
   :components {:database ;;<2>
-               (build-my-comp "Best Component")}) ;;<3>
+               (build-my-comp "Best Component")} ;;<3>
+  :parser (oms/parser {:read api-read :mutate api-mutate})) ;;<6>
 
 (defn api-read [{:as env :keys [config]} k params] ...) ;;<6>
 (defn api-mutate [{:as env :keys [config]} k params] ...) ;;<6>
@@ -314,7 +318,7 @@ custom app specific https://github.com/stuartsierra/component[Stuart Sierra Comp
 <3> The Component itself.
 <4> The component can be wrapped with `component/using` for dependency injection.
 <5> Should implement `component/Lifecycle`.
-<6> `:database` is now available in the parser env, eg the first argument to api-read and api-mutate.
+<6> `:database` is now available in the parser env, ie: the first argument to api-read and api-mutate.
 
 [NOTE]
 ====
@@ -325,9 +329,7 @@ To make them available you *must* include them in either your:
 - component depenencies, eg: `(component/using MyComp dependencies)`
 ====
 
-== Ring Handler Injection
-
-NOTE: May be subject to change/improvement
+== Ring Handler Injection (Easy)
 
 There are two locations in untangled-server's pre-built handler stack, https://github.com/untangled-web/untangled-server/blob/8dba26aafe36a5f0dab36d0dc89a98f43212df1d/src/untangled/server/impl/components/handler.clj#L176[pre-hook] and https://github.com/untangled-web/untangled-server/blob/8dba26aafe36a5f0dab36d0dc89a98f43212df1d/src/untangled/server/impl/components/handler.clj#L170[fallback-hook], that are made publically accessible.
 The first step is to create a component that depends (`component/using`) on the `:handler`, and then on start to get and set the desired hook.
@@ -369,11 +371,14 @@ An alternative to injecting middleware into the global stack is to wrap the func
 <4> Wrap/thread your original function into the handlers
 <6> DON'T forget to pass the resulting composition of handlers the request
 
-== API Routes
+== Ring Handler Injection (Simple)
 
-Simply add an :extra-routes map to `make-untangled-server` with keys `:routes` and `:handlers`.
-`:routes` contains a https://github.com/juxt/bidi[bidi] mapping from url route to a key in the `:handlers` map.
-`:handlers` is a mapping from handler key (from `:routes`) to a function (fn [env match] ... res)
+== API Routes (Easy)
+
+Simply add an `:extra-routes` map to `make-untangled-server` with keys `:routes` and `:handlers`.
+
+* `:routes` contains a https://github.com/juxt/bidi[bidi] mapping from url route to a key in the `:handlers` map.
+* `:handlers` is a mapping from handler key (from `:routes`) to a function `(fn [env match] ... res)`.
 
 Eg:
 [source]
@@ -386,6 +391,8 @@ Eg:
   {:routes ["" {"/store-file" :store-file}]
    :handlers {:store-file (fn [env match] (store-file (:db env) (get-in env [:request :body]))))})
 ----
+
+== API Routes (Simple)
 
 == Configuration
 

@@ -193,16 +193,17 @@
                                    (catch Exception e e))]
                 (if (handler/valid-response? parse-result)
                   {:status 200 :body parse-result}
-                  (handler/process-errors parse-result)))))]
-      (assoc this :middleware
+                  (handler/process-errors parse-result)))))
+          api-handler (fn [env query]
+                        (make-response api-parser env query))]
+      (assoc this
+        :handler api-handler
+        :middleware
         (fn [h]
           (fn [req]
             (if-let [resp (and (= (:uri req) api-url)
-                            (make-response api-parser
-                              {:request req} (:transit-params req)))]
-              resp (h req))))
-        :handler (fn [env query]
-                   (make-response api-parser env query)))))
+                            (api-handler {:request req} (:transit-params req)))]
+              resp (h req)))))))
   (stop [this] (dissoc this :middleware)))
 
 (defn- api-handler
