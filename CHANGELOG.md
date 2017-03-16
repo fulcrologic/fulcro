@@ -1,5 +1,6 @@
 # 0.3.3
 - PR #5 - Added ability to add read and write transit handlers to the default set.
+- Fixed dependencies from provided to test for spec
 
 # 0.3.2
 - Added the ability to define the host for `make-channel-client`.
