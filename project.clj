@@ -3,17 +3,17 @@
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.8.51"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.473" :scope "provided"]
                  [com.taoensso/timbre "4.7.3"]
-                 [navis/untangled-client "0.5.0" :exclusions [cljsjs/react org.omcljs/om] :scope "provided"]
-                 [navis/untangled-server "0.5.1" :scope "provided"]
-                 [navis/untangled-spec "0.3.6" :scope "test"]
-                 [org.omcljs/om "1.0.0-alpha36" :scope "provided"]
+                 [navis/untangled-client "0.8.0" :exclusions [cljsjs/react org.omcljs/om] :scope "provided"]
+                 [navis/untangled-server "0.7.0" :scope "provided"]
+                 [navis/untangled-spec "0.4.0" :scope "test"]
+                 [org.omcljs/om "1.0.0-alpha48" :scope "provided"]
                  [com.taoensso/sente "1.10.0"]]
 
-  :plugins [[com.jakemccrary/lein-test-refresh "0.14.0"]
-            [lein-cljsbuild "1.1.3"]]
+  :plugins [[com.jakemccrary/lein-test-refresh "0.19.0"]
+            [lein-cljsbuild "1.1.5"]]
 
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
                  :with-repl    true
