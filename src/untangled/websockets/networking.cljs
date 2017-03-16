@@ -99,14 +99,15 @@
   - `state-callback` (Optional) - Callback that runs when the websocket state of the websocket changes.
       The function takes an old state parameter and a new state parameter (arity 2 function).
       `state-callback` can be either a function, or an atom containing a function.
+  - `transit-handlers` (Optional) - Expects a map with `:read` and/or `:write` key containing a map of transit handlers,
   "
-  [url & {:keys [global-error-callback host req-params state-callback]}]
+  [url & {:keys [global-error-callback host req-params state-callback transit-handlers]}]
   (let [parse-queue (chan)
         {:keys [chsk
                 ch-recv
                 send-fn
                 state]} (sente/make-channel-socket! url     ; path on server
-                          {:packer         tp/packer
+                          {:packer         (tp/make-packer transit-handlers)
                            :host           host
                            :type           :ws              ; e/o #{:auto :ajax :ws}
                            :params         req-params

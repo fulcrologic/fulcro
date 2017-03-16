@@ -140,7 +140,8 @@
                           router
                           handshake-data-fn
                           server-adapter
-                          client-id-fn]
+                          client-id-fn
+                          transit-handlers]
   WSNet
   (add-listener [this listener]
     (add-listener listeners listener))
@@ -163,7 +164,7 @@
                               server-adapter
                               {:user-id-fn        client-id-fn
                                :handshake-data-fn handshake-data-fn
-                               :packer            tp/packer})
+                               :packer            (tp/make-packer transit-handlers)})
           component         (assoc component
                               :ring-ajax-post ajax-post-fn
                               :ring-ajax-get-or-ws-handshake ajax-get-or-ws-handshake-fn
@@ -207,7 +208,18 @@
       (dosync (ref-set listeners #{}))
       (assoc component :router (stop-f)))))
 
-(defn make-channel-server [& {:keys [handshake-data-fn server-adapter client-id-fn dependencies valid-client-id-fn]}]
+(defn make-channel-server
+  "Creates `ChannelServer`.
+
+  Params:
+  - `handshake-data-fn` (Optional) - Used by sente for adding data at the handshake.
+  - `server-adapter` (Optional) - adapter for handling servers implemented by sente. Default is http-kit.
+  - `client-id-fn` (Optional) - returns a client id from the request.
+  - `dependencies` (Optional) - adds dependecies to the untangled handler.
+  - `valid-client-id-fn` (Optional) - Function for validating websocket clients. Expects a client-id.
+  - `transit-handlers` (Optional) - Expects a map with `:read` and/or `:write` key containing a map of transit handlers,
+  "
+  [& {:keys [handshake-data-fn server-adapter client-id-fn dependencies valid-client-id-fn transit-handlers]}]
   (when valid-client-id-fn
     (reset! valid-client-id-atom valid-client-id-fn))
   (component/using
@@ -215,6 +227,7 @@
                                                                     (get (:headers ring-req) "Authorization")))
                          :server-adapter    (or server-adapter sente-web-server-adapter)
                          :client-id-fn      (or client-id-fn (fn [request]
-                                                               (:client-id request)))})
+                                                               (:client-id request)))
+                         :transit-handlers  transit-handlers})
     (into [] (cond-> [:handler]
                dependencies (concat dependencies)))))
