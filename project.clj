@@ -29,6 +29,7 @@
   :profiles {:dev {:source-paths   ["src" "dev"]
                    :resource-paths ["src" "resources"]
                    :dependencies   [[binaryage/devtools "0.5.2"]
+                                    [com.cemerick/piggieback "0.2.1"]
                                     [figwheel-sidecar "0.5.5" :exclusions [org.clojure/tools.nrepl]]]}}
 
   :repl-options {:init-ns          user
