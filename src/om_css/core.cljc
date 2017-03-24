@@ -1,9 +1,9 @@
 (ns om-css.core
+  #?(:cljs (:require-macros om-css.core))
   (:require [cljs.tagged-literals]
             [clojure.string :as str]
             [com.rpl.specter :as sp]
             [garden.core :as g]
-            [om-html.html]
             [om.next :as om]
             [cljs.core]))
 
