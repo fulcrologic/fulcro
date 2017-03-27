@@ -384,7 +384,7 @@
   (query [this] [{:su1 (om/get-query SU1)} {:su2 (om/get-query SU2)}]))
 
 
-(specification "merge-alternate-union-elements!"
+(specification "merge-alternate-union-elements!" :focused
   (behavior "For applications with sibling unions"
     (when-mocking
       (uc/merge-state! app comp state) =1x=> (do

@@ -7,7 +7,7 @@
   :dependencies [[com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [devcards "0.2.2" :exclusions [org.omcljs/om org.omcljs/om org.clojure/core.async] :scope "provided"]
                  [lein-doo "0.1.7" :scope "test"]
-                 [navis/untangled-spec "0.3.9" :scope "test"]
+                 [navis/untangled-spec "1.0.0-alpha2" :scope "test"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/clojurescript "1.9.473" :scope "provided"]
                  [org.clojure/core.async "0.2.391"]
@@ -23,7 +23,7 @@
 
   :plugins [[lein-cljsbuild "1.1.5"]
             [lein-doo "0.1.7"]
-            [com.jakemccrary/lein-test-refresh "0.18.0"]]
+            [com.jakemccrary/lein-test-refresh "0.19.0"]]
 
   :test-paths ["spec"]
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
@@ -41,11 +41,12 @@
   :cljsbuild {:builds
               [{:id           "test"
                 :source-paths ["src" "dev" "spec"]
-                :figwheel     {:on-jsload "cljs.user/on-load"}
+                :figwheel     {:on-jsload "cljs.user/spec-report"}
                 :compiler     {:main                 cljs.user
                                :output-to            "resources/public/js/test/test.js"
                                :output-dir           "resources/public/js/test/out"
                                :recompile-dependents true
+                               :preloads [devtools.preload]
                                :asset-path           "js/test/out"
                                :optimizations        :none}}
                {:id           "cards"
@@ -68,9 +69,9 @@
   :profiles {:dev {:source-paths ["dev" "src" "spec"]
                    :repl-options {:init-ns          clj.user
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :dependencies [[binaryage/devtools "0.5.2"]
+                   :dependencies [[binaryage/devtools "0.9.0"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [figwheel-sidecar "0.5.9"]
                                   [org.clojure/test.check "0.9.0"]
-                                  [org.clojure/tools.namespace "0.2.11"]
+                                  [org.clojure/tools.namespace "0.3.0-alpha3"]
                                   [org.clojure/tools.nrepl "0.2.12"]]}})
