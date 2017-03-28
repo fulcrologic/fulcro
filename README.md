@@ -33,7 +33,7 @@ don't use it, you don't end up emitting it!
      [om.next :as om :refer-macros [defui]]))
   
 (defui Component
-  css/CSS
+  static css/CSS
   (css [this] [ [(css/local-kw Component :class1) {:color 'blue}] 
                 [(css/local-kw Component :class2) {:color 'blue}] ])
   Object
@@ -43,7 +43,7 @@ don't use it, you don't end up emitting it!
        (dom/div #js {:class [:class1 :class2 :$root-class]} ...))))
        
 (defui Component2
-  css/CSS
+  static css/CSS
   ; CSS rules can be composed from children and additional garden rules:
   (css [this] (css/css-merge 
                  Component 
