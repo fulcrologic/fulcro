@@ -376,6 +376,16 @@
                         (assoc-in explicit-target value)))
                     state))) state-map items))))
 
+(defn- remove-marker
+  "Returns app-state without the load marker for the given item."
+  [app-state item]
+  (let [path (data-path item)
+        data (get-in app-state path)]
+    (cond
+      (and (map? data) (= #{:ui/fetch-state} (set (keys data)))) (assoc-in app-state path nil) ; to-many (will become a vector)
+      (and (map? data) (contains? data :ui/fetch-state)) (update-in app-state path dissoc :ui/fetch-state)
+      :else (assoc-in app-state path nil))))
+
 (defn- loaded-callback
   "Generates a callback that processes all of the post-processing steps once a remote load has completed. This includes:
 
@@ -400,7 +410,7 @@
                                       (swap! app-state (fn [s]
                                                          (cond-> s
                                                            :always (update :untangled/loads-in-progress disj (data-uuid item))
-                                                           (data-marker? item) (assoc-in (data-path item) nil))))))
+                                                           (data-marker? item) (remove-marker item))))))
           run-post-mutations (fn [] (doseq [item loading-items]
                                       (when-let [mutation-symbol (::post-mutation item)]
                                         (reset! ran-mutations true)

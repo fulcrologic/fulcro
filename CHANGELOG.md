@@ -2,6 +2,8 @@
 -----
 - Fixed load markers for ident-based loading: They will appear iff the entity is already present (refresh)
 - Cleaned up logic around data markers related to markers and data targeting
+- Added sequential processing as a configurable option on networking
+- Added devcards to integration test loading cases
 
 0.8.0
 -----

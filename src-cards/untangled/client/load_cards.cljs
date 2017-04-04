@@ -13,9 +13,7 @@
 (defrecord MockNetwork []
   net/UntangledNetwork
   (send [this edn done-callback error-callback]
-    (js/console.log :asked-to-send edn)
     (js/setTimeout (fn []
-                     (js/console.log :responding-to edn)
                      (if (= 'untangled.client.load-cards/add-thing (ffirst edn))
                        (let [tempid (-> edn first second :id)]
                          (done-callback {'untangled.client.load-cards/add-thing {:tempids {tempid 1010}}}))
@@ -64,4 +62,41 @@
                           (om/transact! reconciler `[(add-thing {:id ~id :label "A"})])
                           (df/load reconciler [:thing/by-id id] Thing))))
   {}
+  {:inspect-data true})
+
+(defrecord MockNetForMerge []
+  net/UntangledNetwork
+  (send [this edn done-callback error-callback]
+    (js/setTimeout (fn []
+                     (cond
+                       (= [{:thing (om/get-query Thing)}] edn) (done-callback {:thing {:id 2 :label "UPDATED B"}})
+                       :else (done-callback {[:thing/by-id 1] {:id 1 :label "UPDATED A"}}))) 500))
+  (start [this complete-app] this))
+
+(defcard ui-attribute-merge
+  "# Merging
+
+  This card loads over both a non-normalized item, and entry that is normalized from a tree response,
+  and an entry that is refreshed by ident. In all cases, the (non-queried) UI attributes should remain.
+
+  - Thing 1 and 2 should still have a :ui/value
+  - Thing 1 and 2 should end up with UPDATED labels
+
+  Basic final state should be:
+
+  ```
+  {:thing/by-id {1 {:id 1 :label \"UPDATED A\" :ui/value 1}
+                 2 {:id 2 :label \"UPDATED B\" :ui/value 2}
+                 3 {:id 3 :label \"C\" :ui/value 3}}
+   :thing       [:thing/by-id 2]}
+  ```
+  "
+  (untangled-app Root
+    :started-callback (fn [{:keys [reconciler]}]
+                        (js/setTimeout #(df/load reconciler [:thing/by-id 1] Thing {:without #{:ui/value}}) 100)
+                        (js/setTimeout #(df/load reconciler :thing Thing {:without #{:ui/value}}) 200))
+    :networking (MockNetForMerge.))
+  {:thing/by-id {1 {:id 1 :label "A" :ui/value 1}
+                 2 {:id 2 :label "B" :ui/value 2}
+                 3 {:id 3 :label "C" :ui/value 3}}}
   {:inspect-data true})

@@ -219,20 +219,20 @@
                                       (swap! initial-state assoc :ui/locale "en-US")
                                       initial-state)
                                     (assoc initial-state :ui/locale "en-US"))
-        config                    (merge {:migrate tempid-migrate
-                                          :pathopt true}
-                                         reconciler-options
-                                         {:state       initial-state-with-locale
-                                          :send        (fn [tx cb]
-                                                         (server-send (assoc app :reconciler @rec-atom) tx cb))
-                                          :normalize   true
-                                          :remotes     remotes
-                                          :merge-ident (fn [reconciler app-state ident props]
-                                                         (update-in app-state ident (comp sweep-one merge) props))
-                                          :merge-tree  (fn [target source]
-                                                         (merge-handler mutation-merge target source))
-                                          :parser      parser})
-        rec (om/reconciler config)]
+        config                    (merge reconciler-options
+                                    {:migrate     tempid-migrate
+                                     :pathopt     true
+                                     :state       initial-state-with-locale
+                                     :send        (fn [tx cb]
+                                                    (server-send (assoc app :reconciler @rec-atom) tx cb))
+                                     :normalize   true
+                                     :remotes     remotes
+                                     :merge-ident (fn [reconciler app-state ident props]
+                                                    (update-in app-state ident (comp sweep-one merge) props))
+                                     :merge-tree  (fn [target source]
+                                                    (merge-handler mutation-merge target source))
+                                     :parser      parser})
+        rec                       (om/reconciler config)]
     (reset! rec-atom rec)
     rec))
 
