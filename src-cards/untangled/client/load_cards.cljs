@@ -43,6 +43,20 @@
   (remote [env] true))
 
 (defcard load-with-follow-on-read
+  "# Sequential Processing
+
+  This card does a write (with a tempid) and a re-read of that as a follow-on read. This
+  exercises:
+
+  - tempid rewrites in the network queue
+    - The initial entity has a tempid (generated)
+    - The tempid is rewritten (to 1010)
+    - The follow-on read reads the correct thing (label should update to B)
+  - follow-on reads from a remote
+  - load marker placement and removal
+    - Should see a load marker appear IN the entity
+    - Should see no load markers at the end
+  "
   (untangled-app Root
     :networking (MockNetwork.)
     :started-callback (fn [{:keys [reconciler]}]
