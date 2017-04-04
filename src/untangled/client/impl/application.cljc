@@ -119,8 +119,9 @@
     (real-send network query on-done on-error on-update)))
 
 (defn is-sequential? [network]
-  (and #?(:clj false :cljs (implements? net/NetworkBehavior network))
-    (net/serialize-requests? network)))
+  (if (and #?(:clj false :cljs (implements? net/NetworkBehavior network)))
+    (net/serialize-requests? network)
+    true))
 
 (defn start-network-sequential-processing
   "Starts a async go loop that sends network requests on a networking object's request queue. Must be called once and only

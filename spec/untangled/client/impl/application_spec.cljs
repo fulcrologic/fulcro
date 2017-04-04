@@ -29,7 +29,7 @@
 
 (defn reconciler-with-config [config]
   (-> (app/generate-reconciler {} {} (om/parser {:read identity}) config)
-      :config))
+    :config))
 
 (specification "generate-reconciler"
   (behavior "open reconciler options"
@@ -325,6 +325,33 @@
             @update => 4
             @done => 1
             @error => 0))))))
+
+(defrecord MockNetwork-Legacy []
+  net/UntangledNetwork
+  (send [this edn done-callback error-callback])
+  (start [this complete-app] this))
+
+(defrecord MockNetwork-Parallel []
+  net/NetworkBehavior
+  (serialize-requests? [this] false)
+  net/UntangledNetwork
+  (send [this edn done-callback error-callback])
+  (start [this complete-app] this))
+
+(defrecord MockNetwork-ExplicitSequential []
+  net/NetworkBehavior
+  (serialize-requests? [this] true)
+  net/UntangledNetwork
+  (send [this edn done-callback error-callback])
+  (start [this complete-app] this))
+
+(specification "is-sequential? (detection of network queue behavior)" :focused
+  (assertions
+    "defaults to sequential when not specified"
+    (app/is-sequential? (MockNetwork-Legacy.)) => true)
+  (assertions "can be overridden by implementing NetworkBehavior"
+    (app/is-sequential? (MockNetwork-Parallel.)) => false
+    (app/is-sequential? (MockNetwork-ExplicitSequential.)) => true))
 
 (specification "Sweep one"
   (assertions
