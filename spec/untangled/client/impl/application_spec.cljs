@@ -345,7 +345,7 @@
   (send [this edn done-callback error-callback])
   (start [this complete-app] this))
 
-(specification "is-sequential? (detection of network queue behavior)" :focused
+(specification "is-sequential? (detection of network queue behavior)"
   (assertions
     "defaults to sequential when not specified"
     (app/is-sequential? (MockNetwork-Legacy.)) => true)
