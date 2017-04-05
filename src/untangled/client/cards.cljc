@@ -2,7 +2,6 @@
   #?(:cljs (:require-macros untangled.client.cards)) ; this enables implicit macro loading
   #?(:cljs (:require ; ensure the following things are loaded in the CLJS env
              untangled.client.core
-             devcards.core
              untangled.dom)))
 
 ; At the time of this writing, devcards is not server-rendering compatible, and dom-node is a cljs-only thing.

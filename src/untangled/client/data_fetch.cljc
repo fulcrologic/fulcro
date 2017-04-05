@@ -10,6 +10,21 @@
 
 (declare load-data load-data-action load load-action load-field load-field-action)
 
+(defn- computed-refresh
+  "Computes the refresh for the load by ensuring the loaded data is on the Om
+  list of things to re-render."
+  [explicit-refresh load-key target]
+  (let [to-refresh       (set explicit-refresh)
+        truncated-target (vec (take 2 target))
+        target-ident     (when (util/ident? truncated-target) truncated-target)]
+    (vec (cond
+           (or
+             (util/ident? load-key)
+             (and (keyword? load-key) (nil? target))) (conj to-refresh load-key)
+           target-ident (conj to-refresh target-ident)
+           (= 1 (count truncated-target)) (conj to-refresh (first target))
+           :else to-refresh))))
+
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation post-mutation-params
@@ -30,14 +45,13 @@
                 SubqueryClass [{server-property-or-ident (om/get-query SubqueryClass)}]
                 (map? params) [(list server-property-or-ident params)]
                 :else [server-property-or-ident])]
-
     {:query                query
      :remote               remote
      :target               target
      :without              without
      :post-mutation        post-mutation
      :post-mutation-params post-mutation-params
-     :refresh              refresh
+     :refresh              (computed-refresh refresh server-property-or-ident target)
      :marker               marker
      :parallel             parallel
      :fallback             fallback}))
@@ -87,6 +101,18 @@
   - `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
   - `fallback` - A mutation (symbol) to run if there is a server/network error.
   - `without` - An optional set of keywords that should (recursively) be removed from the query.
+
+  Notes on UI Refresh:
+  The refresh list will automatically include what you load (as a non-duplicate):
+  - When target is set and has 2+ elements: refresh will include an ident of the first two elements
+     - e.g. `:target [:a 1 :thing]` -> `:refresh [[:a 1]]`
+  - When target has a single element, refresh will include that element as a keyword
+     - e.g. `:target [:thing]` -> `:refresh [:thing]`
+  - When there is no target:
+     - If prop-or-ident is a kw -> `:refresh [kw]`
+     - If prop-or-ident is an ident -> `:refresh [ident]`
+  In all cases, any explicit refresh things you include will not be dropped. The computed refresh list
+  is essentially a `(-> original-refresh-list set add-computed-bits vec)`.
   "
   ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass] (load app-or-comp-or-reconciler server-property-or-ident SubqueryClass {}))
   ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
@@ -170,6 +196,8 @@
 
 (defn load-data
   "
+  DEPRECATED: DO NOT USE IN NEW CODE. See `load` and `load-field`.
+
   Load data from the remote. Runs `om/transact!`. See also `load-field`.
 
   Parameters
@@ -252,7 +280,7 @@
        (load-data-action ...)
        ; other optimistic updates/state changes)}"
   [app-state query & {:keys [ident without params remote post-mutation fallback parallel refresh marker]
-                      :or {remote :remote refresh [] marker true}}]
+                      :or   {remote :remote refresh [] marker true}}]
   (impl/mark-ready
     {:state         app-state
      :ident         ident
