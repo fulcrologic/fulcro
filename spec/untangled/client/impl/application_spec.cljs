@@ -27,6 +27,55 @@
   (render [this]
     (dom/div nil "")))
 
+(defn reconciler-with-config [config]
+  (-> (app/generate-reconciler {} {} (om/parser {:read identity}) config)
+    :config))
+
+(specification "generate-reconciler"
+  (behavior "open reconciler options"
+    (assertions
+      ":shared"
+      (-> (reconciler-with-config {:shared {:res :value}}) :shared)
+      => {:res :value}
+
+      ":pathopt"
+      (-> (reconciler-with-config {:pathopt false}) :pathopt)
+      => false
+
+      ":root-unmount"
+      (-> (reconciler-with-config {:root-unmount identity}) :root-unmount)
+      => identity))
+
+  (behavior "locked reconciler options"
+    (assertions
+      ":state"
+      (-> (reconciler-with-config {:state {}}) :state)
+      =fn=> #(not= % {})
+
+      ":send"
+      (-> (reconciler-with-config {:send identity}) :send)
+      =fn=> #(not= % identity)
+
+      ":normalize"
+      (-> (reconciler-with-config {:normalize false}) :normalize)
+      => true
+
+      ":remotes"
+      (-> (reconciler-with-config {:remotes []}) :remotes)
+      =fn=> #(not= % [])
+
+      ":merge-ident"
+      (-> (reconciler-with-config {:merge-ident identity}) :merge-ident)
+      =fn=> #(not= % identity)
+
+      ":merge-tree"
+      (-> (reconciler-with-config {:merge-tree identity}) :merge-tree)
+      =fn=> #(not= % identity)
+
+      ":parser"
+      (-> (reconciler-with-config {:parser identity}) :parser)
+      =fn=> #(not= % identity))))
+
 (specification "Untangled Application (integration tests)"
   (let [startup-called    (atom false)
         thing-1           {:id 1 :name "A"}
@@ -272,6 +321,33 @@
             @update => 4
             @done => 1
             @error => 0))))))
+
+(defrecord MockNetwork-Legacy []
+  net/UntangledNetwork
+  (send [this edn done-callback error-callback])
+  (start [this complete-app] this))
+
+(defrecord MockNetwork-Parallel []
+  net/NetworkBehavior
+  (serialize-requests? [this] false)
+  net/UntangledNetwork
+  (send [this edn done-callback error-callback])
+  (start [this complete-app] this))
+
+(defrecord MockNetwork-ExplicitSequential []
+  net/NetworkBehavior
+  (serialize-requests? [this] true)
+  net/UntangledNetwork
+  (send [this edn done-callback error-callback])
+  (start [this complete-app] this))
+
+(specification "is-sequential? (detection of network queue behavior)"
+  (assertions
+    "defaults to sequential when not specified"
+    (app/is-sequential? (MockNetwork-Legacy.)) => true)
+  (assertions "can be overridden by implementing NetworkBehavior"
+    (app/is-sequential? (MockNetwork-Parallel.)) => false
+    (app/is-sequential? (MockNetwork-ExplicitSequential.)) => true))
 
 (specification "Sweep one"
   (assertions

@@ -21,10 +21,10 @@
   (when (not target)
     (case dkey
       (let [top-level-prop (nil? query)
-            key (or (:key ast) dkey)
-            by-ident? (util/ident? key)
-            union? (map? query)
-            data (if by-ident? (get-in @state key) (get @state key))]
+            key            (or (:key ast) dkey)
+            by-ident?      (util/ident? key)
+            union?         (map? query)
+            data           (if by-ident? (get-in @state key) (get @state key))]
         {:value
          (cond
            union? (get (om/db->tree [{key query}] @state @state) key)

@@ -1,3 +1,12 @@
+0.8.1
+-----
+- Fixed load markers for ident-based loading: They will appear iff the entity is already present (refresh)
+- Cleaned up logic around data markers related to markers and data targeting
+- Added sequential processing as a configurable option on networking
+- Added devcards for integration testing loading cases
+- Removed explicit require of devcards.core in devcard untangled-app macro so that devcards is not a hard dependency.
+- Updated load to auto-add target or kw of load to the refresh list.
+
 0.8.0
 -----
 - Added defmutation 

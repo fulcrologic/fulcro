@@ -14,7 +14,7 @@
 
 ; TODO: Some of this API is public, and should be in the non-impl ns.
 
-(declare data-remote data-target data-path data-uuid data-query set-loading! full-query loaded-callback error-callback data-marker?)
+(declare data-remote data-target data-path data-uuid data-field data-query-key data-query set-loading! full-query loaded-callback error-callback data-marker?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implementation for public api
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -37,17 +37,25 @@
     "Test if the given item is a data state marker in the failed state"
     [state] (is-kind? state :failed)))
 
+(defn is-direct-table-load? [load-marker]
+  (and
+    (not (data-field load-marker))
+    (util/ident? (data-query-key load-marker))))
+
 (defn- place-load-markers
   "Place load markers in the app state at their data paths so that UI rendering can see them."
   [state-atom items-to-load]
-  (doseq [item items-to-load]
-    (let [i            (set-loading! item)
-          place-marker (fn [state] (if (data-marker? i)
-                                     (assoc-in state (data-path i) {:ui/fetch-state i})
-                                     state))]
-      (swap! state-atom (fn [s] (-> s
-                                  place-marker
-                                  (update :untangled/loads-in-progress (fnil conj #{}) (data-uuid i))))))))
+  (swap! state-atom
+    (fn [state-map]
+      (reduce (fn [s item]
+                (let [i            (set-loading! item)
+                      place-marker (fn [current-val marker]
+                                     (if (is-direct-table-load? marker)
+                                       (when (map? current-val) (assoc current-val :ui/fetch-state marker))
+                                       {:ui/fetch-state marker}))]
+                  (cond-> (update s :untangled/loads-in-progress (fnil conj #{}) (data-uuid i))
+                    (data-marker? i) (update-in (data-path i) place-marker i))))
+        state-map items-to-load))))
 
 (defn mark-parallel-loading
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
@@ -121,9 +129,10 @@
                             (dedupe-by (fn [item]
                                          (->> (data-query item)
                                            (map join-key-or-nil))))
-                            set)
+                            vec)
+        is-loading-now?   (set items-to-load-now)
         items-to-defer    (->> items-ready-to-load
-                            (remove items-to-load-now)
+                            (remove is-loading-now?)
                             (vec))]
     [items-to-load-now items-to-defer]))
 
@@ -306,8 +315,9 @@
   [state]
   (let [target (data-target state)]
     (cond
-      (and (vector? target) (not-empty target)) target
+      (and (nil? (data-field state)) (vector? target) (not-empty target)) target
       (and (vector? (data-ident state)) (keyword? (data-field state))) (conj (data-ident state) (data-field state))
+      (util/ident? (data-query-key state)) (data-query-key state)
       :otherwise [(data-query-key state)])))
 
 (defn data-params
@@ -350,19 +360,31 @@
 (defn relocate-targeted-results
   "For items that are manually targeted, move them in app state from their result location to their target location."
   [state-atom items]
-  (doseq [item items]
-    (let [default-target  [(data-query-key item)]
-          field-target    (conj (or (data-ident item) []) (::field item))
-          explicit-target (or (::target item) [])
-          relocate?       (and (not-empty explicit-target)
-                            (not= explicit-target field-target)
-                            (not= explicit-target default-target))]
-      (when relocate?
-        (let [value (get-in @state-atom default-target)]
-          (swap! state-atom (fn [m]
-                              (-> m
-                                (dissoc (data-query-key item))
-                                (assoc-in explicit-target value)))))))))
+  (swap! state-atom
+    (fn [state-map]
+      (reduce (fn [state item]
+                (let [default-target  (data-query-key item)
+                      explicit-target (or (data-target item) [])
+                      relocate?       (and
+                                        (nil? (data-field item))
+                                        (keyword? (data-query-key item))
+                                        (not-empty explicit-target))]
+                  (if relocate?
+                    (let [value (get state default-target)]
+                      (-> state
+                        (dissoc (data-query-key item))
+                        (assoc-in explicit-target value)))
+                    state))) state-map items))))
+
+(defn- remove-marker
+  "Returns app-state without the load marker for the given item."
+  [app-state item]
+  (let [path (data-path item)
+        data (get-in app-state path)]
+    (cond
+      (and (map? data) (= #{:ui/fetch-state} (set (keys data)))) (assoc-in app-state path nil) ; to-many (will become a vector)
+      (and (map? data) (contains? data :ui/fetch-state)) (update-in app-state path dissoc :ui/fetch-state)
+      :else (assoc-in app-state path nil))))
 
 (defn- loaded-callback
   "Generates a callback that processes all of the post-processing steps once a remote load has completed. This includes:
@@ -388,7 +410,7 @@
                                       (swap! app-state (fn [s]
                                                          (cond-> s
                                                            :always (update :untangled/loads-in-progress disj (data-uuid item))
-                                                           (data-marker? item) (assoc-in (data-path item) nil))))))
+                                                           (data-marker? item) (remove-marker item))))))
           run-post-mutations (fn [] (doseq [item loading-items]
                                       (when-let [mutation-symbol (::post-mutation item)]
                                         (reset! ran-mutations true)

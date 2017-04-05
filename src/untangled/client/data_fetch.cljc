@@ -10,6 +10,21 @@
 
 (declare load-data load-data-action load load-action load-field load-field-action)
 
+(defn- computed-refresh
+  "Computes the refresh for the load by ensuring the loaded data is on the Om
+  list of things to re-render."
+  [explicit-refresh load-key target]
+  (let [to-refresh       (set explicit-refresh)
+        truncated-target (vec (take 2 target))
+        target-ident     (when (util/ident? truncated-target) truncated-target)]
+    (vec (cond
+           (or
+             (util/ident? load-key)
+             (and (keyword? load-key) (nil? target))) (conj to-refresh load-key)
+           target-ident (conj to-refresh target-ident)
+           (= 1 (count truncated-target)) (conj to-refresh (first target))
+           :else to-refresh))))
+
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation post-mutation-params
@@ -30,14 +45,13 @@
                 SubqueryClass [{server-property-or-ident (om/get-query SubqueryClass)}]
                 (map? params) [(list server-property-or-ident params)]
                 :else [server-property-or-ident])]
-
     {:query                query
      :remote               remote
      :target               target
      :without              without
      :post-mutation        post-mutation
      :post-mutation-params post-mutation-params
-     :refresh              refresh
+     :refresh              (computed-refresh refresh server-property-or-ident target)
      :marker               marker
      :parallel             parallel
      :fallback             fallback}))
@@ -87,6 +101,18 @@
   - `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
   - `fallback` - A mutation (symbol) to run if there is a server/network error.
   - `without` - An optional set of keywords that should (recursively) be removed from the query.
+
+  Notes on UI Refresh:
+  The refresh list will automatically include what you load (as a non-duplicate):
+  - When target is set and has 2+ elements: refresh will include an ident of the first two elements
+     - e.g. `:target [:a 1 :thing]` -> `:refresh [[:a 1]]`
+  - When target has a single element, refresh will include that element as a keyword
+     - e.g. `:target [:thing]` -> `:refresh [:thing]`
+  - When there is no target:
+     - If prop-or-ident is a kw -> `:refresh [kw]`
+     - If prop-or-ident is an ident -> `:refresh [ident]`
+  In all cases, any explicit refresh things you include will not be dropped. The computed refresh list
+  is essentially a `(-> original-refresh-list set add-computed-bits vec)`.
   "
   ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass] (load app-or-comp-or-reconciler server-property-or-ident SubqueryClass {}))
   ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
@@ -139,6 +165,7 @@
   - `without`: See `load-data`
   - `params`: See `load-data`
   - `post-mutation`: See `load-data`
+  - `post-mutation-params`: See `load-data`
   - `parallel`: See `load-data`
   - `fallback`: See `load-data`
   - `marker`: See `load-data`
@@ -150,24 +177,27 @@
   using an Om link (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
   improve your frame rate because Om will not have to run a full root query.
   "
-  [component field & {:keys [without params remote post-mutation fallback parallel refresh marker]
+  [component field & {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
                       :or   {remote :remote refresh [] marker true}}]
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
   (om/transact! component (into [(list 'untangled/load
-                                   {:ident         (om/get-ident component)
-                                    :field         field
-                                    :query         (om/focus-query (om/get-query component) [field])
-                                    :params        params
-                                    :without       without
-                                    :remote        remote
-                                    :post-mutation post-mutation
-                                    :parallel      parallel
-                                    :marker        marker
-                                    :refresh       refresh
-                                    :fallback      fallback}) :ui/loading-data (om/get-ident component)] refresh)))
+                                   {:ident                (om/get-ident component)
+                                    :field                field
+                                    :query                (om/focus-query (om/get-query component) [field])
+                                    :params               params
+                                    :without              without
+                                    :remote               remote
+                                    :post-mutation        post-mutation
+                                    :post-mutation-params post-mutation-params
+                                    :parallel             parallel
+                                    :marker               marker
+                                    :refresh              refresh
+                                    :fallback             fallback}) :ui/loading-data (om/get-ident component)] refresh)))
 
 (defn load-data
   "
+  DEPRECATED: DO NOT USE IN NEW CODE. See `load` and `load-field`.
+
   Load data from the remote. Runs `om/transact!`. See also `load-field`.
 
   Parameters
@@ -176,6 +206,7 @@
 
   Optional Named parameters
   - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
+  - `post-mutation-params`: An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
   - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error is in the params under :error.
   - `parallel`: Boolean to indicate that this load should happen in the parallel on the server (non-blocking load). Any loads marked this way will happen in parallel.
   - `marker`: A boolean (default true). If true, a marker is placed in the app state in place of the target data during the load. If false, no marker is produced.
@@ -185,20 +216,21 @@
   - `params`: A parameter map to augment onto the first element of the query
   - `remote`: A keyword naming which remote to query.
   "
-  [comp-or-reconciler query & {:keys [ident without remote params post-mutation fallback parallel refresh marker]
+  [comp-or-reconciler query & {:keys [ident without remote params post-mutation post-mutation-params fallback parallel refresh marker]
                                :or   {remote :remote refresh [] marker true}}]
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
   (om/transact! comp-or-reconciler (into [(list 'untangled/load
-                                            {:ident         ident
-                                             :query         query
-                                             :params        params
-                                             :without       without
-                                             :remote        remote
-                                             :post-mutation post-mutation
-                                             :refresh       refresh
-                                             :marker        marker
-                                             :parallel      parallel
-                                             :fallback      fallback}) :ui/loading-data] refresh)))
+                                            {:ident                ident
+                                             :query                query
+                                             :params               params
+                                             :without              without
+                                             :remote               remote
+                                             :post-mutation        post-mutation
+                                             :post-mutation-params post-mutation-params
+                                             :refresh              refresh
+                                             :marker               marker
+                                             :parallel             parallel
+                                             :fallback             fallback}) :ui/loading-data] refresh)))
 
 (defn load-field-action
   "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`
@@ -215,21 +247,22 @@
     :action (fn []
        (load-field-action ...)
        ; other optimistic updates/state changes)}"
-  [app-state component-class ident field & {:keys [without remote params post-mutation fallback parallel refresh marker]
+  [app-state component-class ident field & {:keys [without remote params post-mutation post-mutation-params fallback parallel refresh marker]
                                             :or   {remote :remote refresh [] marker true}}]
   (impl/mark-ready
-    {:state         app-state
-     :field         field
-     :ident         ident
-     :query         (om/focus-query (om/get-query component-class) [field])
-     :params        params
-     :remote        remote
-     :without       without
-     :parallel      parallel
-     :refresh       refresh
-     :marker        marker
-     :post-mutation post-mutation
-     :fallback      fallback}))
+    {:state                app-state
+     :field                field
+     :ident                ident
+     :query                (om/focus-query (om/get-query component-class) [field])
+     :params               params
+     :remote               remote
+     :without              without
+     :parallel             parallel
+     :refresh              refresh
+     :marker               marker
+     :post-mutation        post-mutation
+     :post-mutation-params post-mutation-params
+     :fallback             fallback}))
 
 (defn load-data-action
   "
@@ -247,7 +280,7 @@
        (load-data-action ...)
        ; other optimistic updates/state changes)}"
   [app-state query & {:keys [ident without params remote post-mutation fallback parallel refresh marker]
-                      :or {remote :remote refresh [] marker true}}]
+                      :or   {remote :remote refresh [] marker true}}]
   (impl/mark-ready
     {:state         app-state
      :ident         ident
@@ -335,3 +368,6 @@
       (failed? state) (failed-render props)
       (and not-present-render (nil? props)) (not-present-render props)
       :else (data-render props))))
+
+(defn refresh! [component]
+  (load component (om/get-ident component) (om/react-type component)))
