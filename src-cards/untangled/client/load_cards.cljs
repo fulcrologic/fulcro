@@ -93,10 +93,11 @@
   "
   (untangled-app Root
     :started-callback (fn [{:keys [reconciler]}]
-                        (js/setTimeout #(df/load reconciler [:thing/by-id 1] Thing {:without #{:ui/value}}) 100)
+                        (js/setTimeout #(df/load reconciler [:thing/by-id 1] Thing {:refresh [[:fake 1] :no-prop] :without #{:ui/value}}) 100)
                         (js/setTimeout #(df/load reconciler :thing Thing {:without #{:ui/value}}) 200))
     :networking (MockNetForMerge.))
   {:thing/by-id {1 {:id 1 :label "A" :ui/value 1}
                  2 {:id 2 :label "B" :ui/value 2}
                  3 {:id 3 :label "C" :ui/value 3}}}
   {:inspect-data true})
+

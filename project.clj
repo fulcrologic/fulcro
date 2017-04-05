@@ -9,8 +9,8 @@
                  [lein-doo "0.1.7" :scope "test"]
                  [navis/untangled-spec "1.0.0-alpha2" :scope "test"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.473" :scope "provided"]
-                 [org.clojure/core.async "0.2.391"]
+                 [org.clojure/clojurescript "1.9.494" :scope "provided"]
+                 [org.clojure/core.async "0.3.442" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"] ; needed for i18n on server-side rendering
                  [org.omcljs/om "1.0.0-alpha48" :scope "provided"]
                  [org.clojure/test.check "0.9.0" :scope "test"]]
@@ -69,7 +69,7 @@
   :profiles {:dev {:source-paths ["dev" "src" "spec"]
                    :repl-options {:init-ns          clj.user
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :dependencies [[binaryage/devtools "0.9.0"]
+                   :dependencies [[binaryage/devtools "0.9.2"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [figwheel-sidecar "0.5.9"]
                                   [org.clojure/test.check "0.9.0"]
