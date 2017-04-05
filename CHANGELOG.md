@@ -1,3 +1,7 @@
+0.8.2
+-----
+- Changed network result handling so that it does not change :ui/react-key (flicker)
+
 0.8.1
 -----
 - Fixed load markers for ident-based loading: They will appear iff the entity is already present (refresh)

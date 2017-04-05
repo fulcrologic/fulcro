@@ -425,7 +425,7 @@
       (run-post-mutations)
       (set-global-loading reconciler)
       (if (contains? refresh-set :untangled/force-root)
-        (udom/force-render reconciler)
+        (om/force-root-render! reconciler)
         (udom/force-render reconciler to-refresh)))))
 
 (defn- error-callback
