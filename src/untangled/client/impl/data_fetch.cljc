@@ -395,7 +395,7 @@
   - Merging the incoming data into the normalized database
   - Running post-mutations for any fetches that completed
   - Updating the global loading marker
-  - Forcing a global re-render if post-mutations ran (may change in future versions)
+  - Triggering re-render for all data item refresh lists
   "
   [reconciler]
   (fn [response items]
@@ -436,7 +436,7 @@
   - Replaces affected loading markers with error markers (if :marker is true on the load item)
   - Runs fallbacks associated with the loads
   - Sets the global error marker (:untangled/server-error)
-  - Refreshes UI
+  - Refreshes UI (from root if there were fallbacks)
   "
   [reconciler]
   (fn [error items]
@@ -463,6 +463,6 @@
       (om/merge! reconciler {:ui/react-key (udom/unique-key)})
       (run-fallbacks)
       (set-global-loading reconciler)
-      (if (contains? refresh-set :untangled/force-root)
+      (if (or @ran-fallbacks (contains? refresh-set :untangled/force-root))
         (udom/force-render reconciler)
         (udom/force-render reconciler to-refresh)))))
