@@ -7,11 +7,11 @@
   :dependencies [[com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
                  [devcards "0.2.2" :exclusions [org.omcljs/om org.omcljs/om org.clojure/core.async] :scope "provided"]
                  [lein-doo "0.1.7" :scope "test"]
-                 [navis/untangled-spec "1.0.0-alpha2" :scope "test"]
+                 [navis/untangled-spec "1.0.0-alpha3" :scope "test"]
                  [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/clojurescript "1.9.494" :scope "provided"]
                  [org.clojure/core.async "0.3.442" :exclusions [org.clojure/tools.reader]]
-                 [com.ibm.icu/icu4j "58.2"] ; needed for i18n on server-side rendering
+                 [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
                  [org.omcljs/om "1.0.0-alpha48" :scope "provided"]
                  [org.clojure/test.check "0.9.0" :scope "test"]]
 
@@ -46,11 +46,11 @@
                                :output-to            "resources/public/js/test/test.js"
                                :output-dir           "resources/public/js/test/out"
                                :recompile-dependents true
-                               :preloads [devtools.preload]
+                               :preloads             [devtools.preload]
                                :asset-path           "js/test/out"
                                :optimizations        :none}}
                {:id           "cards"
-                :source-paths ["src" "src-cards" "dev"]
+                :source-paths ["src" "src-cards"]
                 :figwheel     {:devcards true}
                 :compiler     {:main                 untangled.client.card-ui
                                :output-to            "resources/public/js/cards/cards.js"

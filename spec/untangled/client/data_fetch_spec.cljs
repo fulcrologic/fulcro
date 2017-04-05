@@ -463,25 +463,16 @@
         response        {:id 2}]
     (when-mocking
       (om/app-state r) => state
-      (omp/queue! r items) => (reset! queued (set items))
-      (omp/schedule-render! r) => (reset! rendered true)
-      (om/merge! r resp) => (assertions
-                              "updates the react key to force full DOM re-render"
-                              (contains? resp :ui/react-key) => true)
       (dfi/set-global-loading r) => (reset! globally-marked true)
+      (om/force-root-render! r) => (assertions
+                                     "Triggers render at root"
+                                     r => :reconciler)
 
       (error-cb response items))
 
     (assertions
       "Runs fallbacks"
       (:fallback-done @state) => true
-      "Queues the refresh items for refresh"
-      @queued =fn=> #(contains? % :x)
-      @queued =fn=> #(contains? % :y)
-      "Queues the global loading marker for refresh"
-      @queued =fn=> #(contains? % :ui/loading-data)
-      "Triggers render"
-      @rendered => true
       "Rewrites load markers as error markers"
       (dfi/failed? (get-in @state (conj (dfi/data-path item) :ui/fetch-state) :fail)) => true
       "Updates the global loading marker"

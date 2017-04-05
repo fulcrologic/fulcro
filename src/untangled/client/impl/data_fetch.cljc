@@ -460,9 +460,6 @@
                                      :action
                                      (apply [])))))]
       (mark-errors)
-      (om/merge! reconciler {:ui/react-key (udom/unique-key)})
       (run-fallbacks)
       (set-global-loading reconciler)
-      (if (or @ran-fallbacks (contains? refresh-set :untangled/force-root))
-        (udom/force-render reconciler)
-        (udom/force-render reconciler to-refresh)))))
+      (om/force-root-render! reconciler))))
