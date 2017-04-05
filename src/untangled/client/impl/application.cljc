@@ -219,9 +219,9 @@
                                       (swap! initial-state assoc :ui/locale "en-US")
                                       initial-state)
                                     (assoc initial-state :ui/locale "en-US"))
-        config                    (merge reconciler-options
+        config                    (merge {:pathopt true}
+                                    reconciler-options
                                     {:migrate     tempid-migrate
-                                     :pathopt     true
                                      :state       initial-state-with-locale
                                      :send        (fn [tx cb]
                                                     (server-send (assoc app :reconciler @rec-atom) tx cb))

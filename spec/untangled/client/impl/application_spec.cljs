@@ -42,10 +42,6 @@
       (-> (reconciler-with-config {:pathopt false}) :pathopt)
       => false
 
-      ":migrate"
-      (-> (reconciler-with-config {:migrate identity}) :migrate)
-      => identity
-
       ":root-unmount"
       (-> (reconciler-with-config {:root-unmount identity}) :root-unmount)
       => identity))
