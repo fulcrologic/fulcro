@@ -1,6 +1,7 @@
 0.8.2
 -----
 - Changed network result handling so that it does not change :ui/react-key (flicker)
+- Added support for splitting mutation txes when there are duplicate calls, so that they go over separate network requests to work around Om returning a map.
 
 0.8.1
 -----

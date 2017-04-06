@@ -424,3 +424,46 @@
           actual => swept-state
           (meta actual) => mutation-response-without-tempids)))))
 
+(specification "split-mutations"
+  (behavior "Takes an Om tx and splits it into a vector of one or more txes that have no duplicate mutation names"
+    (assertions
+      "Refuses to split transactions that contain non-mutation entries (with console error)."
+      (app/split-mutations '[:a (f) :b (f)]) => ['[:a (f) :b (f)]]
+      "Give back an empty vector if there are no mutations"
+      (app/split-mutations '[]) => '[]
+      "Leaves non-duplicate txes alone"
+      (app/split-mutations '[(f) (g) (h)]) => '[[(f) (g) (h)]]
+      "Splits at duplicate mutation"
+      (app/split-mutations '[(f) (g) (f) (k)]) => '[[(f) (g)] [(f) (k)]]
+      "Resets 'seen mutations' at each split, so prior mutations do not cause extra splitting"
+      (app/split-mutations '[(f) (g) (f) (k) (g)]) => '[[(f) (g)] [(f) (k) (g)]])))
+
+(specification "enqueue-mutations"
+  (behavior "enqueues a payload with query, load, and error callbacks"
+    (let [send-queues {:remote :mock-queue}
+          remote-txs  {:remote '[(f)]}]
+      (when-mocking
+        (app/fallback-handler app tx) => identity
+        (plumbing/remove-loads-and-fallbacks tx) => tx
+        (app/enqueue q p) => (let [{:keys [query]} p]
+                               (assertions
+                                 ""
+                                 query => '[(f)]))
+
+        (app/enqueue-mutations {:send-queues send-queues} remote-txs identity))))
+  (behavior "splits mutation lists to prevent duplication mutations on a single network request"
+    (let [send-queues {:remote :mock-queue}
+          remote-txs  {:remote '[(f) (g) (f)]}]
+      (when-mocking
+        (app/fallback-handler app tx) => identity
+        (plumbing/remove-loads-and-fallbacks tx) => tx
+        (app/enqueue q p) =1x=> (let [{:keys [query]} p]
+                                  (assertions
+                                    ""
+                                    query => '[(f) (g)]))
+        (app/enqueue q p) =1x=> (let [{:keys [query]} p]
+                                  (assertions
+                                    ""
+                                    query => '[(f)]))
+
+        (app/enqueue-mutations {:send-queues send-queues} remote-txs identity)))))

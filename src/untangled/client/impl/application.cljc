@@ -39,21 +39,54 @@
     (net/updating-send net (plumbing/strip-ui tx) on-done on-error on-load)
     (net/send net (plumbing/strip-ui tx) on-done on-error)))
 
+(defn split-mutations
+  "Split a tx that contains mutations. Returns a vector that contains at least one tx (the original).
+
+   Examples:
+   [(f) (g)] => [[(f) (g)]]
+   [(f) (g) (f) (k)] => [[(f) (g)] [(f) (k)]]
+   [(f) (g) (f) (k) (g)] => [[(f) (g)] [(f) (k) (g)]]
+   "
+  [tx]
+  (if-not (and (vector? tx) (every? (fn [t] (and (list? t) (symbol? (first t)))) tx))
+    (do
+      (log/error "INTERNAL ERROR: split-mutations was asked to split a tx that contained things other than mutations." tx)
+      [tx])
+    (if (empty? tx)
+      []
+      (let [mutation-name (fn [m] (first m))
+            {:keys [accumulator current-tx]}
+            (reduce (fn [{:keys [seen accumulator current-tx]} mutation]
+                      (if (contains? seen (mutation-name mutation))
+                        {:seen #{} :accumulator (conj accumulator current-tx) :current-tx [mutation]}
+                        {:seen        (conj seen (mutation-name mutation))
+                         :accumulator accumulator
+                         :current-tx  (conj current-tx mutation)})) {:seen #{} :accumulator [] :current-tx []} tx)]
+        (conj accumulator current-tx)))))
+
 (defn enqueue-mutations
   "Splits out the (remote) mutations and fallbacks in a transaction, creates an error handler that can
-   trigger fallbacks, and enqueues the remote mutations on the network queue."
-  [{:keys [send-queues networking] :as app} remote-tx-map cb]
+   trigger fallbacks, and enqueues the remote mutations on the network queue. If duplicate mutation names
+   appear, then they will be separated into separate network requests.
+
+   NOTE: If the mutation in the tx has duplicates, then the same fallback will be used for the
+   resulting split tx. See `split-mutations` (which is used by this function to split dupes out of txes)."
+  [{:keys [send-queues] :as app} remote-tx-map cb]
   (doseq [remote (keys remote-tx-map)]
     (let [queue                    (get send-queues remote)
           full-remote-transaction  (get remote-tx-map remote)
           fallback                 (fallback-handler app full-remote-transaction)
           desired-remote-mutations (plumbing/remove-loads-and-fallbacks full-remote-transaction)
-          has-mutations?           (> (count desired-remote-mutations) 0)
-          payload                  {:query    desired-remote-mutations
-                                    :on-load  cb
-                                    :on-error #(fallback %)}]
-      (when has-mutations?
-        (enqueue queue payload)))))
+          tx-list                  (split-mutations desired-remote-mutations)
+          ; todo: split remote mutations
+          has-mutations?           (fn [tx] (> (count tx) 0))
+          payload                  (fn [tx]
+                                     {:query    tx
+                                      :on-load  cb
+                                      :on-error #(fallback %)})]
+      (doseq [tx tx-list]
+        (when (has-mutations? tx)
+          (enqueue queue (payload tx)))))))
 
 (defn enqueue-reads
   "Finds any loads marked `parallel` and triggers real network requests immediately. Remaining loads
