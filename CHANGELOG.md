@@ -4,6 +4,7 @@
 - Removed `load-data` from data-fetch. Port to using `load` instead.
 - Moved all i18n functions to untangled.i18n namespace
 - Removed protocol testing support. Better to do unit testing or more full-stack. 
+- Removed openid parsing (doesn't belong in this lib)
 
 0.8.2
 -----
