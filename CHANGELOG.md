@@ -1,3 +1,7 @@
+1.0.0
+-----
+- Removed local storage and async service stuff. It was undocumented, and unneeded
+
 0.8.2
 -----
 - Changed network result handling so that it does not change :ui/react-key (flicker)

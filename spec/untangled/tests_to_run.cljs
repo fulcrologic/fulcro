@@ -1,7 +1,5 @@
 (ns untangled.tests-to-run
   (:require
-    untangled.services.local-storage-io-spec
-    untangled.client.protocol-support-spec
     untangled.client.impl.util-spec
     untangled.client.impl.application-spec
     untangled.client.impl.built-in-mutations-spec
