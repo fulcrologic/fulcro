@@ -1,8 +1,8 @@
 (ns untangled.server.impl.components.handler-spec
   (:require [untangled-spec.core :refer [specification assertions provided component behavior]]
             [clojure.test :as t]
-            [untangled.server.core :refer [augment-response]]
-            [untangled.server.impl.components.handler :as h]
+            [untangled.server :as server :refer [augment-response]]
+            [untangled.easy-server :as easy]
             [com.stuartsierra.component :as component]
             [om.next.server :as om]
             [taoensso.timbre :as timbre])
@@ -16,14 +16,14 @@
 (specification "generate-response"
   (assertions
     "returns a map with status, header, and body."
-    (keys (h/generate-response {})) => [:status :body :headers]
+    (keys (server/generate-response {})) => [:status :body :headers]
 
     "merges Content-Type of transit json to the passed-in headers."
-    (:headers (h/generate-response {:headers {:my :header}})) => {:my            :header
+    (:headers (server/generate-response {:headers {:my :header}})) => {:my            :header
                                                                   "Content-Type" "application/transit+json"}
 
     "preserves extra response keys from input"
-    (h/generate-response {:status 200 :body {} :session {:user-id 123}})
+    (server/generate-response {:status 200 :body {} :session {:user-id 123}})
     => {:status  200
         :headers {"Content-Type" "application/transit+json"}
         :body    {}
@@ -32,13 +32,13 @@
   (behavior "does not permit"
     (assertions
       "a \"Content-Type\" key in the header."
-      (h/generate-response {:headers {"Content-Type" "not-allowed"}}) =throws=> (AssertionError #"headers")
+      (server/generate-response {:headers {"Content-Type" "not-allowed"}}) =throws=> (AssertionError #"headers")
 
       "a status code less than 100."
-      (h/generate-response {:status 99}) =throws=> (AssertionError #"100")
+      (server/generate-response {:status 99}) =throws=> (AssertionError #"100")
 
       "a status code greater than or equal to 600."
-      (h/generate-response {:status 600}) =throws=> (AssertionError #"600"))))
+      (server/generate-response {:status 600}) =throws=> (AssertionError #"600"))))
 
 (specification "An API Response"
   (let [my-read (fn [_ key _] {:value (case key
@@ -58,7 +58,7 @@
                                            'baz (fn [] (throw (IllegalArgumentException.))))})
 
         parser (om/parser {:read my-read :mutate my-mutate})
-        parse-result (fn [query] (h/api {:parser parser :transit-params query}))]
+        parse-result (fn [query] (easy/api {:parser parser :transit-params query}))]
 
     (behavior "for Om reads"
       (behavior "for a valid request"
@@ -141,7 +141,7 @@
 (specification "the handler"
   (behavior "takes an extra-routes map containing bidi :routes & :handlers"
     (let [make-handler (fn [extra-routes]
-                         (h/build-handler (constantly nil) #{}
+                         (easy/build-handler (constantly nil) #{}
                            :extra-routes extra-routes))]
       (assertions
         (-> {:routes   ["/" {"test" :test}]
@@ -201,11 +201,11 @@
               (.start (component/system-map
                         :config {}
                         :logger {}
-                        :handler (h/build-handler (constantly nil) {}))))]
+                        :handler (easy/build-handler (constantly nil) {}))))]
       (assertions
         "the pre-hook which can short-circuit before the extra-routes, wrap-resource, or /api"
         (let [{:keys [handler]} (make-test-system)]
-          (h/set-pre-hook! handler (fn [h]
+          (easy/set-pre-hook! handler (fn [h]
                                      (fn [req] {:status 200
                                                 :headers {"Content-Type" "text/text"}
                                                 :body "pre-hook"})))
@@ -215,7 +215,7 @@
 
         "the fallback hook will only get called if all other handlers do nothing"
         (let [{:keys [handler]} (make-test-system)]
-          (h/set-fallback-hook! handler (fn [h]
+          (easy/set-fallback-hook! handler (fn [h]
                                           (fn [req] {:status 200
                                                      :headers {"Content-Type" "text/text"}
                                                      :body "fallback-hook"})))
@@ -224,10 +224,10 @@
 
         "get-(pre/fallback)-hook returns whatever hook is currently installed"
         (let [{:keys [handler]} (make-test-system)]
-          (h/set-pre-hook! handler (fn [h] '_))
-          (h/get-pre-hook handler))
+          (easy/set-pre-hook! handler (fn [h] '_))
+          (easy/get-pre-hook handler))
         =fn=> #(= '_ (%1 nil))
         (let [{:keys [handler]} (make-test-system)]
-          (h/set-fallback-hook! handler (fn [h] '_))
-          (h/get-fallback-hook handler))
+          (easy/set-fallback-hook! handler (fn [h] '_))
+          (easy/get-fallback-hook handler))
         =fn=> #(= '_ (%1 nil))))))

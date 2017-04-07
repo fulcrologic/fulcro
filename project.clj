@@ -34,7 +34,7 @@
 
   :test-paths ["spec"]
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
-                 :changes-only true
+                 :changes-only false
                  :with-repl    true}
   :test-selectors {:test/in-progress :test/in-progress
                    :focused          :focused}

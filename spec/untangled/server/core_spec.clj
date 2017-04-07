@@ -2,7 +2,8 @@
   (:require
     [clojure.test :as t]
     [com.stuartsierra.component :as component]
-    [untangled.server.core :as core]
+    [untangled.server :as core]
+    [untangled.easy-server :as easy]
     [untangled-spec.core :refer [specification behavior provided component assertions]])
   (:import (clojure.lang ExceptionInfo)))
 
@@ -14,12 +15,12 @@
 (specification "make-untangled-server"
   (assertions
     "requires :parser as a parameter, and that parser be a function"
-    (core/make-untangled-server) =throws=> (AssertionError #"")
-    (core/make-untangled-server :parser 'cymbal) =throws=> (AssertionError #"")
+    (easy/make-untangled-server) =throws=> (AssertionError #"")
+    (easy/make-untangled-server :parser 'cymbal) =throws=> (AssertionError #"")
     "requires that :components be a map"
-    (core/make-untangled-server :parser #() :components [1 2 3]) =throws=> (AssertionError #"")
+    (easy/make-untangled-server :parser #() :components [1 2 3]) =throws=> (AssertionError #"")
     "throws an exception if injections are not keywords"
-    (core/make-untangled-server :parser #() :parser-injections [:a :x 'sym]) =throws=> (AssertionError #"")))
+    (easy/make-untangled-server :parser #() :parser-injections [:a :x 'sym]) =throws=> (AssertionError #"")))
 
 (defrecord SimpleTestModule []
   core/Module

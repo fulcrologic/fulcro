@@ -16,6 +16,8 @@
    - ui/set-props -> untangled.client.mutations/set-props
    - ui/toggle -> untangled.client.mutations/toggle
 - Moved augment-capable defui to augmentation namespace
+- Moved easy untangled server to untangled.easy-server namespace. Now dynamically loads (TODO)
+- Moved all other server code to untangled.server namespace
 
 0.8.2
 -----

@@ -2,15 +2,14 @@
   (:require [untangled-spec.core :refer
              [specification component behavior assertions when-mocking provided]]
             [com.stuartsierra.component :as component]
-            [untangled.server.impl.components.web-server :as src]
-            [untangled.server.core :refer [make-web-server]]
+            [untangled.easy-server :as src :refer [make-web-server]]
             [org.httpkit.server :refer [run-server]]
             [taoensso.timbre :as timbre]
             [clojure.test :as t]))
 
 (t/use-fixtures
   :once #(timbre/with-merged-config
-           {:ns-blacklist ["untangled.server.impl.components.web-server"]}
+           {:ns-blacklist ["untangled.easy-server"]}
            (%)))
 
 (def dflt-cfg {:port 1337})
