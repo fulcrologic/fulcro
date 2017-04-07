@@ -1,4 +1,4 @@
-(defproject awkay/untangled "1.0.0-SNAPSHOT"
+(defproject untangled-web/untangled "1.0.0-SNAPSHOT"
   :description "A library for building full-stack SPA webapps"
   :url ""
   :license {:name "MIT"
