@@ -225,57 +225,7 @@
           "places a ready marker in the app state"
           marker =fn=> (fn [marker] (df/ready? marker))
           "includes the focused query"
-          (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]))))
-
-  (behavior "Loading data for the app in general"
-    (provided "when requesting data for a specific ident"
-      (om/transact! c tx) => (let [params (-> tx first second)]
-                               (behavior "includes without."
-                                 (is (= :without (:without params))))
-                               (behavior "includes params."
-                                 (is (= :params (:params params))))
-                               (behavior "includes post-processing callback."
-                                 (let [cb (:post-mutation params)]
-                                   (is (= 'foo cb))))
-                               (behavior "includes error fallback."
-                                 (let [fb (:fallback params)]
-                                   (is (= 'bar fb))))
-                               (behavior "includes the ident in the data state."
-                                 (is (= [:item/id 99] (:ident params))))
-                               (behavior "includes the query joined to the ident."
-                                 (is (= (om/get-query Item) (:query params)))))
-
-      (df/load-data 'reconciler (om/get-query Item)
-        :ident [:item/id 99]
-        :params :params
-        :without :without
-        :post-mutation 'foo
-        :fallback 'bar))
-
-    (component "when requesting data for a collection"
-      (when-mocking
-        (om/transact! c tx) => (let [params          (-> tx first second)
-                                     follow-on-reads (set (rest tx))]
-                                 (assertions
-                                   "includes the follow-on reads"
-                                   (contains? follow-on-reads :a) => true
-                                   (contains? follow-on-reads :b) => true
-                                   "directly uses the query."
-                                   (:query params) => [{:items (om/get-query Item)}]))
-
-        (df/load-data 'reconciler [{:items (om/get-query Item)}] :refresh [:a :b]))))
-
-  (component "Loading a collection/singleton from within another mutation"
-    (let [app-state (atom {})]
-
-      (df/load-data-action app-state (om/get-query PanelRoot) :without #{:items})
-
-      (let [marker (first (get-in @app-state [:untangled/ready-to-load]))]
-        (assertions
-          "places a ready marker in the app state"
-          marker =fn=> (fn [marker] (df/ready? marker))
-          "includes the focused query"
-          (dfi/data-query marker) => [{:panel [:db/id]}])))))
+          (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}])))))
 
 (specification "full-query"
   (let [item-ready-markers [(dfi/ready-state {:ident [:db/id 1] :field :author :query [{:author [:name]}]})

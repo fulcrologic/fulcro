@@ -3,7 +3,7 @@
             [untangled.client.logging :as log]
             [untangled.client.impl.data-fetch :as df]
             [untangled.dom :refer [unique-key]]
-            [untangled.i18n.core :as i18n]))
+            [untangled.i18n :as i18n]))
 
 ; Built-in mutation for adding a remote query to the network requests.
 (defmethod mutate 'untangled/load

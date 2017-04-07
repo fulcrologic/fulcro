@@ -2,13 +2,16 @@
   #?(:cljs (:require-macros untangled.i18n))
   (:require
     #?(:clj js)
-            [untangled.i18n.core :as ic]
             [untangled.client.logging :as log]
     #?(:cljs yahoo.intl-messageformat-with-locales)))
 
-(defn current-locale [] @ic/*current-locale*)
+(def ^:dynamic *current-locale* (atom "en-US"))
 
-(defn translations-for-locale [] (get @ic/*loaded-translations* (current-locale)))
+(def ^:dynamic *loaded-translations* (atom {}))
+
+(defn current-locale [] @*current-locale*)
+
+(defn translations-for-locale [] (get @*loaded-translations* (current-locale)))
 
 ;; This set of constructions probably looks pretty screwy. In order for xgettext to work right, it
 ;; must see `tr("hello")` in the output JS, but by default the compiler outputs a call(tr, args)
