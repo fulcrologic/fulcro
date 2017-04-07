@@ -146,7 +146,7 @@
     (component "Changing app :ui/locale"
       (let [react-key (:ui/react-key @mounted-app-state)]
         (reset! i18n/*current-locale* "en")
-        (om/transact! reconciler '[(ui/change-locale {:lang "es-MX"})])
+        (om/transact! reconciler '[(untangled.client.mutations/change-locale {:lang "es-MX"})])
         (assertions
           "Changes the i18n locale for translation lookups"
           (deref i18n/*current-locale*) => "es-MX"
