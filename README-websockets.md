@@ -1,5 +1,7 @@
 # Untangled Websockets
 
+TODO: Make this dynamic in clj-side, so sente isn't a hard dependency. Add instructions on leveraging it that way.
+
 A set of helpers to use websockets with your untangled applications.
 
 Sente is used to define the websocket layer.
