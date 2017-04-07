@@ -1,9 +1,8 @@
 (ns untangled.i18n-spec
   (:require-macros [cljs.test :refer (is deftest testing are)]
                    [untangled-spec.core :refer (specification behavior provided assertions)])
-  (:require [untangled.i18n :refer [current-locale tr trf trc trlambda]]
-            [cljs.test :refer [do-report]]
-            [untangled.i18n.core :as i18n]))
+  (:require [cljs.test :refer [do-report]]
+            [untangled.i18n :as i18n :refer [current-locale tr trf trc trlambda]]))
 
 (def translations
   {"|Hi"                                      "Ola"

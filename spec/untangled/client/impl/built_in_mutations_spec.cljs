@@ -3,7 +3,7 @@
             [untangled.client.mutations :as m]
             [untangled.client.impl.built-in-mutations]
             [untangled.client.impl.om-plumbing :as plumb]
-            [untangled.i18n.core :as i18n]
+            [untangled.i18n :as i18n]
             [untangled.client.logging :as log]
             [untangled.client.impl.data-fetch :as df])
   (:require-macros

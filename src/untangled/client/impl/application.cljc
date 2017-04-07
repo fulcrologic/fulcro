@@ -1,6 +1,7 @@
 (ns untangled.client.impl.application
   (:require [untangled.client.logging :as log]
             [om.next :as om]
+            [untangled.i18n :as i18n]
             [untangled.client.impl.data-fetch :as f]
             [untangled.client.impl.util :as util]
     #?(:cljs [cljs.core.async :as async]

@@ -5,7 +5,7 @@
     [untangled-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
     untangled.client.impl.built-in-mutations
     [om.dom :as dom]
-    [untangled.i18n.core :as i18n]
+    [untangled.i18n :as i18n]
     [untangled.client.impl.application :as app]
     [cljs.core.async :as async]
     [untangled.client.impl.data-fetch :as f]
