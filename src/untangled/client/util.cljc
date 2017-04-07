@@ -1,9 +1,11 @@
-(ns untangled.client.impl.util
+(ns untangled.client.util
   (:require
     [clojure.pprint :refer [pprint]]
     [clojure.spec :as s]
+    clojure.walk
     [om.next :as om]
     [om.next.protocols :as omp]
+    [om.next.impl.parser :as parser]
     #?(:clj
     [clojure.spec.gen :as sg]))
   #?(:clj
@@ -33,6 +35,11 @@
        (om/force-root-render! reconciler)))))
 
 (defn atom? [a] (instance? Atom a))
+
+(defn strip-parameters
+  "Removes parameters from the query, e.g. for PCI compliant logging."
+  [query]
+  (-> (clojure.walk/prewalk #(if (map? %) (dissoc % :params) %) (parser/query->ast query)) (parser/ast->expr true)))
 
 (defn deep-merge [& xs]
   "Merges nested maps without overwriting existing keys."

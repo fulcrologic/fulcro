@@ -7,7 +7,7 @@
     #?(:cljs [cljs.core.async :as async]
        :clj
             [clojure.core.async :as async :refer [go]])
-            [untangled.client.impl.network :as net]
+            [untangled.client.network :as net]
             [untangled.client.impl.om-plumbing :as plumbing])
   #?(:cljs (:require-macros
              [cljs.core.async.macros :refer [go]])))

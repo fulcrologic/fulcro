@@ -1,8 +1,7 @@
 (ns untangled.tests-to-run
   (:require
-    untangled.client.impl.util-spec
+    untangled.client.util-spec
     untangled.client.impl.application-spec
-    untangled.client.impl.built-in-mutations-spec
     untangled.client.mutations-spec
     untangled.client.data-fetch-spec
     untangled.client.impl.om-plumbing-spec
@@ -10,7 +9,7 @@
     untangled.client.core-spec
     untangled.client.routing-spec
     untangled.i18n-spec
-    untangled.client.impl.network-spec))
+    untangled.client.network-spec))
 
 
 ;********************************************************************************

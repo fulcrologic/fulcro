@@ -2,11 +2,11 @@
   (:require
     [untangled.client.data-fetch :as df]
     [untangled.client.impl.data-fetch :as dfi]
-    [untangled.client.impl.util :as util]
+    [untangled.client.util :as util]
     [goog.log :as glog]
-    [om.next :as om :refer-macros [defui]]
+    [om.next :as om :refer [defui]]
     [cljs.test :refer-macros [is are]]
-    [untangled-spec.core :refer-macros
+    [untangled-spec.core :refer
      [specification behavior assertions provided component when-mocking]]
     [untangled.client.mutations :as m]
     [untangled.client.logging :as log]

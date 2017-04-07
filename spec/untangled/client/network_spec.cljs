@@ -1,6 +1,6 @@
-(ns untangled.client.impl.network-spec
+(ns untangled.client.network-spec
   (:require
-    [untangled.client.impl.network :as net]
+    [untangled.client.network :as net]
     [goog.events :as events]
     [untangled-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]))
 

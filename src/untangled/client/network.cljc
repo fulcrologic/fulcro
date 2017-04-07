@@ -1,4 +1,4 @@
-(ns untangled.client.impl.network
+(ns untangled.client.network
   (:refer-clojure :exclude [send])
   (:require [untangled.client.logging :as log]
             [cognitect.transit :as ct]

@@ -5,9 +5,9 @@
             [om.util :as util]
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
-            [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
             [untangled.client.util :refer [force-render]]
+            [untangled.client.mutations :as m]
             [untangled.client.impl.om-plumbing :as plumbing]
     #?(:cljs [cljs-uuid-utils.core :as uuid])))
 
@@ -18,6 +18,7 @@
 ;; Implementation for public api
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Built-in mutation for adding a remote query to the network requests.
 (defn data-state?
   "Test if the given bit of state is a data fetch state-tracking marker"
   [state] (contains? state ::type))
@@ -184,14 +185,6 @@
    (if (get valid-types type)
      {::type type ::params params}
      (throw (ex-info (str "INVALID DATA STATE TYPE: " type) {})))))
-
-(defn get-ready-query
-  "Get the query for items that are ready to load into the given app state. Can be called any number of times
-  (side effect free)."
-  [state]
-  (let [items-to-load (get @state :untangled/ready-to-load)]
-    (when-not (empty? items-to-load)
-      (op/expr->ast {:items-to-load (vec (mapcat data-query items-to-load))}))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helpers -- not intended for public use

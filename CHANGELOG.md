@@ -8,6 +8,14 @@
 - Renamed untangled.client.impl.util to untangled.client.util
 - Moved force-render and unique-key to untangled.client.util namespace.
 - Merged server support into this project
+- Moved strip-parameters to untangled.client.util (cljc)
+- Renamed built-in mutations using the defmutation macro. Breaking change:
+   - untangled/load -> untangled.client.data-fetch/load
+   - tx/fallback -> untangled.client.data-fetch/fallback
+   - ui/change-locale -> untangled.client.mutations/change-locale
+   - ui/set-props -> untangled.client.mutations/set-props
+   - ui/toggle -> untangled.client.mutations/toggle
+- Moved augment-capable defui to augmentation namespace
 
 0.8.2
 -----

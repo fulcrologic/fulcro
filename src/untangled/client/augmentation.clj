@@ -1,18 +1,21 @@
 (ns untangled.client.augmentation
   (:require
-    [untangled.client.util :as utl]
     [clojure.string :as str]
-    [clojure.spec :as s]))
+    [clojure.spec :as s]
+    [cljs.analyzer :as ana]
+    [clojure.pprint :refer [pprint]]
+    [om.next :as om]
+    [untangled.client.util :as utl]))
 
 (defmulti defui-augmentation
-   "Multimethod for defining augments for use in `untangled.client.ui/defui`.
-    * `ctx` contains various (& in flux) information about the context in which
-    the augment is being run (eg: :defui/ui-name, :env/cljs?, :defui/loc).
-    * `ast` contains the conformed methods of the defui, and is the subject and focus of your transformations.
-    * `params` contains the parameters the user of your augment has passed to you
-    when using the augment to make their defui.
-    eg: `(defui MyComp [(:your/augment {:fake :params})] ...)`"
-   {:arglists '([ctx ast params])}
+  "Multimethod for defining augments for use in `untangled.client.ui/defui`.
+   * `ctx` contains various (& in flux) information about the context in which
+   the augment is being run (eg: :defui/ui-name, :env/cljs?, :defui/loc).
+   * `ast` contains the conformed methods of the defui, and is the subject and focus of your transformations.
+   * `params` contains the parameters the user of your augment has passed to you
+   when using the augment to make their defui.
+   eg: `(defui MyComp [(:your/augment {:fake :params})] ...)`"
+  {:arglists '([ctx ast params])}
   (fn [ctx _ _] (:augment/dispatch ctx)))
 
 (defmulti defui-augmentation-group (fn [{:keys [aug]}] aug))
@@ -42,8 +45,8 @@
     :methods (s/+ (s/spec ::method))))
 (s/def ::augments.vector
   (s/coll-of (s/or :kw keyword? :sym symbol?
-                   :call (s/cat :aug (s/or :kw keyword? :sym symbol?)
-                           :params map?))
+               :call (s/cat :aug (s/or :kw keyword? :sym symbol?)
+                       :params map?))
     :into [] :kind vector?))
 (s/def ::dev ::augments.vector)
 (s/def ::prod ::augments.vector)
@@ -64,13 +67,13 @@
 
 (def ^:private defui-augment-mode
   (let [allowed-modes {"prod" :prod, "dev" :dev}
-        ?mode (str/lower-case
-                (or (System/getenv "DEFUI_AUGMENT_MODE")
-                    (System/getProperty "DEFUI_AUGMENT_MODE")
-                    "prod"))]
+        ?mode         (str/lower-case
+                        (or (System/getenv "DEFUI_AUGMENT_MODE")
+                          (System/getProperty "DEFUI_AUGMENT_MODE")
+                          "prod"))]
     (or (get allowed-modes ?mode)
-        (throw (ex-info "Invalid DEFUI_AUGMENT_MODE, should be 'prod' or 'dev'"
-                 {:invalid-mode ?mode, :allowed-modes (set (keys allowed-modes))})))))
+      (throw (ex-info "Invalid DEFUI_AUGMENT_MODE, should be 'prod' or 'dev'"
+               {:invalid-mode ?mode, :allowed-modes (set (keys allowed-modes))})))))
 (.println System/out (str "INITIALIZED DEFUI_AUGMENT_MODE TO: " defui-augment-mode))
 
 (defn- parse [[aug-type aug]]
@@ -135,9 +138,9 @@
          (cond-> static
            (assoc :static 'static))
          (assoc-in [:methods (str method)]
-           {:name method
+           {:name       method
             :param-list (second body)
-            :body [(last body)]})))))
+            :body       [(last body)]})))))
 
 (s/def ::wrap-augment
   (s/cat
@@ -164,5 +167,64 @@
     (update-in ast [:impls (str protocol) :methods (str method)]
       (fn [{:as method :keys [body param-list]}]
         (assoc method :body
-          (conj (vec (butlast body))
-                (wrapper param-list (last body))))))))
+                      (conj (vec (butlast body))
+                        (wrapper param-list (last body))))))))
+
+(defn- install-augments [ctx ast]
+  (reduce
+    (fn [ast {:keys [aug params]}]
+      (defui-augmentation (assoc ctx :augment/dispatch aug) ast params))
+    (dissoc ast :augments :defui-name) (parse-augments (:augments ast))))
+
+(defn- make-ctx [ast form env]
+  {:defui/loc     (merge (meta form) {:file ana/*cljs-file*})
+   :defui/ui-name (:defui-name ast)
+   :env/cljs?     (boolean (:ns env))})
+
+(s/fdef defui*
+  :args ::defui
+  :ret ::defui)
+
+(defn defui* [body form env]
+  (try
+    (let [ast (utl/conform! ::defui body)
+          {:keys [defui/ui-name env/cljs?] :as ctx} (make-ctx ast form env)]
+      ((if cljs? om/defui* om/defui*-clj)
+        (vary-meta ui-name assoc :once true)
+        (->> ast
+          (install-augments ctx)
+          (s/unform ::defui))))
+    (catch Exception e
+      (.println System/out e)
+      (.println System/out (with-out-str (pprint (into [] (.getStackTrace e))))))))
+
+(s/fdef defui
+  :args ::defui
+  :ret ::defui)
+
+(defmacro defui
+  "Untangled's defui provides a way to compose transformations and behavior to your om next components.
+   We're calling them *augments*, and they let you consume and provide behaviors
+   in a declarative and transparent way.
+
+   The untangled defui only provides an addition to the standard om.next/defui, a vector of augments,
+   which are defined in `:untangled.client.augmentation/augments`, but roughly take the shape:
+   [:some/augment ...] or a more granular approach {:always [...] :dev [...] :prod [...]}.
+
+   Augments under `:always` are always used, and those under :dev and :prod are controlled by
+   `untangled.client.augmentation/defui-augment-mode` (env var or jvm system prop `\"DEFUI_AUGMENT_MODE\"`).
+
+   WARNING: Should be considered alpha tech, and the interface may be subject to changes
+   depending on feedback and hammock time.
+
+   NOTE: If anything isn't working right, or you just have some questions/comments/feedback,
+   let @adambros know on the clojurians slack channel #untangled"
+  [& body] (defui* body &form &env))
+
+; An augment for adding @Class support to use it as the factory
+(defmethod defui-augmentation :untangled.client.ui/DerefFactory
+  [{:keys [defui/ui-name env/cljs?]} ast args]
+  (inject-augment ast 'static
+    (if cljs? 'IDeref 'clojure.lang.IDeref)
+    (if cljs? '-deref 'deref)
+    `(fn [_#] (om.next/factory ~ui-name ~(or args {})))))

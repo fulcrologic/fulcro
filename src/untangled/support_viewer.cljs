@@ -7,7 +7,7 @@
     [untangled.client.mutations :as m :refer [defmutation]]
     [yahoo.intl-messageformat-with-locales]
     [untangled.i18n :refer [tr trf]]
-    [untangled.client.impl.network :as net]))
+    [untangled.client.network :as net]))
 
 (defn history-entry [history n]
   (let [steps    (:steps history)

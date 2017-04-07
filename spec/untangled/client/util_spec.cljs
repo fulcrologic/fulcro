@@ -1,7 +1,7 @@
-(ns untangled.client.impl.util-spec
+(ns untangled.client.util-spec
   (:require
-    [untangled-spec.core :refer-macros [specification when-mocking assertions]]
-    [untangled.client.impl.util :as util]
+    [untangled-spec.core :refer [specification when-mocking assertions behavior]]
+    [untangled.client.util :as util]
     [om.next :as om]))
 
 (specification "Log app state"
@@ -41,3 +41,32 @@
         "Handles keys and paths together"
         (util/log-app-state state {:map :key} [:foo 12 :c 1]) => {:foo        {12 {:c {1 "world"}}}
                                                                   {:map :key} {:other :data}}))))
+
+(specification "strip-parameters"
+  (behavior "removes all parameters from"
+    (assertions
+      "parameterized prop reads"
+      (util/strip-parameters `[(:some/key {:arg :foo})]) => [:some/key]
+
+      "parameterized join reads"
+      (util/strip-parameters `[({:some/key [:sub/key]} {:arg :foo})]) => [{:some/key [:sub/key]}]
+
+      "nested parameterized join reads"
+      (util/strip-parameters
+        `[{:some/key [({:sub/key [:sub.sub/key]} {:arg :foo})]}]) => [{:some/key [{:sub/key [:sub.sub/key]}]}]
+
+      "multiple parameterized reads"
+      (util/strip-parameters
+        `[(:some/key {:arg :foo})
+          :another/key
+          {:non-parameterized [:join]}
+          {:some/other [{:nested [(:parameterized {:join :just-for-fun})]}]}])
+      =>
+      [:some/key :another/key {:non-parameterized [:join]} {:some/other [{:nested [:parameterized]}]}]
+
+      "parameterized mutations"
+      (util/strip-parameters ['(fire-missiles! {:arg :foo})]) => '[fire-missiles!]
+
+      "multiple parameterized mutations"
+      (util/strip-parameters ['(fire-missiles! {:arg :foo})
+                           '(walk-the-plank! {:right :now})]) => '[fire-missiles! walk-the-plank!])))

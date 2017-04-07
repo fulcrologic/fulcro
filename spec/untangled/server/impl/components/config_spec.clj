@@ -20,9 +20,9 @@
    and returns the result after deleting the file."
   [contents f]
   (let [tmp-file (File/createTempFile "tmp-file" ".edn")
-        _ (spit tmp-file (str contents))
+        _        (spit tmp-file (str contents))
         abs-path (.getAbsolutePath tmp-file)
-        res (f abs-path)]
+        res      (f abs-path)]
     (.delete tmp-file) res))
 
 (def defaults-path "config/defaults.edn")
@@ -118,10 +118,6 @@
       (assertions (#'cfg/load-edn "garbage") => nil))
     (behavior "can load edn from the classpath"
       (assertions (:some-key (#'cfg/load-edn "resources/config/defaults.edn")) => :some-default-val))
-    (behavior :integration "can load edn from the disk"
-      (assertions (with-tmp-edn-file {:foo :bar} #'cfg/load-edn) => {:foo :bar}))
-    (behavior :integration "can load edn with symbols"
-      (assertions (with-tmp-edn-file {:sym 'sym} #'cfg/load-edn) => {:sym 'sym}))
     (behavior "can load edn with :env/vars"
       (when-mocking
         (cfg/get-system-env "FAKE_ENV_VAR") => "FAKE STUFF"

@@ -5,7 +5,7 @@
     [untangled.client.cards :refer [untangled-app]]
     [om.next :as om :refer [defui]]
     [om.dom :as dom]
-    [untangled.client.impl.network :as net]
+    [untangled.client.network :as net]
     [untangled.client.mutations :as m]
     [untangled.client.data-fetch :as df]
     [untangled.client.logging :as log]))

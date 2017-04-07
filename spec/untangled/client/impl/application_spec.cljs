@@ -3,14 +3,13 @@
     [untangled.client.core :as uc]
     [om.next :as om :refer [defui]]
     [untangled-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
-    untangled.client.impl.built-in-mutations
     [om.dom :as dom]
     [untangled.i18n :as i18n]
     [untangled.client.impl.application :as app]
     [cljs.core.async :as async]
     [untangled.client.impl.data-fetch :as f]
     [untangled.client.impl.om-plumbing :as plumbing]
-    [untangled.client.impl.network :as net]))
+    [untangled.client.network :as net]))
 
 (defui ^:once Thing
   static om/Ident
@@ -105,7 +104,7 @@
           "a marker that the app was initialized"
           (:mounted? app) => true
           "networking support"
-          (type (-> app :networking :remote)) => untangled.client.impl.network/Network
+          (type (-> app :networking :remote)) => untangled.client.network/Network
           "calls the callback with the initialized app"
           @startup-called => state
           "normalizes and uses the initial state"

@@ -4,6 +4,6 @@
     [untangled-spec.selectors :as sel]
     [untangled-spec.suite :refer [def-test-suite]]))
 
-(def-test-suite spec-report {:ns-regex #"untangled\..*-spec"}
+(def-test-suite spec-report {:ns-regex #"untangled\.client.*-spec"}
   {:default #{::sel/none :focused}
    :available #{:focused}})

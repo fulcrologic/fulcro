@@ -1,31 +1,68 @@
 (ns untangled.client.mutations
   #?(:cljs (:require-macros untangled.client.mutations))
   (:require
-    #?(:clj [clojure.spec :as s])
-    #?(:clj [untangled.client.util :refer [conform!]])
-            [om.next :as om]))
+    [clojure.spec :as s]
+    [om.next :as om]
+    [untangled.client.util :refer [conform!]]
+    [untangled.client.logging :as log]
+    [untangled.i18n :as i18n]))
 
 ;; Add methods to this to implement your local mutations
 (defmulti mutate om/dispatch)
 
 ;; Add methods to this to implement post mutation behavior (called after each mutation): WARNING: EXPERIMENTAL.
 (defmulti post-mutate om/dispatch)
+(defmethod post-mutate :default [env k p] nil)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Public Mutation Helpers
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#?(:cljs
+   (untangled.client.mutations/defmutation change-locale
+     "Om mutation: Change the locale of the UI."
+     [{:keys [lang]}]
+     (action [{:keys [state]}]
+       (reset! i18n/*current-locale* lang)
+       (swap! state #(-> %
+                       (assoc :ui/locale lang)
+                       (assoc :ui/react-key lang))))))
+
+
+#?(:cljs
+   (untangled.client.mutations/defmutation set-props
+     "
+     Om mutation: A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
+     Specifically, merge the given `params` into the state of the database object at the component's ident.
+     In general, it is recommended this be used for ui-only properties that have no real use outside of the component.
+     "
+     [params]
+     (action [{:keys [state ref]}]
+       (when (nil? ref) (log/error "ui/set-props requires component to have an ident."))
+       (swap! state update-in ref (fn [st] (merge st params))))))
+
+#?(:cljs
+   (untangled.client.mutations/defmutation toggle
+     "Om mutation: A helper method that toggles the true/false nature of a component's state by ident.
+      Use for local UI data only. Use your own mutations for things that have a good abstract meaning. "
+     [{:keys [field]}]
+
+     (action [{:keys [state ref]}]
+       (when (nil? ref) (log/error "ui/toggle requires component to have an ident."))
+       (swap! state update-in (conj ref field) not))))
+
+(defmethod mutate :default [{:keys [target]} k _]
+  (when (nil? target)
+    (log/error (log/value-message "Unknown app state mutation. Have you required the file with your mutations?" k))))
+
 
 (defn toggle!
   "Toggle the given boolean `field` on the specified component. It is recommended you use this function only on
   UI-related data (e.g. form checkbox checked status) and write clear top-level transactions for anything more complicated."
   [comp field]
-  (om/transact! comp `[(ui/toggle {:field ~field})]))
+  (om/transact! comp `[(toggle {:field ~field})]))
 
 (defn set-value!
   "Set a raw value on the given `field` of a `component`. It is recommended you use this function only on
   UI-related data (e.g. form inputs that are used by the UI, and not persisted data)."
   [component field value]
-  (om/transact! component `[(ui/set-props ~{field value})]))
+  (om/transact! component `[(set-props ~{field value})]))
 
 #?(:cljs
    (defn- ensure-integer

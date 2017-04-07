@@ -8,7 +8,7 @@
     [cljs.core.async :as async]
     [untangled.client.logging :as log]
     [untangled.client.impl.om-plumbing :as plumbing]
-    [untangled.client.impl.util :as util]))
+    [untangled.client.util :as util]))
 
 (defui Child
   static om/Ident
