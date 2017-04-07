@@ -1,5 +1,5 @@
 (ns untangled.client.impl.built-in-mutations
-  (:require [untangled.client.mutations :refer [mutate post-mutate]]
+  (:require [untangled.client.mutations :refer [mutate post-mutate defmutation]]
             [untangled.client.logging :as log]
             [untangled.client.impl.data-fetch :as df]
             [untangled.dom :refer [unique-key]]
@@ -46,5 +46,4 @@
   (when (nil? target)
     (log/error (log/value-message "Unknown app state mutation. Have you required the file with your mutations?" k))))
 
-;
 (defmethod post-mutate :default [env k p] nil)

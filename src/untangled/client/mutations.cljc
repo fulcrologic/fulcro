@@ -2,6 +2,7 @@
   #?(:cljs (:require-macros untangled.client.mutations))
   (:require
     #?(:clj [clojure.spec :as s])
+    #?(:clj [untangled.client.impl.util :refer [conform!]])
             [om.next :as om]))
 
 ;; Add methods to this to implement your local mutations
@@ -83,13 +84,6 @@
                                  :arglist vector?
                                  :action (s/? #(and (list? %) (= 'action (first %))))
                                  :remote (s/* #(and (list? %) (not= 'action (first %)))))))
-
-#?(:clj (defn- conform! [spec x]
-          (let [rt (s/conform spec x)]
-            (when (s/invalid? rt)
-              (throw (ex-info (s/explain-str spec x)
-                       (s/explain-data spec x))))
-            rt)))
 
 #?(:clj
    (defmacro ^{:doc      "Define an Untangled mutation.

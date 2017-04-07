@@ -1,6 +1,7 @@
 (ns untangled.client.routing
   (:require [untangled.client.mutations :as m]
             [untangled.client.core]
+            [untangled.client.impl.util :refer [conform!]]
             [clojure.spec :as s]
             [untangled.client.logging :as log]))
 
@@ -9,13 +10,6 @@
                          :doc (s/? string?)
                          :arglist vector?
                          :body (s/+ (constantly true))))
-
-(defn- conform! [spec x]
-  (let [rt (s/conform spec x)]
-    (when (s/invalid? rt)
-      (throw (ex-info (s/explain-str spec x)
-                      (s/explain-data spec x))))
-    rt))
 
 (defn- emit-union-element [sym ident-fn kws-and-screens]
   (try
