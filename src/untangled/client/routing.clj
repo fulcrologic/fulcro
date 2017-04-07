@@ -1,7 +1,7 @@
 (ns untangled.client.routing
   (:require [untangled.client.mutations :as m]
             [untangled.client.core]
-            [untangled.client.impl.util :refer [conform!]]
+            [untangled.client.util :refer [conform!]]
             [clojure.spec :as s]
             [untangled.client.logging :as log]))
 

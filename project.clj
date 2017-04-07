@@ -4,12 +4,17 @@
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
 
-  :dependencies [[com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
-                 [devcards "0.2.2" :exclusions [org.omcljs/om org.omcljs/om org.clojure/core.async] :scope "provided"]
-                 [lein-doo "0.1.7" :scope "test"]
-                 [navis/untangled-spec "1.0.0-alpha3" :scope "test"]
-                 [org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/clojurescript "1.9.494" :scope "provided"]
+                 [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
+                 [devcards "0.2.2" :scope "provided"]
+                 [lein-doo "0.1.7" :scope "test"]
+                 [http-kit "2.1.19"]
+                 [ring/ring-defaults "0.1.5"]
+                 [bk/ring-gzip "0.1.1"]
+                 [com.stuartsierra/component "0.3.1"]
+                 [com.taoensso/timbre "4.3.1"]
+                 [navis/untangled-spec "1.0.0-alpha3" :scope "test"]
                  [org.clojure/core.async "0.3.442" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
                  [org.omcljs/om "1.0.0-alpha48" :scope "provided"]

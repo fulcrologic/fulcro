@@ -11,7 +11,6 @@
     [untangled.client.mutations :as m]
     [untangled.client.logging :as log]
     [om.next.protocols :as omp]
-    [untangled.dom :as udom]
     [untangled.client.core :as uc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -350,7 +349,7 @@
     (when-mocking
       (om/app-state r) => state
       (om/merge! r resp query) => (reset! merged true)
-      (udom/force-render r ks) => (reset! rendered ks)
+      (util/force-render r ks) => (reset! rendered ks)
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
       (loaded-cb response items)
@@ -382,7 +381,7 @@
     (when-mocking
       (om/app-state r) => state
       (om/merge! r resp query) => (reset! merged true)
-      (udom/force-render r items) => (reset! queued (set items))
+      (util/force-render r items) => (reset! queued (set items))
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
       (loaded-cb response items)

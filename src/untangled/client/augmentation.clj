@@ -1,6 +1,6 @@
 (ns untangled.client.augmentation
   (:require
-    [untangled.client.impl.util :as utl]
+    [untangled.client.util :as utl]
     [clojure.string :as str]
     [clojure.spec :as s]))
 

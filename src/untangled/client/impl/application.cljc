@@ -3,7 +3,7 @@
             [om.next :as om]
             [untangled.i18n :as i18n]
             [untangled.client.impl.data-fetch :as f]
-            [untangled.client.impl.util :as util]
+            [untangled.client.util :as util]
     #?(:cljs [cljs.core.async :as async]
        :clj
             [clojure.core.async :as async :refer [go]])

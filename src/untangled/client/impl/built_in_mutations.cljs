@@ -2,7 +2,6 @@
   (:require [untangled.client.mutations :refer [mutate post-mutate defmutation]]
             [untangled.client.logging :as log]
             [untangled.client.impl.data-fetch :as df]
-            [untangled.dom :refer [unique-key]]
             [untangled.i18n :as i18n]))
 
 ; Built-in mutation for adding a remote query to the network requests.
@@ -19,7 +18,7 @@
              (reset! i18n/*current-locale* lang)
              (swap! state #(-> %
                              (assoc :ui/locale lang)
-                             (assoc :ui/react-key (unique-key)))))})
+                             (assoc :ui/react-key lang))))})
 
 ; A mutation that requests the installation of a fallback mutation on a transaction that should run if that transaction
 ; fails in a 'hard' way (e.g. network/server error). Data-related error handling should either be implemented as causing

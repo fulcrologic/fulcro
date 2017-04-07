@@ -6,7 +6,7 @@
     [om.next :as om]
     [untangled.client.augmentation :as aug]
     [untangled.client.impl.built-in-augments]
-    [untangled.client.impl.util :as utl]))
+    [untangled.client.util :as utl]))
 
 (defn- install-augments [ctx ast]
   (reduce

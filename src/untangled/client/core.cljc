@@ -5,7 +5,6 @@
     #?(:cljs untangled.client.impl.built-in-mutations)      ; DO NOT REMOVE. Ensures built-in mutations load on start
     [untangled.client.impl.network :as net]
     [untangled.client.logging :as log]
-    [untangled.dom :as udom]
     #?(:clj
     [clojure.core.async :as async] :cljs [cljs.core.async :as async])
     [om.next.protocols :as omp]
@@ -16,7 +15,7 @@
     #?(:cljs [goog.dom :as gdom]))
   #?(:cljs (:import goog.Uri)))
 
-(declare map->Application merge-alternate-union-elements! merge-state! new-untangled-client new-untangled-test-client)
+(declare  map->Application merge-alternate-union-elements! merge-state! new-untangled-client new-untangled-test-client)
 
 (defn new-untangled-client
   "Entrypoint for creating a new untangled client. Instantiates an Application with default values, unless
@@ -180,7 +179,7 @@
 
 (defn refresh* [{:keys [reconciler] :as app}]
   (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
-  (udom/force-render reconciler))
+  (util/force-render reconciler))
 
 (defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
   (if mounted?
@@ -242,7 +241,7 @@
 
   (refresh [this]
     (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
-    (udom/force-render reconciler)))
+    (util/force-render reconciler)))
 
 (defn new-untangled-test-client
   "Create a test client that has no networking. Useful for UI testing with a real Untangled app container."

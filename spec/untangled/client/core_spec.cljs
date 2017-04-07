@@ -7,7 +7,6 @@
     [om.next.protocols :as omp]
     [cljs.core.async :as async]
     [untangled.client.logging :as log]
-    [untangled.dom :as udom]
     [untangled.client.impl.om-plumbing :as plumbing]
     [untangled.client.impl.util :as util]))
 
@@ -193,7 +192,7 @@
         (om/app-state r) => state
         (uc/merge-alternate-union-elements! app r) => (reset! merged-unions? true)
         (uc/reset-history-impl a) => (reset! history-reset? true)
-        (udom/force-render a) => (reset! re-rendered? true)
+        (util/force-render a) => (reset! re-rendered? true)
 
         (uc/reset-app! mock-app ResetAppRoot nil)
         (uc/reset-app! mock-app ResetAppRoot :original)

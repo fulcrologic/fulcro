@@ -2,9 +2,12 @@
 -----
 - Removed local storage and async service stuff. It was undocumented, and unneeded
 - Removed `load-data` from data-fetch. Port to using `load` instead.
-- Moved all i18n functions to untangled.i18n namespace
+- Moved internal i18n vars to untangled.i18n namespace
 - Removed protocol testing support. Better to do unit testing or more full-stack. 
 - Removed openid parsing (doesn't belong in this lib)
+- Renamed untangled.client.impl.util to untangled.client.util
+- Moved force-render and unique-key to untangled.client.util namespace.
+- Merged server support into this project
 
 0.8.2
 -----

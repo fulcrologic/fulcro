@@ -7,10 +7,9 @@
             [clojure.set :as set]
             [untangled.client.mutations :as m]
             [untangled.client.logging :as log]
+            [untangled.client.util :refer [force-render]]
             [untangled.client.impl.om-plumbing :as plumbing]
-            [untangled.dom :as udom]
     #?(:cljs [cljs-uuid-utils.core :as uuid])))
-
 
 ; TODO: Some of this API is public, and should be in the non-impl ns.
 
@@ -426,7 +425,7 @@
       (set-global-loading reconciler)
       (if (contains? refresh-set :untangled/force-root)
         (om/force-root-render! reconciler)
-        (udom/force-render reconciler to-refresh)))))
+        (force-render reconciler to-refresh)))))
 
 (defn- error-callback
   "Generates a callback that is used whenever a hard server error occurs (status code 400+ or network error).

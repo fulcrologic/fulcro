@@ -1,6 +1,6 @@
 (ns untangled.client.impl.built-in-augments
   (:require
-    [untangled.client.impl.util :as utl]
+    [untangled.client.util :as utl]
     [untangled.client.augmentation :as aug]))
 
 (defmethod aug/defui-augmentation :untangled.client.ui/DerefFactory

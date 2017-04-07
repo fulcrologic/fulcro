@@ -2,7 +2,7 @@
   #?(:cljs (:require-macros untangled.client.mutations))
   (:require
     #?(:clj [clojure.spec :as s])
-    #?(:clj [untangled.client.impl.util :refer [conform!]])
+    #?(:clj [untangled.client.util :refer [conform!]])
             [om.next :as om]))
 
 ;; Add methods to this to implement your local mutations
