@@ -1,6 +1,7 @@
 1.0.0
 -----
 - Removed local storage and async service stuff. It was undocumented, and unneeded
+- Removed `load-data` from data-fetch. Port to using `load` instead.
 
 0.8.2
 -----

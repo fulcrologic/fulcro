@@ -8,7 +8,7 @@
     [untangled.client.core :as uc]
     [om.util :as util]))
 
-(declare load-data load-data-action load load-action load-field load-field-action)
+(declare  load load-action load-field load-field-action)
 
 (defn- computed-refresh
   "Computes the refresh for the load by ensuring the loaded data is on the Om
@@ -194,44 +194,6 @@
                                     :refresh              refresh
                                     :fallback             fallback}) :ui/loading-data (om/get-ident component)] refresh)))
 
-(defn load-data
-  "
-  DEPRECATED: DO NOT USE IN NEW CODE. See `load` and `load-field`.
-
-  Load data from the remote. Runs `om/transact!`. See also `load-field`.
-
-  Parameters
-  - `comp-or-reconciler`: A component or reconciler (not a class)
-  - `query`: The query for the element(s) attributes. Use defui to generate arbitrary queries so normalization will work.
-
-  Optional Named parameters
-  - `post-mutation`: A mutation (symbol) invoked after the load succeeds.
-  - `post-mutation-params`: An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
-  - `fallback`: A mutation (symbol) invoked after the load fails. App state is in env, server error is in the params under :error.
-  - `parallel`: Boolean to indicate that this load should happen in the parallel on the server (non-blocking load). Any loads marked this way will happen in parallel.
-  - `marker`: A boolean (default true). If true, a marker is placed in the app state in place of the target data during the load. If false, no marker is produced.
-  - `refresh`: A vector of keywords indicating data that will be changing. If any of the listed keywords are queried by on-screen
-    components, then those components will be re-rendered after the load has finished and post mutations have run.
-  - `without`: A set of keywords. Any keyword appearing in this set will be recursively removed from the query (in a proper AST-preserving fashion).
-  - `params`: A parameter map to augment onto the first element of the query
-  - `remote`: A keyword naming which remote to query.
-  "
-  [comp-or-reconciler query & {:keys [ident without remote params post-mutation post-mutation-params fallback parallel refresh marker]
-                               :or   {remote :remote refresh [] marker true}}]
-  (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
-  (om/transact! comp-or-reconciler (into [(list 'untangled/load
-                                            {:ident                ident
-                                             :query                query
-                                             :params               params
-                                             :without              without
-                                             :remote               remote
-                                             :post-mutation        post-mutation
-                                             :post-mutation-params post-mutation-params
-                                             :refresh              refresh
-                                             :marker               marker
-                                             :parallel             parallel
-                                             :fallback             fallback}) :ui/loading-data] refresh)))
-
 (defn load-field-action
   "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`
   but usable from within a mutation. Note the `:refresh` parameter is supported, and defaults to nothing, even for
@@ -263,36 +225,6 @@
      :post-mutation        post-mutation
      :post-mutation-params post-mutation-params
      :fallback             fallback}))
-
-(defn load-data-action
-  "
-  Queue up a remote load from within an already-running mutation. Similar to `load-data`, but usable from
-  within a mutation.
-
-  Note the `:refresh` parameter is supported, and defaults to empty. If you want anything to refresh other than
-  the targeted component you will want to include the :refresh parameter.
-
-  To use this function make sure your mutation specifies a return value with a remote. The remote
-  should use the helper function `remote-load` as it's value:
-
-  { :remote (df/remote-load env)
-    :action (fn []
-       (load-data-action ...)
-       ; other optimistic updates/state changes)}"
-  [app-state query & {:keys [ident without params remote post-mutation fallback parallel refresh marker]
-                      :or   {remote :remote refresh [] marker true}}]
-  (impl/mark-ready
-    {:state         app-state
-     :ident         ident
-     :query         query
-     :params        params
-     :remote        remote
-     :without       without
-     :parallel      parallel
-     :refresh       refresh
-     :marker        marker
-     :post-mutation post-mutation
-     :fallback      fallback}))
 
 (defn remote-load
   "Returns the correct value for the `:remote` side of a mutation that should act as a
