@@ -1,8 +1,7 @@
 (ns untangled.i18n
   #?(:cljs (:require-macros untangled.i18n))
   (:require
-    #?(:clj js)
-            [untangled.client.logging :as log]
+    [untangled.client.logging :as log]
     #?(:cljs yahoo.intl-messageformat-with-locales)))
 
 (def ^:dynamic *current-locale* (atom "en-US"))
