@@ -9,8 +9,6 @@
     [clojure.walk :as walk]
     [cognitect.transit :as transit]
     [om.next.server :as om]
-    [untangled.server.impl.components.web-server :as web-server]
-    [untangled.server.impl.components.handler :as handler]
     [ring.util.response :as resp]
     [taoensso.timbre :as log]
     [untangled.client.util :as util])
