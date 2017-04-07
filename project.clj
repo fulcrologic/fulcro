@@ -18,6 +18,7 @@
                  [navis/untangled-spec "1.0.0-alpha3" :scope "test"]
                  [org.clojure/core.async "0.3.442" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
+                 [bidi "2.0.16"]                            ; todo make dynamic
                  [org.omcljs/om "1.0.0-alpha48" :scope "provided"]
                  [com.taoensso/sente "1.11.0"]
                  [org.clojure/test.check "0.9.0" :scope "test"]]
@@ -41,7 +42,7 @@
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
 
-  :figwheel {:server-port       8080}
+  :figwheel {:server-port 8080}
 
   :cljsbuild {:builds
               [{:id           "test"
