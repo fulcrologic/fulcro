@@ -1,5 +1,5 @@
-(defproject navis/untangled-client "0.8.2-SNAPSHOT"
-  :description "Client-side code for Untangled Webapps"
+(defproject untangled "1.0.0-SNAPSHOT"
+  :description "A library for building full-stack SPA webapps"
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
