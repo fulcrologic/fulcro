@@ -1,9 +1,8 @@
-(defproject untangled "1.0.0-SNAPSHOT"
+(defproject awkay/untangled "1.0.0-SNAPSHOT"
   :description "A library for building full-stack SPA webapps"
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
-
   :dependencies [[org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
                  [org.clojure/clojurescript "1.9.494" :scope "provided"]
                  [com.lucasbradstreet/cljs-uuid-utils "1.0.2"]
@@ -23,8 +22,8 @@
                  [com.taoensso/sente "1.11.0"]
                  [org.clojure/test.check "0.9.0" :scope "test"]]
 
-  :source-paths ["src" "src-cards"]
-  :resource-paths ["src" "resources"]                       ; maven deploy to internal artifactory needs src here
+  :source-paths ["src/main"]
+  :resource-paths ["resources"]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx512m" "-Xms256m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/cards" "resources/public/js/test" "resources/public/js/compiled" "target"]
@@ -33,22 +32,20 @@
             [lein-doo "0.1.7"]
             [com.jakemccrary/lein-test-refresh "0.19.0"]]
 
-  :test-paths ["spec"]
+  :test-paths ["src/test"]
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
                  :changes-only false
                  :with-repl    true}
-  :test-selectors {:test/in-progress :test/in-progress
-                   :focused          :focused}
+  :test-selectors {:focused :focused}
 
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
 
-  :figwheel {:open-file-command "fw-open-file"
-             :server-port       8080}
+  :figwheel {:server-port       8080}
 
   :cljsbuild {:builds
               [{:id           "test"
-                :source-paths ["src" "dev" "spec"]
+                :source-paths ["src/main" "src/dev" "src/test"]
                 :figwheel     {:on-jsload "cljs.user/spec-report"}
                 :compiler     {:main                 cljs.user
                                :output-to            "resources/public/js/test/test.js"
@@ -58,7 +55,7 @@
                                :asset-path           "js/test/out"
                                :optimizations        :none}}
                {:id           "cards"
-                :source-paths ["src" "src-cards"]
+                :source-paths ["src/main" "src/cards"]
                 :figwheel     {:devcards true}
                 :compiler     {:main                 untangled.client.card-ui
                                :output-to            "resources/public/js/cards/cards.js"
@@ -67,14 +64,14 @@
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "automated-tests"
-                :source-paths ["spec" "src"]
+                :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to     "resources/private/js/unit-tests.js"
                                :main          untangled.all-tests
                                :output-dir    "resources/private/js/out"
                                :asset-path    "js/out"
                                :optimizations :none}}]}
 
-  :profiles {:dev {:source-paths ["dev" "src" "spec"]
+  :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test"]
                    :repl-options {:init-ns          clj.user
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[binaryage/devtools "0.9.2"]
