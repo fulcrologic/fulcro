@@ -221,10 +221,4 @@
    let @adambros know on the clojurians slack channel #untangled"
   [& body] (defui* body &form &env))
 
-; An augment for adding @Class support to use it as the factory
-(defmethod defui-augmentation :untangled.client.ui/DerefFactory
-  [{:keys [defui/ui-name env/cljs?]} ast args]
-  (inject-augment ast 'static
-    (if cljs? 'IDeref 'clojure.lang.IDeref)
-    (if cljs? '-deref 'deref)
-    `(fn [_#] (om.next/factory ~ui-name ~(or args {})))))
+

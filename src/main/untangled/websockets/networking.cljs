@@ -6,7 +6,7 @@
             [taoensso.sente.packers.transit :as sente-transit]
             [om.next :as om]
             [om.transit :as t]
-            [untangled.client.impl.network :refer [UntangledNetwork]]
+            [untangled.client.network :refer [UntangledNetwork]]
             [untangled.client.logging :as log]
             [untangled.websockets.transit-packer :as tp]))
 

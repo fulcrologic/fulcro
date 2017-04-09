@@ -15,7 +15,7 @@
                  [commons-codec "1.10"]
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.8.0"]
-                 [navis/untangled-spec "1.0.0-alpha3" :scope "test"]
+                 ;[navis/untangled-spec "1.0.0-alpha3" :scope "test"]
                  [org.clojure/core.async "0.3.442" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
                  [bidi "2.0.16"]                            ; todo make dynamic
@@ -33,7 +33,7 @@
             [lein-doo "0.1.7"]
             [com.jakemccrary/lein-test-refresh "0.19.0"]]
 
-  :test-paths ["src/test"]
+  ;:test-paths ["src/test"]
   :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
                  :changes-only false
                  :with-repl    true}
@@ -45,7 +45,7 @@
   :figwheel {:server-port 8080}
 
   :cljsbuild {:builds
-              [{:id           "test"
+              [#_{:id           "test"
                 :source-paths ["src/main" "src/dev" "src/test"]
                 :figwheel     {:on-jsload "cljs.user/spec-report"}
                 :compiler     {:main                 cljs.user
@@ -64,7 +64,7 @@
                                :asset-path           "js/cards/out"
                                :source-map-timestamp true
                                :optimizations        :none}}
-               {:id           "automated-tests"
+               #_{:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to     "resources/private/js/unit-tests.js"
                                :main          untangled.all-tests
@@ -72,7 +72,7 @@
                                :asset-path    "js/out"
                                :optimizations :none}}]}
 
-  :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test"]
+  :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" #_"src/test"]
                    :repl-options {:init-ns          clj.user
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[binaryage/devtools "0.9.2"]
