@@ -31,8 +31,10 @@ lib
 node_modules
 out
 pom.xml
+pom.xml*
 pom.xml.asc
 resources/private/js
+resources/public/js
 resources/public/js/cards
 resources/public/js/test
 target
