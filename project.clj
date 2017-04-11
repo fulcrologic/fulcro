@@ -4,14 +4,17 @@
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
 
-  :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.229" :scope "provided"]
-                 [org.omcljs/om "1.0.0-alpha45" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.494" :scope "provided"]
+                 [org.omcljs/om "1.0.0-alpha48" :scope "provided"]
                  [garden "1.3.2"]
                  [com.rpl/specter "0.13.0"]
-                 [navis/untangled-spec "0.3.7-1" :scope "test"]]
+                 [navis/untangled-spec "0.3.9" :scope "test"]]
 
-  :plugins [[lein-cljsbuild "1.1.4"]]
+  :plugins [[lein-cljsbuild "1.1.5"]
+            [com.jakemccrary/lein-test-refresh "0.19.0"]]
+
+  :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report }
 
   :source-paths ["src"]
   :resource-paths []
@@ -29,6 +32,7 @@
   :profiles {:dev {:source-paths   ["src" "dev"]
                    :resource-paths ["src" "resources"]
                    :dependencies   [[binaryage/devtools "0.5.2"]
+                                    [com.cemerick/piggieback "0.2.1"]
                                     [figwheel-sidecar "0.5.5" :exclusions [org.clojure/tools.nrepl]]]}}
 
   :repl-options {:init-ns          user
