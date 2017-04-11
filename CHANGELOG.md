@@ -18,6 +18,7 @@
 - Moved augment-capable defui to augmentation namespace
 - Moved easy untangled server to untangled.easy-server namespace. Now dynamically loads (TODO)
 - Moved all other server code to untangled.server namespace
+- Integrated om-css and renamed to untangled.client.css
 
 0.8.2
 -----

@@ -1,7 +1,6 @@
-(ns om-css.core-spec
-  (:require #?(:cljs [untangled-spec.core :refer-macros [specification assertions behavior]]
-               :clj  [untangled-spec.core :refer [specification assertions behavior]])
-            [om-css.core :as css :refer [localize-classnames]]
+(ns untangled.client.css-spec
+  (:require [untangled-spec.core :refer [specification assertions behavior]]
+            [untangled.client.css :as css :refer [localize-classnames]]
             [om.next :as om :refer [defui]]
             [om.dom :as dom]))
 

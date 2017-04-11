@@ -1,5 +1,5 @@
-(ns om-css.core
-  #?(:cljs (:require-macros om-css.core))
+(ns untangled.client.css
+  #?(:cljs (:require-macros untangled.client.css))
   (:require [cljs.tagged-literals]
             [clojure.string :as str]
             [com.rpl.specter :as sp]
