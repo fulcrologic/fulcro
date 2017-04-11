@@ -20,7 +20,9 @@
   [str] (str/replace str #"[./]" "_"))
 
 (defn fq-component [comp-class]
- #?(:clj (str (:component-ns (meta comp-class)) "/" (:component-name (meta comp-class)))
+ #?(:clj (if (nil? (meta comp-class))
+            (str/replace (.getName comp-class) #"[_]" "-")
+            (str (:component-ns (meta comp-class)) "/" (:component-name (meta comp-class))))
     :cljs (pr-str comp-class)))
 
 (defn local-kw
@@ -99,39 +101,48 @@
        (.setAttribute style-ele "id" id)
        (.appendChild (.-body js/document) style-ele))))
 
-(defmacro localize-classnames
- "Localizes class names specified in DOM elements as keywords or vectors of keywords set in the :class property
-     of their attributes map and outputs them as a proper :className string. Starting a keyword's name with `$` will
-     prevent localization.
+(defn set-classname
+ [m subclasses]
+ #?(:clj (-> m
+             (assoc :className subclasses)
+             (dissoc :class))
+    :cljs (cljs.core/clj->js (-> m
+                                 (assoc :className subclasses)
+                                 (dissoc :class)))))
 
-        (render [this] (localize-classnames ClassName (dom/div #js { :class [:p :$r] } ...)))
+#?(:clj
+  (defmacro localize-classnames
+   "Localizes class names specified in DOM elements as keywords or vectors of keywords set in the :class property
+       of their attributes map and outputs them as a proper :className string. Starting a keyword's name with `$` will
+       prevent localization.
 
-     will result in:
+          (render [this] (localize-classnames ClassName (dom/div #js { :class [:p :$r] } ...)))
 
-        (render [this] (dom/div #js { :className \"namespace_ClassName_p r\"  } ...))
-     "
- [class body]
- (letfn [(localize-classnames
-           ;; Replace any class names in map m with localized versions (names prefixed with $ will be mapped to root)
-           [class m]
-           (let [m (.val m)
-                 subclass (:class m)
-                 entry (fn [c]
-                         (let [cn (name c)]
-                           (if (str/starts-with? cn "$")
-                             (str/replace cn #"^[$]" "")
-                             `(common.frontend.protocols.css/local-class ~class ~cn))))
-                 subclasses (if (vector? subclass)
-                              (apply list (reduce (fn [acc c] (conj acc (entry c) " ")) ['str] subclass))
-                              (entry subclass))]
-             (list 'cljs.core/clj->js (-> m
-                                          (assoc :className subclasses)
-                                          (dissoc :class)))))
-         (defines-class?
-           ;; Check if the given element is a JS map that has a :class key.
+       will result in:
 
-           [ele]
-           (and (= cljs.tagged_literals.JSValue (type ele))
-                (map? (.val ele))
-                (contains? (.val ele) :class)))]
-   (sp/transform (sp/walker defines-class?) (partial localize-classnames class) body)))
+          (render [this] (dom/div #js { :className \"namespace_ClassName_p r\"  } ...))
+       "
+   [class body]
+   (letfn [(localize-classnames
+             ;; Replace any class names in map m with localized versions (names prefixed with $ will be mapped to root)
+             [class original]
+             (let [m (.val original)
+                   subclass (:class m)
+                   entry (fn [c]
+                           (let [cn (name c)]
+                             (if (str/starts-with? cn "$")
+                               (str/replace cn #"^[$]" "")
+                               `(om-css.core/local-class ~class ~cn))))
+                   subclasses (if (vector? subclass)
+                                (apply list (reduce (fn [acc c] (conj acc (entry c) " ")) ['str] subclass))
+                                (entry subclass))]
+               (if (map-entry? original)
+                 [(key original) `(set-classname ~m ~subclasses)]
+                 `(set-classname ~m ~subclasses))))
+           (defines-class?
+             ;; Check if the given element is a JS map that has a :class key.
+             [ele]
+             (and (or (= cljs.tagged_literals.JSValue (type ele)) #?(:clj (map-entry? ele)))
+                  (map? (.val ele))
+                  (contains? (.val ele) :class)))]
+    (sp/transform (sp/walker defines-class?) (partial localize-classnames class) body))))
