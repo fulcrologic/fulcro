@@ -1,7 +1,7 @@
 (ns om-css.core-spec
-  (:require [untangled-spec.core :refer-macros [specification assertions behavior]]
-            [om-css.core :as css :refer-macros [localize-classnames]]
-            [om.next :as om :refer-macros [defui]]
+  (:require [untangled-spec.core :refer [specification assertions behavior]]
+            [om-css.core :as css :refer [localize-classnames]]
+            [om.next :as om :refer [defui]]
             [om.dom :as dom]))
 
 (defui Child
