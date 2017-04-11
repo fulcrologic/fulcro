@@ -125,9 +125,9 @@
    [class body]
    (letfn [(localize-classnames
              ;; Replace any class names in map m with localized versions (names prefixed with $ will be mapped to root)
-             [class original]
-             (let [m (.val original)
-                   subclass (:class m)
+             [class m]
+             (let [m (if (map-entry? m) m (.val m))
+                   subclass (if (map-entry? m) (.val m) (:class m))
                    entry (fn [c]
                            (let [cn (name c)]
                              (if (str/starts-with? cn "$")
@@ -136,13 +136,15 @@
                    subclasses (if (vector? subclass)
                                 (apply list (reduce (fn [acc c] (conj acc (entry c) " ")) ['str] subclass))
                                 (entry subclass))]
-               (if (map-entry? original)
-                 [(key original) `(set-classname ~m ~subclasses)]
-                 `(set-classname ~m ~subclasses))))
+                (if (map-entry? m)
+                   [:className subclasses]
+                   `(set-classname ~m ~subclasses))))
            (defines-class?
-             ;; Check if the given element is a JS map that has a :class key.
+             ;; Check if the given element is a JS map or map-entry that has a :class key.
              [ele]
-             (and (or (= cljs.tagged_literals.JSValue (type ele)) #?(:clj (map-entry? ele)))
-                  (map? (.val ele))
-                  (contains? (.val ele) :class)))]
+             (if #?(:clj (and (map-entry? ele) (= :class (key ele))))
+                true
+                (and (= cljs.tagged_literals.JSValue (type ele))
+                     (map? (.val ele))
+                     (contains? (.val ele) :class))))]
     (sp/transform (sp/walker defines-class?) (partial localize-classnames class) body))))
