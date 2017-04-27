@@ -8,17 +8,17 @@
     [cljs.test :refer-macros [is are]]))
 
 (specification "Local read can"
-  (let [state (atom {:top-level    :top-level-value
-                     :union-join   [:panel :a]
-                     :union-join-2 [:dashboard :b]
-                     :join         {:sub-key-1 [:item/by-id 1]
-                                    :sub-key-2 :sub-value-2}
-                     :item/by-id   {1 {:survey/title "Howdy!" :survey/description "More stuff"}}
-                     :settings     {:tags nil}
-                     :dashboard    {:b {:x 2 :y 1 :z [:dashboard :c]}
-                                    :c {:x 3 :y 7 :z [[:dashboard :d]]}
-                                    :d {:x 5 :y 10}}
-                     :panel        {:a {:x 1 :n 4}}})
+  (let [state  (atom {:top-level    :top-level-value
+                      :union-join   [:panel :a]
+                      :union-join-2 [:dashboard :b]
+                      :join         {:sub-key-1 [:item/by-id 1]
+                                     :sub-key-2 :sub-value-2}
+                      :item/by-id   {1 {:survey/title "Howdy!" :survey/description "More stuff"}}
+                      :settings     {:tags nil}
+                      :dashboard    {:b {:x 2 :y 1 :z [:dashboard :c]}
+                                     :c {:x 3 :y 7 :z [[:dashboard :d]]}
+                                     :d {:x 5 :y 10}}
+                      :panel        {:a {:x 1 :n 4}}})
         parser (partial (om/parser {:read impl/read-local}) {:state state})]
 
     (reset! i18n/*current-locale* "en-US")
@@ -50,10 +50,10 @@
       (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y {:z '...}]}}]) =>
       {:union-join-2 {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}})
 
-    (let [state {:curr-view      [:main :view]
-                 :main           {:view {:curr-item [[:sub-item/by-id 2]]}}
-                 :sub-item/by-id {2 {:foo :baz :sub-items [[:sub-item/by-id 4]]}
-                                  4 {:foo :bar}}}
+    (let [state  {:curr-view      [:main :view]
+                  :main           {:view {:curr-item [[:sub-item/by-id 2]]}}
+                  :sub-item/by-id {2 {:foo :baz :sub-items [[:sub-item/by-id 4]]}
+                                   4 {:foo :bar}}}
           parser (partial (om/parser {:read impl/read-local}) {:state (atom state)})]
 
       (assertions
@@ -82,19 +82,19 @@
 
 (specification "tempid handling"
   (behavior "rewrites all tempids used in pending requests in the request queue"
-    (let [queue (async/chan 10000)
-          tid1 (om/tempid)
-          tid2 (om/tempid)
-          tid3 (om/tempid)
-          rid1 4
-          rid2 2
-          rid3 42
-          tid->rid {tid1 rid1
-                    tid2 rid2
-                    tid3 rid3}
-          q (fn [id] {:query `[(app/thing {:id ~id})]})
+    (let [queue           (async/chan 10000)
+          tid1            (om/tempid)
+          tid2            (om/tempid)
+          tid3            (om/tempid)
+          rid1            4
+          rid2            2
+          rid3            42
+          tid->rid        {tid1 rid1
+                           tid2 rid2
+                           tid3 rid3}
+          q               (fn [id] {:query `[(app/thing {:id ~id})]})
           expected-result [(q rid1) (q rid2) (q rid3)]
-          results (atom [])]
+          results         (atom [])]
 
       (async/offer! queue (q tid1))
       (async/offer! queue (q tid2))
@@ -109,24 +109,24 @@
       (is (nil? (async/poll! queue)))
       (is (= expected-result @results))))
 
-  (let [tid (om/tempid)
-        tid2 (om/tempid)
-        rid 1
-        state {:thing  {tid  {:id tid}
-                        tid2 {:id tid2}}                    ; this one isn't in the remap, and should not be touched
-               :things [[:thing tid]]}
+  (let [tid            (om/tempid)
+        tid2           (om/tempid)
+        rid            1
+        state          {:thing  {tid  {:id tid}
+                                 tid2 {:id tid2}}           ; this one isn't in the remap, and should not be touched
+                        :things [[:thing tid]]}
         expected-state {:thing  {rid  {:id rid}
                                  tid2 {:id tid2}}
                         :things [[:thing rid]]}
-        reconciler (om/reconciler {:state state :parser {:read (constantly nil)} :migrate impl/resolve-tempids})]
+        reconciler     (om/reconciler {:state state :parser {:read (constantly nil)} :migrate impl/resolve-tempids})]
 
     (assertions
       "rewrites all tempids in the app state (leaving unmapped ones alone)"
       ((-> reconciler :config :migrate) @reconciler {tid rid}) => expected-state)))
 
 (specification "strip-ui"
-  (let [q1 [:username :password :ui/login-dropdown-showing {:forgot-password [:email :ui/forgot-button-showing]}]
-        q2 [:username :password :ui.login/dropdown-showing {:forgot-password [:email :ui.forgot/button-showing]}]
+  (let [q1     [:username :password :ui/login-dropdown-showing {:forgot-password [:email :ui/forgot-button-showing]}]
+        q2     [:username :password :ui.login/dropdown-showing {:forgot-password [:email :ui.forgot/button-showing]}]
         result [:username :password {:forgot-password [:email]}]]
 
     (assertions
@@ -275,9 +275,7 @@
       [{:j {:a [:c]
             :b [:d]}}]
       {:j []}
-      {:j []}
-
-      ))
+      {:j []}))
 
   (behavior "if the query has a ui.*/ attribute, it should not be marked as missing"
     (are [query ?missing-result exp]
