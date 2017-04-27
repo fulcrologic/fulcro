@@ -8,8 +8,7 @@
             [untangled.client.logging :as log]
             [untangled.client.util :refer [force-render]]
             [untangled.client.mutations :as m]
-            [untangled.client.impl.om-plumbing :as plumbing]
-    #?(:cljs [cljs-uuid-utils.core :as uuid])))
+            [untangled.client.impl.om-plumbing :as plumbing]))
 
 ; TODO: Some of this API is public, and should be in the non-impl ns.
 
@@ -242,8 +241,7 @@
         query'      (om/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
     {::type                 :ready
-     ::uuid                 #?(:cljs
-                                    (uuid/uuid-string (uuid/make-random-squuid))
+     ::uuid                 #?(:cljs (str (cljs.core/random-uuid))
                                :clj (str (System/currentTimeMillis)))
      ::target               target
      ::remote               remote

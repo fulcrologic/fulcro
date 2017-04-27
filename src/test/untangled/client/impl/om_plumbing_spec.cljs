@@ -2,7 +2,7 @@
   (:require
     [om.next :as om]
     [untangled.client.impl.om-plumbing :as impl]
-    [untangled.i18n.core :as i18n]
+    [untangled.i18n :as i18n]
     [cljs.core.async :as async]
     [untangled-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
     [cljs.test :refer-macros [is are]]))

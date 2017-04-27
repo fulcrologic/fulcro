@@ -132,7 +132,7 @@
                            (let [cn (name c)]
                              (if (str/starts-with? cn "$")
                                (str/replace cn #"^[$]" "")
-                               `(om-css.core/local-class ~class ~cn))))
+                               `(untangled.client.css/local-class ~class ~cn))))
                    subclasses (if (vector? subclass)
                                 (apply list (reduce (fn [acc c] (conj acc (entry c) " ")) ['str] subclass))
                                 (entry subclass))]
