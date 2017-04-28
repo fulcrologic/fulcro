@@ -7,7 +7,6 @@
             [om.next :as om]
             [cljs.core]))
 
-
 (defprotocol CSS
   (css [this] "Specifies the component-local CSS"))
 

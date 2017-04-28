@@ -25,33 +25,33 @@
     (let [{:keys [id label]} (om/props this)]
       (dom/div nil "Hello"))))
 
-(comment
-  (specification "CSS local classes"
-    (behavior "can be generated for a class"
-      (assertions
-        "with a keyword"
-        (css/local-class Child :root) => "om-css_core-spec_Child__root"
-        "with a string"
-        (css/local-class Child "root") => "om-css_core-spec_Child__root"
-        "with a symbol"
-        (css/local-class Child 'root) => "om-css_core-spec_Child__root")))
 
-  (specification "CSS merge"
+(specification "boogers"
+  (behavior "can be generated for a class"
     (assertions
-      "Allows a component to specify a single rule"
-      (css/css-merge Child) => [[:.untangled_client_css-spec_Child__p {:font-weight 'bold}]]
-      "Allows a component to specify multiple rules"
-      (css/css-merge Child2) => [[:.untangled_client_css-spec_Child2__p {:font-weight 'bold}]
-                                 [:.untangled_client_css-spec_Child2__p2 {:font-weight 'normal}]]
-      "Allows component combinations"
-      (css/css-merge Child Child2) => [[:.untangled_client_css-spec_Child__p {:font-weight 'bold}]
-                                       [:.untangled_client_css-spec_Child2__p {:font-weight 'bold}]
-                                       [:.untangled_client_css-spec_Child2__p2 {:font-weight 'normal}]]
-      "Merges rules in with component css"
-      (css/css-merge Child [:a {:x 1}] Child2) => [[:.untangled_client_css-spec_Child__p {:font-weight 'bold}]
-                                                   [:a {:x 1}]
-                                                   [:.untangled_client_css-spec_Child2__p {:font-weight 'bold}]
-                                                   [:.untangled_client_css-spec_Child2__p2 {:font-weight 'normal}]])))
+      "with a keyword"
+      (css/local-class Child :root) => "untangled_client_css-spec_Child__root"
+      "with a string"
+      (css/local-class Child "root") => "untangled_client_css-spec_Child__root"
+      "with a symbol"
+      (css/local-class Child 'root) => "untangled_client_css-spec_Child__root")))
+
+(specification "CSS merge"
+  (assertions
+    "Allows a component to specify a single rule"
+    (css/css-merge Child) => [[:.untangled_client_css-spec_Child__p {:font-weight 'bold}]]
+    "Allows a component to specify multiple rules"
+    (css/css-merge Child2) => [[:.untangled_client_css-spec_Child2__p {:font-weight 'bold}]
+                               [:.untangled_client_css-spec_Child2__p2 {:font-weight 'normal}]]
+    "Allows component combinations"
+    (css/css-merge Child Child2) => [[:.untangled_client_css-spec_Child__p {:font-weight 'bold}]
+                                     [:.untangled_client_css-spec_Child2__p {:font-weight 'bold}]
+                                     [:.untangled_client_css-spec_Child2__p2 {:font-weight 'normal}]]
+    "Merges rules in with component css"
+    (css/css-merge Child [:a {:x 1}] Child2) => [[:.untangled_client_css-spec_Child__p {:font-weight 'bold}]
+                                                 [:a {:x 1}]
+                                                 [:.untangled_client_css-spec_Child2__p {:font-weight 'bold}]
+                                                 [:.untangled_client_css-spec_Child2__p2 {:font-weight 'normal}]]))
 
 (defrecord X [])
 

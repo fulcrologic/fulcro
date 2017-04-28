@@ -29,6 +29,7 @@
   static om/IQuery (query [this] [:db/id :name {:comments (om/get-query Comment)}])
   static om/Ident (ident [this props] [:items/id (:db/id props)]))
 
+
 (defui ^:once Panel
   static om/IQuery (query [this] [:db/id {:items (om/get-query Item)}])
   static om/Ident (ident [this props] [:panel/id (:db/id props)]))
