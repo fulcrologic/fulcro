@@ -1,12 +1,8 @@
-# Om-CSS A library to help generate co-located CSS on Om and Untangled components.
+# helpers to generate co-located CSS on Untangled components.
 
-This library provides some utility functions that help you use 
+This namespace provides some utility functions that help you use 
 [garden](https://github.com/noprompt/garden) for co-located, localized
 component CSS. 
-
-<a href="https://clojars.org/untangled/om-css">
-<img src="https://clojars.org/untangled/om-css/latest-version.svg">
-</a>
 
 ## Usage
 
@@ -77,4 +73,4 @@ in the co-located CSS generation.
 
 # More Information
 
-See the Untangled Cookbook [css recipe](https://github.com/untangled-web/untangled-cookbook/tree/master/recipes/css) for a working example.
+See the Untangled Cookbook css recipe for a working example.

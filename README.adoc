@@ -1,4 +1,4 @@
-# Untangled Client
+# Untangled for Om Next
 :source-highlighter: coderay
 :source-language: clojure
 :toc:
@@ -12,12 +12,13 @@ The client library for the Untangled Web framework.
 What follows is a quick start tutorial that assumes at least a passing familiarity with ClojureScript and Figwheel. For
 an more information & depth, checkout the links in <<Learn more>>.
 
-image::https://img.shields.io/clojars/v/navis/untangled-client.svg[link=https://clojars.org/navis/untangled-client]
+image::https://img.shields.io/clojars/v/untangled/untangled.svg[link=https://clojars.org/untangled/untangled]
 
-Release: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=master[link=https://github.com/untangled-web/untangled-client/tree/master]
-Snapshot: image:https://api.travis-ci.org/untangled-web/untangled-client.svg?branch=develop[link=https://github.com/untangled-web/untangled-client/tree/develop]
+Release: image:https://api.travis-ci.org/awkay/untangled.svg?branch=master[link=https://github.com/awkay/untangled/tree/master]
+Snapshot: image:https://api.travis-ci.org/awkay/untangled.svg?branch=develop[link=https://github.com/untangled/untangled/tree/develop]
 
 == Learn more
+
 * about link:docs/index.adoc#untangled-client-docs[Untangled Client]
 * about link:http://untangled-web.github.io/untangled/index.html[Untangled] & checkout the link:http://untangled-web.github.io/untangled/index.html[Documentation Reference]
 * interactively with the link:http://untangled-web.github.io/untangled/guide.html[Untangled Tutorial]
@@ -55,7 +56,7 @@ If you copy/paste the following file into a `project.clj` it will serve as a goo
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.51"]
                  [org.omcljs/om "1.0.0-alpha46"]
-                 [navis/untangled-client "0.5.6"]]
+                 [untangled/untangled "1.0.0"]]
 
   ; needed or compiled js files won't get cleaned
   :clean-targets ^{:protect false} ["resources/public/js/compiled" "target" "i18n/out"]
