@@ -9,10 +9,8 @@
   "|N: {n, number} ({m, date, long})"
   "N: {n, number} ({m, date, long})"})
 
-(swap!
- untangled.i18n.core/*loaded-translations*
- (fn [x] (assoc x "es" translations)))
+(swap! untangled.i18n/*loaded-translations* assoc "es" translations)
 
 (try
- (-> goog.module.ModuleManager .getInstance (.setLoaded locale))
+ (-> goog.module.ModuleManager .getInstance (.setLoaded "es"))
  (catch js/Object e))

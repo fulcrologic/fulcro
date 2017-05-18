@@ -9,5 +9,5 @@
  (fn [x] (assoc x "en" translations)))
 
 (try
- (-> goog.module.ModuleManager .getInstance (.setLoaded locale))
+ (-> goog.module.ModuleManager .getInstance (.setLoaded "en"))
  (catch js/Object e))
