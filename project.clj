@@ -4,7 +4,7 @@
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.494" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.542" :scope "provided"]
                  [devcards "0.2.2" :scope "provided"]
                  [org.omcljs/om "1.0.0-alpha48"]
                  [lein-doo "0.1.7" :scope "test"]
@@ -68,6 +68,20 @@
                                :parallel-build       true
                                :source-map-timestamp true
                                :optimizations        :none}}
+               {:id           "devguide"
+                :figwheel     {:devcards true}
+                :source-paths ["src/main" "src/devguide"]
+                :compiler     {:main           untangled-devguide.guide
+                               :asset-path     "js/devguide"
+                               :output-to      "resources/public/js/devguide.js"
+                               :output-dir     "resources/public/js/devguide"
+                               :parallel-build true
+                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
+                                                 :requires ["cljsjs.codemirror"]
+                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
+                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
+                                                 :requires ["cljsjs.codemirror"]
+                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to      "resources/private/js/unit-tests.js"
@@ -77,12 +91,15 @@
                                :parallel-build true
                                :optimizations  :none}}]}
 
-  :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test"]
+  :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide"]
                    :repl-options {:init-ns          clj.user
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[binaryage/devtools "0.9.2"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [figwheel-sidecar "0.5.9"]
                                   [org.clojure/test.check "0.9.0"]
+                                  [cljsjs/d3 "3.5.7-1"]
+                                  [cljsjs/victory "0.9.0-0"]
                                   [org.clojure/tools.namespace "0.3.0-alpha3"]
+                                  [cljsjs/codemirror "5.8.0-0"]
                                   [org.clojure/tools.nrepl "0.2.12"]]}})
