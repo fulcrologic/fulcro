@@ -1,7 +1,7 @@
 (ns untangled.client.augmentation
   (:require
     [clojure.string :as str]
-    [clojure.spec :as s]
+    [clojure.spec.alpha :as s]
     [cljs.analyzer :as ana]
     [clojure.pprint :refer [pprint]]
     [om.next :as om]

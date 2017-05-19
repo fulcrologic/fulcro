@@ -1,5 +1,8 @@
 1.0.0
 -----
+- Fixed uses of clojure.spec to clojure.spec.alpha
+- Integrated devguide
+- Integrated cookbook (as demos)
 - Removed local storage and async service stuff. It was undocumented, and unneeded
 - Removed `load-data` from data-fetch. Port to using `load` instead.
 - Moved internal i18n vars to untangled.i18n namespace

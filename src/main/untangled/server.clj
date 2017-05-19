@@ -2,7 +2,7 @@
   (:require
     [com.stuartsierra.component :as component]
     [clojure.set :as set]
-    [clojure.spec :as s]
+    [clojure.spec.alpha :as s]
     [clojure.java.classpath :as cp]
     [clojure.java.io :as io]
     [clojure.edn :as edn]

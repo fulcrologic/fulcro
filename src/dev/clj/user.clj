@@ -1,11 +1,12 @@
 (ns clj.user
   (:require
+    [cards.server :as server]
     [clojure.pprint :refer [pprint]]
     [clojure.repl :refer [doc source]]
     [clojure.set :as set]
-    [clojure.spec :as s]
-    [clojure.spec.gen :as sg]
-    [clojure.tools.namespace.repl :refer [refresh]]
+    [clojure.spec.alpha :as s]
+    [clojure.spec.gen.alpha :as sg]
+    [clojure.tools.namespace.repl :refer [disable-reload! refresh clear set-refresh-dirs]]
     [figwheel-sidecar.system :as fig]
     [com.stuartsierra.component :as component]
     [untangled-spec.selectors :as sel]
@@ -38,3 +39,29 @@
      (println "STARTING FIGWHEEL ON BUILDS: " build-ids)
      (swap! figwheel component/start)
      (fig/cljs-repl (:figwheel-system @figwheel)))))
+
+(set-refresh-dirs "src/demos")
+
+(defonce demo-server (atom nil))
+
+(defn init
+  "Create a web server from configurations. Use `start` to start it."
+  []
+  (reset! demo-server (server/make-system)))
+
+(defn start-demo-server "Start (an already initialized) web server." [] (swap! demo-server component/start))
+
+(defn stop-demo-server "Stop the running web server." []
+  (when @demo-server
+    (swap! demo-server component/stop)
+    (reset! demo-server nil)))
+
+(defn run-demo-server "Load the overall web server system and start it." []
+  (init)
+  (start-demo-server))
+
+(defn reset-demos
+  "Stop the web server, refresh all namespace source code from disk, then restart the web server."
+  []
+  (stop-demo-server)
+  (refresh :after 'clj.user/run-demo-server))

@@ -3,9 +3,10 @@
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha16" :scope "provided"]
                  [org.clojure/clojurescript "1.9.542" :scope "provided"]
-                 [devcards "0.2.2" :scope "provided"]
+                 [org.clojure/spec.alpha "0.1.94"]
+                 [devcards "0.2.3" :scope "provided"]
                  [org.omcljs/om "1.0.0-alpha48"]
                  [lein-doo "0.1.7" :scope "test"]
                  [http-kit "2.2.0"]
@@ -18,7 +19,7 @@
                  [untangled-web/untangled-spec "1.0.0-alpha4-SNAPSHOT" :scope "test" :exclusions [untangled-web/untangled]]
                  [org.clojure/core.async "0.3.442" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
-                 [bidi "2.0.16"]                            ; todo make dynamic
+                 [bidi "2.1.1"]
                  [com.taoensso/sente "1.11.0"]
                  [com.rpl/specter "1.0.1"]
                  [garden "1.3.2"]
@@ -28,10 +29,10 @@
   :resource-paths ["resources"]
   :test-paths ["src/test"]
 
-  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx512m" "-Xms256m"]
-  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js/cards" "resources/public/js/test" "resources/public/js/compiled" "target"]
+  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
+  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target"]
 
-  :plugins [[lein-cljsbuild "1.1.5"]
+  :plugins [[lein-cljsbuild "1.1.6"]
             [lein-doo "0.1.7"]
             [com.jakemccrary/lein-test-refresh "0.19.0"]]
 
@@ -50,20 +51,31 @@
                 :source-paths ["src/main" "src/dev" "src/test"]
                 :figwheel     {:on-jsload "cljs.user/spec-report"}
                 :compiler     {:main                 cljs.user
-                               :output-to            "resources/public/js/test/test.js"
-                               :output-dir           "resources/public/js/test/out"
+                               :output-to            "resources/public/js/test.js"
+                               :output-dir           "resources/public/js/test"
                                :recompile-dependents true
                                :parallel-build       true
                                :preloads             [devtools.preload]
-                               :asset-path           "js/test/out"
+                               :asset-path           "js/test"
                                :optimizations        :none}}
                {:id           "cards"
                 :source-paths ["src/main" "src/cards"]
                 :figwheel     {:devcards true}
                 :compiler     {:main                 untangled.client.card-ui
-                               :output-to            "resources/public/js/cards/cards.js"
-                               :output-dir           "resources/public/js/cards/out"
-                               :asset-path           "js/cards/out"
+                               :output-to            "resources/public/js/cards.js"
+                               :output-dir           "resources/public/js/cards"
+                               :asset-path           "js/cards"
+                               :preloads             [devtools.preload]
+                               :parallel-build       true
+                               :source-map-timestamp true
+                               :optimizations        :none}}
+               {:id           "demos"
+                :source-paths ["src/main" "src/dev" "src/demos"]
+                :figwheel     {:devcards true}
+                :compiler     {:main                 cards.card_ui
+                               :output-to            "resources/public/js/demos.js"
+                               :output-dir           "resources/public/js/demos"
+                               :asset-path           "js/demos"
                                :preloads             [devtools.preload]
                                :parallel-build       true
                                :source-map-timestamp true
@@ -75,6 +87,7 @@
                                :asset-path     "js/devguide"
                                :output-to      "resources/public/js/devguide.js"
                                :output-dir     "resources/public/js/devguide"
+                               :preloads       [devtools.preload]
                                :parallel-build true
                                :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
                                                  :requires ["cljsjs.codemirror"]
@@ -91,15 +104,16 @@
                                :parallel-build true
                                :optimizations  :none}}]}
 
-  :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide"]
+  :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
                    :repl-options {:init-ns          clj.user
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[binaryage/devtools "0.9.2"]
                                   [com.cemerick/piggieback "0.2.1"]
-                                  [figwheel-sidecar "0.5.9"]
-                                  [org.clojure/test.check "0.9.0"]
+                                  [figwheel-sidecar "0.5.10"]
                                   [cljsjs/d3 "3.5.7-1"]
                                   [cljsjs/victory "0.9.0-0"]
-                                  [org.clojure/tools.namespace "0.3.0-alpha3"]
+                                  [org.flywaydb/flyway-core "4.0.3"]
+                                  [com.layerware/hugsql "0.4.7"]
+                                  [org.clojure/tools.namespace "0.3.0-alpha4"]
                                   [cljsjs/codemirror "5.8.0-0"]
                                   [org.clojure/tools.nrepl "0.2.12"]]}})

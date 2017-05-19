@@ -2,7 +2,7 @@
   (:require [untangled.client.mutations :as m]
             [untangled.client.core]
             [untangled.client.util :refer [conform!]]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [untangled.client.logging :as log]))
 
 (s/def ::mutation-args (s/cat

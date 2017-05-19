@@ -1,7 +1,7 @@
 (ns untangled.client.mutations
   #?(:cljs (:require-macros untangled.client.mutations))
   (:require
-    [clojure.spec :as s]
+    [clojure.spec.alpha :as s]
     [om.next :as om]
     [untangled.client.util :refer [conform!]]
     [untangled.client.logging :as log]
