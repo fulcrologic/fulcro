@@ -1,4 +1,4 @@
-(ns clj.user
+(ns user
   (:require
     [cards.server :as server]
     [clojure.pprint :refer [pprint]]

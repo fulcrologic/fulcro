@@ -1,3 +1,3 @@
-(require '[clj.user :refer [start-figwheel]])
+(require '[user :refer [start-figwheel]])
 
 (start-figwheel)

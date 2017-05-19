@@ -48,12 +48,12 @@
 
   :cljsbuild {:builds
               [{:id           "test"
-                :source-paths ["src/main" "src/dev" "src/test"]
-                :figwheel     {:on-jsload "cljs.user/spec-report"}
-                :compiler     {:main                 cljs.user
+                :source-paths ["src/main" "src/test"]
+                :figwheel     {:on-jsload "untangled.test-main/spec-report"}
+                :compiler     {:main                 untangled.test-main
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
-                               :recompile-dependents true
+                               :recompile-dependents false
                                :parallel-build       true
                                :preloads             [devtools.preload]
                                :asset-path           "js/test"
@@ -98,15 +98,14 @@
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to      "resources/private/js/unit-tests.js"
-                               :main           untangled.all-tests
-                               :output-dir     "resources/private/js/out"
-                               :asset-path     "js/out"
+                               :main           untangled.automated-test-main
+                               :output-dir     "resources/private/js/unit-tests"
+                               :asset-path     "js/unit-tests"
                                :parallel-build true
                                :optimizations  :none}}]}
 
   :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
-                   :repl-options {:init-ns          clj.user
-                                  :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+                   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[binaryage/devtools "0.9.2"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [figwheel-sidecar "0.5.10"]
