@@ -5,6 +5,7 @@
             [cards.server-api :as api]
             [recipes.background-loads-server :as bg]
             recipes.error-handling-server
+            recipes.lazy-loading-visual-indicators-server
             [untangled.easy-server :as core]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -64,4 +64,4 @@
   "Stop the web server, refresh all namespace source code from disk, then restart the web server."
   []
   (stop-demo-server)
-  (refresh :after 'clj.user/run-demo-server))
+  (refresh :after 'user/run-demo-server))

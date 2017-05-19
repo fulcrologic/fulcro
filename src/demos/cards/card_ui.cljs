@@ -4,4 +4,5 @@
     cards.background-load-cards
     cards.css-cards
     cards.error-handling-cards
-    cards.initial-state-cards))
+    cards.initial-state-cards
+    cards.lazy-loading-indicators-cards))
