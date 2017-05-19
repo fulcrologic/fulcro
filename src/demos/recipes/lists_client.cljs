@@ -14,14 +14,20 @@
 
 (defonce app (atom (uc/new-untangled-client :initial-state initial-state)))
 
-(defmethod m/mutate 'app/delete-item [{:keys [state]} k {:keys [id]}]
-  {:action (fn []
-             (letfn [(filter-item [list id] (filterv #(not= (second %) id) list))]
-               (swap! state update-in [:lists 1 :list/items] filter-item id)))})
-
-
+(m/defmutation delete-item
+  "Om Mutation: Delete an item from a list"
+  [{:keys [id]}]
+  (action [{:keys [state]}]
+    (letfn [(filter-item [list] (filterv #(not= (second %) id) list))]
+      (swap! state
+        (fn [s]
+          (-> s
+            (update :items dissoc id)
+            (update-in [:lists 1 :list/items] filter-item)))))))
 
 (defui ^:once Item
+  static uc/InitialAppState
+  (initial-state [c {:keys [id label]}] {:item/id id :item/label label})
   static om/IQuery
   (query [this] [:item/id :item/label])
   static om/Ident
@@ -37,6 +43,11 @@
 (def ui-list-item (om/factory Item :item/id))
 
 (defui ^:once ItemList
+  static uc/InitialAppState
+  (initial-state [c p] {:list/id    1
+                        :list/name  "List 1"
+                        :list/items [(uc/get-initial-state Item {:id 1 :label "A"})
+                                     (uc/get-initial-state Item {:id 2 :label "B"})]})
   static om/IQuery
   (query [this] [:list/id :list/name {:list/items (om/get-query Item)}])
   static om/Ident
@@ -44,7 +55,7 @@
   Object
   (render [this]
     (let [{:keys [list/name list/items]} (om/props this)
-          item-props (fn [i] (om/computed i {:on-delete #(om/transact! this `[(app/delete-item {:id ~(:item/id i)})])}))]
+          item-props (fn [i] (om/computed i {:on-delete #(om/transact! this `[(delete-item {:id ~(:item/id i)})])}))]
       (dom/div nil
         (dom/h4 nil name)
         (dom/ul nil
@@ -53,6 +64,8 @@
 (def ui-list (om/factory ItemList))
 
 (defui ^:once Root
+  static uc/InitialAppState
+  (initial-state [c p] {:main-list (uc/get-initial-state ItemList {})})
   static om/IQuery
   (query [this] [:ui/react-key {:main-list (om/get-query ItemList)}])
   Object
