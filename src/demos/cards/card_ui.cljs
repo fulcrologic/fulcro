@@ -6,4 +6,5 @@
     cards.error-handling-cards
     cards.initial-state-cards
     cards.lazy-loading-indicators-cards
-    cards.lists-cards))
+    cards.lists-cards
+    cards.load-samples-cards))

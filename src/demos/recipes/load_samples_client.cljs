@@ -9,16 +9,18 @@
 
 (defui ^:once Person
   static om/IQuery
-  (query [this] [:db/id :person/name :person/age-ms])
+  (query [this] [:db/id :person/name :person/age-ms :ui/fetch-state])
   static om/Ident
-  (ident [this props] [:people/by-id (:db/id props)])
+  (ident [this props] [:load-samples.person/by-id (:db/id props)])
   Object
   (render [this]
     (let [{:keys [db/id person/name person/age-ms] :as props} (om/props this)]
       (dom/li nil
         (str name " (last queried at " age-ms ")")
         (dom/button #js {:onClick (fn []
-                                    ; Load relative to an ident (of this component). This will refresh the entity in the db.
+                                    ; Load relative to an ident (of this component).
+                                    ; This will refresh the entity in the db. The helper function
+                                    ; (df/refresh! this) is identical to this, but shorter to write.
                                     (df/load this (om/ident this props) Person))} "Update")))))
 
 (def ui-person (om/factory Person {:keyfn :db/id}))
@@ -33,7 +35,10 @@
   Object
   (render [this]
     (let [{:keys [people]} (om/props this)]
-      (dom/ul nil (map ui-person people)))))
+      (dom/ul nil
+        ; we're loading a whole list. To sense/show a loading marker the :ui/fetch-state has to be queried in Person.
+        ; Note the whole list is what we're loading, so the render lambda is a map over all of the incoming people.
+        (df/lazily-loaded #(map ui-person %) people)))))
 
 (def ui-people (om/factory People {:keyfn :people/kind}))
 
@@ -61,7 +66,7 @@
                                          ; use of params. The generated network query will result in params
                                          ; appearing in the server-side query, and :people will be the dispatch
                                          ; key. The subquery will also be available (from Person)
-                                         (df/load app :people Person {:target [:lists/by-type :enemies :people]
-                                                                      :params {:kind :enemy}})
-                                         (df/load app :people Person {:target [:lists/by-type :friends :people]
-                                                                      :params {:kind :friend}})))))
+                                         (df/load app :load-samples/people Person {:target [:lists/by-type :enemies :people]
+                                                                                   :params {:kind :enemy}})
+                                         (df/load app :load-samples/people Person {:target [:lists/by-type :friends :people]
+                                                                                   :params {:kind :friend}})))))
