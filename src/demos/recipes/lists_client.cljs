@@ -55,6 +55,7 @@
   Object
   (render [this]
     (let [{:keys [list/name list/items]} (om/props this)
+          ; pass the operation through computed so that it is executed in the context of the parent.
           item-props (fn [i] (om/computed i {:on-delete #(om/transact! this `[(delete-item {:id ~(:item/id i)})])}))]
       (dom/div nil
         (dom/h4 nil name)
