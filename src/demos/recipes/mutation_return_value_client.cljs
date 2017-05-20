@@ -9,9 +9,10 @@
 (defmulti merge-return-value (fn [state sym return-value] sym))
 
 ; Do all of the work on the server.
-(defmethod m/mutate 'crank-it-up [env k params] {:remote true})
+(defmethod m/mutate 'rv/crank-it-up [env k params] {:remote true})
 
-(defmethod merge-return-value 'crank-it-up [state _ {:keys [value]}]
+(defmethod merge-return-value 'rv/crank-it-up
+  [state _ {:keys [value]}]
   (assoc-in state [:child/by-id 0 :volume] value))
 
 (defui ^:once Child
@@ -26,7 +27,7 @@
     (let [{:keys [id volume]} (om/props this)]
       (dom/div nil
         (dom/p nil "Current volume: " volume)
-        (dom/button #js {:onClick #(om/transact! this [(list 'crank-it-up {:value volume})])} "+")))))
+        (dom/button #js {:onClick #(om/transact! this `[(rv/crank-it-up ~{:value volume})])} "+")))))
 
 (def ui-child (om/factory Child))
 
@@ -40,6 +41,3 @@
   (render [this]
     (let [{:keys [ui/react-key child]} (om/props this)]
       (dom/div #js {:key react-key} (ui-child child)))))
-
-(defonce app (atom (uc/new-untangled-client
-                     :mutation-merge merge-return-value)))

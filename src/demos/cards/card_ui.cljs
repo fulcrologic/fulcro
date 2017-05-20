@@ -7,4 +7,5 @@
     cards.initial-state-cards
     cards.lazy-loading-indicators-cards
     cards.lists-cards
-    cards.load-samples-cards))
+    cards.load-samples-cards
+    cards.mutation-return-value-cards))

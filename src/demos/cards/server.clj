@@ -7,6 +7,7 @@
             recipes.error-handling-server
             recipes.lazy-loading-visual-indicators-server
             recipes.load-samples-server
+            recipes.mutation-return-value-server
             [untangled.easy-server :as core]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
