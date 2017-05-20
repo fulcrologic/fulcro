@@ -8,19 +8,6 @@
   "
   # Further Reading
 
-  ## Untangled Datomic
-
-  The Untangled Datomic library has a few utilities that are useful if you've chosen Datomic as your
-  back-end. The most useful is the support for schema migrations with Untangled Server. For more
-  info see the README in
- [Untangled Datomic](https://github.com/untangled-web/untangled-datomic)
-
-  ## Cookbook
-
-  The [Untangled Cookbook](https://github.com/untangled-web/untangled-cookbook)
-  is a great place to go to see examples of how to solve real-world use-cases in
-  Untangled.
-
   ## TODO MVC
 
   Even though Om Next and Untangled are not MVC, we've provided a
