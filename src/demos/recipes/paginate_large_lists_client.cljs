@@ -6,9 +6,68 @@
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
 
+
+(defn page-exists? [state-map page-number]
+  (let [page-items (get-in state-map [:page/by-number page-number :page/items])]
+    (boolean (seq page-items))))
+
+(defn init-page
+  "An idempotent init function that just ensures enough of a page exists to make the UI work.
+   Doesn't affect the items."
+  [state-map page-number]
+  (assoc-in state-map [:page/by-number page-number :page/number] page-number))
+
+(defn set-current-page
+  "Point the current list's current page to the correct page entity in the db (via ident)."
+  [state-map page-number]
+  (assoc-in state-map [:list/by-id 1 :list/current-page] [:page/by-number page-number]))
+
+(defn clear-item
+  "Removes the given item from the item table."
+  [state-map item-id] (update state-map :items/by-id dissoc item-id))
+
+(defn clear-page
+  "Clear the given page (and associated items) from the app database."
+  [state-map page-number]
+  (let [page        (get-in state-map [:page/by-number page-number])
+        item-idents (:page/items page)
+        item-ids    (map second item-idents)]
+    (as-> state-map s
+      (update s :page/by-number dissoc page-number)
+      (reduce (fn [acc id] (update acc :items/by-id dissoc id)) s item-ids))))
+
+(defn gc-distant-pages
+  "Clears loaded items from pages 5 or more steps away from the given page number."
+  [state-map page-number]
+  (reduce (fn [s n]
+            (if (< 4 (Math/abs (- page-number n)))
+              (clear-page s n)
+              s)) state-map (keys (:page/by-number state-map))))
+
+(declare ListItem)
+
+(defn load-if-missing [{:keys [reconciler state] :as env} page-number]
+  (when-not (page-exists? @state page-number)
+    (let [start (inc (* 10 (dec page-number)))
+          end   (+ start 9)]
+      (df/load reconciler :paginate/items ListItem {:params {:start start :end end}
+                                                    :target [:page/by-number page-number :page/items]}))))
+
+(m/defmutation goto-page [{:keys [page-number]}]
+  (action [{:keys [state] :as env}]
+    (load-if-missing env page-number)
+    (swap! state (fn [s]
+                   (-> s
+                     (init-page page-number)
+                     (set-current-page page-number)
+                     (gc-distant-pages page-number)))))
+  (remote [{:keys [state] :as env}]
+    (when (not (page-exists? @state page-number))
+      (df/remote-load env))))
+
 (defui ^:once ListItem
   static om/IQuery
-  (query [this] [:item/id])
+  (query [this] [:item/id :ui/fetch-state])
   static om/Ident
   (ident [this props] [:items/by-id (:item/id props)])
   Object
@@ -17,112 +76,48 @@
 
 (def ui-list-item (om/factory ListItem {:keyfn :item/id}))
 
-(defui ^:once LargeList
+(defui ^:once ListPage
+  static uc/InitialAppState
+  (initial-state [c p] {:page/number 1 :page/items []})
   static om/IQuery
-  (query [this] [:start :total-results {:items (om/get-query ListItem)}])
+  (query [this] [:page/number {:page/items (om/get-query ListItem)}])
+  static om/Ident
+  (ident [this props] [:page/by-number (:page/number props)])
   Object
   (render [this]
-    (let [{:keys [start total-results items]} (om/props this)]
+    (let [{:keys [page/number page/items]} (om/props this)]
       (dom/div nil
-        (dom/h2 nil (str "Items " start "+ (of " total-results ")"))
-        (dom/button #js {:onClick #(om/transact! this '[(prior-page) (fill-cache)])} "Prior Page")
-        (dom/button #js {:onClick #(om/transact! this '[(next-page) (fill-cache)])} "Next Page")
-        (mapv ui-list-item items)))))
+        (dom/p nil "Page number " number)
+        (df/lazily-loaded #(dom/ul nil (mapv ui-list-item %)) items)))))
 
+(def ui-list-page (om/factory ListPage {:keyfn :page/number}))
+
+(defui ^:once LargeList
+  static uc/InitialAppState
+  (initial-state [c params] {:list/current-page (uc/get-initial-state ListPage {})})
+  static om/IQuery
+  (query [this] [{:list/current-page (om/get-query ListPage)}])
+  static om/Ident
+  (ident [this props] [:list/by-id 1])
+  Object
+  (render [this]
+    (let [{:keys [list/current-page]} (om/props this)
+          {:keys [page/number]} current-page]
+      (dom/div nil
+        (dom/button #js {:disabled (= 1 number) :onClick #(om/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
+        (dom/button #js {:onClick #(om/transact! this `[(goto-page {:page-number ~(inc number)})])} "Next Page")
+        (ui-list-page current-page)))))
 
 (def ui-list (om/factory LargeList))
 
 (defui ^:once Root
+  static uc/InitialAppState
+  (initial-state [c params] {:pagination/list (uc/get-initial-state LargeList {})})
   static om/IQuery
-  (query [this] [:ui/react-key {:current-page (om/get-query LargeList)}])
+  (query [this] [:ui/react-key {:pagination/list (om/get-query LargeList)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key current-page] :or {ui/react-key "ROOT"}} (om/props this)]
-      (dom/div #js {:key react-key} (ui-list current-page)))))
+    (let [{:keys [ui/react-key pagination/list] :or {ui/react-key "ROOT"}} (om/props this)]
+      (dom/div #js {:key react-key} (ui-list list)))))
 
-(defn populate-items
-  "A helper function that returns recipes.a new state map where the correct items are copied from the cache into the current page-client"
-  [state-map]
-  (let [start (-> state-map :current-page :start)
-        pg    (-> state-map :current-page :page-size)
-        items (->> state-map :list-cache (drop start) (take pg) vec)]
-    (assoc-in state-map [:current-page :items] items)))
-
-(defn prior-page
-  "A helper function to update the app state map to show the prior page. Does not trigger cache filling (items will end up
-  empty if not already loaded)."
-  [state-map]
-  (let [pg (get-in state-map [:current-page :page-size])]
-    (-> state-map
-      (update-in [:current-page :start] (comp (partial max 0) #(- % pg)))
-      populate-items)))
-
-(defn next-page
-  "A helper function to update the app state map to show the next page. Does not trigger cache filling (items will end up
-  empty if not already loaded)."
-  [state-map]
-  (let [pg      (get-in state-map [:current-page :page-size])
-        last-pg (- (get-in state-map [:current-page :total-results]) pg)]
-    (-> state-map
-      (update-in [:current-page :start] (comp (partial min last-pg) (partial + pg)))
-      populate-items)))
-
-(defn page-query
-  "A helper function that generates the proper server query for loading a range of items. The result of this load will
-  go in app state at :load-page. A post mutation is used to then fill the cache and populate the visible page."
-  [start end]
-  `[({:load-page [:start :end
-                  {:items ~(om/get-query ListItem)}]} {:start ~start :end ~end})])
-
-(defn populate-cache
-  "A helper function that moves the loaded cache items into the cache and populates on-screen page (if possible)"
-  [state-map]
-  ;; NOTE: very naive, assumes you are doing linear page movement, not jumping all-at-once.
-  (let [loaded-start (-> state-map :load-page :start)
-        items        (-> state-map :load-page :items)
-        old-head     (->> state-map :list-cache (take loaded-start) vec)
-        new-cache    (concat old-head items)]
-    (-> state-map
-      (assoc :list-cache new-cache)
-      ; get rid of the temporary query response
-      (dissoc :load-page)
-      ; Copy the cache into the ui page to make sure it is shown
-      populate-items)))
-
-; A post-mutation to trigger the cache and view population from the server response
-(defmethod m/mutate 'page-loaded [{:keys [state]} k p] {:action #(swap! state populate-cache)})
-
-; A mutation that proxies into the next-page helper function
-(defmethod m/mutate 'next-page [{:keys [state]} k p]
-  {:action #(swap! state next-page)})
-
-; A mutation that proxies into the prior-page helper function
-(defmethod m/mutate 'prior-page [{:keys [state]} k p]
-  {:action #(swap! state prior-page)})
-
-; A mutation that triggers a remote load of some range of cache items
-(defmethod m/mutate 'fill-cache [{:keys [state] :as env} k p]
-  (let [start (-> @state :list-cache count)
-        pg    (-> @state :current-page :page-size)
-        end   (-> @state :current-page :start (+ pg))]
-    (when (> end start)
-      {:remote (df/remote-load env)
-       :action #(df/load-action state :items ListItem {:params ~{:start         start :end end
-                                                                 :post-mutation 'page-loaded :refresh [:items]}})})))
-(def initial-state {:ui/react-key "abc"
-                    ; The items that are loaded...naive implementation, loaded from 0, append as we go
-                    :list-cache   []
-                    ; Tracking where we are. This is a UI data structure. :items populated from cache
-                    :current-page {:page-size     10
-                                   :total-results 200000
-                                   :start         0
-                                   :items         []}})
-
-(defonce app (atom (uc/new-untangled-client
-                     :initial-state initial-state
-                     :started-callback
-                     (fn [{:keys [reconciler]}]
-                       (df/load reconciler :items ListItem {:params        {:start 0 :end 10}
-                                                            :post-mutation 'page-loaded
-                                                            :refresh       [:items]})))))
 

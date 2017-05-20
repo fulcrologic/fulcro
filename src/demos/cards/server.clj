@@ -8,6 +8,7 @@
             recipes.lazy-loading-visual-indicators-server
             recipes.load-samples-server
             recipes.mutation-return-value-server
+            recipes.paginate-large-lists-server
             [untangled.easy-server :as core]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
