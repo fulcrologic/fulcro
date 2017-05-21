@@ -11,4 +11,5 @@
     cards.load-samples-cards
     cards.mutation-return-value-cards
     cards.paginate-large-list-cards
-    cards.server-query-security-cards))
+    cards.server-query-security-cards
+    cards.tabbed-interface-cards))
