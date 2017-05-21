@@ -10,4 +10,5 @@
     cards.lists-cards
     cards.load-samples-cards
     cards.mutation-return-value-cards
-    cards.paginate-large-list-cards))
+    cards.paginate-large-list-cards
+    cards.server-query-security-cards))

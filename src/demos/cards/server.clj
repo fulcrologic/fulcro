@@ -9,6 +9,7 @@
             recipes.load-samples-server
             recipes.mutation-return-value-server
             recipes.paginate-large-lists-server
+            [recipes.server-query-security-server :as server-security]
             [untangled.easy-server :as core]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -30,6 +31,9 @@
   (core/make-untangled-server
     :config-path "config/demos.edn"
     :parser (om/parser {:read logging-query :mutate logging-mutate})
-    :parser-injections #{}
-    :components {}))
-
+    :parser-injections #{:authorization}
+    :components {
+                 ; Server security demo: This puts itself into the Ring pipeline to add user info to the request
+                 :auth-hook      (server-security/make-authentication)
+                 ; This is here as a component so it can be injected into the parser env for processing security
+                 :authorization (server-security/make-authorizer)}))
