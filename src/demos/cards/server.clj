@@ -10,7 +10,9 @@
             recipes.mutation-return-value-server
             recipes.paginate-large-lists-server
             [recipes.server-query-security-server :as server-security]
-            [untangled.easy-server :as core]))
+            [recipes.websockets-server :as wsdemo]
+            [untangled.easy-server :as core]
+            [untangled.websockets.components.channel-server :as cs]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SHARED SERVER FOR ALL EXAMPLE
@@ -32,8 +34,18 @@
     :config-path "config/demos.edn"
     :parser (om/parser {:read logging-query :mutate logging-mutate})
     :parser-injections #{:authorization}
+    ;; extra routes (for websockets demo)
+    :extra-routes {:routes   ["" {["/chsk"] :web-socket}]
+                   :handlers {:web-socket cs/route-handlers}}
     :components {
+                 ;; Server security demo components
                  ; Server security demo: This puts itself into the Ring pipeline to add user info to the request
-                 :auth-hook      (server-security/make-authentication)
+                 :auth-hook        (server-security/make-authentication)
                  ; This is here as a component so it can be injected into the parser env for processing security
-                 :authorization (server-security/make-authorizer)}))
+                 :authorization    (server-security/make-authorizer)
+
+                 ;; websocket components and route additions
+                 :channel-server   (cs/make-channel-server)
+                 :channel-listener (wsdemo/make-channel-listener)
+                 }))
+

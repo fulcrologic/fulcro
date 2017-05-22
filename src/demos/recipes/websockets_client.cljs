@@ -89,11 +89,7 @@
                  {:app/channels (om/get-query Channel)}])
 
   Object
-  (initLocalState [this]
-    {:new-user ""})
-
-
-
+  (initLocalState [this] {:new-user ""})
   (render [this]
     (let [{:keys [ui/react-key data app/channels app/users current-user current-channel]
            :or   {ui/react-key "ROOT"}} (om/props this)
@@ -185,15 +181,3 @@
 
 (defmethod wn/push-received :message/new [{:keys [reconciler] :as app} {:keys [msg]}]
   (om/transact! reconciler `[(push/message-new ~{:msg msg})]))
-
-(def initial-state {:ui/react-key    "abc"
-                    :current-user    {}
-                    :current-channel {}})
-
-(defonce app (atom (uc/new-untangled-client
-                     :networking (wn/make-channel-client "/chsk" :global-error-callback (constantly nil))
-                     :initial-state initial-state
-                     :started-callback (fn [{:keys [reconciler]}]
-                                         (df/load reconciler :app/channels Channel {:refresh [:app/channels]})
-                                         (df/load reconciler :app/users User {:refresh [:app/users]})))))
-

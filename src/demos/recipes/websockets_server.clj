@@ -5,7 +5,8 @@
             [taoensso.timbre :as timbre]
             [untangled.easy-server :as core]
             [untangled.websockets.components.channel-server :as cs]
-            [untangled.websockets.protocols :refer [WSListener client-dropped client-added add-listener remove-listener push]]))
+            [untangled.websockets.protocols :refer [WSListener client-dropped client-added add-listener remove-listener push]]
+            [cards.server-api :as api]))
 
 (def db
   (atom {:app/users       []
@@ -13,26 +14,18 @@
                             :channel/title    "general"}]
          :default-channel :db.temp/channel-1}))
 
-(defmulti api-read om/dispatch)
-
 (defn- get-from-db [dispatch-key]
   (get @db dispatch-key))
 
-(defmethod api-read :app/users [{:keys [ast query] :as env} dispatch-key params]
+(defmethod api/server-read :app/users [{:keys [ast query] :as env} dispatch-key params]
   {:value (get-from-db dispatch-key)})
 
-(defmethod api-read :app/channels [{:keys [ast query] :as env} dispatch-key params]
+(defmethod api/server-read :app/channels [{:keys [ast query] :as env} dispatch-key params]
   {:value (get-from-db dispatch-key)})
 
-(defmethod api-read :default-channel [{:keys [ast query]} dispatch-key params]
+(defmethod api/server-read :default-channel [{:keys [ast query]} dispatch-key params]
   {:value (let [chan-id (get @db :default-channel)]
             (some #(when (= chan-id (:db/id %))) (get-in @db :app/channels)))})
-
-(defmethod api-read :default [{:keys [ast query] :as env} dispatch-key params]
-  (timbre/error "Unrecognized query " (op/ast->expr ast))
-  (throw (ex-info "Unexpected api read." {:dispatch-key dispatch-key})))
-
-(defmulti apimutate om/dispatch)
 
 (defn update-channel [id component]
   (fn [chans msg]
@@ -50,7 +43,7 @@
                   (push ws-net id verb edn))
              (disj clients cid)))))
 
-(defmethod apimutate 'message/add [{:keys [cid ws-net] :as env} _ params]
+(defmethod api/server-mutate 'message/add [{:keys [cid ws-net] :as env} _ params]
   {:action (fn []
              (swap! db update :app/channels (update-channel (get @db :default-channel) :channel/messages) params)
              (notify-others ws-net cid :message/new params)
@@ -78,7 +71,7 @@
                   (conj acc next)))
         [] channels))))
 
-(defmethod apimutate 'user/add [{:keys [cid ws-net] :as env} _ params]
+(defmethod api/server-mutate 'user/add [{:keys [cid ws-net] :as env} _ params]
   {:action (fn []
              (let [temp-id (:db/id params)
                    params (assoc params :db/id cid)]
@@ -86,15 +79,11 @@
                (notify-others ws-net cid :user/new params)
                {:tempids {temp-id cid}}))})
 
-(defmethod apimutate 'user/remove [{:keys [cid ws-net] :as env} _ params])
+(defmethod api/server-mutate 'user/remove [{:keys [cid ws-net] :as env} _ params])
 
-(defmethod apimutate 'app/subscribe [{:keys [ws-net cid] :as env} _ {:keys [topic] :as params}]
+(defmethod api/server-mutate 'app/subscribe [{:keys [ws-net cid] :as env} _ {:keys [topic] :as params}]
   {:action (fn []
              {})})
-
-(defmethod apimutate :default [e k p]
-  (timbre/error "Unrecognized mutation " k))
-
 
 (defrecord ChannelListener [channel-server subscriptions]
   WSListener
@@ -120,21 +109,3 @@
     (map->ChannelListener {})
     [:channel-server]))
 
-
-(defn logging-mutate [env k params]
-  (timbre/info "Mutation Request: " k)
-  (apimutate env k params))
-
-(defn logging-query [{:keys [ast] :as env} k params]
-  (timbre/info "Query: " (op/ast->expr ast))
-  (api-read env k params))
-
-(defn make-system []
-  (core/make-untangled-server
-    :config-path "config/recipe.edn"
-    :parser (om/parser {:read logging-query :mutate logging-mutate})
-    :parser-injections #{}
-    :components {:channel-server  (cs/make-channel-server)
-                 :channel-listener (make-channel-listener)}
-    :extra-routes {:routes   ["" {["/chsk"] :web-socket}]
-                   :handlers {:web-socket cs/route-handlers}}))
