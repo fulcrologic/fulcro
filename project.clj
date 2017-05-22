@@ -28,6 +28,7 @@
   :source-paths ["src/main"]
   :resource-paths ["resources"]
   :test-paths ["src/test"]
+  :jar-exclusions [#"public/.*" #"private/.*"]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target"]
