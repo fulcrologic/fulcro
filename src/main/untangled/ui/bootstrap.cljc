@@ -17,6 +17,10 @@
         attrs        (assoc attrs :className (str cls " " addl-classes))]
     (apply dom/p (clj->js attrs) children)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; BASE CSS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn container
   "Top-level container for bootstrap grid content. This is a responsive fixed-width container. See also container-fluid."
   [attrs & children] (div-with-class "container" attrs children))
@@ -121,8 +125,12 @@
   "
   [{:keys [className styles] :as attrs} & children]
   (let [style-classes (str/join " " (map #(str "table-" (name %)) (set/intersection table-styles styles)))
-        classes       (str (when className (str className " ")) "table " style-classes)]
-    (apply dom/table (clj->js (assoc attrs :className classes)) children)))
+        classes       (str (when className (str className " ")) "table " style-classes)
+        attrs         (-> attrs
+                        (dissoc :styles)
+                        (assoc :className classes)
+                        clj->js)]
+    (apply dom/table attrs children)))
 
 (defn labeled-input
   "An input with a label. All of the attrs apply to the input itself. You must supply a type and id for the
@@ -162,3 +170,158 @@
               (dom/label #js {:className "control-label" :htmlFor id} label)
               (dom/input (clj->js attrs))
               (when help (dom/span #js {:id help-id :className "help-block"} help))))))
+
+(defn button
+  "Render a button with optional styling
+
+  kind - Optional. One of :primary, :success, :info, :warning, or :danger. Defaults to none (default).
+  size - Optional. One of :xs, :sm, or :lg. Defaults to a normal size.
+  as-block - Optional. Boolean. When true makes the button a block element.
+  "
+  [{:keys [kind size as-block] :as attrs} & children]
+  {:pre [(or (nil? kind) (contains? #{:primary :success :info :warning :danger} kind))
+         (or (nil? size) (contains? #{:xs :sm :lg} size))]}
+  (let [incoming-classes (:className attrs)
+        button-classes   (cond-> "btn"
+                           kind (str " " "btn-" (name kind))
+                           size (str " " "btn-" (name size))
+                           as-block (str " btn-block")
+                           incoming-classes (str " " incoming-classes))
+        attrs            (-> attrs
+                           (dissoc :kind :size :as-block)
+                           (assoc :className button-classes)
+                           clj->js)]
+    (apply dom/button attrs children)))
+
+(defn close-button [attrs]
+  (let [addl-classes (:className attrs)
+        classes      (cond-> "close"
+                       addl-classes (str " " addl-classes))
+        attrs        (assoc attrs :type "button" :aria-label "Close" :className classes)]
+    (dom/button (clj->js attrs)
+      (dom/span #js {:aria-hidden true} "\u00D7"))))
+
+(defn img
+  "Render an img tag with bootstrap classes.
+
+  is-responsive - Boolean. Marks the image so that it scales to its container.
+  shape - Optional. One of :rounded, :circle, or :thumbnail
+
+  All other normal react attributes (including className) are allowed."
+  [{:keys [is-responsive shape] :as attrs}]
+  {:pre [(or (nil? shape) (contains? #{:rounded :circle :thumbnail} shape))]}
+  (let [incoming-classes (:className attrs)
+        button-classes   (cond-> ""
+                           shape (str " " "img-" (name shape))
+                           is-responsive (str " img-responsive")
+                           incoming-classes (str " " incoming-classes))
+        attrs            (-> attrs
+                           (dissoc :is-responsive :shape)
+                           (assoc :className button-classes)
+                           clj->js)]
+    (dom/img attrs)))
+
+;; raw classes (for docstrings and autocomplete
+
+(def text-left "A CSS class for Left aligned text." "text-left")
+(def text-center "A CSS class for Center aligned text." "text-center")
+(def text-right "A CSS class for Right aligned text." "text-right")
+(def text-justify "A CSS class for Justified text." "text-justify")
+(def text-nowrap "A CSS class for No wrap text." "text-nowrap")
+
+(def text-lowercase "A css transform that will change encosed text to lowercased text." "text-lowercase")
+(def text-uppercase "A css transform that will change encosed text to uppercased text." "text-uppercase")
+(def text-capitalize "A css transform that will change encosed text to capitalized text." "text-capitalize")
+
+(def text-muted "CSS class for a muted text color" "text-muted")
+(def text-primary "A CSS classname for a primary text color" "text-primary")
+(def text-success "A CSS classname for a success text color" "text-success")
+(def text-info "A CSS classname for a info text color" "text-info")
+(def text-warning "A CSS classname for a warning text color" "text-warning")
+(def text-danger "A CSS classname for a danger text color" "text-danger")
+
+(def bg-primary "A CSS classname for a contextual primary background color" "bg-primary")
+(def bg-success "A CSS classname for a contextual success background color" "bg-success")
+(def bg-info "A CSS classname for a contextual info background color" "bg-info")
+(def bg-warning "A CSS classname for a contextual warning background color" "bg-warning")
+(def bg-danger "A CSS classname for a contextual danger background color" "bg-danger")
+
+(def pull-left "A CSS class for forcing a float" "pull-left")
+(def pull-right "A CSS class for forcing a float" "pull-right")
+
+(def center-block "A CSS class for centering a block element" "center-block")
+(def clearfix "A CSS class used on the PARENT to clear floats within that parent." "clearfix")
+
+(def show "A CSS class for BLOCK-level elements. Element affects flow and is visible." "show")
+(def hidden "A CSS class for BLOCK-level elements. Element is not in flow." "hidden")
+(def invisible "A CSS class for BLOCK-level elements. Element still affects flow." "invisible")
+
+(def visible-xs-block "A responsive CSS class to show element according to screen size" "visible-xs-block")
+(def visible-xs-inline "A responsive CSS class to show element according to screen size" "visible-xs-inline")
+(def visible-xs-inline-block "A responsive CSS class to show element according to screen size" "visible-xs-inline-block")
+(def visible-sm-block "A responsive CSS class to show element according to screen size" "visible-sm-block")
+(def visible-sm-inline "A responsive CSS class to show element according to screen size" "visible-sm-inline")
+(def visible-sm-inline-block "A responsive CSS class to show element according to screen size" "visible-sm-inline-block")
+(def visible-md-block "A responsive CSS class to show element according to screen size" "visible-md-block")
+(def visible-md-inline "A responsive CSS class to show element according to screen size" "visible-md-inline")
+(def visible-md-inline-block "A responsive CSS class to show element according to screen size" "visible-md-inline-block")
+(def visible-lg-block "A responsive CSS class to show element according to screen size" "visible-lg-block")
+(def visible-lg-inline "A responsive CSS class to show element according to screen size" "visible-lg-inline")
+(def visible-lg-inline-block "A responsive CSS class to show element according to screen size" "visible-lg-inline-block")
+
+(def hidden-xs "A CSS class to hide the element according to screen size" "hidden-xs")
+(def hidden-sm "A CSS class to hide the element according to screen size" "hidden-sm")
+(def hidden-md "A CSS class to hide the element according to screen size" "hidden-md")
+(def hidden-lg "A CSS class to hide the element according to screen size" "hidden-lg")
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Bootstrap Components
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def glyph-icons #{:asterisk :plus :euro :eur :minus :cloud :envelope :pencil :glass :music :search :heart
+                   :star :star-empty :user :film :th-large :th :th-list :ok :remove :zoom-in :zoom-out :off :signal
+                   :cog :trash :home :file :time :road :download-alt :download :upload :inbox :play-circle
+                   :repeat :refresh :list-alt :lock :flag :headphones :volume-off :volume-down :volume-up :qrcode
+                   :barcode :tag :tags :book :bookmark :print :camera :font :bold :italic :text-height
+                   :text-width :align-left :align-center :align-right :align-justify :list :indent-left :indent-right
+                   :facetime-video :picture :map-marker :adjust :tint :edit :share :check :move :step-backward
+                   :fast-backward :backward :play :pause :stop :forward :fast-forward :step-forward :eject
+                   :chevron-left :chevron-right :plus-sign :minus-sign :remove-sign :ok-sign :question-sign
+                   :info-sign :screenshot :remove-circle :ok-circle :ban-circle :arrow-left :arrow-right :arrow-up
+                   :arrow-down :share-alt :resize-full :resize-small :exclamation-sign :gift :leaf :fire :eye-open
+                   :eye-close :warning-sign :plane :calendar :random :comment :magnet :chevron-up :chevron-down
+                   :retweet :shopping-cart :folder-close :folder-open :resize-vertical :resize-horizontal :hdd :bullhorn :bell
+                   :certificate :thumbs-up :thumbs-down :hand-right :hand-left :hand-up :hand-down :circle-arrow-right :circle-arrow-left
+                   :circle-arrow-up :circle-arrow-down :globe :wrench :tasks :filter :briefcase :fullscreen :dashboard
+                   :paperclip :heart-empty :link :phone :pushpin :usd :gbp :sort :sort-by-alphabet
+                   :sort-by-alphabet-alt :sort-by-order :sort-by-order-alt :sort-by-attributes :sort-by-attributes-alt :unchecked
+                   :expand :collapse-down :collapse-up :log-in :flash :log-out :new-window :record :save :open :saved :import
+                   :export :send :floppy-disk :floppy-saved :floppy-remove :floppy-save :floppy-open :credit-card :transfer
+                   :cutlery :header :compressed :earphone :phone-alt :tower :stats :sd-video :hd-video
+                   :subtitles :sound-stereo :sound-dolby :sound-5-1 :sound-6-1 :sound-7-1 :copyright-mark :registration-mark :cloud-download
+                   :cloud-upload :tree-conifer :tree-deciduous :cd :save-file :open-file :level-up :copy :paste
+                   :alert :equalizer :king :queen :pawn :bishop :knight :baby-formula :tent
+                   :blackboard :bed :apple :erase :hourglass :lamp :duplicate :piggy-bank :scissors
+                   :bitcoin :btc :xbt :yen :jpy :ruble :rub :scale :ice-lolly
+                   :ice-lolly-tasted :education :option-horizontal :option-vertical :menu-hamburger :modal-window :oil :grain :sunglasses
+                   :text-size :text-color :text-background :object-align-top :object-align-bottom :object-align-horizontal :object-align-left
+                   :object-align-vertical :object-align-right :triangle-right :triangle-left :triangle-bottom :triangle-top
+                   :console :superscript :subscript :menu-left :menu-right :menu-down :menu-up})
+
+(defn glyphicon
+  "Render a glyphicon in a span. Legal icon names are in b/glyph-icons.
+
+  attrs will be added to the span's attributes.
+
+  size - The size of the icon font. Defaults to 10pt.
+  "
+  [{:keys [size] :or {size "10pt"} :as attrs} icon]
+  {:pre [(contains? glyph-icons icon)]}
+  (let [attrs (-> attrs
+                (dissoc :size)
+                (assoc :aria-hidden true)
+                (assoc :style #js {:fontSize size})
+                (update :className #(str "glyphicon glyphicon-" (name icon)))
+                clj->js)]
+    (dom/span attrs "")))

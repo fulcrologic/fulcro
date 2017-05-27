@@ -10,7 +10,7 @@
             [untangled.ui.bootstrap :as b]
             [untangled.client.core :as uc]))
 
-(declare render-example)
+(declare render-example sample)
 
 (defcard-doc
   "
@@ -264,16 +264,59 @@
       (b/labeled-input {:id "phone" :split 2 :type "text"} "Phone:")
       (b/labeled-input {:id "email" :split 2 :type "email" :help "Your primary email"} "Email:"))))
 
+(defcard buttons
+  "Various buttons"
+  (render-example "100%" "130px"
+    (apply dom/div nil
+      (dom/div #js {}
+        "A close button: " (b/close-button {:style #js {:float "none"}}))
+      (b/button {:key "A"} "Default")
+      (b/button {:key "b" :size :xs} "Default xs")
+      (b/button {:key "c" :size :sm} "Default sm")
+      (b/button {:key "d" :size :lg} "Default lg")
+      (for [k [:primary :success :info :warning :danger]
+            s [:xs :sm :lg]]
+        (b/button {:key (str (name k) (name s)) :kind k :size s} (str (name k) " " (name s)))))))
+
+(def svg-placeholder "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgdmlld0JveD0iMCAwIDE0MCAxNDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzE0MHgxNDAKQ3JlYXRlZCB3aXRoIEhvbGRlci5qcyAyLjYuMC4KTGVhcm4gbW9yZSBhdCBodHRwOi8vaG9sZGVyanMuY29tCihjKSAyMDEyLTIwMTUgSXZhbiBNYWxvcGluc2t5IC0gaHR0cDovL2ltc2t5LmNvCi0tPjxkZWZzPjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+PCFbQ0RBVEFbI2hvbGRlcl8xNWM0N2NlZGU5NCB0ZXh0IHsgZmlsbDojQUFBQUFBO2ZvbnQtd2VpZ2h0OmJvbGQ7Zm9udC1mYW1pbHk6QXJpYWwsIEhlbHZldGljYSwgT3BlbiBTYW5zLCBzYW5zLXNlcmlmLCBtb25vc3BhY2U7Zm9udC1zaXplOjEwcHQgfSBdXT48L3N0eWxlPjwvZGVmcz48ZyBpZD0iaG9sZGVyXzE1YzQ3Y2VkZTk0Ij48cmVjdCB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI0VFRUVFRSIvPjxnPjx0ZXh0IHg9IjQ0LjA1NDY4NzUiIHk9Ijc0LjUiPjE0MHgxNDA8L3RleHQ+PC9nPjwvZz48L3N2Zz4=")
+
+(defcard images
+  "Various images"
+  (render-example "100%" "250px"
+    (b/container-fluid {}
+      (b/row {}
+        (b/col {:sm 3}
+          (sample (b/img {:src svg-placeholder}) "Regular"))
+        (b/col {:sm 3}
+          (sample (b/img {:src svg-placeholder :shape :rounded}) "Rounded"))
+        (b/col {:sm 3}
+          (sample (b/img {:src svg-placeholder :shape :circle}) "Circle"))
+        (b/col {:sm 3}
+          (sample (b/img {:src svg-placeholder :shape :thumbnail}) "Thumbnail"))))))
+
+(defcard icons
+  "Glyphicon support through keyword names and the b/glyphicon function. E.g. `(b/glyphicon {} :arrow-left)`."
+  (render-example "100%" "250px"
+    (let [rows (map #(apply b/row {:className b/text-center :style #js {:marginBottom "5px"}} %)
+                 (partition 6 (for [i (sort b/glyph-icons)]
+                                (b/col {:xs 2 }
+                                  (dom/div #js {:style #js {:border "1px solid black" :padding "2px" :wordWrap "break-word"}}
+                                    (b/glyphicon {:size "12pt"} i) (dom/br nil) (str i))))))]
+      (apply b/container {}
+        rows))))
+
 (defn render-example [width height & children]
   (ele/ui-iframe {:frameBorder 0 :height height :width width}
-    (dom/div nil
+    (apply dom/div nil
       (dom/style nil ".boxed {border: 1px solid black}")
-      (dom/link #js {:rel         "stylesheet"
-                     :href        "/bootstrap-3.3.7/css/bootstrap-theme.min.css"
-                     ;:integrity   "sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
-                     :crossorigin "anonymous"})
-      (dom/link #js {:rel         "stylesheet"
-                     :href        "/bootstrap-3.3.7/css/bootstrap.min.css"
-                     ;:integrity   "sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
-                     :crossorigin "anonymous"})
+      (dom/link #js {:rel  "stylesheet"
+                     :href "/bootstrap-3.3.7/css/bootstrap-theme.min.css"})
+      (dom/link #js {:rel  "stylesheet"
+                     :href "/bootstrap-3.3.7/css/bootstrap.min.css"})
       children)))
+
+(defn sample [ele description]
+  (dom/div #js {:className "thumbnail center-block"}
+    ele
+    (dom/div #js {:className "caption"}
+      (dom/p #js {:className "text-center"} description))))
