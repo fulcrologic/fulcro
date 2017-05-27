@@ -3,7 +3,6 @@
     untangled.client.impl.application-spec
     untangled.client.impl.om-plumbing-spec
     untangled.client.core-spec
-    untangled.client.css-spec
     untangled.client.data-fetch-spec
     untangled.client.logging-spec
     untangled.client.mutations-spec
