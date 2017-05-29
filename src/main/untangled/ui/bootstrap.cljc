@@ -1,7 +1,13 @@
 (ns untangled.ui.bootstrap
   (:require [om.dom :as dom]
+            [om.next :as om :refer [defui]]
+            #?(:clj js)
+            [untangled.ui.elements :as ele]
+            [untangled.i18n :refer [tr tr-unsafe]]
+            [untangled.client.mutations :as m]
             [clojure.string :as str]
-            [clojure.set :as set]))
+            [clojure.set :as set]
+            [untangled.client.core :as uc]))
 
 #?(:clj (defn- clj->js [m] m))
 
@@ -183,8 +189,9 @@
          (or (nil? size) (contains? #{:xs :sm :lg} size))]}
   (let [incoming-classes (:className attrs)
         button-classes   (cond-> "btn"
-                           kind (str " " "btn-" (name kind))
-                           size (str " " "btn-" (name size))
+                           kind (str " btn-" (name kind))
+                           size (str " btn-" (name size))
+                           (not size) (str " btn-default")
                            as-block (str " btn-block")
                            incoming-classes (str " " incoming-classes))
         attrs            (-> attrs
@@ -325,3 +332,77 @@
                 (update :className #(str "glyphicon glyphicon-" (name icon)))
                 clj->js)]
     (dom/span attrs "")))
+
+(defn button-group
+  "Groups nested buttons together in a horizontal row.
+
+  `size` - (optional) can be :xs, :sm, or :lg.
+  `kind` - (optional) can be :vertical or :justified"
+  [{:keys [size kind] :as attrs} & children]
+  (let [justified?  (= kind :justified)
+        vertical?   (= kind :vertical)
+        cls         (cond-> "btn-group"
+                      justified? (str " btn-group-justified")
+                      vertical? (str "-vertical")
+                      size (str " btn-group-" (name size)))
+        wrap-button (fn [ele] (if (ele/react-instance? "button" ele) (button-group {} ele) ele))
+        attrs       (-> attrs (dissoc :size :kind) (assoc :role "group"))
+        children    (if justified? (map #(wrap-button %) children) children)]
+    (div-with-class cls attrs children)))
+
+(defn button-toolbar
+  "Groups button groups together as a toolbar, and a bit of space between each group"
+  [attrs & children]
+  (div-with-class "btn-toolbar" (assoc attrs :role "toolbar") children))
+
+(defn dropdown-item [id label] {::item-id id ::item-label label})
+(defn dropdown-divider [] {::item-label ::divider})
+(defn dropdown [id label items] {::dropdown-id id ::dropdown-label label ::dropdown-items items ::open? false})
+
+(def dropdown-table :bootstrap.dropdown/by-id)
+(defn dropdown-ident [id-or-props]
+  (if (map? id-or-props)
+    (dropdown-ident (::dropdown-id id-or-props))
+    [dropdown-table id-or-props]))
+
+(m/defmutation set-dropdown-open [{:keys [id open?]}]
+  (action [{:keys [state]}]
+    (let [kpath (conj (dropdown-ident id) ::open?)]
+      (swap! state assoc-in kpath open?))))
+
+(defn- close-all-dropdowns-impl [dropdown-map]
+  (reduce (fn [m id] (assoc-in m [id ::open?] false)) dropdown-map (keys dropdown-map)))
+
+(m/defmutation close-all-dropdowns [ignored]
+  (action [{:keys [state]}]
+    (swap! state update dropdown-table close-all-dropdowns-impl)))
+
+(defui Dropdown
+  static om/IQuery
+  (query [this] [::dropdown-id ::dropdown-label ::dropdown-items ::open?])
+  static om/Ident
+  (ident [this props] (dropdown-ident props))
+  Object
+  (render [this]
+    (let [{:keys [::dropdown-id ::dropdown-label ::dropdown-items ::open?]} (om/props this)
+          onSelect  (or (om/get-computed this :onSelect) identity)
+          open-menu (fn [evt]
+                      (.stopPropagation evt)
+                      (om/transact! this `[(close-all-dropdowns {}) (set-dropdown-open ~{:id dropdown-id :open? (not open?)})])
+                      false)
+          ui-item   (fn [{:keys [::item-label ::item-id]}]
+                      (if (= ::divider item-label)
+                        (dom/li #js {:key item-label :role "separator" :className "divider"})
+                        (dom/li #js {:key item-label}
+                          (dom/a #js {:onClick (fn [evt]
+                                                 (.stopPropagation evt)
+                                                 (om/transact! this `[(close-all-dropdowns {})])
+                                                 (onSelect item-id)
+                                                 false)} (tr-unsafe item-label)))))]
+      (button-group {:className (str "" (when open? "open"))}
+        (button {:className "dropdown-toggle" :aria-haspopup true :aria-expanded open? :onClick open-menu}
+          (tr-unsafe dropdown-label) " " (dom/span #js {:className "caret"}))
+        (dom/ul #js {:className "dropdown-menu"}
+          (map #(ui-item %) dropdown-items))))))
+
+(def ui-dropdown (om/factory Dropdown {:keyfn ::dropdown-id}))

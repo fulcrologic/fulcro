@@ -7,8 +7,11 @@
             [om.next.impl.parser :as p]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [untangled.ui.elements :as ele]
+            [untangled.client.cards :refer [untangled-app]]
             [untangled.ui.bootstrap :as b]
             [untangled.client.core :as uc]))
+
+(enable-console-print!)
 
 (declare render-example sample)
 
@@ -299,11 +302,103 @@
   (render-example "100%" "250px"
     (let [rows (map #(apply b/row {:className b/text-center :style #js {:marginBottom "5px"}} %)
                  (partition 6 (for [i (sort b/glyph-icons)]
-                                (b/col {:xs 2 }
+                                (b/col {:xs 2}
                                   (dom/div #js {:style #js {:border "1px solid black" :padding "2px" :wordWrap "break-word"}}
                                     (b/glyphicon {:size "12pt"} i) (dom/br nil) (str i))))))]
       (apply b/container {}
         rows))))
+
+(defcard button-groups
+  "Some button group examples:"
+  (render-example "100%" "500px"
+    (b/container-fluid {}
+      (dom/h4 nil "Regular")
+      (b/button-group {} (b/button {} "A") (b/button {} "B") (b/button {} "C"))
+      (dom/br nil)
+      (dom/h4 nil "xs")
+      (b/button-group {:size :xs} (b/button {} "A") (b/button {} "B") (b/button {} "C"))
+      (dom/br nil)
+      (dom/h4 nil "sm")
+      (b/button-group {:size :sm} (b/button {} "A") (b/button {} "B") (b/button {} "C"))
+      (dom/br nil)
+      (dom/h4 nil "lg")
+      (b/button-group {:size :lg} (b/button {} "A") (b/button {} "B") (b/button {} "C"))
+      (dom/h4 nil "vertical")
+      (b/button-group {:kind :vertical} (b/button {} "A") (b/button {} "B") (b/button {} "C"))
+      (dom/h4 nil "justified")
+      (b/button-group {:kind :justified} (b/button {} "A") (b/button {} "B") (b/button {} "C")))))
+
+(defcard button-toolbar
+  "A button toolbar puts groups together"
+  (render-example "100%" "75px"
+    (b/container-fluid {}
+      (dom/h4 nil "")
+      (b/button-toolbar {}
+        (b/button-group {} (b/button {} "A") (b/button {} "B") (b/button {} "C"))
+        (b/button-group {} (b/button {} "D") (b/button {} "E"))))))
+
+(defui DropdownRoot
+  static uc/InitialAppState
+  (initial-state [this props] {:dropdown (b/dropdown :file "File" [(b/dropdown-item :open "Open")
+                                                                   (b/dropdown-item :close "Close")
+                                                                   (b/dropdown-divider)
+                                                                   (b/dropdown-item :quit "Quit")])})
+  static om/IQuery
+  (query [this] [{:dropdown (om/get-query b/Dropdown)}])
+  Object
+  (render [this]
+    (let [{:keys [dropdown]} (om/props this)]
+      (render-example "100%" "150px"
+        (dom/div #js {:height "100%" :onClick #(om/transact! this `[(b/close-all-dropdowns {})])}
+          (b/ui-dropdown (om/computed dropdown {:onSelect (fn [id] (js/alert (str "Selected: " id)))})))))))
+
+(defcard dropdown
+  "Active dropdowns are Om components with state.
+
+  dropdown - a function that creates a dropdown's state
+  dropdown-item - a function that creates an items with a label
+  ui-dropdown - renders the dropdown. The onSelect computed property should supply the callback for selection
+
+  All labels are run through `tr-unsafe`, so if a translation for the current locale exists it will be used.
+
+  The following Om mutations are are available:
+
+  Close (or open) a specific dropdown by ID:
+  ```
+  (om/transact! component `[(b/set-dropdown-open {:id :dropdown :open? false})]`)
+  ```
+
+  Close dropdowns (globally). Useful for capturing clicks a the root to close dropdowns when the user clicks outside of
+  an open dropdown.
+
+  ```
+  (om/transact! component `[(b/close-all-dropdowns {})])
+  ```
+
+  An example usage:
+
+  ```
+  (defui DropdownRoot
+    static uc/InitialAppState
+    (initial-state [this props] {:dropdown (b/dropdown :file \"File\" [(b/dropdown-item :open \"Open\")
+                                                                     (b/dropdown-item :close \"Close\")
+                                                                     (b/dropdown-divider)
+                                                                     (b/dropdown-item :quit \"Quit\")])})
+    static om/IQuery
+    (query [this] [{:dropdown (om/get-query b/Dropdown)}])
+    Object
+    (render [this]
+      (let [{:keys [dropdown]} (om/props this)]
+        (b/ui-dropdown (om/computed dropdown {:onSelect (fn [id] (js/alert (str \"Selected: \" id)))})))))
+  ```
+
+  generates this dropdown:
+  "
+  (untangled-app DropdownRoot))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Some internal helpers:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn render-example [width height & children]
   (ele/ui-iframe {:frameBorder 0 :height height :width width}

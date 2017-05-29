@@ -2,6 +2,20 @@
   (:require [om.next :as om :refer [defui]]
             [om.dom :as dom]))
 
+(defn react-instance?
+  "Returns the react-instance (which is logically true) iff the given react instance is an instance of the given react class.
+  Otherwise returns nil."
+  [react-class react-element]
+  {:pre [react-class react-element]}
+  ; TODO: this isn't quite right
+  (when (= (om/react-type react-element) react-class)
+    react-element))
+
+(defn first-node-of-type
+  "Finds (and returns) the first child that is an instance of the given React class (or nil if not found)."
+  [react-class sequence-of-react-instances]
+  (some #(react-instance? react-class %) sequence-of-react-instances))
+
 #?(:cljs
    (defn update-frame-content [this child]
      (let [frame-component (om/get-state this :frame-component)]
