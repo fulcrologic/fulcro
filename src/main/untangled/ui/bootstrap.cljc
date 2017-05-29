@@ -8,7 +8,8 @@
             [untangled.client.mutations :as m]
             [clojure.string :as str]
             [clojure.set :as set]
-            [untangled.client.core :as uc]))
+            [untangled.client.core :as uc]
+            [untangled.client.logging :as log]))
 
 #?(:clj (defn- clj->js [m] m))
 
@@ -356,57 +357,108 @@
   [attrs & children]
   (div-with-class "btn-toolbar" (assoc attrs :role "toolbar") children))
 
-(defn dropdown-item [id label] {::item-id id ::item-label label})
-(defn dropdown-divider [] {::item-label ::divider})
-(defn dropdown [id label items] {::dropdown-id id ::dropdown-label label ::dropdown-items items ::open? false})
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Dropdowns
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def dropdown-table :bootstrap.dropdown/by-id)
+(def dropdown-item-table :bootstrap.dropdown-item/by-id)
+
+(defn dropdown-item
+  "Define the state for an item of a dropdown. Optional named parameter :select-tx is an Om tx to run (in the context of the
+  dropdown) when selected. You may also use the onSelect callback to find out when an item is selected."
+  [id label & {:keys [select-tx]}] {::id id ::label label ::tx select-tx})
+(defn dropdown-divider
+  "Creates a divider between items. Must have a unique ID"
+  [id] {::id id ::label ::divider})
+(defn dropdown
+  "Creates a dropdown's state. Create items with dropdown-item or dropdown-divider."
+  [id label items] {::id id ::label label ::items items ::open? false :type dropdown-table})
+
 (defn dropdown-ident [id-or-props]
   (if (map? id-or-props)
-    (dropdown-ident (::dropdown-id id-or-props))
+    [(:type id-or-props) (::id id-or-props)]
     [dropdown-table id-or-props]))
+(defn dropdown-item-ident [id-or-props]
+  (if (map? id-or-props)
+    (dropdown-item-ident (::id id-or-props))
+    [dropdown-item-table id-or-props]))
 
-(m/defmutation set-dropdown-open [{:keys [id open?]}]
+(m/defmutation set-dropdown-open
+  "Om Mutation. Set the open flag to true/false to open/close the dropdown."
+  [{:keys [id open?]}]
   (action [{:keys [state]}]
     (let [kpath (conj (dropdown-ident id) ::open?)]
       (swap! state assoc-in kpath open?))))
 
+(m/defmutation set-dropdown-item-active
+  "Om Mutation. Set the active flag to true/false on a specific dropdown item, by id."
+  [{:keys [id active?]}]
+  (action [{:keys [state]}]
+    (let [kpath (conj (dropdown-item-ident id) ::active?)]
+      (swap! state assoc-in kpath active?))))
+
 (defn- close-all-dropdowns-impl [dropdown-map]
   (reduce (fn [m id] (assoc-in m [id ::open?] false)) dropdown-map (keys dropdown-map)))
 
-(m/defmutation close-all-dropdowns [ignored]
+(m/defmutation close-all-dropdowns
+  "Om Mutations: Close all dropdowns (globally)"
+  [ignored]
   (action [{:keys [state]}]
     (swap! state update dropdown-table close-all-dropdowns-impl)))
 
-(defui Dropdown
+(defui ^:once DropdownItem
   static om/IQuery
-  (query [this] [::dropdown-id ::dropdown-label ::dropdown-items ::open?])
+  (query [this] [::id ::label ::tx ::active? ::disabled? :type])
+  static om/Ident
+  (ident [this props] (dropdown-item-ident props))
+  Object
+  (render [this]
+    (let [{:keys [::label ::id ::tx ::active? ::disabled?] :or {tx []}} (om/props this)
+          active?  (or active? (om/get-computed this :active?))
+          onSelect (or (om/get-computed this :onSelect) identity)]
+      (if (= ::divider label)
+        (dom/li #js {:key id :role "separator" :className "divider"})
+        (dom/li #js {:key id :className (if disabled? "disabled" "")}
+          (dom/a #js {:onClick (fn [evt]
+                                 (.stopPropagation evt)
+                                 (om/transact! this (into `[(close-all-dropdowns {}) ::open?] tx))
+                                 (onSelect id)
+                                 false)} (tr-unsafe label)))))))
+
+(let [ui-dropdown-item-factory (om/factory DropdownItem {:keyfn ::id})]
+  (defn ui-dropdown-item
+    "Render a dropdown item. The props are the state props of the dropdown item. The additional by-name
+    arguments:
+
+    onSelect - The function to call when a menu item is selected
+    "
+    [props & {:keys [onSelect]}]
+    (ui-dropdown-item-factory (om/computed props {:onSelect onSelect}))))
+
+(defui ^:once Dropdown
+  static om/IQuery
+  (query [this] [::id ::label ::open? {::items (om/get-query DropdownItem)} :type])
   static om/Ident
   (ident [this props] (dropdown-ident props))
   Object
   (render [this]
-    (let [{:keys [::dropdown-id ::dropdown-label ::dropdown-items ::open?]} (om/props this)
+    (let [{:keys [::id ::label ::items ::open?]} (om/props this)
           {:keys [onSelect kind] :or {onSelect identity}} (om/get-computed this)
+          active?   (some ::active? items)
           open-menu (fn [evt]
                       (.stopPropagation evt)
-                      (om/transact! this `[(close-all-dropdowns {}) (set-dropdown-open ~{:id dropdown-id :open? (not open?)})])
-                      false)
-          ui-item   (fn [{:keys [::item-label ::item-id]}]
-                      (if (= ::divider item-label)
-                        (dom/li #js {:key item-label :role "separator" :className "divider"})
-                        (dom/li #js {:key item-label}
-                          (dom/a #js {:onClick (fn [evt]
-                                                 (.stopPropagation evt)
-                                                 (om/transact! this `[(close-all-dropdowns {})])
-                                                 (onSelect item-id)
-                                                 false)} (tr-unsafe item-label)))))]
-      (button-group {:className (str "" (when open? "open"))}
-        (button {:className (str "dropdown-toggle" (when kind (str " btn-" (name kind)))) :aria-haspopup true :aria-expanded open? :onClick open-menu}
-          (tr-unsafe dropdown-label) " " (dom/span #js {:className "caret"}))
+                      (om/transact! this `[(close-all-dropdowns {}) (set-dropdown-open ~{:id id :open? (not open?)})])
+                      false)]
+      (button-group {:className (if open? "open" "")}
+        (button {:className (str "dropdown-toggle"
+                              (when kind (str " btn-" (name kind)))
+                              (when active? " active")) :aria-haspopup true :aria-expanded open? :onClick open-menu}
+          (tr-unsafe label) " " (dom/span #js {:className "caret"}))
         (dom/ul #js {:className "dropdown-menu"}
-          (map #(ui-item %) dropdown-items))))))
+          (map #(ui-dropdown-item % :onSelect onSelect) items))))))
 
-(let [ui-dropdown-factory (om/factory Dropdown {:keyfn ::dropdown-id})]
+(let [ui-dropdown-factory (om/factory Dropdown {:keyfn ::id})]
   (defn ui-dropdown
     "Render a dropdown. The props are the state props of the dropdown. The additional by-name
     arguments:
@@ -415,3 +467,81 @@
     kind - The kind of dropdown. See `button`."
     [props & {:keys [onSelect kind]}]
     (ui-dropdown-factory (om/computed props {:onSelect onSelect :kind kind}))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; NAV (tabs/pills)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def nav-table :bootstrap.nav/by-id)
+(def nav-link-table :bootstrap.navitem/by-id)
+
+(defn nav-link
+  "Creates a navigation link. ID must be globally unique. The label will be run through `tr-unsafe`, so it can be
+  internationalized. The `app-nav-tx` is an Om transaction to run when this link is selected."
+  [id label disabled? select-tx]
+  {::id id ::label label ::disbled? disabled? ::tx select-tx :type nav-link-table})
+
+(defn nav-link-ident [id-or-props]
+  (if (map? id-or-props)
+    [(:type id-or-props) (::id id-or-props)]
+    [nav-link-table id-or-props]))
+(defn nav-ident [id-or-props]
+  (if (map? id-or-props)
+    [nav-table (::id id-or-props)]
+    [nav-table id-or-props]))
+
+(defn nav
+  "Creates a navigation control.
+
+  - kind - One of :tabs or :pills
+  - layout - One of :normal, :stacked or :justified
+  - active-link-id - Which of the nested links is the active one
+  - links - A vector of `nav-link` or `dropdown` instances."
+  [id kind layout active-link-id links]
+  {::id id ::kind kind ::layout layout ::active-link-id active-link-id ::links links})
+
+(defui ^:once NavLink
+  static om/IQuery
+  (query [this] [::id ::label ::disabled? ::tx :type])
+  static om/Ident
+  (ident [this props] (nav-link-ident props))
+  Object
+  (render [this]
+    (let [{:keys [::id ::label ::disabled? ::tx]} (om/props this)
+          active? (om/get-computed this :active?)]
+      (dom/li #js {:role "presentation" :className (cond-> ""
+                                                     active? (str " active")
+                                                     disabled? (str " disabled"))}
+        (dom/a #js {:onClick #(om/transact! this tx)} (tr-unsafe label))))))
+
+(def ui-nav-link (om/factory NavLink {:keyfn ::id}))
+
+(defui ^:once NavItemUnion
+  static om/Ident
+  (ident [this {:keys [::id type]}] [type id])
+  static om/IQuery
+  (query [this] {dropdown-table (om/get-query Dropdown) nav-link-table (om/get-query NavLink)})
+  Object
+  (render [this]
+    (let [{:keys [type] :as child} (om/props this)
+          computed (om/get-computed this)]
+      (log/error (meta child))
+      (case type
+        :bootstrap.navitem/by-id (ui-nav-link (om/computed child computed))
+        :bootstrap.dropdown/by-id (ui-dropdown (om/computed child computed))
+        (dom/p nil "Unknown link type!")))))
+
+(def ui-nav-item (om/factory NavItemUnion {:keyfn ::id}))
+
+(defui ^:once Nav
+  static om/Ident
+  (ident [this props] (nav-ident props))
+  static om/IQuery
+  (query [this] [::id ::kind ::layout ::active-link-id {::links (om/get-query NavItemUnion)}])
+  Object
+  (render [this]
+    (let [{:keys [::id ::kind ::layout ::active-link-id ::links]} (om/props this)]
+      (dom/ul #js {:className (str "nav nav-" (name kind) (case layout :justified " nav-justified" :stacked " nav-stacked" ""))}
+        (map #(ui-nav-item (om/computed % {:active? (= (::id %) active-link-id)})) links)))))
+
+(def ui-nav (om/factory Nav {:keyfn ::id}))

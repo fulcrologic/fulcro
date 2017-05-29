@@ -8,6 +8,7 @@
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [untangled.ui.elements :as ele]
             [untangled.client.cards :refer [untangled-app]]
+            [untangled.client.mutations :as m]
             [untangled.ui.bootstrap :as b]
             [untangled.client.core :as uc]))
 
@@ -335,11 +336,16 @@
         (b/button-group {} (b/button {} "A") (b/button {} "B") (b/button {} "C"))
         (b/button-group {} (b/button {} "D") (b/button {} "E"))))))
 
+(m/defmutation close-file "" [ignored]
+  (action [{:keys [state]}] (js/console.log :CLOSING-FILE)))
+
 (defui DropdownRoot
   static uc/InitialAppState
   (initial-state [this props] {:dropdown (b/dropdown :file "File" [(b/dropdown-item :open "Open")
-                                                                   (b/dropdown-item :close "Close")
-                                                                   (b/dropdown-divider)
+                                                                   (b/dropdown-item :close "Close"
+                                                                     :select-tx `[(close-file {})
+                                                                                  (b/set-dropdown-item-active {:id :close :active? true})])
+                                                                   (b/dropdown-divider :divider-1)
                                                                    (b/dropdown-item :quit "Quit")])})
   static om/IQuery
   (query [this] [{:dropdown (om/get-query b/Dropdown)}])
@@ -347,7 +353,9 @@
   (render [this]
     (let [{:keys [dropdown]} (om/props this)]
       (render-example "100%" "150px"
-        (let [select (fn [id] (js/alert (str "Selected: " id)))]
+        (let [select (fn [id]
+                       (om/transact! this `[(b/set-dropdown-item-active ~{:id id})])
+                       (js/alert (str "Selected: " id)))]
           (dom/div #js {:height "100%" :onClick #(om/transact! this `[(b/close-all-dropdowns {})])}
             (b/ui-dropdown dropdown :onSelect select :kind :success)))))))
 
@@ -358,7 +366,7 @@
   Active dropdowns are Om components with state.
 
   - `dropdown` - a function that creates a dropdown's state
-  - `dropdown-item` - a function that creates an items with a label
+  - `dropdown-item` - a function that creates an items with a label, and optional Om tx to run when selected
   - `ui-dropdown` - renders the dropdown. It requires the dropdown's properties, and allows optional named arguments:
      - `:onSelect` the callback for selection. It is given the selected element's id
      - `:kind` Identical to the `button` `:kind` attribute.
@@ -379,13 +387,21 @@
   (om/transact! component `[(b/close-all-dropdowns {})])
   ```
 
+  You can set highlighting on an item in the menu (to mark it as active) with:
+
+  ```
+  (om/transact! component `[(b/set-dropdown-item-active {:id :item-id :active? true})])
+  ```
+
   An example usage:
 
   ```
   (defui DropdownRoot
     static uc/InitialAppState
     (initial-state [this props] {:dropdown (b/dropdown :file \"File\" [(b/dropdown-item :open \"Open\")
-                                                                     (b/dropdown-item :close \"Close\")
+                                                                     (b/dropdown-item :close \"Close\"
+                                                                       ; run mutations f and g when close is selected
+                                                                       :select-tx `[(app/f) (app/g)])
                                                                      (b/dropdown-divider)
                                                                      (b/dropdown-item :quit \"Quit\")])})
     static om/IQuery
@@ -399,8 +415,26 @@
   generates the dropdown in the card below.
   ")
 
-(defcard dropdown
-  (untangled-app DropdownRoot))
+(defcard dropdown (untangled-app DropdownRoot))
+
+(defui NavRoot
+  static uc/InitialAppState
+  (initial-state [this props] {:nav (b/nav :main-nav :tabs :normal
+                                      :home
+                                      [(b/nav-link :home "Home" false `[(nav-to {:page :home})])
+                                       (b/nav-link :other "Other" false `[(nav-to {:page :other})])
+                                       (b/dropdown :reports "Reports"
+                                         [(b/dropdown-item :report-1 "Report 1")
+                                          (b/dropdown-item :report-2 "Report 2")])])})
+  static om/IQuery
+  (query [this] [{:nav (om/get-query b/Nav)}])
+  Object
+  (render [this]
+    (let [{:keys [nav]} (om/props this)]
+      (render-example "100%" "150px"
+        (b/ui-nav nav)))))
+
+(defcard nav-tabs (untangled-app NavRoot))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Some internal helpers:

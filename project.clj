@@ -7,7 +7,7 @@
                  [org.clojure/clojurescript "1.9.542" :scope "provided"]
                  [org.clojure/spec.alpha "0.1.94"]
                  [devcards "0.2.3" :scope "provided"]
-                 [org.omcljs/om "1.0.0-alpha48"]
+                 [org.omcljs/om "1.0.0-beta1"]
                  [lein-doo "0.1.7" :scope "test"]
                  [http-kit "2.2.0"]
                  [ring/ring-defaults "0.2.3"]
