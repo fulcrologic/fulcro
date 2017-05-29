@@ -11,8 +11,6 @@
             [untangled.ui.bootstrap :as b]
             [untangled.client.core :as uc]))
 
-(enable-console-print!)
-
 (declare render-example sample)
 
 (defcard-doc
@@ -349,15 +347,21 @@
   (render [this]
     (let [{:keys [dropdown]} (om/props this)]
       (render-example "100%" "150px"
-        (dom/div #js {:height "100%" :onClick #(om/transact! this `[(b/close-all-dropdowns {})])}
-          (b/ui-dropdown (om/computed dropdown {:onSelect (fn [id] (js/alert (str "Selected: " id)))})))))))
+        (let [select (fn [id] (js/alert (str "Selected: " id)))]
+          (dom/div #js {:height "100%" :onClick #(om/transact! this `[(b/close-all-dropdowns {})])}
+            (b/ui-dropdown dropdown :onSelect select :kind :success)))))))
 
-(defcard dropdown
-  "Active dropdowns are Om components with state.
+(defcard-doc
+  "
+  # Active Dropdown Component
 
-  dropdown - a function that creates a dropdown's state
-  dropdown-item - a function that creates an items with a label
-  ui-dropdown - renders the dropdown. The onSelect computed property should supply the callback for selection
+  Active dropdowns are Om components with state.
+
+  - `dropdown` - a function that creates a dropdown's state
+  - `dropdown-item` - a function that creates an items with a label
+  - `ui-dropdown` - renders the dropdown. It requires the dropdown's properties, and allows optional named arguments:
+     - `:onSelect` the callback for selection. It is given the selected element's id
+     - `:kind` Identical to the `button` `:kind` attribute.
 
   All labels are run through `tr-unsafe`, so if a translation for the current locale exists it will be used.
 
@@ -389,11 +393,13 @@
     Object
     (render [this]
       (let [{:keys [dropdown]} (om/props this)]
-        (b/ui-dropdown (om/computed dropdown {:onSelect (fn [id] (js/alert (str \"Selected: \" id)))})))))
+        (b/ui-dropdown dropdown :kind :success :onSelect (fn [id] (js/alert (str \"Selected: \" id)))))))
   ```
 
-  generates this dropdown:
-  "
+  generates the dropdown in the card below.
+  ")
+
+(defcard dropdown
   (untangled-app DropdownRoot))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

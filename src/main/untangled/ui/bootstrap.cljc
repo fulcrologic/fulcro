@@ -1,7 +1,8 @@
 (ns untangled.ui.bootstrap
   (:require [om.dom :as dom]
             [om.next :as om :refer [defui]]
-            #?(:clj js)
+    #?(:clj
+            js)
             [untangled.ui.elements :as ele]
             [untangled.i18n :refer [tr tr-unsafe]]
             [untangled.client.mutations :as m]
@@ -385,7 +386,7 @@
   Object
   (render [this]
     (let [{:keys [::dropdown-id ::dropdown-label ::dropdown-items ::open?]} (om/props this)
-          onSelect  (or (om/get-computed this :onSelect) identity)
+          {:keys [onSelect kind] :or {onSelect identity}} (om/get-computed this)
           open-menu (fn [evt]
                       (.stopPropagation evt)
                       (om/transact! this `[(close-all-dropdowns {}) (set-dropdown-open ~{:id dropdown-id :open? (not open?)})])
@@ -400,9 +401,17 @@
                                                  (onSelect item-id)
                                                  false)} (tr-unsafe item-label)))))]
       (button-group {:className (str "" (when open? "open"))}
-        (button {:className "dropdown-toggle" :aria-haspopup true :aria-expanded open? :onClick open-menu}
+        (button {:className (str "dropdown-toggle" (when kind (str " btn-" (name kind)))) :aria-haspopup true :aria-expanded open? :onClick open-menu}
           (tr-unsafe dropdown-label) " " (dom/span #js {:className "caret"}))
         (dom/ul #js {:className "dropdown-menu"}
           (map #(ui-item %) dropdown-items))))))
 
-(def ui-dropdown (om/factory Dropdown {:keyfn ::dropdown-id}))
+(let [ui-dropdown-factory (om/factory Dropdown {:keyfn ::dropdown-id})]
+  (defn ui-dropdown
+    "Render a dropdown. The props are the state props of the dropdown. The additional by-name
+    arguments:
+
+    onSelect - The function to call when a menu item is selected
+    kind - The kind of dropdown. See `button`."
+    [props & {:keys [onSelect kind]}]
+    (ui-dropdown-factory (om/computed props {:onSelect onSelect :kind kind}))))
