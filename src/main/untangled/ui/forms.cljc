@@ -1040,7 +1040,11 @@
       (let [[_ id :as ident] (form-ident form)
             fields (element-names form)]
         (if (om/tempid? id)
-          (assoc-in diff [:form/new-entities ident] (select-keys form (remove (partial ui-field? form) fields)))
+          (reduce
+           (partial field-diff form)
+           (assoc-in diff [:form/new-entities ident] (select-keys form (into [] (comp (remove (partial ui-field? form))
+                                                                                      (remove (partial is-subform? form))) fields)))
+           fields)
           (transduce (comp
                        (remove (partial ui-field? form))
                        (filter (partial dirty-field? form)))

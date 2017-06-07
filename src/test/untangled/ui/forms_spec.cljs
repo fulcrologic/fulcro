@@ -187,13 +187,16 @@
                      (f/text-input :person/name :className "name-class")
                      (f/text-input :ui.person/client-only)]))
 
+(def new-person-id (om/tempid))
+
 (def person-db {:phone/by-id  {1 {:db/id 1 :phone/number "555-1212"}
                                2 {:db/id 2 :phone/number "555-3345"}}
                 :people/by-id {3 {:db/id 3 :person/name "B"}
                                7 {:db/id 7 :person/name "A" :person/number [:phone/by-id 1]}
                                5 {:db/id 5 :person/name "D" :person/number []}
                                4 {:db/id 4 :person/name "C" :person/number [[:phone/by-id 1] [:phone/by-id 2]]}
-                               6 {:db/id 6 :person/name "E" :person/number [[:phone/by-id 1]]}}})
+                               6 {:db/id 6 :person/name "E" :person/number [[:phone/by-id 1]]}
+                               new-person-id {:db/id new-person-id :person/name "F"}}})
 
 (specification "Initializing a to-one form relation"
   (let [app-state person-db
@@ -625,6 +628,7 @@
       no-number-person       (get-entity PolyPerson [:people/by-id 5])
       many-number-person     (get-entity PolyPerson [:people/by-id 4])
       one-many-number-person (get-entity PolyPerson [:people/by-id 6])
+      new-person             (get-entity Person [:people/by-id new-person-id])
 
       [t1] (repeatedly om/tempid)]
   (specification "Form entity commit"
@@ -666,6 +670,14 @@
             (-> one-number-person
               (assoc-in [:person/number :phone/number] "123-4567")
               f/diff-form) => {:form/updates {[:phone/by-id 1] {:phone/number "123-4567"}}}
+            "includes the new relation for to-one on a new entity and the phone/number update"
+            (-> new-person
+              (assoc :person/number (f/build-form Phone {:db/id 1}))
+              (assoc-in [:person/number :phone/number] "123-4567")
+              f/diff-form)
+            => {:form/updates {[:phone/by-id 1] {:phone/number "123-4567"}}
+                :form/new-entities {[:people/by-id new-person-id] {:person/name "F"}}
+                :form/add-relations {[:people/by-id new-person-id] {:person/number [:phone/by-id 1]}}}
             "includes properties from to-many subforms"
             (-> many-number-person
               (assoc-in [:person/number 0 :phone/number] "123-4567")
@@ -680,7 +692,8 @@
             (-> basic-person
               (assoc :person/number (f/build-form Phone {:db/id t1 :phone/number "123-4567"}))
               f/diff-form
-              :form/updates) => nil))
+              :form/updates) => nil
+            ))
         ; TODO: CONTINUE HERE...
         (component ":form/add-relations"
           (assertions
@@ -695,6 +708,12 @@
               f/diff-form
               :form/add-relations)
             => {(f/form-ident one-number-person) {:person/number [:phone/by-id 2]}}
+            "Includes the new relation for a change to a to-one on a new entity"
+            (-> new-person
+              (assoc :person/number (f/build-form Phone {:db/id 2}))
+              f/diff-form
+              :form/add-relations)
+            => {(f/form-ident new-person) {:person/number [:phone/by-id 2]}}
             "Includes the added item in a to-many relation that started empty"
             (-> no-number-person
               (update :person/number conj (f/build-form Phone {:db/id 1}))
@@ -730,6 +749,12 @@
               (assoc :person/number [])
               f/diff-form)
             => {:form/remove-relations {(f/form-ident one-many-number-person) {:person/number [[:phone/by-id 1]]}}}
+            "Includes the new relation for a change to a to-one on a new entity"
+            (-> new-person
+              (assoc :person/number (f/build-form Phone {:db/id 2}))
+              f/diff-form
+              :form/add-relations)
+            => {(f/form-ident new-person) {:person/number [:phone/by-id 2]}}
             "Changing a to-many ref includes the ref removed"
             (-> many-number-person
               (assoc-in [:person/number 0] (f/build-form Phone {:db/id 3}))
@@ -744,7 +769,14 @@
               (assoc :person/number (f/build-form Phone {:db/id t1 :phone/number "123-4567"}))
               f/diff-form)
             => {:form/new-entities  {[:phone/by-id t1] {:phone/number "123-4567"}}
-                :form/add-relations {(f/form-ident basic-person) {:person/number [:phone/by-id t1]}}})))
+                :form/add-relations {(f/form-ident basic-person) {:person/number [:phone/by-id t1]}}}
+            "Includes two :form/new-entities and :form/add-relations to build the remote graph when adding all new things"
+            (-> new-person
+              (assoc :person/number (f/build-form Phone {:db/id t1 :phone/number "123-4567"}))
+              f/diff-form)
+            => {:form/new-entities  {[:phone/by-id t1] {:phone/number "123-4567"}
+                                     (f/form-ident new-person) {:person/name "F"}}
+                :form/add-relations {(f/form-ident new-person) {:person/number [:phone/by-id t1]}}})))
 
       (when-mocking
         (f/entity-xform _ form-id xf) => (do (assertions
