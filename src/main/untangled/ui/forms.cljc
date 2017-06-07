@@ -1044,7 +1044,7 @@
            (partial field-diff form)
            (assoc-in diff [:form/new-entities ident] (select-keys form (into [] (comp (remove (partial ui-field? form))
                                                                                       (remove (partial is-subform? form))) fields)))
-           fields)
+           (filter (partial is-subform? form) fields))
           (transduce (comp
                        (remove (partial ui-field? form))
                        (filter (partial dirty-field? form)))
