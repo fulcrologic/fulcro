@@ -188,8 +188,16 @@
 (defcard todo-list-application-solution-bonus
   "The bonus for the final solution:
 
-  You can avoid the post-mutation with a query on load like this (assuming you implement
-  the response correctly on the server, which we've done in `putting_together.clj`):
+  You can avoid the post-mutation by loading via ident. Of course you must implement
+  the query response correctly on the server, which we've done in `putting_together.clj`):
+
+  The load will be:
+
+  ```clojure
+  (df/load reconciler [:lists/by-title \"My List\"] soln3/ItemList)
+  ```
+
+  and the query sent to the server will end up being a join on the ident:
 
   ```clojure
   [{[:lists/by-title \"My List\"] (om/get-query ItemList)}]
