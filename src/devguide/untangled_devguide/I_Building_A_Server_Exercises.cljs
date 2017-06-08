@@ -92,7 +92,7 @@
     (let [{:keys [ui/loading-data something] :as props} (om/props this)]
       (dom/div nil
         (dom/h2 nil (str "Root " (if loading-data "(loading)" "")))
-        (dom/button #js {:onClick (fn [evt] (df/load-data this [:something]))} "Load data")
+        (dom/button #js {:onClick (fn [evt] (df/load this :something nil))} "Load data")
         (df/lazily-loaded render-something something)))))
 
 (defcard server-exercise-1
@@ -102,8 +102,9 @@
   is updated during loading, allowing you to place a global network indicator on your UI (you can
   query it anywhere via a link).
 
-  A fetch state is placed in the application database at the top-level key of the query. The query for
-  `load-data` should be a single item or collection (e.g. a join or a property).
+TODO: Make this better...this is so lame.
+  A fetch state is placed in the application database at the top-level key given. The query for
+  `load` should be a single item or collection (e.g. a join or a property).
 
   The data fetch render helper `lazily-loaded` can be used to render the various possible states of the
   data fetch (usually just loading, but failed and others are possible).

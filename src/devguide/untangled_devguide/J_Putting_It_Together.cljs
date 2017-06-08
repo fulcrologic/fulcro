@@ -48,7 +48,7 @@
 
 (defcard check-setup
   "This card checks to see if your server is working. Start your server, then reload this page on that server and you should see a SERVER RESPONDED message."
-  (untangled-app CheckSetupRoot :started-callback (fn [{:keys [reconciler] :as app}] (df/load-data reconciler [:something]))))
+  (untangled-app CheckSetupRoot :started-callback (fn [{:keys [reconciler] :as app}] (df/load reconciler :something nil))))
 
 (defcard-doc "
   ## The Project
@@ -177,18 +177,18 @@
   "
 
   (untangled-app soln3/TodoList
-                 :started-callback
-                 (fn [{:keys [reconciler]}]
-                   (df/load-data reconciler
-                                 `[({:ex4/list ~(om/get-query soln3/TodoItem)} {:list "My List"})]
-                                 :post-mutation 'pit-soln/populate-list)))
+    :started-callback
+    (fn [{:keys [reconciler]}]
+      (df/load reconciler :ex4/list soln3/TodoItem {:params        {:list "My List"}
+                                                    :refresh       [:item-list]
+                                                    :post-mutation 'pit-soln/populate-list})))
   {}
   {:inspect-data true})
 
 (defcard todo-list-application-solution-bonus
   "The bonus for the final solution:
 
-  You can avoid the post-mutation with a query on load-data like this (assuming you implement
+  You can avoid the post-mutation with a query on load like this (assuming you implement
   the response correctly on the server, which we've done in `putting_together.clj`):
 
   ```clojure
@@ -199,11 +199,9 @@
   You should reload the page between playing with each of them.
   "
   (untangled-app soln3/TodoList
-                 :started-callback
-                 (fn [{:keys [reconciler]}]
-                   (js/console.log :LOADING)
-                   (df/load-data reconciler
-                                 `[{[:lists/by-title "My List"] ~(om/get-query soln3/ItemList)}])))
+    :started-callback
+    (fn [{:keys [reconciler]}]
+      (df/load reconciler [:lists/by-title "My List"] soln3/ItemList)))
   {}
   {:inspect-data true})
 
