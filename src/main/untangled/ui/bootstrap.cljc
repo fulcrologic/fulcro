@@ -422,8 +422,7 @@
         (dom/li #js {:key id :className (if disabled? "disabled" "")}
           (dom/a #js {:onClick (fn [evt]
                                  (.stopPropagation evt)
-                                 (om/transact! this (into `[(close-all-dropdowns {}) ::open?] tx))
-                                 (onSelect id)
+                                 (onSelect id tx)
                                  false)} (tr-unsafe label)))))))
 
 (let [ui-dropdown-item-factory (om/factory DropdownItem {:keyfn ::id})]
@@ -444,8 +443,12 @@
   Object
   (render [this]
     (let [{:keys [::id ::label ::items ::open?]} (om/props this)
-          {:keys [onSelect kind] :or {onSelect identity}} (om/get-computed this)
+          {:keys [onSelect kind]} (om/get-computed this)
           active?   (some ::active? items)
+          onSelect  (fn [id tx]
+                      (let [tx (if tx tx [])]
+                        (om/transact! this (into `[(close-all-dropdowns {})] tx)))
+                      (when onSelect (onSelect id)))
           open-menu (fn [evt]
                       (.stopPropagation evt)
                       (om/transact! this `[(close-all-dropdowns {}) (set-dropdown-open ~{:id id :open? (not open?)})])
@@ -525,7 +528,6 @@
   (render [this]
     (let [{:keys [type] :as child} (om/props this)
           computed (om/get-computed this)]
-      (log/error (meta child))
       (case type
         :bootstrap.navitem/by-id (ui-nav-link (om/computed child computed))
         :bootstrap.dropdown/by-id (ui-dropdown (om/computed child computed))

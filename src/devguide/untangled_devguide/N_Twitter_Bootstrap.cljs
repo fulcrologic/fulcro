@@ -417,22 +417,32 @@
 
 (defcard dropdown (untangled-app DropdownRoot))
 
+(m/defmutation nav-to [{:keys [page]}]
+  (action [{:keys [state]}] (swap! state assoc :current-page page)))
+
 (defui NavRoot
   static uc/InitialAppState
-  (initial-state [this props] {:nav (b/nav :main-nav :tabs :normal
-                                      :home
-                                      [(b/nav-link :home "Home" false `[(nav-to {:page :home})])
-                                       (b/nav-link :other "Other" false `[(nav-to {:page :other})])
-                                       (b/dropdown :reports "Reports"
-                                         [(b/dropdown-item :report-1 "Report 1")
-                                          (b/dropdown-item :report-2 "Report 2")])])})
+  (initial-state [this props] {:current-page :home
+                               :nav          (b/nav :main-nav :tabs :normal
+                                               :home
+                                               [(b/nav-link :home "Home" false `[(nav-to {:page :home}) :current-page])
+                                                (b/nav-link :other "Other" false `[(nav-to {:page :other}) :current-page])
+                                                (b/dropdown :reports "Reports"
+                                                  [(b/dropdown-item :report-1 "Report 1" :select-tx `[(nav-to {:page :report-1}) :current-page])
+                                                   (b/dropdown-item :report-2 "Report 2" :select-tx `[(nav-to {:page :report-2}) :current-page])])])})
   static om/IQuery
-  (query [this] [{:nav (om/get-query b/Nav)}])
+  (query [this] [:current-page {:nav (om/get-query b/Nav)}])
   Object
   (render [this]
-    (let [{:keys [nav]} (om/props this)]
+    (let [{:keys [nav current-page]} (om/props this)]
       (render-example "100%" "150px"
-        (b/ui-nav nav)))))
+        (b/container-fluid {}
+          (b/row {}
+            (b/col {:xs 12}
+              (b/ui-nav nav)))
+          (b/row {}
+            (b/col {:xs 12}
+              (dom/p #js {} (str "Current page: " current-page)))))))))
 
 (defcard nav-tabs (untangled-app NavRoot))
 
