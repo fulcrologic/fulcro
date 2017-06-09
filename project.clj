@@ -1,5 +1,5 @@
-(defproject untangled-web/untangled "1.0.0-SNAPSHOT"
-  :description "A library for building full-stack SPA webapps"
+(defproject awkay/untangled "1.0.0-SNAPSHOT"
+  :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}

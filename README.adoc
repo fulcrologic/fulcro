@@ -21,7 +21,7 @@ WARNING: The content below has not yet been updated, so it main contain incorrec
 What follows is a quick start tutorial that assumes at least a passing familiarity with ClojureScript and Figwheel. For
 an more information & depth, check out the links in <<Learn more>>.
 
-image::https://img.shields.io/clojars/v/untangled/untangled.svg[link=https://clojars.org/untangled/untangled]
+image::https://img.shields.io/clojars/v/awkay/untangled.svg[link=https://clojars.org/awkay/untangled]
 
 Release: image:https://api.travis-ci.org/awkay/untangled.svg?branch=master[link=https://github.com/awkay/untangled/tree/master]
 Snapshot: image:https://api.travis-ci.org/awkay/untangled.svg?branch=develop[link=https://github.com/awkay/untangled/tree/develop]
@@ -62,10 +62,11 @@ If you copy/paste the following file into a `project.clj` it will serve as a goo
 ----
 (defproject client-demo "1.0.0"
   :description "Untangled Client Quickstart"
-  :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.8.51"]
-                 [org.omcljs/om "1.0.0-alpha46"]
-                 [untangled/untangled "1.0.0"]]
+  :dependencies [[org.clojure/clojure "1.9.0-alpah16"]
+                 [org.clojure/clojurescript "1.9.542"]
+                 [org.clojure/spec.alpha "0.1.94"]
+                 [org.omcljs/om "1.0.0-beta1"]
+                 [awkay/untangled "1.0.0-SNAPSHOT"]]
 
   ; needed or compiled js files won't get cleaned
   :clean-targets ^{:protect false} ["resources/public/js/compiled" "target" "i18n/out"]
@@ -84,8 +85,8 @@ If you copy/paste the following file into a `project.clj` it will serve as a goo
                                        :optimizations        :none}}]}
 
   ; figwheel dependency and chrome data structure formatting tools (formatting cljs in source debugging and logging)
-  :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.7"]
-                                  [binaryage/devtools "0.6.1"]]}})
+  :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.10"]
+                                  [binaryage/devtools "0.9.2"]]}})
 ----
 
 ### Setting up Folders and Supporting files
