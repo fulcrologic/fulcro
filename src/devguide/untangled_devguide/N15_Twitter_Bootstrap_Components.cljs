@@ -11,7 +11,7 @@
             [untangled.ui.elements :as ele]
             [untangled.client.cards :refer [untangled-app]]
             [untangled.client.mutations :as m]
-            [untangled.ui.bootstrap :as b]
+            [untangled.ui.bootstrap3 :as b]
             [untangled.client.core :as uc]))
 
 (defui DropdownRoot

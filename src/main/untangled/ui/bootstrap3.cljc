@@ -1,4 +1,4 @@
-(ns untangled.ui.bootstrap
+(ns untangled.ui.bootstrap3
   (:require [om.dom :as dom]
             [om.next :as om :refer [defui]]
     #?(:clj
