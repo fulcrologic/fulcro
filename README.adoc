@@ -7,15 +7,17 @@
 :sectanchors:
 :sectnums:
 
-The client library for the Untangled Web framework.
+Untangled is a library stacked on Om Next that provides much of what is needed to use that library (client parser,
+networking, server elements, a database format, clear constructs for data loading). The intention is to provide you
+with most of the experience of Om Next with very little of the pain.
 
 What follows is a quick start tutorial that assumes at least a passing familiarity with ClojureScript and Figwheel. For
-an more information & depth, checkout the links in <<Learn more>>.
+an more information & depth, check out the links in <<Learn more>>.
 
 image::https://img.shields.io/clojars/v/untangled/untangled.svg[link=https://clojars.org/untangled/untangled]
 
 Release: image:https://api.travis-ci.org/awkay/untangled.svg?branch=master[link=https://github.com/awkay/untangled/tree/master]
-Snapshot: image:https://api.travis-ci.org/awkay/untangled.svg?branch=develop[link=https://github.com/untangled/untangled/tree/develop]
+Snapshot: image:https://api.travis-ci.org/awkay/untangled.svg?branch=develop[link=https://github.com/awkay/untangled/tree/develop]
 
 == Learn more
 
