@@ -11,6 +11,13 @@ Untangled is a library stacked on Om Next that provides much of what is needed t
 networking, server elements, a database format, clear constructs for data loading). The intention is to provide you
 with most of the experience of Om Next with very little of the pain.
 
+NOTE: THIS LIBRARY IS CURRENTLY A WORK IN PROGRESS. This is an effort to combine many parts of the Untangled ecosystem
+that are currently in separate small libraries (including the devguide and demos) into a single one.
+The overall ecosystem is less than 3KLOC, and as a single maintainer it makes it much easier to maintain and develop
+without any significant downsides to the consumer.
+
+WARNING: The content below has not yet been updated, so it main contain incorrect names.
+
 What follows is a quick start tutorial that assumes at least a passing familiarity with ClojureScript and Figwheel. For
 an more information & depth, check out the links in <<Learn more>>.
 
