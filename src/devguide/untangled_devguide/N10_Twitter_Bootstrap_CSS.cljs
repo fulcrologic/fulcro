@@ -1,4 +1,4 @@
-(ns untangled-devguide.N-Twitter-Bootstrap
+(ns untangled-devguide.N10-Twitter-Bootstrap-CSS
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
@@ -20,10 +20,26 @@
 
   Untangled includes functions that emit the DOM with CSS for version 3 of Twitter's Bootstrap CSS and Components.
 
-  Notice that the CSS affects many DOM elements, which means you'll see examples that use Om's DOM functions, which
+  NOTE: You must include version 3 of Bootstrap's CSS (and optionally theme), but *not* js, in your HTML file.
+
+  The CSS affects many DOM elements, which means you'll see examples that use Om's DOM functions, which
   in turn require a JavaScript object as the first argument (for performance). The helper functions from the
   `bootstrap` namespace need to modify the incoming arguments, so the first argument (if it takes DOM props) is
-  a cljs map instead. ")
+  a cljs map instead.
+
+  ```
+  ; render an Om regular DOM element:
+  (dom/div #js { :className \"a\" })
+  ; render a bootstrap element via one of these functions
+  (b/button { :className \"b\"} \"Button label\")
+  ```
+
+  The javascript object verion with regular DOM elements avoid data conversion overhead at runtime. The bootstrap functions
+  in this library need to augment and manipulate the passed parameters, so they use cljs maps instead.
+
+  This documentation covers the passive elements that largely add in proper structure and classnames for bootstrap rendering. The
+  other sections on bootstrap cover active elements.
+  ")
 
 (defn- col [attrs children] (b/col (assoc attrs :className "boxed") children))
 
@@ -335,116 +351,6 @@
       (b/button-toolbar {}
         (b/button-group {} (b/button {} "A") (b/button {} "B") (b/button {} "C"))
         (b/button-group {} (b/button {} "D") (b/button {} "E"))))))
-
-(m/defmutation close-file "" [ignored]
-  (action [{:keys [state]}] (js/console.log :CLOSING-FILE)))
-
-(defui DropdownRoot
-  static uc/InitialAppState
-  (initial-state [this props] {:dropdown (b/dropdown :file "File" [(b/dropdown-item :open "Open")
-                                                                   (b/dropdown-item :close "Close"
-                                                                     :select-tx `[(close-file {})
-                                                                                  (b/set-dropdown-item-active {:id :close :active? true})])
-                                                                   (b/dropdown-divider :divider-1)
-                                                                   (b/dropdown-item :quit "Quit")])})
-  static om/IQuery
-  (query [this] [{:dropdown (om/get-query b/Dropdown)}])
-  Object
-  (render [this]
-    (let [{:keys [dropdown]} (om/props this)]
-      (render-example "100%" "150px"
-        (let [select (fn [id]
-                       (om/transact! this `[(b/set-dropdown-item-active ~{:id id})])
-                       (js/alert (str "Selected: " id)))]
-          (dom/div #js {:height "100%" :onClick #(om/transact! this `[(b/close-all-dropdowns {})])}
-            (b/ui-dropdown dropdown :onSelect select :kind :success)))))))
-
-(defcard-doc
-  "
-  # Active Dropdown Component
-
-  Active dropdowns are Om components with state.
-
-  - `dropdown` - a function that creates a dropdown's state
-  - `dropdown-item` - a function that creates an items with a label, and optional Om tx to run when selected
-  - `ui-dropdown` - renders the dropdown. It requires the dropdown's properties, and allows optional named arguments:
-     - `:onSelect` the callback for selection. It is given the selected element's id
-     - `:kind` Identical to the `button` `:kind` attribute.
-
-  All labels are run through `tr-unsafe`, so if a translation for the current locale exists it will be used.
-
-  The following Om mutations are are available:
-
-  Close (or open) a specific dropdown by ID:
-  ```
-  (om/transact! component `[(b/set-dropdown-open {:id :dropdown :open? false})]`)
-  ```
-
-  Close dropdowns (globally). Useful for capturing clicks a the root to close dropdowns when the user clicks outside of
-  an open dropdown.
-
-  ```
-  (om/transact! component `[(b/close-all-dropdowns {})])
-  ```
-
-  You can set highlighting on an item in the menu (to mark it as active) with:
-
-  ```
-  (om/transact! component `[(b/set-dropdown-item-active {:id :item-id :active? true})])
-  ```
-
-  An example usage:
-
-  ```
-  (defui DropdownRoot
-    static uc/InitialAppState
-    (initial-state [this props] {:dropdown (b/dropdown :file \"File\" [(b/dropdown-item :open \"Open\")
-                                                                     (b/dropdown-item :close \"Close\"
-                                                                       ; run mutations f and g when close is selected
-                                                                       :select-tx `[(app/f) (app/g)])
-                                                                     (b/dropdown-divider)
-                                                                     (b/dropdown-item :quit \"Quit\")])})
-    static om/IQuery
-    (query [this] [{:dropdown (om/get-query b/Dropdown)}])
-    Object
-    (render [this]
-      (let [{:keys [dropdown]} (om/props this)]
-        (b/ui-dropdown dropdown :kind :success :onSelect (fn [id] (js/alert (str \"Selected: \" id)))))))
-  ```
-
-  generates the dropdown in the card below.
-  ")
-
-(defcard dropdown (untangled-app DropdownRoot))
-
-(m/defmutation nav-to [{:keys [page]}]
-  (action [{:keys [state]}] (swap! state assoc :current-page page)))
-
-(defui NavRoot
-  static uc/InitialAppState
-  (initial-state [this props] {:current-page :home
-                               :nav          (b/nav :main-nav :tabs :normal
-                                               :home
-                                               [(b/nav-link :home "Home" false `[(nav-to {:page :home}) :current-page])
-                                                (b/nav-link :other "Other" false `[(nav-to {:page :other}) :current-page])
-                                                (b/dropdown :reports "Reports"
-                                                  [(b/dropdown-item :report-1 "Report 1" :select-tx `[(nav-to {:page :report-1}) :current-page])
-                                                   (b/dropdown-item :report-2 "Report 2" :select-tx `[(nav-to {:page :report-2}) :current-page])])])})
-  static om/IQuery
-  (query [this] [:current-page {:nav (om/get-query b/Nav)}])
-  Object
-  (render [this]
-    (let [{:keys [nav current-page]} (om/props this)]
-      (render-example "100%" "150px"
-        (b/container-fluid {}
-          (b/row {}
-            (b/col {:xs 12}
-              (b/ui-nav nav)))
-          (b/row {}
-            (b/col {:xs 12}
-              (dom/p #js {} (str "Current page: " current-page)))))))))
-
-(defcard nav-tabs (untangled-app NavRoot))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Some internal helpers:
