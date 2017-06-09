@@ -3,24 +3,26 @@
 - Fixed uses of clojure.spec to clojure.spec.alpha
 - Integrated devguide
 - Integrated cookbook (as demos)
-- Removed local storage and async service stuff. It was undocumented, and unneeded
+- Removed local storage and async service stuff. It was undocumented, and unneeded.
 - Removed `load-data` from data-fetch. Port to using `load` instead.
 - Moved internal i18n vars to untangled.i18n namespace
-- Removed protocol testing support. Better to do unit testing or more full-stack. 
+- Removed protocol testing support. Port it from the old library into your project if you need it.
 - Removed openid parsing (doesn't belong in this lib)
 - Renamed untangled.client.impl.util to untangled.client.util
 - Moved force-render and unique-key to untangled.client.util namespace.
-- Merged server support into this project
 - Moved strip-parameters to untangled.client.util (cljc)
-- Renamed built-in mutations using the defmutation macro. Breaking change:
+- BREAKING CHANGE: Renamed built-in mutations using the defmutation macro.
    - untangled/load -> untangled.client.data-fetch/load
    - tx/fallback -> untangled.client.data-fetch/fallback
    - ui/change-locale -> untangled.client.mutations/change-locale
    - ui/set-props -> untangled.client.mutations/set-props
    - ui/toggle -> untangled.client.mutations/toggle
-- Moved augment-capable defui to augmentation namespace
-- Moved easy untangled server to untangled.easy-server namespace. Now dynamically loads (TODO)
-- Moved all other server code to untangled.server namespace
+   Remember that namespace aliasing works within syntax quotes (e.g. `m/change-locale)
+- Moved augment-capable defui to augmentation namespace. STILL EXPERIMENTAL.
+- Merged server support into this project
+- Moved easy untangled server to untangled.easy-server namespace. 
+- Moved all other server code to untangled.server namespace.
+- Added bootstrap3 namespace with helpers that can render passive and active bootstrap 3 elements.
 
 0.8.2
 -----
