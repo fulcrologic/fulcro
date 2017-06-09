@@ -74,12 +74,11 @@
                 (let [parameterized-screen-ident (set-ident-route-params target-screen route-params)]
                   (set-route m target-router parameterized-screen-ident))) state-map routing-instructions))))
 
-(defn route-to
+(m/defmutation route-to
   "Om Mutation (use in transact! only):
-  Change the application's overall UI route to the given route by handler. Handler must be a single keyword that indicates an entry in
-  your routing tree (which must be in the initial app state of your UI root). route-params is a map of key-value pairs
-  that will be substituted in the target screen idents of the routing tree."
-  [{:keys [handler route-params]}] (comment "placeholder for IDE assistance"))
 
-(defmethod m/mutate `route-to [{:keys [state]} k p]
-  {:action (fn [] (swap! state update-routing-links p))})
+  Change the application's overall UI route to the given route by handler. Handler must be a single keyword that
+  indicates an entry in your routing tree (which must be in the initial app state of your UI root). route-params
+  is a map of key-value pairs that will be substituted in the target screen idents of the routing tree."
+  [{:keys [handler route-params] :as params}]
+  (action [{:keys [state]}] (swap! state update-routing-links params)) )

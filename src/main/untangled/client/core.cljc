@@ -2,7 +2,7 @@
   (:require
     [om.next :as om]
     [untangled.client.impl.application :as app]
-    #?(:cljs untangled.client.mutations)      ; DO NOT REMOVE. Ensures built-in mutations load on start
+    #?(:cljs untangled.client.mutations)                    ; DO NOT REMOVE. Ensures built-in mutations load on start
     [untangled.client.network :as net]
     [untangled.client.logging :as log]
     #?(:clj
@@ -15,7 +15,7 @@
     #?(:cljs [goog.dom :as gdom]))
   #?(:cljs (:import goog.Uri)))
 
-(declare  map->Application merge-alternate-union-elements! merge-state! new-untangled-client new-untangled-test-client)
+(declare map->Application merge-alternate-union-elements! merge-state! new-untangled-client new-untangled-test-client)
 
 (defn new-untangled-client
   "Entrypoint for creating a new untangled client. Instantiates an Application with default values, unless
@@ -81,7 +81,7 @@
                                                   migrate (assoc :migrate migrate)
                                                   pathopt (assoc :pathopt pathopt)
                                                   shared (assoc :shared shared))
-                                                reconciler-options)
+                                           reconciler-options)
                      :networking         (or networking #?(:clj nil :cljs (net/make-untangled-network "/api"
                                                                             :request-transform request-transform
                                                                             :transit-handlers transit-handlers
@@ -129,7 +129,7 @@
                      to-many?                (vector? default-initial-state)
                      component-initial-state (and component (implements? InitialAppState component) (initial-state component {}))]
                  (when-not default-initial-state
-                   (log/warn "Subelements of union " parent-union " have initial state, but the union itself has no initial state. Your app state may suffer."))
+                   (log/warn "Subelements of union " (.. parent-union -displayName) " have initial state, but the union itself has no initial state. Your app state may suffer."))
                  (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
                    (merge-state! app parent-union component-initial-state))))]
        (walk-ast
@@ -140,20 +140,20 @@
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
   [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
-  (let [network-map        #?(:cljs (if (implements? net/UntangledNetwork networking) {:remote networking} networking)
-                              :clj {})
-        remotes            (keys network-map)
-        send-queues        (zipmap remotes (map #(async/chan 1024) remotes))
-        response-channels  (zipmap remotes (map #(async/chan) remotes))
-        parser             (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
-        initial-app        (assoc app :send-queues send-queues :response-channels response-channels
-                                      :parser parser :mounted? true :networking network-map)
-        rec                (app/generate-reconciler initial-app initial-state parser reconciler-options)
-        completed-app      (assoc initial-app :reconciler rec)
+  (let [network-map #?(:cljs (if (implements? net/UntangledNetwork networking) {:remote networking} networking)
+                       :clj {})
+        remotes             (keys network-map)
+        send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
+        response-channels   (zipmap remotes (map #(async/chan) remotes))
+        parser              (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
+        initial-app         (assoc app :send-queues send-queues :response-channels response-channels
+                                       :parser parser :mounted? true :networking network-map)
+        rec                 (app/generate-reconciler initial-app initial-state parser reconciler-options)
+        completed-app       (assoc initial-app :reconciler rec)
         node #?(:cljs (if (string? dom-id-or-node)
                         (gdom/getElement dom-id-or-node)
                         dom-id-or-node)
-                :clj       dom-id-or-node)]
+                :clj        dom-id-or-node)]
     (doseq [r remotes]
       (net/start (get network-map r) completed-app))
     (app/initialize-internationalization rec)
