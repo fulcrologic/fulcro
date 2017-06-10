@@ -1,23 +1,475 @@
-# Outline
+:source-highlighter: coderay
+:source-language: clojure
+:toc:
+:sectlinks:
+:sectanchors:
+:sectnums:
 
-* Project setup
-** Dependencies
-** Dev cljs build w/devtools & figwheel
+# Getting Started
 
-* Basic Components (defui)
-** React render method
-*** Props
-** DOM elements (js maps)
-** Composing
-*** Show how the tree of data is established from root
+## Project setup
 
-* Feeding the Data Tree
-** Data passing through root
-** Why Can't Components just "grab" their data (sideband)?
-*** They could, but systems like re-frame do so and then end up with complications like event handler middleware, coeffect accretion,
- and signal graphs.
+Your project will need a few basic directories and files:
+
+[source,bash]
+----
+# mkdir -p script resources/public/js src/main/app src/dev
+----
+
+### Project File
+
+Untangled requires that you include a few things in your dependency list.
+
+* Om Next (1.0.0-beta1 or above)
+* Clojure (1.9.0-alpha16 or above)
+* Clojurescript (1.9.542 or above)
+* Untangled (this library)
+
+A typical project will also include figwheel, devtools, and
+at least one development build configuration.
+
+This goes in `project.clj`:
+[source]
+----
+(defproject my-project "0.0.1"
+  :description "My Project"
+  :dependencies [[org.clojure/clojure "1.9.0-alpha16"]
+                 [org.clojure/clojurescript "1.9.562"]
+                 [org.omcljs/om "1.0.0-beta1"]
+                 [awkay/untangled "1.0.0-SNAPSHOT"]]
+
+  :source-paths ["src/main"]
+  :resource-paths ["resources"]
+  :clean-targets ^{:protect false} ["resources/public/js" "target" "out"]
+
+  :plugins [[lein-cljsbuild "1.1.6"]]
+
+  :cljsbuild {:builds
+              [{:id           "dev"
+                :source-paths ["src/main" "src/dev"]
+                :figwheel     true
+                :compiler     {:main                 user
+                               :output-to            "resources/public/js/app.js"
+                               :output-dir           "resources/public/js/app"
+                               :recompile-dependents false
+                               :parallel-build       true
+                               :preloads             [devtools.preload]
+                               :asset-path           "js/app"
+                               :optimizations        :none}}]}
+
+  :profiles {:dev {:source-paths ["src/dev" "src/main"]
+                   :dependencies [[binaryage/devtools "0.9.2"]
+                                  [figwheel-sidecar "0.5.10"]]}})
+----
+
+### Figwheel Startup Script
+
+Figwheel is a hot-reload development tool. We recommend using figwheel sidecar so
+you can easily start the project from the command line or use it from the REPL
+support built into IntelliJ. This requires a couple of CLJ source files:
+
+Put this in `script/figwheel.clj`:
+
+[source]
+----
+(require '[user :refer [start-figwheel]])
+
+(start-figwheel)
+----
+
+and this in `src/dev/user.clj`:
+
+[source]
+----
+(ns user
+  (:require
+    [figwheel-sidecar.system :as fig]
+    [com.stuartsierra.component :as component]))
+
+(def figwheel (atom nil))
+
+(defn start-figwheel
+  "Start Figwheel on the given builds, or defaults to build-ids in `figwheel-config`."
+  ([]
+   (let [figwheel-config (fig/fetch-config)
+         props           (System/getProperties)
+         all-builds      (->> figwheel-config :data :all-builds (mapv :id))]
+     (start-figwheel (keys (select-keys props all-builds)))))
+  ([build-ids]
+   (let [figwheel-config   (fig/fetch-config)
+         default-build-ids (-> figwheel-config :data :build-ids)
+         build-ids         (if (empty? build-ids) default-build-ids build-ids)
+         preferred-config  (assoc-in figwheel-config [:data :build-ids] build-ids)]
+     (reset! figwheel (component/system-map
+                        :figwheel-system (fig/figwheel-system preferred-config)
+                        :css-watcher (fig/css-watcher {:watch-paths ["resources/public/css"]})))
+     (println "STARTING FIGWHEEL ON BUILDS: " build-ids)
+     (swap! figwheel component/start)
+     (fig/cljs-repl (:figwheel-system @figwheel)))))
+----
+
+### Hello World Starter Files
+
+In order to get the thing building, we need two more files with some application
+code in them.
+
+Place this in `src/main/app/basic_ui.cljs`:
+
+[source]
+----
+(ns app.basic-ui
+  (:require [untangled.client.core :as uc]
+            [om.dom :as dom]
+            [om.next :as om :refer [defui]]))
+
+; Create an application
+(defonce app-1 (atom (uc/new-untangled-client)))
+
+; Create a simple UI
+(defui Root
+  Object
+  (render [this]
+    (dom/div nil "Hello World.")))
+----
+
+and this in `src/dev/user.cljs` (NOTE THIS IS DIFFERENT FROM `user.clj`!!!)
+
+[source]
+----
+(ns user
+  (:require
+    [app.basic-ui :refer [app-1 Root]]
+    [untangled.client.core :as uc]))
+
+; Mount the application app-1 using the UI of Root on DIV "app-1"
+(swap! app-1 uc/mount Root "app-1")
+----
+
+### HTML
+
+A single basic HTML file will be needed, and it must have an element
+on which to mount your application.
+
+Put this in `resources/public/index.html`:
+
+[source,html]
+----
+<!DOCTYPE html>
+<html>
+    <body>
+        <div id="app-1"></div>
+        <script src="js/app.js" type="text/javascript"></script>
+    </body>
+</html>
+----
+
+### Running Figwheel
+
+You can now run this project in various ways.
+
+From the command line:
+
+[source,bash]
+----
+# lein run -m clojure.main script/figwheel.clj
+----
+
+Within IntelliJ:
+
+* Run -> Edit Configurations...
+* Press the '+' button, and choose Clojure REPL -> Local
+** Give it a name (like `dev`)
+** Choose "Use clojure.main in normal JVM process" (important: it defaults to nREPL which won't work right)
+** In `Parameters` add `script/figwheel.clj`
+
+Now you should be able to start it from the Run menu.
+
+You should see the application printing "Hello World" at: http://localhost:3449[]
+
+Now that you have a basic project working, let's understand how to add some
+content!
+
+IMPORTANT: When developing it is a good idea to: Use Chrome (the devtools only work there),
+have the developer's console open, and in the developer console settings: "Network, Disable cache (while
+DevTools is open)", and "Console, Enable custom formatters".
+
+## Basic UI Components
+
+Untangled uses Om's `defui` to build React components. This macro emits React components that work as 100% raw React
+components (i.e. once you compile them to Javascript they could be used from other native React code).
+
+Om also supplies factory functions for generating all standard HTML5 DOM elements in React in the `om.dom` namespace.
+
+### The `defui` Macro
+
+The basic code to build a simple component has the following form:
+
+[source]
+----
+(defui ComponentName
+  Object
+  ; object lifecycle and render methods
+  (render [this]
+     (dom/div #js {:className "a"}
+        (dom/p nil "Hello"))))
+----
+
+for our purposes we won't be saying much about the React lifecycle methods, though they can be added. The basic
+intention of this macro's syntax is to declare a component, and then extend various interfaces (in the above case,
+`Object` (extend the basic javascript object to have a render method that takes one parameter: `this`).
+
+Technically, you can add whatever other native methods you might want to this object:
+
+[source]
+----
+(defui ComponentName
+  Object
+  (my-method [this]
+    (js/console.log "Hi!"))
+  (render [this]
+    (.my-method this) ; call my-method on this
+    (dom/div #js {:className "a"}
+       (dom/p nil "Hello"))))
+----
+
+You can convince yourself that you get a plain javascript object by going to
+the developer's console in Chrome:
+
+[source,bash]
+----
+> new app.basic_ui.Root().my_method();
+Hi!
+----
+
+though you do have to understand how the names might get munged (e.g. hyphens become underscores).
+
+### The `render` method.
+
+The `render` method can do whatever work you need, but it should return a react element
+(see https://facebook.github.io/react/blog/2015/12/18/react-components-elements-and-instances.html[React Components, Elements, and Instances]).
+
+Luckily, there are factory methods for all of HTML5 in `om.dom`. These functions generally take a Javascript map
+as their first argument (for things like classname and event handlers) and any children. There are two ways to
+generate the Javascript map: with the reader tag `#js` or with `clj->js`. Thus the following two are functionally
+equivalent:
+
+[source]
+----
+(dom/div #js {:className "a"} "Hi")
+(dom/div (clj->js {:className "a"}) "Hi")
+----
+
+However, the former happens in the reader (before compile) and generates more efficient runtime code, but the
+latter is useful when you've computed attributes in regular clj data structures and need to convert it at runtime.
+
+### Props
+
+React components receive their data through props and state. In Untangled we generally recommend using props. This
+ensures that various other features work well. The data passed to a component can be accessed (as a cljs map) by
+calling `om/props` on `this`.
+
+So, let's define a `Person` component to display details about
+a person. We'll assume that we're going to pass in name and age as properties:
+
+[source]
+----
+(defui Person
+  Object
+  (render [this]
+    (let [{:keys [person/name person/age]} (om/props this)]
+      (dom/div nil
+        (dom/p nil "Name: " name)
+        (dom/p nil "Age: " age)))))
+----
+
+Now, in order to use this component we need an element factory. An element factory lets
+us use the component within our React UI tree. Name confusion can become an
+issue (Person the component vs. person the factory?) we recommend prefixing the factory with `ui-`:
+
+[source]
+----
+(def ui-person (om/factory Person))
+----
+
+[source]
+----
+(defui Root
+  Object
+  (render [this]
+    (ui-person {:person/name "Joe" :person/age 22})))
+----
+
+If you reload your browser page, you should see the updated UI.
+
+### Hot Code Reload
+
+Part of our quick development story is getting hot code reload to update the UI whenever we change the source. At
+the moment this is broken in your app (you're having to reload the page to see changes). Actually, hot code
+reload is working, but the UI refresh isn't.
+
+There are two steps to make this work.
+
+1. Make sure the definition of the UI components is marked with `:once` metadata:
+2. Force React to re-render the entire UI (Om optimizes away refresh when the app state hasn't changed).
+The trick here is to change the React key on the root element (which forces React to throw away the prior tree
+and generate a whole new one). Untangled helps by sending your root component a property named `:ui/react-key` that
+only changes on (re)mount and forced refresh.
+
+So, changing your current application to this:
+
+[source]
+----
+(ns app.basic-ui
+  (:require [untangled.client.core :as uc]
+            [om.dom :as dom]
+            [om.next :as om :refer [defui]]))
+
+(defonce app-1 (atom (uc/new-untangled-client)))
+
+(defui ^:once Person
+  Object
+  (render [this]
+    (let [{:keys [person/name person/age]} (om/props this)]
+      (dom/div nil
+        (dom/p nil "Name: " name)
+        (dom/p nil "Age: " age)))))
+
+(def ui-person (om/factory Person))
+
+(defui ^:once Root
+  Object
+  (render [this]
+    (let [{:keys [ui/react-key]} (om/props this)]
+      (dom/div #js {:key react-key}
+        (ui-person {:person/name "Joe" :person/age 22})))))
+----
+
+and reloading your page (just once more, to clear out the old stuff) should now cause changes you make
+to the code to appear in the UI without having to reload the page. Try editing the UI of `Person` and save.
+
+### Composing
+
+You should already be getting the picture that your UI is going to be a tree composed from a root element. The
+way data is passed (via props) should also be giving you the picture that supplying data to your UI (through root)
+means you need to supply an equivalently structured tree of data. This is true of basic React, and since we've
+only seen basic React stuff at this point, it is a true statement in general. However, just to drive the
+point home let's make a slightly more complex UI and see it in detail:
+
+Replace your `basic_ui.cljs` content with this:
+
+[source]
+----
+(ns app.basic-ui
+  (:require [untangled.client.core :as uc]
+            [om.dom :as dom]
+            [om.next :as om :refer [defui]]))
+
+(defonce app-1 (atom (uc/new-untangled-client)))
+
+(defui ^:once Person
+  Object
+  (render [this]
+    (let [{:keys [person/name person/age]} (om/props this)]
+      (dom/li nil
+        (dom/h5 nil name (str "(age: " age ")"))))))
+
+(def ui-person (om/factory Person {:keyfn :person/name}))
+
+(defui ^:once PersonList
+  Object
+  (render [this]
+    (let [{:keys [person-list/label person-list/people]} (om/props this)]
+      (dom/div nil
+        (dom/h4 nil label)
+        (dom/ul nil
+          (map ui-person people))))))
+
+(def ui-person-list (om/factory PersonList))
+
+(defui ^:once Root
+  Object
+  (render [this]
+    (let [{:keys [ui/react-key]} (om/props this)
+          ui-data {:friends {:person-list/label "Friends" :person-list/people
+                                                [{:person/name "Sally" :person/age 32}
+                                                 {:person/name "Joe" :person/age 22}]}
+                   :enemies {:person-list/label "Enemies" :person-list/people
+                                                [{:person/name "Fred" :person/age 11}
+                                                 {:person/name "Bobby" :person/age 55}]}}]
+      (dom/div #js {:key react-key}
+        (ui-person-list (:friends ui-data))
+        (ui-person-list (:enemies ui-data))))))
+----
+
+So that the UI graph looks like this:
+
+[ditaa,target=ui-graph]
+----
+      +--------+
+      |  Root  |
+      ++-----+-+
+       |     |
+ +-----+--+ ++-------+
+ |  List  | |  List  |
+ +---+----+ +----+---+
+     |           |
+ +---+----+ +----+---+
+ | Person | | Person |
+ |--------| |--------|
+ | Person | | Person |
+ +--------+ +--------+
+----
+
+and the data graph matches the same structure, with map keys acting as the graph "edges":
+
+[source]
+----
+{ LIST-1-KEY { PEOPLE-KEY [PERSON PERSON]
+  LIST-2-KEY { PEOPLE-KEY [PERSON PERSON] }
+----
+
+[ditaa,target=ui-graph]
+----
+      +--------+
+      |  Root  |
+      ++-----+-+
+enemies|     |friends
+ +-----+--+ ++-------+
+ |  List  | |  List  |
+ +---+----+ +----+---+
+     |people     |people
+ +---+----+ +----+---+
+ | Person | | Person | 0
+ |--------| |--------|
+ | Person | | Person | 1
+ +--------+ +--------+
+----
+
+## Feeding the Data Tree
+
+Obviously it isn't going to be desirable to hand-manage such a hairy beast in this manner for anything
+but the most trivial application. At best it does give us a persistent data structure that represents the
+current "view" of the application (which has many benefits), but at worst it requires us to "think globally"
+about our application. We want local reasoning. We also want to be able to easily re-compose our UI as needed,
+and a static data graph like this would have to be updated every time we made a change! Almost equally as bad: if
+two different parts of our UI want to show the same data, then we'd have to find and update a bunch of copies
+spread all over the data tree.
+
+So, how do we solve this?
+
+### Why not have components just "grab" their data (sideband)?
+
+This is certainly a possibility; however, it leads to other complications. What is the data model? How do you
+interact with remotes to fill your data needs? Om Next has a very nice cohesive story for these questions,
+while systems like Re-frame end up with complications like event handler middleware, coeffect accretion,
+and signal graphs...not to mention that the sideband solution says nothing about server interactions with
+said data model.
+
+### The Untangled (and Om Next) Data Model
+
 ** Setting up the Data Feed
 *** Establishing a query for the data. Props and joins.
+**** Namespacing the props
 *** Establishing initial state for a component (InitialAppState)
 ** Passing computed data from the parent (callbacks, etc.)
 *** UI Refresh can optimize away the render of the parent and feed the component directly.
@@ -27,6 +479,7 @@
 ** transact! runs a mutation that can modify the data tree
 *** Only re-renders the subtree where it was run
 *** Mutations that affect parent are usually written in the parent and triggered via callbacks
+*** Mutations that affect data shared across the tree require follow-on reads. Specify keywords of data that the mutation modifies.
 ** Mutations (defmutation)
 ** Problems:
 *** Mutations tied to location in tree
@@ -35,16 +488,24 @@
 * Normalizing the Database
 ** Idents and the Effects
 ** How the query is used to figure out normalization
-** Updated mutations: now not location dependent!
+** Updated mutations: no longer location dependent!
 ** Locality of reasoning restored!
 
-* Setting up a Server
-** Easy Server
-** Starting the Server
-** Server Refresh
-** Serving your App
+* Review So Far
+** Initial app state sets up tree of data on start to match the UI tree
+** Query/Ident are used to normalize the database
+** Query is used to pull data from the now-normalized db to feed the active UI
+** Transactions invoke abstract mutations
+*** Mutations modify the (normalized) db
+*** Component (and follow-on read components) re-render
 
 * Going Remote!
+** Setting up a Server
+*** Easy Server
+*** Starting the Server
+*** Server Refresh
+*** Serving your App
+
 ** Loading Data
 *** Loading a specific entity and it's subgraph (by ident)
 **** The server query processing
@@ -56,4 +517,11 @@
 *** Loading items into a table, then morph them into the UI
 **** The server query processing
 **** Post mutations
+
 ** Handling Mutations
+*** You already know how!
+
+++++
+<div id="app-1"></div>
+<script src="/js/getting-started.js"> </script>
+++++
