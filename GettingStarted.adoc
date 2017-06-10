@@ -43,8 +43,6 @@
 ** Starting the Server
 ** Server Refresh
 ** Serving your App
-**** TODO: add defquery as a way to hook easily into query processing
-*** TODO: server-side defmutation
 
 * Going Remote!
 ** Loading Data

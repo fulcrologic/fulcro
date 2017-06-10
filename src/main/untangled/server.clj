@@ -449,20 +449,24 @@ default-malformed-response
 
 (defmacro ^{:doc      "Define a server-side Untangled mutation.
 
-                       The given symbol will be prefixed with the namespace of the current namespace, as if
-                       it were def'd into the namespace. This means you'll want to use the same namespace for
-                       both the client (in a cljs file) and the server (in a clj file).
+                       The given symbol will be prefixed with the namespace of the current namespace UNLESS
+                       it is fully qualified already. If you're using cljc files in order to get server-side rendering,
+                       you can also include your server mutations in the same namespace as your client ones using
+                       alternate namespace aliasing:
 
-                       The arglist should be the *parameter* arglist of the mutation, NOT the complete argument list
-                       for the equivalent defmethod. For example:
+                       ```
+                       #?(:clj (server/defmutation boo ...server...)
+                          :cljs (m/defmutation boo ...client...))
+                       ```
 
-                          (defmutation boo [{:keys [id]} ...) => (defmethod m/mutate *ns*/boo [{:keys [state ref]} _ {:keys [id]}] ...)
+                       The client-side mutation is never needed for server-side rendering, so it is ok that the mutation
+                       isn't installed when rendering on the server.
 
-                       The mutation must include the action, which in turn may return a value (though clients without
-                       a mutation merge helper will just ignore the return value).
+                       This macro expands just like the client defmutation (though it uses server multimethod and only
+                       support `action`).
 
-                       (defmutation boo \"docstring\" [params-map]
-                         (action [env] ...))"
+                       NOTE: It will only work if you're using the `untangled-parser` as your server's Om parser.
+                       "
             :arglists '([sym docstring? arglist action])} defmutation
   [& args]
   (let [{:keys [sym doc arglist action remote]} (util/conform! ::mutation-args args)
@@ -571,44 +575,4 @@ The return value of `value` will be sent to the client.
     (if (om.util/ident? k)
       (read-entity env (first k) (second k) params)
       (read-root env k params))))
-
-(comment
-  (do
-    (def p (untangled-parser))
-
-    (defmutation crap [{:keys [on]}]
-      (action [env]
-        (println :CRAPPING-ON on)))
-
-    (p {} `[(crap {:on :me})])
-
-    (defquery-entity :person/by-id
-      "Optional doc string"
-      (value [env id params] {:db/id id :person/name "Joe"}))
-
-    (println :query-for-person (p {} [{[:person/by-id 1] [:id :person/name]}]))
-
-    (defquery-root :questions
-      "Optional doc string"
-      (value [{:keys [query] :as env} {:keys [list]}]
-        (mapv #(select-keys % query)
-          [{:db/id 1 :question/value "How are you?"}
-           {:db/id 2 :question/value "What time is it?"}
-           {:db/id 3 :question/value "How old are you?"}])))
-
-    (println :query-for-questions (p {} [{:questions [:db/id :question/value]}])))
-
-  (macroexpand-1 '(defmutation crap [{:keys [on]}]
-                    (action [env]
-                      (println :CRAPPING-ON on))))
-  (macroexpand-1 '(defquery-entity :person/by-id
-                    "Optional doc string"
-                    (value [env id params] {:db/id id :person/name "Joe"})))
-
-  (macroexpand-1 '(defquery-root :questions
-                    "Optional doc string"
-                    (value [{:keys [ast query] :as env} {:keys [list]}]
-                      (mapv #(select-keys % query) [{:db/id 1 :question/value "How are you?"}
-                                                    {:db/id 2 :question/value "What time is it?"}
-                                                    {:db/id 3 :question/value "How old are you?"}])))))
 
