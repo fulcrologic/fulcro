@@ -357,6 +357,79 @@
   [attrs & children]
   (div-with-class "btn-toolbar" (assoc attrs :role "toolbar") children))
 
+(defn breadcrumb-item
+  "Define a breadcrumb.
+
+   label - The label to show. You should internationalize this yourself.
+   onClick - A function. What to do when the item is clicked. Not needed for the last item."
+  ([label] {:label label :onClick identity})
+  ([label onClick] {:label label :onClick onClick}))
+
+(defn breadcrumbs
+  "props - Properties to place on the top-level `ol`.
+   items - a list of breadcrumb-item"
+  [props & items]
+  (let [attrs (update props :className #(str " breadcrumb"))]
+    (dom/ol (clj->js attrs)
+      (conj
+        (mapv (fn [item] (dom/li #js {:key (:label item)} (dom/a #js {:onClick (:onClick item)} (:label item)))) (butlast items))
+        (dom/li #js {:key (:label (last items)) :className "active"} (:label (last items)))))))
+
+(defn pagination
+  "Render a pagination control.
+
+  props - A map of properties.
+    size - One of :sm or :lg
+  pagination-entries - One or more `pagination-entry`"
+  [{:keys [size] :as props} & pagination-entries]
+  (let [classes (cond-> (get props :className "")
+                  :always (str "pagination")
+                  size (str " pagination-" (name size)))
+        attrs   (assoc props :className classes)]
+    (dom/nav #js {:aria-label "Page Navigation"}
+      (dom/ul (clj->js attrs) pagination-entries))))
+
+(def laqao "A left-angled double quote" "\u00AB")
+(def raqao "A right-angled double quote" "\u00BB")
+
+(defn pagination-entry
+  "Create an entry in a pagination control. Forward and back buttons can be rendered at either end with any label, but
+  the raqao and laqao defs give a nicely sized font-based arrow."
+  [{:keys [label disabled active onClick] :as props}]
+  (let [onClick (if (and onClick (not disabled)) onClick identity)
+        classes (cond-> (:className props)
+                  disabled (str " disabled")
+                  active (str " active"))
+        attrs   (-> props
+                  (assoc :className classes)
+                  (dissoc :label :disabled :onClick))]
+    (dom/li (clj->js attrs)
+      (if (or (= label raqao) (= label laqao))
+        (dom/a #js {:onClick onClick :aria-label (if (= raqao label) "Next" "Previous")}
+          (dom/span #js {:aria-hidden "true"} label))
+        (dom/a #js {:onClick onClick}
+          label (when active (dom/span #js {:className "sr-only"} " (current)")))))))
+
+
+(defn pager
+  "A light next/previous pair of controls. Use `pager-next` and `pager-previous` as the children of this."
+  [props & children]
+  (let [attrs (-> props
+                (update :className #(str " pager"))
+                clj->js)]
+    (dom/nav #js {:aria-label "Page Navigation"}
+      (apply dom/ul attrs children))))
+
+(defn pager-next
+  "Render a next button in a pager"
+  [{:keys [onClick disabled]} & label-children]
+  (dom/li #js {:key "next" :className (str "next" (when disabled " disabled"))} (apply dom/a #js {:onClick (or onClick identity)} label-children)))
+
+(defn pager-previous
+  "Render a previous button in a pager"
+  [{:keys [onClick disabled]} & label-children]
+  (dom/li #js {:key "prior" :className (str "previous" (when disabled " disabled"))} (apply dom/a #js {:onClick (or onClick identity)} label-children)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Dropdowns
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

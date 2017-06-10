@@ -352,6 +352,96 @@
         (b/button-group {} (b/button {} "A") (b/button {} "B") (b/button {} "C"))
         (b/button-group {} (b/button {} "D") (b/button {} "E"))))))
 
+(defcard breadcrumbs
+  "Rendering breadcrumbs"
+  (render-example "100%" "75px"
+    (b/breadcrumbs {}
+      (b/breadcrumb-item "Home" (fn [] (js/alert "Go home")))
+      (b/breadcrumb-item "Reports" (fn [] (js/alert "Go Reports")))
+      (b/breadcrumb-item "Report A"))))
+
+(defcard pagination
+  "Rendering pagination
+
+  The pagination control is pure UI.
+
+  The first example below is:
+
+  ```
+  (b/pagination {}
+    (b/pagination-entry {:label b/laqao :onClick #(js/alert \"Back\")})
+    (b/pagination-entry {:label \"1\" :onClick #(js/alert \"1\")})
+    (b/pagination-entry {:label \"2\" :onClick #(js/alert \"2\")})
+    (b/pagination-entry {:label \"3\" :onClick #(js/alert \"3\")})
+    (b/pagination-entry {:label b/raqao :onClick #(js/alert \"Next\")}))
+  ```
+
+  The second example below is:
+
+  ```
+  (b/pagination {}
+    (b/pagination-entry {:label b/laqao :onClick #(js/alert \"Back\")})
+    (b/pagination-entry {:label \"1\" :active true :onClick #(js/alert \"1\")})
+    (b/pagination-entry {:label \"2\" :onClick #(js/alert \"2\")})
+    (b/pagination-entry {:label \"3\" :onClick #(js/alert \"3\")})
+    (b/pagination-entry {:label b/raqao :disabled true :onClick #(js/alert \"Next\")}))
+  ```
+  "
+  (render-example "100%" "375px"
+    (b/table {:styles #{:condensed}}
+      (dom/tbody nil
+        (dom/tr nil
+          (dom/th nil "Pages (none active)")
+          (dom/td nil (b/pagination {}
+                        (b/pagination-entry {:label b/laqao :onClick #(js/alert "Back")})
+                        (b/pagination-entry {:label "1" :onClick #(js/alert "1")})
+                        (b/pagination-entry {:label "2" :onClick #(js/alert "2")})
+                        (b/pagination-entry {:label "3" :onClick #(js/alert "3")})
+                        (b/pagination-entry {:label b/raqao :onClick #(js/alert "Next")}))))
+        (dom/tr nil
+          (dom/th nil "With one active, and next disabled")
+          (dom/td nil (b/pagination {}
+                        (b/pagination-entry {:label b/laqao :onClick #(js/alert "Back")})
+                        (b/pagination-entry {:label "1" :active true :onClick #(js/alert "1")})
+                        (b/pagination-entry {:label "2" :onClick #(js/alert "2")})
+                        (b/pagination-entry {:label "3" :onClick #(js/alert "3")})
+                        (b/pagination-entry {:label b/raqao :disabled true :onClick #(js/alert "Next")}))))
+        (dom/tr nil
+          (dom/th nil "Small")
+          (dom/td nil (b/pagination {:size :sm}
+                        (b/pagination-entry {:label b/laqao :onClick #(js/alert "Back")})
+                        (b/pagination-entry {:label "1" :onClick #(js/alert "1")})
+                        (b/pagination-entry {:label "2" :onClick #(js/alert "2")})
+                        (b/pagination-entry {:label "3" :onClick #(js/alert "3")})
+                        (b/pagination-entry {:label b/raqao :onClick #(js/alert "Next")}))))
+        (dom/tr nil
+          (dom/th nil "Large")
+          (dom/td nil (b/pagination {:size :lg}
+                        (b/pagination-entry {:label b/laqao :onClick #(js/alert "Back")})
+                        (b/pagination-entry {:label "1" :onClick #(js/alert "1")})
+                        (b/pagination-entry {:label "2" :onClick #(js/alert "2")})
+                        (b/pagination-entry {:label "3" :onClick #(js/alert "3")})
+                        (b/pagination-entry {:label b/raqao :onClick #(js/alert "Next")}))))))))
+
+(defcard pager
+  "# Pager - A lightweight next/prior control.
+
+  ```
+  (b/pager {}
+    (b/pager-previous {:onClick #(js/alert \"Back\")}
+      (str b/laqao \" Back\"))
+    (b/pager-next {:onClick #(js/alert \"Next\")}
+      (str \"Next \" b/raqao)))
+  ```
+  "
+  (render-example "100%" "75px"
+    (b/pager {}
+      (b/pager-previous {:onClick #(js/alert "Back")}
+        (str b/laqao " Back"))
+      (b/pager-next {:onClick #(js/alert "Next")}
+        (str "Next " b/raqao)))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Some internal helpers:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
