@@ -9,6 +9,7 @@
     [clojure.walk :as walk]
     [cognitect.transit :as transit]
     [om.next.server :as om]
+    om.util
     [ring.util.response :as resp]
     [taoensso.timbre :as log]
     [untangled.client.util :as util])
@@ -42,7 +43,7 @@
              {:file-path file-path}))))
 
 (def get-defaults open-config-file)
-(def get-config   open-config-file)
+(def get-config open-config-file)
 
 (defn- resolve-symbol [sym]
   {:pre  [(namespace sym)]
@@ -63,7 +64,7 @@
   ([] (load-config {}))
   ([{:keys [config-path]}]
    (let [defaults (get-defaults "config/defaults.edn")
-         config   (get-config   (or (get-system-prop "config") config-path))]
+         config   (get-config (or (get-system-prop "config") config-path))]
      (->> (util/deep-merge defaults config)
        (walk/prewalk #(cond-> % (symbol? %) resolve-symbol
                         (and (keyword? %) (namespace %)
@@ -102,9 +103,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- write [x t opts]
   (let [baos (ByteArrayOutputStream.)
-        w (om/writer baos opts)
-        _ (transit/write w x)
-        ret (.toString baos)]
+        w    (om/writer baos opts)
+        _    (transit/write w x)
+        ret  (.toString baos)]
     (.reset baos)
     ret))
 
@@ -234,8 +235,8 @@ default-malformed-response
   "Convert exception data to string form for network transit."
   [ex]
   {:pre [(instance? Exception ex)]}
-  (let [message (.getMessage ex)
-        type (str (type ex))
+  (let [message         (.getMessage ex)
+        type            (str (type ex))
         serialized-data {:type type :message message}]
     (if (instance? ExceptionInfo ex)
       (assoc serialized-data :data (ex-data ex))
@@ -251,7 +252,7 @@ default-malformed-response
    Returns ex-map if the ex-data matches the API, otherwise returns the whole exception."
   [ex]
   (let [valid-response-keys #{:status :headers :body}
-        ex-map (ex-data ex)]
+        ex-map              (ex-data ex)]
     (if (every? valid-response-keys (keys ex-map))
       ex-map
       (unknow-error->response ex))))
@@ -263,7 +264,7 @@ default-malformed-response
                              (let [exception-data (serialize-exception (get-in item [:om.next/error]))]
                                (assoc item :om.next/error exception-data))
                              item))
-        mutation-errors (clojure.walk/prewalk raise-error-data mutation-result)]
+        mutation-errors  (clojure.walk/prewalk raise-error-data mutation-result)]
 
     {:status 400 :body mutation-errors}))
 
@@ -346,24 +347,24 @@ default-malformed-response
         (-> r+m
           (update :read chain api-read module)
           (update :mutate chain api-mutate module))))
-    {:read (constantly nil)
+    {:read   (constantly nil)
      :mutate (constantly nil)}
     (rseq modules)))
 
 (defrecord UntangledApiHandler [app-name modules]
   component/Lifecycle
   (start [this]
-    (let [api-url (cond->> "/api" app-name (str "/" app-name))
-          api-parser (om/parser (comp-api-modules this))
+    (let [api-url     (cond->> "/api" app-name (str "/" app-name))
+          api-parser  (om/parser (comp-api-modules this))
           make-response
-          (fn [parser env query]
-            (generate-response
-              (let [parse-result (try (raise-response
-                                        (parser env query))
-                                      (catch Exception e e))]
-                (if (valid-response? parse-result)
-                  {:status 200 :body parse-result}
-                  (process-errors parse-result)))))
+                      (fn [parser env query]
+                        (generate-response
+                          (let [parse-result (try (raise-response
+                                                    (parser env query))
+                                                  (catch Exception e e))]
+                            (if (valid-response? parse-result)
+                              {:status 200 :body parse-result}
+                              (process-errors parse-result)))))
           api-handler (fn [env query]
                         (make-response api-parser env query))]
       (assoc this
@@ -432,3 +433,182 @@ default-malformed-response
             {(or api-handler-key ::api-handler)
              (api-handler opts)})))
     (vary-meta assoc ::api-handler-key (or api-handler-key ::api-handler))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Pre-built parser support
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmulti server-mutate om/dispatch)
+
+
+(s/def ::mutation-args (s/cat
+                         :sym symbol?
+                         :doc (s/? string?)
+                         :arglist vector?
+                         :action (s/? #(and (list? %) (= 'action (first %))))))
+
+(defmacro ^{:doc      "Define a server-side Untangled mutation.
+
+                       The given symbol will be prefixed with the namespace of the current namespace, as if
+                       it were def'd into the namespace. This means you'll want to use the same namespace for
+                       both the client (in a cljs file) and the server (in a clj file).
+
+                       The arglist should be the *parameter* arglist of the mutation, NOT the complete argument list
+                       for the equivalent defmethod. For example:
+
+                          (defmutation boo [{:keys [id]} ...) => (defmethod m/mutate *ns*/boo [{:keys [state ref]} _ {:keys [id]}] ...)
+
+                       The mutation must include the action, which in turn may return a value (though clients without
+                       a mutation merge helper will just ignore the return value).
+
+                       (defmutation boo \"docstring\" [params-map]
+                         (action [env] ...))"
+            :arglists '([sym docstring? arglist action])} defmutation
+  [& args]
+  (let [{:keys [sym doc arglist action remote]} (util/conform! ::mutation-args args)
+        fqsym      (symbol (name (ns-name *ns*)) (name sym))
+        {:keys [action-args action-body]} (if action
+                                            (util/conform! ::action action)
+                                            {:action-args ['env] :action-body []})
+        env-symbol (gensym "env")]
+    `(defmethod untangled.server/server-mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
+       (let [~(first action-args) ~env-symbol]
+         {:action (fn [] ~@action-body)}))))
+
+(defmulti read-entity
+  "The multimethod for Untangled's built-in support for reading an entity."
+  (fn [env entity-type id params] entity-type))
+(defmulti read-root
+  "The multimethod for Untangled's built-in support for querying with a keyword "
+  (fn [env keyword params] keyword))
+
+(declare server-read)
+
+(defn untangled-parser
+  "Builds and returns an Om parser that uses Untangled's query and mutation handling. See `defquery-entity`, `defquery-root`,
+  and `defmutation` in the `untangled.server` namespace."
+  []
+  (om/parser {:read server-read :mutate server-mutate}))
+
+(s/def ::action (s/cat
+                  :action-name (fn [sym] (= sym 'action))
+                  :action-args (fn [a] (and (vector? a) (= 1 (count a))))
+                  :action-body (s/+ (constantly true))))
+
+(s/def ::value (s/cat
+                 :value-name (fn [sym] (= sym 'value))
+                 :value-args (fn [a] (and (vector? a) (= 3 (count a))))
+                 :value-body (s/+ (constantly true))))
+
+(s/def ::query-entity-args (s/cat
+                             :kw keyword?
+                             :doc (s/? string?)
+                             :value #(and (list? %) (= 'value (first %)) (vector? (second %)))))
+
+(defmacro ^{:doc      "Define a server-side query handler for a given entity type.
+
+(defentity-query :person/by-id
+  \"Optional doc string\"
+  (value [env id params] {:db/id id :person/name \"Joe\"}))
+
+  The `env` argument will be the server parser environment, which will include all of your component injections, the AST for
+  this query, along with the subquery (see Om docs). `id` will be the ID of the entity to load. `params` will be any additional
+  params that were sent via the client `load` (i.e. `(load this [:person/by-id 1] Person {:params {:auth 1223555}})`).
+"
+            :arglists '([entity-type docstring? value])} defquery-entity
+  [& args]
+  (let [{:keys [kw doc value]} (util/conform! ::query-entity-args args)
+        {:keys [value-args value-body]} (util/conform! ::value value)
+        env-sym    (first value-args)
+        id-sym     (second value-args)
+        params-sym (nth value-args 2)]
+    `(defmethod untangled.server/read-entity ~kw [~env-sym ~'_ ~id-sym ~params-sym]
+       (let [v# (do ~@value-body)]
+         {:value v#}))))
+
+(s/def ::root-value (s/cat
+                      :value-name (fn [sym] (= sym 'value))
+                      :value-args (fn [a] (and (vector? a) (= 2 (count a))))
+                      :value-body (s/+ (constantly true))))
+
+(s/def ::query-root-args (s/cat
+                           :kw keyword?
+                           :doc (s/? string?)
+                           :value #(and (list? %) (= 'value (first %)) (vector? (second %)))))
+
+(defmacro ^{:doc      "Define a server-side query handler for queries joined at the root.
+
+The `value` method you define will receive the full Om parser environment (server-side, with your
+component injections) as `env` and any params the server sent with the specific top-level query. Note that the subquery and
+AST for the query will be available in `env`.
+
+For example: `(load app :questions Question {:params {:list 1}})` on the client would result in params being set to `{:list 1}`
+on the server.
+
+The return value of `value` will be sent to the client.
+
+(defquery-root :questions
+  \"Optional doc string\"
+  (value [{:keys [ast query] :as env} {:keys [list]}]
+    [{:db/id 1 :question/value \"How are you?\"}
+    {:db/id 2 :question/value \"What time is it?\"}
+    {:db/id 3 :question/value \"How old are you?\"}]))
+"
+            :arglists '([entity-type docstring? value])} defquery-root
+  [& args]
+  (let [{:keys [kw doc value]} (util/conform! ::query-root-args args)
+        {:keys [value-args value-body]} (util/conform! ::root-value value)
+        env-sym    (first value-args)
+        params-sym (second value-args)]
+    `(defmethod untangled.server/read-root ~kw [~env-sym ~'_ ~params-sym]
+       (let [v# (do ~@value-body)]
+         {:value v#}))))
+
+(defn server-read
+  "A built-in read method for Untangled's built-in server Om parser."
+  [env k params]
+  (let [k (-> env :ast :key)]
+    (if (om.util/ident? k)
+      (read-entity env (first k) (second k) params)
+      (read-root env k params))))
+
+(comment
+  (do
+    (def p (untangled-parser))
+
+    (defmutation crap [{:keys [on]}]
+      (action [env]
+        (println :CRAPPING-ON on)))
+
+    (p {} `[(crap {:on :me})])
+
+    (defquery-entity :person/by-id
+      "Optional doc string"
+      (value [env id params] {:db/id id :person/name "Joe"}))
+
+    (println :query-for-person (p {} [{[:person/by-id 1] [:id :person/name]}]))
+
+    (defquery-root :questions
+      "Optional doc string"
+      (value [{:keys [query] :as env} {:keys [list]}]
+        (mapv #(select-keys % query)
+          [{:db/id 1 :question/value "How are you?"}
+           {:db/id 2 :question/value "What time is it?"}
+           {:db/id 3 :question/value "How old are you?"}])))
+
+    (println :query-for-questions (p {} [{:questions [:db/id :question/value]}])))
+
+  (macroexpand-1 '(defmutation crap [{:keys [on]}]
+                    (action [env]
+                      (println :CRAPPING-ON on))))
+  (macroexpand-1 '(defquery-entity :person/by-id
+                    "Optional doc string"
+                    (value [env id params] {:db/id id :person/name "Joe"})))
+
+  (macroexpand-1 '(defquery-root :questions
+                    "Optional doc string"
+                    (value [{:keys [ast query] :as env} {:keys [list]}]
+                      (mapv #(select-keys % query) [{:db/id 1 :question/value "How are you?"}
+                                                    {:db/id 2 :question/value "What time is it?"}
+                                                    {:db/id 3 :question/value "How old are you?"}])))))
+
