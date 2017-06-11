@@ -17,12 +17,13 @@
 
 (defprotocol ProgressiveTransfer
   (updating-send [this edn done-callback error-callback update-callback] "Send EDN. The update-callback will merge the state
-  given to it. The done-callback will merge the state given to it, and indicates completion."))
+  given to it. The done-callback will merge the state given to it, and indicates completion. See
+  `untangled.client.ui.file-upload/FileUploadNetwork` for an example."))
 
 (defprotocol UntangledNetwork
   (send [this edn done-callback error-callback]
-    "Send EDN. Calls either the done or error callback when the send is done, and optionally calls the update-callback
-    one or more times during the transfer (if not nil and supported)")
+    "Send EDN. Calls either the done or error callback when the send is done. You must call one of those only once.
+     Implement ProgressiveTransfer if you want to do progress updates during network transmission.")
   (start [this complete-app]
     "Starts the network, passing in the app for any components that may need it."))
 
