@@ -13,7 +13,7 @@ Your project will need a few basic directories and files:
 
 [source,bash]
 ----
-# mkdir -p script resources/public/js src/main/app src/dev
+# mkdir -p script resources/public/js src/main/app src/dev/cljs
 ----
 
 ### Project File
@@ -47,12 +47,10 @@ This goes in `project.clj`:
   :cljsbuild {:builds
               [{:id           "dev"
                 :source-paths ["src/main" "src/dev"]
-                :figwheel     true
-                :compiler     {:main                 user
+                :figwheel     {:on-jsload "cljs.user/refresh"}
+                :compiler     {:main                 cljs.user
                                :output-to            "resources/public/js/app.js"
                                :output-dir           "resources/public/js/app"
-                               :recompile-dependents false
-                               :parallel-build       true
                                :preloads             [devtools.preload]
                                :asset-path           "js/app"
                                :optimizations        :none}}]}
@@ -132,17 +130,19 @@ Place this in `src/main/app/basic_ui.cljs`:
     (dom/div nil "Hello World.")))
 ----
 
-and this in `src/dev/user.cljs` (NOTE THIS IS DIFFERENT FROM `user.clj`!!!)
+and this in `src/dev/cljs/user.cljs` (NOTE THIS IS DIFFERENT FROM `src/dev/user.clj`!!!)
 
 [source]
 ----
-(ns user
+(ns cljs.user
   (:require
     [app.basic-ui :refer [app-1 Root]]
     [untangled.client.core :as uc]))
 
-; Mount the application app-1 using the UI of Root on DIV "app-1"
-(swap! app-1 uc/mount Root "app-1")
+; so figwheel can call it on reloads. Remounting just forces a UI refresh.
+(defn refresh [] (swap! app-1 uc/mount Root "app-1"))
+
+(refresh) ; for initial mount
 ----
 
 ### HTML
@@ -428,7 +428,7 @@ and the data graph matches the same structure, with map keys acting as the graph
   LIST-2-KEY { PEOPLE-KEY [PERSON PERSON] }
 ----
 
-[ditaa,target=ui-graph]
+[ditaa,target=data-tree]
 ----
       +--------+
       |  Root  |
@@ -462,44 +462,761 @@ So, how do we solve this?
 This is certainly a possibility; however, it leads to other complications. What is the data model? How do you
 interact with remotes to fill your data needs? Om Next has a very nice cohesive story for these questions,
 while systems like Re-frame end up with complications like event handler middleware, coeffect accretion,
-and signal graphs...not to mention that the sideband solution says nothing about server interactions with
+and signal graphs...not to mention that the sideband solution says nothing definitive about server interactions with
 said data model.
 
-### The Untangled (and Om Next) Data Model
+### Step 1 -- The Initial State
 
-** Setting up the Data Feed
-*** Establishing a query for the data. Props and joins.
-**** Namespacing the props
-*** Establishing initial state for a component (InitialAppState)
-** Passing computed data from the parent (callbacks, etc.)
-*** UI Refresh can optimize away the render of the parent and feed the component directly.
-    Anything the parent had sent in needs to be annotated so it can be re-sent.
+In Untangled, there is a way to construct the initial tree of data in a way that allows for local reasoning:
+co-locate the initial desired part of the tree with the component that uses it. This allows you to compose the
+state tree in exactly the same way as the UI tree.
 
-* Updating the Data Tree
-** transact! runs a mutation that can modify the data tree
-*** Only re-renders the subtree where it was run
-*** Mutations that affect parent are usually written in the parent and triggered via callbacks
-*** Mutations that affect data shared across the tree require follow-on reads. Specify keywords of data that the mutation modifies.
-** Mutations (defmutation)
-** Problems:
-*** Mutations tied to location in tree
-*** Breaks ability to relocate a UI component on demand
+Untangled defines a protocol `InitialAppState` with a single method named `initial-state`. The defui macro
+will allow us to add that implementation to the generated component class by adding `static` in front of
+the protocol name we want to implement.
 
-* Normalizing the Database
-** Idents and the Effects
-** How the query is used to figure out normalization
-** Updated mutations: no longer location dependent!
-** Locality of reasoning restored!
+It looks like this:
 
-* Review So Far
-** Initial app state sets up tree of data on start to match the UI tree
-** Query/Ident are used to normalize the database
-** Query is used to pull data from the now-normalized db to feed the active UI
-** Transactions invoke abstract mutations
-*** Mutations modify the (normalized) db
-*** Component (and follow-on read components) re-render
+[source]
+----
+(defui ^:once Person
+  static uc/InitialAppState
+  (initial-state [comp-class {:keys [name age] :as params}] {:person/name name :person/age age})
+  Object
+  (render [this]
+    (let [{:keys [person/name person/age]} (om/props this)]
+      (dom/li nil
+        (dom/h5 nil name (str "(age: " age ")"))))))
 
-* Going Remote!
+(def ui-person (om/factory Person {:keyfn :person/name}))
+
+(defui ^:once PersonList
+  static uc/InitialAppState
+  (initial-state [comp-class {:keys [label]}]
+    {:person-list/label  label
+     :person-list/people (if (= label "Friends")
+                           [(uc/get-initial-state Person {:name "Sally" :age 32})
+                            (uc/get-initial-state Person {:name "Joe" :age 22})]
+                           [(uc/get-initial-state Person {:name "Fred" :age 11})
+                            (uc/get-initial-state Person {:name "Bobby" :age 55})])})
+  Object
+  (render [this]
+    (let [{:keys [person-list/label person-list/people]} (om/props this)]
+      (dom/div nil
+        (dom/h4 nil label)
+        (dom/ul nil
+          (map ui-person people))))))
+
+(def ui-person-list (om/factory PersonList))
+
+(defui ^:once Root
+  static
+  uc/InitialAppState
+  (initial-state [c params] {:friends (uc/get-initial-state PersonList {:label "Friends"})
+                             :enemies (uc/get-initial-state PersonList {:label "Enemies"})})
+  Object
+  (render [this]
+    (let [{:keys [ui/react-key]} (om/props this)
+          {:keys [friends enemies]} (uc/get-initial-state Root {})]
+      (dom/div #js {:key react-key}
+        (ui-person-list friends)
+        (ui-person-list enemies)))))
+----
+
+Now this is just for demonstration purposes. Data like this would almost certainly come from a server, but
+it serves to illustrate that we can localize the initial data needs of a component to the component, and then
+compose that into the parent in an abstract way (by calling `get-initial-state` on that child).
+
+There are several benefits of this so far:
+
+1. It generates the exact tree of data needed to feed the UI
+2. It restores local reasoning (and easy refactoring). Moving a component just means local reasoning about the
+component being moved and the component it is being moved from/to.
+
+In fact, at the figwheel REPL you can see the tree by running:
+
+[source]
+----
+dev:cljs.user=> (untangled.client.core/get-initial-state app.basic-ui/Root {})
+{:friends
+ {:person-list/label "Friends",
+  :person-list/people
+  [{:person/name "Sally", :person/age 32}
+   {:person/name "Joe", :person/age 22}]},
+ :enemies
+ {:person-list/label "Enemies",
+  :person-list/people
+  [{:person/name "Fred", :person/age 11}
+   {:person/name "Bobby", :person/age 55}]}}
+----
+
+NOTE: Technically, in cljs you can call `untangled.client.core/initial-state` directly, but this doesn't work right when
+doing server-side rendering, so it is good to get in the habit of calling `static` protocol methods with the helper
+function.
+
+Behind the scenes Untangled has detected this initial state and actually automatically used it to initialize your
+application state, but at the moment we're accessing it directly, but you can check out the application's
+current state (which is held in an atom) with:
+
+[source]
+----
+dev:cljs.user=> @(om.next/app-state (get @app.basic-ui/app-1 :reconciler)
+----
+
+Let's see how we program our UI to access the data in the application state!
+
+### Step 2 -- Establishing a Query
+
+Om Next unifies the data access story using a co-located query on each component. This sets up data access
+for both the client and server, and also continues our story of local reasoning and composition.
+
+Queries go on a component in the same way as initial state: as `static` implementations of a protocol.
+
+The query notation is relatively light, and we'll just concentrate on two bits of query syntax: props and joins.
+
+Queries form a tree just like the UI and data. Obtaining a value at the current node in the tree traversal is done
+using the keyword for that value. Walking down the graph (a join) is represented as a map with a single entry whose
+key is the keyword for that nested bit of state.
+
+So, a data tree like this:
+
+[source]
+----
+{:friends
+ {:person-list/label "Friends",
+  :person-list/people
+  [{:person/name "Sally", :person/age 32}
+   {:person/name "Joe", :person/age 22}]},
+ :enemies
+ {:person-list/label "Enemies",
+  :person-list/people
+  [{:person/name "Fred", :person/age 11}
+   {:person/name "Bobby", :person/age 55}]}}
+----
+
+would have a query that looks like this:
+
+[source]
+----
+[{:friends
+    [ :person-list/label
+      {:person-list/people
+         [:person/name :person/age]}]}]
+----
+
+This query reads "At the root you'll find `:friends`, which joins to a nested entity that has a label and people,
+which in turn has nested properties name and age.
+
+- A vector always means "get this stuff at the current node"
+- `:friends` is a key in a map, so at the root of the application state the query engine would expect to find that
+key, and would expect the value to be nested state (because maps mean joins on the tree)
+- The value in the `:friends` join must be a vector, because we have to indicate what we want out of the nested data.
+
+Joins are automatically `to-one` if the data found in the state is a map, and `to-many` if the data found is a
+vector.
+
+The namespacing of keywords in your data (and therefore your query) is highly encouraged, as it makes it clear to the reader what kind of entity you're working
+against (it also ensures that over-rendering doesn't happen on refreshes later).
+
+You can try this query stuff out in your REPL. Let's say you just want the friends list label. The Om function
+`db->tree` can take an application database (which we can generate from initial state) and run a query
+against it:
+
+[source]
+----
+dev:cljs.user=>  (om.next/db->tree [{:friends [:person-list/label]}] (untangled.client.core/get-initial-state app.basic-ui/Root {}) {})
+{:friends {:person-list/label "Friends"}}
+----
+
+#### Adding Queries Our Example
+
+So, we want our queries to have the same nice local-reasoning as our initial data tree. The `get-query` function
+works just like the `get-initial-state` function, and can pull the query from a component. In this case, you
+should *not* ever call `query` directly. The `get-query` function augments the subqueries with metadata that is
+important at a later stage.
+
+So, the `Person` component queries for just the properties it needs:
+
+[source]
+----
+(defui ^:once Person
+  static om/IQuery
+  (query [this] [:person/name :person/age])
+  static uc/InitialAppState
+  (initial-state [comp-class {:keys [name age] :as params}] {:person/name name :person/age age})
+  Object
+  (render [this]
+    (let [{:keys [person/name person/age]} (om/props this)]
+      (dom/li nil
+        (dom/h5 nil name (str "(age: " age ")"))))))
+----
+
+Notice that the entire rest of the component *did not* change.
+
+Next up the chain, we compose the `Person` query into `PersonList`:
+
+[source]
+----
+(defui ^:once PersonList
+  static om/IQuery
+  (query [this] [:person-list/label {:person-list/people (om/get-query Person)}])
+  static uc/InitialAppState
+  (initial-state [comp-class {:keys [label]}]
+    {:person-list/label  label
+     :person-list/people (if (= label "Friends")
+                           [(uc/get-initial-state Person {:name "Sally" :age 32})
+                            (uc/get-initial-state Person {:name "Joe" :age 22})]
+                           [(uc/get-initial-state Person {:name "Fred" :age 11})
+                            (uc/get-initial-state Person {:name "Bobby" :age 55})])})
+  Object
+  (render [this]
+    (let [{:keys [person-list/label person-list/people]} (om/props this)]
+      (dom/div nil
+        (dom/h4 nil label)
+        (dom/ul nil
+          (map ui-person people))))))
+----
+
+again, nothing else changes.
+
+### Step 3 -- Receive the Data Feed as Props in Root
+
+Finally, we compose to `Root`:
+
+[source]
+----
+(defui ^:once Root
+  static om/IQuery
+  (query [this] [:ui/react-key  ; IMPORTANT: have to ask for react-key from the database
+                 {:friends (om/get-query PersonList)}
+                 {:enemies (om/get-query PersonList)}])
+  static
+  uc/InitialAppState
+  (initial-state [c params] {:friends (uc/get-initial-state PersonList {:label "Friends"})
+                             :enemies (uc/get-initial-state PersonList {:label "Enemies"})})
+  Object
+  (render [this]
+    ; NOTE: the data now comes in through props!!!
+    (let [{:keys [ui/react-key friends enemies]} (om/props this)]
+      (dom/div #js {:key react-key}
+        (ui-person-list friends)
+        (ui-person-list enemies)))))
+----
+
+and now the magic happens! Notice that the render method of root will now receive the entire query result
+in props (our prior example was generating the data from `initial-state` itself), and
+it will pick the bits out it knows about (:friends and :enemies) and pass those to the children associated
+with rendering them.
+
+Notice that everything you think about when looking at any one of those components is the data it needs to render
+itself, or (in the abstract) its direct children. Re-arranging the UI is similarly done in a way the preserves
+this reasoning.
+
+Also, you now have application state that can evolve (the query is running against the active application
+database stored in an atom)!
+
+IMPORTANT: You should always think of the query as "running from root". You'll
+notice that `Root` still expects to receive the *entire* data tree for the UI (even though it doesn't have to
+know much about what is in it, other than the names of direct children), and it still picks out those sub-trees
+of data and passes them on. In this way an arbitrary component in the UI tree is not querying
+for it's data directly in a side-band sort of way, but is instead being composed in from parent to parent all the
+way to the root. Later, we'll learn how Om can optimize this and pull the data from the database for
+a specific component, but the reasoning will remain the same.
+
+## Passing Callbacks and Other Parent-computed Data
+
+The queries on component describe what data the component wants from the database; however, you're not allowed
+to put code in the database, and sometimes a parent might compute something it needs to pass to a child.
+
+Om can optimize away the refresh of components if their data has not changed, meaning that it can use
+a component's query to directly re-supply its render method for refresh. Doing so skips the rendering
+call from the parent, and would lead to losing these "extra" bits of data passed from the parent.
+
+Let's say we want to render a delete button on our individual people in our UI. This button will mean
+"remove the person from this list"...but the person itself has no idea which list it is in. Thus,
+the parent will need to pass in a function that the child can call to affect the delete properly:
+
+### The Incorrect Way:
+
+[source]
+----
+(defui ^:once Person
+  static om/IQuery
+  (query [this] [:person/name :person/age])
+  static uc/InitialAppState
+  (initial-state [comp-class {:keys [name age] :as params}] {:person/name name :person/age age})
+  Object
+  (render [this]
+    (let [{:keys [person/name person/age onDelete]} (om/props this)]  ; <3>
+      (dom/li nil
+        (dom/h5 nil name (str "(age: " age ")") (dom/button #js {:onClick #(onDelete name)} "X")))))) ; <4>
+
+(def ui-person (om/factory Person {:keyfn :person/name}))
+
+(defui ^:once PersonList
+  static om/IQuery
+  (query [this] [:person-list/label {:person-list/people (om/get-query Person)}])
+  static uc/InitialAppState
+  (initial-state [comp-class {:keys [label]}]
+    {:person-list/label  label
+     :person-list/people (if (= label "Friends")
+                           [(uc/get-initial-state Person {:name "Sally" :age 32})
+                            (uc/get-initial-state Person {:name "Joe" :age 22})]
+                           [(uc/get-initial-state Person {:name "Fred" :age 11})
+                            (uc/get-initial-state Person {:name "Bobby" :age 55})])})
+  Object
+  (render [this]
+    (let [{:keys [person-list/label person-list/people]} (om/props this)
+          delete-person (fn [name] (js/console.log label "asked to delete" name))] ; <1>
+      (dom/div nil
+        (dom/h4 nil label)
+        (dom/ul nil
+          (map (fn [person] (ui-person (assoc person :onDelete delete-person))) people)))))) ; <2>
+----
+
+<1> A function acting in as a stand-in for our real delete
+<2> Adding the callback into the props (WRONG)
+<3> Pulling the onDelete from the passed props (WRONG)
+<4> Invoking the callback when delete is pressed.
+
+This method of passing a callback will work, but not consistently. The problem is that Om can optimize a re-render
+of a parent when it can figure out how to pull just the data of the child on a refresh, and in that case the
+callback will get lost!
+
+### The Correct Way:
+
+There is a special helper function that can record the computed data like callback onto the child that receives them
+such that an optimized refresh will still pass them in.
+
+The change is so small it is easy to miss:
+
+[source]
+----
+(defui ^:once Person
+  ...
+  Object
+  (render [this]
+    (let [{:keys [person/name person/age]} (om/props this)
+          onDelete (om/get-computed this :onDelete)] ; <2>
+      (dom/li nil
+        (dom/h5 nil name (str "(age: " age ")") (dom/button #js {:onClick #(onDelete name)} "X"))))))
+
+(def ui-person (om/factory Person {:keyfn :person/name}))
+
+(defui ^:once PersonList
+  ...
+  Object
+  (render [this]
+    (let [{:keys [person-list/label person-list/people]} (om/props this)
+          delete-person (fn [name] (js/console.log label "asked to delete" name))]
+      (dom/div nil
+        (dom/h4 nil label)
+        (dom/ul nil
+          (map (fn [person] (ui-person (om/computed person {:onDelete delete-person}))) people)))))) ; <1>
+----
+
+<1> The `om/computed` function is used to add the computed data to the props being passed.
+<2> The child pulls the computed data via `om/get-computed`.
+
+Now you can be sure that your callbacks (or other parent-computed data) won't be lost to render optimizations.
+
+##  Updating the Data Tree
+
+Now the real fun begins: Making things dynamic.
+
+In general you don't have to think about how the UI updates, because most changes are run within the
+context that needs refreshed. But for general knowledge UI Refresh is triggered in two ways:
+
+- Running a data modification transaction on a component (which will re-render the subtree of that component), and
+refresh only the DOM for those bits that had actual changes.
+- Telling Om that some specific data changed (e.g. :person/name).
+
+The former is most common, but the latter is often needed when a change executed in one part of the application
+modifies data that some UI component elsewhere in the tree needs to respond to.
+
+So, if we run the code that affects changes from the component that will need to refresh (a very common case) we're
+covered. If a child needs to make a change that will affect a parent (as in our earlier example), then the
+modification should run from the parent via a callback so that refresh will not require further interaction.
+
+### Transactions
+
+Every change to the application database must go through a transaction processing system. This has two
+goals:
+
+- Abstract the operation (like a function)
+- Treat the operation like data (which allows us to generalize to the remote interactions)
+
+The operations are written as quoted data structures. Specifically as a vector of mutation
+invocations. The entire transaction is just data. It is *not* something run in the UI, but instead
+passed into the underlying system for processing.
+
+You essentially just "make up" names for the operations you'd like to do to your database, just like
+function names.
+
+[source]
+----
+(om/transact! this `[(ops/delete-person {:list-name "Friends" :person "Fred"})])
+----
+
+is asking the underlying system to run the mutation `ops/delete-person` (where ops can be an alias established
+in the `ns`). Of course, you'll typically use unquote to embed data from local variables:
+
+[source]
+----
+(om/transact! this `[(ops/delete-person {:list-name ~name :person ~person})])
+----
+
+### Handling Mutations
+
+When a transaction runs in Untangled, it passes things off to a multimethod. This multi-method is described in more
+detail in the Om documentation and the Untangled Developer's Guide, but Untangled provides a macro that makes
+building (and using) them easier: `defmutation`.
+
+Let's create a new namespace called `app.operations` in `src/app/operations.cljs`
+
+A mutation looks a bit like a method. It can have a docstring, and the argument list will always receive a
+single argument (params) that will be a map (which then allows destructuring).
+
+The body of the mutation looks like the layout of a protocol implementation, with one or more methods. The one
+we're interested in at the moment is `action`, which is what to do *locally*. The `action` method will be
+passed the application database's app-state atom, and it should change the data in that atom to reflect
+the new "state of the world" indicated by the mutation.
+
+For example, `delete-person` must find the list of people on the list in question, and filter out the one
+that we're deleting:
+
+[source]
+----
+(ns app.operations
+  (:require [untangled.client.mutations :as m :refer [defmutation]]))
+
+(defmutation delete-person
+  "Mutation: Delete the person with name from the list with list-name"
+  [{:keys [list-name name]}] ; <1>
+  (action [{:keys [state]}] ; <2>
+    (let [path     (if (= "Friends" list-name)
+                     [:friends :person-list/people]
+                     [:enemies :person-list/people])
+          old-list (get-in @state path)
+          new-list (vec (filter #(not= (:person/name %) name) old-list))]
+      (swap! state assoc-in path new-list))))
+----
+
+<1> The argument list for the mutation itself
+<2> The thing to do, which receives the app-state atom as an argument.
+
+Then all that remains is to change `basic-ui` in the following ways:
+
+1. Add a require and alias for app.operations to the ns
+2. Change the callback to run the transaction
+
+[source]
+----
+(ns app.basic-ui
+  (:require [untangled.client.core :as uc]
+            [om.dom :as dom]
+            ; ADD THIS:
+            [app.operations :as ops] ; <1>
+            [om.next :as om :refer [defui]]))
+
+...
+
+(defui ^:once PersonList
+  ...
+  Object
+  (render [this]
+    (let [{:keys [person-list/label person-list/people]} (om/props this)
+          delete-person (fn [name]
+                          (js/console.log label "asked to delete" name)
+                          ; AND THIS
+                          (om/transact! this `[(ops/delete-person {:list-name ~label :name ~name})]))] ; <2>
+----
+
+<1> The require ensures that the mutations are loaded, and also gives us an alias to the namespace of the mutation's symbol.
+<2> Running the transaction in the callback.
+
+Note that our mutation's symbol is actually `app.operations/delete-person`, but the syntax quoting will fix it.
+Also realize that the mutation is *not* running in the UI, it is instead being handled "behind the scenes". This
+allows a snapshot of the state history to be kept, and also a more seamless integration to full-stack operation
+over a network to a server (in fact, the UI code here is *already* full-stack capable *without any changes*!).
+
+This is where the power starts to show: all of the minutiae above is leading us to some grand unifications when
+it comes to writing full-stack applications.
+
+But first, we should address a problem that many of you may have already noticed: The mutation code is tied to
+the shape of the UI tree!!!
+
+This breaks our lovely model in several ways:
+
+1. We can't refactor our UI without also rewriting the mutations (since the data tree would change shape)
+2. We can't locally reason about any data. Our mutations have to understand things globally!
+3. Our mutations could get rather large and ugly as our UI gets big
+4. If a fact appears in more than one place in the UI and data tree, then we'll have to update *all* of them
+in order for things to be correct. Data duplication is never your friend.
+
+## Normalizing the Database
+
+Fortunately, we have a very good solution to this problem, and it is one that has been around for decades:
+database normalization!
+
+Here's what we're going to do:
+
+Each UI component represents some conceptual entity with data (assuming it has state and a query). In a fully
+normalized database, each such concept would have its own table, and related things would refer to it
+through some kind of foreign key. In SQL land this looks like:
+
+[ditaa, target=sql-norm]
+----
+                                 +-------------------------------------+
+                                 |                                     |
+PersonList                       |     Person                          |
++---------------------------+    |     +----------------------------+  |
+| ID  | Label               |    |     |ID | Name         | List ID |  |
+|---------------------------|    |     |----------------------------|  |
+| 1   | Friends             |<---+     |1  | Joe          |    1    |--+
++---------------------------+          |----------------------------|  |
+                                       |2  | Sally        |    1    |--+
+                                       +----------------------------+
+----
+
+In a graph database (like Datomic) a reference can have a to-many arity, so the direction can be more natural:
+
+[ditaa, target=datomic-norm]
+----
+PersonList                             Person
++---------------------------+          +------------------+
+| ID  | Label   | People    |          |ID | Name         |
+|---------------------------|          |------------------|
+| 1   | Friends | #{1,2}    |----+---->|1  | Joe          |
++---------------------------+    |     |------------------|
+                                 +---->|2  | Sally        |
+                                       +------------------+
+----
+
+Since we're storing things in a map, we can represent "tables" as an entry in the map where the key is the
+table name, and the value is a map from ID to entity value. So, the last diagram could be represented as:
+
+[source]
+----
+{ :PersonList { 1  { :label "Friends"
+                     :people #{1, 2} }}
+  :Person { 1 {:id 1 :name "Joe" }
+            2 {:id 2 :name "Sally"}}}
+----
+
+This is close, but not quite good enough. The set in `:person-list/people` is a problem. There is no schema, so there is no
+way to know what kind of thing "1" and "2" are!
+
+The solution is rather easy: make a foreign reference *include* the name of the table to look in (to-many relations
+are stored in a vector as well, which results in the doubly-nested vector):
+
+[source]
+----
+{ :PersonList { 1  { :label "Friends"
+                     :people [ [:Person 1] [:Person 2] ] }}
+  :Person { 1 {:id 1 :name "Joe" }
+            2 {:id 2 :name "Sally"}}}
+----
+
+A foreign key as a vector pair of `[TABLE ID]` is known as an `Ident`.
+
+So, now that we have the concept and implementation, let's talk about conventions:
+
+1. Properties are usually namespaced (as shown in earlier examples)
+2. Table names are usually namespaced with the entity type, and given a name that indicates how it is indexed.
+For example: `:person/by-id`, `:person-list/by-name`, etc.
+
+### Automatic Normalization
+
+Fortunately, you don't have to hand-normalize your data. The components have almost everything they need to
+do it for you, other than the actual value of the `Ident`. So, we'll add one more (static) method to your components
+(and we'll add IDs to the data at this point, for easier implementation):
+
+[souce]
+----
+...
+(defui ^:once Person
+  static om/Ident ; <1>
+  (ident [this props] [:person/by-id (:db/id props)])
+  static om/IQuery
+  (query [this] [:db/id :person/name :person/age]) ; <2>
+  static uc/InitialAppState
+  (initial-state [comp-class {:keys [id name age] :as params}] {:db/id id :person/name name :person/age age}) ; <3>
+  Object
+  (render [this]
+    (let [{:keys [db/id person/name person/age]} (om/props this)
+          onDelete (om/get-computed this :onDelete)]
+      (dom/li nil
+        (dom/h5 nil name (str "(age: " age ")") (dom/button #js {:onClick #(onDelete id)} "X")))))) ; <4>
+
+(def ui-person (om/factory Person {:keyfn :person/name}))
+
+(defui ^:once PersonList
+  static om/Ident
+  (ident [this props] [:person-list/by-id (:db/id props)]) ; <5>
+  static om/IQuery
+  (query [this] [:db/id :person-list/label {:person-list/people (om/get-query Person)}]) ; <5>
+  static uc/InitialAppState
+  (initial-state [comp-class {:keys [id label]}]
+    {:db/id              id ; <5>
+     :person-list/label  label
+     :person-list/people (if (= id :friends)
+                           [(uc/get-initial-state Person {:id 1 :name "Sally" :age 32}) ; <3>
+                            (uc/get-initial-state Person {:id 2 :name "Joe" :age 22})]
+                           [(uc/get-initial-state Person {:id 3 :name "Fred" :age 11})
+                            (uc/get-initial-state Person {:id 4 :name "Bobby" :age 55})])})
+  Object
+  (render [this]
+    (let [{:keys [db/id person-list/label person-list/people]} (om/props this)
+          delete-person (fn [person-id]
+                          (js/console.log label "asked to delete" name)
+                          (om/transact! this `[(ops/delete-person {:list-id ~id :person-id ~person-id})]))] <4>
+      (dom/div nil
+        (dom/h4 nil label)
+        (dom/ul nil
+          (map (fn [person] (ui-person (om/computed person {:onDelete delete-person}))) people))))))
+
+(def ui-person-list (om/factory PersonList))
+
+(defui ^:once Root
+  static om/IQuery
+  (query [this] [:ui/react-key
+                 {:friends (om/get-query PersonList)}
+                 {:enemies (om/get-query PersonList)}])
+  static
+  uc/InitialAppState
+  (initial-state [c params] {:friends (uc/get-initial-state PersonList {:id :friends :label "Friends"}) ; <5>
+                             :enemies (uc/get-initial-state PersonList {:id :enemies :label "Enemies"})})
+  Object
+  (render [this]
+    ; NOTE: the data now comes in through props!!!
+    (let [{:keys [ui/react-key friends enemies]} (om/props this)]
+      (dom/div #js {:key react-key}
+        (ui-person-list friends)
+        (ui-person-list enemies)))))
+----
+
+<1> Adding an ident function allows Untangled to know how to build a FK reference to a person (given its props)
+<2> We will be using IDs now, so we need to add `:db/id` to the query. This is just a convention for the ID attribute
+<3> The state of the entity will also need the ID
+<4> The callback can now delete people by their ID, which is more reliable.
+<5> The list will have an ID, and an Ident as well
+
+If you reload the web page (needed to reinitialize the database state), then you can look at the newly normalized
+database at the REPL:
+
+[source]
+----
+dev:cljs.user=> @(om.next/app-state (-> app.basic-ui/app-1 deref :reconciler))
+{:friends [:person-list/by-id :friends], ; The TOP-LEVEL data keys, pointing to table entries now
+ :enemies [:person-list/by-id :enemies],
+ :ui/locale "en-US",
+ :person/by-id ; The PERSON table
+ {1 {:db/id 1, :person/name "Sally", :person/age 32},
+  2 {:db/id 2, :person/name "Joe", :person/age 22},
+  3 {:db/id 3, :person/name "Fred", :person/age 11},
+  4 {:db/id 4, :person/name "Bobby", :person/age 55}},
+ :person-list/by-id ; The PERSON LIST Table
+ {:friends
+  {:db/id :friends,
+   :person-list/label "Friends",
+   :person-list/people [[:person/by-id 1] [:person/by-id 2]]}, ; FKs to the PERSON table
+  :enemies
+  {:db/id :enemies,
+   :person-list/label "Enemies",
+   :person-list/people [[:person/by-id 3] [:person/by-id 4]]}}}
+----
+
+Note that `db->tree` understands (prefers) this normalized form, and can still convert it (via a query)
+to the proper data tree (note the repetition of the app state is necessary now). At the REPL, try this:
+
+[source]
+----
+dev:cljs.user=> (def current-db @(om.next/app-state (-> app.basic-ui/app-1 deref :reconciler)))
+#'cljs.user/current-db
+dev:cljs.user=> (om.next/db->tree (om.next/get-query app.basic-ui/Root) current-db current-db)
+{:friends
+ {:db/id :friends,
+  :person-list/label "Friends",
+  :person-list/people
+  [{:db/id 1, :person/name "Sally", :person/age 32}
+   {:db/id 2, :person/name "Joe", :person/age 22}]},
+ :enemies
+ {:db/id :enemies,
+  :person-list/label "Enemies",
+  :person-list/people
+  [{:db/id 3, :person/name "Fred", :person/age 11}
+   {:db/id 4, :person/name "Bobby", :person/age 55}]}}
+----
+
+### Mutations on a Normalized Database
+
+We have now made it possible to fix the problems with our mutation. Now, instead of removing
+a person from a tree, we can remove a FK from a TABLE entry!
+
+This is not only much easier to code, but it is complete independent of the shape of the UI tree:
+
+[source]
+----
+(ns app.operations
+  (:require [untangled.client.mutations :as m :refer [defmutation]]))
+
+(defmutation delete-person
+  "Mutation: Delete the person with name from the list with list-name"
+  [{:keys [list-id person-id]}]
+  (action [{:keys [state]}]
+    (let [ident-to-remove [:person/by-id person-id] ; <1>
+          strip-fk (fn [old-fks]
+                     (vec (filter #(not= ident-to-remove %) old-fks)))] ; <2>
+      (swap! state update-in [:person-list/by-id list-id :person-list/people] strip-fk)))) ; <3>
+----
+
+<1> References are always idents, meaning we know the value to remove from the FK list
+<2> By defining a function that can filter the ident from (1), we can use update-in on the person list table's people.
+<3> This is a very typical operation in a mutation: swap on the application state, and update a particular thing
+in a table (in this case the people to-many ref in a specific person list).
+
+If we were to now wrap the person list in any amount of addition UI (e.g. a nav bar, sub-pane, modal dialog, etc) this
+mutation will still work perfectly, since the list itself will only have one place it ever lives in the
+database.
+
+### How Automatic Normalization Works (optional)
+
+It is good to know how an arbitrary tree of data (the one in InitialAppState) can be converted to the normalized form.
+Understanding how this is accomplished can help you avoid some mistakes later.
+
+When you compose your query (via `om/get-query`), the `get-query` function adds metadata to the query fragment that
+names which component that query fragment came from.
+
+For example, try this at the REPL:
+
+[source]
+----
+dev:cljs.user=> (meta (om.next/get-query app.basic-ui/PersonList))
+{:component app.basic-ui/PersonList}
+----
+
+The `get-query` function adds the component itself to the metadata for that query fragment. We already know that
+we can call the static methods on a component (in this case we're interested in `ident`).
+
+So, Om includes a function called `tree->db` that can simultaneously walk a data tree (initial-state) and a
+component-annotated query. When it reaches a data node whose query metadata names a component with an `Ident`, it
+places that data into the approprite table (by calling your `ident` function on it to obtain the table/id), and
+replaces the data in the tree with its FK ident.
+
+Once you realize that the query *and* the ident work together to do normalization, you can more easily
+figure out what auto-normalization might fail.
+
+## Review So Far
+
+* Initial app state sets up tree of data on start to match the UI tree
+* Query/Ident are used to normalize the database
+* Query is used to pull data from the now-normalized db to feed the active UI
+* Transactions invoke abstract mutations
+** Mutations modify the (normalized) db
+** Components re-render
+
+## Going Remote!
 ** Setting up a Server
 *** Easy Server
 *** Starting the Server

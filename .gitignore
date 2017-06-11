@@ -39,3 +39,8 @@ resources/public/js/cards
 resources/public/js/test
 target
 resources/public/getting-started.html
+resources/public/.asciidoctor/
+resources/public/data-tree.png
+resources/public/datomic-norm.png
+resources/public/sql-norm.png
+resources/public/ui-graph.png
