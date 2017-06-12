@@ -2209,3 +2209,6 @@ So, `action` names the local (optimistic) effect. Each other method name *must* 
 in the `:networking` of the client. If you return true (or an AST) from one of these "remote" sections, it will trigger
 the mutation to be sent to that network handler.
 
+## The Complete Final App
+
+Just for reference the complete project for this guide is on Github at https://github.com/awkay/untangled-getting-started
