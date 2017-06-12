@@ -1957,8 +1957,6 @@ from the server.
 
 ### Using a legacy REST API
 
-TODO: Add a pre-written networking object that you can extend to handle rest API calls to make this easier...
-
 Working with legacy REST APIs is a simple task. Basically you need to add an additional remote to the Untangled Client
 that knows how to talk via JSON instead of EDN.
 
@@ -1971,5 +1969,243 @@ The basic steps are:
 2. Install your network handler on the client (using the `:networking` option)
 3. Add the `:remote` option to your loads, or use your remote name as the remote side of a mutation
 
-TODO: example
+#### Writing the Networking Code
+
+For this example we're going to use the following public REST API endpoint: `http://jsonplaceholder.typicode.com/posts`
+which returns a list of posts (try it to make sure it is working).
+
+It should return an array of JSON maps, with strings as keys.
+
+Basically, when you run a transaction (read or
+write) the raw transaction that is intended to go remote is passed into the `send` method of a networking protocol.
+The networking can send that unchanged, or it can choose to modify it in some way. Since REST servers don't understand
+our Untangled requests, we have to add a layer at the network to convert one to the other, and back (for the response).
+
+#### The UI and Queries
+
+First, let's talk about the UI code for dealing with these posts, since the UI defines the queries. Here is
+a very simple UI we can add to our program:
+
+[source]
+----
+(defui Post ; <1>
+  static om/Ident
+  (ident [this props] [:posts/by-id (:db/id props)])
+  static om/IQuery
+  (query [this] [:db/id :post/user-id :post/body :post/title])
+  Object
+  (render [this]
+    (let [{:keys [post/title post/body]} (om/props this)]
+      (dom/div nil
+        (dom/h4 nil title)
+        (dom/p nil body)))))
+
+(def ui-post (om/factory Post {:keyfn :db/id}))
+
+(defui Posts ; <2>
+  static uc/InitialAppState
+  (initial-state [c params] {:posts []})
+  static om/Ident
+  (ident [this props] [:post-list/by-id :the-one])
+  static om/IQuery
+  (query [this] [{:posts (om/get-query Post)}])
+  Object
+  (render [this]
+    (let [{:keys [posts]} (om/props this)]
+      (dom/ul nil
+        (map ui-post posts)))))
+
+(def ui-posts (om/factory Posts))
+
+(defui ^:once Root
+  static om/IQuery
+  (query [this] [:ui/react-key
+                 :ui/person-id
+                 {:current-user (om/get-query Person)}
+                 {:blog-posts (om/get-query Posts)} ; <3>
+                 {:friends (om/get-query PersonList)}
+                 {:enemies (om/get-query PersonList)}])
+  static
+  uc/InitialAppState
+  (initial-state [c params] {:blog-posts (uc/get-initial-state Posts {}) ; <4>
+                             :friends    (uc/get-initial-state PersonList {:id :friends :label "Friends"})
+                             :enemies    (uc/get-initial-state PersonList {:id :enemies :label "Enemies"})})
+  Object
+  (render [this]
+    ; NOTE: the data now comes in through props!!!
+    (let [{:keys [ui/react-key blog-posts current-user friends enemies]} (om/props this)] ; <5>
+      (dom/div #js {:key react-key}
+        (dom/h4 nil (str "Current User: " (:person/name current-user)))
+        (dom/button #js {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh User with ID 3")
+        (ui-person-list friends)
+        (ui-person-list enemies)
+        (dom/h4 nil "Blog Posts") ; <6>
+        (ui-posts blog-posts)))))
+----
+<1> A component to represent the post itself
+<2> A component to represent the list of the posts
+<3> Composing the Posts UI into root query
+<4> Composing the Posts UI into root initial data
+<5> Pull the resulting app db data from props
+<6> Render the list
+
+Of course, there are no posts yet, so all you'll see is the heading.
+
+Now for the networking code. Create a new namespace `src/main/app/rest.cljs`:
+
+[source]
+----
+(ns app.rest
+  (:refer-clojure :exclude [send])
+  (:require [untangled.client.logging :as log]
+            [untangled.client.network :as net]
+            [cognitect.transit :as ct]
+            [goog.events :as events]
+            [om.transit :as t]
+            [clojure.string :as str]
+            [clojure.set :as set]
+            [om.next :as om])
+  (:import [goog.net XhrIo EventType]))
+
+(defn make-xhrio [] (XhrIo.))
+
+(defrecord Network [url request-transform global-error-callback complete-app transit-handlers]
+  net/NetworkBehavior
+  (serialize-requests? [this] true)
+  net/IXhrIOCallbacks
+  (response-ok [this xhr-io valid-data-callback]
+    ;; Implies:  everything went well and we have a good response
+    ;; (i.e., got a 200).
+    (try
+      (let [read-handlers (:read transit-handlers)
+            ; STEP 3: Convert the JSON response into a proper tree structure to match the query
+            response      (.getResponseJson xhr-io)
+            edn           (js->clj response) ; convert it to clojure
+            ; Rename the keys from strings to the desired UI keywords
+            posts         (mapv #(set/rename-keys % {"id"     :db/id
+                                                     "title"  :post/title
+                                                     "userId" :post/user-id
+                                                     "body"   :post/body})
+                            edn)
+            ; IMPORTANT: structure of the final data we send to the callback must match the nesting structure of the query
+            ; [{:posts [...]}] or it won't merge correctly:
+            fixed-response      {:posts posts}]
+        (js/console.log :converted-response fixed-response)
+        ; STEP 4; Send the fixed up response back to the client DB
+        (when (and response valid-data-callback) (valid-data-callback fixed-response)))
+      (finally (.dispose xhr-io))))
+  (response-error [this xhr-io error-callback]
+    ;; Implies:  request was sent.
+    ;; *Always* called if completed (even in the face of network errors).
+    ;; Used to detect errors.
+    (try
+      (let [status                 (.getStatus xhr-io)
+            log-and-dispatch-error (fn [str error]
+                                     ;; note that impl.application/initialize will partially apply the
+                                     ;; app-state as the first arg to global-error-callback
+                                     (log/error str)
+                                     (error-callback error)
+                                     (when @global-error-callback
+                                       (@global-error-callback status error)))]
+        (if (zero? status)
+          (log-and-dispatch-error
+            (str "UNTANGLED NETWORK ERROR: No connection established.")
+            {:type :network})
+          (log-and-dispatch-error (str "SERVER ERROR CODE: " status) {})))
+      (finally (.dispose xhr-io))))
+  net/UntangledNetwork
+  (send [this edn ok error]
+    (let [xhrio       (make-xhrio)
+          ; STEP 1: Convert the request(s) from Om query notation to REST...
+          ; some logic to morph the incoming request into REST (assume you'd factor this out to handle numerous kinds)
+          request-ast (-> (om/query->ast edn) :children first)
+          uri         (str "/" (name (:key request-ast)))   ; in this case, posts
+          url         (str "http://jsonplaceholder.typicode.com" uri)]
+      (js/console.log :REQUEST request-ast :URI uri)
+      ; STEP 2: Send the request
+      (.send xhrio url "GET")
+      ; STEP 3 (see response-ok above)
+      (events/listen xhrio (.-SUCCESS EventType) #(net/response-ok this xhrio ok))
+      (events/listen xhrio (.-ERROR EventType) #(net/response-error this xhrio error))))
+  (start [this app]
+    (assoc this :complete-app app)))
+
+(defn make-rest-network [] (map->Network {}))
+----
+
+A lot of this code is boilerplate that you could write once and plug into once you understand it. The steps are
+annotated in the comments of the code. There are just a few basic steps:
+
+1. Om comes with a handy function that can convert a query into an AST, which is easier to process. We don't really
+care too much about the whole query, we just want to detect what is being asked for (we're going to ask for
+`:posts`).
+2. Once we've understood what is wanted, we create a REST URL and GET the data from the REST server.
+3. When we get a successful response we need to convert the JSON into the proper EDN that the client expects. In
+this case we're looking for `{ :posts [ {:db/id 1 :post/body "..." :post/title "..." ] ... }`.
+4. Once we have the properly structure tree of data to match the query, we simply pass it to the ok callback that
+our send was given.
+
+In a more complete program, you'd put hooks at steps (2) and (3) to handle all of the different REST requests, so that
+the majority of this code would be a one-time thing.
+
+#### Installing our Networking Code
+
+Untangled lets you set up networking yourself. We'd still like to talk to our server, but now we also want to be able
+to talk to the REST server. The modification is done in our `basic-ui` namespace where we create the client:
+
+[source]
+----
+(ns app.basic-ui
+  (:require [untangled.client.core :as uc]
+            [om.dom :as dom]
+            [app.operations :as ops]
+            [om.next :as om :refer [defui]]
+            [app.rest :as rest] ; <-------ADD THIS
+            [untangled.client.data-fetch :as df]
+            [untangled.client.mutations :as m]
+            [untangled.client.network :as net]))
+
+...
+
+(defonce app-1 (atom (uc/new-untangled-client
+                       ; Set up two networking handlers
+                       :networking {:remote (net/make-untangled-network "/api" :global-error-callback (constantly nil))
+                                    :rest   (rest/make-rest-network)}
+                       :started-callback ...)))
+----
+
+#### Requesting Data from the Alternate Remote
+
+All the hard stuff is done. Loading is now triggered just like you would have before, except with a `:remote` option
+to specify which network to talk over:
+
+[source]
+----
+(defonce app-1 (atom (uc/new-untangled-client
+                       ...
+                       :started-callback (fn [app]
+
+                                           (df/load app :posts Post {:remote :rest :target [:post-list/by-id :the-one :posts]})
+
+                                           ... as before ...
+----
+
+#### Mutations over REST
+
+The same technique is used. Everything you've read is accurate for mutations as well (you'll see the mutation come
+into the `send` function). To trigger a mutation, just add another section to your client mutation (a mutation can
+be sent to any number of remotes, in fact):
+
+[source]
+----
+(defmutation delete-post
+  [{:keys [id]}]
+  (action [env] ...stuff to affect local db...)
+  (remote [env] true) ; tell the normal API :remote this mutation
+  (rest [env] true)) ; tell the :rest networking to send this mutation
+----
+
+So, `action` names the local (optimistic) effect. Each other method name *must* match a remote's name as configured
+in the `:networking` of the client. If you return true (or an AST) from one of these "remote" sections, it will trigger
+the mutation to be sent to that network handler.
 

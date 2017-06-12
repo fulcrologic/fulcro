@@ -98,9 +98,7 @@
 
 
 (defn make-untangled-network
-  "TODO: This is PUBLIC API! Should not be in impl ns.
-
-  Build an Untangled Network object using the default implementation.
+  "Build an Untangled Network object using the default implementation.
 
   Features:
 
