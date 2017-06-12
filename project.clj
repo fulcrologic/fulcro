@@ -59,17 +59,6 @@
                                :preloads             [devtools.preload]
                                :asset-path           "js/test"
                                :optimizations        :none}}
-               {:id           "getting-started"
-                :source-paths ["src/main" "src/getting-started"]
-                :figwheel     true
-                :compiler     {:main                 getting-started.main
-                               :output-to            "resources/public/js/getting-started.js"
-                               :output-dir           "resources/public/js/getting-started"
-                               :recompile-dependents false
-                               :parallel-build       true
-                               :preloads             [devtools.preload]
-                               :asset-path           "js/getting-started"
-                               :optimizations        :none}}
                {:id           "cards"
                 :source-paths ["src/main" "src/cards"]
                 :figwheel     {:devcards true}

@@ -1955,11 +1955,6 @@ the delete.
 Try reloading your page from the server. That person should still be missing, indicating that it really was removed
 from the server.
 
-++++
-<div id="app-1"></div>
-<script src="/js/getting-started.js"> </script>
-++++
-
 ### Using a legacy REST API
 
 TODO: Add a pre-written networking object that you can extend to handle rest API calls to make this easier...
