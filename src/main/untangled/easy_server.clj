@@ -186,7 +186,7 @@
       (let [server-opts    (select-keys (-> this :config :value) http-kit-opts)
             port           (:port server-opts)
             started-server (run-server (:middleware handler) server-opts)]
-        (timbre/info "Web server started successfully. With options:" server-opts)
+        (timbre/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
         (assoc this :port port :server started-server))
       (catch Exception e
         (timbre/fatal "Failed to start web server " e)

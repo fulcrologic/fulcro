@@ -57,7 +57,7 @@ This goes in `project.clj`:
 
   :profiles {:dev {:source-paths ["src/dev" "src/main"]
                    :dependencies [[binaryage/devtools "0.9.2"]
-                                  [figwheel-sidecar "0.5.10"]]}})
+                                  [figwheel-sidecar "0.5.9"]]}})
 ----
 
 ### Figwheel Startup Script
@@ -192,6 +192,40 @@ content!
 IMPORTANT: When developing it is a good idea to: Use Chrome (the devtools only work there),
 have the developer's console open, and in the developer console settings: "Network, Disable cache (while
 DevTools is open)", and "Console, Enable custom formatters".
+
+### Fixing Things
+
+One of the most maddening things that can happen during development is mystery around build errors. Nothing is
+more frustrating than not understanding what is wrong.
+
+As you work on your code your compiler errors and warnings will show in the browser. DO NOT RELOAD THE PAGE! If
+you reload the page you'll lose the warning or error, and that makes it harder to figure out what is wrong!
+
+Instead, edit your code and re-save.
+
+If you are having problems and you've lost your way, it is sometimes useful to ask figwheel to clean and recompile
+everything:
+
+[source]
+----
+cljs.user=> (reset-autobuild)
+----
+
+will typically get you back on track.
+
+#### Fixing Stubborn Things
+
+Sometimes stuff just fails for reasons we fail to understand. There are times when
+you may want to completely kill your REPL, clean the project with `lein clean`, and start again. Make sure all
+of the generated Javascript is removed when you clean, or things might not clear up.
+
+It is also true that problems in your project configuration may cause problems that are very difficult to
+understand. If this happens to you (especially if you've never run a project with the current project setup) then
+it is good to look at things like dependency problems with `lein deps :tree` and fix those.
+
+In general, if you see a conflict on versions it will work to place the newest version of the conflicted dependency into
+your own dependency list. This can cause problems as well, but is less likely to fail than using an older version
+of a library that doesn't have some needed feature of bug fix.
 
 ## Basic UI Components
 
@@ -1199,13 +1233,15 @@ dev:cljs.user=> (meta (om.next/get-query app.basic-ui/PersonList))
 The `get-query` function adds the component itself to the metadata for that query fragment. We already know that
 we can call the static methods on a component (in this case we're interested in `ident`).
 
-So, Om includes a function called `tree->db` that can simultaneously walk a data tree (initial-state) and a
+So, Om includes a function called `tree->db` that can simultaneously walk a data tree (in this case initial-state) and a
 component-annotated query. When it reaches a data node whose query metadata names a component with an `Ident`, it
 places that data into the approprite table (by calling your `ident` function on it to obtain the table/id), and
 replaces the data in the tree with its FK ident.
 
 Once you realize that the query *and* the ident work together to do normalization, you can more easily
-figure out what auto-normalization might fail.
+figure out what mistakes you might make that could cause auto-normalization to fail (e.g. stealing a query from
+one component and placing it on another, writing the query of a sub-component by-hand instead of pulling it
+with `get-query`, etc.).
 
 ## Review So Far
 
@@ -1227,7 +1263,7 @@ running.
 There are two server namespaces in Untangled: `untangled.server` and
 `untangled.easy-server`. The former has composable bits for making a server that
 has a lot of your own extensions, while the latter is a pre-baked server that covers
-many of the common bases. You can always get started with the easy one, and upgrade
+many of the common bases and is less work to get started with. You can always get started with the easy one, and upgrade
 to a more enhanced one later.
 
 #### Easy Server
@@ -1238,11 +1274,414 @@ To add a server to our project just requires a few small additions:
 * Some tweaks to allow us to rapidly restart the server with code refresh for quick
 development.
 
-* Starting the Server
-* Server Refresh
-* Serving your App
+In `dev/user.clj`, we'll add the following for development use:
+
+[source]
+----
+(ns user
+  (:require
+    [figwheel-sidecar.system :as fig]
+    app.server
+    [clojure.tools.namespace.repl :as tools-ns :refer [set-refresh-dirs]]
+    [com.stuartsierra.component :as component]))
+
+; start-figwheel as before...
+
+
+; Set what clojure code paths are refreshed.
+; The resources directory is on the classpath, and the cljs compiler copies code there, so we have to be careful
+; that these extras don't get re-scanned when refreshing the server.
+(set-refresh-dirs "src/dev" "src/main")
+
+(def system (atom nil))
+(declare reset)
+
+(defn refresh
+  "Refresh the live code. Use this if the server is stopped. Otherwise, use `reset`."
+  [& args]
+  (if @system
+    (println "The server is running. Use `reset` instead.")
+    (apply tools-ns/refresh args)))
+
+(defn stop
+  "Stop the currently running server."
+  []
+  (when @system
+    (swap! system component/stop))
+  (reset! system nil))
+
+(defn go
+  "Start the server. Optionally supply a path to your desired config. Relative paths will scan classpath. Absolute
+  paths will come from the filesystem. The default is config/dev.edn."
+  ([] (go :dev))
+  ([path]
+   (if @system
+     (println "The server is already running. Use reset to stop, refresh, and start.")
+     (letfn [(start []
+              (swap! system component/start))
+            (init [path]
+              (when-let [new-system (app.server/make-system "config/dev.edn")]
+                (reset! system new-system)))]
+      (init path)
+      (start)))))
+
+(defn reset
+  "Stop the server, refresh the code, and restart the server."
+  []
+  (stop)
+  (refresh :after 'user/go))
+----
+
+These functions will be used at the clj REPL for managing your running server.
+
+The server itself requires very little code. In `src/main/app/server.clj`:
+
+[source]
+----
+(ns app.server
+  (:require [untangled.easy-server :as easy]
+            [untangled.server :as server ]
+            [taoensso.timbre :as timbre]))
+
+(defn make-system [config-path]
+  (easy/make-untangled-server
+    :config-path config-path
+    :parser (server/untangled-parser)))
+----
+
+The `make-untangled-server` function needs to know where to find the server config file, and what to use to process
+the incoming client requests (the parser). Untangled comes with a parser that you can use to get going. You may also
+supply your own Om parser here.
+
+Finally, you need two configuration files. Place these in `resources/config`:
+
+`defaults.edn`:
+
+[source]
+----
+{:port 4050}
+----
+
+`dev.edn`:
+
+[source]
+----
+{}
+----
+
+The first file is always looked for by the server, and should contain all of the default settings you think you
+want independent of where the server is started.
+
+The server (for safety reasons in production) will not start if there isn't a user-specified file containing potential
+overrides.
+
+Basically, it will deep-merge the two and have the latter override things in the former. This makes mistakes in
+production harder to make. If you read the source of the `go` function in the `user.clj` file you'll see that
+we supply this development config file as an argument. In production systems you'll typically want this file to be
+on the filesystem when an admin can tweak it.
+
+##### Starting the Server
+
+If you now start a local Clojure REPL (with no special options), you should be in the `user` namespace to start.
+
+[source]
+----
+user=> (go)
+----
+
+should start the server. The console should tell you the URL, and if you browse there you should see your `index.html` file.
+
+##### Server Refresh
+
+When you add/change code on the server you will want to see those changes in the live server without having to restart
+your REPL.
+
+[source]
+----
+user=> (reset)
+----
+
+will do this.
+
+If there are compiler errors, then the `user` namespace might not reload properly. In that case, you should be able
+to recover using:
+
+[source]
+----
+user=> (tools-ns/refresh)
+user=> (go)
+----
+
+WARNING: Don't call refresh while the server is running. It will refresh the code, *but it will lose* the reference to
+the running server, meaning you won't be able to stop it and free up the network port. If you do this, you'll have to
+restart your REPL.
+
+##### Serving your App
+
+Figwheel comes with a server that we've been using to server our client. When you want to build a full-stack app
+*you must* serve your client from your own server. Thus, if you load your page with the figwheel server (which is still
+available on an alternate port) you'll see your app, but the server interactions won't succeed.
+
+One might ask: "If I don't use figwheel's server, do I lose hot code reload on the client?"
+
+The answer is no. When figwheel compiles your application it embeds it's own websocket code in your application for
+hot code reload. When you load that compiled code (in any way) it will try to connect to the figwheel websocket.
+
+So your network topology was:
+
+[ditaa,target=client-network-topo]
+----
++----------+
+| Browser  |                  +-------------------+
+|  app     +-----+            |                   |
+|          |     |            |  port 3449        |
++----------+     | http load  |  +-------------+  |
+                 +----------->|  | Figwheel    |  |
+                 |            |  |             |  |
+                 +----------->|  |             |  |
+                ws hot code   |  +-------------+  |
+                              +-------------------+
+----
+
+where both the HTML/CSS/JS resources and the hot code were coming from different connections to the same server.
+
+The networking picture during full-stack development just splits these like this:
+
+[ditaa,target=network-topo]
+----
+                           localhost
+                           +-------------------+
+                           |                   |
+                           |  port 4050        |
+              app requests |  +-------------+  |
++----------+     +-------->|  |Your Server  |  |
+| Browser  |     |         |  +-------------+  |
+|  app     +-----+         |                   |
+|          |     |         |  port 3449        |
++----------+     |         |  +-------------+  |
+                 +-------->|  | Figwheel    |  |
+             ws hot code   |  +-------------+  |
+                           |                   |
+                           +-------------------+
+----
+
+Untangled's client will automatically route requests to the `/api` URI of the source URL that was used to load the page,
+and Untangled's server is built to watch for communications at this endpoint.
+
+### Setup for Playing with Loads
+
+It is very handy to be able to look at your applications state to see what might be wrong. We've been manually
+dumping application state at the REPL using a rather long expression. Let's simplify that. In `user.cljs` (make sure it is the
+CLJS file!) add:
+
+[source]
+----
+(defn dump
+  [& keys]
+  (let [state-map        @(om.next/app-state (-> app-1 deref :reconciler))
+        data-of-interest (if (seq keys)
+                           (get-in state-map keys)
+                           state-map)]
+    data-of-interest))
+----
+
+now you should be able to examine the entire app state or a particular key-path with:
+
+[source]
+----
+dev:cljs.user=> (dump)
+dev:cljs.user=> (dump :person/by-id 1)
+----
 
 ### Loading Data
+
+Now we will start to see more of the payoff of our UI co-located queries and auto-normalization. Our application
+so far is quite unrealistic, in the the people we're showing should be coming from a server-side database, they
+should not be embedded in the code of the client. Let's remedy that.
+
+Untangled provides a few mechanisms for loading data, but every possible load scenario can be done using
+the `untangled.client.data-fetch/load` function.
+
+It is very important to remember that our application database is completely normalized, so anything we'd want to put
+in that application state will at most be 3 levels deep (the table name, the ID of the thing in the table, and the
+field within that thing).
+
+Thus, there really are not very many scenarios!
+
+* Load something into the root of the application state
+* Load something into a particular field of an existing thing
+* Load some pile of data, and shape it into the database (e.g. load all of the people, and then separate them into
+a list of friends and enemies).
+
+Let's try out these different scenarios with our application.
+
+First, let's correct our application's initial state so that no people are there:
+
+[source]
+----
+(defui ^:once PersonList
+  ...
+  static uc/InitialAppState
+  (initial-state [comp-class {:keys [id label]}]
+    {:db/id              id
+     :person-list/label  label
+     :person-list/people []}) ; REMOVE the initial people
+  ...
+----
+
+If you now reload your page you should see two empty lists.
+
+#### Normalization
+
+When you load something you will use a query from something on your UI (it is rare to load something you don't want to
+show). Since those components (should) have a query and ident, the result of a load can be sent from the server as a
+tree, and the client can auto-normalize that tree just like it did for our initial state!
+
+#### Loading something into the DB root
+
+This case is less common, but it is a simple starting point. It is typically used to obtain something that you'd want
+to access globally (e.g. the user info about the current session). Let's assume that our Person component represents
+the same kind of data as the "logged in" user. Let's write a load that can ask the server for the "current user" and
+store that in the root of our database under the key `:current-user`.
+
+Loads, of course, can be triggered at any time (startup, event, timeout). Loading is just a function call.
+
+For this example, let's trigger the load just after the application has started.
+
+##### Triggering the Load
+
+To do this, we can add an option to our client. In `app.basic-ui` change `app-1`:
+
+[source]
+----
+(defonce app-1 (atom (uc/new-untangled-client
+                       :started-callback (fn [app]
+                                           (df/load app :current-user Person)))))
+----
+
+Of course hot code reload does not restart the app (if just hot patches the code), so to see this load trigger we must
+reload the browser page.
+
+If you do that at the moment, you should see an error in the develop console related to the load.
+
+IMPORTANT: Make sure your application is running from *your* server (port 4050) and not the figwheel one!
+
+Technically, `load` is just writing a query for you (in this case `[{:current-user Person}]`) and sending it to the
+server. The server will receive *exactly* that query as a CLJ data structure.
+
+##### Implementing the Server Handler
+
+In vanilla Om Next you would now be tasked with converting the raw CLJ query into a response. You can read more
+about that in the developer's guide; however, remember that we're using Untangled's built-in request parser. This
+makes our job much easier.
+
+Create a new namespace in `src/main/operations.clj` (NOT the cljs file...that was for the client operations):
+
+[source]
+----
+(ns app.operations
+  (:require
+    [untangled.server :as server :refer [defquery-root defquery-entity defmutation]]
+    [taoensso.timbre :as timbre]))
+
+; A pretend server-side database of people
+(def people-db (atom {1 {:db/id 1 :person/name "Server Joe" :person/age 55 :person/relation :friend}
+                      2 {:db/id 2 :person/name "Server Sally" :person/age 22 :person/relation :friend}
+                      3 {:db/id 3 :person/name "Server Judy" :person/age 76 :person/relation :enemy}
+                      4 {:db/id 4 :person/name "Server Sam" :person/age 32 :person/relation :friend}
+                      99 {:db/id 99 :person/name "Me" :person/age 35}))
+----
+
+Since we're on the server and we're going to be supplying and manipulating people, we'll just make a single atom-based
+in-memory database. This could easily be stored in a database of any kind.
+
+To handle the incoming "current user" request, we can use a macro to write the handler:
+
+[source]
+----
+(defquery-root :current-user
+  "Queries for the current user returns it to the client"
+  (value [env params]
+    (get @people-db 99)))
+----
+
+This actually augments a multimethod, which means we need to make sure this namespace is loaded by our server.
+
+So, be sure to edit `user.clj` and add this to the requires:
+
+[source]
+----
+(ns user
+  (:require
+    [figwheel-sidecar.system :as fig]
+    app.server
+    app.operations ; Add this so your operations get loaded into the multimethod request handler
+    [clojure.tools.namespace.repl :as tools-ns :refer [set-refresh-dirs]]
+    [com.stuartsierra.component :as component]))
+
+...
+----
+
+You should now refresh the server at the SERVER REPL:
+
+[source]
+----
+user=> (reset)
+----
+
+If you've done everything correctly, then reloading your application should successfully load your current user. You
+can verify this by examining the network data, but it will be even more convincing if you look at your client database:
+
+[source]
+----
+dev:cljs.user=> (dump)
+{:current-user [:person/by-id 99],
+ :person/by-id {99 {:db/id 99, :person/name "Me", :person/role "admin"}},
+...
+}
+----
+
+Notice that the top-level key is a normalized FK reference to the person, which has been placed into the correct database
+table.
+
+##### Using Data from Root
+
+Of course, the question is now "how do I use that in some arbitrary component?" We won't explore that right now,
+but the answer is easy: The query syntax has a notation for "query something at the root". It looks like this:
+`[ {[:current-user '_] (om/get-query Person)} ]`. You should recognize this as a query join, but on something that
+looks like an ident without an ID (implying there is only one, at root).
+
+We'll just use it on the Root UI node, where we don't need to "jump to the top":
+
+[source]
+----
+(defui ^:once Root
+  static om/IQuery
+  (query [this] [:ui/react-key
+                 :ui/person-id
+                 {:current-user (om/get-query Person)} ; <1>
+                 {:friends (om/get-query PersonList)}
+                 {:enemies (om/get-query PersonList)}])
+  static
+  uc/InitialAppState
+  (initial-state [c params] {:friends (uc/get-initial-state PersonList {:id :friends :label "Friends"})
+                             :enemies (uc/get-initial-state PersonList {:id :enemies :label "Enemies"})})
+  Object
+  (render [this]
+    ; NOTE: the data now comes in through props!!!
+    (let [{:keys [ui/react-key current-user friends enemies]} (om/props this)] ; <2>
+      (dom/div #js {:key react-key}
+        (dom/h4 nil (str "Current User: " (:person/name current-user))) ; <3>
+        (ui-person-list friends)
+        (ui-person-list enemies)))))
+----
+
+<1> Add the current user to the query
+<2> Pull of from the props
+<3> Show something about it in the UI
+
+Now reload the page to re-execute the load and it should fill in correctly.
+
 #### Loading a specific entity and it's subgraph (by ident)
 
 * The server query processing
