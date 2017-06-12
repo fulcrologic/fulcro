@@ -1,6 +1,7 @@
 :source-highlighter: coderay
 :source-language: clojure
 :toc:
+:toclevels: 4
 :sectlinks:
 :sectanchors:
 :sectnums:
@@ -1554,10 +1555,23 @@ To do this, we can add an option to our client. In `app.basic-ui` change `app-1`
 
 [source]
 ----
+(ns app.basic-ui
+  (:require [untangled.client.core :as uc]
+            [om.dom :as dom]
+            [app.operations :as ops]
+            [om.next :as om :refer [defui]]
+            [untangled.client.data-fetch :as df] ; <1>
+            [untangled.client.mutations :as m]))
+
+...
+
 (defonce app-1 (atom (uc/new-untangled-client
                        :started-callback (fn [app]
-                                           (df/load app :current-user Person)))))
+                                           (df/load app :current-user Person))))) ; <2>
 ----
+
+<1> Require the `data-fetch` namespace
+<2> Issue the load in the application's `started-callback`
 
 Of course hot code reload does not restart the app (if just hot patches the code), so to see this load trigger we must
 reload the browser page.
@@ -1584,12 +1598,11 @@ Create a new namespace in `src/main/operations.clj` (NOT the cljs file...that wa
     [untangled.server :as server :refer [defquery-root defquery-entity defmutation]]
     [taoensso.timbre :as timbre]))
 
-; A pretend server-side database of people
-(def people-db (atom {1 {:db/id 1 :person/name "Server Joe" :person/age 55 :person/relation :friend}
-                      2 {:db/id 2 :person/name "Server Sally" :person/age 22 :person/relation :friend}
-                      3 {:db/id 3 :person/name "Server Judy" :person/age 76 :person/relation :enemy}
-                      4 {:db/id 4 :person/name "Server Sam" :person/age 32 :person/relation :friend}
-                      99 {:db/id 99 :person/name "Me" :person/age 35}))
+(def people-db (atom {1  {:db/id 1 :person/name "Bert" :person/age 55 :person/relation :friend}
+                      2  {:db/id 2 :person/name "Sally" :person/age 22 :person/relation :friend}
+                      3  {:db/id 3 :person/name "Allie" :person/age 76 :person/relation :enemy}
+                      4  {:db/id 4 :person/name "Zoe" :person/age 32 :person/relation :friend}
+                      99 {:db/id 99 :person/name "Me" :person/role "admin"}}))
 ----
 
 Since we're on the server and we're going to be supplying and manipulating people, we'll just make a single atom-based
@@ -1646,8 +1659,8 @@ table.
 
 ##### Using Data from Root
 
-Of course, the question is now "how do I use that in some arbitrary component?" We won't explore that right now,
-but the answer is easy: The query syntax has a notation for "query something at the root". It looks like this:
+Of course, the question is now "how do I use that in some arbitrary component?" We won't completelu
+explore that right now, but the answer is easy: The query syntax has a notation for "query something at the root". It looks like this:
 `[ {[:current-user '_] (om/get-query Person)} ]`. You should recognize this as a query join, but on something that
 looks like an ident without an ID (implying there is only one, at root).
 
@@ -1682,30 +1695,286 @@ We'll just use it on the Root UI node, where we don't need to "jump to the top":
 
 Now reload the page to re-execute the load and it should fill in correctly.
 
-#### Loading a specific entity and it's subgraph (by ident)
-
-* The server query processing
-* Note on normalization: it happens
-
 #### Loading something that gets "added in" to an existing entity
 
-* Choosing a server query keyword (ensuring no conflict at root)
-* Targeting the result
-* The server query processing
-* Loading items into a table, then morph them into the UI
-* The server query processing
-* Post mutations
+The next common scenario is loading something into some other existing entity in your database. Remember that since
+the database is normalized this will cover all of the other loading cases (except for the one where you want to convert
+what the server tells you into a different shape (e.g. paginate, sort, etc.)).
 
-#### Loading something from a legacy REST API
+Untangled's load method accomplish this by loading the data into the root of the database, normalizing it, then
+(optionally) allowing you to re-target the top-level FK to a different location in the database.
 
-* TODO: Add some kind of pluggable networking object that you can extend
-to handle rest API calls???
+##### Targeting the Load
 
+The load looks very much like what we just did, but with one addition:
+
+source
+----
+(df/load app :my-friends Person {:target [:person-list/by-id :friends :person-list/people]})
+----
+
+The `:target` option indicates that once the data is loaded and normalized (which will leave the FK reference
+at the root as we saw in the last section) this top-level reference will be moved into the key-path provided. Since
+our database is normalized, this means a 3-tuple (table, id, target field).
+
+WARNING: It is important to choose a keyword for this load that won't stomp on real data in your database's root.
+We already have the top-level keys `:friends` and `:enemies` as part of our UI graph from root. So, we're making up
+`:my-friends`  as the load key. One could also namespace the keyword with something like `:server/friends`.
+
+Since friend and enemies are the same kind of query, let's add both into the started callback:
+
+[source]
+----
+(defonce app-1 (atom (uc/new-untangled-client
+                       :started-callback (fn [app]
+                                           ...
+                                           (df/load app :my-enemies Person {:target [:person-list/by-id :enemies :person-list/people]})
+                                           (df/load app :my-friends Person {:target [:person-list/by-id :friends :person-list/people]})))))
+----
+
+##### Handling the Load Request on the Server
+
+The server query processing is what you would expect from the last example (in `operations.clj`):
+
+[source]
+----
+(def people-db ...) ; as before
+
+(defn get-people [kind keys]
+  (->> @people-db
+    vals
+    (filter #(= kind (:person/relation %)))
+    vec))
+
+(defquery-root :my-friends
+  "Queries for friends and returns them to the client"
+  (value [{:keys [query]} params]
+    (get-people :friend query)))
+
+(defquery-root :my-enemies
+  "Queries for friends and returns them to the client"
+  (value [{:keys [query]} params]
+    (get-people :enemy query)))
+----
+
+A refresh of the server and reload of the page should now populate your lists from the server!
+
+[source]
+----
+user=> (reset)
+----
+
+#### Morphing the Loaded Data
+
+It is somewhat common for a server to return data that isn't quite what we want in our UI. So far we've just been placing
+the data returned from the server directly in our UI. Untangled's load mechanism allows a post mutation of the loaded
+data once it arrives, allowing you to re-shape it into whatever form you might desire.
+
+For example, you may want the people in your lists to be sorted by name. You've already seen how to write client
+mutations that modify the database, and that is really all you need. The client mutation for sorting the people
+in the friends list could be (`operations.cljs`):
+
+
+[source]
+----
+(defn sort-friends-by*
+  "Sort the idents in the friends person list. Returns the new app-state."
+  [state-map field]
+  (let [friend-idents  (get-in state-map [:person-list/by-id :friends :person-list/people] [])
+        friends        (map (fn [friend-ident] (get-in state-map friend-ident)) friend-idents)
+        sorted-friends (sort-by field friends)
+        new-idents     (mapv (fn [friend] [:person/by-id (:db/id friend)]) sorted-friends)]
+    (assoc-in state-map [:person-list/by-id :friends :person-list/people] new-idents)))
+
+(defmutation sort-friends [no-params]
+  (action [{:keys [state]}]
+    (swap! state sort-friends-by* :person/name)))
+----
+
+Of course this mutation could be triggered anywhere you could run a `transact!`, but since we're interested in morphing
+just-loaded data, we'll add it there (in basic-ui):
+
+[source]
+----
+(df/load app :my-friends Person {:target [:person-list/by-id :friends :person-list/people]
+                                :post-mutation `ops/sort-friends})
+----
+
+Notice the syntax quoting. The post mutation has to be *data*: in this case the symbol of the mutation. Remember that
+our require has `app.operations` aliased to `ops`, and syntax quoting will expand that for us.
+
+If you reload your UI you should now see the people sorted by name. Hopefully you can see how easy it is to change
+this sort order to something like "by age". Try it!
+
+#### Loading a specific entity and it's subgraph (by ident)
+
+Once things are loaded from the server they are immediately growing stale (unless you're pushing updates with
+websockets). It is very common to want to re-load a particular thing in your database. Of course, you can trigger
+a load just like we've been doing, but in that case we reloading a whole bunch of things. What if we just wanted to
+refresh a particular person (e.g. in preparation for editing it).
+
+The `load` function can be used for that as well. Just replace the keyword with an ident, and you're there!
+
+Load can take the `app` or any component's `this` as the first argument, so from within the UI we can trigger a load
+using `this`:
+
+[source]
+----
+(df/load this [:person/by-id 3] Person)
+----
+
+##### Trigger the Load via a User Event
+
+Let's embed that into our UI at the root:
+
+[source]
+----
+(defui ^:once Root
+  ...
+  Object
+  (render [this]
+    (let [{:keys [ui/react-key current-user friends enemies]} (om/props this)]
+      (dom/div #js {:key react-key}
+        (dom/h4 nil (str "Current User: " (:person/name current-user)))
+        ; Add a button:
+        (dom/button #js {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh Person with ID 3")
+        ...
+----
+
+##### Handling an Entity Query on the Server
+
+The incoming query will have a slightly different form, so there is an alternate macro for making a handler for entity
+loading. Let's add this in `operations.clj`:
+
+[source]
+----
+(defquery-entity :person/by-id
+  "Server query for allowing the client to pull an individual person from the database"
+  (value [env id params]
+    (timbre/info "Query for person" id)
+    (update (get @people-db id) :person/name str " (refreshed)")))
+----
+
+The `defquery-entity` takes the "table name" as the dispatch key. The `value` method of the query handler will receive
+the server environment, the ID of the entity to load, and any parameters passed with the query (see the `:params` option
+of `load`).
+
+In the implementation above we're augmenting the person's name with "(refreshed)" so that you can see it happen in the UI.
+
+Remember to `(reset)` your server to load this code.
+
+Your UI should now have a button, and when you press it you should see one person update!
+
+##### Refreshing "This"
+
+There is a special case that is somewhat common: you want to trigger a refresh from an event on the item that needs
+the refresh. The code for that is identical to what we've just presented (a load with an ident and component); however,
+the `data-fetch` namespace includes a convenience function for it.
+
+So, say we wanted a refresh button on each person. We could leverage `df/refresh` for that:
+
+[source]
+----
+(defui ^:once Person
+  ... as before
+  (render [this]
+    (let [{:keys [db/id person/name person/age]} (om/props this)]
+      (dom/li nil
+        (dom/h5 nil name (str "(age: " age ")")
+          (dom/button #js {:onClick #(df/refresh! this)} "Refresh"))))))
+----
+
+This should already work with your server, so once the browser hot code reload has happened this button should just work!
+
+#### Additional Permutations
+
+Untangled's load system covers a number of additional bases that bring the story to completion. There are load markers
+(so you can show network activity), UI refresh add-ons (when you modify data that isn't auto-detected, e.g. through a post
+mutation), server query parameters, and error handling. See the developers guide, doc strings, or source for more details.
 
 ### Handling Mutations on The Server
-* You already know how!
+
+Mutations are handled on the server using the server's `defmutation` macro (if you're using Untangled's request parser).
+
+This has the identical syntax to the client version!
+
+IMPORTANT: You want to place your mutations in the same namespace on the client and server since the `defmutation`
+macros namespace the symbol into the current namespace.
+
+So, this is really why we duplicated the namespace name in Clojure earlier and created an `operations.clj` file right
+next to our `operations.cljs`.
+
+So, we can now add an implementation for our server-side `delete-person`:
+
+[source]
+----
+(defmutation delete-person
+  "Server Mutation: Handles deleting a person on the server"
+  [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (timbre/info "Server deleting person" person-id)
+    (swap! people-db dissoc person-id)))
+----
+
+Refresh the code on your server with `(reset)` at the REPL.
+
+#### Triggering the Remote Mutation from the Client
+
+Mutations are simply optimistic local updates by default. To make them full-stack, you need to add a method to your
+`defmutation` handler:
+
+[source]
+----
+(defmutation delete-person
+  "Mutation: Delete the person with person-id from the list with list-id"
+  [{:keys [list-id person-id]}]
+  (action [{:keys [state]}]
+    (let [ident-to-remove [:person/by-id person-id]
+          strip-fk        (fn [old-fks]
+                            (vec (filter #(not= ident-to-remove %) old-fks)))]
+      (swap! state update-in [:person-list/by-id list-id :person-list/people] strip-fk)))
+  (remote [env] true)) ; This one line is it!!!
+----
+
+The syntax for the addition is:
+
+[source]
+----
+(remote-name [env] boolean-or-ast)
+----
+
+where `remote` is the default remote name. You can have any number of network remotes. The default one talks to the
+page origin at `/api`. What is this AST we speak of? It is the abstract syntax tree of the mutation itself (as data).
+Using a boolean true means "send it just as the client specified". If you wish you can pull the AST from the `env`,
+augment it (or completely change it) and return that instead. See the developers guide for more details.
+
+Now that you've got the UI in place, try deleting a person. It should disappear from the UI as it did before; however,
+now if you're watching the network you'll see a request to the server. If you server is working right, it will handle
+the delete.
+
+Try reloading your page from the server. That person should still be missing, indicating that it really was removed
+from the server.
 
 ++++
 <div id="app-1"></div>
 <script src="/js/getting-started.js"> </script>
 ++++
+
+### Using a legacy REST API
+
+TODO: Add a pre-written networking object that you can extend to handle rest API calls to make this easier...
+
+Working with legacy REST APIs is a simple task. Basically you need to add an additional remote to the Untangled Client
+that knows how to talk via JSON instead of EDN.
+
+The basic steps are:
+
+1. Implement `UntangledNetwork`. See the `untangled.client.network` namespace for the protocol and built-in implementation.
+    a. Your `send` method will be passed the query/mutations the client wants to do. You must translate them to a REST
+    call and translate the REST response into the desired tree of client data, which you then pass to the `ok` callback
+    that `send` is given.
+2. Install your network handler on the client (using the `:networking` option)
+3. Add the `:remote` option to your loads, or use your remote name as the remote side of a mutation
+
+TODO: example
+
