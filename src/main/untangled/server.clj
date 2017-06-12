@@ -3,7 +3,6 @@
     [com.stuartsierra.component :as component]
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
-    [clojure.java.classpath :as cp]
     [clojure.java.io :as io]
     [clojure.edn :as edn]
     [clojure.walk :as walk]

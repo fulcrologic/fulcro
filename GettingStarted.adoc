@@ -1032,7 +1032,7 @@ Fortunately, you don't have to hand-normalize your data. The components have alm
 do it for you, other than the actual value of the `Ident`. So, we'll add one more (static) method to your components
 (and we'll add IDs to the data at this point, for easier implementation):
 
-[souce]
+[source]
 ----
 ...
 (defui ^:once Person
@@ -1218,11 +1218,29 @@ figure out what auto-normalization might fail.
 
 ## Going Remote!
 
+Believe it or not, there's not much to add/change on the client to get it talking
+to a server, and there is also a relatively painless way to get a server up and
+running.
+
 ### Setting up a Server
+
+There are two server namespaces in Untangled: `untangled.server` and
+`untangled.easy-server`. The former has composable bits for making a server that
+has a lot of your own extensions, while the latter is a pre-baked server that covers
+many of the common bases. You can always get started with the easy one, and upgrade
+to a more enhanced one later.
+
 #### Easy Server
-#### Starting the Server
-#### Server Refresh
-#### Serving your App
+
+To add a server to our project just requires a few small additions:
+
+* The server itself
+* Some tweaks to allow us to rapidly restart the server with code refresh for quick
+development.
+
+* Starting the Server
+* Server Refresh
+* Serving your App
 
 ### Loading Data
 #### Loading a specific entity and it's subgraph (by ident)
@@ -1238,6 +1256,12 @@ figure out what auto-normalization might fail.
 * Loading items into a table, then morph them into the UI
 * The server query processing
 * Post mutations
+
+#### Loading something from a legacy REST API
+
+* TODO: Add some kind of pluggable networking object that you can extend
+to handle rest API calls???
+
 
 ### Handling Mutations on The Server
 * You already know how!
