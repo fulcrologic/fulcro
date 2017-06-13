@@ -1420,7 +1420,7 @@ restart your REPL.
 
 ##### Serving your App
 
-Figwheel comes with a server that we've been using to server our client. When you want to build a full-stack app
+Figwheel comes with a server that we've been using to serve our client. When you want to build a full-stack app
 *you must* serve your client from your own server. Thus, if you load your page with the figwheel server (which is still
 available on an alternate port) you'll see your app, but the server interactions won't succeed.
 
@@ -1498,7 +1498,7 @@ dev:cljs.user=> (dump :person/by-id 1)
 ### Loading Data
 
 Now we will start to see more of the payoff of our UI co-located queries and auto-normalization. Our application
-so far is quite unrealistic, in the the people we're showing should be coming from a server-side database, they
+so far is quite unrealistic: the people we're showing should be coming from a server-side database, they
 should not be embedded in the code of the client. Let's remedy that.
 
 Untangled provides a few mechanisms for loading data, but every possible load scenario can be done using
@@ -1577,11 +1577,11 @@ To do this, we can add an option to our client. In `app.basic-ui` change `app-1`
 Of course hot code reload does not restart the app (if just hot patches the code), so to see this load trigger we must
 reload the browser page.
 
-If you do that at the moment, you should see an error in the develop console related to the load.
+If you do that at the moment, you should see an error in the developer console related to the load.
 
 IMPORTANT: Make sure your application is running from *your* server (port 4050) and not the figwheel one!
 
-Technically, `load` is just writing a query for you (in this case `[{:current-user Person}]`) and sending it to the
+Technically, `load` is just writing a query for you (in this case `[{:current-user (om/get-query Person)}]`) and sending it to the
 server. The server will receive *exactly* that query as a CLJ data structure.
 
 ##### Implementing the Server Handler
@@ -1614,7 +1614,7 @@ To handle the incoming "current user" request, we can use a macro to write the h
 [source]
 ----
 (defquery-root :current-user
-  "Queries for the current user returns it to the client"
+  "Queries for the current user and returns it to the client"
   (value [env params]
     (get @people-db 99)))
 ----
@@ -1660,7 +1660,7 @@ table.
 
 ##### Using Data from Root
 
-Of course, the question is now "how do I use that in some arbitrary component?" We won't completelu
+Of course, the question is now "how do I use that in some arbitrary component?" We won't completely
 explore that right now, but the answer is easy: The query syntax has a notation for "query something at the root". It looks like this:
 `[ {[:current-user '_] (om/get-query Person)} ]`. You should recognize this as a query join, but on something that
 looks like an ident without an ID (implying there is only one, at root).
@@ -1702,7 +1702,7 @@ The next common scenario is loading something into some other existing entity in
 the database is normalized this will cover all of the other loading cases (except for the one where you want to convert
 what the server tells you into a different shape (e.g. paginate, sort, etc.)).
 
-Untangled's load method accomplish this by loading the data into the root of the database, normalizing it, then
+Untangled's load method accomplishes this by loading the data into the root of the database, normalizing it, then
 (optionally) allowing you to re-target the top-level FK to a different location in the database.
 
 ##### Targeting the Load
@@ -1753,7 +1753,7 @@ The server query processing is what you would expect from the last example (in `
     (get-people :friend query)))
 
 (defquery-root :my-enemies
-  "Queries for friends and returns them to the client"
+  "Queries for enemies and returns them to the client"
   (value [{:keys [query]} params]
     (get-people :enemy query)))
 ----
@@ -1773,13 +1773,13 @@ data once it arrives, allowing you to re-shape it into whatever form you might d
 
 For example, you may want the people in your lists to be sorted by name. You've already seen how to write client
 mutations that modify the database, and that is really all you need. The client mutation for sorting the people
-in the friends list could be (`operations.cljs`):
+in the friends list could be (in `operations.cljs`):
 
 
 [source]
 ----
 (defn sort-friends-by*
-  "Sort the idents in the friends person list. Returns the new app-state."
+  "Sort the idents in the friends person list by the indicated field. Returns the new app-state."
   [state-map field]
   (let [friend-idents  (get-in state-map [:person-list/by-id :friends :person-list/people] [])
         friends        (map (fn [friend-ident] (get-in state-map friend-ident)) friend-idents)
@@ -1793,7 +1793,7 @@ in the friends list could be (`operations.cljs`):
 ----
 
 Of course this mutation could be triggered anywhere you could run a `transact!`, but since we're interested in morphing
-just-loaded data, we'll add it there (in basic-ui):
+just-loaded data, we'll add it there (in `basic-ui`):
 
 [source]
 ----
@@ -1801,7 +1801,7 @@ just-loaded data, we'll add it there (in basic-ui):
                                 :post-mutation `ops/sort-friends})
 ----
 
-Notice the syntax quoting. The post mutation has to be *data*: in this case the symbol of the mutation. Remember that
+Notice the syntax quoting. The post mutation has to be the symbol of the mutation. Remember that
 our require has `app.operations` aliased to `ops`, and syntax quoting will expand that for us.
 
 If you reload your UI you should now see the people sorted by name. Hopefully you can see how easy it is to change
@@ -1853,6 +1853,7 @@ loading. Let's add this in `operations.clj`:
   "Server query for allowing the client to pull an individual person from the database"
   (value [env id params]
     (timbre/info "Query for person" id)
+    ; the update is just so we can see it change in the UI
     (update (get @people-db id) :person/name str " (refreshed)")))
 ----
 
@@ -1921,8 +1922,8 @@ Refresh the code on your server with `(reset)` at the REPL.
 
 #### Triggering the Remote Mutation from the Client
 
-Mutations are simply optimistic local updates by default. To make them full-stack, you need to add a method to your
-`defmutation` handler:
+Mutations are simply optimistic local updates by default. To make them full-stack, you need to add a method-looking
+section to your `defmutation` handler:
 
 [source]
 ----
@@ -1944,7 +1945,7 @@ The syntax for the addition is:
 (remote-name [env] boolean-or-ast)
 ----
 
-where `remote` is the default remote name. You can have any number of network remotes. The default one talks to the
+where `remote` is the value of the default `remote-name`. You can have any number of network remotes. The default one talks to the
 page origin at `/api`. What is this AST we speak of? It is the abstract syntax tree of the mutation itself (as data).
 Using a boolean true means "send it just as the client specified". If you wish you can pull the AST from the `env`,
 augment it (or completely change it) and return that instead. See the developers guide for more details.
@@ -1958,7 +1959,7 @@ from the server.
 
 ### Using a legacy REST API
 
-Working with legacy REST APIs is a simple task. Basically you need to add an additional remote to the Untangled Client
+Working with legacy REST APIs is a simple, though tedious, task. Basically you need to add an additional remote to the Untangled Client
 that knows how to talk via JSON instead of EDN.
 
 The basic steps are:
@@ -2050,9 +2051,11 @@ a very simple UI we can add to our program:
 <5> Pull the resulting app db data from props
 <6> Render the list
 
-Of course, there are no posts yet, so all you'll see is the heading.
+Of course, there are no posts yet, so all you'll see is the heading. Notice that there is *nothing new here*. The UI
+is completely network agnostic, as it should be.
 
-Now for the networking code. Create a new namespace `src/main/app/rest.cljs`:
+Now for the networking code. This bit is a little longer, but most of it is the details around network communcation
+itself, rather than the work you have to do. Create a new namespace `src/main/app/rest.cljs`:
 
 [source]
 ----
@@ -2134,8 +2137,7 @@ Now for the networking code. Create a new namespace `src/main/app/rest.cljs`:
 (defn make-rest-network [] (map->Network {}))
 ----
 
-A lot of this code is boilerplate that you could write once and plug into once you understand it. The steps are
-annotated in the comments of the code. There are just a few basic steps:
+The steps you need to customize are annotated in the comments of the code. There are just a few basic steps:
 
 1. Om comes with a handy function that can convert a query into an AST, which is easier to process. We don't really
 care too much about the whole query, we just want to detect what is being asked for (we're going to ask for
@@ -2169,7 +2171,7 @@ to talk to the REST server. The modification is done in our `basic-ui` namespace
 ...
 
 (defonce app-1 (atom (uc/new-untangled-client
-                       ; Set up two networking handlers
+                       ; Set up two networking handlers (:remote is an explicit creation of the "default" that we still want)
                        :networking {:remote (net/make-untangled-network "/api" :global-error-callback (constantly nil))
                                     :rest   (rest/make-rest-network)}
                        :started-callback ...)))
@@ -2202,7 +2204,7 @@ be sent to any number of remotes, in fact):
 (defmutation delete-post
   [{:keys [id]}]
   (action [env] ...stuff to affect local db...)
-  (remote [env] true) ; tell the normal API :remote this mutation
+  ; you could also include this: (remote [env] true)
   (rest [env] true)) ; tell the :rest networking to send this mutation
 ----
 
