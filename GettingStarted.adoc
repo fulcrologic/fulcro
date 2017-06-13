@@ -816,7 +816,8 @@ the parent will need to pass in a function that the child can call to affect the
 
 This method of passing a callback will work, but not consistently. The problem is that Om can optimize away a re-render
 of a parent when it can figure out how to pull just the data of the child on a refresh, and in that case the
-callback will get lost because only the database data will get supplied to the child!
+callback will get lost because only the database data will get supplied to the child! Your delete button will work
+on the initial render (from root), but may stop working at a later time after a UI refresh.
 
 ### The Correct Way:
 
