@@ -821,8 +821,8 @@ on the initial render (from root), but may stop working at a later time after a 
 
 ### The Correct Way:
 
-There is a special helper function that can record the computed data like callback onto the child that receives them
-such that an optimized refresh will still pass them in.
+There is a special helper function that can record the computed data like callbacks onto the child that receives them
+such that an optimized refresh will still know them.
 
 The change is so small it is easy to miss:
 
