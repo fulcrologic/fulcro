@@ -8,9 +8,7 @@
 (dc/defcard-doc
   "# Background Loads
 
-  This is a full-stack example. To start the server, make sure you're running a normal clj repl:
-
-  (go)
+  This is a full-stack example.
 
   Note that all of the examples share the same server, but the server code is isolated for each using
   namespacing of the queries and mutations.

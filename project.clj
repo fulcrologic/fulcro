@@ -74,6 +74,7 @@
                 :source-paths ["src/main" "src/dev" "src/demos"]
                 :figwheel     {:devcards true}
                 :compiler     {:main                 cards.card_ui
+                               :devcards             true
                                :output-to            "resources/public/js/demos.js"
                                :output-dir           "resources/public/js/demos"
                                :asset-path           "js/demos"

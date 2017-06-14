@@ -1,5 +1,6 @@
 (ns cards.card-ui
   (:require
+    devcards.core
     cards.A-Introduction
     cards.component-local-state-cards
     cards.background-load-cards
@@ -13,3 +14,6 @@
     cards.server-query-security-cards
     cards.tabbed-interface-cards
     cards.websocket-cards))
+
+(devcards.core/start-devcard-ui!)
+

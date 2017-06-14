@@ -11,6 +11,15 @@ Untangled is a library stacked on Om Next that provides much of what is needed t
 networking, server elements, a database format, clear constructs for data loading). The intention is to provide you
 with most of the experience of Om Next with very little of the pain.
 
+## Writing Applications with Untangled
+
 See link:/GettingStarted.adoc[GettingStarted.adoc] to get going.
+
+## See Some Demos
+
+There are a number of demos that show how particular common things are done with Untangled. To view them use
+the `run-demos.sh` shell script at the top of this project and follow the instructions it gives.
+
+
 
 
