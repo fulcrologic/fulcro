@@ -32,7 +32,7 @@
   in a top-level atom (as recommended in the templates), then you can run a transaction \"globally\" like this:
 
   ```
-  (om/transact! (:reconciler @app) ...)
+  (om/transact! @app ...)
   ```
 
   This should generally be used in cases where there is an abstract operation (e.g. you want `setTimeout` to update

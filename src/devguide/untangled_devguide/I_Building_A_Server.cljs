@@ -31,12 +31,12 @@
   ```
   (ns app.system
     (:require
-      [untangled.server.core :as core]
+      [untangled.easy-server :as server]
       [app.api :as api]
       [om.next.server :as om]))
 
   (defn make-system []
-    (core/make-untangled-server
+    (server/make-untangled-server
       ; where you want to store your override config file
       :config-path \"/usr/local/etc/app.edn\"
 
@@ -63,7 +63,7 @@
 
   ```
   (defn make-system []
-    (core/make-untangled-server
+    (server/make-untangled-server
       :config-path \"/usr/local/etc/app.edn\"
       ...
   ```
@@ -99,7 +99,7 @@
 
   ```
   (defn make-system []
-    (core/make-untangled-server
+    (server/make-untangled-server
       :parser-injections #{:config}
       ...))
   ```
@@ -110,6 +110,18 @@
   a parser to do the low-level parsing, but you must supply the bits that do the real logic.
   Learning how to build these parts is relatively simple, and is the only thing you need
   to know to process all possible communications from a client.
+
+  #### The Easy Way
+
+  Untangled includes a pre-built server parser and macros to install handlers for communications. These are
+  covered in the
+  [Getting Started Guide](https://github.com/awkay/untangled/blob/develop/GettingStarted.adoc)
+  and can handle much of what you'd want to do.
+
+  We recommend that you start with that approach, and hand-build a parser if you find
+  yourself needing more in-depth support for query or mutation processing.
+
+  #### About Om Parsers
 
   Om parsers require two things: A function to process reads, and a function to process mutations.
   These are completely open to your choice of implementation. They simply need to be functions

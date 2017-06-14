@@ -104,6 +104,12 @@
   "
   # Server interaction
 
+  NOTE: This section's information is true; however, it was originally written from the perspective of someone that
+  had tried Om Next before coming to Untangled. the Getting Started Guide may be easier to understand as a first
+  exposure to server interactions, since it more assumes you'd just like to make something work.
+  This document could use some improvements and simplifications, so we recommend
+  that you look at the [Getting Started Guide](https://github.com/awkay/untangled/blob/develop/GettingStarted.adoc) first.
+
   The semantics of server request processing in Untangled have a number of guarantees
   that Om does not (out of the box) provide:
 

@@ -77,14 +77,21 @@
   [(the.namespace.you.are.in/f)]
   ```
 
-  which will almost certainly be wrong if you're trying to run an abstract mutation. There are
-  two workarounds: put a namespace on it, or unquote-quote it:
+  which is particularly handy if you place your mutations into a namespace that you can alias in a require:
 
   ```
-  `[(app/f)]     ===>   [(app/f)]
-  `[(~'f)]       ===>   [(f)]
+  (ns boo
+     (:require [the-real-namespace-for-n :as n]))
+
+
+  `[(n/f)]  ; becomes:  `[(the-real-namespace-for-n/f)]
   ```
 
-  The latter is kinda noisy, but is clear once you understand it; however, having namespaces on
-  your abstract mutation symbols is a great idea anyway.
+  If you want to circumvent that kind of expansion, you can unquote-quote it:
+
+  ```
+  `[(~'f)]         ===>   [(f)]
+  `[(~'n/f)]       ===>   [(n/f)]
+  ```
+
   ")
