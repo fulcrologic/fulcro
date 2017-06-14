@@ -250,8 +250,9 @@
   You cannot capture it synchronously. We could give you callback madness, but we're here to free you from that. Finally,
   there is no query, and as you saw in many other places, we cannot merge data to the database correctly without one!
 
-  See [Advanced Mutation](#!/untangled_devguide.M30_Advanced_Mutation), and the [Reference Guide](http://untangled-web.github.io/untangled/reference/reference.html#_implementing_server_mutations)
-  on server mutations.
+  There is an exception to this rule: mutations the are run remotely can return a value, but it is ignored unless you
+  plug into the merge routines and handle it. This is an advanced option covered in
+  [Server Interactions](#!/untangled_devguide.H_Server_Interactions).
 
   ## Details on refreshing components after mutation
 
@@ -297,5 +298,39 @@
 
   IMPORTANT NOTE: This component (`this`) *MUST* have an ident (which is how the mutations find it in the app state).
 
+  ## Making Mutations Nicer to Work With
+
+  Untangled defines a macro named `defmutation` that emits the multimethods shown above. The syntax prevents some kinds
+  of errors (accidentally doing an action outside of a function), and also leads to better integration with the Cursive
+  IDE. It looks like this:
+
+  ```
+  (defmutation do-thing
+    \"Docstring\"
+    [{:keys [param1] :as params}]
+    (action [env] ...)
+    (remote-name [env] ...))
+  ```
+
+  It uses the namespace of declaration as the namespace of the symbol for `do-thing` (even though it is just a symbol
+  and isn't interned into the actual namespace).
+
+  If you use syntax quoting on your transactions, this means you can use namespace aliases to expand the symbol:
+  For example, if you have required namespace `[x.y.z :as x]`, and `do-thing` is declared in that namespace
+  then you can write
+  ```
+  (om/transact! this `[(x/do-thing {:param1 1})])
+  ```
+
+  and the compiler will expand it to
+
+  ```
+  (om/transact! this '[(x.y.z/do-thing {:param1 1})])
+  ```
+
+  Not only is this useful in keeping your mutations from colliding with each other, it saves you typing and also
+  enables the IDE to see the mutation as a jump target. To enable this, click on any `defmutation` (the macro name itself) and wait
+  for a light-bulb to appear, then click on it and select \"Resolve defmutation as defn\" and the IDE will start treating your
+  mutations as if they were real functions (even though they are just add-ins to a multimethod).
   ")
 

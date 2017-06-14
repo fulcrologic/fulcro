@@ -262,7 +262,7 @@
   of the operations listed in the transaction:
 
   ```
-  (om/transact! this `[(counter/increment {:id ~id})])
+  (om/transact! this `[(counter/inc {:id ~id})])
   ```
 
   in the above transaction, we must use Clojure syntax quoting so that we can list an abstract mutation (which looks like

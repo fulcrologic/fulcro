@@ -144,24 +144,13 @@
 
   ## Bleh, manual graph building... Do I have to build that by hand?
 
-  No. You do not need to build normalized graph databases. Untangled can do that for you. You simply
-  create the tree that the UI wants to see, and then hand it to Untangled and it will use
-  the UI query to reformat that data into the internal database format. We'll see more
-  on that after we talk about queries. It is important to note that if you pass a tree of data to
-  Untangled as initial state, it shouldn't be in an atom. If your initial state is in an atom, then
-  it needs to be normalized.
-
-  As you get to more complicated applications you may chose to use Om's helper function `tree->db`
-  to auto-normalize different pieces of data and merge them togther to for a database. We have
-  also found hand-generating normalized state really isn't difficult, and is easier
-  for some to reason about.
-
+  No. You do not need to build normalized graph databases. Untangled can do that for you.
   Untangled also provides a protocol called `InitialAppState`. This can be attached to each component
   in the same manner as `om.next/IQuery`.  The benefit is that you don't have to think as much about
   normalization or building a map of initial app state.  You simply define it with regards to the
   component, and compose over child components. This greatly complements the query concepts and improves
-  local reasonsing with regard to initial state and component composition. We Love it, and we think you
-  will too. We will discuss the protocol more in the coming chapters.
+  local reasonsing with regard to initial state and component composition.
+  We will discuss this more in the coming chapters.
 
   You should definitely do the [database exercises](#!/untangled_devguide.C_App_Database_Exercises).
   ")

@@ -34,7 +34,7 @@
 
   This guide is written in Bruce Hauman's excellent Devcards. As such, these documents are live code!
 
-  This file, for example, is in `src/guide/untangled_devguide/A_Introduction.cljs`. If you followed the README to start
+  This file, for example, is in `src/devguide/untangled_devguide/A_Introduction.cljs`. If you followed the README to start
   up this project, then you're reading this file through your browser and Bruce's other great tool Figwheel. The
   combination of the two bring you documentation that runs and also hot reloads whenever the files are saved.
 

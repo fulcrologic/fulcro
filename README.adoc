@@ -15,11 +15,18 @@ with most of the experience of Om Next with very little of the pain.
 
 See link:/GettingStarted.adoc[GettingStarted.adoc] to get going.
 
+Once you've got the general idea, there's more info in the developers guide, which is an interactive
+guide where you edit the code as you go. To use the developers guide, clone this repository and run:
+
+```
+./run-devguide.sh
+```
+
+and follow the instructions.
+
 ## See Some Demos
 
 There are a number of demos that show how particular common things are done with Untangled. To view them use
 the `run-demos.sh` shell script at the top of this project and follow the instructions it gives.
-
-
 
 

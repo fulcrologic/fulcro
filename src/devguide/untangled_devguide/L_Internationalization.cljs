@@ -18,8 +18,8 @@
 
 (defn locale-switcher [comp]
   (dom/div nil
-    (dom/button #js {:onClick #(om/transact! comp '[(ui/change-locale {:lang "en"}) :ui/locale])} "en")
-    (dom/button #js {:onClick #(om/transact! comp '[(ui/change-locale {:lang "es"}) :ui/locale])} "es")))
+    (dom/button #js {:onClick #(om/transact! comp `[(m/change-locale {:lang "en"}) :ui/locale])} "en")
+    (dom/button #js {:onClick #(om/transact! comp `[(m/change-locale {:lang "es"}) :ui/locale])} "es")))
 
 (defui Test
   static om/IQuery
@@ -75,11 +75,11 @@
 (defcard-doc "
   ## Changing the Locale
 
-  The locale of the current browser tab can be changed through the built-in mutation `ui/change-locale` with a `:lang`
+  The locale of the current browser tab can be changed through the built-in mutation `untangled.client.mutations/change-locale` with a `:lang`
   parameter (which can use the ISO standard two-letter language with an optional country code):
 
   ```
-  (om/transact! reconciler '[(ui/change-locale {:lang \"en-US\"})])
+  (om/transact! reconciler '[(untangled.client.mutations/change-locale {:lang \"en-US\"})])
   ```
 
   The rendering functions will search for a translation in that language and country, fall back to the language if
