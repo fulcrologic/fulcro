@@ -1,4 +1,4 @@
-(ns untangled.ui.Forms--05-Whole-Form-Logic
+(ns untangled-devguide.O05-Forms-Whole-Form-Logic
   (:require
     [clojure.string :as str]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]

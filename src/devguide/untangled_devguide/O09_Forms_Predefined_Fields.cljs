@@ -1,4 +1,4 @@
-(ns untangled.ui.Forms--09-Predefined-Fields
+(ns untangled-devguide.O09-Forms-Predefined-Fields
   (:require
     [om.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]

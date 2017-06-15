@@ -1,4 +1,4 @@
-(ns untangled.ui.Forms--10-Full-Stack-Demo
+(ns untangled-devguide.O10-Forms-Full-Stack-Demo
   (:require
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [untangled.client.cards :refer [untangled-app]]
