@@ -6,18 +6,13 @@
     [untangled.client.cards :refer [untangled-app]]
     [untangled.client.core :as uc]
     [untangled.ui.forms :as f]
-    [untangled.ui.elements :as ele]
     [untangled.client.mutations :refer [defmutation]]
-    [goog.crypt.base64 :refer [encodeByteArray]]
-    [untangled.ui.elements :as e]
-    [cognitect.transit :as ct]
     [goog.events :as events]
-    [om.transit :as t]
-    [untangled.client.impl.network :as net]
+    [untangled.client.network :as net]
     [clojure.string :as str]
-    [untangled.icons :as i]
-    [untangled.ui.file-upload :refer [IFileUpload FileUploadInput file-upload-input file-upload-networking]]
-    [untangled.client.logging :as log])
+    [untangled.ui.file-upload :refer [FileUploadInput file-upload-input file-upload-networking]]
+    [untangled.client.logging :as log]
+    [untangled.ui.bootstrap3 :as b])
   (:refer-clojure :exclude [send])
   (:import [goog.net XhrIo EventType]))
 
@@ -45,14 +40,14 @@
           not-valid? (not (f/would-be-valid? props))]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this props :short-story "Story (PDF):" :accept "application/pdf" :multiple? true)
-        (e/ui-button {:disabled not-valid?
-                      :onClick  #(f/commit-to-entity! this :remote true)} "Submit")))))
+        (b/button {:disabled   not-valid?
+                      :onClick #(f/commit-to-entity! this :remote true)} "Submit")))))
 
 (def ui-example (om/factory FileUploadDemo {:keyfn :db/id}))
 
 (defui ^:once CommitRoot
   static uc/InitialAppState
-  (initial-state [this _] {:sink (uc/initial-state FileUploadDemo {:db/id 1})})
+  (initial-state [this _] {:demo (uc/initial-state FileUploadDemo {:db/id 1})})
   static om/IQuery
   (query [this] [:ui/react-key
                  {:demo (om/get-query FileUploadDemo)}])

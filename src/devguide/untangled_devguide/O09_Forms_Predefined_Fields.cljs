@@ -13,11 +13,11 @@
     [cognitect.transit :as ct]
     [goog.events :as events]
     [om.transit :as t]
-    [untangled.client.impl.network :as net]
     [clojure.string :as str]
-    [untangled.icons :as i]
     [untangled.ui.file-upload :refer [FileUploadInput file-upload-input file-upload-networking]]
-    [untangled.client.logging :as log])
+    [untangled.client.logging :as log]
+    [untangled.client.network :as net]
+    [untangled.ui.bootstrap3 :as b])
   (:refer-clojure :exclude [send])
   (:import [goog.net XhrIo EventType]))
 
@@ -64,8 +64,8 @@
             (f/form-field this props :rating :choice 4 :label 4)
             (f/form-field this props :rating :choice 5 :label 5)))
         (field-with-label this props :short-story "Story (PDF):" :accept "application/pdf" :multiple? true)
-        (e/ui-button {:disabled not-valid?
-                      :onClick  #(f/commit-to-entity! this :remote true)} "Submit")))))
+        (b/button {:disabled not-valid?
+                   :onClick  #(f/commit-to-entity! this :remote true)} "Submit")))))
 
 (def ui-sink (om/factory KitchenSink {:keyfn :db/id}))
 
@@ -87,8 +87,10 @@
   In order for this example to work (submission and file upload) you must start the dev upload server:
 
   - Start a REPL
-  - Go to the `dev.upload-server` namespace
-  - Run `(go)`
+  ```
+  (require 'untangled-devguide.upload-server)
+  (untangled-devguide.upload-server/go)
+  ```
   - Connect to this page by changing the port on the URL to the one reported by the server.
 
   Please see the separate section on file uploads for instructions on setting up and using the file upload

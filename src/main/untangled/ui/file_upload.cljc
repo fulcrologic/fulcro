@@ -216,7 +216,7 @@
 (defprotocol Abort
   (abort-send [this id] "Abort the send with the given ID."))
 
-(defrecord FileUploadNetwork [app active-transfers transfers-to-skip]
+(defrecord FileUploadNetwork [app active-transfers transfers-to-skip upload-url]
   net/ProgressiveTransfer
   (updating-send [this edn ok error update]
     #?(:cljs
@@ -267,7 +267,7 @@
                               (events/listen xhrio (.-SUCCESS EventType) (with-dispose #(done-fn (ct/read (t/reader {}) (.getResponseText xhrio)))))
                               (events/listen xhrio (.-UPLOAD_PROGRESS EventType) #(progress-fn %))
                               (events/listen xhrio (.-ERROR EventType) (with-dispose #(error-fn %)))
-                              (.send xhrio "/file-upload" "POST" form #js {}))))))
+                              (.send xhrio upload-url "POST" form #js {}))))))
             (catch js/Object e (log/error "NETWORKING THREW " e)
                                (error e)))))
   Abort
@@ -284,11 +284,13 @@
 
 (defn file-upload-networking
   "Create an instance of a file upload networking object. You should install one of these as the
-  `:file-upload` remote in your untangled client."
-  []
-  (map->FileUploadNetwork {:active-transfers  (atom {})
-                           :transfers-to-skip (atom #{})
-                           :app               (atom nil)}))
+  `:file-upload` remote in your untangled client. Upload url defaults to /file-upload, but can
+  be configured (here and on the server)"
+  ([] (file-upload-networking "/file-upload"))
+  ([upload-url] (map->FileUploadNetwork {:upload-url        (or upload-url "/file-upload")
+                                         :active-transfers  (atom {})
+                                         :transfers-to-skip (atom #{})
+                                         :app               (atom nil)})))
 
 #?(:cljs
    (defmutation cancel-file-upload

@@ -7,14 +7,14 @@
     [om.next :as om :refer [defui]]
     [untangled.client.core :as uc]
     [untangled.client.mutations :as m :refer [defmutation]]
+    [untangled.ui.icons :as i]
     [untangled.ui.forms :as f]
-    [untangled.icons :as i]
     [untangled.client.cards :refer [untangled-app]]
-    [untangled.ui.simulated-server :refer [make-mock-network]]
-    [untangled.ui.elements :as ele]
+    [untangled-devguide.simulated-server :refer [make-mock-network]]
     [untangled.client.logging :as log]
     [untangled.client.data-fetch :as df]
-    [untangled.client.impl.network :as un]))
+    [untangled.client.network :as un]
+    [untangled.ui.bootstrap3 :as b]))
 
 (defn read-handler [{:keys [users]} k {:keys [name] :as params}]
   (log/info "SERVER query for " k " with parameters " params
@@ -92,11 +92,11 @@
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this props :person/name "Username:"
           (case name-status
-            :duplicate (ele/ui-message {:color :alert}
+            :duplicate (b/alert {:kind :warning}
                          "That username is in use." (i/icon :error))
-            :checking (ele/ui-message {:color :neutral}
+            :checking (b/alert {:color :neutral}
                         "Checking if that username is in use...")
-            :ok (ele/ui-message {:color :success} "OK" (i/icon :check))
+            :ok (b/alert {:color :success} "OK" (i/icon :check))
             ""))
         (field-with-label this props :person/age "Age:")
         (dom/div #js {:className "button-group"}

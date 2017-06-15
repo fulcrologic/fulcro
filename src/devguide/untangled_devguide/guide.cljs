@@ -27,6 +27,13 @@
     untangled-devguide.M40-Advanced-Server-Topics
     untangled-devguide.N10-Twitter-Bootstrap-CSS
     untangled-devguide.N15-Twitter-Bootstrap-Components
+    untangled-devguide.O01-Forms-The-Basics
+    untangled-devguide.O02-Forms-State-Lifecycle
+    untangled-devguide.O03-Forms-Server-Integration
+    untangled-devguide.O05-Forms-Whole-Form-Logic
+    untangled-devguide.O09-Forms-Predefined-Fields
+    untangled-devguide.O10-Forms-Full-Stack-Demo
+    untangled-devguide.O15-Forms-File-Upload
     untangled-devguide.Z-Deploying-To-Heroku
     untangled-devguide.Z-Further-Reading
     untangled-devguide.Z-Glossary

@@ -6,15 +6,15 @@
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
     [untangled.client.core :as uc]
-    [untangled.client.mutations :as m]
+    [untangled.client.mutations :as m :refer [defmutation]]
     [untangled.client.cards :refer [untangled-app]]
     [untangled.ui.forms :as f]
     [untangled.i18n :refer [tr]]))
 
-(declare add-phone-mutation ValidatedPhoneForm)
+(declare  ValidatedPhoneForm)
 
 ;; Sample validator that requires there be at least two words
-(defmethod f/form-field-valid? 'name-valid? [_ value args]
+(defmethod f/form-field-valid? `name-valid? [_ value args]
   (let [trimmed-value (str/trim value)]
     (str/includes? trimmed-value " ")))
 
@@ -56,15 +56,13 @@
 
 (def ui-phone-form (om/factory PhoneForm {:keyfn :db/id}))
 
-(defn add-phone-mutation [{:keys [state]} k {:keys [id person]}]
-  {:action (fn []
-             (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number ""})
-                   person-ident [:people/by-id person]
-                   phone-ident  (om/ident ValidatedPhoneForm new-phone)]
-               (swap! state assoc-in phone-ident new-phone)
-               (uc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers))))})
-
-(defmethod m/mutate 'sample/add-phone [e k p] (add-phone-mutation e k p))
+(defmutation add-phone [{:keys [id person]}]
+  (action [{:keys [state]}]
+    (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number ""})
+          person-ident [:people/by-id person]
+          phone-ident  (om/ident ValidatedPhoneForm new-phone)]
+      (swap! state assoc-in phone-ident new-phone)
+      (uc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
 
 (defui PhoneRoot
   static om/IQuery
@@ -280,8 +278,8 @@ TODO: remove the need to pass the component? The form is just om/props of the co
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
                      (f/subform-element :person/phone-numbers ValidatedPhoneForm :many)
-                     (f/text-input :person/name :validator 'name-valid?)
-                     (f/integer-input :person/age :validator 'in-range?
+                     (f/text-input :person/name :validator `name-valid?)
+                     (f/integer-input :person/age :validator `f/in-range?
                        :validator-args {:min 1 :max 110})
                      (f/checkbox-input :person/registered-to-vote?)])
   static om/IQuery
@@ -308,7 +306,7 @@ TODO: remove the need to pass the component? The form is just om/props of the co
         (dom/div #js {:className "button-group"}
           (dom/button #js {:className "btn btn-primary"
                            :onClick   #(om/transact! this
-                                         `[(sample/add-phone ~{:id     (om/tempid)
+                                         `[(add-phone ~{:id     (om/tempid)
                                                                :person (:db/id props)})])}
             "Add Phone")
           (dom/button #js {:className "btn btn-default" :disabled (f/valid? props)
@@ -409,10 +407,18 @@ TODO: remove the need to pass the component? The form is just om/props of the co
 
   ### Adding Sub-form Elements
 
-  Adding a phone number (which acts as a sub-form) is done via the add-phone-mutation, which looks like this:
-  "
-  (dc/mkdn-pprint-source add-phone-mutation)
-  "
+  Adding a phone number (which acts as a sub-form) is done via the `add-phone` mutation, which looks like this:
+
+  ```
+  (defmutation add-phone [{:keys [id person]}]
+    (action [{:keys [state]}]
+      (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number ""})
+            person-ident [:people/by-id person]
+            phone-ident  (om/ident ValidatedPhoneForm new-phone)]
+        (swap! state assoc-in phone-ident new-phone)
+        (uc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
+  ```
+
   Notice that there is nothing really special going on here. Just add an additional item to the database (which is
   augmented with `f/build-form`) and integrate it's ident!
 

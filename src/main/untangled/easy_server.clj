@@ -7,7 +7,6 @@
     [om.next.server :as om]
     [taoensso.timbre :as timbre]
     [untangled.server :as server]
-    ; TODO: Make these dynamically load
     [bidi.bidi :as bidi]
     [org.httpkit.server :refer [run-server]]
     [ring.middleware.content-type :refer [wrap-content-type]]

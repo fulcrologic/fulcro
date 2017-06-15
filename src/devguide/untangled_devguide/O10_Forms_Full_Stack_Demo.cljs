@@ -6,15 +6,14 @@
     [om.dom :as dom]
     [untangled.client.core :as uc]
     [untangled.client.routing :as r :refer [defrouter]]
-    [untangled.client.impl.network :as un]
     [untangled.client.mutations :as m :refer [defmutation]]
     [untangled.client.logging :as log]
     [untangled.client.routing :as r :refer [defrouter]]
     [untangled.ui.forms :as f]
-    [untangled.ui.layout :as l]
-    [untangled.ui.elements :as ele]
     [untangled.client.data-fetch :as df]
-    [cljs.reader :refer [read-string]]))
+    [cljs.reader :refer [read-string]]
+    [untangled.client.network :as un]
+    [untangled.ui.bootstrap3 :as b]))
 
 (defn make-phone-number [id type num]
   {:db/id id :phone/type type :phone/number num})
@@ -134,9 +133,9 @@
   Object
   (render [this]
     (let [{:keys [db/id phone/type phone/number]} (om/props this)]
-      (l/row {:onClick #(om/transact! this `[(edit-phone {:id ~id})
+      (b/row {:onClick #(om/transact! this `[(edit-phone {:id ~id})
                                              :ui/react-key])}
-        (l/col {:width 2} (name type)) (l/col {:width 2} number)))))
+        (b/col {:xs 2} (name type)) (b/col {:xs 2} number)))))
 
 (def ui-phone-row (om/factory PhoneDisplayRow {:keyfn :db/id}))
 
@@ -171,10 +170,10 @@
         (dom/h1 nil "Edit Phone Number")
         (when number-to-edit
           (ui-phone-form number-to-edit))
-        (l/row {}
-          (ele/ui-button {:onClick cancel-edit} "Cancel")
-          (ele/ui-button {:disabled (or not-valid? not-dirty?)
-                          :onClick  save} "Save"))))))
+        (b/row {}
+          (b/button {:onClick cancel-edit} "Cancel")
+          (b/button {:disabled (or not-valid? not-dirty?)
+                     :onClick  save} "Save"))))))
 
 (defui ^:once PhoneList
   static om/IQuery
@@ -188,9 +187,10 @@
     (let [{:keys [phone-numbers]} (om/props this)]
       (dom/div nil
         (dom/h1 nil "Phone Numbers (click a row to edit)")
-        (l/row {} (l/col {:width 2} "Phone Type") (l/col {:width 2} "Phone Number"))
-        ; Show a loading message while we're waiting for the network load
-        (df/lazily-loaded #(mapv ui-phone-row %) phone-numbers)))))
+        (b/container nil
+          (b/row {} (b/col {:xs 2} "Phone Type") (b/col {:xs 2} "Phone Number"))
+          ; Show a loading message while we're waiting for the network load
+          (df/lazily-loaded #(mapv ui-phone-row %) phone-numbers))))))
 
 (defrouter TopLevelRouter :top-router
   ; Note the ident function works against the router children, so they must have a :screen-type data field
