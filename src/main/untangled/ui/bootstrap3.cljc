@@ -816,7 +816,6 @@
                        (/ (- (:width target-box) (:width popup-box)) 2))
           popupTop   (if active (+ (:top target-box) deltaY) -1000)
           popupLeft  (if active (+ (:left target-box) deltaX) -1000)]
-      (log/info :tb target-box)
       (dom/span #js {:style #js {:display "inline-block"} :ref (fn [r] (set! (.-target-ref this) r))}
         (ui-render-in-body {}
           (dom/div #js {:className (str "popover fade " (name orientation) (when active " in"))
