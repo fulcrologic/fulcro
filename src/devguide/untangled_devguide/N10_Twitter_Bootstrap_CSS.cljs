@@ -553,15 +553,80 @@
   `(b/progress-bar {:kind :success :animated? (< (:pct @state) 100) :current (:pct @state)})`
   "
   (fn [state _]
-    (let [current-kind (atom 0)]
-      (render-example "100%" "120px"
-        (b/button {:onClick (fn [] (swap! state update :pct #(- % 10)))} "Less")
-        (b/button {:onClick (fn [] (swap! state update :pct #(+ 10 %)))} "More")
-        (b/progress-bar {:kind :success :current (:pct @state)})
-        (b/progress-bar {:kind :success :animated? (< (:pct @state) 100) :current (:pct @state)}))))
-  {:kind :success
-   :pct  40}
+    (render-example "100%" "120px"
+      (b/button {:onClick (fn [] (swap! state update :pct #(- % 10)))} "Less")
+      (b/button {:onClick (fn [] (swap! state update :pct #(+ 10 %)))} "More")
+      (b/progress-bar {:kind :success :current (:pct @state)})
+      (b/progress-bar {:kind :success :animated? (< (:pct @state) 100) :current (:pct @state)})))
+  {:pct 40}
   {:inspect-data true})
+
+(defcard panels
+  "# Panels
+
+  ```
+    (b/panel nil
+      (b/panel-heading nil \"Heading without title\")
+      (b/panel-body nil \"This is the body of the panel\")
+      (b/panel-footer nil \"The footer\"))
+    (b/panel {:kind :danger}
+      (b/panel-heading nil
+        (b/panel-title nil \"Panel Title of :danger panel\"))
+      (b/panel-body nil \"This is the body of the panel\"))))
+  ```
+
+  NOTE: Tables can replace or follow the `panel-body`. They need not be placed within it.
+
+  ```
+  (b/panel nil
+    (b/panel-heading nil
+      (b/panel-title nil \"Panel with a table and no panel-body\"))
+    (b/table nil
+      (dom/tbody nil
+        (dom/tr  nil
+          (dom/th nil \"Name\")
+          (dom/th nil \"Address\")
+          (dom/th nil \"Phone\"))
+        (dom/tr  nil
+          (dom/td nil \"Sally\")
+          (dom/td nil \"555 N Nowhere\")
+          (dom/td nil \"555-1212\")))))
+  ```
+
+  "
+  (render-example "100%" "420px"
+    (b/panel nil
+      (b/panel-heading nil "Heading without title")
+      (b/panel-body nil "This is the body of the panel")
+      (b/panel-footer nil "The footer"))
+    (b/panel {:kind :danger}
+      (b/panel-heading nil
+        (b/panel-title nil "Panel Title of :danger panel"))
+      (b/panel-body nil "This is the body of the panel"))
+    (b/panel nil
+      (b/panel-heading nil
+        (b/panel-title nil "Panel with a table and no panel-body"))
+      (b/table nil
+        (dom/tbody nil
+          (dom/tr nil
+            (dom/th nil "Name")
+            (dom/th nil "Address")
+            (dom/th nil "Phone"))
+          (dom/tr nil
+            (dom/td nil "Sally")
+            (dom/td nil "555 N Nowhere")
+            (dom/td nil "555-1212")))))))
+
+
+(defcard well
+  "# Well
+
+  Inset some content.
+
+  `(b/well nil \"This is some content\")`
+  "
+  (render-example "100%" "100px"
+    (b/well nil "This is some content")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Some internal helpers:

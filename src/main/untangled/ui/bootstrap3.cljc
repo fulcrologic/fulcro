@@ -714,7 +714,40 @@
   [{:keys [current kind animated?] :or {kind :info} :as props}]
   (let [attrs (dissoc props :current :kind :animated?)]
     (div-with-class "progress" attrs
-      [(dom/div #js {:className     (str "progress-bar progress-bar-" (name kind)
-                                      (when animated? " progress-bar-striped active")) :role "progressbar" :aria-valuenow current
-                     :aria-valuemin 0 :aria-valuemax 100 :style #js {:width (str current "%")}
-                     })])))
+      [(dom/div #js {:className (str "progress-bar progress-bar-" (name kind)
+                                  (when animated? " progress-bar-striped active")) :role "progressbar" :aria-valuenow current
+                     :aria-valuemin 0 :aria-valuemax 100 :style #js {:width (str current "%")}})])))
+
+(defn panel
+  "Render a panel. Use `panel-heading`, `panel-title`, `panel-body`, and `panel-footer` for elements of the panel.
+
+  :kind is one of :primary, :success, :info, :warning, or :danger"
+  [{:keys [kind] :or {kind :default} :as props} & children]
+  (div-with-class (str "panel panel-" (name kind)) props children))
+
+(defn panel-heading
+  "Render a heading area in a panel. Must be first. Optional."
+  [props & children]
+  (div-with-class "panel-heading" props children))
+
+(defn panel-title
+  "Render a title in a panel. Must be in a `panel-heading`."
+  [props & children]
+  (div-with-class "panel-title" props children))
+
+(defn panel-body
+  "Render children in the body of a panel. Not needed for tables or list groups. Should come after (optional) panel-heading."
+  [props & children]
+  (div-with-class "panel-body" props children))
+
+(defn panel-footer
+  "Render children in a footer of a panel."
+  [props & children]
+  (div-with-class "panel-footer" props children))
+
+(defn well
+  "Inset content.
+
+  size - Optional to increase or decrease size. Can be :sm or :lg"
+  [{:keys [size] :as props} & children]
+  (div-with-class (str "well " (when size (str "well-" (name size)))) (dissoc props :size) children))
