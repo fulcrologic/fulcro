@@ -751,3 +751,86 @@
   size - Optional to increase or decrease size. Can be :sm or :lg"
   [{:keys [size] :as props} & children]
   (div-with-class (str "well " (when size (str "well-" (name size)))) (dissoc props :size) children))
+
+(defn get-abs-position
+  "Get a map (with the keys :left and :top) that has the absolute position of the given DOM element."
+  [ele]
+  #?(:clj  {}
+     :cljs (let [doc (.-ownerDocument ele)
+                 win (or (.-defaultView doc) js/window)
+                 box (.getBoundingClientRect ele)]
+             {:width  (.-width box)
+              :height (.-height box)
+              :left   (+ (.-left box) (.-scrollX win))
+              :top    (+ (.-top box) (.-scrollY win))})))
+
+; we're using owner document to make sure this works in iframes, where js/document would be wrong
+(defui RenderInBody
+  Object
+  (renderLayer [this]
+    #?(:cljs (let [child (first (om/children this))
+                   popup (.-popup this)]
+               (.render js/ReactDOM child popup))))
+  (componentDidMount [this]
+    #?(:cljs (let [doc   (some-> (.-doc-element this) .-ownerDocument)
+                   popup (when doc (.createElement doc "div"))]
+               (set! (.-popup this) popup)
+               (when doc (.appendChild (.-body doc) popup))
+               (.renderLayer this))))
+  (componentDidUpdate [this np ns] (.renderLayer this))
+  (shouldComponentUpdate [this np ns] true)
+  (componentWillUnmount [this]
+    #?(:cljs (let [doc   (some-> (.-doc-element this) .-ownerDocument)
+                   popup (.-popup this)]
+               (.unmountComponentAtNode js/ReactDOM (.-popup this))
+               (when doc
+                 (.removeChild (.-body doc) (.-popup this))))))
+  (render [this] (dom/div #js {:ref (fn [r] (set! (.-doc-element this) r))})))
+
+(def ui-render-in-body (om/factory RenderInBody))
+
+(defui ^:once PopOver
+  Object
+  (componentWillUpdate [this new-props ns]
+    (let [old-props        (om/props this)
+          becoming-active? (and (:active new-props) (not (:active old-props)))]
+      (when becoming-active? (om/update-state! this update :render-for-size inc))))
+  (render [this]
+    (let [{:keys [active orientation] :or {orientation :top}} (om/props this)
+          target     (.-target-ref this)
+          popup      (.-popup-ref this)
+          popup-box  (if popup (get-abs-position popup) {})
+          target-box (if target (get-abs-position target) {})
+          deltaY     (case orientation
+                       :bottom (:height target-box)
+                       :left (-> (:height target-box)
+                               (- (:height popup-box))
+                               (/ 2))
+                       :right (-> (:height target-box)
+                                (- (:height popup-box))
+                                (/ 2))
+                       (- (:height popup-box)))
+          deltaX     (case orientation
+                       :left (- (:width popup-box))
+                       :right (:width target-box)
+                       (/ (- (:width target-box) (:width popup-box)) 2))
+          popupTop   (if active (+ (:top target-box) deltaY) -1000)
+          popupLeft  (if active (+ (:left target-box) deltaX) -1000)]
+      (log/info :tb target-box)
+      (dom/span #js {:style #js {:display "inline-block"} :ref (fn [r] (set! (.-target-ref this) r))}
+        (ui-render-in-body {}
+          (dom/div #js {:className (str "popover fade " (name orientation) (when active " in"))
+                        :ref       (fn [r] (set! (.-popup-ref this) r))
+                        :style     #js {:position "absolute"
+                                        :top      (str popupTop "px")
+                                        :left     (str popupLeft "px")
+                                        :display  "block"}}
+            (dom/div #js {:className "arrow" :style #js {:left (case orientation
+                                                                 :left "100%"
+                                                                 :right "-11px"
+                                                                 "50%")}})
+            (dom/h3 #js {:className "popover-title"} "Title")
+            (dom/div #js {:className "popover-content"} "This is a test of a popover")))
+        (om/children this)))))
+
+(def ui-popover (om/factory PopOver))

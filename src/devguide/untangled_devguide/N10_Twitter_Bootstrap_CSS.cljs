@@ -628,6 +628,42 @@
   (render-example "100%" "100px"
     (b/well nil "This is some content")))
 
+(defcard popover
+  "# A popover
+
+  Popovers are real React components, thus the factory has a ui prefix. They do not have state, so they are fed
+  their orientation and current state via props. You can include a single child (tree), and the popover will use
+  that as its boundary for locating itself.
+
+  `(b/ui-popover {:orientation :top :active true} DOM-TO-TARGET)`
+  "
+  (fn [state _]
+    (render-example "100%" "300px"
+      (b/button {:onClick #(swap! state update :active not)} "Toggle All")
+      (dom/br nil)
+      (dom/br nil)
+      (dom/br nil)
+      (dom/br nil)
+      (dom/br nil)
+      (dom/br nil)
+      (b/container nil
+        (b/row nil
+          (b/col {:xs-offset 2 :xs 2}
+            (b/ui-popover {:active (:active @state) :orientation :left}
+              (b/button {} "Left")))
+          (b/col {:xs 2}
+            (b/ui-popover {:active (:active @state) :orientation :top}
+              (b/glyphicon {} :question-sign)))
+          (b/col {:xs 2}
+            (b/ui-popover {:active (:active @state) :orientation :bottom}
+              (b/button {} "Bottom")))
+          (b/col {:xs 2}
+            (b/ui-popover {:active (:active @state) :orientation :right}
+              (b/glyphicon {:size "33pt"} :question-sign)
+              ))))))
+  {:active false})
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Some internal helpers:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

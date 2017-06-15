@@ -162,11 +162,11 @@
                                                tx-call)) (range (.-length js-file-list)))
                                  f/form-root-key))))
           can-add-more?  (or (empty? files) multiple?)
-          attrs          (cond-> {:onChange  (fn [evt] (onChange evt))
-                                  :id        control-id
-                                  :className "u-hide"
-                                  :value     ""
-                                  :type      "file"}
+          attrs          (cond-> {:onChange (fn [evt] (onChange evt))
+                                  :id       control-id
+                                  :style    #js {:display "none"}
+                                  :value    ""
+                                  :type     "file"}
                            accept (assoc :accept accept)
                            multiple? (assoc :multiple "multiple")
                            :always clj->js)]
@@ -176,11 +176,7 @@
         (when can-add-more?
           (if renderControl
             (renderControl onChange accept multiple?)
-            (dom/label #js {:htmlFor control-id}
-              (dom/span #js {:className "c-button c-button--raised"}
-                (icons/icon :add)
-                "Add Files"
-                (dom/input attrs)))))))))
+            (dom/label #js {:htmlFor control-id} "Add Files" (dom/input attrs))))))))
 
 (def ui-file-upload
   "Render a file upload component. Typically declared and embedded in a form. All of these parameters can
