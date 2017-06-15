@@ -9,6 +9,7 @@
     untangled.client.network-spec
     untangled.client.routing-spec
     untangled.client.util-spec
+    untangled.ui.forms-spec
     untangled.i18n-spec))
 
 
