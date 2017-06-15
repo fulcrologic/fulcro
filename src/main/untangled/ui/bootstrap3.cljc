@@ -4,6 +4,7 @@
     #?(:clj
             js)
             [untangled.ui.elements :as ele]
+            [untangled.ui.html-entities :as ent]
             [untangled.i18n :refer [tr tr-unsafe]]
             [untangled.client.mutations :as m]
             [clojure.string :as str]
@@ -389,12 +390,9 @@
     (dom/nav #js {:aria-label "Page Navigation"}
       (dom/ul (clj->js attrs) pagination-entries))))
 
-(def laqao "A left-angled double quote" "\u00AB")
-(def raqao "A right-angled double quote" "\u00BB")
-
 (defn pagination-entry
   "Create an entry in a pagination control. Forward and back buttons can be rendered at either end with any label, but
-  the raqao and laqao defs give a nicely sized font-based arrow."
+  the untangled.ui.html-entities/raqao and laqao defs give a nicely sized font-based arrow."
   [{:keys [label disabled active onClick] :as props}]
   (let [onClick (if (and onClick (not disabled)) onClick identity)
         classes (cond-> (:className props)
@@ -402,10 +400,10 @@
                   active (str " active"))
         attrs   (-> props
                   (assoc :className classes)
-                  (dissoc :label :disabled :onClick))]
+                  (dissoc :active :label :disabled :onClick))]
     (dom/li (clj->js attrs)
-      (if (or (= label raqao) (= label laqao))
-        (dom/a #js {:onClick onClick :aria-label (if (= raqao label) "Next" "Previous")}
+      (if (or (= label ent/raqao) (= label ent/laqao))
+        (dom/a #js {:onClick onClick :aria-label (if (= ent/raqao label) "Next" "Previous")}
           (dom/span #js {:aria-hidden "true"} label))
         (dom/a #js {:onClick onClick}
           label (when active (dom/span #js {:className "sr-only"} " (current)")))))))
@@ -649,3 +647,74 @@
     "
     [props & {:keys [onSelect]}]
     (nav-factory (om/computed props {:onSelect onSelect}))))
+
+(defn label
+  "Wraps children in an (inline) bootstrap label.
+
+  props are standard DOM props, with support for the additional:
+
+  kind - One of :primary, :success, :warning, :info, :danger. Defaults to :default."
+  [{:keys [kind] :as props :or {kind :default}} & children]
+  (let [classes (str "label label-" (name kind) " " (get props :className ""))
+        attrs   (-> (dissoc props :kind)
+                  (assoc :className classes))]
+    (apply dom/span (clj->js attrs) children)))
+
+(defn badge
+  "Wraps children in an (inline) bootstrap badge.
+
+  props are standard DOM props."
+  [props & children]
+  (let [classes (str "badge " (get props :className ""))
+        attrs   (assoc props :className classes)]
+    (apply dom/span (clj->js attrs) children)))
+
+(defn jumbotron
+  "Wraps children in a jumbotron"
+  [props & children]
+  (div-with-class "jumbotron" props children))
+
+(defn alert
+  "Renders an alert.
+
+  Props can contain normal DOM props, and additionally:
+
+  kind - The kind of alert: :info, :success, :warning, or :danger. Defaults to `:danger`.
+  onClose - What to do when the close button is pressed. If nil, close will not be rendered."
+  [{:keys [kind onClose] :as props} & children]
+  (let [classes (str (:className props) " alert alert-dismissable alert-" (if kind (name kind) "danger"))
+        attrs   (-> props
+                  (dissoc :kind :onClose)
+                  (assoc :role "alert" :className classes)
+                  clj->js)]
+    (apply dom/div attrs (if onClose
+                           (close-button {:onClick onClose})
+                           "") children)))
+
+
+(defn caption
+  "Renders content that has padding and a lightened color for the font."
+  [props & children]
+  (div-with-class "caption" props children))
+
+(defn thumbnail
+  "Renders a box around content. Typically used to double-box and image or generate Pinterest-style blocks."
+  [props & children]
+  (div-with-class "thumbnail" props children))
+
+(defn progress-bar
+  "Render's a progress bar from an input of the current progress (a number from 0 to 100).
+
+  :current - The current value of progress (0 to 100)
+  :animated? - Should the bar have a striped animation?
+  :kind - One of :success, :warning, :danger, or :info
+
+  Any classname or other properties included will be placed on the top-level div of the progress bar.
+  "
+  [{:keys [current kind animated?] :or {kind :info} :as props}]
+  (let [attrs (dissoc props :current :kind :animated?)]
+    (div-with-class "progress" attrs
+      [(dom/div #js {:className     (str "progress-bar progress-bar-" (name kind)
+                                      (when animated? " progress-bar-striped active")) :role "progressbar" :aria-valuenow current
+                     :aria-valuemin 0 :aria-valuemax 100 :style #js {:width (str current "%")}
+                     })])))

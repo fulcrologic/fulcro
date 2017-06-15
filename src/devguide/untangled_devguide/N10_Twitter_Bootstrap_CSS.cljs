@@ -10,7 +10,8 @@
             [untangled.client.cards :refer [untangled-app]]
             [untangled.client.mutations :as m]
             [untangled.ui.bootstrap3 :as b]
-            [untangled.client.core :as uc]))
+            [untangled.client.core :as uc]
+            [untangled.ui.html-entities :as ent]))
 
 (declare render-example sample)
 
@@ -39,6 +40,9 @@
 
   This documentation covers the passive elements that largely add in proper structure and classnames for bootstrap rendering. The
   other sections on bootstrap cover active elements.
+
+  Untangled now also includes `untangled.ui.html-entities` (which we alias to `ent` here). These just give symbol names
+  to some of the more popular HTML entities (e.g. `&times;` is `ent/times`) so they are easier to use in React.
   ")
 
 (defn- col [attrs children] (b/col (assoc attrs :className "boxed") children))
@@ -369,22 +373,22 @@
 
   ```
   (b/pagination {}
-    (b/pagination-entry {:label b/laqao :onClick #(js/alert \"Back\")})
+    (b/pagination-entry {:label ent/laqao :onClick #(js/alert \"Back\")})
     (b/pagination-entry {:label \"1\" :onClick #(js/alert \"1\")})
     (b/pagination-entry {:label \"2\" :onClick #(js/alert \"2\")})
     (b/pagination-entry {:label \"3\" :onClick #(js/alert \"3\")})
-    (b/pagination-entry {:label b/raqao :onClick #(js/alert \"Next\")}))
+    (b/pagination-entry {:label ent/raqao :onClick #(js/alert \"Next\")}))
   ```
 
   The second example below is:
 
   ```
   (b/pagination {}
-    (b/pagination-entry {:label b/laqao :onClick #(js/alert \"Back\")})
+    (b/pagination-entry {:label ent/laqao :onClick #(js/alert \"Back\")})
     (b/pagination-entry {:label \"1\" :active true :onClick #(js/alert \"1\")})
     (b/pagination-entry {:label \"2\" :onClick #(js/alert \"2\")})
     (b/pagination-entry {:label \"3\" :onClick #(js/alert \"3\")})
-    (b/pagination-entry {:label b/raqao :disabled true :onClick #(js/alert \"Next\")}))
+    (b/pagination-entry {:label ent/raqao :disabled true :onClick #(js/alert \"Next\")}))
   ```
   "
   (render-example "100%" "375px"
@@ -393,35 +397,35 @@
         (dom/tr nil
           (dom/th nil "Pages (none active)")
           (dom/td nil (b/pagination {}
-                        (b/pagination-entry {:label b/laqao :onClick #(js/alert "Back")})
+                        (b/pagination-entry {:label ent/laqao :onClick #(js/alert "Back")})
                         (b/pagination-entry {:label "1" :onClick #(js/alert "1")})
                         (b/pagination-entry {:label "2" :onClick #(js/alert "2")})
                         (b/pagination-entry {:label "3" :onClick #(js/alert "3")})
-                        (b/pagination-entry {:label b/raqao :onClick #(js/alert "Next")}))))
+                        (b/pagination-entry {:label ent/raqao :onClick #(js/alert "Next")}))))
         (dom/tr nil
           (dom/th nil "With one active, and next disabled")
           (dom/td nil (b/pagination {}
-                        (b/pagination-entry {:label b/laqao :onClick #(js/alert "Back")})
+                        (b/pagination-entry {:label ent/laqao :onClick #(js/alert "Back")})
                         (b/pagination-entry {:label "1" :active true :onClick #(js/alert "1")})
                         (b/pagination-entry {:label "2" :onClick #(js/alert "2")})
                         (b/pagination-entry {:label "3" :onClick #(js/alert "3")})
-                        (b/pagination-entry {:label b/raqao :disabled true :onClick #(js/alert "Next")}))))
+                        (b/pagination-entry {:label ent/raqao :disabled true :onClick #(js/alert "Next")}))))
         (dom/tr nil
           (dom/th nil "Small")
           (dom/td nil (b/pagination {:size :sm}
-                        (b/pagination-entry {:label b/laqao :onClick #(js/alert "Back")})
+                        (b/pagination-entry {:label ent/laqao :onClick #(js/alert "Back")})
                         (b/pagination-entry {:label "1" :onClick #(js/alert "1")})
                         (b/pagination-entry {:label "2" :onClick #(js/alert "2")})
                         (b/pagination-entry {:label "3" :onClick #(js/alert "3")})
-                        (b/pagination-entry {:label b/raqao :onClick #(js/alert "Next")}))))
+                        (b/pagination-entry {:label ent/raqao :onClick #(js/alert "Next")}))))
         (dom/tr nil
           (dom/th nil "Large")
           (dom/td nil (b/pagination {:size :lg}
-                        (b/pagination-entry {:label b/laqao :onClick #(js/alert "Back")})
+                        (b/pagination-entry {:label ent/laqao :onClick #(js/alert "Back")})
                         (b/pagination-entry {:label "1" :onClick #(js/alert "1")})
                         (b/pagination-entry {:label "2" :onClick #(js/alert "2")})
                         (b/pagination-entry {:label "3" :onClick #(js/alert "3")})
-                        (b/pagination-entry {:label b/raqao :onClick #(js/alert "Next")}))))))))
+                        (b/pagination-entry {:label ent/raqao :onClick #(js/alert "Next")}))))))))
 
 (defcard pager
   "# Pager - A lightweight next/prior control.
@@ -429,18 +433,135 @@
   ```
   (b/pager {}
     (b/pager-previous {:onClick #(js/alert \"Back\")}
-      (str b/laqao \" Back\"))
+      (str ent/laqao \" Back\"))
     (b/pager-next {:onClick #(js/alert \"Next\")}
-      (str \"Next \" b/raqao)))
+      (str \"Next \" ent/raqao)))
   ```
   "
   (render-example "100%" "75px"
     (b/pager {}
       (b/pager-previous {:onClick #(js/alert "Back")}
-        (str b/laqao " Back"))
+        (str ent/laqao " Back"))
       (b/pager-next {:onClick #(js/alert "Next")}
-        (str "Next " b/raqao)))))
+        (str "Next " ent/raqao)))))
 
+
+(defcard alerts
+  "# Alerts
+
+  `(b/alert {:kind :success} \"Oh boy!\")`
+
+  An box with a close button and contextual :kind (:success, :danger, :warning, ...), and
+  optional `onClose` handler you supply.
+  "
+  (render-example "100%" "300px"
+    (b/alert {:kind :success} "Oh boy!")
+    (dom/br nil)
+    (b/alert nil "Things went wrong!")
+    (dom/br nil)
+    (b/alert {:onClose identity :kind :warning} "I'm worried. (with an onClose)")))
+
+(defcard badges
+  "# Badges
+
+  An inline badge that can be placed on other elements.
+
+  `(b/button {} \"Inbox \" (b/badge {} \"1\"))`
+  "
+  (render-example "100%" "100px"
+    (b/button {} "Inbox " (b/badge {} "1"))))
+
+(defcard jumbotron
+  "# Jumbotron
+
+  A container that offsets the content. Note, this will not work if it isn't in the grid:
+
+  ```
+  (b/container nil
+    (b/row nil
+      (b/col {:xs 8 :xs-offset 2}
+        (b/jumbotron {}
+          (dom/h1 nil \"Title\")
+          (dom/p nil \"There is some fancy stuff going on here!\")
+          (b/button {:kind :primary} \"Learn More!\")))))
+  ```
+  "
+  (render-example "100%" "320px"
+    (b/container nil
+      (b/row nil
+        (b/col {:xs 8 :xs-offset 2}
+          (b/jumbotron {}
+            (dom/h1 nil "Title")
+            (dom/p nil "There is some fancy stuff going on here!")
+            (b/button {:kind :primary} "Learn More!")))))))
+
+(defcard thumbnails-and-captions
+  "# Thumbnails and Captions
+
+  Thumbnails place a border around a box. Can be combined with images and captions in a grid to make
+  Pinterest-style blocks of content.
+
+  ```
+  (b/container nil
+    (b/row nil
+      (b/col {:sm 4 }
+        (b/thumbnail nil
+          (b/img {:src \"data:image/svg+xml;base64,PD9...\"})
+          (b/caption nil
+            (dom/h3 nil \"Title\")
+            (dom/p nil \"Some content underneath the title with enough words to cause a little wrapping.\"))))
+      (b/col {:sm 4 }
+        (b/thumbnail nil
+          (b/img {:src \"data:image/svg+xml;base64,PD9...\"})
+          (b/caption nil
+            (dom/h3 nil \"Title\")
+            (dom/p nil \"Some content underneath the title with enough words to cause a little wrapping.\"))))
+      (b/col {:sm 4 }
+        (b/thumbnail nil
+          (b/img {:src \"data:image/svg+xml;base64,PD9...\"})
+          (b/caption nil
+            (dom/h3 nil \"Title\")
+            (dom/p nil \"Some content underneath the title with enough words to cause a little wrapping.\"))))))
+  ```
+  "
+  (render-example "100%" "360px"
+    (b/container nil
+      (b/row nil
+        (b/col {:sm 4}
+          (b/thumbnail nil
+            (b/img {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjQyIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDI0MiAyMDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzEwMCV4MjAwCkNyZWF0ZWQgd2l0aCBIb2xkZXIuanMgMi42LjAuCkxlYXJuIG1vcmUgYXQgaHR0cDovL2hvbGRlcmpzLmNvbQooYykgMjAxMi0yMDE1IEl2YW4gTWFsb3BpbnNreSAtIGh0dHA6Ly9pbXNreS5jbwotLT48ZGVmcz48c3R5bGUgdHlwZT0idGV4dC9jc3MiPjwhW0NEQVRBWyNob2xkZXJfMTVjYTk5NmQ1M2YgdGV4dCB7IGZpbGw6I0FBQUFBQTtmb250LXdlaWdodDpib2xkO2ZvbnQtZmFtaWx5OkFyaWFsLCBIZWx2ZXRpY2EsIE9wZW4gU2Fucywgc2Fucy1zZXJpZiwgbW9ub3NwYWNlO2ZvbnQtc2l6ZToxMnB0IH0gXV0+PC9zdHlsZT48L2RlZnM+PGcgaWQ9ImhvbGRlcl8xNWNhOTk2ZDUzZiI+PHJlY3Qgd2lkdGg9IjI0MiIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNFRUVFRUUiLz48Zz48dGV4dCB4PSI4OS44NTkzNzUiIHk9IjEwNS40Ij4yNDJ4MjAwPC90ZXh0PjwvZz48L2c+PC9zdmc+"})
+            (b/caption nil
+              (dom/h3 nil "Title")
+              (dom/p nil "Some content underneath the title with enough words to cause a little wrapping."))))
+        (b/col {:sm 4}
+          (b/thumbnail nil
+            (b/img {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjQyIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDI0MiAyMDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzEwMCV4MjAwCkNyZWF0ZWQgd2l0aCBIb2xkZXIuanMgMi42LjAuCkxlYXJuIG1vcmUgYXQgaHR0cDovL2hvbGRlcmpzLmNvbQooYykgMjAxMi0yMDE1IEl2YW4gTWFsb3BpbnNreSAtIGh0dHA6Ly9pbXNreS5jbwotLT48ZGVmcz48c3R5bGUgdHlwZT0idGV4dC9jc3MiPjwhW0NEQVRBWyNob2xkZXJfMTVjYTk5NmQ1M2YgdGV4dCB7IGZpbGw6I0FBQUFBQTtmb250LXdlaWdodDpib2xkO2ZvbnQtZmFtaWx5OkFyaWFsLCBIZWx2ZXRpY2EsIE9wZW4gU2Fucywgc2Fucy1zZXJpZiwgbW9ub3NwYWNlO2ZvbnQtc2l6ZToxMnB0IH0gXV0+PC9zdHlsZT48L2RlZnM+PGcgaWQ9ImhvbGRlcl8xNWNhOTk2ZDUzZiI+PHJlY3Qgd2lkdGg9IjI0MiIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNFRUVFRUUiLz48Zz48dGV4dCB4PSI4OS44NTkzNzUiIHk9IjEwNS40Ij4yNDJ4MjAwPC90ZXh0PjwvZz48L2c+PC9zdmc+"})
+            (b/caption nil
+              (dom/h3 nil "Title")
+              (dom/p nil "Some content underneath the title with enough words to cause a little wrapping."))))
+        (b/col {:sm 4}
+          (b/thumbnail nil
+            (b/img {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjQyIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDI0MiAyMDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzEwMCV4MjAwCkNyZWF0ZWQgd2l0aCBIb2xkZXIuanMgMi42LjAuCkxlYXJuIG1vcmUgYXQgaHR0cDovL2hvbGRlcmpzLmNvbQooYykgMjAxMi0yMDE1IEl2YW4gTWFsb3BpbnNreSAtIGh0dHA6Ly9pbXNreS5jbwotLT48ZGVmcz48c3R5bGUgdHlwZT0idGV4dC9jc3MiPjwhW0NEQVRBWyNob2xkZXJfMTVjYTk5NmQ1M2YgdGV4dCB7IGZpbGw6I0FBQUFBQTtmb250LXdlaWdodDpib2xkO2ZvbnQtZmFtaWx5OkFyaWFsLCBIZWx2ZXRpY2EsIE9wZW4gU2Fucywgc2Fucy1zZXJpZiwgbW9ub3NwYWNlO2ZvbnQtc2l6ZToxMnB0IH0gXV0+PC9zdHlsZT48L2RlZnM+PGcgaWQ9ImhvbGRlcl8xNWNhOTk2ZDUzZiI+PHJlY3Qgd2lkdGg9IjI0MiIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNFRUVFRUUiLz48Zz48dGV4dCB4PSI4OS44NTkzNzUiIHk9IjEwNS40Ij4yNDJ4MjAwPC90ZXh0PjwvZz48L2c+PC9zdmc+"})
+            (b/caption nil
+              (dom/h3 nil "Title")
+              (dom/p nil "Some content underneath the title with enough words to cause a little wrapping."))))))))
+
+(defcard progress-bars
+  "# Progress Bars
+
+  `(b/progress-bar {:kind :success :current (:pct @state)})`
+  `(b/progress-bar {:kind :success :animated? (< (:pct @state) 100) :current (:pct @state)})`
+  "
+  (fn [state _]
+    (let [current-kind (atom 0)]
+      (render-example "100%" "120px"
+        (b/button {:onClick (fn [] (swap! state update :pct #(- % 10)))} "Less")
+        (b/button {:onClick (fn [] (swap! state update :pct #(+ 10 %)))} "More")
+        (b/progress-bar {:kind :success :current (:pct @state)})
+        (b/progress-bar {:kind :success :animated? (< (:pct @state) 100) :current (:pct @state)}))))
+  {:kind :success
+   :pct  40}
+  {:inspect-data true})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Some internal helpers:
