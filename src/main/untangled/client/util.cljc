@@ -14,7 +14,7 @@
 (defn unique-key
   "Get a unique string-based key. Never returns the same value."
   []
-  (let [s #?(:clj  (System/currentTimeMillis)
+  (let [s #?(:clj (System/currentTimeMillis)
              :cljs (system-time))]
     (str s)))
 
@@ -76,8 +76,21 @@
      (let [rt (s/conform spec x)]
        (when (s/invalid? rt)
          (throw (ex-info (s/explain-str spec x)
-                         (s/explain-data spec x))))
+                  (s/explain-data spec x))))
        rt)))
 
 #?(:clj
    (def TRUE (s/with-gen (constantly true) sg/int)))
+
+(defn react-instance?
+  "Returns the react-instance (which is logically true) iff the given react instance is an instance of the given react class.
+  Otherwise returns nil."
+  [react-class react-instance]
+  {:pre [react-class react-instance]}
+  (when (= (om/react-type react-instance) react-class)
+    react-instance))
+
+(defn first-node
+  "Finds (and returns) the first child that is an instance of the given React class (or nil if not found)."
+  [react-class sequence-of-react-instances]
+  (some #(react-instance? react-class %) sequence-of-react-instances))

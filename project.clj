@@ -113,6 +113,7 @@
                                   [figwheel-sidecar "0.5.10"]
                                   [cljsjs/d3 "3.5.7-1"]
                                   [cljsjs/victory "0.9.0-0"]
+                                  [hickory "0.7.1"]
                                   [org.flywaydb/flyway-core "4.0.3"]
                                   [com.layerware/hugsql "0.4.7"]
                                   [org.clojure/tools.namespace "0.3.0-alpha4"]

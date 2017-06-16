@@ -10,7 +10,7 @@
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [untangled.ui.elements :as ele]
             [untangled.client.cards :refer [untangled-app]]
-            [untangled.client.mutations :as m]
+            [untangled.client.mutations :as m :refer [defmutation]]
             [untangled.ui.bootstrap3 :as b]
             [untangled.client.core :as uc]))
 
@@ -280,3 +280,258 @@
   ")
 
 (defcard nav-with-router (untangled-app RouterRoot) {} {:inspect-data false})
+
+(defn person-ident
+  "Returns an ident. Accepts either the full entity (props) or just an ID. Returns an ident for a person."
+  [id-or-props]
+  (if (map? id-or-props)
+    [:person/by-id (:db/id id-or-props)]
+    [:person/by-id id-or-props]))
+
+(defui ^:once DemoPerson
+  static om/Ident
+  (ident [this props] (person-ident props))
+  static om/IQuery
+  (query [this] [:db/id :person/name])
+  static uc/InitialAppState
+  (initial-state [c {:keys [id name]}] {:db/id id :person/name name})
+  ;; Just a simple component to display a person
+  Object
+  (render [this]
+    (let [{:keys [db/id person/name]} (om/props this)]
+      (b/container nil
+        (b/row nil
+          (b/col {:xs 4} "Name: ")
+          (b/col {:xs 4} name))))))
+
+(def ui-demoperson (om/factory DemoPerson))
+
+(defui ^:once PersonEditor
+  ; share the ident of a person, so we overlay the editor state on a person entity
+  static om/Ident
+  (ident [this props] (person-ident props))
+  ; :ui/edited-name is a temporary place to put what the user is typing in the editor. saving will copy this to :person/name
+  static om/IQuery
+  (query [this] [:db/id :person/name :ui/edited-name])
+  Object
+  (render [this]
+    (let [{:keys [db/id person/name ui/edited-name]} (om/props this)]
+      (b/container nil
+        (b/row nil
+          (b/col {:xs 4} "Name: ")
+          (b/col {:xs 4} (dom/input #js {:value edited-name
+                                         ; leverage helper transact that uses our ident to update data
+                                         :onChange #(m/set-string! this :ui/edited-name :event %)})))))))
+
+(def ui-person-editor (om/factory PersonEditor))
+
+(defn copy-edit-to-name*
+  "Copy the current name of the person to the :ui/edited-name field for modal editing. This allows them to cancel
+  the edit, or save it."
+  [person]
+  (assoc person :person/name (:ui/edited-name person)))
+
+(defmutation save-person
+  "Om mutation: Save a person. Takes the entire person entity as :person"
+  [{:keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state update-in (person-ident id) copy-edit-to-name*)))
+
+(defn set-person-to-edit*
+  "Point the edit modal's :person-editor field at the correct person to edit. This must be done before showing the
+  dialog or the editor won't have state."
+  [state id]
+  (assoc-in state [:edit-modal :singleton :person-editor] [:person/by-id id]))
+
+(defn initialize-edited-name*
+  "Copy the current value of the person's name into the :ui/edited-name field, so the editor can edit a copy instead
+  of the original."
+  [state id]
+  (update-in state (person-ident id) (fn [person] (assoc person :ui/edited-name (:person/name person)))))
+
+(defmutation edit-person
+  "Om mutation: Start editing a person."
+  [{:keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state (fn [s] (-> s
+                           (set-person-to-edit* id)
+                           (initialize-edited-name* id))))))
+
+(defui ^:once PersonModal
+  ; We're storing both the real modal and the person-editor's state in this custom modal (which combines the two).
+  ; The person-editor field will eventually need to point to the person to edit (by ident in the normalized db)
+  ; When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
+  static uc/InitialAppState
+  (initial-state [t p] {:person-editor nil :modal (uc/get-initial-state b/Modal {:id :edit-modal})})
+  ; ident will come from UI router
+  static om/IQuery
+  (query [this] [{:person-editor (om/get-query PersonEditor)} {:modal (om/get-query b/Modal)}])
+  Object
+  (render [this]
+    (let [{:keys [person-editor modal]} (om/props this)]
+      ; The modal container
+      (b/ui-modal modal
+        (b/ui-modal-title nil
+          (dom/b nil "Person Editor"))
+        (b/ui-modal-body nil
+          ; NOTE: The person editor is embedded into the body. This gives us parallel data model of two concepts that
+          ; have more of a tree relation in the UI.
+          (ui-person-editor person-editor))
+        (b/ui-modal-footer nil
+          (b/button {:onClick #(om/transact! this `[(b/hide-modal {:id :edit-modal})])} "Cancel")
+          ; Save can be implemented with respect to the person data. Note, though, that the person-editor
+          ; itself may be a stale copy (since the editor can refresh without re-rendering the modal)
+          ; Thus, we use the ID from the person editor, which is stable in the context of an editing pop.
+          (b/button {:onClick #(om/transact! this `[(save-person {:id ~(:db/id person-editor)})
+                                                    (b/hide-modal {:id :edit-modal})
+                                                    :person/name]) :kind :primary} "Save"))))))
+
+(defui ^:once WarningModal
+  ; NOTE: When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
+  static uc/InitialAppState
+  (initial-state [t p] {:message "Stuff broke" :modal (uc/get-initial-state b/Modal {:id :warning-modal})})
+  ; ident will come from UI router
+  static om/IQuery
+  (query [this] [:message {:modal (om/get-query b/Modal)}]) ; so a mutation can change the message, in this case.
+  Object
+  (render [this]
+    (let [{:keys [message modal]} (om/props this)]
+      (b/ui-modal modal
+        (b/ui-modal-title nil
+          (dom/b nil "WARNING!"))
+        (b/ui-modal-body nil
+          (dom/p #js {:className b/text-danger} message))
+        (b/ui-modal-footer nil
+          (b/button {:onClick #(om/transact! this `[(b/hide-modal {:id :warning-modal})])} "Bummer!"))))))
+
+(defrouter ModalRouter :modal-router
+  ; REMEMBER: The ident determines the type of thing to render (the first element has to be the same
+  ; as one of the keywords below). We're treating the id of the modal as the type, since they are singletons,
+  ; and the two IDs are :warning-modal and :edit-modal. This means the ident function MUST place one of those
+  ; keywords as the first element of the ident it returns.
+  (ident [this props] [(-> props :modal :db/id) :singleton])
+  :warning-modal WarningModal
+  :edit-modal PersonModal)
+
+(def ui-modal-router (om/factory ModalRouter))
+
+(defn start-person-editor
+  "Run an Om transaction that does all of the steps to edit a given person."
+  [comp person-id]
+  (om/transact! comp `[(routing/route-to {:handler :edit})  ; :edit is a route in the routing tree
+                       (edit-person {:id ~person-id})
+                       (b/show-modal {:id :edit-modal})
+                       ; follow-on read ensures re-render at root
+                       :modal-router]))
+
+(defn show-warning
+  "Run an Om transaction that does all of the steps to show a warning modal."
+  [comp]
+  (om/transact! comp `[(routing/route-to {:handler :warning}) ; :warning is a route in the routing tree
+                       (b/show-modal {:id :warning-modal})
+                       ; follow-on read ensures re-render at root
+                       :modal-router]))
+
+(defui ^:once ModalRoot
+  static uc/InitialAppState
+  (initial-state [c p] (merge
+                         ; make a routing tree for the two modals and merge it in the app state
+                         (routing/routing-tree
+                           (routing/make-route :edit [(routing/router-instruction :modal-router [:edit-modal :singleton])])
+                           (routing/make-route :warning [(routing/router-instruction :modal-router [:warning-modal :singleton])]))
+                         ; general initial state
+                         {:person       (uc/get-initial-state DemoPerson {:id 1 :name "Sam"})
+                          :modal-router (uc/get-initial-state ModalRouter {})}))
+  static om/IQuery
+  (query [this] [{:person (om/get-query DemoPerson)} {:modal-router (om/get-query ModalRouter)}])
+  Object
+  (render [this]
+    (let [{:keys [person modal-router]} (om/props this)]
+      (render-example "100%" "500px"
+        (dom/div nil
+          (b/button {:onClick #(show-warning this)} "Show Warning")
+          ; show the current value of the person
+          (ui-demoperson person)
+          (b/button {:onClick #(start-person-editor this (:db/id person))} "Edit Person")
+          ; let the router render just the modal we need
+          (ui-modal-router modal-router))))))
+
+(defcard-doc
+  "# Modals
+
+  Modals are stateful Untangled components with app state and queries. They can, of course, be mixed with other
+  app state.
+
+  The basic usage is to define your modal in the root, with the various things it should render. If you need
+  more than one kind of modal, then you can use a UI router and embed them all in it, then embed the router
+  at the root.
+
+  The following code demonstrates all of these techniques.
+
+  ## The general UI Components
+
+  See the comments in the code:
+
+  "
+  (dc/mkdn-pprint-source person-ident)
+  (dc/mkdn-pprint-source DemoPerson)
+  (dc/mkdn-pprint-source ui-demoperson)
+  (dc/mkdn-pprint-source PersonEditor)
+  (dc/mkdn-pprint-source ui-person-editor)
+  (dc/mkdn-pprint-source PersonModal)
+  (dc/mkdn-pprint-source WarningModal)
+  "
+
+  ## The UI Routing
+
+  ```
+  (defrouter ModalRouter :modal-router
+    ; REMEMBER: The ident determines the type of thing to render (the first element has to be the same
+    ; as one of the keywords below). We're treating the id of the modal as the type, since they are singletons,
+    ; and the two IDs are :warning-modal and :edit-modal. This means the ident function MUST place one of those
+    ; keywords as the first element of the ident it returns.
+    (ident [this props] [(-> props :modal :db/id) :singleton])
+    :warning-modal WarningModal
+    :edit-modal PersonModal)
+  ```
+  "
+  (dc/mkdn-pprint-source ui-modal-router)
+  (dc/mkdn-pprint-source ModalRoot)
+  (dc/mkdn-pprint-source start-person-editor)
+  (dc/mkdn-pprint-source show-warning)
+  "## The Mutations
+
+  We define a couple of helper functions that can work on app state to accomplish some tasks we need:
+
+  "
+  (dc/mkdn-pprint-source copy-edit-to-name*)
+  (dc/mkdn-pprint-source set-person-to-edit*)
+  (dc/mkdn-pprint-source initialize-edited-name*)
+  "
+
+  and this makes the necessary mutations very simple to write (and also a lot more readable):
+
+  ```
+  (defmutation save-person
+    \"Om mutation: Save a person. Takes the entire person entity as :person\"
+    [{:keys [id]}]
+    (action [{:keys [state]}]
+      (swap! state update-in (person-ident id) copy-edit-to-name*)))
+
+
+  (defmutation edit-person
+    \"Om mutation: Start editing a person.\"
+    [{:keys [id]}]
+    (action [{:keys [state]}]
+      (swap! state (fn [s] (-> s
+                             (set-person-to-edit* id)
+                             (initialize-edited-name* id))))))
+
+  ```
+  ")
+
+(defcard modal
+  (untangled-app ModalRoot)
+  {}
+  {:inspect-data false})
+

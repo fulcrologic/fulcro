@@ -38,5 +38,6 @@
     untangled-devguide.Z-Further-Reading
     untangled-devguide.Z-Glossary
     untangled-devguide.Z-Query-Quoting
+    untangled-devguide.ZZ-HTML-to-CLJS
     app.i18n.default-locale))
 

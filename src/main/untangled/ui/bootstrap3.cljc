@@ -4,13 +4,15 @@
     #?(:clj
             js)
             [untangled.ui.elements :as ele]
+            [untangled.events :as evt]
             [untangled.ui.html-entities :as ent]
             [untangled.i18n :refer [tr tr-unsafe]]
-            [untangled.client.mutations :as m]
+            [untangled.client.mutations :as m :refer [defmutation]]
             [clojure.string :as str]
             [clojure.set :as set]
             [untangled.client.core :as uc]
-            [untangled.client.logging :as log]))
+            [untangled.client.logging :as log]
+            [untangled.client.util :as util]))
 
 #?(:clj (defn- clj->js [m] m))
 
@@ -833,3 +835,105 @@
         (om/children this)))))
 
 (def ui-popover (om/factory PopOver))
+
+(defn modal-ident
+  "Get the ident for a modal with the given props or ID"
+  [props-or-id]
+  (if (map? props-or-id)
+    [:untangled.ui.boostrap3.modal/by-id (:db/id props-or-id)]
+    [:untangled.ui.boostrap3.modal/by-id props-or-id]))
+
+(defn- show-modal* [modal tf]
+  (assoc modal :modal/visible tf))
+
+(defn- activate-modal* [modal tf]
+  (assoc modal :modal/active tf))
+
+#?(:cljs
+   (defmutation show-modal
+     "Om Mutation: Show a modal by ID."
+     [{:keys [id]}]
+     (action [{:keys [state]}]
+       (swap! state update-in (modal-ident id) show-modal* true)
+       (js/setTimeout (fn [] (swap! state update-in (modal-ident id) activate-modal* true)) 10))))
+
+#?(:cljs
+   (defmutation hide-modal
+     "Om mutation: Hide a modal by ID."
+     [{:keys [id]}]
+     (action [{:keys [state]}]
+       (swap! state update-in (modal-ident id) activate-modal* false)
+       (js/setTimeout (fn [] (swap! state update-in (modal-ident id) show-modal* false)) 300))))
+
+(defui ^:once ModalTitle
+  Object
+  (render [this]
+    (dom/h4 #js {:id "gridSystemModalLabel" :className "modal-title"} (om/children this))))
+
+(def ui-modal-title (om/factory ModalTitle))
+
+(defui ^:once ModalBody
+  Object
+  (render [this]
+    (dom/div #js {:key "body" :className "modal-body"} (om/children this))))
+
+(def ui-modal-body (om/factory ModalBody))
+
+(defui ^:once ModalFooter
+  Object
+  (render [this]
+    (dom/div #js {:key "footer" :className "modal-footer"}
+      (om/children this))))
+
+(def ui-modal-footer (om/factory ModalFooter))
+
+(defui ^:once Modal
+  static uc/InitialAppState
+  (initial-state [c {:keys [id]}] {:db/id id :modal/active false :modal/visible false})
+  static om/Ident
+  (ident [this props] (modal-ident props))
+  static om/IQuery
+  (query [this] [:db/id :modal/active :modal/visible])
+  Object
+  (render [this]
+    (let [{:keys [db/id modal/active modal/visible]} (om/props this)
+          {:keys [onClose]} (om/get-computed this)
+          onClose  (fn []
+                     (om/transact! this `[(hide-modal {:id ~id})])
+                     (when onClose (onClose id)))
+          children (om/children this)
+          title    (util/first-node ModalTitle children)
+          body     (util/first-node ModalBody children)
+          footer   (util/first-node ModalFooter children)]
+      (dom/div #js {:role      "dialog" :aria-labelledby "gridSystemModalLabel"
+                    :style     #js {:display (if visible "block" "none")}
+                    :className (str "modal fade" (when active " in")) :tabIndex "-1"}
+        (dom/div #js {:role "document" :className "modal-dialog"}
+          (dom/div #js {:className "modal-content"}
+            (dom/div #js {:className "modal-header"}
+              (dom/button #js {:type "button" :onClick onClose :aria-label "Close" :className "close"}
+                (dom/span #js {:aria-hidden "true"} ent/times))
+              (when title title))
+            (when body body)
+            (when footer footer)))
+        (when visible
+          (ui-render-in-body {}
+            (dom/div #js {:onKeyPress (fn [evt] (when (evt/escape-key? evt) (onClose)))
+                          :className  (str "modal-backdrop fade" (when active " in"))})))))))
+
+(let [modal-factory (om/factory Modal {:keyfn (fn [props] (str "modal-" (:db/id props)))})]
+  (defn ui-modal
+    "Render a modal.
+
+    Modals are stateful. You must compose in initial state and a query. Modals also have IDs.
+
+    Modal content should include a ui-modal-title, ui-modal-body, and ui-modal-footer. The footer usually contains
+    one or more buttons.
+
+    See the developer's guide for an example in Bootstrap Components.
+
+    Available mudations b/show-modal and b/hide-modal."
+    [props & children]
+    (apply modal-factory props children)))
+
+
