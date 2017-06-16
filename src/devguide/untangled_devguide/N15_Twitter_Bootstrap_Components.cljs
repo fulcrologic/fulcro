@@ -323,7 +323,7 @@
                                          ; leverage helper transact that uses our ident to update data
                                          :onChange #(m/set-string! this :ui/edited-name :event %)})))))))
 
-(def ui-person-editor (om/factory PersonEditor))
+(def ui-person-editor (om/factory PersonEditor {:keyfn :db/id}))
 
 (defn copy-edit-to-name*
   "Copy the current name of the person to the :ui/edited-name field for modal editing. This allows them to cancel
@@ -362,7 +362,7 @@
   ; The person-editor field will eventually need to point to the person to edit (by ident in the normalized db)
   ; When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
   static uc/InitialAppState
-  (initial-state [t p] {:person-editor nil :modal (uc/get-initial-state b/Modal {:id :edit-modal})})
+  (initial-state [t p] {:person-editor nil :modal (uc/get-initial-state b/Modal {:id :edit-modal :backdrop true})})
   ; ident will come from UI router
   static om/IQuery
   (query [this] [{:person-editor (om/get-query PersonEditor)} {:modal (om/get-query b/Modal)}])
@@ -372,7 +372,7 @@
       ; The modal container
       (b/ui-modal modal
         (b/ui-modal-title nil
-          (dom/b {:key "title"} "Person Editor"))
+          (dom/b #js {:key "title"} "Person Editor"))
         (b/ui-modal-body nil
           ; NOTE: The person editor is embedded into the body. This gives us parallel data model of two concepts that
           ; have more of a tree relation in the UI.
@@ -389,7 +389,7 @@
 (defui ^:once WarningModal
   ; NOTE: When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
   static uc/InitialAppState
-  (initial-state [t p] {:message "Stuff broke" :modal (uc/get-initial-state b/Modal {:id :warning-modal})})
+  (initial-state [t p] {:message "Stuff broke" :modal (uc/get-initial-state b/Modal {:id :warning-modal :backdrop true})})
   ; ident will come from UI router
   static om/IQuery
   (query [this] [:message {:modal (om/get-query b/Modal)}]) ; so a mutation can change the message, in this case.

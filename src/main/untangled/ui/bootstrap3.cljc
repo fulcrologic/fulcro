@@ -893,8 +893,9 @@
   static om/Ident
   (ident [this props] (modal-ident props))
   static om/IQuery
-  (query [this] [:db/id :modal/active :modal/visible :modal/size])
+  (query [this] [:db/id :modal/active :modal/visible :modal/size :modal/backdrop])
   Object
+  (componentDidUpdate [this pp _] (when (and (:modal/visible (om/props this)) (not (:modal/visible pp))) (.focus (.-the-dialog this))))
   (render [this]
     (let [{:keys [db/id modal/active modal/visible modal/size modal/backdrop]} (om/props this)
           {:keys [onClose]} (om/get-computed this)
@@ -907,6 +908,8 @@
           body     (util/first-node ModalBody children)
           footer   (util/first-node ModalFooter children)]
       (dom/div #js {:role      "dialog" :aria-labelledby label-id
+                    :ref       (fn [r] (set! (.-the-dialog this) r))
+                    :onKeyDown (fn [evt] (when (evt/escape-key? evt) (onClose)))
                     :style     #js {:display (if visible "block" "none")}
                     :className (str "modal fade" (when active " in")) :tabIndex "-1"}
         (dom/div #js {:role "document" :className (str "modal-dialog" (when size (str " modal-" (name size))))}
@@ -920,8 +923,7 @@
             (when footer footer)))
         (when (and backdrop visible)
           (ui-render-in-body {}
-            (dom/div #js {:onKeyPress (fn [evt] (when (evt/escape-key? evt) (onClose)))
-                          :className  (str "modal-backdrop fade" (when active " in"))})))))))
+            (dom/div #js {:className (str "modal-backdrop fade" (when active " in"))})))))))
 
 (let [modal-factory (om/factory Modal {:keyfn (fn [props] (str "modal-" (:db/id props)))})]
   (defn ui-modal
