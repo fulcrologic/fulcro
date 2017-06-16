@@ -887,17 +887,18 @@
 
 (defui ^:once Modal
   static uc/InitialAppState
-  (initial-state [c {:keys [id sz backdrop] :or {backdrop true}}]
-    (cond-> {:db/id id :modal/active false :modal/visible false :modal/backdrop (boolean backdrop)}
-      sz (assoc :modal/size sz)))
+  (initial-state [c {:keys [id sz backdrop keyboard] :or {backdrop true keyboard true}}]
+    {:db/id      id :modal/active false :modal/visible false :modal/keyboard keyboard
+     :modal/size sz :modal/backdrop (boolean backdrop)})
   static om/Ident
   (ident [this props] (modal-ident props))
   static om/IQuery
-  (query [this] [:db/id :modal/active :modal/visible :modal/size :modal/backdrop])
+  (query [this] [:db/id :modal/active :modal/visible :modal/size :modal/backdrop :modal/keyboard])
   Object
+  (componentDidMount [this ] (.focus (.-the-dialog this)))
   (componentDidUpdate [this pp _] (when (and (:modal/visible (om/props this)) (not (:modal/visible pp))) (.focus (.-the-dialog this))))
   (render [this]
-    (let [{:keys [db/id modal/active modal/visible modal/size modal/backdrop]} (om/props this)
+    (let [{:keys [db/id modal/active modal/visible modal/size modal/keyboard modal/backdrop]} (om/props this)
           {:keys [onClose]} (om/get-computed this)
           onClose  (fn []
                      (om/transact! this `[(hide-modal {:id ~id})])
@@ -909,7 +910,7 @@
           footer   (util/first-node ModalFooter children)]
       (dom/div #js {:role      "dialog" :aria-labelledby label-id
                     :ref       (fn [r] (set! (.-the-dialog this) r))
-                    :onKeyDown (fn [evt] (when (evt/escape-key? evt) (onClose)))
+                    :onKeyDown (fn [evt] (when (and keyboard (evt/escape-key? evt)) (onClose)))
                     :style     #js {:display (if visible "block" "none")}
                     :className (str "modal fade" (when active " in")) :tabIndex "-1"}
         (dom/div #js {:role "document" :className (str "modal-dialog" (when size (str " modal-" (name size))))}
@@ -939,7 +940,8 @@
     `(uc/get-initial-state Modal {:id ID :sz SZ :backdrop BOOLEAN})`
 
     where the id is required (and must be unique among modals, and `:sz` is optional and must be `:sm` or `:lg`. The
-    :backdrop option is boolean, and indicates you want a backdrop that blocks the UI.
+    :backdrop option is boolean, and indicates you want a backdrop that blocks the UI. The `:keyboard` option
+    defaults to true and enables removal of the dialog with `ESC`.
 
     When rendering the modal, it typically looks something like this:
 

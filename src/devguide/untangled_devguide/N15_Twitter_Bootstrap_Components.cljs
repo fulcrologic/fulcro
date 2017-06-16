@@ -362,7 +362,7 @@
   ; The person-editor field will eventually need to point to the person to edit (by ident in the normalized db)
   ; When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
   static uc/InitialAppState
-  (initial-state [t p] {:person-editor nil :modal (uc/get-initial-state b/Modal {:id :edit-modal :backdrop true})})
+  (initial-state [t p] {:person-editor nil :modal (uc/get-initial-state b/Modal {:id :edit-modal :backdrop true :keyboard false})})
   ; ident will come from UI router
   static om/IQuery
   (query [this] [{:person-editor (om/get-query PersonEditor)} {:modal (om/get-query b/Modal)}])
