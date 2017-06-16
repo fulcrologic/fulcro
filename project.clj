@@ -4,7 +4,7 @@
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.9.0-alpha16" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.542" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.562" :scope "provided"]
                  [org.clojure/spec.alpha "0.1.94"]
                  [devcards "0.2.3" :scope "provided"]
                  [org.omcljs/om "1.0.0-beta1"]
@@ -108,7 +108,7 @@
 
   :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
                    :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :dependencies [[binaryage/devtools "0.9.2"]
+                   :dependencies [[binaryage/devtools "0.9.4"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [figwheel-sidecar "0.5.10"]
                                   [cljsjs/d3 "3.5.7-1"]

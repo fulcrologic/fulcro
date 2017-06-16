@@ -16,17 +16,16 @@
 
 #?(:clj (defn- clj->js [m] m))
 
+
+
 ;; Bootstrap CSS and Components for Untangled
 
-(defn- div-with-class [cls attrs children]
-  (let [addl-classes (get attrs :className)
-        attrs        (assoc attrs :className (str cls " " addl-classes))]
-    (apply dom/div (clj->js attrs) children)))
+(defn- dom-with-class [dom-factory cls attrs children]
+  (let [attrs (update attrs :className #(str cls " " %))]
+    (apply dom-factory (clj->js attrs) children)))
 
-(defn- p-with-class [cls attrs children]
-  (let [addl-classes (get attrs :className)
-        attrs        (assoc attrs :className (str cls " " addl-classes))]
-    (apply dom/p (clj->js attrs) children)))
+(defn- div-with-class [cls attrs children] (dom-with-class dom/div cls attrs children))
+(defn- p-with-class [cls attrs children] (dom-with-class dom/p cls attrs children))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BASE CSS
@@ -787,9 +786,9 @@
                (.unmountComponentAtNode js/ReactDOM (.-popup this))
                (when doc
                  (.removeChild (.-body doc) (.-popup this))))))
-  (render [this] (dom/div #js {:ref (fn [r] (set! (.-doc-element this) r))})))
+  (render [this] (dom/div #js {:key "placeholder" :ref (fn [r] (set! (.-doc-element this) r))})))
 
-(def ui-render-in-body (om/factory RenderInBody))
+(def ui-render-in-body (om/factory RenderInBody {:keyfn :key}))
 
 (defui ^:once PopOver
   Object
@@ -868,55 +867,58 @@
 (defui ^:once ModalTitle
   Object
   (render [this]
-    (dom/h4 #js {:id "gridSystemModalLabel" :className "modal-title"} (om/children this))))
+    (apply dom/div (clj->js (om/props this)) (om/children this))))
 
-(def ui-modal-title (om/factory ModalTitle))
+(def ui-modal-title (om/factory ModalTitle {:keyfn (fn [props] "modal-title")}))
 
 (defui ^:once ModalBody
   Object
   (render [this]
-    (dom/div #js {:key "body" :className "modal-body"} (om/children this))))
+    (div-with-class "modal-body" (om/props this) (om/children this))))
 
-(def ui-modal-body (om/factory ModalBody))
+(def ui-modal-body (om/factory ModalBody {:keyfn (fn [props] "modal-body")}))
 
 (defui ^:once ModalFooter
   Object
   (render [this]
-    (dom/div #js {:key "footer" :className "modal-footer"}
-      (om/children this))))
+    (div-with-class "modal-footer" (om/props this) (om/children this))))
 
-(def ui-modal-footer (om/factory ModalFooter))
+(def ui-modal-footer (om/factory ModalFooter {:keyfn (fn [props] "modal-footer")}))
 
 (defui ^:once Modal
   static uc/InitialAppState
-  (initial-state [c {:keys [id]}] {:db/id id :modal/active false :modal/visible false})
+  (initial-state [c {:keys [id sz backdrop] :or {backdrop true}}]
+    (cond-> {:db/id id :modal/active false :modal/visible false :modal/backdrop (boolean backdrop)}
+      sz (assoc :modal/size sz)))
   static om/Ident
   (ident [this props] (modal-ident props))
   static om/IQuery
-  (query [this] [:db/id :modal/active :modal/visible])
+  (query [this] [:db/id :modal/active :modal/visible :modal/size])
   Object
   (render [this]
-    (let [{:keys [db/id modal/active modal/visible]} (om/props this)
+    (let [{:keys [db/id modal/active modal/visible modal/size modal/backdrop]} (om/props this)
           {:keys [onClose]} (om/get-computed this)
           onClose  (fn []
                      (om/transact! this `[(hide-modal {:id ~id})])
                      (when onClose (onClose id)))
           children (om/children this)
+          label-id (str "modal-label-" id)
           title    (util/first-node ModalTitle children)
           body     (util/first-node ModalBody children)
           footer   (util/first-node ModalFooter children)]
-      (dom/div #js {:role      "dialog" :aria-labelledby "gridSystemModalLabel"
+      (dom/div #js {:role      "dialog" :aria-labelledby label-id
                     :style     #js {:display (if visible "block" "none")}
                     :className (str "modal fade" (when active " in")) :tabIndex "-1"}
-        (dom/div #js {:role "document" :className "modal-dialog"}
+        (dom/div #js {:role "document" :className (str "modal-dialog" (when size (str " modal-" (name size))))}
           (dom/div #js {:className "modal-content"}
-            (dom/div #js {:className "modal-header"}
+            (dom/div #js {:key "modal-header" :className "modal-header"}
               (dom/button #js {:type "button" :onClick onClose :aria-label "Close" :className "close"}
                 (dom/span #js {:aria-hidden "true"} ent/times))
-              (when title title))
+              (when title
+                (dom/h4 #js {:key label-id :id label-id :className "modal-title"} title)))
             (when body body)
             (when footer footer)))
-        (when visible
+        (when (and backdrop visible)
           (ui-render-in-body {}
             (dom/div #js {:onKeyPress (fn [evt] (when (evt/escape-key? evt) (onClose)))
                           :className  (str "modal-backdrop fade" (when active " in"))})))))))
@@ -927,13 +929,33 @@
 
     Modals are stateful. You must compose in initial state and a query. Modals also have IDs.
 
-    Modal content should include a ui-modal-title, ui-modal-body, and ui-modal-footer. The footer usually contains
+    Modal content should include a ui-modal-title, ui-modal-body, and ui-modal-footer as children. The footer usually contains
     one or more buttons.
 
-    See the developer's guide for an example in Bootstrap Components.
+    Use the `uc/get-initial-state` function to pull a valid initial state for this component. The arguments are:
 
-    Available mudations b/show-modal and b/hide-modal."
+    `(uc/get-initial-state Modal {:id ID :sz SZ :backdrop BOOLEAN})`
+
+    where the id is required (and must be unique among modals, and `:sz` is optional and must be `:sm` or `:lg`. The
+    :backdrop option is boolean, and indicates you want a backdrop that blocks the UI.
+
+    When rendering the modal, it typically looks something like this:
+
+    ````
+    (b/ui-modal modal
+      (b/ui-modal-title nil
+        (dom/b nil \"WARNING!\"))
+      (b/ui-modal-body nil
+        (dom/p #js {:className b/text-danger} \"Stuff went sideways.\"))
+      (b/ui-modal-footer nil
+        (b/button {:onClick #(om/transact! this `[(b/hide-modal {:id :warning-modal})])} \"Bummer!\"))))))
+    ````
+
+    NOTE: The grid (`row` and `col`) can be used within the modal body *without* a `container`.
+
+    See the developer's guide for an example in the N15-Twitter-Bootstrap-Components section.
+
+    Available mudations: `b/show-modal` and `b/hide-modal`."
     [props & children]
     (apply modal-factory props children)))
-
 

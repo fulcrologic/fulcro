@@ -319,7 +319,7 @@
       (b/container nil
         (b/row nil
           (b/col {:xs 4} "Name: ")
-          (b/col {:xs 4} (dom/input #js {:value edited-name
+          (b/col {:xs 4} (dom/input #js {:value    edited-name
                                          ; leverage helper transact that uses our ident to update data
                                          :onChange #(m/set-string! this :ui/edited-name :event %)})))))))
 
@@ -372,19 +372,19 @@
       ; The modal container
       (b/ui-modal modal
         (b/ui-modal-title nil
-          (dom/b nil "Person Editor"))
+          (dom/b {:key "title"} "Person Editor"))
         (b/ui-modal-body nil
           ; NOTE: The person editor is embedded into the body. This gives us parallel data model of two concepts that
           ; have more of a tree relation in the UI.
           (ui-person-editor person-editor))
         (b/ui-modal-footer nil
-          (b/button {:onClick #(om/transact! this `[(b/hide-modal {:id :edit-modal})])} "Cancel")
+          (b/button {:key "cancel" :onClick #(om/transact! this `[(b/hide-modal {:id :edit-modal})])} "Cancel")
           ; Save can be implemented with respect to the person data. Note, though, that the person-editor
           ; itself may be a stale copy (since the editor can refresh without re-rendering the modal)
           ; Thus, we use the ID from the person editor, which is stable in the context of an editing pop.
-          (b/button {:onClick #(om/transact! this `[(save-person {:id ~(:db/id person-editor)})
-                                                    (b/hide-modal {:id :edit-modal})
-                                                    :person/name]) :kind :primary} "Save"))))))
+          (b/button {:key "save" :onClick #(om/transact! this `[(save-person {:id ~(:db/id person-editor)})
+                                                                (b/hide-modal {:id :edit-modal})
+                                                                :person/name]) :kind :primary} "Save"))))))
 
 (defui ^:once WarningModal
   ; NOTE: When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
@@ -398,11 +398,13 @@
     (let [{:keys [message modal]} (om/props this)]
       (b/ui-modal modal
         (b/ui-modal-title nil
-          (dom/b nil "WARNING!"))
+          (dom/b #js {:key "warning"} " WARNING!"))
         (b/ui-modal-body nil
-          (dom/p #js {:className b/text-danger} message))
+          (dom/p #js {:key "message" :className b/text-danger} message))
         (b/ui-modal-footer nil
-          (b/button {:onClick #(om/transact! this `[(b/hide-modal {:id :warning-modal})])} "Bummer!"))))))
+          (b/button {:key "ok-button" :onClick #(om/transact! this `[(b/hide-modal {:id :warning-modal})])} "Bummer!"))))))
+
+(def ui-warning-modal (om/factory WarningModal {:keyfn :id}))
 
 (defrouter ModalRouter :modal-router
   ; REMEMBER: The ident determines the type of thing to render (the first element has to be the same
@@ -535,3 +537,49 @@
   {}
   {:inspect-data false})
 
+(defcard modal-variation-small
+  (render-example "100%" "300px"
+    (dom/div nil
+      (ui-warning-modal {:message "This is a small modal."
+                         :modal   {:id :small :modal/active true :modal/visible true :modal/size :sm :backdrop false}}))))
+
+(defcard modal-variation-default-size
+  (render-example "100%" "300px"
+    (dom/div nil
+      (ui-warning-modal {:message "This is a regular modal."
+                         :modal   {:id :dflt :modal/active true :modal/visible true :backdrop false}}))))
+
+(defcard modal-variation-large
+  "NOTE: The iframe for this example is forced larger than the devcard because large modals adapt down in size based on
+  available space."
+  (render-example "1024px" "300px"
+    (dom/div nil
+      (ui-warning-modal {:message "This is a large modal."
+                         :modal   {:id :large :modal/active true :modal/visible true :modal/size :lg :backdrop false}}))))
+
+(defui GridModal
+  Object
+  (render [this]
+    (b/ui-modal (om/props this)
+      (b/ui-modal-title {:key "title"} "A Modal Using a Grid")
+      (b/ui-modal-body {:key "my-body"}
+        "body"
+        (b/row {:key "row"}
+          (b/col {:xs 3}
+            "Column 1 xs 3")
+          (b/col {:xs 3}
+            "Column 2 xs 3")
+          (b/col {:xs 3}
+            "Column 3 xs 3")
+          (b/col {:xs 3}
+            "Column 4 xs 3"))))))
+
+(def ui-grid-modal (om/factory GridModal {:keyfn :id}))
+
+(defcard-doc
+  "Modals are allowed to use the grid within the body without a container:"
+  (dc/mkdn-pprint-source GridModal))
+
+(defcard modal-with-grid
+  (render-example "100%" "200px"
+    (ui-grid-modal {:id :my-modal :modal/visible true :modal/active true})))
