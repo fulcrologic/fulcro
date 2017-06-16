@@ -924,7 +924,7 @@
             (when footer footer)))
         (when (and backdrop visible)
           (ui-render-in-body {}
-            (dom/div #js {:className (str "modal-backdrop fade" (when active " in"))})))))))
+            (dom/div #js {:key "backdrop" :className (str "modal-backdrop fade" (when active " in"))})))))))
 
 (let [modal-factory (om/factory Modal {:keyfn (fn [props] (str "modal-" (:db/id props)))})]
   (defn ui-modal
