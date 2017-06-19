@@ -170,6 +170,11 @@
   queries when working on your render functions. E.g. you can build your UI, pick apart a pretend
   result, then later add queries and everything should work.
 
+  ### Putting an Ident on your root
+
+  Your root component is just that: The root of the tree and graph. Placing an Ident on it means you want the root
+  itself to be placed within a table, but root is supposed to *hold* the tables. So, strange things will happen.
+
   ### Declaring a query that is not your own
 
   Beginners often make the mistake:
