@@ -13,6 +13,12 @@ with most of the experience of Om Next with very little of the pain.
 
 ## Writing Applications with Untangled
 
+image::https://img.shields.io/clojars/v/awkay/untangled.svg[link=https://clojars.org/awkay/untangled]
+
+Release: image:https://api.travis-ci.org/awkay/untangled.svg?branch=master[link=https://github.com/awkay/untangled/tree/master]
+Snapshot: image:https://api.travis-ci.org/awkay/untangled.svg?branch=develop[link=https://github.com/awkay/untangled/tree/develop]
+
+
 See link:/GettingStarted.adoc[GettingStarted.adoc] to get going.
 
 Once you've got the general idea, there's more info in the developers guide, which is an interactive
