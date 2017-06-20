@@ -52,9 +52,6 @@
   and write side of transit to extend the supported data types. See `make-untangled-network` in network.cljs. Only used
   when you default to the built-in networking.
 
-  `:pathopt` (optional, defaults to true).  Turn on/off Om path optimization. This is here in case you're experiencing problems with rendering.
-  Path optimization is a rendering optimization that may still have bugs.
-
   `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (om/shared this)
 
   `:networking` (optional). An instance of UntangledNetwork that will act as the default remote (named :remote). If
@@ -71,13 +68,13 @@
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
   [& {:keys [initial-state mutation-merge started-callback networking reconciler-options
-             request-transform network-error-callback migrate pathopt transit-handlers shared]
+             request-transform network-error-callback migrate transit-handlers shared]
       :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil)
              migrate       nil shared nil}}]
   (map->Application {:initial-state      initial-state
                      :mutation-merge     mutation-merge
                      :started-callback   started-callback
-                     :reconciler-options (merge (cond-> {:pathopt (boolean pathopt)}
+                     :reconciler-options (merge (cond-> {}
                                                   migrate (assoc :migrate migrate)
                                                   shared (assoc :shared shared))
                                            reconciler-options)

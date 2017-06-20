@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Testing",
   "main": "index.js",
-  "directories": { },
+  "directories": {},
   "dependencies": {},
   "devDependencies": {
     "karma": "~1",

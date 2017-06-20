@@ -37,10 +37,6 @@
       (-> (reconciler-with-config {:shared {:res :value}}) :shared)
       => {:res :value}
 
-      ":pathopt"
-      (-> (reconciler-with-config {:pathopt false}) :pathopt)
-      => false
-
       ":root-unmount"
       (-> (reconciler-with-config {:root-unmount identity}) :root-unmount)
       => identity))

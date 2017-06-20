@@ -39,10 +39,6 @@
       (parser [{:join [{:sub-key-1 [:survey/title :survey/description]}]}]) =>
       {:join {:sub-key-1 {:survey/title "Howdy!" :survey/description "More stuff"}}}
 
-      "read with pathopt turned on"
-      (parser [{[:item/by-id 1] [:survey/title]}])
-      => {[:item/by-id 1] {:survey/title "Howdy!"}}
-
       "read with recursion"
       (parser [{:dashboard [{:b [:x :y {:z '...}]}]}]) => {:dashboard {:b {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}}
 
