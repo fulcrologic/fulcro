@@ -252,7 +252,7 @@
                                       (swap! initial-state assoc :ui/locale "en-US")
                                       initial-state)
                                     (assoc initial-state :ui/locale "en-US"))
-        config                    (merge {:pathopt true}
+        config                    (merge {:pathopt false}
                                     reconciler-options
                                     {:migrate     tempid-migrate
                                      :state       initial-state-with-locale
