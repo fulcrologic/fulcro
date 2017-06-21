@@ -583,3 +583,52 @@
 (defcard modal-with-grid
   (render-example "100%" "200px"
     (ui-grid-modal {:id :my-modal :modal/visible true :modal/active true})))
+
+(defui ^:once CollapseRoot
+  static uc/InitialAppState
+  (initial-state [c p] {:collapse-1 (uc/get-initial-state b/Collapse {:id 1 :start-open false})})
+  static om/IQuery
+  (query [this] [{:collapse-1 (om/get-query b/Collapse)}])
+  Object
+  (render [this]
+    (let [{:keys [collapse-1]} (om/props this)]
+      (render-example "100%" "200px"
+        (dom/div nil
+          (b/button {:onClick (fn [] (om/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
+          (b/ui-collapse collapse-1
+            (dom/div #js {:className "well"} "This is some content that can be collapsed.")))))))
+
+
+
+(defcard collapse-card
+  "A collapse component"
+  (untangled-app CollapseRoot))
+
+(defn citem [this all-ids collapse]
+  (dom/div nil
+    (b/button {:onClick (fn [] (om/transact! this `[(b/toggle-collapse-group-item {:item-id      ~(:db/id collapse)
+                                                                                   :all-item-ids ~all-ids})]))} "Toggle")
+    (b/ui-collapse collapse
+      (dom/div #js {:className "well"} "This is some content that can be collapsed."))))
+
+(defui ^:once CollapseGroupRoot
+  static uc/InitialAppState
+  (initial-state [c p] {:collapses [(uc/get-initial-state b/Collapse {:id 1 :start-open false})
+                                    (uc/get-initial-state b/Collapse {:id 2 :start-open false})
+                                    (uc/get-initial-state b/Collapse {:id 3 :start-open false})
+                                    (uc/get-initial-state b/Collapse {:id 4 :start-open false})]})
+  static om/IQuery
+  (query [this] [{:collapses (om/get-query b/Collapse)}])
+  Object
+  (render [this]
+    (let [{:keys [collapses]} (om/props this)
+          all-ids [1 2 3 4]]
+      (render-example "100%" "200px"
+        (dom/div nil
+          (map (fn [c] (citem this all-ids c)) collapses))))))
+
+(defcard collapse-group-card
+  "A collapse group"
+  (untangled-app CollapseGroupRoot)
+  {}
+  {:inspect-data true})

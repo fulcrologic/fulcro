@@ -895,7 +895,7 @@
   static om/IQuery
   (query [this] [:db/id :modal/active :modal/visible :modal/size :modal/backdrop :modal/keyboard])
   Object
-  (componentDidMount [this ] (.focus (.-the-dialog this)))
+  (componentDidMount [this] (.focus (.-the-dialog this)))
   (componentDidUpdate [this pp _] (when (and (:modal/visible (om/props this)) (not (:modal/visible pp))) (.focus (.-the-dialog this))))
   (render [this]
     (let [{:keys [db/id modal/active modal/visible modal/size modal/keyboard modal/backdrop]} (om/props this)
@@ -963,7 +963,104 @@
     [props & children]
     (apply modal-factory props children)))
 
-;; TODO: Collapse + Accordian (stateful)
+(defn collapse-ident [id-or-props]
+  (if (map? id-or-props)
+    [:untangled.ui.bootstrap3.collapse/by-id (:db/id id-or-props)]
+    [:untangled.ui.bootstrap3.collapse/by-id id-or-props]))
+
+(defui Collapse
+  static uc/InitialAppState
+  (initial-state [c {:keys [id start-open]}] {:db/id id :collapse/phase :closed})
+  static om/Ident
+  (ident [this props] (collapse-ident props))
+  static om/IQuery
+  (query [this] [:db/id :collapse/phase])
+  Object
+  (render [this]
+    (let [{:keys [db/id collapse/phase]} (om/props this)
+          dom-ele    (.-dom-element this)
+          box-height (when dom-ele (.-height (.getBoundingClientRect dom-ele)))
+          height     (when dom-ele
+                       (case phase
+                         :opening-no-height nil
+                         :opening (str (.-scrollHeight dom-ele) "px")
+                         :open nil
+                         :closing (str box-height "px")
+                         "0px"))
+          children   (om/children this)
+          classes    (case phase
+                       :open "collapse in"
+                       :closed "collapse"
+                       "collapsing")]
+      (apply dom/div #js {:className classes :style #js {:height height} :ref (fn [r] (set! (.-dom-element this) r))} children))))
+
+(def ui-collapse (om/factory Collapse {:keyfn :db/id}))
+
+(def phases [:opening-no-height :opening :open :closing :closed])
+
+(defn- is-stable?
+  "Returns true if the given collapse item is not transitioning"
+  [collapse-item]
+  (#{:open :closed} (:collapse/phase collapse-item)))
+
+(defn- set-collapse*
+  "state is a state atom"
+  [state id open]
+  (let [cident (collapse-ident id)
+        item   (get-in @state cident)
+        ppath  (conj cident :collapse/phase)]
+    (when (is-stable? item)
+      (if open
+        (do
+          (swap! state assoc-in ppath :opening-no-height)
+          #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :opening)) 16))
+          #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :open)) 350)))
+        (do
+          (swap! state assoc-in ppath :closing)
+          #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :close-height)) 16))
+          #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :closed)) 350)))))))
+
+(defmutation toggle-collapse
+  "Om mutation: Toggle a collapse"
+  [{:keys [id]}]
+  (action [{:keys [state]}]
+    (let [cident  (collapse-ident id)
+          ppath   (conj cident :collapse/phase)
+          is-open (= :open (get-in @state ppath))]
+      (set-collapse* state id (not is-open)))))
+
+(defmutation set-collapse
+  "Om mutation: Set the state of a collapse."
+  [{:keys [id open]}]
+  (action [{:keys [state]}]
+    (set-collapse* state id open)))
+
+(defmutation toggle-collapse-group-item
+  "Om mutation: Toggle a collapse element as if in a group.
+
+  item-id: The specific group to toggle
+  all-item-ids: A collection of all of the items that are to be considered part of the group. If any items are
+  in transition, this is a no-op."
+  [{:keys [item-id all-item-ids]}]
+  (action [{:keys [state]}]
+    (let [all-ids        (set all-item-ids)
+          all-items      (map #(get-in @state (collapse-ident %)) all-ids)
+          item-to-toggle (get-in @state (collapse-ident item-id))
+          closing?       (= :open (:collapse/phase item-to-toggle))
+          stable?        (every? is-stable? all-items)]
+      (when stable?
+        (if closing?
+          (set-collapse* state item-id false)
+          (let [open?        (fn [item] (= :open (:collapse/phase item)))
+                ids-to-close (->> all-items
+                               (filter open?)
+                               (map :db/id))]
+            (doseq [id ids-to-close]
+              (set-collapse* state id false))
+            (set-collapse* state item-id true)))))))
+
+
+;; TODO: Accordian (stateful)
 ;; TODO: Carousel (stateful)
 ;; TODO: Scrollspy (spy-link component that triggers mutation + scrollspy component that gets updated on those mutations)
 ;; TODO: Affix (similar to scrollspy in terms of interactions)
