@@ -731,6 +731,11 @@
   [props & children]
   (div-with-class "panel-heading" props children))
 
+(defn panel-group
+  "Render a heading area in a panel. Must be first. Optional."
+  [props & children]
+  (div-with-class "panel-group" props children))
+
 (defn panel-title
   "Render a title in a panel. Must be in a `panel-heading`."
   [props & children]
