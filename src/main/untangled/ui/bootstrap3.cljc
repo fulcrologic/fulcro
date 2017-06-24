@@ -726,15 +726,15 @@
   [{:keys [kind] :or {kind :default} :as props} & children]
   (div-with-class (str "panel panel-" (name kind)) props children))
 
+(defn panel-group
+  "A wrapper for panels that visually groups them together."
+  [props & children]
+  (div-with-class "panel-group" props children))
+
 (defn panel-heading
   "Render a heading area in a panel. Must be first. Optional."
   [props & children]
   (div-with-class "panel-heading" props children))
-
-(defn panel-group
-  "Render a heading area in a panel. Must be first. Optional."
-  [props & children]
-  (div-with-class "panel-group" props children))
 
 (defn panel-title
   "Render a title in a panel. Must be in a `panel-heading`."
@@ -999,9 +999,12 @@
                        "collapsing")]
       (apply dom/div #js {:className classes :style #js {:height height} :ref (fn [r] (set! (.-dom-element this) r))} children))))
 
-(def ui-collapse (om/factory Collapse {:keyfn :db/id}))
-
-(def phases [:opening-no-height :opening :open :closing :closed])
+(def ui-collapse
+  "Render a collapse component that can height-animate in/out children. The props should be state from the
+  app database initialized with `get-initial-state` of a Collapse component,
+  and the children should be the elements you want to show/hide. Each component should have a unique
+  (application-wide) ID. Use the `toggle-collapse` and `set-collapse` mutations to open/close. "
+  (om/factory Collapse {:keyfn :db/id}))
 
 (defn- is-stable?
   "Returns true if the given collapse item is not transitioning"
@@ -1011,6 +1014,7 @@
 (defn- set-collapse*
   "state is a state atom"
   [state id open]
+  ; phases [:opening-no-height :opening :open :closing :closed]
   (let [cident (collapse-ident id)
         item   (get-in @state cident)
         ppath  (conj cident :collapse/phase)]
@@ -1065,7 +1069,111 @@
             (set-collapse* state item-id true)))))))
 
 
-;; TODO: Accordian (stateful)
+(defn carousel-ident [props-or-id]
+  (if (map? props-or-id)
+    [:untangled.ui.bootstrap3.carousel/by-id (:db/id props-or-id)]
+    [:untangled.ui.bootstrap3.carousel/by-id props-or-id]))
+
+(defui CarouselItem
+  Object
+  (render [this]
+    (let [{:keys [src alt] :as props} (om/props this)
+          caption (om/children this)]
+      (dom/div #js {:key (hash src)}
+        (dom/img #js {:src src :alt alt})
+        (when (seq caption)
+          (dom/div #js {:className "carousel-caption"}
+            caption))))))
+
+(def ui-carousel-item
+  "Render a carousel item. Props can include src and alt for the image. If children are supplied, they will be
+  treated as the caption."
+  (om/factory CarouselItem {:keyfn :index}))
+
+
+(defmutation carousel-slide-to
+  "Om mutation: Slides a carousel from the current frame to the indicated frame. The special `frame` value of `:wrap`
+  can be used to slide from the current frame to the first as if wrapping in a circle."
+  [{:keys [id frame]}]
+  (action [{:keys [state]}]
+    (let [cident       (carousel-ident id)
+          carousel     (get-in @state cident)
+          {:keys [carousel/timer-id carousel/paused carousel/active-index
+                  carousel/slide-to carousel/interval]} carousel
+          new-timer-id (when (not slide-to)
+                         #?(:cljs (js/setTimeout (fn []
+                                                   (swap! state update-in (carousel-ident id)
+                                                     assoc
+                                                     :carousel/timer-id nil
+                                                     :carousel/active-index frame
+                                                     :carousel/slide-to nil)) 600)))]
+      (when (not slide-to)
+        #?(:cljs (when timer-id
+                   (js/clearTimeout timer-id)))
+        (swap! state assoc :carousel/slide-to frame :carousel/timer-id new-timer-id)))))
+
+(defui Carousel
+  static uc/InitialAppState
+  (initial-state [c {:keys [id interval wrap keyboard pause-on-hover show-controls]
+                     :or   {interval 5000 wrap true keyboard true pause-on-hover true show-controls true}}]
+    {:db/id                   id
+     :carousel/interval       interval
+     :carousel/active-index   0
+     :carousel/show-controls  show-controls
+     :carousel/wrap           wrap
+     :carousel/keyboard       keyboard
+     :carousel/pause-on-hover pause-on-hover
+     :carousel/paused         false
+     :carousel/timer-id       nil})
+  static om/Ident
+  (ident [this props] (carousel-ident props))
+  static om/IQuery
+  (query [this] [:db/id :carousel/active-index :carousel/slide-to :carousel/show-controls])
+  Object
+  (render [this]
+    (let [items             (om/children this)
+          slide-count       (count items)
+          {:keys [db/id carousel/active-index carousel/slide-to carousel/show-controls]} (om/props this)
+          to                (if (= :wrap slide-to) 0 slide-to)
+          sliding?          (and slide-to (not= active-index slide-to))
+          prior-index       (if (zero? active-index) (dec slide-count) (dec active-index))
+          next-index        (if (= (dec slide-count) active-index) 0 (inc active-index))
+          goto              (fn [slide] (om/transact! this `[(carousel-slide-to {:id ~id :frame ~slide})]))
+          from-the-left?    (or (= :wrap slide-to) (< active-index slide-to))
+          active-item-class (str "item active "
+                              (when sliding? (if from-the-left? "left" "right")))
+          slide-to-class    (str "item " (when sliding? (if from-the-left? "next left" "next right")))]
+      (dom/div #js {:className "carousel slide"
+                    :onKeyDown (fn [e]
+                                 (.preventDefault e) ; TODO: not getting key evts
+                                 (.stopPropagation e)
+                                 (log/info (.-keyCode e))
+                                 (cond
+                                   (evt/left-arrow? e) (goto prior-index)
+                                   (evt/right-arrow? e) (goto next-index))
+                                 false)}
+        (dom/ol #js {:className "carousel-indicators"}
+          (map #(dom/li #js {:key % :className (str "" (when (= % active-index) "active"))} "") (range slide-count)))
+
+        ; TODO: extra div needs unwrapped, but is already rendered
+        (dom/div #js {:className "carousel-inner" :role "listbox"}
+          (map-indexed (fn [idx i]
+                         (dom/div #js {:className (cond
+                                                    (= idx to) slide-to-class
+                                                    (= idx active-index) active-item-class
+                                                    :else "")} i))
+            items))
+        (when show-controls
+          (dom/a #js {:onClick #(goto prior-index) :className "left carousel-control" :role "button"}
+            (glyphicon {:aria-hidden true} :chevron-left)
+            (dom/span #js {:className "sr-only"} "Previous"))
+          (dom/a #js {:onClick #(goto next-index) :className "right carousel-control" :role "button"}
+            (glyphicon {:aria-hidden true} :chevron-right)
+            (dom/span #js {:className "sr-only"} "Next")))))))
+; TODO: above is untested...might work ;)
+
+(def ui-carousel (om/factory Carousel {:keyfn :db/id}))
+
 ;; TODO: Carousel (stateful)
 ;; TODO: Scrollspy (spy-link component that triggers mutation + scrollspy component that gets updated on those mutations)
 ;; TODO: Affix (similar to scrollspy in terms of interactions)

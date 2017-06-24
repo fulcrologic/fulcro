@@ -87,6 +87,7 @@
                 :source-paths ["src/main" "src/devguide"]
                 :compiler     {:main           untangled-devguide.guide
                                :asset-path     "js/devguide"
+                               :devcards true
                                :output-to      "resources/public/js/devguide.js"
                                :output-dir     "resources/public/js/devguide"
                                :preloads       [devtools.preload]

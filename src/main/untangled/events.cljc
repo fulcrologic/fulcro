@@ -11,3 +11,12 @@
   (= 27 (.-keyCode evt)))
 
 
+(defn left-arrow?
+  "Return true if a DOM event was the left arrow key."
+  [evt]
+  (= 27 (.-keyCode evt)))
+
+(defn right-arrow?
+  "Return true if a DOM event was the right arrow key."
+  [evt]
+  (= 27 (.-keyCode evt)))
