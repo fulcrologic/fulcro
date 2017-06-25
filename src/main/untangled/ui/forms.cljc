@@ -887,7 +887,7 @@
                                          (conj form-id field)
                                          (keyword value))))))
 
-(defmethod form-field* ::dropdown [component form field-name & params]
+(defmethod form-field* ::dropdown [component form field-name & {:keys [onChange] :as params}]
   (let [id        (form-ident form)
         selection (current-value form field-name)
         cls       (or (css-class form field-name) "form-control")
@@ -906,7 +906,10 @@
                         (om/transact! component
                           `[(select-option ~field-info)
                             ~@(get-on-form-change-mutation form field-name :edit)
-                            ~form-root-key])))}
+                            ~form-root-key])
+                        (if (fn? onChange)
+                          (onChange event)
+                          (log/warn ":onChange is not a function"))))}
       (when optional?
         (dom/option #js {:value ::none} ""))
       (map (fn [{:keys [option/key option/label]}]
