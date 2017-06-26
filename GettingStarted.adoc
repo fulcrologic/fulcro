@@ -595,7 +595,7 @@ current state (which is held in an atom) with:
 
 [source]
 ----
-dev:cljs.user=> @(om.next/app-state (get @app.basic-ui/app-1 :reconciler)
+dev:cljs.user=> @(om.next/app-state (get @app.basic-ui/app-1 :reconciler))
 ----
 
 Let's see how we program our UI to access the data in the application state!
