@@ -23,6 +23,7 @@
 - Moved easy untangled server to untangled.easy-server namespace. 
 - Moved all other server code to untangled.server namespace.
 - Added bootstrap3 namespace with helpers that can render passive and active bootstrap 3 elements.
+- If `net/UntangledNetwork start` returns something that implements `UntangledNetwork`, this value will be used as the actual remote by the app.
 
 0.8.2
 -----
