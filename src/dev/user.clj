@@ -14,10 +14,10 @@
 
 (suite/def-test-suite server-test-server
   {:config {:port 8888}
-           :test-paths ["spec"]
-           :source-paths ["src"]}
+           :test-paths ["src/test"]
+           :source-paths ["src/main"]}
   {:available #{:focused}
-   :default   #{::sel/none}})
+   :default   #{::sel/none :focused}})
 
 (def figwheel (atom nil))
 

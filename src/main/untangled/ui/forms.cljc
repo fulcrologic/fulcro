@@ -843,7 +843,6 @@
                            input-value->field-value]
   (let [id          (form-ident form)
         input-value (field-value->input-value (current-value form field-name))
-        cls         (or (css-class form field-name) "form-control")
         attrs       (clj->js (merge htmlProps
                                {:type        type
                                 :name        field-name
@@ -866,17 +865,17 @@
                                                      ~form-root-key])))}))]
     (dom/input attrs)))
 
-(defmethod form-field* ::text [component form field-name & params]
+(defmethod form-field* ::text [component form field-name & {:keys [id className] :as params}]
   (let [i->f identity
-        cls  (or (css-class form field-name) "form-control")
+        cls  (or className (css-class form field-name) "form-control")
         f->i identity]
-    (render-input-field component {:className cls} form field-name "text" f->i i->f)))
+    (render-input-field component {:id id :className cls} form field-name "text" f->i i->f)))
 
-(defmethod form-field* ::integer [component form field-name & params]
-  (let [cls  (or (css-class form field-name) "form-control")
+(defmethod form-field* ::integer [component form field-name & {:keys [id className] :as params}]
+  (let [cls  (or className (css-class form field-name) "form-control")
         i->f #(when (seq (re-matches #"^[0-9]*$" %)) (int %))
         f->i identity]
-    (render-input-field component {:className cls} form field-name "number" f->i i->f)))
+    (render-input-field component {:id id :className cls} form field-name "number" f->i i->f)))
 
 #?(:cljs (defmutation select-option
            "Om mutation: Select a sepecific option from a selection list. form-id is the ident of the object acting as
@@ -887,20 +886,21 @@
                                          (conj form-id field)
                                          (keyword value))))))
 
-(defmethod form-field* ::dropdown [component form field-name & {:keys [onChange] :as params}]
-  (let [id        (form-ident form)
+(defmethod form-field* ::dropdown [component form field-name & {:keys [id className onChange] :as params}]
+  (let [form-id   (form-ident form)
         selection (current-value form field-name)
-        cls       (or (css-class form field-name) "form-control")
+        cls       (or className (css-class form field-name) "form-control")
         field     (field-config form field-name)
         optional? (= ::none (:input/default-value field))
         options   (:input/options field)]
     (dom/select #js
         {:name      field-name
+         :id        id
          :className cls
          :value     selection
          :onChange  (fn [event]
                       (let [value      (.. event -target -value)
-                            field-info {:form-id id
+                            field-info {:form-id form-id
                                         :field   field-name
                                         :value   value}]
                         (om/transact! component
@@ -916,18 +916,19 @@
              (dom/option #js {:key key :value key} label))
         options))))
 
-(defmethod form-field* ::checkbox [component form field-name & params]
-  (let [id         (form-ident form)
-        cls        (or (css-class form field-name) "")
+(defmethod form-field* ::checkbox [component form field-name & {:keys [id className] :as params}]
+  (let [form-id    (form-ident form)
+        cls        (or className (css-class form field-name) "")
         bool-value (current-value form field-name)]
     (dom/input #js
         {:type      "checkbox"
+         :id        id
          :name      field-name
          :className cls
          :checked   bool-value
          :onChange  (fn [event]
                       (let [value      (.. event -target -value)
-                            field-info {:form-id id
+                            field-info {:form-id form-id
                                         :field   field-name
                                         :value   value}]
                         (om/transact! component
@@ -940,9 +941,9 @@
   [form field choice]
   (str (second (form-ident form)) "-" field "-" choice))
 
-(defmethod form-field* ::radio [component form field-name & {:keys [choice label] :or {label "\u00a0"}}]
+(defmethod form-field* ::radio [component form field-name & {:keys [className choice label] :or {label "\u00a0"}}]
   (let [id          (form-ident form)
-        cls         "c-radio c-radio--expanded"
+        cls         (or className "c-radio c-radio--expanded")
         field-id    (radio-button-id form field-name choice)
         current-val (current-value form field-name)]
     (dom/span nil
@@ -964,28 +965,29 @@
                               ~form-root-key])))})
       (dom/label #js {:htmlFor field-id} label))))
 
-(defmethod form-field* ::textarea [component form field-name & {:as htmlProps}]
-  (let [id    (form-ident form)
-        cls   (or (css-class form field-name) "")
-        value (current-value form field-name)
-        attrs (clj->js (merge htmlProps
-                         {:name      field-name
-                          :className cls
-                          :value     value
-                          :onBlur    (fn [_]
-                                       (om/transact! component
-                                         `[(validate-field ~{:form-id id :field field-name})
-                                           ~@(get-on-form-change-mutation form field-name :blur)
-                                           ~form-root-key]))
-                          :onChange  (fn [event]
-                                       (let [value      (.. event -target -value)
-                                             field-info {:form-id id
-                                                         :field   field-name
-                                                         :value   value}]
+(defmethod form-field* ::textarea [component form field-name & {:keys [id className] :as htmlProps}]
+  (let [form-id (form-ident form)
+        cls     (or className (css-class form field-name) "")
+        value   (current-value form field-name)
+        attrs   (clj->js (merge htmlProps
+                           {:name      field-name
+                            :id        id
+                            :className cls
+                            :value     value
+                            :onBlur    (fn [_]
                                          (om/transact! component
-                                           `[(set-field ~field-info)
-                                             ~@(get-on-form-change-mutation form field-name :edit)
-                                             ~form-root-key])))}))]
+                                           `[(validate-field ~{:form-id form-id :field field-name})
+                                             ~@(get-on-form-change-mutation form field-name :blur)
+                                             ~form-root-key]))
+                            :onChange  (fn [event]
+                                         (let [value      (.. event -target -value)
+                                               field-info {:form-id form-id
+                                                           :field   field-name
+                                                           :value   value}]
+                                           (om/transact! component
+                                             `[(set-field ~field-info)
+                                               ~@(get-on-form-change-mutation form field-name :edit)
+                                               ~form-root-key])))}))]
     (dom/textarea attrs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1044,10 +1046,10 @@
             fields (element-names form)]
         (if (om/tempid? id)
           (reduce
-           (partial field-diff form)
-           (assoc-in diff [:form/new-entities ident] (select-keys form (into [] (comp (remove (partial ui-field? form))
-                                                                                      (remove (partial is-subform? form))) fields)))
-           (filter (partial is-subform? form) fields))
+            (partial field-diff form)
+            (assoc-in diff [:form/new-entities ident] (select-keys form (into [] (comp (remove (partial ui-field? form))
+                                                                                   (remove (partial is-subform? form))) fields)))
+            (filter (partial is-subform? form) fields))
           (transduce (comp
                        (remove (partial ui-field? form))
                        (filter (partial dirty-field? form)))

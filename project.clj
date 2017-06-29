@@ -54,8 +54,8 @@
                 :compiler     {:main                 untangled.test-main
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
-                               :recompile-dependents false
-                               :parallel-build       true
+                               :recompile-dependents true
+                               :parallel-build       false
                                :preloads             [devtools.preload]
                                :asset-path           "js/test"
                                :optimizations        :none}}

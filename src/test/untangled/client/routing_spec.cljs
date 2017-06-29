@@ -1,7 +1,7 @@
 (ns untangled.client.routing-spec
-  (:require [untangled.client.routing :as r :refer [defrouter]]
+  (:require [untangled-spec.core :refer [specification behavior assertions when-mocking component]]
+            [untangled.client.routing :as r :refer [defrouter]]
             [om.dom :as dom]
-            [untangled-spec.core :refer-macros [specification behavior assertions when-mocking component]]
             [om.next :as om :refer [defui]]
             [untangled.client.mutations :as m]
             [untangled.client.core :as uc]))
