@@ -15,7 +15,28 @@
     #?(:cljs [goog.dom :as gdom]))
   #?(:cljs (:import goog.Uri)))
 
-(declare map->Application merge-alternate-union-elements! merge-state! new-untangled-client new-untangled-test-client)
+(declare map->Application merge-alternate-union-elements! merge-state! new-untangled-client new-untangled-test-client InitialAppState)
+
+(defn iinitial-app-state?
+  "Returns true if the class has the static InitialAppState protocol."
+  #?(:cljs {:tag boolean})
+  [x]
+  #?(:clj  (if (fn? x)
+             (some? (-> x meta :initial-state))
+             (let [class (cond-> x (om/component? x) class)]
+               (extends? InitialAppState class)))
+     :cljs (implements? InitialAppState x)))
+
+(defn iident?
+  "Returns true if the class has the stati Ident protocol."
+  #?(:cljs {:tag boolean})
+  [x]
+  #?(:clj  (if (fn? x)
+             (some? (-> x meta :ident))
+             (let [class (cond-> x (om/component? x) class)]
+               (extends? om/Ident class)))
+     :cljs (implements? om/Ident x)))
+
 
 (defn new-untangled-client
   "Entrypoint for creating a new untangled client. Instantiates an Application with default values, unless
@@ -106,31 +127,31 @@
 ;q: {:a (gq A) :b (gq B)
 ;is: (is A)  <-- default branch
 ;state:   { kw { id [:page :a]  }}
-#?(:cljs
-   (defn- merge-alternate-union-elements! [app root-component]
-     (letfn [(walk-ast
-               ([ast visitor]
-                (walk-ast ast visitor nil))
-               ([{:keys [children component type dispatch-key union-key key] :as parent-ast} visitor parent-union]
-                (when (and component parent-union (= :union-entry type))
-                  (visitor component parent-union))
-                (when children
-                  (doseq [ast children]
-                    (cond
-                      (= (:type ast) :union) (walk-ast ast visitor component) ; the union's component is on the parent join
-                      (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
-                      ast (walk-ast ast visitor nil))))))
-             (merge-union [component parent-union]
-               (let [default-initial-state   (and parent-union (implements? InitialAppState parent-union) (initial-state parent-union {}))
-                     to-many?                (vector? default-initial-state)
-                     component-initial-state (and component (implements? InitialAppState component) (initial-state component {}))]
-                 (when-not default-initial-state
-                   (log/warn "Subelements of union " (.. parent-union -displayName) " have initial state, but the union itself has no initial state. Your app state may suffer."))
-                 (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
-                   (merge-state! app parent-union component-initial-state))))]
-       (walk-ast
-         (om/query->ast (om/get-query root-component))
-         merge-union))))
+(defn merge-alternate-union-elements! [app root-component]
+  (letfn [
+          (walk-ast
+            ([ast visitor]
+             (walk-ast ast visitor nil))
+            ([{:keys [children component type dispatch-key union-key key] :as parent-ast} visitor parent-union]
+             (when (and component parent-union (= :union-entry type))
+               (visitor component parent-union))
+             (when children
+               (doseq [ast children]
+                 (cond
+                   (= (:type ast) :union) (walk-ast ast visitor component) ; the union's component is on the parent join
+                   (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
+                   ast (walk-ast ast visitor nil))))))
+          (merge-union [component parent-union]
+            (let [default-initial-state   (and parent-union (iinitial-app-state? parent-union) (get-initial-state parent-union {}))
+                  to-many?                (vector? default-initial-state)
+                  component-initial-state (and component (iinitial-app-state? component) (get-initial-state component {}))]
+              (when-not default-initial-state
+                (log/warn "Subelements of union " (.. parent-union -displayName) " have initial state, but the union itself has no initial state. Your app state may suffer."))
+              (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
+                (merge-state! app parent-union component-initial-state))))]
+    (walk-ast
+      (om/query->ast (om/get-query root-component))
+      merge-union)))
 
 (defn- start-networking
   "Starts all remotes in a map. If a remote's `start` returns something that implements `UntangledNetwork`,
@@ -138,10 +159,10 @@
   [network-map app]
   #?(:cljs (into {} (for [[k remote] network-map
                           :let [started (net/start remote app)
-                                valid (if (implements? net/UntangledNetwork started) started remote)]]
+                                valid   (if (implements? net/UntangledNetwork started) started remote)]]
                       (do (println (implements? net/UntangledNetwork started))
                           [k valid])))
-     :clj {}))
+     :clj  {}))
 
 (defn- initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
@@ -175,7 +196,7 @@
   "Needed for mocking in tests. Do not use directly. Use UntangledApplication protocol methods instead."
   [queue]
   (loop [element (async/poll! queue)]
-    (if element
+    (when element
       (recur (async/poll! queue)))))
 
 (defn reset-history-impl
@@ -190,18 +211,16 @@
 (defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
   (if mounted?
     (do (refresh* app) app)
-    (let [uses-initial-app-state? #?(:cljs (implements? InitialAppState root-component)
-                                     :clj (satisfies? InitialAppState root-component))
-          ui-declared-state               (and uses-initial-app-state? (untangled.client.core/initial-state root-component nil))
-          atom-supplied?                  (util/atom? initial-state)
-          init-conflict?                  (and (or atom-supplied? (seq initial-state)) #?(:cljs (implements? InitialAppState root-component)
-                                                                                          :clj  (satisfies? InitialAppState root-component)))
-          state                           (cond
-                                            (not uses-initial-app-state?) (if initial-state initial-state {})
-                                            atom-supplied? (do
-                                                             (reset! initial-state (om/tree->db root-component ui-declared-state true))
-                                                             initial-state)
-                                            :otherwise ui-declared-state)]
+    (let [uses-initial-app-state? (iinitial-app-state? root-component)
+          ui-declared-state       (and uses-initial-app-state? (untangled.client.core/initial-state root-component nil))
+          atom-supplied?          (util/atom? initial-state)
+          init-conflict?          (and (or atom-supplied? (seq initial-state)) (iinitial-app-state? root-component))
+          state                   (cond
+                                    (not uses-initial-app-state?) (if initial-state initial-state {})
+                                    atom-supplied? (do
+                                                     (reset! initial-state (om/tree->db root-component ui-declared-state true))
+                                                     initial-state)
+                                    :otherwise ui-declared-state)]
       (when init-conflict?
         (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
@@ -213,8 +232,7 @@
   (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
 
   (reset-app! [this root-component callback]
-    (if (not #?(:cljs (implements? InitialAppState root-component)
-                :clj  (satisfies? InitialAppState root-component)))
+    (if (not (iinitial-app-state? root-component))
       (log/error "The specified root component does not implement InitialAppState!")
       (let [base-state (om/tree->db root-component (untangled.client.core/initial-state root-component nil) true)]
         (clear-pending-remote-requests! this nil)
@@ -280,12 +298,6 @@
      ([url param-name]
       (get (uri-params url) param-name))))
 
-(defn get-class-ident
-  "Get the ident using a component class and data. Om's simulated statics are elided by
-  advanced compilation. This function compensates."
-  [comp data]
-  (om/ident comp data))
-
 (defn- component-merge-query
   "Calculates the query that can be used to pull (or merge) a component with an ident
   to/from a normalized app database. Requires a tree of data that represents the instance of
@@ -299,7 +311,7 @@
   "Does the steps necessary to honor the data merge technique defined by Untangled with respect
   to data overwrites in the app database."
   [state-atom component object-data]
-  (let [ident         (get-class-ident component object-data)
+  (let [ident         (util/get-ident component object-data)
         object-query  (om/get-query component)
         object-query  (if (map? object-query) [object-query] object-query)
         base-query    (component-merge-query component object-data)
@@ -405,9 +417,8 @@
   Any keywords that appear in ident integration steps will be added to the re-render queue.
   "
   [app-or-reconciler component object-data & named-parameters]
-  (when-not #?(:cljs (implements? om/Ident component)
-               :clj  (satisfies? om/Ident component)) (log/warn "merge-state!: component must implement Ident"))
-  (let [ident          (get-class-ident component object-data)
+  (when-not (iident? component) (log/warn "merge-state!: component must implement Ident"))
+  (let [ident          (util/get-ident component object-data)
         reconciler     (if #?(:cljs (implements? UntangledApplication app-or-reconciler)
                               :clj  (satisfies? UntangledApplication app-or-reconciler))
                          (:reconciler app-or-reconciler)

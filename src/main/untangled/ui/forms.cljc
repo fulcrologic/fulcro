@@ -7,6 +7,7 @@
     [om.util :as util]
     [clojure.tools.reader :as reader]
     [untangled.client.core :as uc]
+    [untangled.client.util :as uu]
     [untangled.client.data-fetch :as df]
     [untangled.client.logging :as log]
     [untangled.client.mutations :as m :refer [defmutation]]))
@@ -35,15 +36,6 @@
      ie: what the form is made of,
      eg: fields, subforms, form change listeners."))
 
-(defn- iident?
-  #?(:cljs {:tag boolean})
-  [x]
-  #?(:clj  (if (fn? x)
-             (some? (-> x meta :ident))
-             (let [class (cond-> x (om/component? x) class)]
-               (extends? om/Ident class)))
-     :cljs (implements? om/Ident x)))
-
 (defn iform?
   "Returns true if the given class is an IForm. Works on clj and cljs."
   #?(:cljs {:tag boolean})
@@ -68,14 +60,6 @@
    Is okay to have multiple 'root' components on screen at once,
    as om and react will optimize the rendering step."
   (ui-ns "form-root"))
-
-(defn get-ident
-  "Get the ident of an Om class with props"
-  [class props]
-  #?(:clj  (when-let [ident (-> class meta :ident)]
-             (ident class props))
-     :cljs (when (implements? om/Ident class)
-             (om/ident class props))))
 
 (defn get-form-spec
   "Get the form declared on a component class"
@@ -120,7 +104,7 @@
   such that removing the reference indicates that the target is no longer used and can be removed from the database."
   ([field form-class cardinality & {:keys [isComponent]}]
    (assert (contains? #{:one :many} cardinality) "subform-element requires a cardinality of :one or :many")
-   (assert ((every-pred #(iident? %) #(iform? %) #(om/iquery? %)) form-class)
+   (assert ((every-pred #(uc/iident? %) #(iform? %) #(om/iquery? %)) form-class)
      (str "Subform element " field " MUST implement IForm, IQuery, and Ident."))
    (with-meta {:input/name          field
                :input/is-form?      true
@@ -388,12 +372,12 @@
                               (fail! "Subforms cannot be on union queries. You will have to manually group your subforms if you use unions."
                                 {:ast-node ast-node}))
                             (when (and wants-to-be?
-                                    (not (and (iident? form-class) (iform? form-class) (om/iquery? form-class))))
+                                    (not (and (uc/iident? form-class) (iform? form-class) (om/iquery? form-class))))
                               (fail! (str "Declared subform for property " prop
                                        " does not implement IForm, IQuery, and Ident.")
                                 {:ast-node ast-node}))
                             (and form-class wants-to-be? join? (not union?) (om/iquery? form-class)
-                              (iident? form-class) (iform? form-class))))
+                              (uc/iident? form-class) (iform? form-class))))
          sub-forms      (->> ast :children
                           (keep (fn [ast-node]
                                   (when (is-form-node? ast-node)
@@ -553,7 +537,7 @@
              (-> form
                (merge
                  {:elements/by-name elements-by-name
-                  :ident            (get-ident form-class final-state)
+                  :ident            (uu/get-ident form-class final-state)
                   :origin           (into {}
                                       (map (fn [[k v]]
                                              [k (if (and (is-subform? (elements-by-name k))
@@ -572,11 +556,6 @@
 
 (defn initialized? "Returns true if the given form is already initialized with form setup data"
   [form] (map? (get form form-key)))
-
-(defn dbg [msg v]
-  #?(:cljs (js/console.log msg v)
-     :clj  (println System/out (str msg (pr-str v))))
-  v)
 
 (defn init-one
   [state base-form subform-spec visited]

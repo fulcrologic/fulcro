@@ -5,6 +5,7 @@
     [untangled.client.core :as uc]
     [untangled.client.logging :as log]
     [untangled.client.mutations :as m]
+    [untangled.client.util :as uu]
     [untangled.ui.forms :as f]))
 
 (defui Stub
@@ -21,13 +22,13 @@
 (specification "Utility functions"
   (assertions
     "Can detect query, ident, and form protocols on class"
-    (#'f/iident? Stub) => true
-    (#'f/iform? Stub) => true
+    (uc/iident? Stub) => true
+    (f/iform? Stub) => true
     (om/iquery? Stub) => true
     "Can tack untangled form namespace to a generated keyword"
     (#'f/ui-ns "boo") => :untangled.ui.forms/boo
     "Can pull the ident for a component class"
-    (f/get-ident Stub {:db/id 3}) => [:stub/by-id 3]
+    (uu/get-ident Stub {:db/id 3}) => [:stub/by-id 3]
     "Can pull the form spec from a component class"
     (f/get-form-spec Stub) => [(f/id-field :db/id)]))
 
@@ -210,11 +211,6 @@
                                4             {:db/id 4 :person/name "C" :person/number [[:phone/by-id 1] [:phone/by-id 2]]}
                                6             {:db/id 6 :person/name "E" :person/number [[:phone/by-id 1]]}
                                new-person-id {:db/id new-person-id :person/name "F"}}})
-
-(defn dbg [msg v]
-  #?(:cljs (js/console.log msg v)
-     :clj  (println System/out (str msg (pr-str v))))
-  v)
 
 (specification "Initializing a to-one form relation"
   (let [app-state person-db
