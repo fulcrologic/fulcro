@@ -250,12 +250,11 @@
        (behavior "and root IMPLEMENTS InitialAppState"
          (let [mock-app {:mounted? false :initial-state {:a 1} :reconciler-options :OPTIONS}]
            (when-mocking
-             (log/warn msg) =1x=> (do (assertions "warns about duplicate initialization"
-                                        msg =fn=> (partial re-matches #"^You supplied.*")))
-             (uc/initialize app state root dom opts) => (do
-                                                          (assertions
-                                                            "Initializes the app with the InitialAppState"
-                                                            state => (uc/get-initial-state Parent nil)))
+             (log/warn msg) =1x=> (assertions "warns about duplicate initialization"
+                                    msg =fn=> (partial re-matches #"^You supplied.*"))
+             (uc/initialize app state root dom opts) => (assertions
+                                                          "Initializes the app with the InitialAppState"
+                                                          state => (uc/get-initial-state Parent nil))
 
              (uc/mount* mock-app Parent :dom-id)))
          (let [mock-app {:mounted? false :initial-state (atom {:a 1}) :reconciler-options :OPTIONS}]

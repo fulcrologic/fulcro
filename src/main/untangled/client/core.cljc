@@ -160,8 +160,7 @@
   #?(:cljs (into {} (for [[k remote] network-map
                           :let [started (net/start remote app)
                                 valid   (if (implements? net/UntangledNetwork started) started remote)]]
-                      (do (println (implements? net/UntangledNetwork started))
-                          [k valid])))
+                      [k valid]))
      :clj  {}))
 
 (defn- initialize

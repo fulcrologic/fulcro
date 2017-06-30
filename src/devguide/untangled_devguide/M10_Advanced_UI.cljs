@@ -57,7 +57,6 @@
                                                      {:x (new js/Date year 1 2)
                                                       :y value})
                                                    plot-data))]
-            (js/console.log dates)
             (vchart nil
                     (vaxis #js {:label      label
                                 :standalone false

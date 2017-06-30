@@ -1,4 +1,5 @@
-(ns untangled.ui.clip-geometry)
+(ns untangled.ui.clip-geometry
+  (:require [untangled.client.logging :as log]))
 
 (defrecord Point [x y])
 (defrecord Rectangle [ul lr])
@@ -75,7 +76,7 @@
       :dashed (do
                 (.setLineDash ctx #js [5])
                 (.strokeRect ctx x y w h))
-      (js/console.log "ERROR: Unsupported style " style)))
+      (log/error "ERROR: Unsupported style " style)))
   (.restore ctx))
 
 (defn max-rect
