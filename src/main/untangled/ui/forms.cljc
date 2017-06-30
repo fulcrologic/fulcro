@@ -35,6 +35,25 @@
      ie: what the form is made of,
      eg: fields, subforms, form change listeners."))
 
+(defn- iident?
+  #?(:cljs {:tag boolean})
+  [x]
+  #?(:clj  (if (fn? x)
+             (some? (-> x meta :ident))
+             (let [class (cond-> x (om/component? x) class)]
+               (extends? om/Ident class)))
+     :cljs (implements? om/Ident x)))
+
+(defn iform?
+  "Returns true if the given class is an IForm. Works on clj and cljs."
+  #?(:cljs {:tag boolean})
+  [x]
+  #?(:clj  (if (fn? x)
+             (some? (-> x meta :form-spec))
+             (let [class (cond-> x (om/component? x) class)]
+               (extends? IForm class)))
+     :cljs (implements? IForm x)))
+
 (defn- ui-ns [kw-name]
   ;; workaround for no *ns* in cljs
   (keyword (namespace ::_) kw-name))
@@ -50,7 +69,23 @@
    as om and react will optimize the rendering step."
   (ui-ns "form-root"))
 
-(defn- get-form-spec
+(defn get-ident
+  "Get the ident of an Om class with props"
+  [class props]
+  #?(:clj  (when-let [ident (-> class meta :ident)]
+             (ident class props))
+     :cljs (when (implements? om/Ident class)
+             (om/ident class props))))
+
+(defn get-form-spec
+  "Get the form declared on a component class"
+  [class]
+  #?(:clj  (when-let [fspec (-> class meta :form-spec)]
+             (fspec class))
+     :cljs (when (implements? IForm class)
+             (form-spec class))))
+
+(defn- get-form-spec*
   "Returns a map with:
    * :elements - contains user level fields
    * :form - contains internal form details"
@@ -68,14 +103,12 @@
                       (assert-no-duplicate
                         (cond-> field (= :form spec-key)
                           (dissoc :input/name :input/type))))))
-          {} (form-spec this))
+          {} (get-form-spec this))
       (update :elements vals))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ELEMENT/FIELD/INPUT DEFINITIONS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-#?(:clj (def implements? satisfies?))
 
 (defn subform-element
   "Declare that the current form links to subforms through the given entity property in a :one or :many capacity. this
@@ -87,7 +120,7 @@
   such that removing the reference indicates that the target is no longer used and can be removed from the database."
   ([field form-class cardinality & {:keys [isComponent]}]
    (assert (contains? #{:one :many} cardinality) "subform-element requires a cardinality of :one or :many")
-   (assert ((every-pred #(implements? om/Ident %) #(implements? IForm %) #(implements? om/IQuery %)) form-class)
+   (assert ((every-pred #(iident? %) #(iform? %) #(om/iquery? %)) form-class)
      (str "Subform element " field " MUST implement IForm, IQuery, and Ident."))
    (with-meta {:input/name          field
                :input/is-form?      true
@@ -337,7 +370,7 @@
   ([form-class] (subforms* form-class []))
   ([form-class current-path]
    (let [ast            (om/query->ast (om/get-query form-class))
-         elements       (:elements (get-form-spec form-class))
+         elements       (:elements (get-form-spec* form-class))
          subform-fields (set (keep #(when (is-subform? %) (:input/name %)) elements))
          get-class      (fn [ast-node] (let [subquery (:query ast-node)]
                                          (if (or (int? subquery) (= '... subquery))
@@ -354,14 +387,12 @@
                               (fail! "Subforms cannot be on union queries. You will have to manually group your subforms if you use unions."
                                 {:ast-node ast-node}))
                             (when (and wants-to-be?
-                                    (not (and (implements? om/Ident form-class)
-                                           (implements? IForm form-class)
-                                           (implements? om/IQuery form-class))))
+                                    (not (and (iident? form-class) (iform? form-class) (om/iquery? form-class))))
                               (fail! (str "Declared subform for property " prop
                                        " does not implement IForm, IQuery, and Ident.")
                                 {:ast-node ast-node}))
-                            (and form-class wants-to-be? join? (not union?) (implements? om/IQuery form-class)
-                              (implements? om/Ident form-class) (implements? IForm form-class))))
+                            (and form-class wants-to-be? join? (not union?) (om/iquery? form-class)
+                              (iident? form-class) (iform? form-class))))
          sub-forms      (->> ast :children
                           (keep (fn [ast-node]
                                   (when (is-form-node? ast-node)
@@ -509,7 +540,7 @@
    the default field values for the declared input fields.
    This function does **not** recursively build out nested forms, even when declared. See `init-form`."
   [form-class entity-state]
-  (let [{:keys [elements form]} (get-form-spec form-class)
+  (let [{:keys [elements form]} (get-form-spec* form-class)
         element-keys             (map :input/name elements)
         elements-by-name         (zipmap element-keys elements)
         {:keys [state validation]} (default-state elements)
@@ -521,7 +552,7 @@
              (-> form
                (merge
                  {:elements/by-name elements-by-name
-                  :ident            (om/ident form-class final-state)
+                  :ident            (get-ident form-class final-state)
                   :origin           (into {}
                                       (map (fn [[k v]]
                                              [k (if (and (is-subform? (elements-by-name k))
@@ -539,14 +570,19 @@
 (declare init-form*)
 
 (defn initialized? "Returns true if the given form is already initialized with form setup data"
-  [form] (map? (form-key form)))
+  [form] (map? (get form form-key)))
+
+(defn dbg [msg v]
+  #?(:cljs (js/console.log msg v)
+     :clj  (println System/out (str msg (pr-str v))))
+  v)
 
 (defn init-one
   [state base-form subform-spec visited]
   (let [k             (:input/name subform-spec)
         subform-class (some-> subform-spec meta :component)
         subform-ident (get base-form k)
-        visited       (update-in visited subform-ident inc)]
+        visited       (update-in visited subform-ident (fnil inc 0))]
     (assert (or (nil? subform-ident)
               (util/ident? subform-ident))
       "Initialize-one form did not find a to-one relation in the database")
@@ -560,7 +596,9 @@
   (let [k              (:input/name subform-spec)
         subform-idents (get base-form k)
         subform-class  (some-> subform-spec meta :component)
-        visited        (reduce (fn [v ident] (update-in v ident inc)) visited subform-idents)]
+        visited        (reduce (fn [v ident] (if (util/ident? ident)
+                                               (update-in v ident (fnil inc 0))
+                                               v)) visited subform-idents)]
     (assert (or (nil? subform-idents)
               (every? util/ident? subform-idents))
       "Initialize-many form did not find a to-many relation in the database")
@@ -579,12 +617,12 @@
                            (build-form form-class))
           base-app-state (assoc-in app-state form-ident base-form)]
       (transduce (filter is-subform?)
-        (fn [state subform-spec]
-          (if (= :many (:input/cardinality subform-spec))
-            (init-many state base-form subform-spec forms-visited)
-            (init-one state base-form subform-spec forms-visited)))
+        (completing (fn [state subform-spec]
+                      (if (= :many (:input/cardinality subform-spec))
+                        (init-many state base-form subform-spec forms-visited)
+                        (init-one state base-form subform-spec forms-visited))))
         base-app-state
-        (:elements (get-form-spec form-class))))
+        (:elements (get-form-spec* form-class))))
     app-state))
 
 (defn init-form
@@ -746,7 +784,7 @@
   "Runs validation on the defined fields and returns a new form with them properly marked."
   [form & [{:keys [skip-unchanged?]}]]
   (transduce (filter (if skip-unchanged? (partial dirty-field? form) identity))
-    validate-field*
+    (completing validate-field*)
     form (validatable-fields form)))
 
 (defn would-be-valid?

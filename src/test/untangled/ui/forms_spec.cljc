@@ -18,6 +18,19 @@
   (form-spec [this]
     [(f/id-field :db/id)]))
 
+(specification "Utility functions"
+  (assertions
+    "Can detect query, ident, and form protocols on class"
+    (#'f/iident? Stub) => true
+    (#'f/iform? Stub) => true
+    (om/iquery? Stub) => true
+    "Can tack untangled form namespace to a generated keyword"
+    (#'f/ui-ns "boo") => :untangled.ui.forms/boo
+    "Can pull the ident for a component class"
+    (f/get-ident Stub {:db/id 3}) => [:stub/by-id 3]
+    "Can pull the form spec from a component class"
+    (f/get-form-spec Stub) => [(f/id-field :db/id)]))
+
 (specification "Form Elements Declarations"
   (component "subform-element"
     (let [f (f/subform-element :name Stub :one)]
@@ -198,14 +211,21 @@
                                6             {:db/id 6 :person/name "E" :person/number [[:phone/by-id 1]]}
                                new-person-id {:db/id new-person-id :person/name "F"}}})
 
+(defn dbg [msg v]
+  #?(:cljs (js/console.log msg v)
+     :clj  (println System/out (str msg (pr-str v))))
+  v)
+
 (specification "Initializing a to-one form relation"
   (let [app-state person-db
         base-form (get-in app-state [:people/by-id 7])
-        spec      (-> (f/form-spec Person) first)]
+        spec      (-> (f/get-form-spec Person) first)]
     (when-mocking
       (f/init-form* state class ident v) =1x=> (do
                                                  (assertions
                                                    "initializes the proper target form"
+                                                   class => Phone
+                                                   v => {:phone/by-id {1 1}}
                                                    ident => [:phone/by-id 1]
                                                    "finds the proper class of the form"
                                                    class => Phone)
@@ -214,11 +234,11 @@
         (assertions
           "returns the value of a call to init-form"
           actual => :new-state)))
-    #?(:cljs (assertions
-               "Is ok when the target is nil"
-               (f/init-one app-state (get-in app-state [:people/by-id 3]) spec {}) => app-state
-               "Throws an error when the app-state data is obviously a to-many relation"
-               (f/init-one app-state (get-in app-state [:people/by-id 4]) spec {}) =throws=> (js/Error.)))))
+    (assertions
+      "Is ok when the target is nil"
+      (f/init-one app-state (get-in app-state [:people/by-id 3]) spec {}) => app-state
+      "Throws an error when the app-state data is obviously a to-many relation"
+      (f/init-one app-state (get-in app-state [:people/by-id 4]) spec {}) =throws=> #?(:cljs (js/Error #"Initialize-one form did not") :clj (AssertionError #"Initialize-one form did not")))))
 
 (defui PolyPerson
   static om/IQuery
@@ -231,7 +251,7 @@
 
 (specification "Initializing a to-many form relation"
   (let [base-form (get-in person-db [:people/by-id 4])
-        spec      (-> (f/form-spec PolyPerson) first)]
+        spec      (-> (f/get-form-spec PolyPerson) first)]
     (when-mocking
       (f/init-form* state class ident v) =1x=> (do
                                                  (assertions
@@ -251,11 +271,11 @@
         (assertions
           "returns the state of the final init-state"
           actual => :new-state)))
-    #?(:cljs (assertions
-               "Is ok when the target field is nil."
-               (f/init-many person-db (get-in person-db [:people/by-id 3]) spec {}) => person-db
-               "Throws an error when the app state contains an obvious to-one relation."
-               (f/init-many person-db (get-in person-db [:people/by-id 7]) spec {}) =throws=> (js/Error.)))))
+    (assertions
+      "Is ok when the target field is nil."
+      (f/init-many person-db (get-in person-db [:people/by-id 3]) spec {}) => person-db
+      "Throws an error when the app state contains an obvious to-one relation."
+      (f/init-many person-db (get-in person-db [:people/by-id 7]) spec {}) =throws=> #?(:cljs (js/Error #"Initialize-many form did not") :clj (AssertionError #"Initialize-many form did not")))))
 
 (specification "Initializing a form recursively"
   (assertions
@@ -375,7 +395,7 @@
     (#'f/subforms* Level2Form) => [[[:leaf1] LeafForm] [[:leaf2] LeafForm] [[:leaf3] LeafForm]]
     "gives back pairs of [prop-path class] on a nested form"
     (#'f/subforms* Level3Form) => [[[:level2] Level2Form] [[:level2 :leaf1] LeafForm]
-                                 [[:level2 :leaf2] LeafForm] [[:level2 :leaf3] LeafForm]]
+                                   [[:level2 :leaf2] LeafForm] [[:level2 :leaf3] LeafForm]]
     "supports to-many sub-forms"
     (#'f/subforms* ToManyForm) => [[[:leaves] LeafForm]]))
 
@@ -430,7 +450,7 @@
   (assertions "Can accumulate values from all forms"
     (let [state (f/init-form nested-form-db Level3Form [:level3 1])
           form  (get-in state [:level3 1])]
-      (f/reduce-forms state form 0 (fn [acc spec] (+ acc (get-in spec [:form :value]))))) => 3))
+      (f/reduce-forms state form 0 (fn [acc spec] (+ acc (get-in spec [:form :value] 0))))) => 3))
 
 (specification "Form config and state helpers"
   (let [ident-under-test [:people/by-id 7]
@@ -487,7 +507,7 @@
   static om/Ident
   (ident [this props] [:thing/by-id (:db/id props)]))
 
-#?(:cjls (specification "Form state mutations"
+#?(:cjls (specification "Form state mutations" :focused
            (let [state             (atom (-> {:thing/by-id {1 {:db/id 1 :thing/name "Original" :thing/ok? false}}}
                                            (f/init-form Thing [:thing/by-id 1])))
                  test-mutate-field (partial test-mutate-action {:state state})
@@ -532,88 +552,88 @@
   (form-spec [this] [(f/text-input :person/name :className "name-class" :validator 'is-named? :validator-args {:name "C"})
                      (f/subform-element :person/number Phone :many)]))
 
-#?(:cljs (specification "Form Validation"
-           (let [app-state        (-> person-db
-                                    (f/init-form CPerson [:people/by-id 4])
-                                    (f/init-form CPerson [:people/by-id 5]))
-                 unchecked-person (get-in app-state [:people/by-id 5])
-                 c-person         (get-in app-state [:people/by-id 4])
-                 valid-person     (f/validate-field* c-person :person/name)
-                 invalid-person   (f/validate-field* unchecked-person :person/name)
-                 validated-person (f/validate-fields unchecked-person)]
-             (component "Update validation (on a field)"
-               (assertions
-                 "properly marks valid using the provided validator (integration)"
-                 (f/current-validity valid-person :person/name) => :valid
-                 "properly marks invalid using the provided validator (integration)"
-                 (f/current-validity invalid-person :person/name) => :invalid))
-             (component "validate-fields"
-               (assertions
-                 "non-recursively updates validation on all fields"
-                 ((juxt f/valid? f/invalid?) validated-person) => [false true]
-                 "can supply option to skip unchanged fields"
-                 ((juxt f/valid? f/invalid?)
-                   (f/validate-fields unchecked-person {:skip-unchanged? true}))
-                 => [false false]))
-             (assertions
-               "Can query the tri-state validity of a specific field (which defaults to unchecked)"
-               (f/current-validity unchecked-person :person/name) => :unchecked
-               "indicates a field is invalid iff it is marked invalid (integration)"
-               (f/invalid? unchecked-person :person/name) => false
-               (f/invalid? valid-person :person/name) => false
-               (f/invalid? invalid-person :person/name) => true
-               "indicates a field is valid iff it is marked valid (integration)"
-               (f/valid? unchecked-person :person/name) => false
-               (f/valid? valid-person :person/name) => true
-               (f/valid? invalid-person :person/name) => false
-               "Can find the validation trigger symbol for a field"
-               (f/validator invalid-person :person/name) => 'is-named?
-               "Includes the current complete form in the arguments to the validator"
-               (::f/this-form (f/validator-args invalid-person :person/name)) => invalid-person
-               "Can find the validation trigger args for a field"
-               (:name (f/validator-args invalid-person :person/name)) => "C")
-             (component "dirty checking"
-               (let [clean-person (om/db->tree (om/get-query Person) c-person app-state)]
-                 (assertions
-                   "Can see if a field is clean on the form"
-                   (f/dirty? clean-person) => false
-                   "Can see if a field is dirty on the form"
-                   (f/dirty? (assoc-in clean-person [:person/name] "X")) => true
-                   "Can recursively check for dirty data on a form"
-                   (f/dirty? clean-person) => false
-                   (f/dirty? (assoc clean-person :person/name "X")) => true
-                   (f/dirty? (assoc-in clean-person [:person/number 0 :phone/number] "222")) => true
-                   (f/dirty? (assoc-in clean-person [:person/number 1 :phone/number] "4")) => true)))
+(specification "Form Validation"
+  (let [app-state        (-> person-db
+                           (f/init-form CPerson [:people/by-id 4])
+                           (f/init-form CPerson [:people/by-id 5]))
+        unchecked-person (get-in app-state [:people/by-id 5])
+        c-person         (get-in app-state [:people/by-id 4])
+        valid-person     (f/validate-field* c-person :person/name)
+        invalid-person   (f/validate-field* unchecked-person :person/name)
+        validated-person (f/validate-fields unchecked-person)]
+    (component "Update validation (on a field)"
+      (assertions
+        "properly marks valid using the provided validator (integration)"
+        (f/current-validity valid-person :person/name) => :valid
+        "properly marks invalid using the provided validator (integration)"
+        (f/current-validity invalid-person :person/name) => :invalid))
+    (component "validate-fields"
+      (assertions
+        "non-recursively updates validation on all fields"
+        ((juxt f/valid? f/invalid?) validated-person) => [false true]
+        "can supply option to skip unchanged fields"
+        ((juxt f/valid? f/invalid?)
+          (f/validate-fields unchecked-person {:skip-unchanged? true}))
+        => [false false]))
+    (assertions
+      "Can query the tri-state validity of a specific field (which defaults to unchecked)"
+      (f/current-validity unchecked-person :person/name) => :unchecked
+      "indicates a field is invalid iff it is marked invalid (integration)"
+      (f/invalid? unchecked-person :person/name) => false
+      (f/invalid? valid-person :person/name) => false
+      (f/invalid? invalid-person :person/name) => true
+      "indicates a field is valid iff it is marked valid (integration)"
+      (f/valid? unchecked-person :person/name) => false
+      (f/valid? valid-person :person/name) => true
+      (f/valid? invalid-person :person/name) => false
+      "Can find the validation trigger symbol for a field"
+      (f/validator invalid-person :person/name) => 'is-named?
+      "Includes the current complete form in the arguments to the validator"
+      (::f/this-form (f/validator-args invalid-person :person/name)) => invalid-person
+      "Can find the validation trigger args for a field"
+      (:name (f/validator-args invalid-person :person/name)) => "C")
+    (component "dirty checking"
+      (let [clean-person (om/db->tree (om/get-query Person) c-person app-state)]
+        (assertions
+          "Can see if a field is clean on the form"
+          (f/dirty? clean-person) => false
+          "Can see if a field is dirty on the form"
+          (f/dirty? (assoc-in clean-person [:person/name] "X")) => true
+          "Can recursively check for dirty data on a form"
+          (f/dirty? clean-person) => false
+          (f/dirty? (assoc clean-person :person/name "X")) => true
+          (f/dirty? (assoc-in clean-person [:person/number 0 :phone/number] "222")) => true
+          (f/dirty? (assoc-in clean-person [:person/number 1 :phone/number] "4")) => true)))
 
-             (component "would-be-valid?"
-               (provided "Uses forms-reduce to check the complete form set"
-                 (f/form-reduce f i F) =1x=> (do
-                                               (assertions
-                                                 "Starts at the top-level form"
-                                                 f => :the-form)
-                                               :reduction)
+    (component "would-be-valid?"
+      (provided "Uses forms-reduce to check the complete form set"
+        (f/form-reduce f i F) =1x=> (do
+                                      (assertions
+                                        "Starts at the top-level form"
+                                        f => :the-form)
+                                      :reduction)
 
-                 (assertions
-                   (f/would-be-valid? :the-form) => :reduction))
-               (assertions
-                 "Indicates that a valid form would be valid, even though validations have not been run"
-                 (f/would-be-valid? c-person) => true
-                 "Indicates that an invalid form would be INvalid, even though validations have not been run"
-                 (f/would-be-valid? unchecked-person) => false)))
+        (assertions
+          (f/would-be-valid? :the-form) => :reduction))
+      (assertions
+        "Indicates that a valid form would be valid, even though validations have not been run"
+        (f/would-be-valid? c-person) => true
+        "Indicates that an invalid form would be INvalid, even though validations have not been run"
+        (f/would-be-valid? unchecked-person) => false)))
 
-           (component "validate-forms"
-             (let [app-state       (f/init-form person-db CPerson [:people/by-id 4])
-                   validated-state (f/validate-forms app-state [:people/by-id 4])
-                   get-person      (fn [id] (get-in validated-state [:people/by-id id]))
-                   get-phone       (fn [id] (get-in validated-state [:phone/by-id id]))]
-               (assertions
-                 "recursively walks an entire form in app state and updates all fields validity to proper valid/invalid."
-                 (f/valid? (get-person 4) :person/name) => true
-                 (f/invalid? (get-person 4) :person/name) => false
-                 (f/valid? (get-phone 1) :phone/number) => true
-                 (f/invalid? (get-phone 1) :phone/number) => false
-                 (f/valid? (get-phone 2) :phone/number) => true
-                 (f/invalid? (get-phone 2) :phone/number) => false)))))
+  (component "validate-forms"
+    (let [app-state       (f/init-form person-db CPerson [:people/by-id 4])
+          validated-state (f/validate-forms app-state [:people/by-id 4])
+          get-person      (fn [id] (get-in validated-state [:people/by-id id]))
+          get-phone       (fn [id] (get-in validated-state [:phone/by-id id]))]
+      (assertions
+        "recursively walks an entire form in app state and updates all fields validity to proper valid/invalid."
+        (f/valid? (get-person 4) :person/name) => true
+        (f/invalid? (get-person 4) :person/name) => false
+        (f/valid? (get-phone 1) :phone/number) => true
+        (f/invalid? (get-phone 1) :phone/number) => false
+        (f/valid? (get-phone 2) :phone/number) => true
+        (f/invalid? (get-phone 2) :phone/number) => false))))
 
 (defn fix-tx "hack/fix for github.com/untangled-web/untangled-spec/issues/6"
   [tx] (mapcat #(if (seq? %) (vec %) [%]) tx))
@@ -632,7 +652,7 @@
                new-person             (get-entity Person [:people/by-id new-person-id])
 
                [t1] (repeatedly om/tempid)]
-           (specification "Form entity commit"
+           (specification "Form entity commit" :focused
              (component "form-reduce"
                (assertions
                  (f/form-reduce basic-person (map f/form-ident) [] conj)
@@ -848,7 +868,7 @@
                      (f/get-original-data :person/name))
                    => "MCQ"))))
 
-           (specification "Resetting a Form"
+           (specification "Resetting a Form" :focused
              (component "The reset-from-entity Om mutation"
                (when-mocking
                  (f/entity-xform _ form-id xf) => (do (assertions
@@ -924,7 +944,7 @@
            change (get-in form [f/form-key :on-form-change])]
        (assertions
          "Declares a special field type that acts as a global-manipulation on the form triggered as the form
-         changes."
+       changes."
          (:on-form-change/mutation-symbol change) => 'mutant/changed))))
 
 #?(:cljs
