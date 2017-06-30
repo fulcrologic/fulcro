@@ -242,12 +242,13 @@
     (form-field form :rating :choice 5) 5)
   ```
   "
-  [name options & {:keys [default-value className]
+  [name options & {:keys [label-fn default-value className]
                    :or   {default-value ::none className ""}}]
   {:pre [(set? options)]}
   {:input/name          name
    :input/type          ::radio
    :input/default-value default-value
+   :input/label-fn label-fn
    :input/css-class     className
    :input/options       options})
 

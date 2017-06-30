@@ -24,6 +24,7 @@
 - Moved all other server code to untangled.server namespace.
 - Added bootstrap3 namespace with helpers that can render passive and active bootstrap 3 elements.
 - If `net/UntangledNetwork start` returns something that implements `UntangledNetwork`, this value will be used as the actual remote by the app.
+- Made forms support working (initial render) for SSR
 
 0.8.2
 -----
