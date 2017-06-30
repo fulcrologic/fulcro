@@ -195,7 +195,7 @@
         button-classes   (cond-> "btn"
                            kind (str " btn-" (name kind))
                            size (str " btn-" (name size))
-                           (not size) (str " btn-default")
+                           (not kind) (str " btn-default")
                            as-block (str " btn-block")
                            incoming-classes (str " " incoming-classes))
         attrs            (-> attrs
