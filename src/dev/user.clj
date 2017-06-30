@@ -1,6 +1,6 @@
 (ns user
   (:require
-    [cards.server :as server]
+    [cards.server :as svr]
     [clojure.pprint :refer [pprint]]
     [clojure.repl :refer [doc source]]
     [clojure.set :as set]
@@ -40,14 +40,14 @@
      (swap! figwheel component/start)
      (fig/cljs-repl (:figwheel-system @figwheel)))))
 
-(set-refresh-dirs "src/demos")
+(set-refresh-dirs "src/demos" "src/main" "src/test")
 
 (defonce demo-server (atom nil))
 
 (defn init
   "Create a web server from configurations. Use `start` to start it."
   []
-  (reset! demo-server (server/make-system)))
+  (reset! demo-server (svr/make-system)))
 
 (defn start-demo-server "Start (an already initialized) web server." [] (swap! demo-server component/start))
 
