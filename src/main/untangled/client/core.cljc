@@ -132,6 +132,17 @@
          (om/query->ast (om/get-query root-component))
          merge-union))))
 
+(defn- start-networking
+  "Starts all remotes in a map. If a remote's `start` returns something that implements `UntangledNetwork`,
+  update the network map with this value. Returns possibly updated `network-map`."
+  [network-map app]
+  #?(:cljs (into {} (for [[k remote] network-map
+                          :let [started (net/start remote app)
+                                valid (if (implements? net/UntangledNetwork started) started remote)]]
+                      (do (println (implements? net/UntangledNetwork started))
+                          [k valid])))
+     :clj {}))
+
 (defn- initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
@@ -143,15 +154,14 @@
         response-channels   (zipmap remotes (map #(async/chan) remotes))
         parser              (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
-                                       :parser parser :mounted? true :networking network-map)
+                                       :parser parser :mounted? true)
         rec                 (app/generate-reconciler initial-app initial-state parser reconciler-options)
-        completed-app       (assoc initial-app :reconciler rec)
+        partial-app         (assoc initial-app :reconciler rec)
+        completed-app       (assoc partial-app :networking (start-networking network-map partial-app))
         node #?(:cljs (if (string? dom-id-or-node)
                         (gdom/getElement dom-id-or-node)
                         dom-id-or-node)
                 :clj        dom-id-or-node)]
-    (doseq [r remotes]
-      (net/start (get network-map r) completed-app))
     (app/initialize-internationalization rec)
     (app/initialize-global-error-callbacks completed-app)
     (app/start-network-sequential-processing completed-app)
