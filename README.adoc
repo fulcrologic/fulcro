@@ -35,4 +35,7 @@ and follow the instructions.
 There are a number of demos that show how particular common things are done with Untangled. To view them use
 the `run-demos.sh` shell script at the top of this project and follow the instructions it gives.
 
+This compiles the demos, and runs a server that can respond to the full-stack examples.
 
+NOTE: A number of things might use the network port of the demo server, so don't try to do this while also
+doing something else in the project.
