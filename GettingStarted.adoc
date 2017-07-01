@@ -34,10 +34,10 @@ This goes in `project.clj`:
 ----
 (defproject my-project "0.0.1"
   :description "My Project"
-  :dependencies [[org.clojure/clojure "1.9.0-alpha16"]
-                 [org.clojure/clojurescript "1.9.562"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha17"]
+                 [org.clojure/clojurescript "1.9.671"]
                  [org.omcljs/om "1.0.0-beta1"]
-                 [awkay/untangled "1.0.0-SNAPSHOT"]]
+                 [awkay/untangled "1.0.0-beta1"]]
 
   :source-paths ["src/main"]
   :resource-paths ["resources"]
@@ -57,8 +57,8 @@ This goes in `project.clj`:
                                :optimizations        :none}}]}
 
   :profiles {:dev {:source-paths ["src/dev" "src/main"]
-                   :dependencies [[binaryage/devtools "0.9.2"]
-                                  [figwheel-sidecar "0.5.9"]]}})
+                   :dependencies [[binaryage/devtools "0.9.4"]
+                                  [figwheel-sidecar "0.5.10"]]}})
 ----
 
 ### Figwheel Startup Script
