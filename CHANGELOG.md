@@ -1,4 +1,4 @@
-1.0.0
+1.0.0-beta1
 -----
 - Fixed uses of clojure.spec to clojure.spec.alpha
 - Integrated devguide
@@ -23,6 +23,9 @@
 - Moved easy untangled server to untangled.easy-server namespace. 
 - Moved all other server code to untangled.server namespace.
 - Added bootstrap3 namespace with helpers that can render passive and active bootstrap 3 elements.
+- If `net/UntangledNetwork start` returns something that implements `UntangledNetwork`, this value will be used as the actual remote by the app.
+- Made forms support work (initial render) for SSR
+- MOVED pathopt option. It is now just one of the regular reconciler options you can pass. Currently does not default to true due to bugs in Om Next.
 
 0.8.2
 -----

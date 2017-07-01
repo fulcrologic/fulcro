@@ -12,7 +12,8 @@
             [untangled.client.cards :refer [untangled-app]]
             [untangled.client.mutations :as m :refer [defmutation]]
             [untangled.ui.bootstrap3 :as b]
-            [untangled.client.core :as uc]))
+            [untangled.client.core :as uc]
+            [devcards.core :as dc]))
 
 (defui DropdownRoot
   static uc/InitialAppState
@@ -583,3 +584,124 @@
 (defcard modal-with-grid
   (render-example "100%" "200px"
     (ui-grid-modal {:id :my-modal :modal/visible true :modal/active true})))
+
+(defui ^:once CollapseRoot
+  ; Use the initial state of b/Collapse to make the proper state for one
+  static uc/InitialAppState
+  (initial-state [c p] {:collapse-1 (uc/get-initial-state b/Collapse {:id 1 :start-open false})})
+  ; Join it into your query
+  static om/IQuery
+  (query [this] [{:collapse-1 (om/get-query b/Collapse)}])
+  Object
+  (render [this]
+    (let [{:keys [collapse-1]} (om/props this)]             ; pull it out of props
+      (render-example "100%" "200px"
+        (dom/div nil
+          (b/button {:onClick (fn [] (om/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
+          ; Wrap the elements to be hidden as children
+          ; NOTE: if the children need props they could be queried for above and passed in here.
+          (b/ui-collapse collapse-1
+            (dom/div #js {:className "well"} "This is some content that can be collapsed.")))))))
+
+(defcard-doc
+  "# Collapse
+
+  The collapse item is a stateful component that takes children. The children will be hidden/shown based on the
+  state of the collapse wrapper.
+
+  The built-in mutation `(b/toggle-collapse {:id ID-OF-COLLAPSE})` can be used to toggle a specific item, and
+  the mutation `(b/set-collapse {:id ID :open BOOLEAN})` can be used to set the specific state. NOTE: Both of
+  these mutations automatically do nothing if an animation is in progress.
+
+  An example with these elements combined looks like this:
+
+  "
+  (dc/mkdn-pprint-source CollapseRoot))
+
+(defcard collapse-card
+  "The live version of the collapse in action:"
+  (untangled-app CollapseRoot))
+
+(defn accordian-section [this all-ids collapse]
+  (letfn [(toggle [] (om/transact! this `[(b/toggle-collapse-group-item {:item-id      ~(:db/id collapse)
+                                                                         :all-item-ids ~all-ids})]))]
+    (b/panel nil
+      (b/panel-heading nil
+        (b/panel-title nil
+          (dom/a #js {:onClick toggle} "Section Heading")))
+      (b/ui-collapse collapse
+        (b/panel-body nil
+          "This is some content that can be collapsed.")))))
+
+(defui ^:once CollapseGroupRoot
+  ; Create a to-many list of collapse items in app state (or you could do them one by one)
+  static uc/InitialAppState
+  (initial-state [c p] {:collapses [(uc/get-initial-state b/Collapse {:id 1 :start-open false})
+                                    (uc/get-initial-state b/Collapse {:id 2 :start-open false})
+                                    (uc/get-initial-state b/Collapse {:id 3 :start-open false})
+                                    (uc/get-initial-state b/Collapse {:id 4 :start-open false})]})
+  ; join it into the query
+  static om/IQuery
+  (query [this] [{:collapses (om/get-query b/Collapse)}])
+  Object
+  (render [this]
+    (let [{:keys [collapses]} (om/props this)               ; pull from db
+          all-ids [1 2 3 4]]                                ; convenience for all ids
+      (render-example "100%" "300px"
+        ; map over our helper function
+        (b/panel-group nil
+          (map (fn [c] (accordian-section this all-ids c)) collapses))))))
+
+(defcard-doc
+  "# Accordian (group of collapse)
+
+  An accordian is supported by simply another mutation:
+  `(b/toggle-collapse-group-item {:item-id ID :all-item-ids IDs)`. This mutation
+  toggles the specific item (by ID), and it understands the grouping because you also pass it
+  the IDs of all of the other items in the group. There's no real need for them to be any
+  more tightly coupled.
+
+  For example, say we choose to use a `panel-group` to lay out each item. Each item can be a
+   panel, so we'll define this extra helper function (not part of the library):
+
+  "
+  (dc/mkdn-pprint-source accordian-section)
+  "
+  Then create the instances in app state an map over them with our helper:
+  "
+  (dc/mkdn-pprint-source CollapseGroupRoot)
+  "
+  Note that you can use the mutations defined for single Collapse elements (of course), but that will cause
+  strangeness in your accordian (e.g. two sections open at once). The `toggle-collapse-group-item` *does*
+  correct this by closing all open sections except the one being opened.
+  ")
+
+(defcard collapse-group-card
+  "Live Accordian"
+  (untangled-app CollapseGroupRoot))
+
+(defui CarouselExample
+  static uc/InitialAppState
+  (initial-state [c p] {:carousel (uc/get-initial-state b/Carousel {:id :sample :interval 2000})})
+  static om/IQuery
+  (query [this] [{:carousel (om/get-query b/Carousel)}])
+  Object
+  (render [this]
+    (let [{:keys [carousel]} (om/props this)]
+      (render-example "100%" "400px"
+        (b/ui-carousel carousel
+          (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNzc3OiM1NTUvdGV4dDpGaXJzdCBzbGlkZQpDcmVhdGVkIHdpdGggSG9sZGVyLmpzIDIuNi4wLgpMZWFybiBtb3JlIGF0IGh0dHA6Ly9ob2xkZXJqcy5jb20KKGMpIDIwMTItMjAxNSBJdmFuIE1hbG9waW5za3kgLSBodHRwOi8vaW1za3kuY28KLS0+PGRlZnM+PHN0eWxlIHR5cGU9InRleHQvY3NzIj48IVtDREFUQVsjaG9sZGVyXzE1Y2QxZTI2YzkxIHRleHQgeyBmaWxsOiM1NTU7Zm9udC13ZWlnaHQ6Ym9sZDtmb250LWZhbWlseTpBcmlhbCwgSGVsdmV0aWNhLCBPcGVuIFNhbnMsIHNhbnMtc2VyaWYsIG1vbm9zcGFjZTtmb250LXNpemU6NDVwdCB9IF1dPjwvc3R5bGU+PC9kZWZzPjxnIGlkPSJob2xkZXJfMTVjZDFlMjZjOTEiPjxyZWN0IHdpZHRoPSI5MDAiIGhlaWdodD0iNTAwIiBmaWxsPSIjNzc3Ii8+PGc+PHRleHQgeD0iMzA4LjI5Njg3NSIgeT0iMjcwLjEiPkZpcnN0IHNsaWRlPC90ZXh0PjwvZz48L2c+PC9zdmc+" :alt "1"})
+          (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNjY2OiM0NDQvdGV4dDpTZWNvbmQgc2xpZGUKQ3JlYXRlZCB3aXRoIEhvbGRlci5qcyAyLjYuMC4KTGVhcm4gbW9yZSBhdCBodHRwOi8vaG9sZGVyanMuY29tCihjKSAyMDEyLTIwMTUgSXZhbiBNYWxvcGluc2t5IC0gaHR0cDovL2ltc2t5LmNvCi0tPjxkZWZzPjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+PCFbQ0RBVEFbI2hvbGRlcl8xNWNkMWUyODg2NSB0ZXh0IHsgZmlsbDojNDQ0O2ZvbnQtd2VpZ2h0OmJvbGQ7Zm9udC1mYW1pbHk6QXJpYWwsIEhlbHZldGljYSwgT3BlbiBTYW5zLCBzYW5zLXNlcmlmLCBtb25vc3BhY2U7Zm9udC1zaXplOjQ1cHQgfSBdXT48L3N0eWxlPjwvZGVmcz48ZyBpZD0iaG9sZGVyXzE1Y2QxZTI4ODY1Ij48cmVjdCB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgZmlsbD0iIzY2NiIvPjxnPjx0ZXh0IHg9IjI2NC45NTMxMjUiIHk9IjI3MC4xIj5TZWNvbmQgc2xpZGU8L3RleHQ+PC9nPjwvZz48L3N2Zz4=" :alt "2"})
+          (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNTU1OiMzMzMvdGV4dDpUaGlyZCBzbGlkZQpDcmVhdGVkIHdpdGggSG9sZGVyLmpzIDIuNi4wLgpMZWFybiBtb3JlIGF0IGh0dHA6Ly9ob2xkZXJqcy5jb20KKGMpIDIwMTItMjAxNSBJdmFuIE1hbG9waW5za3kgLSBodHRwOi8vaW1za3kuY28KLS0+PGRlZnM+PHN0eWxlIHR5cGU9InRleHQvY3NzIj48IVtDREFUQVsjaG9sZGVyXzE1Y2QxZTI3MmM4IHRleHQgeyBmaWxsOiMzMzM7Zm9udC13ZWlnaHQ6Ym9sZDtmb250LWZhbWlseTpBcmlhbCwgSGVsdmV0aWNhLCBPcGVuIFNhbnMsIHNhbnMtc2VyaWYsIG1vbm9zcGFjZTtmb250LXNpemU6NDVwdCB9IF1dPjwvc3R5bGU+PC9kZWZzPjxnIGlkPSJob2xkZXJfMTVjZDFlMjcyYzgiPjxyZWN0IHdpZHRoPSI5MDAiIGhlaWdodD0iNTAwIiBmaWxsPSIjNTU1Ii8+PGc+PHRleHQgeD0iMjk4LjMyMDMxMjUiIHk9IjI3MC4xIj5UaGlyZCBzbGlkZTwvdGV4dD48L2c+PC9nPjwvc3ZnPg==" :alt "3"}))))))
+
+(defcard-doc
+  "# Carousel
+
+  The carousel has a number of configurable options
+
+  "
+  (dc/mkdn-pprint-source CarouselExample))
+
+(defcard
+  "# Carousel Live Demo"
+  (untangled-app CarouselExample))

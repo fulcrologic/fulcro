@@ -195,7 +195,7 @@
         button-classes   (cond-> "btn"
                            kind (str " btn-" (name kind))
                            size (str " btn-" (name size))
-                           (not size) (str " btn-default")
+                           (not kind) (str " btn-default")
                            as-block (str " btn-block")
                            incoming-classes (str " " incoming-classes))
         attrs            (-> attrs
@@ -726,6 +726,11 @@
   [{:keys [kind] :or {kind :default} :as props} & children]
   (div-with-class (str "panel panel-" (name kind)) props children))
 
+(defn panel-group
+  "A wrapper for panels that visually groups them together."
+  [props & children]
+  (div-with-class "panel-group" props children))
+
 (defn panel-heading
   "Render a heading area in a panel. Must be first. Optional."
   [props & children]
@@ -895,7 +900,7 @@
   static om/IQuery
   (query [this] [:db/id :modal/active :modal/visible :modal/size :modal/backdrop :modal/keyboard])
   Object
-  (componentDidMount [this ] (.focus (.-the-dialog this)))
+  (componentDidMount [this] (.focus (.-the-dialog this)))
   (componentDidUpdate [this pp _] (when (and (:modal/visible (om/props this)) (not (:modal/visible pp))) (.focus (.-the-dialog this))))
   (render [this]
     (let [{:keys [db/id modal/active modal/visible modal/size modal/keyboard modal/backdrop]} (om/props this)
@@ -963,11 +968,216 @@
     [props & children]
     (apply modal-factory props children)))
 
-;; TODO: Collapse + Accordian (stateful)
+(defn collapse-ident [id-or-props]
+  (if (map? id-or-props)
+    [:untangled.ui.bootstrap3.collapse/by-id (:db/id id-or-props)]
+    [:untangled.ui.bootstrap3.collapse/by-id id-or-props]))
+
+(defui Collapse
+  static uc/InitialAppState
+  (initial-state [c {:keys [id start-open]}] {:db/id id :collapse/phase :closed})
+  static om/Ident
+  (ident [this props] (collapse-ident props))
+  static om/IQuery
+  (query [this] [:db/id :collapse/phase])
+  Object
+  (render [this]
+    (let [{:keys [db/id collapse/phase]} (om/props this)
+          dom-ele    (.-dom-element this)
+          box-height (when dom-ele (.-height (.getBoundingClientRect dom-ele)))
+          height     (when dom-ele
+                       (case phase
+                         :opening-no-height nil
+                         :opening (str (.-scrollHeight dom-ele) "px")
+                         :open nil
+                         :closing (str box-height "px")
+                         "0px"))
+          children   (om/children this)
+          classes    (case phase
+                       :open "collapse in"
+                       :closed "collapse"
+                       "collapsing")]
+      (apply dom/div #js {:className classes :style #js {:height height} :ref (fn [r] (set! (.-dom-element this) r))} children))))
+
+(def ui-collapse
+  "Render a collapse component that can height-animate in/out children. The props should be state from the
+  app database initialized with `get-initial-state` of a Collapse component,
+  and the children should be the elements you want to show/hide. Each component should have a unique
+  (application-wide) ID. Use the `toggle-collapse` and `set-collapse` mutations to open/close. "
+  (om/factory Collapse {:keyfn :db/id}))
+
+(defn- is-stable?
+  "Returns true if the given collapse item is not transitioning"
+  [collapse-item]
+  (#{:open :closed} (:collapse/phase collapse-item)))
+
+(defn- set-collapse*
+  "state is a state atom"
+  [state id open]
+  ; phases [:opening-no-height :opening :open :closing :closed]
+  (let [cident (collapse-ident id)
+        item   (get-in @state cident)
+        ppath  (conj cident :collapse/phase)]
+    (when (is-stable? item)
+      (if open
+        (do
+          (swap! state assoc-in ppath :opening-no-height)
+          #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :opening)) 16))
+          #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :open)) 350)))
+        (do
+          (swap! state assoc-in ppath :closing)
+          #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :close-height)) 16))
+          #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :closed)) 350)))))))
+
+(defmutation toggle-collapse
+  "Om mutation: Toggle a collapse"
+  [{:keys [id]}]
+  (action [{:keys [state]}]
+    (let [cident  (collapse-ident id)
+          ppath   (conj cident :collapse/phase)
+          is-open (= :open (get-in @state ppath))]
+      (set-collapse* state id (not is-open)))))
+
+(defmutation set-collapse
+  "Om mutation: Set the state of a collapse."
+  [{:keys [id open]}]
+  (action [{:keys [state]}]
+    (set-collapse* state id open)))
+
+(defmutation toggle-collapse-group-item
+  "Om mutation: Toggle a collapse element as if in a group.
+
+  item-id: The specific group to toggle
+  all-item-ids: A collection of all of the items that are to be considered part of the group. If any items are
+  in transition, this is a no-op."
+  [{:keys [item-id all-item-ids]}]
+  (action [{:keys [state]}]
+    (let [all-ids        (set all-item-ids)
+          all-items      (map #(get-in @state (collapse-ident %)) all-ids)
+          item-to-toggle (get-in @state (collapse-ident item-id))
+          closing?       (= :open (:collapse/phase item-to-toggle))
+          stable?        (every? is-stable? all-items)]
+      (when stable?
+        (if closing?
+          (set-collapse* state item-id false)
+          (let [open?        (fn [item] (= :open (:collapse/phase item)))
+                ids-to-close (->> all-items
+                               (filter open?)
+                               (map :db/id))]
+            (doseq [id ids-to-close]
+              (set-collapse* state id false))
+            (set-collapse* state item-id true)))))))
+
+
+(defn carousel-ident [props-or-id]
+  (if (map? props-or-id)
+    [:untangled.ui.bootstrap3.carousel/by-id (:db/id props-or-id)]
+    [:untangled.ui.bootstrap3.carousel/by-id props-or-id]))
+
+(defui CarouselItem
+  Object
+  (render [this]
+    (let [{:keys [src alt] :as props} (om/props this)
+          caption (om/children this)]
+      (dom/div #js {:key (hash src)}
+        (dom/img #js {:src src :alt alt})
+        (when (seq caption)
+          (dom/div #js {:className "carousel-caption"}
+            caption))))))
+
+(def ui-carousel-item
+  "Render a carousel item. Props can include src and alt for the image. If children are supplied, they will be
+  treated as the caption."
+  (om/factory CarouselItem {:keyfn :index}))
+
+
+(defmutation carousel-slide-to
+  "Om mutation: Slides a carousel from the current frame to the indicated frame. The special `frame` value of `:wrap`
+  can be used to slide from the current frame to the first as if wrapping in a circle."
+  [{:keys [id frame]}]
+  (action [{:keys [state]}]
+    (let [cident       (carousel-ident id)
+          carousel     (get-in @state cident)
+          {:keys [carousel/timer-id carousel/paused carousel/active-index
+                  carousel/slide-to carousel/interval]} carousel
+          new-timer-id (when (not slide-to)
+                         #?(:cljs (js/setTimeout (fn []
+                                                   (swap! state update-in (carousel-ident id)
+                                                     assoc
+                                                     :carousel/timer-id nil
+                                                     :carousel/active-index frame
+                                                     :carousel/slide-to nil)) 600)))]
+      (when (not slide-to)
+        #?(:cljs (when timer-id
+                   (js/clearTimeout timer-id)))
+        (swap! state assoc :carousel/slide-to frame :carousel/timer-id new-timer-id)))))
+
+(defui Carousel
+  static uc/InitialAppState
+  (initial-state [c {:keys [id interval wrap keyboard pause-on-hover show-controls]
+                     :or   {interval 5000 wrap true keyboard true pause-on-hover true show-controls true}}]
+    {:db/id                   id
+     :carousel/interval       interval
+     :carousel/active-index   0
+     :carousel/show-controls  show-controls
+     :carousel/wrap           wrap
+     :carousel/keyboard       keyboard
+     :carousel/pause-on-hover pause-on-hover
+     :carousel/paused         false
+     :carousel/timer-id       nil})
+  static om/Ident
+  (ident [this props] (carousel-ident props))
+  static om/IQuery
+  (query [this] [:db/id :carousel/active-index :carousel/slide-to :carousel/show-controls])
+  Object
+  (render [this]
+    (let [items             (om/children this)
+          slide-count       (count items)
+          {:keys [db/id carousel/active-index carousel/slide-to carousel/show-controls]} (om/props this)
+          to                (if (= :wrap slide-to) 0 slide-to)
+          sliding?          (and slide-to (not= active-index slide-to))
+          prior-index       (if (zero? active-index) (dec slide-count) (dec active-index))
+          next-index        (if (= (dec slide-count) active-index) 0 (inc active-index))
+          goto              (fn [slide] (om/transact! this `[(carousel-slide-to {:id ~id :frame ~slide})]))
+          from-the-left?    (or (= :wrap slide-to) (< active-index slide-to))
+          active-item-class (str "item active "
+                              (when sliding? (if from-the-left? "left" "right")))
+          slide-to-class    (str "item " (when sliding? (if from-the-left? "next left" "next right")))]
+      (dom/div #js {:className "carousel slide"
+                    :onKeyDown (fn [e]
+                                 (.preventDefault e) ; TODO: not getting key evts
+                                 (.stopPropagation e)
+                                 (log/info (.-keyCode e))
+                                 (cond
+                                   (evt/left-arrow? e) (goto prior-index)
+                                   (evt/right-arrow? e) (goto next-index))
+                                 false)}
+        (dom/ol #js {:className "carousel-indicators"}
+          (map #(dom/li #js {:key % :className (str "" (when (= % active-index) "active"))} "") (range slide-count)))
+
+        ; TODO: extra div needs unwrapped, but is already rendered
+        (dom/div #js {:className "carousel-inner" :role "listbox"}
+          (map-indexed (fn [idx i]
+                         (dom/div #js {:className (cond
+                                                    (= idx to) slide-to-class
+                                                    (= idx active-index) active-item-class
+                                                    :else "")} i))
+            items))
+        (when show-controls
+          (dom/a #js {:onClick #(goto prior-index) :className "left carousel-control" :role "button"}
+            (glyphicon {:aria-hidden true} :chevron-left)
+            (dom/span #js {:className "sr-only"} "Previous"))
+          (dom/a #js {:onClick #(goto next-index) :className "right carousel-control" :role "button"}
+            (glyphicon {:aria-hidden true} :chevron-right)
+            (dom/span #js {:className "sr-only"} "Next")))))))
+; TODO: above is untested...might work ;)
+
+(def ui-carousel (om/factory Carousel {:keyfn :db/id}))
+
 ;; TODO: Carousel (stateful)
 ;; TODO: Scrollspy (spy-link component that triggers mutation + scrollspy component that gets updated on those mutations)
 ;; TODO: Affix (similar to scrollspy in terms of interactions)
 ;; TODO: Media Object
 ;; TODO: List Group with table etc integrations
 
-;; TODO: Form integration: auto-rendering an Untangled Form...also just form field renderers as extensions to form-field multimethod.
+

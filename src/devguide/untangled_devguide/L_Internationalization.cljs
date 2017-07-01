@@ -130,7 +130,6 @@
     (let [{:keys [ui/label]} (om/props this)]
       (dom/div nil
         (locale-switcher this)
-        (js/console.log :l label)
         (dom/input #js {:value label :onChange #(m/set-string! this :ui/label :event %)})
         (trf "Hi, {name}" :name label)
         (dom/br nil)

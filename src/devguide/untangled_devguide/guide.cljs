@@ -39,5 +39,9 @@
     untangled-devguide.Z-Glossary
     untangled-devguide.Z-Query-Quoting
     untangled-devguide.ZZ-HTML-to-CLJS
+    devcards.core
     app.i18n.default-locale))
+
+(devcards.core/start-devcard-ui!)
+
 

@@ -7,6 +7,7 @@
     [om.util :as util]
     [clojure.tools.reader :as reader]
     [untangled.client.core :as uc]
+    [untangled.client.util :as uu]
     [untangled.client.data-fetch :as df]
     [untangled.client.logging :as log]
     [untangled.client.mutations :as m :refer [defmutation]]))
@@ -35,6 +36,16 @@
      ie: what the form is made of,
      eg: fields, subforms, form change listeners."))
 
+(defn iform?
+  "Returns true if the given class is an IForm. Works on clj and cljs."
+  #?(:cljs {:tag boolean})
+  [x]
+  #?(:clj  (if (fn? x)
+             (some? (-> x meta :form-spec))
+             (let [class (cond-> x (om/component? x) class)]
+               (extends? IForm class)))
+     :cljs (implements? IForm x)))
+
 (defn- ui-ns [kw-name]
   ;; workaround for no *ns* in cljs
   (keyword (namespace ::_) kw-name))
@@ -50,7 +61,15 @@
    as om and react will optimize the rendering step."
   (ui-ns "form-root"))
 
-(defn- get-form-spec
+(defn get-form-spec
+  "Get the form declared on a component class"
+  [class]
+  #?(:clj  (when-let [fspec (-> class meta :form-spec)]
+             (fspec class))
+     :cljs (when (implements? IForm class)
+             (form-spec class))))
+
+(defn- get-form-spec*
   "Returns a map with:
    * :elements - contains user level fields
    * :form - contains internal form details"
@@ -68,14 +87,12 @@
                       (assert-no-duplicate
                         (cond-> field (= :form spec-key)
                           (dissoc :input/name :input/type))))))
-          {} (form-spec this))
+          {} (get-form-spec this))
       (update :elements vals))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ELEMENT/FIELD/INPUT DEFINITIONS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-#?(:clj (def implements? satisfies?))
 
 (defn subform-element
   "Declare that the current form links to subforms through the given entity property in a :one or :many capacity. this
@@ -87,7 +104,7 @@
   such that removing the reference indicates that the target is no longer used and can be removed from the database."
   ([field form-class cardinality & {:keys [isComponent]}]
    (assert (contains? #{:one :many} cardinality) "subform-element requires a cardinality of :one or :many")
-   (assert ((every-pred #(implements? om/Ident %) #(implements? IForm %) #(implements? om/IQuery %)) form-class)
+   (assert ((every-pred #(uc/iident? %) #(iform? %) #(om/iquery? %)) form-class)
      (str "Subform element " field " MUST implement IForm, IQuery, and Ident."))
    (with-meta {:input/name          field
                :input/is-form?      true
@@ -209,12 +226,13 @@
     (form-field form :rating :choice 5) 5)
   ```
   "
-  [name options & {:keys [default-value className]
+  [name options & {:keys [label-fn default-value className]
                    :or   {default-value ::none className ""}}]
   {:pre [(set? options)]}
   {:input/name          name
    :input/type          ::radio
    :input/default-value default-value
+   :input/label-fn label-fn
    :input/css-class     className
    :input/options       options})
 
@@ -337,7 +355,7 @@
   ([form-class] (subforms* form-class []))
   ([form-class current-path]
    (let [ast            (om/query->ast (om/get-query form-class))
-         elements       (:elements (get-form-spec form-class))
+         elements       (:elements (get-form-spec* form-class))
          subform-fields (set (keep #(when (is-subform? %) (:input/name %)) elements))
          get-class      (fn [ast-node] (let [subquery (:query ast-node)]
                                          (if (or (int? subquery) (= '... subquery))
@@ -354,14 +372,12 @@
                               (fail! "Subforms cannot be on union queries. You will have to manually group your subforms if you use unions."
                                 {:ast-node ast-node}))
                             (when (and wants-to-be?
-                                    (not (and (implements? om/Ident form-class)
-                                           (implements? IForm form-class)
-                                           (implements? om/IQuery form-class))))
+                                    (not (and (uc/iident? form-class) (iform? form-class) (om/iquery? form-class))))
                               (fail! (str "Declared subform for property " prop
                                        " does not implement IForm, IQuery, and Ident.")
                                 {:ast-node ast-node}))
-                            (and form-class wants-to-be? join? (not union?) (implements? om/IQuery form-class)
-                              (implements? om/Ident form-class) (implements? IForm form-class))))
+                            (and form-class wants-to-be? join? (not union?) (om/iquery? form-class)
+                              (uc/iident? form-class) (iform? form-class))))
          sub-forms      (->> ast :children
                           (keep (fn [ast-node]
                                   (when (is-form-node? ast-node)
@@ -509,7 +525,7 @@
    the default field values for the declared input fields.
    This function does **not** recursively build out nested forms, even when declared. See `init-form`."
   [form-class entity-state]
-  (let [{:keys [elements form]} (get-form-spec form-class)
+  (let [{:keys [elements form]} (get-form-spec* form-class)
         element-keys             (map :input/name elements)
         elements-by-name         (zipmap element-keys elements)
         {:keys [state validation]} (default-state elements)
@@ -521,7 +537,7 @@
              (-> form
                (merge
                  {:elements/by-name elements-by-name
-                  :ident            (om/ident form-class final-state)
+                  :ident            (uu/get-ident form-class final-state)
                   :origin           (into {}
                                       (map (fn [[k v]]
                                              [k (if (and (is-subform? (elements-by-name k))
@@ -539,14 +555,14 @@
 (declare init-form*)
 
 (defn initialized? "Returns true if the given form is already initialized with form setup data"
-  [form] (map? (form-key form)))
+  [form] (map? (get form form-key)))
 
 (defn init-one
   [state base-form subform-spec visited]
   (let [k             (:input/name subform-spec)
         subform-class (some-> subform-spec meta :component)
         subform-ident (get base-form k)
-        visited       (update-in visited subform-ident inc)]
+        visited       (update-in visited subform-ident (fnil inc 0))]
     (assert (or (nil? subform-ident)
               (util/ident? subform-ident))
       "Initialize-one form did not find a to-one relation in the database")
@@ -560,7 +576,9 @@
   (let [k              (:input/name subform-spec)
         subform-idents (get base-form k)
         subform-class  (some-> subform-spec meta :component)
-        visited        (reduce (fn [v ident] (update-in v ident inc)) visited subform-idents)]
+        visited        (reduce (fn [v ident] (if (util/ident? ident)
+                                               (update-in v ident (fnil inc 0))
+                                               v)) visited subform-idents)]
     (assert (or (nil? subform-idents)
               (every? util/ident? subform-idents))
       "Initialize-many form did not find a to-many relation in the database")
@@ -579,12 +597,12 @@
                            (build-form form-class))
           base-app-state (assoc-in app-state form-ident base-form)]
       (transduce (filter is-subform?)
-        (fn [state subform-spec]
-          (if (= :many (:input/cardinality subform-spec))
-            (init-many state base-form subform-spec forms-visited)
-            (init-one state base-form subform-spec forms-visited)))
+        (completing (fn [state subform-spec]
+                      (if (= :many (:input/cardinality subform-spec))
+                        (init-many state base-form subform-spec forms-visited)
+                        (init-one state base-form subform-spec forms-visited))))
         base-app-state
-        (:elements (get-form-spec form-class))))
+        (:elements (get-form-spec* form-class))))
     app-state))
 
 (defn init-form
@@ -746,7 +764,7 @@
   "Runs validation on the defined fields and returns a new form with them properly marked."
   [form & [{:keys [skip-unchanged?]}]]
   (transduce (filter (if skip-unchanged? (partial dirty-field? form) identity))
-    validate-field*
+    (completing validate-field*)
     form (validatable-fields form)))
 
 (defn would-be-valid?
@@ -843,7 +861,6 @@
                            input-value->field-value]
   (let [id          (form-ident form)
         input-value (field-value->input-value (current-value form field-name))
-        cls         (or (css-class form field-name) "form-control")
         attrs       (clj->js (merge htmlProps
                                {:type        type
                                 :name        field-name
@@ -866,17 +883,17 @@
                                                      ~form-root-key])))}))]
     (dom/input attrs)))
 
-(defmethod form-field* ::text [component form field-name & params]
+(defmethod form-field* ::text [component form field-name & {:keys [id className] :as params}]
   (let [i->f identity
-        cls  (or (css-class form field-name) "form-control")
+        cls  (or className (css-class form field-name) "form-control")
         f->i identity]
-    (render-input-field component {:className cls} form field-name "text" f->i i->f)))
+    (render-input-field component {:id id :className cls} form field-name "text" f->i i->f)))
 
-(defmethod form-field* ::integer [component form field-name & params]
-  (let [cls  (or (css-class form field-name) "form-control")
+(defmethod form-field* ::integer [component form field-name & {:keys [id className] :as params}]
+  (let [cls  (or className (css-class form field-name) "form-control")
         i->f #(when (seq (re-matches #"^[0-9]*$" %)) (int %))
         f->i identity]
-    (render-input-field component {:className cls} form field-name "number" f->i i->f)))
+    (render-input-field component {:id id :className cls} form field-name "number" f->i i->f)))
 
 #?(:cljs (defmutation select-option
            "Om mutation: Select a sepecific option from a selection list. form-id is the ident of the object acting as
@@ -887,44 +904,49 @@
                                          (conj form-id field)
                                          (keyword value))))))
 
-(defmethod form-field* ::dropdown [component form field-name & params]
-  (let [id        (form-ident form)
+(defmethod form-field* ::dropdown [component form field-name & {:keys [id className onChange] :as params}]
+  (let [form-id   (form-ident form)
         selection (current-value form field-name)
-        cls       (or (css-class form field-name) "form-control")
+        cls       (or className (css-class form field-name) "form-control")
         field     (field-config form field-name)
         optional? (= ::none (:input/default-value field))
         options   (:input/options field)]
     (dom/select #js
         {:name      field-name
+         :id        id
          :className cls
          :value     selection
          :onChange  (fn [event]
                       (let [value      (.. event -target -value)
-                            field-info {:form-id id
+                            field-info {:form-id form-id
                                         :field   field-name
                                         :value   value}]
                         (om/transact! component
                           `[(select-option ~field-info)
                             ~@(get-on-form-change-mutation form field-name :edit)
-                            ~form-root-key])))}
+                            ~form-root-key])
+                        (if (fn? onChange)
+                          (onChange event)
+                          (log/warn ":onChange is not a function"))))}
       (when optional?
         (dom/option #js {:value ::none} ""))
       (map (fn [{:keys [option/key option/label]}]
              (dom/option #js {:key key :value key} label))
         options))))
 
-(defmethod form-field* ::checkbox [component form field-name & params]
-  (let [id         (form-ident form)
-        cls        (or (css-class form field-name) "")
+(defmethod form-field* ::checkbox [component form field-name & {:keys [id className] :as params}]
+  (let [form-id    (form-ident form)
+        cls        (or className (css-class form field-name) "")
         bool-value (current-value form field-name)]
     (dom/input #js
         {:type      "checkbox"
+         :id        id
          :name      field-name
          :className cls
          :checked   bool-value
          :onChange  (fn [event]
                       (let [value      (.. event -target -value)
-                            field-info {:form-id id
+                            field-info {:form-id form-id
                                         :field   field-name
                                         :value   value}]
                         (om/transact! component
@@ -937,9 +959,9 @@
   [form field choice]
   (str (second (form-ident form)) "-" field "-" choice))
 
-(defmethod form-field* ::radio [component form field-name & {:keys [choice label] :or {label "\u00a0"}}]
+(defmethod form-field* ::radio [component form field-name & {:keys [className choice label] :or {label "\u00a0"}}]
   (let [id          (form-ident form)
-        cls         "c-radio c-radio--expanded"
+        cls         (or className "c-radio c-radio--expanded")
         field-id    (radio-button-id form field-name choice)
         current-val (current-value form field-name)]
     (dom/span nil
@@ -961,28 +983,29 @@
                               ~form-root-key])))})
       (dom/label #js {:htmlFor field-id} label))))
 
-(defmethod form-field* ::textarea [component form field-name & {:as htmlProps}]
-  (let [id    (form-ident form)
-        cls   (or (css-class form field-name) "")
-        value (current-value form field-name)
-        attrs (clj->js (merge htmlProps
-                         {:name      field-name
-                          :className cls
-                          :value     value
-                          :onBlur    (fn [_]
-                                       (om/transact! component
-                                         `[(validate-field ~{:form-id id :field field-name})
-                                           ~@(get-on-form-change-mutation form field-name :blur)
-                                           ~form-root-key]))
-                          :onChange  (fn [event]
-                                       (let [value      (.. event -target -value)
-                                             field-info {:form-id id
-                                                         :field   field-name
-                                                         :value   value}]
+(defmethod form-field* ::textarea [component form field-name & {:keys [id className] :as htmlProps}]
+  (let [form-id (form-ident form)
+        cls     (or className (css-class form field-name) "")
+        value   (current-value form field-name)
+        attrs   (clj->js (merge htmlProps
+                           {:name      field-name
+                            :id        id
+                            :className cls
+                            :value     value
+                            :onBlur    (fn [_]
                                          (om/transact! component
-                                           `[(set-field ~field-info)
-                                             ~@(get-on-form-change-mutation form field-name :edit)
-                                             ~form-root-key])))}))]
+                                           `[(validate-field ~{:form-id form-id :field field-name})
+                                             ~@(get-on-form-change-mutation form field-name :blur)
+                                             ~form-root-key]))
+                            :onChange  (fn [event]
+                                         (let [value      (.. event -target -value)
+                                               field-info {:form-id form-id
+                                                           :field   field-name
+                                                           :value   value}]
+                                           (om/transact! component
+                                             `[(set-field ~field-info)
+                                               ~@(get-on-form-change-mutation form field-name :edit)
+                                               ~form-root-key])))}))]
     (dom/textarea attrs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1041,10 +1064,10 @@
             fields (element-names form)]
         (if (om/tempid? id)
           (reduce
-           (partial field-diff form)
-           (assoc-in diff [:form/new-entities ident] (select-keys form (into [] (comp (remove (partial ui-field? form))
-                                                                                      (remove (partial is-subform? form))) fields)))
-           (filter (partial is-subform? form) fields))
+            (partial field-diff form)
+            (assoc-in diff [:form/new-entities ident] (select-keys form (into [] (comp (remove (partial ui-field? form))
+                                                                                   (remove (partial is-subform? form))) fields)))
+            (filter (partial is-subform? form) fields))
           (transduce (comp
                        (remove (partial ui-field? form))
                        (filter (partial dirty-field? form)))

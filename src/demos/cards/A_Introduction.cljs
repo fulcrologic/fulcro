@@ -43,6 +43,9 @@
   JVM_OPTS='-Ddemos' lein run -m clojure.main script/figwheel.clj
   ```
 
+  NOTE: Figwheel is configured to run on port 8080. If you're looking at full-stack demos you'll need to run the
+  demo server, and load the code from that port as discussed below.
+
   ### Running the Server
 
   You can do this from the command line with:

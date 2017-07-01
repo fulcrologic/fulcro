@@ -70,6 +70,9 @@
   3. Add file-upload networking as an extra remote in Untangled Client (requires v0.8.1+, and Om alpha48+)
   4. Load the page through your server (not figwheel).
 
+  This repository includes a script named `run-file-upload-server.sh`. The devcard in this file should be loaded
+  from that server (port 8085 by default).
+
   ## Understanding File Upload
 
   The lifecycle of the file upload control is meant to be tied to form interactions and submission. You can use

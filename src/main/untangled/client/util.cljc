@@ -11,6 +11,14 @@
   #?(:clj
      (:import (clojure.lang Atom))))
 
+(defn get-ident
+  "Get the ident of an Om class with props. Works on client/server"
+  [class props]
+  #?(:clj  (when-let [ident (-> class meta :ident)]
+             (ident class props))
+     :cljs (when (implements? om/Ident class)
+             (om/ident class props))))
+
 (defn unique-key
   "Get a unique string-based key. Never returns the same value."
   []
@@ -66,10 +74,6 @@
             (reduce process-location {} keys-and-paths)))))
     (catch #?(:cljs js/Error :clj Exception) e
       (throw (ex-info "untangled.client.impl.util/log-app-state expects an atom with an untangled client" {})))))
-
-#?(:clj
-   (defn dbg [& args]
-     (.println System/out (apply str (interpose " " args)))))
 
 #?(:clj
    (defn conform! [spec x]
