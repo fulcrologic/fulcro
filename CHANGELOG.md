@@ -25,6 +25,7 @@
 - Added bootstrap3 namespace with helpers that can render passive and active bootstrap 3 elements.
 - If `net/UntangledNetwork start` returns something that implements `UntangledNetwork`, this value will be used as the actual remote by the app.
 - Made forms support working (initial render) for SSR
+- MOVED pathopt option. It is now just one of the regular reconciler options you can pass. Currently does not default to true due to bugs in Om Next.
 
 0.8.2
 -----
