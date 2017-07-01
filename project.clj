@@ -3,10 +3,10 @@
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.9.0-alpha16" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.562" :scope "provided"]
-                 [org.clojure/spec.alpha "0.1.94"]
-                 [devcards "0.2.3" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha17" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.671" :scope "provided"]
+                 [org.clojure/spec.alpha "0.1.123"]
+                 [devcards "0.2.3" :scope "provided" :exclusions [cljsjs/react-dom cljsjs/react]]
                  [org.omcljs/om "1.0.0-beta1"]
                  [lein-doo "0.1.7" :scope "test"]
                  [http-kit "2.2.0"]
@@ -15,9 +15,9 @@
                  [bk/ring-gzip "0.2.1"]
                  [commons-codec "1.10"]
                  [com.stuartsierra/component "0.3.2"]
-                 [com.taoensso/timbre "4.8.0"]
+                 [com.taoensso/timbre "4.10.0"]
                  [untangled-web/untangled-spec "1.0.0-alpha4-SNAPSHOT" :scope "test" :exclusions [untangled-web/untangled]]
-                 [org.clojure/core.async "0.3.442" :exclusions [org.clojure/tools.reader]]
+                 [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
                  [bidi "2.1.1"]
                  [com.taoensso/sente "1.11.0"]
