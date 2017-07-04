@@ -913,6 +913,7 @@
                            input-value->field-value]
   (let [id          (form-ident form)
         input-value (field-value->input-value (current-value form field-name))
+        input-value (if (nil? input-value) "" input-value)
         attrs       (clj->js (merge htmlProps
                                {:type        type
                                 :name        field-name
@@ -1181,6 +1182,7 @@
 
    For remotes to work you must implement `(f/commit-to-entity {:form-id [:id id] :value {...})`
    on the server. "
+  ; TODO: Add fallback parameter, for failed commits!
   [component & {:keys [remote rerender] :or {remote false}}]
   (let [form (om/props component)]
     (om/transact! component

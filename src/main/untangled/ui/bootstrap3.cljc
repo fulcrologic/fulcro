@@ -175,7 +175,7 @@
         help               (first (keep identity [error warning success help]))
         split-right        (- 12 split)
         help-id            (str id "-help")
-        attrs              (cond-> (dissoc attrs :split :help :warning :error :success)
+        attrs              (cond-> (dissoc attrs :split :help :warning :error :success :input-generator)
                              help (assoc :aria-describedby help-id)
                              :always (update :className #(str " form-control")))]
     (cond
