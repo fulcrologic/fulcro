@@ -1,4 +1,4 @@
-(defproject awkay/untangled "1.0.0-beta1"
+(defproject awkay/untangled "1.0.0-beta2-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
