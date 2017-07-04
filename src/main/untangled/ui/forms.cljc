@@ -6,8 +6,9 @@
     [om.next :as om]
     [om.util :as util]
     [clojure.tools.reader :as reader]
+    [clojure.spec.alpha :as s]
     [untangled.client.core :as uc]
-    [untangled.client.util :as uu]
+    [untangled.client.util :as uu :refer [conform!]]
     [untangled.client.data-fetch :as df]
     [untangled.client.logging :as log]
     [untangled.client.mutations :as m :refer [defmutation]]))
@@ -753,11 +754,56 @@
 (defmulti form-field-valid? "Extensible form field validation. Triggered by symbols. Arguments (args) are declared on the fields themselves."
   (fn [symbol value args] symbol))
 
-(defmethod form-field-valid? `in-range? [_ value {:keys [min max]}]
+
+
+#?(:clj (s/def ::validator-args (s/cat
+                                  :sym symbol?
+                                  :doc (s/? string?)
+                                  :arglist vector?
+                                  :body (s/+ (constantly true)))))
+
+#?(:clj
+   (defmacro ^{:doc      "Define an form field validator.
+
+                       The given symbol will be prefixed with the namespace of the current namespace, as if
+                       it were def'd into the namespace.
+
+                       The arglist should match the signature [sym value args], where sym will be the symbol used to
+                       invoke the validation, value will be the value of the field, and args will be any extra args
+                       that are passed to the validation from field spec configuration.
+
+                       Should return true if value, false otherwise."
+               :arglists '([sym docstring? arglist body])} defvalidator
+     [& args]
+     (let [{:keys [sym doc arglist body]} (conform! ::validator-args args)
+           fqsym      (symbol (name (ns-name *ns*)) (name sym))
+           env-symbol (gensym "env")
+           ]
+       `(defmethod untangled.ui.forms/form-field-valid? '~fqsym ~arglist ~@body))))
+
+(defvalidator not-empty
+  "A validator. Requires the form field to have at least one character in it.
+
+  Do not call directly. Use the symbol as an input validator when declaring the form."
+  [_ value _]
+  (and value (pos? (.-length value))))
+
+(defvalidator in-range?
+  "A validator. Use this symbol as an input validator. Coerces input value to an int, then checks if it is
+  between min and max (inclusive).
+  "
+  [_ value {:keys [min max]}]
   (let [value (int value)]
     (<= min value max)))
 
-;; Sample validator that requires a number be in the (inclusive) range.
+(defvalidator minmax-length
+  "A validator. Requires the form field to have a length between the min and max (inclusive)
+
+  Do not call directly. Use the symbol as an input validator when declaring the form."
+  [_ value {:keys [min max]}]
+  (let [l (.-length value)]
+    (<= min l max))
+
 (defn validate-field*
   "Given a form and a field, returns a new form with that field validated. Does NOT recurse into subforms."
   [form field]

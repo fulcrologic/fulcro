@@ -142,6 +142,11 @@
                         clj->js)]
     (apply dom/table attrs children)))
 
+(defn form-horizontal
+  "Set up a container for labeled inputs (which should have :split) to render the labels beside the fields."
+  [attrs & children]
+  (div-with-class "form-horizontal" attrs children))
+
 (defn labeled-input
   "An input with a label. All of the attrs apply to the input itself. You must supply a type and id for the
   field to work correctly. DO NOT USE for checkbox or radio.
