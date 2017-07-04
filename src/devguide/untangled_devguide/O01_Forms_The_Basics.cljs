@@ -8,15 +8,19 @@
     [untangled.client.core :as uc]
     [untangled.client.mutations :as m :refer [defmutation]]
     [untangled.client.cards :refer [untangled-app]]
-    [untangled.ui.forms :as f]
+    [untangled.ui.forms :as f :refer [defvalidator]]
     [untangled.i18n :refer [tr]]))
 
-(declare  ValidatedPhoneForm)
+(declare ValidatedPhoneForm)
 
 ;; Sample validator that requires there be at least two words
-(defmethod f/form-field-valid? `name-valid? [_ value args]
+(f/defvalidator name-valid? [_ value args]
   (let [trimmed-value (str/trim value)]
     (str/includes? trimmed-value " ")))
+
+(defvalidator us-phone?
+  [sym value args]
+  (seq (re-matches #"[(][0-9][0-9][0-9][)] [0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]" value)))
 
 (defn field-with-label
   "A non-library helper function, written by you to help lay out your form."
@@ -201,7 +205,7 @@
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
-                     (f/text-input :phone/number :validator 'us-phone?) ; Addition of validator
+                     (f/text-input :phone/number :validator `us-phone?) ; Addition of validator
                      (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])])
   static om/IQuery
   (query [this] [:db/id :phone/type :phone/number f/form-key])
@@ -230,9 +234,6 @@
       (dom/div nil
         (ui-vphone-form phone)))))
 
-(defmethod f/form-field-valid? 'us-phone? [sym value args]
-  (seq (re-matches #"[(][0-9][0-9][0-9][)] [0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]" value)))
-
 (defcard-doc
   "
 
@@ -260,7 +261,8 @@ TODO: remove the need to pass the component? The form is just om/props of the co
   For example, the definition of a validator for US phone numbers could be:
 
   ```
-  (defmethod f/form-field-valid? 'us-phone? [sym value args]
+  (defvalidator us-phone?
+    [sym value args]
     (seq (re-matches #\"[(][0-9][0-9][0-9][)] [0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]\" value)))
   ```
 
@@ -307,7 +309,7 @@ TODO: remove the need to pass the component? The form is just om/props of the co
           (dom/button #js {:className "btn btn-primary"
                            :onClick   #(om/transact! this
                                          `[(add-phone ~{:id     (om/tempid)
-                                                               :person (:db/id props)})])}
+                                                        :person (:db/id props)})])}
             "Add Phone")
           (dom/button #js {:className "btn btn-default" :disabled (f/valid? props)
                            :onClick   #(f/validate-entire-form! this props)}
@@ -412,7 +414,7 @@ TODO: remove the need to pass the component? The form is just om/props of the co
   ```
   (defmutation add-phone [{:keys [id person]}]
     (action [{:keys [state]}]
-      (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number ""})
+      (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number " "})
             person-ident [:people/by-id person]
             phone-ident  (om/ident ValidatedPhoneForm new-phone)]
         (swap! state assoc-in phone-ident new-phone)

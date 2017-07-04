@@ -1,4 +1,5 @@
 (ns untangled.ui.forms
+  #?(:cljs (:require-macros untangled.ui.forms))
   (:require
     [clojure.set :as set]
     [clojure.string :as str]
@@ -754,8 +755,6 @@
 (defmulti form-field-valid? "Extensible form field validation. Triggered by symbols. Arguments (args) are declared on the fields themselves."
   (fn [symbol value args] symbol))
 
-
-
 #?(:clj (s/def ::validator-args (s/cat
                                   :sym symbol?
                                   :doc (s/? string?)
@@ -776,33 +775,32 @@
                :arglists '([sym docstring? arglist body])} defvalidator
      [& args]
      (let [{:keys [sym doc arglist body]} (conform! ::validator-args args)
-           fqsym      (symbol (name (ns-name *ns*)) (name sym))
-           env-symbol (gensym "env")
-           ]
+           fqsym (symbol (name (ns-name *ns*)) (name sym))]
        `(defmethod untangled.ui.forms/form-field-valid? '~fqsym ~arglist ~@body))))
 
-(defvalidator not-empty
+(untangled.ui.forms/defvalidator not-empty?
   "A validator. Requires the form field to have at least one character in it.
 
   Do not call directly. Use the symbol as an input validator when declaring the form."
-  [_ value _]
-  (and value (pos? (.-length value))))
+  [sym value args]
+  (boolean (and value (pos? (.-length (str value))))))
 
-(defvalidator in-range?
+(untangled.ui.forms/defvalidator in-range?
   "A validator. Use this symbol as an input validator. Coerces input value to an int, then checks if it is
-  between min and max (inclusive).
-  "
+  between min and max (inclusive). Strings are *not* coerced. Use with an `integer-input` only."
   [_ value {:keys [min max]}]
-  (let [value (int value)]
-    (<= min value max)))
+  (if (not (number? value))
+    false
+    (let [value (int value)]
+      (<= min value max))))
 
-(defvalidator minmax-length
+(untangled.ui.forms/defvalidator minmax-length?
   "A validator. Requires the form field to have a length between the min and max (inclusive)
 
   Do not call directly. Use the symbol as an input validator when declaring the form."
   [_ value {:keys [min max]}]
-  (let [l (.-length value)]
-    (<= min l max))
+  (let [l (.-length (str value))]
+    (<= min l max)))
 
 (defn validate-field*
   "Given a form and a field, returns a new form with that field validated. Does NOT recurse into subforms."

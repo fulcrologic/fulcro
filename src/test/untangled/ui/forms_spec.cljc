@@ -503,7 +503,7 @@
   static om/Ident
   (ident [this props] [:thing/by-id (:db/id props)]))
 
-#?(:cjls (specification "Form state mutations" :focused
+#?(:cjls (specification "Form state mutations"
            (let [state             (atom (-> {:thing/by-id {1 {:db/id 1 :thing/name "Original" :thing/ok? false}}}
                                            (f/init-form Thing [:thing/by-id 1])))
                  test-mutate-field (partial test-mutate-action {:state state})
@@ -648,7 +648,7 @@
                new-person             (get-entity Person [:people/by-id new-person-id])
 
                [t1] (repeatedly om/tempid)]
-           (specification "Form entity commit" :focused
+           (specification "Form entity commit"
              (component "form-reduce"
                (assertions
                  (f/form-reduce basic-person (map f/form-ident) [] conj)
@@ -864,7 +864,7 @@
                      (f/get-original-data :person/name))
                    => "MCQ"))))
 
-           (specification "Resetting a Form" :focused
+           (specification "Resetting a Form"
              (component "The reset-from-entity Om mutation"
                (when-mocking
                  (f/entity-xform _ form-id xf) => (do (assertions
@@ -1015,3 +1015,42 @@
                                   msg =fn=> #(re-matches #"^Cannot dispatch.*$" %)))
 
       (f/form-field :fake/this :bad/form :bad/field))))
+
+(specification "Built-in Validators" :focused
+  (component "in-range?"
+    (assertions
+      "Returns false when the indicated value is outside of a range (inclusive) or isn't an numeric value"
+      (f/form-field-valid? `f/in-range? "hello" {:min -5 :max 5}) => false
+      (f/form-field-valid? `f/in-range? [1] {:min -5 :max 5}) => false
+      (f/form-field-valid? `f/in-range? 0 {:min 1 :max 5}) => false
+      (f/form-field-valid? `f/in-range? 6 {:min 1 :max 5}) => false
+      "Returns true when the indicated value is within a range (inclusive)"
+      (f/form-field-valid? `f/in-range? 2.6 {:min 1 :max 5}) => true
+      (f/form-field-valid? `f/in-range? 1 {:min 1 :max 5}) => true
+      (f/form-field-valid? `f/in-range? 3 {:min 1 :max 5}) => true
+      (f/form-field-valid? `f/in-range? 5 {:min 1 :max 5}) => true))
+  (component "not-empty?"
+    (assertions
+      "Returns false when the value is nil"
+      (f/form-field-valid? `f/not-empty? nil {}) => false
+      "Returns false when the value is empty"
+      (f/form-field-valid? `f/not-empty? "" {}) => false
+      "Returns true when the given value is not empty"
+      (f/form-field-valid? `f/not-empty? "a" {}) => true
+      "Treats numerics as strings"
+      (f/form-field-valid? `f/not-empty? 0 {}) => true
+      (f/form-field-valid? `f/not-empty? 1 {}) => true
+      (f/form-field-valid? `f/not-empty? 87.2 {}) => true))
+  (component "minmax-length?"
+    (assertions
+      "Return false when the input (seen as a string) has a length outside of the given range (inclusive)"
+      (f/form-field-valid? `f/minmax-length? "" {:min 1 :max 10}) => false
+      (f/form-field-valid? `f/minmax-length? "abcdefghijk" {:min 1 :max 10}) => false
+      (f/form-field-valid? `f/minmax-length? nil {:min 1 :max 10}) => false
+      (f/form-field-valid? `f/minmax-length? 2 {:min 2 :max 10}) => false
+      "Return true when the input (seen as a string) has a within the given range (inclusive)"
+      (f/form-field-valid? `f/minmax-length? "A" {:min 1 :max 10}) => true
+      (f/form-field-valid? `f/minmax-length? "abcdefghij" {:min 1 :max 10}) => true
+
+      )
+    ))
