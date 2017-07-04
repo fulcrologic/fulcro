@@ -151,13 +151,16 @@
   :split - A number from 1 to 11. The number of `sm` columns to allocate to the field label. If not specified, the
   label will be above the input. The parent must use the `.form-horizontal` class.
   :help - A string. If supplied, displayed as the help text for the field. NOT shown if warning, error, or success are set.
+  :input-generator An (optional) function of `props -> input` to be called to generate the DOM input. It will receive a clj map
+    of properties and should return an input that has those minimum properties. It can, of course, augment those.
 
   You should only ever supply zero or one of the following:
   :warning - A boolean or string. If set as a string, that content replaces the help text.
   :error - A boolean or string. If set as a string, that content replaces the help text.
   :success - A boolean or string. If set as a string, that content replaces the help text.
   "
-  [{:keys [id type className placeholder split help warning error success] :as attrs} label]
+  [{:keys [id type className placeholder split help warning error success
+           input-generator] :as attrs} label]
   (let [state-class        (cond
                              error " has-error"
                              warning " has-warning"
@@ -174,11 +177,15 @@
       (int? split) (dom/div #js {:className form-group-classes}
                      (dom/label #js {:className (str "control-label col-sm-" split) :htmlFor id} label)
                      (dom/div #js {:className (str "col-sm-" split-right)}
-                       (dom/input (clj->js attrs))
+                       (if input-generator
+                         (input-generator attrs)
+                         (dom/input (clj->js attrs)))
                        (when help (dom/span #js {:id help-id :className "help-block"} help))))
       :else (dom/div #js {:className form-group-classes}
               (dom/label #js {:className "control-label" :htmlFor id} label)
-              (dom/input (clj->js attrs))
+              (if input-generator
+                (input-generator attrs)
+                (dom/input (clj->js attrs)))
               (when help (dom/span #js {:id help-id :className "help-block"} help))))))
 
 (defn button
@@ -1145,7 +1152,7 @@
           slide-to-class    (str "item " (when sliding? (if from-the-left? "next left" "next right")))]
       (dom/div #js {:className "carousel slide"
                     :onKeyDown (fn [e]
-                                 (.preventDefault e) ; TODO: not getting key evts
+                                 (.preventDefault e)        ; TODO: not getting key evts
                                  (.stopPropagation e)
                                  (log/info (.-keyCode e))
                                  (cond
