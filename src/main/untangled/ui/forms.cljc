@@ -159,6 +159,14 @@
     (assoc :input/type ::integer)
     (update :input/default-value (fn [v] (if (integer? v) v 0)))))
 
+(defn html5-input
+  "Declare an input with a specific HTML5 INPUT type. See text-input for additional options.
+  Type should be a string that is a legal HTML5 input type."
+  [name type & options]
+  (-> (apply text-input name options)
+    (assoc :input/type ::html5)
+    (assoc :input/html-type type)))
+
 (defn textarea-input
   "Declare a text area on a form. See text-input for additional options.
 
@@ -232,7 +240,7 @@
   {:input/name          name
    :input/type          ::radio
    :input/default-value default-value
-   :input/label-fn label-fn
+   :input/label-fn      label-fn
    :input/css-class     className
    :input/options       options})
 
@@ -888,6 +896,13 @@
         cls  (or className (css-class form field-name) "form-control")
         f->i identity]
     (render-input-field component {:id id :className cls} form field-name "text" f->i i->f)))
+
+(defmethod form-field* ::html5 [component form field-name & {:keys [id className] :as params}]
+  (let [i->f       identity
+        input-type (:input/html-type (field-config form field-name))
+        cls        (or className (css-class form field-name) "form-control")
+        f->i       identity]
+    (render-input-field component {:id id :className cls} form field-name input-type f->i i->f)))
 
 (defmethod form-field* ::integer [component form field-name & {:keys [id className] :as params}]
   (let [cls  (or className (css-class form field-name) "form-control")
