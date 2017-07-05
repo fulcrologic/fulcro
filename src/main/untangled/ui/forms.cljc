@@ -783,7 +783,7 @@
 
   Do not call directly. Use the symbol as an input validator when declaring the form."
   [sym value args]
-  (boolean (and value (pos? (.-length (str value))))))
+  (boolean (and value (pos? #?(:clj (.length (str value)) :cljs (.-length (str value)))))))
 
 (untangled.ui.forms/defvalidator in-range?
   "A validator. Use this symbol as an input validator. Coerces input value to an int, then checks if it is
@@ -799,7 +799,7 @@
 
   Do not call directly. Use the symbol as an input validator when declaring the form."
   [_ value {:keys [min max]}]
-  (let [l (.-length (str value))]
+  (let [l #?(:clj (.length (str value)) :cljs (.-length (str value)))]
     (<= min l max)))
 
 (defn validate-field*
@@ -1205,12 +1205,13 @@
    - Writes always happen before reads in Untangled (on a single remote). Therefore, you can do this commit AND a `load` together (sequentially) as
    a way to gather more information about the commit result. E.g. you could re-read the entire entity after your update by triggering the load *with*
    the commit. "
-  [component & {:keys [remote rerender fallback] :or {remote false}}]
-  (let [form (om/props component)]
+  [component & {:keys [remote rerender fallback fallback-params] :or {fallback-params {} remote false}}]
+  (let [form (om/props component)
+        fallback-call (list `df/fallback (merge fallback-params {:action fallback}))]
     (let [is-valid? (valid? (validate-fields form))
           tx        (cond-> []
                       is-valid? (conj `(commit-to-entity ~{:form form :remote remote}))
-                      (and is-valid? (symbol? fallback)) (conj `(df/fallback {:action ~fallback}))
+                      (and is-valid? (symbol? fallback)) (conj fallback-call)
                       (not is-valid?) (conj `(validate-form ~{:form-id (form-ident form)}))
                       (seq rerender) (into rerender)
                       :always (conj form-root-key))]
