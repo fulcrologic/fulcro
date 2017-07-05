@@ -936,24 +936,29 @@
                                                      ~form-root-key])))}))]
     (dom/input attrs)))
 
+(def allowed-input-dom-props #{:id :className :onKeyDown :onKeyPress :onKeyUp})
+
 (defmethod form-field* ::text [component form field-name & {:keys [id className] :as params}]
-  (let [i->f identity
-        cls  (or className (css-class form field-name) "form-control")
-        f->i identity]
-    (render-input-field component {:id id :className cls} form field-name "text" f->i i->f)))
+  (let [i->f   identity
+        cls    (or className (css-class form field-name) "form-control")
+        params (assoc params :className cls)
+        f->i   identity]
+    (render-input-field component (select-keys params allowed-input-dom-props) form field-name "text" f->i i->f)))
 
 (defmethod form-field* ::html5 [component form field-name & {:keys [id className] :as params}]
   (let [i->f       identity
         input-type (:input/html-type (field-config form field-name))
         cls        (or className (css-class form field-name) "form-control")
+        params     (assoc params :className cls)
         f->i       identity]
-    (render-input-field component {:id id :className cls} form field-name input-type f->i i->f)))
+    (render-input-field component (select-keys params allowed-input-dom-props) form field-name input-type f->i i->f)))
 
 (defmethod form-field* ::integer [component form field-name & {:keys [id className] :as params}]
-  (let [cls  (or className (css-class form field-name) "form-control")
-        i->f #(when (seq (re-matches #"^[0-9]*$" %)) (int %))
-        f->i identity]
-    (render-input-field component {:id id :className cls} form field-name "number" f->i i->f)))
+  (let [cls    (or className (css-class form field-name) "form-control")
+        params (assoc params :className cls)
+        i->f   #(when (seq (re-matches #"^[0-9]*$" %)) (int %))
+        f->i   identity]
+    (render-input-field component (select-keys params allowed-input-dom-props) form field-name "number" f->i i->f)))
 
 #?(:cljs (defmutation select-option
            "Om mutation: Select a sepecific option from a selection list. form-id is the ident of the object acting as
@@ -997,22 +1002,25 @@
 (defmethod form-field* ::checkbox [component form field-name & {:keys [id className] :as params}]
   (let [form-id    (form-ident form)
         cls        (or className (css-class form field-name) "")
+        params     (assoc params :className cls)
         bool-value (current-value form field-name)]
-    (dom/input #js
-        {:type      "checkbox"
-         :id        id
-         :name      field-name
-         :className cls
-         :checked   bool-value
-         :onChange  (fn [event]
-                      (let [value      (.. event -target -value)
-                            field-info {:form-id form-id
-                                        :field   field-name
-                                        :value   value}]
-                        (om/transact! component
-                          `[(toggle-field ~field-info)
-                            ~@(get-on-form-change-mutation form field-name :edit)
-                            ~form-root-key])))})))
+    (dom/input
+      (clj->js (merge
+                 (select-keys params allowed-input-dom-props)
+                 {:type      "checkbox"
+                  :id        id
+                  :name      field-name
+                  :className cls
+                  :checked   bool-value
+                  :onChange  (fn [event]
+                               (let [value      (.. event -target -value)
+                                     field-info {:form-id form-id
+                                                 :field   field-name
+                                                 :value   value}]
+                                 (om/transact! component
+                                   `[(toggle-field ~field-info)
+                                     ~@(get-on-form-change-mutation form field-name :edit)
+                                     ~form-root-key])))})))))
 
 (defn radio-button-id
   "Returns the generated ID of a form field component. Needed to label radio buttons"
@@ -1206,7 +1214,7 @@
    a way to gather more information about the commit result. E.g. you could re-read the entire entity after your update by triggering the load *with*
    the commit. "
   [component & {:keys [remote rerender fallback fallback-params] :or {fallback-params {} remote false}}]
-  (let [form (om/props component)
+  (let [form          (om/props component)
         fallback-call (list `df/fallback (merge fallback-params {:action fallback}))]
     (let [is-valid? (valid? (validate-fields form))
           tx        (cond-> []
