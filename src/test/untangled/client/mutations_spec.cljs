@@ -123,11 +123,26 @@
             (contains? p :execute) => false)
           {:action #(reset! called true)}))
 
-      (behavior "are included in remote query if execute parameter is missing/false"
+      (behavior "are remote-only if execute parameter is missing/false (tx/fallback)"
         (is (= '[(tx/fallback {:action my-undo})] (parser {} '[(tx/fallback {:action my-undo})] :remote)))
         (is (not @called)))
-      (behavior "delegate to their action if the execute parameter is true"
+
+      (reset! called false)
+
+      (behavior "are remote-only if execute parameter is missing/false (df/fallback)"
+        (is (= '[(untangled.client.data-fetch/fallback {:action my-undo})] (parser {} '[(untangled.client.data-fetch/fallback {:action my-undo})] :remote)))
+        (is (not @called)))
+
+      (reset! called false)
+
+      (behavior "delegate to their action if the execute parameter is true (tx/fallback)"
         (parser {} '[(tx/fallback {:action my-undo :execute true})])
+        (is @called))
+
+      (reset! called false)
+
+      (behavior "delegate to their action if the execute parameter is true (df/fallback)"
+        (parser {} '[(untangled.client.data-fetch/fallback {:action my-undo :execute true})])
         (is @called)))
 
     (finally

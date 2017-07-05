@@ -6,7 +6,7 @@
             [cards.server-api :as api :refer [server-read server-mutate]]
             [om.next.impl.parser :as op]))
 
-(defmethod server-mutate 'error/mutation [env k params]
+(defmethod server-mutate 'recipes.error-handling-client/error-mutation [env k params]
   ;; Throw a mutation error for the client to handle
   {:action (fn [] (throw (ex-info "Server error" {:status 401 :body "Unauthorized User"})))})
 

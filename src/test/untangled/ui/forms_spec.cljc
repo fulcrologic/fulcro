@@ -6,7 +6,8 @@
     [untangled.client.logging :as log]
     [untangled.client.mutations :as m]
     [untangled.client.util :as uu]
-    [untangled.ui.forms :as f]))
+    [untangled.ui.forms :as f]
+    [untangled.client.data-fetch :as df]))
 
 (defui Stub
   static om/IQuery
@@ -834,26 +835,30 @@
                (component "commit-to-entity! - api/public function"
                  (when-mocking
                    (om/props :fake/component) => :fake/props
-                   (om/transact! :fake/component tx) => (fix-tx tx)
+                   (om/transact! :fake/component tx) => tx
                    (f/validate-fields :fake/props) => :fake/props
                    (f/form-ident _) => :fake/form-ident
                    (behavior "only commits if form is valid after validating"
                      (when-mocking
                        (f/valid? :fake/props) => true
                        (assertions
-                         (f/commit-to-entity! :fake/component)
-                         => `[f/commit-to-entity {:form :fake/props :remote false}
-                              ~f/form-root-key]))
+                         "Issues the commit mutation"
+                         (f/commit-to-entity! :fake/component) => `[(f/commit-to-entity {:form :fake/props :remote false}) ~f/form-root-key]))
                      (when-mocking
                        (f/valid? :fake/props) => false
                        (assertions
-                         (f/commit-to-entity! :fake/component)
-                         => `[f/validate-form {:form-id :fake/form-ident}
-                              ~f/form-root-key])))
-                   (behavior "optional `:rerender` key"
+                         "Validates the form in app state (when there are invalid fields)"
+                         (f/commit-to-entity! :fake/component) => `[(f/validate-form {:form-id :fake/form-ident}) ~f/form-root-key])))
+                   (let [result (f/commit-to-entity! :fake/component :rerender [:a :b])]
                      (assertions
-                       (last (f/commit-to-entity! :fake/component :rerender [:fake/rerender]))
-                       => :fake/rerender))))
+                       "Includes the root form key"
+                       (last result) => f/form-root-key
+                       "Includes follow on reads for optional rerender parameter"
+                       (butlast (rest result)) => [:a :b]))
+                   (let [result (f/commit-to-entity! :fake/component :fallback 'some-symbol)]
+                     (assertions
+                       "Includes the optional fallback tx"
+                       (second result) => `(df/fallback {:action ~'some-symbol})))))
                (component "commit-state - helper"
                  (assertions
                    (f/get-original-data basic-person :person/name)
@@ -1016,7 +1021,7 @@
 
       (f/form-field :fake/this :bad/form :bad/field))))
 
-(specification "Built-in Validators" :focused
+(specification "Built-in Validators"
   (component "in-range?"
     (assertions
       "Returns false when the indicated value is outside of a range (inclusive) or isn't an numeric value"
@@ -1050,7 +1055,4 @@
       (f/form-field-valid? `f/minmax-length? 2 {:min 2 :max 10}) => false
       "Return true when the input (seen as a string) has a within the given range (inclusive)"
       (f/form-field-valid? `f/minmax-length? "A" {:min 1 :max 10}) => true
-      (f/form-field-valid? `f/minmax-length? "abcdefghij" {:min 1 :max 10}) => true
-
-      )
-    ))
+      (f/form-field-valid? `f/minmax-length? "abcdefghij" {:min 1 :max 10}) => true)))

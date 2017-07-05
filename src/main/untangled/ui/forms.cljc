@@ -1181,15 +1181,38 @@
    instead trigger an update of the form in the UI to show validation errors.
 
    For remotes to work you must implement `(f/commit-to-entity {:form-id [:id id] :value {...})`
-   on the server. "
-  ; TODO: Add fallback parameter, for failed commits!
-  [component & {:keys [remote rerender] :or {remote false}}]
+   on the server.
+
+   This function uses the following functions and built-in mutations (that you can also use to create your own custom
+   commit mutations):
+
+   Functions:
+   `(validate-fields form)` - To get back a validated version of the form
+   `(valid? form)` - To check that the form is valid
+   `(diff form)` - Returns a diff of just what has changed in the form (recursive)
+
+   Mutations:
+   `commit-to-entity` - The remote-capable mutation that copies the new state and is sent over the wire.
+   `validate-form` - Triggered (instead of commit) when the form is invalid (to show validation errors)
+
+   Named parameters:
+   remote - True, or the name of the remote to commit to. Can be a local-only commit.
+   fallback - A mutation symbol to run (as a fallback) if there is a commit error.
+   rerender - An optional vector
+
+   NOTES:
+   - If you want commit to do more that remap tempids (e.g. you want a return value from the server), see mutation-merge option of untangled client.
+   - Writes always happen before reads in Untangled (on a single remote). Therefore, you can do this commit AND a `load` together (sequentially) as
+   a way to gather more information about the commit result. E.g. you could re-read the entire entity after your update by triggering the load *with*
+   the commit. "
+  [component & {:keys [remote rerender fallback] :or {remote false}}]
   (let [form (om/props component)]
-    (om/transact! component
-      (reduce conj
-        [(if (valid? (validate-fields form))
-           `(commit-to-entity ~{:form form :remote remote})
-           `(validate-form ~{:form-id (form-ident form)}))
-         form-root-key]
-        rerender))))
+    (let [is-valid? (valid? (validate-fields form))
+          tx        (cond-> []
+                      is-valid? (conj `(commit-to-entity ~{:form form :remote remote}))
+                      (and is-valid? (symbol? fallback)) (conj `(df/fallback {:action ~fallback}))
+                      (not is-valid?) (conj `(validate-form ~{:form-id (form-ident form)}))
+                      (seq rerender) (into rerender)
+                      :always (conj form-root-key))]
+      (om/transact! component tx))))
 
