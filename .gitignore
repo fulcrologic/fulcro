@@ -42,3 +42,5 @@ resources/public/getting-started.html
 resources/public/.asciidoctor/
 resources/public/*.png
 package-lock.json
+docs/_site
+docs/.sass-cache
