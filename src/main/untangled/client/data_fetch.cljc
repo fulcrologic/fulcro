@@ -4,7 +4,7 @@
     [clojure.walk :refer [walk prewalk]]
     [om.next :as om]
     [untangled.client.impl.data-fetch :as impl]
-    [untangled.client.mutations :refer [mutate]]
+    [untangled.client.mutations :refer [mutate defmutation]]
     [untangled.client.logging :as log]
     [om.dom :as dom]
     [untangled.client.core :as uc]
@@ -307,17 +307,28 @@
   (load component (om/get-ident component) (om/react-type component)))
 
 (defmethod mutate 'untangled/load
-  [{:keys [state]} _ {:keys [post-mutation remote]
-                      :as   config}]
+  [{:keys [state]} _ {:keys [post-mutation remote] :as config}]
   (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
   {(if remote remote :remote) true
    :action                    (fn [] (impl/mark-ready (assoc config :state state)))})
 
+(defn- fallback-action*
+  [env {:keys [action] :as params}]
+  (some-> (mutate env action (dissoc params :action :execute)) :action (apply [])))
+
 ; A mutation that requests the installation of a fallback mutation on a transaction that should run if that transaction
 ; fails in a 'hard' way (e.g. network/server error). Data-related error handling should either be implemented as causing
 ; such a hard error, or as a post-mutation step.
-(defmethod mutate 'tx/fallback [env _ {:keys [action execute] :as params}]
+(defmethod mutate 'tx/fallback [env _ {:keys [execute] :as params}]
   (if execute
-    {:action #(some-> (mutate env action (dissoc params :action :execute)) :action (apply []))}
+    {:action #(fallback-action* env params)}
     {:remote true}))
 
+(defmutation fallback
+  "Om mutation: Add a fallback for network failures to the transaction.
+
+  Parameters:
+  `action` - The symbol of the mutation to run on error."
+  [{:keys [action] :as params}]
+  (action [env] (when (:execute params) (fallback-action* env params)))
+  (remote [env] (not (:execute params))))

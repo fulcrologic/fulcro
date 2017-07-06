@@ -1,4 +1,5 @@
 (ns untangled.ui.forms
+  #?(:cljs (:require-macros untangled.ui.forms))
   (:require
     [clojure.set :as set]
     [clojure.string :as str]
@@ -6,8 +7,9 @@
     [om.next :as om]
     [om.util :as util]
     [clojure.tools.reader :as reader]
+    [clojure.spec.alpha :as s]
     [untangled.client.core :as uc]
-    [untangled.client.util :as uu]
+    [untangled.client.util :as uu :refer [conform!]]
     [untangled.client.data-fetch :as df]
     [untangled.client.logging :as log]
     [untangled.client.mutations :as m :refer [defmutation]]))
@@ -159,6 +161,14 @@
     (assoc :input/type ::integer)
     (update :input/default-value (fn [v] (if (integer? v) v 0)))))
 
+(defn html5-input
+  "Declare an input with a specific HTML5 INPUT type. See text-input for additional options.
+  Type should be a string that is a legal HTML5 input type."
+  [name type & options]
+  (-> (apply text-input name options)
+    (assoc :input/type ::html5)
+    (assoc :input/html-type type)))
+
 (defn textarea-input
   "Declare a text area on a form. See text-input for additional options.
 
@@ -232,7 +242,7 @@
   {:input/name          name
    :input/type          ::radio
    :input/default-value default-value
-   :input/label-fn label-fn
+   :input/label-fn      label-fn
    :input/css-class     className
    :input/options       options})
 
@@ -745,11 +755,53 @@
 (defmulti form-field-valid? "Extensible form field validation. Triggered by symbols. Arguments (args) are declared on the fields themselves."
   (fn [symbol value args] symbol))
 
-(defmethod form-field-valid? `in-range? [_ value {:keys [min max]}]
-  (let [value (int value)]
-    (<= min value max)))
+#?(:clj (s/def ::validator-args (s/cat
+                                  :sym symbol?
+                                  :doc (s/? string?)
+                                  :arglist vector?
+                                  :body (s/+ (constantly true)))))
 
-;; Sample validator that requires a number be in the (inclusive) range.
+#?(:clj
+   (defmacro ^{:doc      "Define an form field validator.
+
+                       The given symbol will be prefixed with the namespace of the current namespace, as if
+                       it were def'd into the namespace.
+
+                       The arglist should match the signature [sym value args], where sym will be the symbol used to
+                       invoke the validation, value will be the value of the field, and args will be any extra args
+                       that are passed to the validation from field spec configuration.
+
+                       Should return true if value, false otherwise."
+               :arglists '([sym docstring? arglist body])} defvalidator
+     [& args]
+     (let [{:keys [sym doc arglist body]} (conform! ::validator-args args)
+           fqsym (symbol (name (ns-name *ns*)) (name sym))]
+       `(defmethod untangled.ui.forms/form-field-valid? '~fqsym ~arglist ~@body))))
+
+(untangled.ui.forms/defvalidator not-empty?
+  "A validator. Requires the form field to have at least one character in it.
+
+  Do not call directly. Use the symbol as an input validator when declaring the form."
+  [sym value args]
+  (boolean (and value (pos? #?(:clj (.length (str value)) :cljs (.-length (str value)))))))
+
+(untangled.ui.forms/defvalidator in-range?
+  "A validator. Use this symbol as an input validator. Coerces input value to an int, then checks if it is
+  between min and max (inclusive). Strings are *not* coerced. Use with an `integer-input` only."
+  [_ value {:keys [min max]}]
+  (if (not (number? value))
+    false
+    (let [value (int value)]
+      (<= min value max))))
+
+(untangled.ui.forms/defvalidator minmax-length?
+  "A validator. Requires the form field to have a length between the min and max (inclusive)
+
+  Do not call directly. Use the symbol as an input validator when declaring the form."
+  [_ value {:keys [min max]}]
+  (let [l #?(:clj (.length (str value)) :cljs (.-length (str value)))]
+    (<= min l max)))
+
 (defn validate-field*
   "Given a form and a field, returns a new form with that field validated. Does NOT recurse into subforms."
   [form field]
@@ -861,6 +913,7 @@
                            input-value->field-value]
   (let [id          (form-ident form)
         input-value (field-value->input-value (current-value form field-name))
+        input-value (if (nil? input-value) "" input-value)
         attrs       (clj->js (merge htmlProps
                                {:type        type
                                 :name        field-name
@@ -883,17 +936,29 @@
                                                      ~form-root-key])))}))]
     (dom/input attrs)))
 
+(def allowed-input-dom-props #{:id :className :onKeyDown :onKeyPress :onKeyUp})
+
 (defmethod form-field* ::text [component form field-name & {:keys [id className] :as params}]
-  (let [i->f identity
-        cls  (or className (css-class form field-name) "form-control")
-        f->i identity]
-    (render-input-field component {:id id :className cls} form field-name "text" f->i i->f)))
+  (let [i->f   identity
+        cls    (or className (css-class form field-name) "form-control")
+        params (assoc params :className cls)
+        f->i   identity]
+    (render-input-field component (select-keys params allowed-input-dom-props) form field-name "text" f->i i->f)))
+
+(defmethod form-field* ::html5 [component form field-name & {:keys [id className] :as params}]
+  (let [i->f       identity
+        input-type (:input/html-type (field-config form field-name))
+        cls        (or className (css-class form field-name) "form-control")
+        params     (assoc params :className cls)
+        f->i       identity]
+    (render-input-field component (select-keys params allowed-input-dom-props) form field-name input-type f->i i->f)))
 
 (defmethod form-field* ::integer [component form field-name & {:keys [id className] :as params}]
-  (let [cls  (or className (css-class form field-name) "form-control")
-        i->f #(when (seq (re-matches #"^[0-9]*$" %)) (int %))
-        f->i identity]
-    (render-input-field component {:id id :className cls} form field-name "number" f->i i->f)))
+  (let [cls    (or className (css-class form field-name) "form-control")
+        params (assoc params :className cls)
+        i->f   #(when (seq (re-matches #"^[0-9]*$" %)) (int %))
+        f->i   identity]
+    (render-input-field component (select-keys params allowed-input-dom-props) form field-name "number" f->i i->f)))
 
 #?(:cljs (defmutation select-option
            "Om mutation: Select a sepecific option from a selection list. form-id is the ident of the object acting as
@@ -937,22 +1002,25 @@
 (defmethod form-field* ::checkbox [component form field-name & {:keys [id className] :as params}]
   (let [form-id    (form-ident form)
         cls        (or className (css-class form field-name) "")
+        params     (assoc params :className cls)
         bool-value (current-value form field-name)]
-    (dom/input #js
-        {:type      "checkbox"
-         :id        id
-         :name      field-name
-         :className cls
-         :checked   bool-value
-         :onChange  (fn [event]
-                      (let [value      (.. event -target -value)
-                            field-info {:form-id form-id
-                                        :field   field-name
-                                        :value   value}]
-                        (om/transact! component
-                          `[(toggle-field ~field-info)
-                            ~@(get-on-form-change-mutation form field-name :edit)
-                            ~form-root-key])))})))
+    (dom/input
+      (clj->js (merge
+                 (select-keys params allowed-input-dom-props)
+                 {:type      "checkbox"
+                  :id        id
+                  :name      field-name
+                  :className cls
+                  :checked   bool-value
+                  :onChange  (fn [event]
+                               (let [value      (.. event -target -value)
+                                     field-info {:form-id form-id
+                                                 :field   field-name
+                                                 :value   value}]
+                                 (om/transact! component
+                                   `[(toggle-field ~field-info)
+                                     ~@(get-on-form-change-mutation form field-name :edit)
+                                     ~form-root-key])))})))))
 
 (defn radio-button-id
   "Returns the generated ID of a form field component. Needed to label radio buttons"
@@ -1121,14 +1189,39 @@
    instead trigger an update of the form in the UI to show validation errors.
 
    For remotes to work you must implement `(f/commit-to-entity {:form-id [:id id] :value {...})`
-   on the server. "
-  [component & {:keys [remote rerender] :or {remote false}}]
-  (let [form (om/props component)]
-    (om/transact! component
-      (reduce conj
-        [(if (valid? (validate-fields form))
-           `(commit-to-entity ~{:form form :remote remote})
-           `(validate-form ~{:form-id (form-ident form)}))
-         form-root-key]
-        rerender))))
+   on the server.
+
+   This function uses the following functions and built-in mutations (that you can also use to create your own custom
+   commit mutations):
+
+   Functions:
+   `(validate-fields form)` - To get back a validated version of the form
+   `(valid? form)` - To check that the form is valid
+   `(diff form)` - Returns a diff of just what has changed in the form (recursive)
+
+   Mutations:
+   `commit-to-entity` - The remote-capable mutation that copies the new state and is sent over the wire.
+   `validate-form` - Triggered (instead of commit) when the form is invalid (to show validation errors)
+
+   Named parameters:
+   remote - True, or the name of the remote to commit to. Can be a local-only commit.
+   fallback - A mutation symbol to run (as a fallback) if there is a commit error.
+   rerender - An optional vector
+
+   NOTES:
+   - If you want commit to do more that remap tempids (e.g. you want a return value from the server), see mutation-merge option of untangled client.
+   - Writes always happen before reads in Untangled (on a single remote). Therefore, you can do this commit AND a `load` together (sequentially) as
+   a way to gather more information about the commit result. E.g. you could re-read the entire entity after your update by triggering the load *with*
+   the commit. "
+  [component & {:keys [remote rerender fallback fallback-params] :or {fallback-params {} remote false}}]
+  (let [form          (om/props component)
+        fallback-call (list `df/fallback (merge fallback-params {:action fallback}))]
+    (let [is-valid? (valid? (validate-fields form))
+          tx        (cond-> []
+                      is-valid? (conj `(commit-to-entity ~{:form form :remote remote}))
+                      (and is-valid? (symbol? fallback)) (conj fallback-call)
+                      (not is-valid?) (conj `(validate-form ~{:form-id (form-ident form)}))
+                      (seq rerender) (into rerender)
+                      :always (conj form-root-key))]
+      (om/transact! component tx))))
 

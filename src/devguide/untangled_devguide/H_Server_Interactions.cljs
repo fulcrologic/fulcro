@@ -478,7 +478,7 @@
   to indicate that you're wanting to load something (and returns `:remote true`). This causes the network
   plumbing to be triggered. The network plumbing only receives mutations that are marked remote, so it does the following:
 
-  - It looks for the special mutations `untangled/load` and `tx/fallback`. The latter is part of the unhappy path handling.
+  - It looks for the special mutations `untangled/load` and `untangled.client.data-fetch/fallback` (deprecated name is `tx/fallback`). The latter is part of the unhappy path handling.
      - For each load, it places a state marker in the app state at the target destination for the query data
      - All loads that are present are combined together into a single Om query
   - It looks for other mutations
@@ -766,7 +766,7 @@
   One of the advantages to using Untangled is its support for error handling via what are called transaction fallbacks:
 
   ```
-  (om/transact! this '[(some/mutation) (tx/fallback {:action handle-failure})])
+  (om/transact! this `[(some/mutation) (untangled.client.data-fetch/fallback {:action handle-failure})])
   ```
 
   ```

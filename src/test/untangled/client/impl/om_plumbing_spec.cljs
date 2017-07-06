@@ -63,6 +63,7 @@
                 '[:a {:j [:a]} (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[:a {:j [:a]} (f) (app/l)]
                 '[(untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[(app/l)]
                 '[(untangled/load {:x 1}) (tx/fallback {:a 3})] '[]
+                '[(boo {:x 1}) (untangled.client.data-fetch/fallback {:a 3})] '[(boo {:x 1})]
                 '[:a {:j [:a]}] '[:a {:j [:a]}])))
 
 (specification "fallback-query"
@@ -73,8 +74,8 @@
                 '[:a {:j [:a]} (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})]
                 '[(tx/fallback {:a 3 :execute true :error {:error 42}})]
 
-                '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (untangled/load {:x 1}) (app/l) (tx/fallback {:a 3})]
-                '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (tx/fallback {:a 3 :execute true :error {:error 42}})])))
+                '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (untangled/load {:x 1}) (app/l) (untangled.client.data-fetch/fallback {:a 3})]
+                '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (untangled.client.data-fetch/fallback {:a 3 :execute true :error {:error 42}})])))
 
 (specification "tempid handling"
   (behavior "rewrites all tempids used in pending requests in the request queue"

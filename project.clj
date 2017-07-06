@@ -1,4 +1,4 @@
-(defproject awkay/untangled "1.0.0-beta1"
+(defproject awkay/untangled "1.0.0-beta2-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -11,7 +11,7 @@
                  [lein-doo "0.1.7" :scope "test"]
                  [http-kit "2.2.0"]
                  [ring/ring-defaults "0.2.3"]
-                 [ring/ring-core "1.6.0-RC2"]
+                 [ring/ring-core "1.6.1"]
                  [bk/ring-gzip "0.2.1"]
                  [commons-codec "1.10"]
                  [com.stuartsierra/component "0.3.2"]
@@ -111,7 +111,7 @@
                    :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[binaryage/devtools "0.9.4"]
                                   [com.cemerick/piggieback "0.2.1"]
-                                  [figwheel-sidecar "0.5.10"]
+                                  [figwheel-sidecar "0.5.11"]
                                   [cljsjs/d3 "3.5.7-1"]
                                   [cljsjs/victory "0.9.0-0"]
                                   [hickory "0.7.1"]
@@ -119,4 +119,4 @@
                                   [com.layerware/hugsql "0.4.7"]
                                   [org.clojure/tools.namespace "0.3.0-alpha4"]
                                   [cljsjs/codemirror "5.8.0-0"]
-                                  [org.clojure/tools.nrepl "0.2.12"]]}})
+                                  [org.clojure/tools.nrepl "0.2.13"]]}})

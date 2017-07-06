@@ -77,7 +77,7 @@
 (defn remove-loads-and-fallbacks
   "Removes all untangled/load and tx/fallback mutations from the query"
   [query]
-  (let [symbols-to-filter #{'untangled/load 'tx/fallback}
+  (let [symbols-to-filter #{'untangled/load 'tx/fallback `untangled.client.data-fetch/fallback}
         ast (om/query->ast query)
         children (:children ast)
         new-children (filter (fn [child] (not (contains? symbols-to-filter (:dispatch-key child)))) children)
@@ -87,7 +87,7 @@
 (defn fallback-query [query resp]
   "Filters out everything from the query that is not a fallback mutation.
   Returns nil if the resulting expression is empty."
-  (let [symbols-to-find #{'tx/fallback}
+  (let [symbols-to-find #{'tx/fallback 'untangled.client.data-fetch/fallback}
         ast (om/query->ast query)
         children (:children ast)
         new-children (->> children

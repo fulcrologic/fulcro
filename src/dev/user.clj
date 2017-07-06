@@ -6,7 +6,7 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.spec.gen.alpha :as sg]
-    [clojure.tools.namespace.repl :refer [disable-reload! refresh clear set-refresh-dirs]]
+    [clojure.tools.namespace.repl :as tools-ns :refer [disable-reload! refresh clear set-refresh-dirs]]
     [figwheel-sidecar.system :as fig]
     [com.stuartsierra.component :as component]
     [untangled-spec.selectors :as sel]
@@ -44,12 +44,12 @@
 
 (defonce demo-server (atom nil))
 
-(defn init
+(defn- init
   "Create a web server from configurations. Use `start` to start it."
   []
   (reset! demo-server (svr/make-system)))
 
-(defn start-demo-server "Start (an already initialized) web server." [] (swap! demo-server component/start))
+(defn- start-demo-server "Start (an already initialized) web server." [] (swap! demo-server component/start))
 
 (defn stop-demo-server "Stop the running web server." []
   (when @demo-server
@@ -60,7 +60,7 @@
   (init)
   (start-demo-server))
 
-(defn reset-demos
+(defn restart-demo-server
   "Stop the web server, refresh all namespace source code from disk, then restart the web server."
   []
   (stop-demo-server)

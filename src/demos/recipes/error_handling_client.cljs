@@ -4,22 +4,22 @@
     [untangled.i18n :refer [tr trf]]
     [untangled.client.data-fetch :as df]
     [untangled.client.logging :as log]
-    [untangled.client.mutations :as m]
+    [untangled.client.mutations :as m :refer [defmutation]]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
 
-(defmethod m/mutate 'error/mutation [env k params]
-  ;; Just send the mutation to the server, which will return an error
-  {:remote true :action (constantly nil)})
+;; Just send the mutation to the server, which will return an error
+(defmutation error-mutation [params]
+  (remote [env] true))
 
 ;; an :error key is injected into the fallback mutation's params argument
-(defmethod m/mutate 'button/disable [{:keys [state]} k {:keys [error] :as params}]
-  {:action (fn []
-             (log/warn "Mutation specific fallback -- disabling button")
-             (swap! state assoc-in [:error.child/by-id :singleton :ui/button-disabled] true))})
+(defmutation disable-button [{:keys [error] :as params}]
+  (action [{:keys [state]}]
+    (log/warn "Mutation specific fallback -- disabling button")
+    (swap! state assoc-in [:error.child/by-id :singleton :ui/button-disabled] true)))
 
-(defmethod m/mutate 'read/error-log [env k {:keys [error]}]
-  {:action (fn [] (log/warn "Read specific fallback: " error))})
+(defmutation log-read-error [{:keys [error]}]
+  (action [env] (log/warn "Read specific fallback: " error)))
 
 (defui ^:once Child
   static uc/InitialAppState
@@ -35,7 +35,7 @@
       (dom/div nil
         ;; declare a tx/fallback in the same transact call as the mutation
         ;; if the mutation fails, the fallback will be called
-        (dom/button #js {:onClick  #(om/transact! this '[(error/mutation) (tx/fallback {:action button/disable})])
+        (dom/button #js {:onClick  #(om/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
                          :disabled button-disabled}
           "Click me for error!")
         (dom/button #js {:onClick #(df/load-field this :untangled/read-error)}
