@@ -44,3 +44,4 @@ resources/public/*.png
 package-lock.json
 docs/_site
 docs/.sass-cache
+docs/Gemfile.lock

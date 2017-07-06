@@ -8,6 +8,12 @@ If you'd like to submit a PR, please follow these general guidelines:
 - In general, please squash your change into a single commit
 - Add an entry to the CHANGELOG describing the change
 
+## Github Instructions
+
+Basically gollow the instructions here:
+
+https://help.github.com/categories/collaborating-with-issues-and-pull-requests/
+
 ## General Guidelines
 
 In general we'd prefer there be tests for code that is added/modified. The
