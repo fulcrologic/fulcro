@@ -130,8 +130,11 @@ load progress markers, etc.
 ## Other Features
 
 Untangled attempts to include solutions for most of the common problems that business webapps are
-trying to solve: testing, i18n, standing up a server. All of these are things you have to "plug in" with
-stock Om Next. Untangled doesn't lock you in to one solution for these, but having a well-designed
-option that is included makes rapid application development possible.
+trying to solve: testing, i18n, and advanced system for generating full-stack forms, CSS,
+file uploads, standing up a server.
+
+All of these are things you have to "plug in" with
+stock Om Next. While Untangled doesn't lock you in to one solution for these, it does provide an
+included option that makes rapid application development possible.
 
 
