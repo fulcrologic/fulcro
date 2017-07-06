@@ -20,6 +20,8 @@ many of the criteria that have a significant advantage/disadvantage
 in Untangled. Add other tools you're evaluating, and it can help
 you with a head-to-head comparison. Good Luck!
 
+[Web Tool Comparison Worksheet](https://docs.google.com/spreadsheets/d/1kBJLjN2Z1AFJM4W8S7YTn0PS_drzqtIMY5siSIZ5OWI)
+
 Instructions
 1. Log in (and create if needed) to a google account
 2. Open the link to the spreadsheet
@@ -29,4 +31,3 @@ Instructions
 6. Put your other candidates across the top (where I've prewritten things like Reagent)
 7. Put a score (1-10) under each tool for each criteria
 
-(https://docs.google.com/spreadsheets/d/1kBJLjN2Z1AFJM4W8S7YTn0PS_drzqtIMY5siSIZ5OWI/edit?usp=sharing)[Google Web Tool Comparison Spreadsheet]

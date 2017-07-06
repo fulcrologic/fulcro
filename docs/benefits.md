@@ -1,23 +1,45 @@
 # The Benefits of Untangled
 
+In a nutshell: Untangled eliminates a lot of incidental complexity. It allows you to think
+about rendering as a pure function of data, which then allows you to think about the
+clean evolution of your data model from one state to the next through *mutations* on that
+data model (atomic steps that complete one operation). The UI pretty much takes care
+of itself.
+
+In the interest of giving you some talking points:
+
+## Why to Use Untangled
+
+- Use an advanced, fast, FP language on both the client and server.
+- Reason about the UI as a pure function (no "bit twiddling" to modify the DOM).
+- Reason about the data model as a pure graph of data (mostly separate from the UI)
+    - Data ends up in easy-to-access linked table-like structures that make understanding and updating the data easy.
+- Clean, unit-testable *mutations* evolve the data model. The UI takes care of itself through two easy to understand
+mechanisms (no two-way data binding causing (or failing to cause) storms of refreshes):
+    - The UI refreshes anything that triggers a mutation whose data has actually changed.
+    - Through listing (abstractly) what data in the model a mutation affects.
 - One langauge is used on both client and server. Like node, but without the Javascript.
-- It is React-based: The rendering itself is done by a widely used, supported, and robust library.
+- A full-stack story that unifies how your model is treated on both the client and server.
+- It is [React](https://facebook.github.io/react/)-based: The rendering itself is done by a widely used, supported, and robust library.
 - The data and communication model is similar to that of GraphQL and Falcor, but simplified via a concise Datomic-like graph query language.
-   - Having a well-defined data model and network protocol lead to a lot of powerful results:
-       - The application can tune itself to ask for just what it needs. This enables different versions of your application (e.g. mobile vs desktop) to modify what they ask for to minimize network overhead.
-       - The protocol is EDN, a rich (and extensible) on-wire protocol that is also what the programming language itself is written in and uses.
-       - ...
-       - CORS is pretty easy to add as a middle layer for both auditability and performance.
+    - [Data driven architecture](https://medium.com/@env/demand-driven-development-relay-falcor-om-next-75818bd54ea1)
+    - [CQRS](https://www.youtube.com/watch?v=qDNPQo9UmJA) is pretty easy to add as a middle layer for both auditability and performance.
 - It has a strong FP flair:
     - Rendering is done as a pure function
     - No in-place mutation (persistent data structures)
     - UI History and time travel are supported features (including a support UI VCR)
-- It leverages Closure for js optimization, so you get these for free:
-    - Dynamic module loading
-    - Code splitting
+- It leverages Google Closure for js optimization, so you get these for free (with little headache):
+    - Dynamic module loading (code splitting)
     - Minification
-- Writing the UI in React and the program in clj/cljs means that server-side rendering of initial loads is easy to get.
+    - Dead code elimination
+    - A large library of reusable functions (Google's Closure library)
+- UI in React + cljc means that client and server-side rendering of initial loads is easy to get.
 - You get to think of your application almost completely as a pure data model.
+- A gettext-based internationalization system.
+- Meta-programming is quite powerful when used well (think of building a DSL that can then be used to build
+elements of your program). Clojure is homoiconic, making this easier.
+
+## When not to Use Untangled
 
 Untangled does try to provide you with a full-stack story. It also requires that you learn
 (and *unlearn*) a few things that some people find initially challenging. Here are some reasons
@@ -27,8 +49,7 @@ you might *not* want to use Untangled:
   framerates and low UI overhead. Untangled is fast enough for data-driven apps, but it really would not make
   sense for animation-heavy gaming.
 - You don't want to learn something radically different from what you're used to.
-   - The model doesn't need or use events or signals (except to consume UI events from user interaction).
-   - You rarely fiddle with the low-level DOM
-   - You rarely (if ever) side-effect in the view.
-   - You must learn to think about the UI as a pure function of a data model.
+- Your co-workers don't want to learn something radically different.
+- Your company cannot be convinced that the long-term benefits of Untangled will pay off in the long run compared to the
+costs of re-training/tooling.
 
