@@ -33,7 +33,15 @@
       <header>
         <span class="ribbon-outer">
           <span class="ribbon-inner">
-            <h1>{{ site.title | default: site.github.repository_name }}</h1>
+            <h1>
+                <img style="border:none; box-shadow: none" width="50px" src="logo.png">
+                &nbsp;
+                &nbsp;
+              Untangled
+                &nbsp;
+                &nbsp;
+                <img style="border:none; box-shadow: none" width="50px" src="logo.png">
+            </h1>
             <h2>{{ site.description | default: site.github.project_tagline }}</h2>
             <div style="text-align: center;">
             <a class="toplink" href="index.html">Home</a>
@@ -43,7 +51,7 @@
             <a class="toplink" href="https://www.patreon.com/untangledfw">Become a Patron</a>
             </div>
           </span>
-          <span class="left-tail"></span>
+          <span class="left-tail"> </span>
           <span class="right-tail"></span>
         </span>
       </header>
@@ -62,7 +70,8 @@
       {% endif %}
 
 
-      <span class="banner-fix"></span>
+      <span class="banner-fix">
+      </span>
 
 
       <section id="main_content">
