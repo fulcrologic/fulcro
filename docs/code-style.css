@@ -1,0 +1,112 @@
+@import url(https://fonts.googleapis.com/css?family=Lato);
+@import url(https://fonts.googleapis.com/css?family=Cutive+Mono);
+@import url(edn.css);
+
+.overlay {
+    background-color: rgb(230, 230, 240);
+    width: 194px;
+}
+
+.hidden {
+    display: none;
+}
+
+.test-report {
+    font-family: 'Lato' sans-serif;
+    display: block;
+    font-size: 20pt;
+}
+
+.test-item {
+    display: block;
+    font-size: 13pt;
+}
+
+.test-namespace {
+    margin-top: 20px;
+    font-weight: 400;
+    display: block;
+    font-size: 18pt;
+}
+
+.test-header {
+    font-weight: 700;
+    display: block;
+    font-size: 18pt;
+}
+
+.test-manually {
+    color: orange;
+}
+
+.filter-controls {
+    position: fixed;
+    top: 0px;
+    right: 0px;
+}
+
+.filter-controls label {
+    font-size: 10pt;
+}
+
+.filter-controls a {
+    font-size: 10pt;
+    padding-left: 5pt;
+}
+
+.selected {
+    color: green;
+    text-decoration: underline;
+}
+
+.test-pending {
+    color: gray;
+}
+
+.test-passed {
+    color: limegreen;
+}
+
+.test-error {
+    color: red;
+}
+
+.test-failed {
+    color: red;
+}
+
+.test-list {
+    list-style-type: none;
+}
+
+.test-result {
+    margin: 12px;
+    font-size: 16px;
+}
+
+.test-result-title {
+    width: 100px;
+    font-size: 16px;
+}
+
+.test-count {
+    margin: 20px 0 20px 20px;
+}
+
+.test-report ul {
+    padding-left: 10px;
+    margin-bottom: 10px;
+}
+
+.test-report ul:empty {
+    display: none;
+}
+
+.test-report h2 {
+    font-size: 24px;
+    margin-bottom: 15px;
+}
+
+#test-app {
+    display: none;
+}

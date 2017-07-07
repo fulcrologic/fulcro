@@ -39,6 +39,15 @@ file an issue if you notice something is outdated.
 
 You can follow [@untanglefw](http://www.twitter.com/untangledfw) on twitter.
 
+## Companion Projects
+
+Untangled has a few companion projects that you should know about:
+
+- [Untangled Spec](https://github.com/awkay/untangled-spec): A BDD testing library that gives you powerful extensions and expressiveness over clj/cljs test. Written using Untangled. Can render hot-refreshed test results in a browser for both client and server!
+- [Untangled Template](https://github.com/awkay/untangled-template): A (forkable) repository that has a full-stack starter app, and includes a rename script.
+- [Getting Started Files](https://github.com/awkay/untangled-getting-started): A repository that has the source code for the Getting Started Guide.
+- [In The Large Files](https://github.com/awkay/untangled-in-the-large): A repository with the source code for the Untangled In the Large videos.
+
 ## Contributing
 
 Untangled is an open-source project that is currently my full-time endeavor. I hope you
@@ -46,6 +55,7 @@ find it useful, and I very much appreciate contributions in any of the
 following forms:
 
 - Reporting issues, ideally with a reproducible case
+- Look for things that need testing or additions and do that. See [Status](status.html).
 - Proofreading the website/documentation. I write fast, and often make misakes [sic].
 - A pull request fixing a bug (see [CONTRIBUTING](https://github.com/awkay/untangled/blob/develop/CONTRIBUTING.md))
 - Expansions via a pull request (please talk to me first).

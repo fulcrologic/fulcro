@@ -1,0 +1,52 @@
+.rendered-edn .collection {
+    display: flex;
+    display: -webkit-flex;
+}
+
+.rendered-edn .keyval {
+    display: flex;
+    display: -webkit-flex;
+    flex-wrap: wrap;
+    -webkit-flex-wrap: wrap;
+}
+
+.rendered-edn .keyval > .keyword {
+    color: #a94442;
+}
+
+.rendered-edn .keyval > *:first-child {
+    margin: 0px 3px;
+    flex-shrink: 0;
+    -webkit-flex-shrink: 0;
+}
+
+.rendered-edn .keyval > *:last-child {
+    margin: 0px 3px;
+}
+
+.rendered-edn .opener {
+    color: #999;
+    margin: 0px 4px;
+    flex-shrink: 0;
+    -webkit-flex-shrink: 0;
+}
+
+.rendered-edn .closer {
+    display: flex;
+    display: -webkit-flex;
+    flex-direction: column-reverse;
+    -webkit-flex-direction: column-reverse;
+    margin: 0px 3px;
+    color: #999;
+}
+
+.rendered-edn .string {
+    color: #428bca;
+}
+
+.rendered-edn .string .opener,
+.rendered-edn .string .closer {
+    display: inline;
+    margin: 0px;
+    color: #428bca;
+}

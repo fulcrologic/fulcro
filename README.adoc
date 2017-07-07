@@ -1,4 +1,3 @@
-# Untangled for Om Next
 :source-highlighter: coderay
 :source-language: clojure
 :toc:
@@ -7,22 +6,41 @@
 :sectanchors:
 :sectnums:
 
-Untangled is a library stacked on Om Next that provides much of what is needed to use that library (client parser,
-networking, server elements, a database format, clear constructs for data loading). The intention is to provide you
-with most of the experience of Om Next with very little of the pain.
-
-## Writing Applications with Untangled
+# Untangled for Om Next
 
 image::https://img.shields.io/clojars/v/awkay/untangled.svg[link=https://clojars.org/awkay/untangled]
 
 Release: image:https://api.travis-ci.org/awkay/untangled.svg?branch=master[link=https://github.com/awkay/untangled/tree/master]
 Snapshot: image:https://api.travis-ci.org/awkay/untangled.svg?branch=develop[link=https://github.com/awkay/untangled/tree/develop]
 
+Untangled is a library stacked on Om Next that provides much of what is needed to use that library (client parser,
+networking, server elements, a database format, clear constructs for data loading). The intention is to provide you
+with most of the experience of Om Next with very little of the pain.
 
-See link:/GettingStarted.adoc[GettingStarted.adoc] to get going.
+## Writing Applications with Untangled
 
-Once you've got the general idea, there's more info in the developers guide, which is an interactive
-guide where you edit the code as you go. To use the developers guide, clone this repository and run:
+The https://awkay.github.io/untangled[website] is a great place to read about
+Untangled. It has pages describing things in more general terms, and has links
+to various resources like videos and evaluation guides.
+
+If you want to jump and code, read on!
+
+### Getting Started
+
+See link:/GettingStarted.adoc[GettingStarted.adoc] to get going. It covers all of the
+basics related to full-stack development in Untangled.
+
+If you don't know Clojure, you should at least get comfortable with the basics.
+I recommend: http://www.braveclojure.com/[Clojure for the Brave and True], and doing at least the
+basic online exercises at http://www.4clojure.com/[4Clojure]. You should also have
+a passing familiarity with Facebook's React, though if you understand that we're
+using it to get "fast UI updates", that is sufficient to start.
+
+### Developer's Guide
+
+The Developer's Guide is really an interactive coding tutorial using Devcards. You
+can view an http://awkay.github.io/untangled/guide.html[online version],
+but in order to use it properly you should clone Untangled and:
 
 ```
 ./run-devguide.sh

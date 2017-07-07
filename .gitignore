@@ -45,3 +45,15 @@ package-lock.json
 docs/_site
 docs/.sass-cache
 docs/Gemfile.lock
+docs/js/app/
+docs/js/cljs/
+docs/js/clojure/
+docs/js/cognitect/
+docs/js/com/
+docs/js/devcards/
+docs/js/hickory/
+docs/js/om/
+docs/js/sablono/
+docs/js/untangled/
+docs/js/untangled_devguide/
+

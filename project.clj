@@ -31,7 +31,7 @@
   :jar-exclusions [#"public/.*" #"private/.*"]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
-  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target"]
+  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target" "docs/js"]
 
   :plugins [[lein-cljsbuild "1.1.6"]
             [lein-doo "0.1.7"]
@@ -82,6 +82,20 @@
                                :parallel-build       true
                                :source-map-timestamp true
                                :optimizations        :none}}
+               {:id           "devguide-live"
+                :source-paths ["src/main" "src/devguide"]
+                :compiler     {:main           untangled-devguide.guide
+                               :asset-path     "js"
+                               :optimizations :whitespace
+                               :devcards true
+                               :output-to      "docs/js/guide.js"
+                               :output-dir     "docs/js"
+                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
+                                                 :requires ["cljsjs.codemirror"]
+                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
+                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
+                                                 :requires ["cljsjs.codemirror"]
+                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "devguide"
                 :figwheel     {:devcards true}
                 :source-paths ["src/main" "src/devguide"]
