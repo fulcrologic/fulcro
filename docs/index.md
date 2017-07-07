@@ -6,30 +6,34 @@ advantages over techniques, libraries, and frameworks you might have used before
 
 ## Is Untangled for me?
 
-Evaluating tools for doing web development can be a monumental task. Untangled has a particular
-class of problems it is trying to address well, and may or may not be a good fit. To help
-you evaluate it, you might want to:
+Evaluating tools for web development can be a monumental task. Untangled has a particular
+set of strengths that may or may not be a good fit. To help you evaluate it, you might want to:
 
 - Read about [the benefits of Untangled](benefits.html)
-- Use the [Untangled Evaluation Spreadsheet](evaluation.html)
-- Understand [how Untangled differs from stock Om Next](vsom-next.html)
 - Clone and play with the [Untangled Template](https://github.com/awkay/untangled-template) project.
 - Clone and play with an Untangled (full-stack!) [TODOMVC](https://github.com/untangled-web/untangled-todomvc) uses an older version of the library. Needs updating, but still works).
+- Use the [Untangled Evaluation Spreadsheet](evaluation.html)
+- Understand [how Untangled differs from stock Om Next](vsom-next.html)
 
 ## What Does it look Like?
 
-There is a YouTube video play list of relatively short videos that can help you get
-started quickly and are highly recommended.
+There is a YouTube video playlist of relatively short videos that can help you get
+started quickly and often clarifies things that people struggle with:
 [Untangled Video Playlist](https://www.youtube.com/playlist?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R)
 
-If you just want to get a quick look of what working in Untangled looks like you might check this one out:
+If you just want to get a quick look of what working in Untangled looks like you might check this one out (it assumes you know what you're doing to some extent, but
+ignore the gory details and watch for the coolness):
 
-- [Base UI and Initial State (22 mins)](https://www.youtube.com/watch?v=vzIrgR9iXOw&index=4&t=836s&list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R)
+- [Untangled In The Large - Component Development](https://youtu.be/uxI2XVgdDBU?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R)
 
-Those who prefer to read should *still* check out the video, but should then
-process to a complete overview in the
+Those who prefer to read should *still* check out the video at some point, but should then
+proceed to a complete overview in the
 [Getting Started](https://github.com/awkay/untangled/blob/develop/GettingStarted.adoc)
 guide. Those that like videos are encouraged to also read this guide.
+
+**NOTE**: As the library continues to evolve more refined ways of doing certain things may appear. We'll do
+our best to update the materials when possible, but it would be really helpful for you to
+file an issue if you notice something is outdated.
 
 ## Social Media???
 
@@ -38,7 +42,7 @@ You can follow [@untanglefw](http://www.twitter.com/untangledfw) on twitter.
 ## Contributing
 
 Untangled is an open-source project that is currently my full-time endeavor. I hope you
-find it useful, and if you do I very much appreciate contributions in any of the
+find it useful, and I very much appreciate contributions in any of the
 following forms:
 
 - Reporting issues, ideally with a reproducible case
