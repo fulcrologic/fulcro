@@ -332,10 +332,10 @@ default-malformed-response
   "INTERNAL use only, use `untangled-system` instead."
   [F api-fn module]
   (if-not (satisfies? APIHandler module) F
-                                         (let [parser-fn (api-fn module)]
-                                           (fn [env k p]
-                                             (or (parser-fn (merge module env) k p)
-                                               (F env k p))))))
+    (let [parser-fn (api-fn module)]
+      (fn [env k p]
+        (or (parser-fn (merge module env) k p)
+            (F env k p))))))
 
 (defn- comp-api-modules
   "INTERNAL use only, use `untangled-system` instead."
@@ -350,22 +350,19 @@ default-malformed-response
      :mutate (constantly nil)}
     (rseq modules)))
 
+(defn handle-api-request [parser env query]
+  (generate-response
+    (let [parse-result (try (raise-response (parser env query)) (catch Exception e e))]
+      (if (valid-response? parse-result)
+        (merge {:status 200 :body parse-result} (augment-map parse-result))
+        (process-errors parse-result)))))
+
 (defrecord UntangledApiHandler [app-name modules]
   component/Lifecycle
   (start [this]
     (let [api-url     (cond->> "/api" app-name (str "/" app-name))
           api-parser  (om/parser (comp-api-modules this))
-          make-response
-                      (fn [parser env query]
-                        (generate-response
-                          (let [parse-result (try (raise-response
-                                                    (parser env query))
-                                                  (catch Exception e e))]
-                            (if (valid-response? parse-result)
-                              {:status 200 :body parse-result}
-                              (process-errors parse-result)))))
-          api-handler (fn [env query]
-                        (make-response api-parser env query))]
+          api-handler (partial handle-api-request api-parser)]
       (assoc this
         :handler api-handler
         :middleware

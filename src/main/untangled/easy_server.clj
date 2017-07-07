@@ -28,21 +28,18 @@
   an exception, then it calls the injected error handler with the request and the exception. Thus,
   you can define the handling of all API requests via system injection at startup."
   [{:keys [transit-params parser env] :as req}]
-  (let [parse-result (try (server/raise-response (parser env transit-params)) (catch Exception e e))]
-    (if (server/valid-response? parse-result)
-      (merge {:status 200 :body parse-result} (server/augment-map parse-result))
-      (server/process-errors parse-result))))
+  (server/handle-api-request parser env transit-params))
 
 (def default-api-key "/api")
 
 (defn app-namify-api [default-routes app-name]
-  (if app-name
-    (update default-routes 1 (fn [m]
-                               (let [api-val (get m default-api-key)]
-                                 (-> m
-                                   (dissoc default-api-key)
-                                   (assoc (str "/" app-name default-api-key) api-val)))))
-    default-routes))
+  (if-not app-name default-routes
+    (update default-routes 1
+      (fn [m]
+        (let [api-val (get m default-api-key)]
+          (-> m
+            (dissoc default-api-key)
+            (assoc (str "/" app-name default-api-key) api-val)))))))
 
 (def default-routes
   ["" {"/"             :index
@@ -60,28 +57,27 @@
     (case (:handler match)
       ;; explicit handling of / as index.html. wrap-resources does the rest
       :index (index req)
-      :api (server/generate-response (api req))
+      :api (api req)
       nil)))
 
 (defn wrap-connection
-  "Ring middleware function that invokes the general handler with the parser and parsing environgment on the request."
+  "Ring middleware function that invokes the general handler with the parser and parsing environment on the request."
   [handler route-handler api-parser om-parsing-env app-name]
   (fn [req]
-    (if-let [res (route-handler (assoc req
-                                  :parser api-parser
-                                  :env (assoc om-parsing-env :request req)
-                                  :app-name app-name))]
-      res
-      (handler req))))
+    (or (route-handler (assoc req
+                         :parser api-parser
+                         :env (assoc om-parsing-env :request req)
+                         :app-name app-name))
+        (handler req))))
 
 (defn wrap-extra-routes [dflt-handler {:as extra-routes :keys [routes handlers]} om-parsing-env]
   (if-not extra-routes dflt-handler
-                       (do (assert (and routes handlers) extra-routes)
-                           (fn [req]
-                             (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
-                               (if-let [bidi-handler (get handlers (:handler match))]
-                                 (bidi-handler (assoc om-parsing-env :request req) match)
-                                 (dflt-handler req)))))))
+    (do (assert (and routes handlers) extra-routes)
+      (fn [req]
+        (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
+          (if-let [bidi-handler (get handlers (:handler match))]
+            (bidi-handler (assoc om-parsing-env :request req) match)
+            (dflt-handler req)))))))
 
 (defn not-found-handler []
   (fn [req]
@@ -192,9 +188,9 @@
         (throw e))))
   (stop [this]
     (if-not server this
-                   (do (server)
-                       (timbre/info "web server stopped.")
-                       (assoc this :server nil)))))
+      (do (server)
+        (timbre/info "web server stopped.")
+        (assoc this :server nil)))))
 
 (defn make-web-server
   "Builds a web server with an optional argument that
@@ -261,7 +257,6 @@
                              :handler handler]
         all-components      (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
-
 
 (defrecord WrapDefaults [handler defaults-config]
   component/Lifecycle

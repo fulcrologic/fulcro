@@ -10,7 +10,7 @@
 
 (t/use-fixtures
   :once #(timbre/with-merged-config
-           {:ns-blacklist ["untangled.server.impl.components.handler"]}
+           {:level :fatal}
            (%)))
 
 (specification "generate-response"
@@ -41,21 +41,23 @@
       (server/generate-response {:status 600}) =throws=> (AssertionError #"600"))))
 
 (specification "An API Response"
-  (let [my-read (fn [_ key _] {:value (case key
-                                        :foo "success"
-                                        :foo-session (augment-response {:some "data"} #(assoc-in % [:session :foo] "bar"))
-                                        :bar (throw (ex-info "Oops" {:my :bad}))
-                                        :bar' (throw (ex-info "Oops'" {:status 402 :body "quite an error"}))
-                                        :baz (throw (IllegalArgumentException.)))})
+  (let [my-read (fn [_ key _]
+                  {:value (case key
+                            :foo "success"
+                            :foo-session (augment-response {:some "data"} #(assoc-in % [:session :uid] "current-user"))
+                            :bar (throw (ex-info "Oops" {:my :bad}))
+                            :bar' (throw (ex-info "Oops'" {:status 402 :body "quite an error"}))
+                            :baz (throw (IllegalArgumentException.)))})
 
-        my-mutate (fn [_ key _] {:action (condp = key
-                                           'foo (fn [] "success")
-                                           'overrides (fn [] (augment-response {} #(assoc % :body "override"
-                                                                                            :status 201
-                                                                                            :cookies {:foo "bar"})))
-                                           'bar (fn [] (throw (ex-info "Oops" {:my :bad})))
-                                           'bar' (fn [] (throw (ex-info "Oops'" {:status 402 :body "quite an error"})))
-                                           'baz (fn [] (throw (IllegalArgumentException.))))})
+        my-mutate (fn [_ key params]
+                    {:action (condp = key
+                               'foo (fn [] "success")
+                               'overrides (fn [] (augment-response {} #(assoc % :body "override"
+                                                                         :status 201
+                                                                         :cookies {:uid (:uid params)})))
+                               'bar (fn [] (throw (ex-info "Oops" {:my :bad})))
+                               'bar' (fn [] (throw (ex-info "Oops'" {:status 402 :body "quite an error"})))
+                               'baz (fn [] (throw (IllegalArgumentException.))))})
 
         parser (om/parser {:read my-read :mutate my-mutate})
         parse-result (fn [query] (easy/api {:parser parser :transit-params query}))]
@@ -130,11 +132,12 @@
       (behavior "adds the response keys to the ring response"
         (let [result (parse-result [:foo-session])]
           (assertions
-            (:session result) => {:foo "bar"})))
-      (behavior "user can override response status and body"
+            (:session result) => {:uid "current-user"})))
+      (behavior "user can override response fields, eg status & body"
         (assertions
-          (parse-result ['(overrides)])
-          => {:status 201, :body "override", :cookies {:foo "bar"}})))))
+          (parse-result ['(overrides {:uid "new-user"})])
+          => {:status 201, :body "override", :cookies {:uid "new-user"}
+              :headers {"Content-Type" "application/transit+json"}})))))
 
 (defn run [handler req]
   ((:middleware (component/start handler)) req))
