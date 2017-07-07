@@ -9,13 +9,13 @@ advantages over techniques, libraries, and frameworks you might have used before
 Evaluating tools for web development can be a monumental task. Untangled has a particular
 set of strengths that may or may not be a good fit. To help you evaluate it, you might want to:
 
+- If you've read about Om Next, you might want to understand [how Untangled improves stock Om Next](vsom-next.html)
 - Read about [the benefits of Untangled](benefits.html)
 - Clone and play with the [Untangled Template](https://github.com/awkay/untangled-template) project.
 - Clone and play with an Untangled (full-stack!) [TODOMVC](https://github.com/untangled-web/untangled-todomvc) uses an older version of the library. Needs updating, but still works).
 - Use the [Untangled Evaluation Spreadsheet](evaluation.html)
-- Understand [how Untangled differs from stock Om Next](vsom-next.html)
 
-## What Does it look Like?
+## What does it look Like?
 
 There is a YouTube video playlist of relatively short videos that can help you get
 started quickly and often clarifies things that people struggle with:
