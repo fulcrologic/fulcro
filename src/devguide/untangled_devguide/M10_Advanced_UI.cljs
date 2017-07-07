@@ -159,3 +159,48 @@
                {:year 2001 :value 200}
                ]}
   {:inspect-data true})
+
+(defcard-doc
+  "
+  ## Filling UI Data using a Custom Client Read Handler
+
+  Stock Om Next has you supply a parser for which you supply read and mutation handlers. Untangled supplies
+  both of these for you by default. This has the advantage of a much simpler code stack, but does have
+  the drawback that some queries supported by Om Query syntax can only be processed by a server.
+
+  In Untangled the general philosophy is that you'd rather create the cached data structure that represents the
+  UI tree in your app state and update that via mutations; however, there are definitely cases where having
+  the ability to synthesize query results in the client on-the-fly is quite useful.
+
+  Untangled 1.0.0-beta2 and above support doing just this, and it is quite simple (though your read function
+  itself might become quite complex).
+
+  Read the documentation about dealing with Om Next Queries (we describe this in the various server topics
+  of the guide to understand how to write such a read handler, but basically:
+  For a given **root** query. The Om parser calls the read function once for each top-level property:
+
+  ```
+  [:a {:j (om/get-query J)}]
+  ```
+
+  results in two calls to read (on `:a` and `:j`).
+
+  If you supply a custom read function, you may handle either of these. Once you start handling
+  it, you must finish (though that part is quite easy, since Om supplies `db->tree` that can be used
+  to do so against the remaining recursive parse).
+
+  **Notice that it does not recurse for you. The parser is passed to you in the `env`, so you can recurse if you want/need to.**
+  If you do choose to call the parser recursively, then you must handle that entire *path*. Fortunately, `db->tree` can
+  by used to finish up a read for queries that can come from the raw state.
+
+  Setting this up requires two steps:
+
+  1. Write your read function.
+  2. Install it using the `:read-local` option of the client.
+
+  ```
+  (defn my-read [env k params] ...)
+
+  (defonce app (atom (new-untangled-client :read-local my-read)))
+  ```
+  ")

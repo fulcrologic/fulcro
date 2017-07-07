@@ -19,7 +19,9 @@
                                      :c {:x 3 :y 7 :z [[:dashboard :d]]}
                                      :d {:x 5 :y 10}}
                       :panel        {:a {:x 1 :n 4}}})
-        parser (partial (om/parser {:read impl/read-local}) {:state state})]
+        custom-read      (fn [env k params] (when (= k :custom) {:value 42}))
+        parser           (partial (om/parser {:read (partial impl/read-local (constantly false))}) {:state state})
+        augmented-parser (partial (om/parser {:read (partial impl/read-local custom-read)}) {:state state})]
 
     (reset! i18n/*current-locale* "en-US")
 
@@ -43,14 +45,26 @@
       (parser [{:dashboard [{:b [:x :y {:z '...}]}]}]) => {:dashboard {:b {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}}
 
       "read recursion nested in a union query"
-      (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y {:z '...}]}}]) =>
-      {:union-join-2 {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}})
+      (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y {:z '...}]}}]) => {:union-join-2 {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}
+
+      "still exhibits normal behavior when augmenting with a custom root-level reader function"
+      (augmented-parser [:top-level]) => {:top-level :top-level-value}
+      (augmented-parser [{:join [:sub-key-2]}]) => {:join {:sub-key-2 :sub-value-2}}
+      (augmented-parser [{:union-join {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join {:x 1 :n 4}}
+      (augmented-parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join-2 {:x 2 :y 1}}
+      (augmented-parser [{[:panel :a] {:panel [:x :n] :dashboard [:x :y]}}]) => {[:panel :a] {:x 1 :n 4}}
+      (augmented-parser [{:join [{:sub-key-1 [:survey/title :survey/description]}]}]) => {:join {:sub-key-1 {:survey/title "Howdy!" :survey/description "More stuff"}}}
+      (augmented-parser [{:dashboard [{:b [:x :y {:z '...}]}]}]) => {:dashboard {:b {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}}
+      (augmented-parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y {:z '...}]}}]) => {:union-join-2 {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}
+
+      "supports augmentation from a user-supplied read function"
+      (augmented-parser [:top-level :custom]) => {:top-level :top-level-value :custom 42})
 
     (let [state  {:curr-view      [:main :view]
                   :main           {:view {:curr-item [[:sub-item/by-id 2]]}}
                   :sub-item/by-id {2 {:foo :baz :sub-items [[:sub-item/by-id 4]]}
                                    4 {:foo :bar}}}
-          parser (partial (om/parser {:read impl/read-local}) {:state (atom state)})]
+          parser (partial (om/parser {:read (partial impl/read-local (constantly nil))}) {:state (atom state)})]
 
       (assertions
         "read recursion nested in a join underneath a union"

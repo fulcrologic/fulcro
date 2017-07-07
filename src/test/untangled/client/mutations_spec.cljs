@@ -97,7 +97,7 @@
 
 (specification "Mutations via transact"
   (let [state {}
-        parser (partial (om/parser {:read plumb/read-local :mutate m/mutate}))
+        parser (partial (om/parser {:read (partial plumb/read-local (constantly false)) :mutate m/mutate}))
         reconciler (om/reconciler {:state  state
                                    :parser parser})]
 

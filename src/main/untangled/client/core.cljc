@@ -75,6 +75,14 @@
 
   `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (om/shared this)
 
+  `:read-local` (optional). An Om read function for the Om Parser. (fn [env k params] ...). If supplied,
+  it will be called once for each root-level query key. If it returns `nil` or `false` for that key then the built-in Untangled read will handle that
+  branch of the root query. If it returns a map with the shape `{:value ...}`, then that will be used for the response. This is *not*
+  recursive. If you begin handling a *branch* (e.g. a join), you must finish doing so (though if using recursion, you can technically handle just
+  the properties that need your custom handling). At any time you can use `om/db->tree` to get raw graph data from the database for a branch.
+  NOTE: *it will be allowed* to trigger remote reads. This is not recommended, as you will probably have to augment the networking layer to
+  get it to do what you mean. Use `load` instead. You have been warned. Triggering remote reads is allowed, but discouraged and unsupported.
+
   `:networking` (optional). An instance of UntangledNetwork that will act as the default remote (named :remote). If
   you want to support multiple remotes, then this should be a map whose keys are the keyword names of the remotes
   and whose values are UntangledNetwork instances.
@@ -89,10 +97,11 @@
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
   [& {:keys [initial-state mutation-merge started-callback networking reconciler-options
-             request-transform network-error-callback migrate transit-handlers shared]
-      :or   {initial-state {} started-callback (constantly nil) network-error-callback (constantly nil)
+             read-local request-transform network-error-callback migrate transit-handlers shared]
+      :or   {initial-state {} read-local (constantly false) started-callback (constantly nil) network-error-callback (constantly nil)
              migrate       nil shared nil}}]
   (map->Application {:initial-state      initial-state
+                     :read-local         read-local
                      :mutation-merge     mutation-merge
                      :started-callback   started-callback
                      :reconciler-options (merge (cond-> {}
@@ -166,13 +175,13 @@
 (defn- initialize
   "Initialize the untangled Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
-  [{:keys [networking started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
+  [{:keys [networking read-local started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
   (let [network-map #?(:cljs (if (implements? net/UntangledNetwork networking) {:remote networking} networking)
                        :clj {})
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels   (zipmap remotes (map #(async/chan) remotes))
-        parser              (om/parser {:read plumbing/read-local :mutate plumbing/write-entry-point})
+        parser              (om/parser {:read (partial plumbing/read-local read-local) :mutate plumbing/write-entry-point})
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
                                        :parser parser :mounted? true)
         rec                 (app/generate-reconciler initial-app initial-state parser reconciler-options)
@@ -224,7 +233,7 @@
         (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
-(defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues response-channels reconciler parser mounted? reconciler-options]
+(defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues response-channels reconciler read-local parser mounted? reconciler-options]
   UntangledApplication
   (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 

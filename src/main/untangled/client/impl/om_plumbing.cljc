@@ -15,9 +15,15 @@
   *** NOTE: This function only runs when it is called without a target -- it is not triggered for remote reads. To
   trigger a remote read, use the `untangled/data-fetch` namespace. ***
 
+  If a user-read is supplied, *it will be allowed* to trigger remote reads. This is not recommended, as you
+  will probably have to augment the networking layer to get it to do what you mean. Use `load` instead. You have
+  been warned. Triggering remote reads is allowed, but discouraged and unsupported.
+
   Returns the current locale when reading the :ui/locale keyword. Otherwise pulls data out of the app-state.
   "
-  [{:keys [query target state ast]} dkey _]
+  [user-read {:keys [query target state ast] :as env} dkey params]
+  (if-let [custom-result (user-read env dkey params)]
+    custom-result
   (when (not target)
     (case dkey
       (let [top-level-prop (nil? query)
@@ -29,7 +35,7 @@
          (cond
            union? (get (om/db->tree [{key query}] @state @state) key)
            top-level-prop data
-           :else (om/db->tree query data @state))}))))
+             :else (om/db->tree query data @state))})))))
 
 (defn write-entry-point
   "This is the Om entry point for writes. In general this is simply a call to the multi-method
