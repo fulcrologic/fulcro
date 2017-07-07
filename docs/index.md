@@ -34,3 +34,15 @@ guide. Those that like videos are encouraged to also read this guide.
 ## Social Media???
 
 You can follow [@untanglefw](http://www.twitter.com/untangledfw) on twitter.
+
+## Contributing
+
+Untangled is an open-source project that is currently my full-time endeavor. I hope you
+find it useful, and if you do I very much appreciate contributions in any of the
+following forms:
+
+- Reporting issues, ideally with a reproducible case
+- Proofreading the website/documentation. I write fast, and often make misakes [sic].
+- A pull request fixing a bug (see [https://github.com/awkay/untangled/blob/develop/CONTRIBUTING.md](CONTRIBUTING.md))
+- Expansions via a pull request (please talk to me first).
+- [Donations](https://www.patreon.com/untangledfw): help feed the code monkey!
