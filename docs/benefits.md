@@ -12,7 +12,7 @@ In the interest of giving you some talking points:
 
 - Use an advanced, fast, FP language on both the client and server.
 - Reason about the UI as a pure function (no "bit twiddling" to modify the DOM).
-- Reason about the data model as a pure graph of data (mostly separate from the UI)
+- Reason about the data model as a pure graph of data (mostly separate from the UI).
     - Data ends up in easy-to-access linked table-like structures that make understanding and updating the data easy.
 - Clean, unit-testable *mutations* evolve the data model. The UI takes care of itself through two easy to understand
 mechanisms (no two-way data binding causing (or failing to cause) storms of refreshes):
@@ -22,12 +22,12 @@ mechanisms (no two-way data binding causing (or failing to cause) storms of refr
 - A full-stack story that unifies how your model is treated on both the client and server.
 - It is [React](https://facebook.github.io/react/)-based: The rendering itself is done by a widely used, supported, and robust library.
 - The data and communication model is similar to that of GraphQL and Falcor, but simplified via a concise Datomic-like graph query language.
-    - [Data driven architecture](https://medium.com/@env/demand-driven-development-relay-falcor-om-next-75818bd54ea1)
-    - [CQRS](https://www.youtube.com/watch?v=qDNPQo9UmJA) is pretty easy to add as a middle layer for both auditability and performance.
+    - Read about [data driven architectures](https://medium.com/@env/demand-driven-development-relay-falcor-om-next-75818bd54ea1).
+    - The Om Next model makes [CQRS](https://www.youtube.com/watch?v=qDNPQo9UmJA) pretty easy to add for both auditing and performance.
 - It has a strong FP flair:
-    - Rendering is done as a pure function
-    - No in-place mutation (persistent data structures)
-    - UI History and time travel are supported features (including a support UI VCR)
+    - Rendering is done as a pure function.
+    - No in-place mutation (persistent data structures).
+    - UI History and time travel are supported features (including a support UI VCR).
 - It leverages Google Closure for js optimization, so you get these for free (with little headache):
     - Dynamic module loading (code splitting)
     - Minification
