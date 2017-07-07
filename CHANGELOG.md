@@ -6,6 +6,7 @@
 - Improved docstrings on form commit
 - Added defvalidator for making form field validators
 - Added untangled.client.data-fetch/fallback as the new name for tx/fallback. tx/fallback is still OK, but the new one uses a defmutation, so it pops up in IDEs.
+- Added support for user-supplied client read handler
 
 1.0.0-beta1
 -----
