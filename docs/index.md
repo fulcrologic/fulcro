@@ -40,6 +40,16 @@ guide. Those that like videos are encouraged to also read this guide.
 our best to update the materials when possible, but it would be really helpful for you to
 file an issue if you notice something is outdated.
 
+## Companion Projects
+
+Untangled has a few companion projects that you should know about:
+
+- [Untangled Spec](https://github.com/awkay/untangled-spec): A BDD testing library written in Untangoed that gives you powerful extensions and expressiveness over clj/cljs test. It can refresh and render test results in a browser for both client and server!
+- [Untangled CSS](https://github.com/awkay/untangled-css): A library for writing/co-locating CSS on UI components in Om Next and Untangled.
+- [Untangled Template](https://github.com/awkay/untangled-template): A (forkable) repository that has a full-stack starter app, and includes a rename script.
+- [Getting Started Files](https://github.com/awkay/untangled-getting-started): A repository that has the source code for the Getting Started Guide.
+- [In The Large Files](https://github.com/awkay/untangled-in-the-large): A repository with the source code for the Untangled In the Large videos.
+
 ## Testimonials
 
 Karan Toor – [AdStage](https://www.adstage.io/) (commercial)
@@ -112,15 +122,6 @@ and I'll be glad to include you in the list!
 
 You can follow [@untangledfw](http://www.twitter.com/untangledfw) on twitter.
 
-## Companion Projects
-
-Untangled has a few companion projects that you should know about:
-
-- [Untangled Spec](https://github.com/awkay/untangled-spec): A BDD testing library written in Untangoed that gives you powerful extensions and expressiveness over clj/cljs test. It can refresh and render test results in a browser for both client and server!
-- [Untangled CSS](https://github.com/awkay/untangled-css): A library for writing/co-locating CSS on UI components in Om Next and Untangled.
-- [Untangled Template](https://github.com/awkay/untangled-template): A (forkable) repository that has a full-stack starter app, and includes a rename script.
-- [Getting Started Files](https://github.com/awkay/untangled-getting-started): A repository that has the source code for the Getting Started Guide.
-- [In The Large Files](https://github.com/awkay/untangled-in-the-large): A repository with the source code for the Untangled In the Large videos.
 
 ## Contributing
 
