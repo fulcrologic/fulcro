@@ -47,6 +47,6 @@ following forms:
 
 - Reporting issues, ideally with a reproducible case
 - Proofreading the website/documentation. I write fast, and often make misakes [sic].
-- A pull request fixing a bug (see [https://github.com/awkay/untangled/blob/develop/CONTRIBUTING.md](CONTRIBUTING.md))
+- A pull request fixing a bug (see [CONTRIBUTING](https://github.com/awkay/untangled/blob/develop/CONTRIBUTING.md))
 - Expansions via a pull request (please talk to me first).
 - [Donations](https://www.patreon.com/untangledfw): help feed the code monkey!
