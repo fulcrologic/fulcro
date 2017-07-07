@@ -58,6 +58,7 @@ This goes in `project.clj`:
 
   :profiles {:dev {:source-paths ["src/dev" "src/main"]
                    :dependencies [[binaryage/devtools "0.9.4"]
+                                  [org.clojure/tools.namespace "0.3.0-alpha4"]
                                   [figwheel-sidecar "0.5.10"]]}})
 ----
 
@@ -908,7 +909,7 @@ When a transaction runs in Untangled, it passes things off to a multimethod. Thi
 detail in the Om documentation and the Untangled Developer's Guide, but Untangled provides a macro that makes
 building (and using) them easier: `defmutation`.
 
-Let's create a new namespace called `app.operations` in `src/app/operations.cljs`
+Let's create a new namespace called `app.operations` in `src/main/app/operations.cljs`
 
 A mutation looks a bit like a method. It can have a docstring, and the argument list will always receive a
 single argument (params) that will be a map (which then allows destructuring).
@@ -1276,7 +1277,7 @@ To add a server to our project just requires a few small additions:
 * Some tweaks to allow us to rapidly restart the server with code refresh for quick
 development.
 
-In `dev/user.clj`, we'll add the following for development use:
+In `src/dev/user.clj`, we'll add the following for development use:
 
 [source]
 ----
@@ -1299,7 +1300,8 @@ In `dev/user.clj`, we'll add the following for development use:
 (declare reset)
 
 (defn refresh
-  "Refresh the live code. Use this if the server is stopped. Otherwise, use `reset`."
+  "Refresh the live code. Use this if the server is stopped (e.g. you used `reset` but there was
+  a compiler error). Otherwise, use `reset`."
   [& args]
   (if @system
     (println "The server is running. Use `reset` instead.")
@@ -1590,7 +1592,7 @@ In vanilla Om Next you would now be tasked with converting the raw CLJ query int
 about that in the developer's guide; however, remember that we're using Untangled's built-in request parser. This
 makes our job much easier.
 
-Create a new namespace in `src/main/operations.clj` (NOT the cljs file...that was for the client operations):
+Create a new namespace in `src/main/app/operations.clj` (NOT the cljs file...that was for the client operations):
 
 [source]
 ----
