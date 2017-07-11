@@ -23,9 +23,7 @@ To help you evaluate it, you might want to:
 
 ## What does it look Like?
 
-There is a YouTube video playlist of relatively short videos that can help you get
-started quickly and often clarifies things that people struggle with:
-[Untangled Video Playlist](https://www.youtube.com/playlist?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R)
+There is a [YouTube video playlist](https://www.youtube.com/playlist?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R) of relatively short videos that can help you get started quickly and often clarifies things that people struggle with.
 
 If you just want to get a quick look of what working in Untangled looks like you might check this one out:
 
@@ -122,16 +120,24 @@ and I'll be glad to include you in the list!
 
 You can follow [@untangledfw](http://www.twitter.com/untangledfw) on twitter.
 
-
 ## Contributing
 
-Untangled is an open-source project that is currently my full-time endeavor. I hope you
-find it useful, and I very much appreciate contributions in any of the
-following forms:
+Untangled is an open-source project that is currently supported by people like you. If you
+find it useful please consider contributions in any of the following forms:
 
 - Reporting issues, ideally with a reproducible case
 - Look for things that need testing or additions and do that. See [Status](status.html).
-- Proofreading the website/documentation. I write fast, and often make misakes [sic].
+- Proofreading the website/documentation. 
 - A pull request fixing a bug (see [CONTRIBUTING](https://github.com/awkay/untangled/blob/develop/CONTRIBUTING.md))
-- Expansions via a pull request (please talk to me first).
-- [Donations](https://www.patreon.com/untangledfw): help feed the code monkey!
+- Expansions via a pull request (please check in on Slack first).
+- [Donations](fund.html): help feed the code monkey!
+
+### Corporate Sponsors
+
+Become a corporate sponsor! Open source is about freedom, not free beer. The software you're organization
+depends on is critical to your success! The following companies recognize that value and have
+made contributions to Untangled.
+
+<div style="text-align: center">
+<a href="http://www.adstage.io"><img width="200" class="sponsor-img" src="adstage.png"></a>
+</div>
