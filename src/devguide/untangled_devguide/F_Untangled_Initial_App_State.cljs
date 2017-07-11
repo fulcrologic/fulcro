@@ -234,17 +234,17 @@
 
   IF you have a component that queries for **nothing except through a root-link**, then that component **must** have
   at least an empty map as it's local state. This is due to the fact that the query engine walks the query in parallel
-  with the app state. If it sees no entry in the app state for the entire component, then it won't bother work on it's
-  query either. Here's an example that shows two components querying for a root prop, but only one has an (empty, but
-  extant) initial state.
-  "
+  with the app state. If it sees no entry in the app state for the entire component, then it won't bother to work on it's
+  query (philosophically, this is a questionable case anyhow...why is it a stateful component if it has no state?).
+  Here's an example that shows two components querying for a root prop, but only one has an (empty, but
+  extant) initial state."
   (dc/mkdn-pprint-source AQueryRoot)
   (dc/mkdn-pprint-source BQueryRoot)
   (dc/mkdn-pprint-source RootQueryRoot))
 
 (defcard root-prop-query-gotcha
   "The live version of the code showing a root prop query problem. B has no state at all, so it's query isn't processed
-  even though it could technically find the data needed. Queries and state are walked together by the query processing,
+  even though we could technically find the data needed. Queries and state are walked together by the query processing,
   so missing state for a component will keep its query from being processed."
   (untangled-app RootQueryRoot) {} {:inspect-data true})
 
