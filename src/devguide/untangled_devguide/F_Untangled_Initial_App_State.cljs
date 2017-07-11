@@ -174,7 +174,82 @@
 
   These helpers are descibed in more detail in [Advanced Server Topics](#!/untangled_devguide.M40_Advanced_Server_Topics).
 
-  ## Moving on...
+")
+
+
+(defui ^:once AQueryRoot
+  static uc/InitialAppState
+  (initial-state [c p] {})                                  ; empty, but present initial state
+  static om/IQuery
+  (query [this] [[:root-prop '_]])                          ; A asks for something from root, but has no local props (empty map)
+  Object
+  (render [this]
+    (let [{:keys [root-prop]} (om/props this)]
+      (dom/p nil "A got " (if root-prop root-prop "Nothing!")))))
+
+(def ui-a (om/factory AQueryRoot))
+
+(defui ^:once BQueryRoot
+  ; no initial state
+  static om/IQuery
+  (query [this] [[:root-prop '_]])                          ; B asks for something from root, no local props (nil for state)
+  Object
+  (render [this]
+    (let [{:keys [root-prop]} (om/props this)]
+      (dom/p nil "B got " (if root-prop root-prop "Nothing!")))))
+
+(def ui-b (om/factory BQueryRoot))
+
+(defui ^:once RootQueryRoot
+  static uc/InitialAppState
+  (initial-state [c p] {:root-prop 42 :a (uc/get-initial-state AQueryRoot {}) :b nil}) ; b has no state
+  static om/IQuery
+  (query [this] [{:a (om/get-query AQueryRoot) :b (om/get-query BQueryRoot)}])
+  Object
+  (render [this]
+    (let [{:keys [a b]} (om/props this)]
+      (dom/div nil
+        (ui-a a)
+        (ui-b b)))))
+
+(defcard-doc "
+
+  ## Comments on InitialAppState
+
+  The benefits of this mechanism are huge:
+
+  - Local reasoning about your startup data state. Your initial state is co-located with the component.
+  - Refactoring is trivial! Your initial state automatically reshapes itself when you move/re-compose a UI component.
+  - Components are fully embeddable in a devcard for component-centric development. Just write a devcard root and compose initial state! Loads are targeted at nodes (tables), so those
+  always relocate well.
+
+  The costs are very low. In fact, the costs are the minimum amount of work and complexity you could have: state what is needed
+  at UI startup in the context of the thing that needs it.
+
+  Please do not confuse this mechanism with a constructor. It is not really that. It is simply a mechanism whereby you
+  can co-locate the data that will **fulfill** your initial applications query **with the query fragment**.
+
+  The only problem I've seen to date with this is with root link queries. These are queries that pull data from the
+  root of the graph. Don't misunderstand: They work perfectly with all of this. However, there is a small gotcha.
+
+  IF you have a component that queries for **nothing except through a root-link**, then that component **must** have
+  at least an empty map as it's local state. This is due to the fact that the query engine walks the query in parallel
+  with the app state. If it sees no entry in the app state for the entire component, then it won't bother work on it's
+  query either. Here's an example that shows two components querying for a root prop, but only one has an (empty, but
+  extant) initial state.
+  "
+  (dc/mkdn-pprint-source AQueryRoot)
+  (dc/mkdn-pprint-source BQueryRoot)
+  (dc/mkdn-pprint-source RootQueryRoot))
+
+(defcard root-prop-query-gotcha
+  "The live version of the code showing a root prop query problem. B has no state at all, so it's query isn't processed
+  even though it could technically find the data needed. Queries and state are walked together by the query processing,
+  so missing state for a component will keep its query from being processed."
+  (untangled-app RootQueryRoot) {} {:inspect-data true})
+
+(defcard-doc "
+  ## Moving on
 
   Now that you've got a much easier way to create your initial state, you're probably interested in seeing your
   application do more than render static state. It's time to learn about [mutations](#!/untangled_devguide.G_Mutation)!
@@ -182,4 +257,5 @@
   At some point you'll also be interested in setting up [a development environment](#!/untangled_devguide.F_Untangled_DevEnv)
   for your own project.
   ")
+
 
