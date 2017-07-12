@@ -3,9 +3,9 @@
             [om.next.server :as om]
             [om.next.impl.parser :as op]
             [taoensso.timbre :as timbre]
-            [untangled.easy-server :as core]
-            [untangled.websockets.components.channel-server :as cs]
-            [untangled.websockets.protocols :refer [WSListener client-dropped client-added add-listener remove-listener push]]
+            [fulcro.easy-server :as core]
+            [fulcro.websockets.components.channel-server :as cs]
+            [fulcro.websockets.protocols :refer [WSListener client-dropped client-added add-listener remove-listener push]]
             [cards.server-api :as api]))
 
 (def db

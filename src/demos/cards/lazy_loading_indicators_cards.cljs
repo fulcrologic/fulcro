@@ -2,16 +2,16 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.lazy-loading-visual-indicators-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]))
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]))
 
 
 (dc/defcard-doc
   "# Lazy Load Indicators
 
-  Untangled places markers on items that are being loaded. These markers can be used to show progress indicators in
+  Fulcro places markers on items that are being loaded. These markers can be used to show progress indicators in
   the UI. There are essentially two kinds: a global marker, and an item-based marker. The global marker is present during
   and loads, whereas the localized markers are present until a specific item's load has completed.
 
@@ -40,6 +40,6 @@
   Note that once you get this final items loaded (which have refresh buttons), the two items have different ways of
   showing refresh.
   "
-  (untangled-app client/Root)
+  (fulcro-app client/Root)
   {}
   {:inspect-data true})

@@ -19,12 +19,12 @@ Your project will need a few basic directories and files:
 
 ### Project File
 
-Untangled requires that you include a few things in your dependency list.
+Fulcro requires that you include a few things in your dependency list.
 
 * Om Next (1.0.0-beta1 or above)
 * Clojure (1.9.0-alpha16 or above)
 * Clojurescript (1.9.542 or above)
-* Untangled (this library)
+* Fulcro (this library)
 
 A typical project will also include figwheel, devtools, and
 at least one development build configuration.
@@ -37,7 +37,7 @@ This goes in `project.clj`:
   :dependencies [[org.clojure/clojure "1.9.0-alpha17"]
                  [org.clojure/clojurescript "1.9.671"]
                  [org.omcljs/om "1.0.0-beta1"]
-                 [awkay/untangled "1.0.0-beta1"]]
+                 [fulcrologic/fulcro "1.0.0-beta1"]]
 
   :source-paths ["src/main"]
   :resource-paths ["resources"]
@@ -58,6 +58,7 @@ This goes in `project.clj`:
 
   :profiles {:dev {:source-paths ["src/dev" "src/main"]
                    :dependencies [[binaryage/devtools "0.9.4"]
+                                  [org.clojure/tools.namespace "0.3.0-alpha4"]
                                   [figwheel-sidecar "0.5.10"]]}})
 ----
 
@@ -117,12 +118,12 @@ Place this in `src/main/app/basic_ui.cljs`:
 [source]
 ----
 (ns app.basic-ui
-  (:require [untangled.client.core :as uc]
+  (:require [fulcro.client.core :as uc]
             [om.dom :as dom]
             [om.next :as om :refer [defui]]))
 
 ; Create an application
-(defonce app-1 (atom (uc/new-untangled-client)))
+(defonce app-1 (atom (uc/new-fulcro-client)))
 
 ; Create a simple UI
 (defui Root
@@ -138,7 +139,7 @@ and this in `src/dev/cljs/user.cljs` (NOTE THIS IS DIFFERENT FROM `src/dev/user.
 (ns cljs.user
   (:require
     [app.basic-ui :refer [app-1 Root]]
-    [untangled.client.core :as uc]))
+    [fulcro.client.core :as uc]))
 
 ; so figwheel can call it on reloads. Remounting just forces a UI refresh.
 (defn refresh [] (swap! app-1 uc/mount Root "app-1"))
@@ -230,7 +231,7 @@ of a library that doesn't have some needed feature of bug fix.
 
 ## Basic UI Components
 
-Untangled uses Om's `defui` to build React components. This macro emits React components that work as 100% raw React
+Fulcro uses Om's `defui` to build React components. This macro emits React components that work as 100% raw React
 components (i.e. once you compile them to Javascript they could be used from other native React code).
 
 Om also supplies factory functions for generating all standard HTML5 DOM elements in React in the `om.dom` namespace.
@@ -299,7 +300,7 @@ latter is useful when you've computed attributes in regular clj data structures 
 
 ### Props
 
-React components receive their data through props and state. In Untangled we generally recommend using props. This
+React components receive their data through props and state. In Fulcro we generally recommend using props. This
 ensures that various other features work well. The data passed to a component can be accessed (as a cljs map) by
 calling `om/props` on `this`.
 
@@ -347,7 +348,7 @@ There are two steps to make this work.
 1. Make sure the definition of the UI components is marked with `:once` metadata:
 2. Force React to re-render the entire UI (Om optimizes away refresh when the app state hasn't changed).
 The trick here is to change the React key on the root element (which forces React to throw away the prior tree
-and generate a whole new one). Untangled helps by sending your root component a property named `:ui/react-key` that
+and generate a whole new one). Fulcro helps by sending your root component a property named `:ui/react-key` that
 only changes on (re)mount and forced refresh.
 
 So, changing your current application to this:
@@ -355,11 +356,11 @@ So, changing your current application to this:
 [source]
 ----
 (ns app.basic-ui
-  (:require [untangled.client.core :as uc]
+  (:require [fulcro.client.core :as uc]
             [om.dom :as dom]
             [om.next :as om :refer [defui]]))
 
-(defonce app-1 (atom (uc/new-untangled-client)))
+(defonce app-1 (atom (uc/new-fulcro-client)))
 
 (defui ^:once Person
   Object
@@ -395,11 +396,11 @@ Replace your `basic_ui.cljs` content with this:
 [source]
 ----
 (ns app.basic-ui
-  (:require [untangled.client.core :as uc]
+  (:require [fulcro.client.core :as uc]
             [om.dom :as dom]
             [om.next :as om :refer [defui]]))
 
-(defonce app-1 (atom (uc/new-untangled-client)))
+(defonce app-1 (atom (uc/new-fulcro-client)))
 
 (defui ^:once Person
   Object
@@ -502,11 +503,11 @@ said data model.
 
 ### Step 1 -- The Initial State
 
-In Untangled, there is a way to construct the initial tree of data in a way that allows for local reasoning:
+In Fulcro, there is a way to construct the initial tree of data in a way that allows for local reasoning:
 co-locate the initial desired part of the tree with the component that uses it. This allows you to compose the
 state tree in exactly the same way as the UI tree.
 
-Untangled defines a protocol `InitialAppState` with a single method named `initial-state`. The defui macro
+Fulcro defines a protocol `InitialAppState` with a single method named `initial-state`. The defui macro
 will allow us to add that implementation to the generated component class by adding `static` in front of
 the protocol name we want to implement.
 
@@ -572,7 +573,7 @@ In fact, at the figwheel REPL you can see the tree by running:
 
 [source]
 ----
-dev:cljs.user=> (untangled.client.core/get-initial-state app.basic-ui/Root {})
+dev:cljs.user=> (fulcro.client.core/get-initial-state app.basic-ui/Root {})
 {:friends
  {:person-list/label "Friends",
   :person-list/people
@@ -585,11 +586,11 @@ dev:cljs.user=> (untangled.client.core/get-initial-state app.basic-ui/Root {})
    {:person/name "Bobby", :person/age 55}]}}
 ----
 
-NOTE: Technically, in cljs you can call `untangled.client.core/initial-state` directly, but this doesn't work right when
+NOTE: Technically, in cljs you can call `fulcro.client.core/initial-state` directly, but this doesn't work right when
 doing server-side rendering, so it is good to get in the habit of calling `static` protocol methods with the helper
 function.
 
-Behind the scenes Untangled has detected this initial state and actually automatically used it to initialize your
+Behind the scenes Fulcro has detected this initial state and actually automatically used it to initialize your
 application state, but at the moment we're accessing it directly, but you can check out the application's
 current state (which is held in an atom) with:
 
@@ -659,7 +660,7 @@ against it:
 
 [source]
 ----
-dev:cljs.user=>  (om.next/db->tree [{:friends [:person-list/label]}] (untangled.client.core/get-initial-state app.basic-ui/Root {}) {})
+dev:cljs.user=>  (om.next/db->tree [{:friends [:person-list/label]}] (fulcro.client.core/get-initial-state app.basic-ui/Root {}) {})
 {:friends {:person-list/label "Friends"}}
 ----
 
@@ -904,11 +905,11 @@ in the `ns`). Of course, you'll typically use unquote to embed data from local v
 
 ### Handling Mutations
 
-When a transaction runs in Untangled, it passes things off to a multimethod. This multi-method is described in more
-detail in the Om documentation and the Untangled Developer's Guide, but Untangled provides a macro that makes
+When a transaction runs in Fulcro, it passes things off to a multimethod. This multi-method is described in more
+detail in the Om documentation and the Fulcro Developer's Guide, but Fulcro provides a macro that makes
 building (and using) them easier: `defmutation`.
 
-Let's create a new namespace called `app.operations` in `src/app/operations.cljs`
+Let's create a new namespace called `app.operations` in `src/main/app/operations.cljs`
 
 A mutation looks a bit like a method. It can have a docstring, and the argument list will always receive a
 single argument (params) that will be a map (which then allows destructuring).
@@ -924,7 +925,7 @@ that we're deleting:
 [source]
 ----
 (ns app.operations
-  (:require [untangled.client.mutations :as m :refer [defmutation]]))
+  (:require [fulcro.client.mutations :as m :refer [defmutation]]))
 
 (defmutation delete-person
   "Mutation: Delete the person with name from the list with list-name"
@@ -949,7 +950,7 @@ Then all that remains is to change `basic-ui` in the following ways:
 [source]
 ----
 (ns app.basic-ui
-  (:require [untangled.client.core :as uc]
+  (:require [fulcro.client.core :as uc]
             [om.dom :as dom]
             ; ADD THIS:
             [app.operations :as ops] ; <1>
@@ -1132,7 +1133,7 @@ do it for you, other than the actual value of the `Ident`. So, we'll add one mor
         (ui-person-list enemies)))))
 ----
 
-<1> Adding an ident function allows Untangled to know how to build a FK reference to a person (given its props)
+<1> Adding an ident function allows Fulcro to know how to build a FK reference to a person (given its props)
 <2> We will be using IDs now, so we need to add `:db/id` to the query. This is just a convention for the ID attribute
 <3> The state of the entity will also need the ID
 <4> The callback can now delete people by their ID, which is more reliable.
@@ -1195,7 +1196,7 @@ This is not only much easier to code, but it is complete independent of the shap
 [source]
 ----
 (ns app.operations
-  (:require [untangled.client.mutations :as m :refer [defmutation]]))
+  (:require [fulcro.client.mutations :as m :refer [defmutation]]))
 
 (defmutation delete-person
   "Mutation: Delete the person with name from the list with list-name"
@@ -1262,8 +1263,8 @@ running.
 
 ### Setting up a Server
 
-There are two server namespaces in Untangled: `untangled.server` and
-`untangled.easy-server`. The former has composable bits for making a server that
+There are two server namespaces in Fulcro: `fulcro.server` and
+`fulcro.easy-server`. The former has composable bits for making a server that
 has a lot of your own extensions, while the latter is a pre-baked server that covers
 many of the common bases and is less work to get started with. You can always get started with the easy one, and upgrade
 to a more enhanced one later.
@@ -1276,7 +1277,7 @@ To add a server to our project just requires a few small additions:
 * Some tweaks to allow us to rapidly restart the server with code refresh for quick
 development.
 
-In `dev/user.clj`, we'll add the following for development use:
+In `src/dev/user.clj`, we'll add the following for development use:
 
 [source]
 ----
@@ -1299,7 +1300,8 @@ In `dev/user.clj`, we'll add the following for development use:
 (declare reset)
 
 (defn refresh
-  "Refresh the live code. Use this if the server is stopped. Otherwise, use `reset`."
+  "Refresh the live code. Use this if the server is stopped (e.g. you used `reset` but there was
+  a compiler error). Otherwise, use `reset`."
   [& args]
   (if @system
     (println "The server is running. Use `reset` instead.")
@@ -1341,18 +1343,18 @@ The server itself requires very little code. In `src/main/app/server.clj`:
 [source]
 ----
 (ns app.server
-  (:require [untangled.easy-server :as easy]
-            [untangled.server :as server ]
+  (:require [fulcro.easy-server :as easy]
+            [fulcro.server :as server ]
             [taoensso.timbre :as timbre]))
 
 (defn make-system [config-path]
-  (easy/make-untangled-server
+  (easy/make-fulcro-server
     :config-path config-path
-    :parser (server/untangled-parser)))
+    :parser (server/fulcro-parser)))
 ----
 
-The `make-untangled-server` function needs to know where to find the server config file, and what to use to process
-the incoming client requests (the parser). Untangled comes with a parser that you can use to get going. You may also
+The `make-fulcro-server` function needs to know where to find the server config file, and what to use to process
+the incoming client requests (the parser). Fulcro comes with a parser that you can use to get going. You may also
 supply your own Om parser here.
 
 Finally, you need two configuration files. Place these in `resources/config`:
@@ -1467,8 +1469,8 @@ The networking picture during full-stack development just splits these like this
                            +-------------------+
 ----
 
-Untangled's client will automatically route requests to the `/api` URI of the source URL that was used to load the page,
-and Untangled's server is built to watch for communications at this endpoint.
+Fulcro's client will automatically route requests to the `/api` URI of the source URL that was used to load the page,
+and Fulcro's server is built to watch for communications at this endpoint.
 
 ### Setup for Playing with Loads
 
@@ -1501,8 +1503,8 @@ Now we will start to see more of the payoff of our UI co-located queries and aut
 so far is quite unrealistic: the people we're showing should be coming from a server-side database, they
 should not be embedded in the code of the client. Let's remedy that.
 
-Untangled provides a few mechanisms for loading data, but every possible load scenario can be done using
-the `untangled.client.data-fetch/load` function.
+Fulcro provides a few mechanisms for loading data, but every possible load scenario can be done using
+the `fulcro.client.data-fetch/load` function.
 
 It is very important to remember that our application database is completely normalized, so anything we'd want to put
 in that application state will at most be 3 levels deep (the table name, the ID of the thing in the table, and the
@@ -1557,16 +1559,16 @@ To do this, we can add an option to our client. In `app.basic-ui` change `app-1`
 [source]
 ----
 (ns app.basic-ui
-  (:require [untangled.client.core :as uc]
+  (:require [fulcro.client.core :as uc]
             [om.dom :as dom]
             [app.operations :as ops]
             [om.next :as om :refer [defui]]
-            [untangled.client.data-fetch :as df] ; <1>
-            [untangled.client.mutations :as m]))
+            [fulcro.client.data-fetch :as df] ; <1>
+            [fulcro.client.mutations :as m]))
 
 ...
 
-(defonce app-1 (atom (uc/new-untangled-client
+(defonce app-1 (atom (uc/new-fulcro-client
                        :started-callback (fn [app]
                                            (df/load app :current-user Person))))) ; <2>
 ----
@@ -1587,16 +1589,16 @@ server. The server will receive *exactly* that query as a CLJ data structure.
 ##### Implementing the Server Handler
 
 In vanilla Om Next you would now be tasked with converting the raw CLJ query into a response. You can read more
-about that in the developer's guide; however, remember that we're using Untangled's built-in request parser. This
+about that in the developer's guide; however, remember that we're using Fulcro's built-in request parser. This
 makes our job much easier.
 
-Create a new namespace in `src/main/operations.clj` (NOT the cljs file...that was for the client operations):
+Create a new namespace in `src/main/app/operations.clj` (NOT the cljs file...that was for the client operations):
 
 [source]
 ----
 (ns app.operations
   (:require
-    [untangled.server :as server :refer [defquery-root defquery-entity defmutation]]
+    [fulcro.server :as server :refer [defquery-root defquery-entity defmutation]]
     [taoensso.timbre :as timbre]))
 
 (def people-db (atom {1  {:db/id 1 :person/name "Bert" :person/age 55 :person/relation :friend}
@@ -1702,7 +1704,7 @@ The next common scenario is loading something into some other existing entity in
 the database is normalized this will cover all of the other loading cases (except for the one where you want to convert
 what the server tells you into a different shape (e.g. paginate, sort, etc.)).
 
-Untangled's load method accomplishes this by loading the data into the root of the database, normalizing it, then
+Fulcro's load method accomplishes this by loading the data into the root of the database, normalizing it, then
 (optionally) allowing you to re-target the top-level FK to a different location in the database.
 
 ##### Targeting the Load
@@ -1726,7 +1728,7 @@ Since friend and enemies are the same kind of query, let's add both into the sta
 
 [source]
 ----
-(defonce app-1 (atom (uc/new-untangled-client
+(defonce app-1 (atom (uc/new-fulcro-client
                        :started-callback (fn [app]
                                            ...
                                            (df/load app :my-enemies Person {:target [:person-list/by-id :enemies :person-list/people]})
@@ -1768,7 +1770,7 @@ user=> (reset)
 #### Morphing the Loaded Data
 
 It is somewhat common for a server to return data that isn't quite what we want in our UI. So far we've just been placing
-the data returned from the server directly in our UI. Untangled's load mechanism allows a post mutation of the loaded
+the data returned from the server directly in our UI. Fulcro's load mechanism allows a post mutation of the loaded
 data once it arrives, allowing you to re-shape it into whatever form you might desire.
 
 For example, you may want the people in your lists to be sorted by name. You've already seen how to write client
@@ -1890,13 +1892,13 @@ This should already work with your server, so once the browser hot code reload h
 
 #### Additional Permutations
 
-Untangled's load system covers a number of additional bases that bring the story to completion. There are load markers
+Fulcro's load system covers a number of additional bases that bring the story to completion. There are load markers
 (so you can show network activity), UI refresh add-ons (when you modify data that isn't auto-detected, e.g. through a post
 mutation), server query parameters, and error handling. See the developers guide, doc strings, or source for more details.
 
 ### Handling Mutations on The Server
 
-Mutations are handled on the server using the server's `defmutation` macro (if you're using Untangled's request parser).
+Mutations are handled on the server using the server's `defmutation` macro (if you're using Fulcro's request parser).
 
 This has the identical syntax to the client version!
 
@@ -1959,12 +1961,12 @@ from the server.
 
 ### Using a legacy REST API
 
-Working with legacy REST APIs is a simple, though tedious, task. Basically you need to add an additional remote to the Untangled Client
+Working with legacy REST APIs is a simple, though tedious, task. Basically you need to add an additional remote to the Fulcro Client
 that knows how to talk via JSON instead of EDN.
 
 The basic steps are:
 
-1. Implement `UntangledNetwork`. See the `untangled.client.network` namespace for the protocol and built-in implementation.
+1. Implement `FulcroNetwork`. See the `fulcro.client.network` namespace for the protocol and built-in implementation.
     a. Your `send` method will be passed the query/mutations the client wants to do. You must translate them to a REST
     call and translate the REST response into the desired tree of client data, which you then pass to the `ok` callback
     that `send` is given.
@@ -1981,7 +1983,7 @@ It should return an array of JSON maps, with strings as keys.
 Basically, when you run a transaction (read or
 write) the raw transaction that is intended to go remote is passed into the `send` method of a networking protocol.
 The networking can send that unchanged, or it can choose to modify it in some way. Since REST servers don't understand
-our Untangled requests, we have to add a layer at the network to convert one to the other, and back (for the response).
+our Fulcro requests, we have to add a layer at the network to convert one to the other, and back (for the response).
 
 #### The UI and Queries
 
@@ -2061,8 +2063,8 @@ itself, rather than the work you have to do. Create a new namespace `src/main/ap
 ----
 (ns app.rest
   (:refer-clojure :exclude [send])
-  (:require [untangled.client.logging :as log]
-            [untangled.client.network :as net]
+  (:require [fulcro.client.logging :as log]
+            [fulcro.client.network :as net]
             [cognitect.transit :as ct]
             [goog.events :as events]
             [om.transit :as t]
@@ -2117,7 +2119,7 @@ itself, rather than the work you have to do. Create a new namespace `src/main/ap
             {:type :network})
           (log-and-dispatch-error (str "SERVER ERROR CODE: " status) {})))
       (finally (.dispose xhr-io))))
-  net/UntangledNetwork
+  net/FulcroNetwork
   (send [this edn ok error]
     (let [xhrio       (make-xhrio)
           ; STEP 1: Convert the request(s) from Om query notation to REST...
@@ -2153,26 +2155,26 @@ the majority of this code would be a one-time thing.
 
 #### Installing our Networking Code
 
-Untangled lets you set up networking yourself. We'd still like to talk to our server, but now we also want to be able
+Fulcro lets you set up networking yourself. We'd still like to talk to our server, but now we also want to be able
 to talk to the REST server. The modification is done in our `basic-ui` namespace where we create the client:
 
 [source]
 ----
 (ns app.basic-ui
-  (:require [untangled.client.core :as uc]
+  (:require [fulcro.client.core :as uc]
             [om.dom :as dom]
             [app.operations :as ops]
             [om.next :as om :refer [defui]]
             [app.rest :as rest] ; <-------ADD THIS
-            [untangled.client.data-fetch :as df]
-            [untangled.client.mutations :as m]
-            [untangled.client.network :as net]))
+            [fulcro.client.data-fetch :as df]
+            [fulcro.client.mutations :as m]
+            [fulcro.client.network :as net]))
 
 ...
 
-(defonce app-1 (atom (uc/new-untangled-client
+(defonce app-1 (atom (uc/new-fulcro-client
                        ; Set up two networking handlers (:remote is an explicit creation of the "default" that we still want)
-                       :networking {:remote (net/make-untangled-network "/api" :global-error-callback (constantly nil))
+                       :networking {:remote (net/make-fulcro-network "/api" :global-error-callback (constantly nil))
                                     :rest   (rest/make-rest-network)}
                        :started-callback ...)))
 ----
@@ -2184,7 +2186,7 @@ to specify which network to talk over:
 
 [source]
 ----
-(defonce app-1 (atom (uc/new-untangled-client
+(defonce app-1 (atom (uc/new-fulcro-client
                        ...
                        :started-callback (fn [app]
 
@@ -2214,4 +2216,4 @@ the mutation to be sent to that network handler.
 
 ## The Complete Final App
 
-Just for reference the complete project for this guide is on Github at https://github.com/awkay/untangled-getting-started
+Just for reference the complete project for this guide is on Github at https://github.com/fulcrologic/fulcro-getting-started

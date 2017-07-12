@@ -11,8 +11,8 @@
             recipes.paginate-large-lists-server
             [recipes.server-query-security-server :as server-security]
             [recipes.websockets-server :as wsdemo]
-            [untangled.easy-server :as core]
-            [untangled.websockets.components.channel-server :as cs]))
+            [fulcro.easy-server :as core]
+            [fulcro.websockets.components.channel-server :as cs]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SHARED SERVER FOR ALL EXAMPLE
@@ -30,7 +30,7 @@
   (api/server-read env k params))
 
 (defn make-system []
-  (core/make-untangled-server
+  (core/make-fulcro-server
     :config-path "config/demos.edn"
     :parser (om/parser {:read logging-query :mutate logging-mutate})
     :parser-injections #{:authorization}

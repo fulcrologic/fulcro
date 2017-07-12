@@ -2,13 +2,13 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.websockets-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]
-    [untangled.client.core :as uc]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]
+    [fulcro.client.core :as uc]
     [om.next :as om]
-    [untangled.websockets.networking :as wn]))
+    [fulcro.websockets.networking :as wn]))
 
 (dc/defcard websocket-card
   "
@@ -19,14 +19,14 @@
 
   This is a demo chat-style app. Open this page in more than one tab/browser to see the result.
 
-  Websockets act as an alternate networking mechanism for Untangled apps. As such, they change nothing about how
+  Websockets act as an alternate networking mechanism for Fulcro apps. As such, they change nothing about how
   you write the majority of your application. Everything is still done with the same UI and mutation logic you've
   already been doing.
 
   Websockets ensure that each client has a persistent TCP connection to the server, and thus allow the server to push
   updates to the client. The client handles these via a predefined multimethod as described below.
   "
-  (untangled-app client/Root
+  (fulcro-app client/Root
     :networking (wn/make-channel-client "/chsk" :global-error-callback (constantly nil))
     :started-callback (fn [{:keys [reconciler]}]
                         (df/load reconciler :app/channels client/Channel {:refresh [:app/channels]})
@@ -37,7 +37,7 @@
 (dc/defcard-doc
   "# Websockets Setup
 
-  There are several steps for setting up Untangled to use websockets as the primary mechanism for app communication:
+  There are several steps for setting up Fulcro to use websockets as the primary mechanism for app communication:
 
   1. Set up the client to use websocket networking.
   2. Add websockets support to your server
@@ -48,7 +48,7 @@
   This is probably the simplest step. Just add the `:networking` option when creating the client:
 
   ```
-  (uc/new-untangled-client
+  (uc/new-fulcro-client
     :networking (wn/make-channel-client \"/chsk\" :global-error-callback (constantly nil))
     ...)
   ```
@@ -60,7 +60,7 @@
   The server needs a couple of components and a hook for an extra route:
 
   ```
-  (core/make-untangled-server
+  (core/make-fulcro-server
     ; provides the URI on which you've configured the client to connect:
     :extra-routes {:routes   [" " {[\"/chsk\"] :web-socket}]
                    :handlers {:web-socket cs/route-handlers}}
@@ -112,13 +112,13 @@
 
   ## Handling Push Messages
 
-  Untangled treats incoming push messages much like mutations, though on a different multimethod
-  `untangled.websockets.networking/push-received`. The parameters to this method are the untangled `app` and the
+  Fulcro treats incoming push messages much like mutations, though on a different multimethod
+  `fulcro.websockets.networking/push-received`. The parameters to this method are the fulcro `app` and the
   `message` (which contains the keywords `:topic` with the verb from the server and `:msg` with the EDN. The `:topic`
   is used as the dispatch key for the multimethod).
 
   So, a call on the server to `(push ws-net client-id :hello {:name \"Jo\"})` will result in a call on the client
-  of `(push-received untangled-app {:topic :hello :msg {:name \"Jo\"}})`.
+  of `(push-received fulcro-app {:topic :hello :msg {:name \"Jo\"}})`.
   "
   (dc/mkdn-pprint-source client/Root)
   )

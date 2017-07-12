@@ -3,7 +3,7 @@
             [om.next.impl.parser :as op]
             [cards.server-api :as api]
             [taoensso.timbre :as timbre]
-            [untangled.easy-server :as core]))
+            [fulcro.easy-server :as core]))
 
 ; This is the only thing we wrote for the server...just return some value so we can
 ; see it really talked to the server for this query.

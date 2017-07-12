@@ -1,10 +1,10 @@
 (ns recipes.error-handling-client
   (:require
-    [untangled.client.core :as uc]
-    [untangled.i18n :refer [tr trf]]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]
-    [untangled.client.mutations :as m :refer [defmutation]]
+    [fulcro.client.core :as uc]
+    [fulcro.i18n :refer [tr trf]]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]
+    [fulcro.client.mutations :as m :refer [defmutation]]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
 
@@ -26,19 +26,19 @@
   (initial-state [c params] {})
   static om/IQuery
   ;; you can query for the server-error using a link from any component that composes to root
-  (query [_] [[:untangled/server-error '_] :ui/button-disabled :untangled/read-error])
+  (query [_] [[:fulcro/server-error '_] :ui/button-disabled :fulcro/read-error])
   static om/Ident
   (ident [_ _] [:error.child/by-id :singleton])
   Object
   (render [this]
-    (let [{:keys [untangled/server-error ui/button-disabled]} (om/props this)]
+    (let [{:keys [fulcro/server-error ui/button-disabled]} (om/props this)]
       (dom/div nil
         ;; declare a tx/fallback in the same transact call as the mutation
         ;; if the mutation fails, the fallback will be called
         (dom/button #js {:onClick  #(om/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
                          :disabled button-disabled}
           "Click me for error!")
-        (dom/button #js {:onClick #(df/load-field this :untangled/read-error)}
+        (dom/button #js {:onClick #(df/load-field this :fulcro/read-error)}
           "Click me for other error!")
         (dom/div nil (str server-error))))))
 

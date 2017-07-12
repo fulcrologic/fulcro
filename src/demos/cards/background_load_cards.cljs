@@ -2,7 +2,7 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.background-loads-client :as bg]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]))
 
 (dc/defcard-doc
@@ -15,7 +15,7 @@
 
   This is a simple application that shows off the difference between regular loads and those marked parallel.
 
-  Normally, Untangled runs separate event-based loads in sequence, ensuring that your reasoning can be synchronous;
+  Normally, Fulcro runs separate event-based loads in sequence, ensuring that your reasoning can be synchronous;
   however, for loads that might take some time to complete, and for which you can guarantee order of
   completion doesn't matter, you can specify an option on load.
 
@@ -33,4 +33,4 @@
    If you rapidly click the parallel buttons, then the loads will not be sequenced, and you will see them complete in roughly
    5 seconds overall (from the time you click the last one).
   "
-  (untangled-app bg/Root))
+  (fulcro-app bg/Root))

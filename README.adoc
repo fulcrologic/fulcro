@@ -6,21 +6,21 @@
 :sectanchors:
 :sectnums:
 
-# Untangled for Om Next
+# Fulcro for Om Next
 
-image::https://img.shields.io/clojars/v/awkay/untangled.svg[link=https://clojars.org/awkay/untangled]
+image::https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
 
-Release: image:https://api.travis-ci.org/awkay/untangled.svg?branch=master[link=https://github.com/awkay/untangled/tree/master]
-Snapshot: image:https://api.travis-ci.org/awkay/untangled.svg?branch=develop[link=https://github.com/awkay/untangled/tree/develop]
+Release: image:https://api.travis-ci.org/fulcrologic/fulcro.svg?branch=master[link=https://github.com/fulcrologic/fulcro/tree/master]
+Snapshot: image:https://api.travis-ci.org/fulcrologic/fulcro.svg?branch=develop[link=https://github.com/fulcrologic/fulcro/tree/develop]
 
-Untangled is a library stacked on Om Next that provides much of what is needed to use that library (client parser,
+Fulcro is a library stacked on Om Next that provides much of what is needed to use that library (client parser,
 networking, server elements, a database format, clear constructs for data loading). The intention is to provide you
 with most of the experience of Om Next with very little of the pain.
 
-## Writing Applications with Untangled
+## Writing Applications with Fulcro
 
-The https://awkay.github.io/untangled[website] is a great place to read about
-Untangled. It has pages describing things in more general terms, and has links
+The https://fulcrologic.github.io/fulcro[website] is a great place to read about
+Fulcro. It has pages describing things in more general terms, and has links
 to various resources like videos and evaluation guides.
 
 If you want to jump and code, read on!
@@ -28,7 +28,7 @@ If you want to jump and code, read on!
 ### Getting Started
 
 See link:/GettingStarted.adoc[GettingStarted.adoc] to get going. It covers all of the
-basics related to full-stack development in Untangled.
+basics related to full-stack development in Fulcro.
 
 If you don't know Clojure, you should at least get comfortable with the basics.
 I recommend: http://www.braveclojure.com/[Clojure for the Brave and True], and doing at least the
@@ -39,8 +39,8 @@ using it to get "fast UI updates", that is sufficient to start.
 ### Developer's Guide
 
 The Developer's Guide is really an interactive coding tutorial using Devcards. You
-can view an http://awkay.github.io/untangled/guide.html[online version],
-but in order to use it properly you should clone Untangled and:
+can view an http://fulcrologic.github.io/fulcro/guide.html[online version],
+but in order to use it properly you should clone Fulcro and:
 
 ```
 ./run-devguide.sh
@@ -50,7 +50,7 @@ and follow the instructions.
 
 ## See Some Demos
 
-There are a number of demos that show how particular common things are done with Untangled. To view them use
+There are a number of demos that show how particular common things are done with Fulcro. To view them use
 the `run-demos.sh` shell script at the top of this project and follow the instructions it gives.
 
 This compiles the demos, and runs a server that can respond to the full-stack examples.

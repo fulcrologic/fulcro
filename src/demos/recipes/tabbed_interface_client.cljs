@@ -2,10 +2,10 @@
   (:require
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
-    [untangled.client.routing :as r]
-    [untangled.client.mutations :as m]
-    [untangled.client.core :as uc :refer [InitialAppState initial-state]]
-    [untangled.client.data-fetch :as df]))
+    [fulcro.client.routing :as r]
+    [fulcro.client.mutations :as m]
+    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.client.data-fetch :as df]))
 
 (defui ^:once SomeSetting
   static om/IQuery

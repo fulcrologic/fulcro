@@ -1,4 +1,4 @@
-(defproject awkay/untangled "1.0.0-beta2-SNAPSHOT"
+(defproject fulcrologic/fulcro "1.0.0-beta2-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -16,7 +16,7 @@
                  [commons-codec "1.10"]
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.10.0"]
-                 [awkay/untangled-spec "1.0.0-beta1" :scope "test" :exclusions [awkay/untangled]]
+                 [fulcrologic/fulcro-spec "1.0.0-beta1" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
                  [bidi "2.1.1"]
@@ -31,13 +31,13 @@
   :jar-exclusions [#"public/.*" #"private/.*"]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
-  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target" "docs/js"]
+  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target"]
 
   :plugins [[lein-cljsbuild "1.1.6"]
             [lein-doo "0.1.7"]
             [com.jakemccrary/lein-test-refresh "0.19.0"]]
 
-  :test-refresh {:report       untangled-spec.reporters.terminal/untangled-report
+  :test-refresh {:report       fulcro-spec.reporters.terminal/fulcro-report
                  :changes-only false
                  :with-repl    true}
   :test-selectors {:focused :focused}
@@ -50,8 +50,8 @@
   :cljsbuild {:builds
               [{:id           "test"
                 :source-paths ["src/main" "src/test"]
-                :figwheel     {:on-jsload "untangled.test-main/spec-report"}
-                :compiler     {:main                 untangled.test-main
+                :figwheel     {:on-jsload "fulcro.test-main/spec-report"}
+                :compiler     {:main                 fulcro.test-main
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
@@ -62,7 +62,7 @@
                {:id           "cards"
                 :source-paths ["src/main" "src/cards"]
                 :figwheel     {:devcards true}
-                :compiler     {:main                 untangled.client.card-ui
+                :compiler     {:main                 fulcro.client.card-ui
                                :output-to            "resources/public/js/cards.js"
                                :output-dir           "resources/public/js/cards"
                                :asset-path           "js/cards"
@@ -84,24 +84,24 @@
                                :optimizations        :none}}
                {:id           "devguide-live"
                 :source-paths ["src/main" "src/devguide"]
-                :compiler     {:main           untangled-devguide.guide
-                               :asset-path     "js"
+                :compiler     {:main          fulcro-devguide.guide
+                               :asset-path    "js"
                                :optimizations :whitespace
-                               :devcards true
-                               :output-to      "docs/js/guide.js"
-                               :output-dir     "docs/js"
-                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
-                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
+                               :devcards      true
+                               :output-to     "docs/js/guide.js"
+                               :output-dir    "docs/js"
+                               :foreign-libs  [{:provides ["cljsjs.codemirror.addons.closebrackets"]
+                                                :requires ["cljsjs.codemirror"]
+                                                :file     "resources/public/codemirror/closebrackets-min.js"}
+                                               {:provides ["cljsjs.codemirror.addons.matchbrackets"]
+                                                :requires ["cljsjs.codemirror"]
+                                                :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "devguide"
                 :figwheel     {:devcards true}
                 :source-paths ["src/main" "src/devguide"]
-                :compiler     {:main           untangled-devguide.guide
+                :compiler     {:main           fulcro-devguide.guide
                                :asset-path     "js/devguide"
-                               :devcards true
+                               :devcards       true
                                :output-to      "resources/public/js/devguide.js"
                                :output-dir     "resources/public/js/devguide"
                                :preloads       [devtools.preload]
@@ -115,7 +115,7 @@
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to      "resources/private/js/unit-tests.js"
-                               :main           untangled.automated-test-main
+                               :main           fulcro.automated-test-main
                                :output-dir     "resources/private/js/unit-tests"
                                :asset-path     "js/unit-tests"
                                :parallel-build true

@@ -4,7 +4,7 @@
             [hugsql.core :as hugsql]
             [taoensso.timbre :as timbre]
             [clojure.set :as set]
-            [untangled.easy-server :as core]
+            [fulcro.easy-server :as core]
             [com.stuartsierra.component :as component])
   (:import (java.sql Connection DriverManager)
            (org.flywaydb.core Flyway)))
@@ -63,7 +63,7 @@
   (api-read env k params))
 
 (defn make-system []
-  (core/make-untangled-server
+  (core/make-fulcro-server
     :config-path "config/recipe.edn"
     :parser (om/parser {:read logging-query :mutate logging-mutate})
     :parser-injections #{:db}

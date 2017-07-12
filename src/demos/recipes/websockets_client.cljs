@@ -1,10 +1,10 @@
 (ns recipes.websockets-client
   (:require
     [om.next :as om]
-    [untangled.client.core :as uc]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.mutations :as m]
-    [untangled.websockets.networking :as wn]
+    [fulcro.client.core :as uc]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.mutations :as m]
+    [fulcro.websockets.networking :as wn]
     [om.dom :as dom]
     [om.next :as om :refer-macros [defui]] ))
 
@@ -109,7 +109,7 @@
               "Sign in"))
           (dom/div #js {}
             (dom/h3 #js {}
-              (str "Untangled Chat - " (:user/name current-user)))
+              (str "Fulcro Chat - " (:user/name current-user)))
             (ui-channel current-channel)))))))
 
 ;;; PUSH MUTATIONS

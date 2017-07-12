@@ -2,11 +2,11 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.mutation-return-value-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]
-    [untangled.client.core :as uc]))
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]
+    [fulcro.client.core :as uc]))
 
 (dc/defcard mutation-return-value-card
   "
@@ -19,7 +19,7 @@
   any faster than the server can respond (since it computes the new volume based on what the client sends). Opening
   the console in your devtools on the browser where you can see the transaction makes this easier to follow and understand.
   "
-  (untangled-app client/Root :mutation-merge client/merge-return-value)
+  (fulcro-app client/Root :mutation-merge client/merge-return-value)
   {}
   {:inspect-data false})
 
@@ -30,14 +30,14 @@
   is rarer that in other frameworks because most operations in Om Next are done optimistically (the UI drives the changes).
 
   The pipeline of stock Om basicaly throws away return values from server-side mutations, but does provide a way to
-  make use of them. Untangled hooks into this functionality and provides a simple way to interface with the return
+  make use of them. Fulcro hooks into this functionality and provides a simple way to interface with the return
   values.
 
   Note that Om specifically avoids asychrony whenever possible. Networking is, by nature, async in the browser. You
   application could be off doing anything at all by the time the server responds to a network request. Therefore, return
   values from mutations will have an async nature to them (they fire when they fire).
 
-  Untangled's method of allowing you to recieve a return value is for you to provide a function that can merge the return
+  Fulcro's method of allowing you to recieve a return value is for you to provide a function that can merge the return
   value into your app database when it arrives. Most commonly you'll do this by defining a multimethod that looks
   very similar to a Om mutation multimethod, and dispatches the same way:
 
@@ -70,7 +70,7 @@
   The remainder of the setup is just giving the merge handler function to the application at startup:
 
   ```
-  (uc/new-untangled-client :mutation-merge merge-return-value)
+  (uc/new-fulcro-client :mutation-merge merge-return-value)
   ```
 
   The UI code for the demo is:

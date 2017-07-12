@@ -1,8 +1,8 @@
 (ns recipes.background-loads-client
   (:require
-    [untangled.client.core :as uc]
-    [untangled.i18n :refer [tr trf]]
-    [untangled.client.data-fetch :as df]
+    [fulcro.client.core :as uc]
+    [fulcro.i18n :refer [tr trf]]
+    [fulcro.client.data-fetch :as df]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
     yahoo.intl-messageformat-with-locales))

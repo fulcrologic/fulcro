@@ -1,5 +1,5 @@
 (ns js
-  (:require [untangled.i18n :as ic])
+  (:require [fulcro.i18n :as ic])
   (:import (com.ibm.icu.text MessageFormat)
            (java.util Locale)))
 
