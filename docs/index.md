@@ -69,7 +69,7 @@ I'm not using it on my job, but on an open-source side project, I got in touch w
 the owner of www.daveconservatoire.org and we are re-building the UI entirely on Clojurescript.
 </blockquote>
 
-The [source](https://github.com/daveconservatoire/dcsite-cljs) and  [beta](https://daveconservatoire.herokuapp.com) of this rewrite are now available!
+The [source](https://github.com/daveconservatoire/dcsite-cljs) and  [beta](http://beta.daveconservatoire.org) of this rewrite are now available!
 
 Mitchel Kuijpers – [Atlas CRM](https://www.atlascrm.io/) (commercial)
 
