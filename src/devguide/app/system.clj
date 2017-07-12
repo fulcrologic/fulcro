@@ -5,7 +5,7 @@
     [solutions.advanced-server :as soln]
     [taoensso.timbre :as timbre]
     [com.stuartsierra.component :as component]
-    [untangled.easy-server :as h]
+    [fulcro.easy-server :as h]
     solutions.putting-together
     [ring.util.response :as ring]))
 
@@ -19,7 +19,7 @@
 
 ; build the server
 (defn make-system []
-  (h/make-untangled-server
+  (h/make-fulcro-server
     ; where you want to store your override config file
     :config-path "/usr/local/etc/app.edn"
     ; Standard Om parser

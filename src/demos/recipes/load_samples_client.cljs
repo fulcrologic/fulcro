@@ -1,8 +1,8 @@
 (ns recipes.load-samples-client
   (:require
-    [untangled.client.core :as uc :refer [InitialAppState initial-state]]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.mutations :as m]
+    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.mutations :as m]
     [om.next :as om]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
@@ -59,7 +59,7 @@
         (dom/h4 nil "Enemies")
         (ui-people enemies)))))
 
-(defonce app (atom (uc/new-untangled-client
+(defonce app (atom (uc/new-fulcro-client
                      :started-callback (fn [app]
                                          ; Make sure you're running the app from the real server port (not fighweel).
                                          ; This is a sample of loading a list of people into a given target, including

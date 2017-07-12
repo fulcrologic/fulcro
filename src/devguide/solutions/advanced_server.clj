@@ -3,7 +3,7 @@
     [com.stuartsierra.component :as component]
     [ring.util.response :as ring]
     [taoensso.timbre :as timbre]
-    [untangled.easy-server :as h]))
+    [fulcro.easy-server :as h]))
 
 ; Exercises 1 and 2 are mainly about the runtime JVM args. There is no real code.
 

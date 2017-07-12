@@ -2,10 +2,10 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.lists-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]))
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]))
 
 
 (dc/defcard-doc
@@ -54,6 +54,6 @@
   from the screen, since that is the data for the component displaying the list. Also note how the map of attributes
   at path `[:items ID]` is also removed.
   "
-  (untangled-app client/Root)
+  (fulcro-app client/Root)
   {}
   {:inspect-data true})

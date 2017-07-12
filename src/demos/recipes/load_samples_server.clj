@@ -2,7 +2,7 @@
   (:require [om.next.server :as om]
             [om.next.impl.parser :as op]
             [taoensso.timbre :as timbre]
-            [untangled.easy-server :as core]
+            [fulcro.easy-server :as core]
             [cards.server-api :as api]
             [om.next.impl.parser :as op]))
 

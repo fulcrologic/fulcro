@@ -2,18 +2,18 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.load-samples-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]
-    [untangled.client.core :as uc]))
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]
+    [fulcro.client.core :as uc]))
 
 (dc/defcard load-samples-card
   "
   # Loading Samples Demo
 
   "
-  (untangled-app client/Root
+  (fulcro-app client/Root
     :started-callback (fn [app]
                         ; Make sure you're running the app from the real server port (not fighweel).
                         ; This is a sample of loading a list of people into a given target, including
@@ -37,7 +37,7 @@
   On startup, the following loads are run via the started callback:
 
   ```
-  (uc/new-untangled-client
+  (uc/new-fulcro-client
     :started-callback
       (fn [app]
         (df/load app :load-samples/people client/Person {:target [:lists/by-type :enemies :people]

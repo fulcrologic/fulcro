@@ -2,7 +2,7 @@
   (:require
     [com.stuartsierra.component :as component]
     [app.system :as sys]
-    [untangled.server :refer [load-config]])
+    [fulcro.server :refer [load-config]])
   (:gen-class))
 
 ; Production entry point.

@@ -1,14 +1,14 @@
-# Untangled vs. Stock Om Next
+# Fulcro vs. Stock Om Next
 
 If you've tried stock Om Next, you probably found out pretty quickly that there are a lot of things you have
 to figure out, plug in, and set up before you actually have something working as a full-stack app with
-complete features. The primary difference is that Untangled makes a lot of these choices for you so that you
+complete features. The primary difference is that Fulcro makes a lot of these choices for you so that you
 can work on what you care about: your features!
 
 ## TL;DR
 
-The gist is that Untangled supplies all of the bits and pieces you need to get going. This
-gives Untangled some very nice properties that Stock Om Next does not:
+The gist is that Fulcro supplies all of the bits and pieces you need to get going. This
+gives Fulcro some very nice properties that Stock Om Next does not:
 
 - Easier local reasoning (no hand-building initial UI state or composing parser bits)
 - Refactoring UI is much easier. Just move the component and re-compose locally in the UI.
@@ -20,7 +20,7 @@ gives Untangled some very nice properties that Stock Om Next does not:
 
 ## The Database
 
-Om Next has a suggested "default" client-side database format. Untangled adopts this as the *only* choice for
+Om Next has a suggested "default" client-side database format. Fulcro adopts this as the *only* choice for
 the client-side database. This has the following trade-offs:
 
 - It is possible to pre-write the code that pulls the data from the database for the UI. No need
@@ -35,11 +35,11 @@ to interact with something like Datascript is a heck of a lot harder than `get-i
 The primary disadvantage is that you don't have full support of all of the query langauge features
 in the client.
 Om Next has the general idea that since you're writing the guts of query engine, you can "interpret" the query on the fly.
-This is a great idea, but the Untangled philosophy is that most people don't want to thing about feeding their
+This is a great idea, but the Fulcro philosophy is that most people don't want to thing about feeding their
 UI by having to write query parsing "emitters". It decouples things in a way that is powerful, but overkill for
 most applications.
 
-Instead, Untangled has you explicitly represent what you want from a query through the data model itself.
+Instead, Fulcro has you explicitly represent what you want from a query through the data model itself.
 
 Om Next:
 
@@ -49,12 +49,12 @@ Query -> Parser -> Data Tree -> UI
          reads (you implement)
 ```
 
-Untangled
+Fulcro
 ```
 Query -> db->tree -> UI
 ```
 
-Thus, in Untangled you essentially have the mutations update the data graph so that the query will be answered
+Thus, in Fulcro you essentially have the mutations update the data graph so that the query will be answered
 in the "correct" way.
 
 While this sounds less powerful (it technically is), it makes general development much simpler.
@@ -76,7 +76,7 @@ Adopting the model above leads to much easier development.
     - (possibly) Remember to properly co-locate the remote behaviors of that data.
 4. Write mutations that evolve the core data on which the logic depends
 
-**Untangled:**
+**Fulcro:**
 
 1. Write the UI
 2. Add InitialAppState to the component
@@ -84,16 +84,16 @@ Adopting the model above leads to much easier development.
 4. Write mutations (you need those anyhow) that directly evolve the model to "look right"
 
 The remote story is separate, and not complected with the local data reads at all. Notice
-that in Untangled your view updates are directly linked to an action of the UI (mutation)
+that in Fulcro your view updates are directly linked to an action of the UI (mutation)
 instead of logic that might have performance implications during rendering. The (sort of)
-down-side is that Untangled is essentially asking you to always cache your calculation for rendering.
+down-side is that Fulcro is essentially asking you to always cache your calculation for rendering.
 This means your data model is slightly larger than what you might have in Om Next, but notice
 it also solves the potential performance bottleneck: you only re-calculate the data for
 a view when it changes, and those events are well-defined.
 
 #### Implementing Things in Isolation
 
-This is perhaps the very biggest positive result of Untangled making
+This is perhaps the very biggest positive result of Fulcro making
 the decisions it has made: elements of your program become much more
 isolated and modular!
 
@@ -109,7 +109,7 @@ becomes rather cumbersome and difficult. The same thing happens when two develop
 on the same application. You both end up working primarily on the parser, resulting in
 a higher likelihood of code conflicts on merge.
 
-**Untangled**
+**Fulcro**
 
 The predefined data model means there is no parser. All components have an ident, their initial
 state composes locally, and loads are not tied to UI structure. If you want to put a screen
@@ -129,7 +129,7 @@ Code conflicts become a lot less frequent as well since co-development is now al
 3. Look at your (possibly custom) database to see that the data is in the right place
 4. Debug your recursive parsing algorithm to see why the data isn't getting there
 
-**Untangled:**
+**Fulcro:**
 
 1. Examine the component for query (and possibly initial state..but that is co-located and composed **locally** on the component)
 2. Examine the current data graph (usually one entry in the table for that component)
@@ -148,7 +148,7 @@ In practice this is much much simpler and easier.
 3. Fix your parser/read emitters
 4. Possibly correct the remoting behavior coded in that part of the parser.
 
-**Untangled:**
+**Fulcro:**
 
 2. Re-compose InitialAppState into parent (like query)
 (remoting is separate, and there is no custom parser)
@@ -176,7 +176,7 @@ However, you must invent a lot here in order to get this all to work right:
 how will you deal with out-of-order execution on the server? If both reads and writes are involved, should there be
 an explicit ordering?
 
-Untangled does all of this for you, and more. The big realization when designing Untangled was this:
+Fulcro does all of this for you, and more. The big realization when designing Fulcro was this:
 
 In Om Next, triggering loads happens under two circumstances:
 
@@ -191,7 +191,7 @@ what is loading (and render that), and the hack in some kind of state change cod
 put markers in app state to indicate when there is an error.
 
 So, instead of having you write the logic of load into the places that are trying
-to parse the query, Untangled adds a higher-level `load` function to address all of these.
+to parse the query, Fulcro adds a higher-level `load` function to address all of these.
 Technically it is just a wrapper around a built-in mutation that adds a query
 to a network processing queue (in app state) and triggers remote evaluation. You still use
 UI-based queries, but you no longer have to worry about how it is tangled up in the UI (you get
@@ -202,18 +202,18 @@ A [whiteboard discussion](https://youtu.be/mT4jJHf929Q?list=PLVi9lDx-4C_T_gsmBQ_
 1. There is a started callback function that is triggered on mount. Initial loads can be explicitly triggered.
 2. The ability to explicitly trigger loads means user-level events, timeouts, etc. can start all other loads.
 
-Untangled also defines more advanced merging behavior, auto-stripping of properties that the server should
+Fulcro also defines more advanced merging behavior, auto-stripping of properties that the server should
 not see, sequential network processing (with parallel as an explicit option), websockets, error handling,
 load progress markers, etc.
 
 ## Other Features
 
-Untangled attempts to include solutions for most of the common problems that business webapps are
+Fulcro attempts to include solutions for most of the common problems that business webapps are
 trying to solve: testing, i18n, and advanced system for generating full-stack forms, CSS,
 file uploads, standing up a server.
 
 All of these are things you have to "plug in" with
-stock Om Next. While Untangled doesn't lock you in to one solution for these, it does provide an
+stock Om Next. While Fulcro doesn't lock you in to one solution for these, it does provide an
 included option that makes rapid application development possible.
 
 

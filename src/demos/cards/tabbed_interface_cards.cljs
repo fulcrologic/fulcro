@@ -2,11 +2,11 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.tabbed-interface-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]
-    [untangled.client.core :as uc]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]
+    [fulcro.client.core :as uc]
     [om.next :as om]))
 
 (dc/defcard tabbed-card
@@ -15,7 +15,7 @@
 
   Note: This is a full-stack example. Make sure you're running the server and are serving this page from it.
   "
-  (untangled-app client/Root)
+  (fulcro-app client/Root)
   {}
   {:inspect-data false})
 

@@ -1,8 +1,8 @@
 (ns recipes.sql-client
   (:require
-    [untangled.client.core :as uc :refer [InitialAppState initial-state]]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.mutations :as m]
+    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.mutations :as m]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
 
@@ -37,7 +37,7 @@
         (dom/ul nil
           (map #(ui-person %) people))))))
 
-(defonce app (atom (uc/new-untangled-client
+(defonce app (atom (uc/new-fulcro-client
                      :started-callback (fn [app]
                                          (df/load app :people Person)))))
 

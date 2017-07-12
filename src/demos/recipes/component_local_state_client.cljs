@@ -1,9 +1,9 @@
 (ns recipes.component-local-state-client
   (:require
-    [untangled.client.core :as uc :refer [InitialAppState initial-state]]
-    [untangled.i18n :refer [tr trf]]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.mutations :as m]
+    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.i18n :refer [tr trf]]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.mutations :as m]
     [om.next :as om :refer [defui]]
     [om.dom :as dom]
     yahoo.intl-messageformat-with-locales))
@@ -128,4 +128,4 @@
         (dom/br nil)
         (ui-child child)))))
 
-(defonce app (atom (uc/new-untangled-client)))
+(defonce app (atom (uc/new-fulcro-client)))

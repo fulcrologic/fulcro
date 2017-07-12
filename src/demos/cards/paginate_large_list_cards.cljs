@@ -2,11 +2,11 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.paginate-large-lists-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]
-    [untangled.client.core :as uc]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]
+    [fulcro.client.core :as uc]
     [om.next :as om]))
 
 (dc/defcard paginate-list-card
@@ -24,7 +24,7 @@
   from your current position. You can demostrate this by moving ahead by more than 4 pages, then page back 5. You should
   see a reload of that early page when you go back to it.
   "
-  (untangled-app client/Root :started-callback
+  (fulcro-app client/Root :started-callback
     (fn [{:keys [reconciler]}]
       (om/transact! reconciler `[(client/goto-page {:page-number 1})])))
   {}
@@ -34,7 +34,7 @@
   "# Explanation
 
   The UI of this example is a great example of how a complex application behavior remains very very simple at the UI
-  layer with Untangled.
+  layer with Fulcro.
 
   We represent the list items as you might expect:
   "

@@ -2,10 +2,10 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.error-handling-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]))
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]))
 
 (dc/defcard-doc
   "# Error Handling
@@ -26,7 +26,7 @@
 
   NOTE: The error handling stuff needs work...
   "
-  (untangled-app client/Root
+  (fulcro-app client/Root
     :started-callback
     (fn [{:keys [reconciler]}]
       ;; specify a fallback mutation symbol as a named parameter after the component or reconciler and query

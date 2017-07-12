@@ -1,10 +1,10 @@
 (ns recipes.mutation-return-value-client
   (:require
-    [untangled.client.data-fetch :as df]
-    [untangled.client.mutations :as m]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.mutations :as m]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
-    [untangled.client.core :as uc :refer [InitialAppState initial-state]]))
+    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]))
 
 (defmulti merge-return-value (fn [state sym return-value] sym))
 

@@ -2,7 +2,7 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.component-local-state-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]))
 
 (dc/defcard-doc
@@ -23,6 +23,6 @@
 
   The application state is shown live under the application so you can see the difference.
   "
-  (untangled-app client/Root)
+  (fulcro-app client/Root)
   {}
   {:inspect-data true})

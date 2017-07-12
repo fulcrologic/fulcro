@@ -1,4 +1,4 @@
-= Untangled Client Docs
+= Fulcro Client Docs
 :source-highlighter: coderay
 :source-language: clojure
 :toc:
@@ -22,7 +22,7 @@ endif::[]
 
 == Basic UI
 
-Untangled uses Om, which in turn uses https://facebook.github.io/react/index.html[React^] underneath.
+Fulcro uses Om, which in turn uses https://facebook.github.io/react/index.html[React^] underneath.
 
 === Creating a Custom React Class
 
@@ -139,7 +139,7 @@ You access properties in a component using `om/props`:"
 === Computed data like Callbacks
 
 In plain React you store component local state and pass data from the parent to the child through props.
-You also pass your callbacks through props. In Untangled, we need a slight variation of
+You also pass your callbacks through props. In Fulcro, we need a slight variation of
 this because a component can have a query that asks the underlying system for data.
 
 If you complect callbacks and such with this queried data then you run into trouble because the rendering system
@@ -158,7 +158,7 @@ The child can look for these computed properties using `om/get-computed`.
 Earlier we stress that your components should be stateless whenever possible. There are a few
 notable exceptions that we have found useful (or even necessary):
 
-- The Untangled support viewer shows each app state change. User input (each letter they type) can
+- The Fulcro support viewer shows each app state change. User input (each letter they type) can
 be quite tedious to watch in a support viewer. Moving these kinds of interstitial form interactions
 into local component state causes little harm, and greatly enhances support. Om automatically hooks up local
 state to input fields when you use "uncontrolled" form elements (which means you didn't set value/checked).
@@ -172,7 +172,7 @@ checkboxes it is probably best to override this.
 
 ==== External library state
 
-See the D3 example in the Untangled Tutorial.
+See the D3 example in the Fulcro Tutorial.
 
 === Built-in React DOM
 
@@ -192,9 +192,9 @@ All of the standard HTML tags have pre-built React components, accessible from t
 
 == Application Database Format
 
-Untangled applications use the default Om database format. This is a simple graph database format made from
+Fulcro applications use the default Om database format. This is a simple graph database format made from
 standard Clojurescript persistent data structures: Maps and vectors. The entire database is a map.
-Check out the http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.C_App_Database[developer's guide] for more information.
+Check out the http://fulcro-web.github.io/fulcro/guide.html#!/fulcro_devguide.C_App_Database[developer's guide] for more information.
 
 === Tables
 
@@ -252,7 +252,7 @@ person has a pointer to the person that is their mate. This creates a graph with
 
 The query language is a subset of Datomic Pull syntax. It is a syntax that is designed to walk a graph and produce a
 tree (which is suitable for a UI, which is naturally a tree).
-Check out the http://untangled-web.github.io/untangled/guide.html#!/untangled_devguide.D_Queries[developer's guide] for more information.
+Check out the http://fulcro-web.github.io/fulcro/guide.html#!/fulcro_devguide.D_Queries[developer's guide] for more information.
 
 Queries are written as a vector.
 
@@ -350,7 +350,7 @@ Unions work fine on to-one joins exactly the same (returning only one result).
 
 === Query parameters
 
-The query language includes support for adding a parameter map to every kind of query element. Untangled does not
+The query language includes support for adding a parameter map to every kind of query element. Fulcro does not
 support such parameters on the UI; however, since the same query language is used with respect to the server, it is
 useful to know how to represent them.
 
@@ -386,7 +386,7 @@ do with queries:
 ----
 (:require
   [om.next :refer-macros [defui]]
-  [untangled.client.core :as uc])
+  [fulcro.client.core :as uc])
 
 (defui Child
   static uc/InitialAppState
@@ -399,7 +399,7 @@ do with queries:
   ...)
 ----
 
-Compose these all the way to your root component. Untangled will detect state on your root component, and use that
+Compose these all the way to your root component. Fulcro will detect state on your root component, and use that
 to construct the initial application database.
 
 ==== Unions and InitialAppState
@@ -410,7 +410,7 @@ InitialAppState implementations. The union component InitialAppState should defi
 === Using a manually-constructed graph db
 
 Simply create your database in a map, then *wrap it in an atom* and pass that via the `:initial-state` parameter of
-`new-untangled-client`. This method is a bit of a hassle to maintain, but allows you to place things in the database
+`new-fulcro-client`. This method is a bit of a hassle to maintain, but allows you to place things in the database
 that are not (yet) in your UI.
 
 === Using a manually-constructed tree
@@ -420,7 +420,7 @@ least useful. It is no more functional than the `InitialAppState` method, but is
 
 == Mutations
 
-Untangled uses the abstract top-level transactions modelled by Om to evolve your application state. One should view
+Fulcro uses the abstract top-level transactions modelled by Om to evolve your application state. One should view
 mutations as a function that evolves the state of the database:
 
 [ditaa,target=mutations]
@@ -438,7 +438,7 @@ go to that place in the database and change the state there.
 
 === Built-in mutations
 
-The following functions are built in (in `untangled.client.mutations`), and should generally only be used in the context of UI state changes (e.g.
+The following functions are built in (in `fulcro.client.mutations`), and should generally only be used in the context of UI state changes (e.g.
 folding, checkbox toggle, etc.). They invoke an internal transaction.
 
 WARNING: You should not use these for bit-twiddling your real state! Define your own top-level abstract transactions.
@@ -457,12 +457,12 @@ component local state in uncontrolled form inputs).
 
 === Custom mutations
 
-Untangled provides a multimethod that you can hook your own mutations into.
+Fulcro provides a multimethod that you can hook your own mutations into.
 
 [source]
 ----
 (ns app.mutations
-  (:require [untangled.client.mutations :as m]))
+  (:require [fulcro.client.mutations :as m]))
 
 (defmethod m/mutate 'my/mutation-symbol [env k params]
    { :action (fn[] ...) })
@@ -504,7 +504,7 @@ when there is a common behavior that should happen after some set of mutations.
 
 === UI refresh after mutation
 
-Untangled uses Om to manage the UI, and as such the UI refresh story is Om's story. The basic
+Fulcro uses Om to manage the UI, and as such the UI refresh story is Om's story. The basic
 rule is that when you `transact!`, the component (subtree) used for the transaction will be refreshed in the UI. This
 allows you to automatically handle a lot of UI updates without having to think much; however, there are a couple of
 general rules and tools you can use when this alone is insufficient.

@@ -1,7 +1,7 @@
 (ns recipes.lists-client
   (:require
-    [untangled.client.mutations :as m]
-    [untangled.client.core :as uc]
+    [fulcro.client.mutations :as m]
+    [fulcro.client.core :as uc]
     [om.dom :as dom]
     [om.next :as om :refer-macros [defui]]))
 
@@ -12,7 +12,7 @@
                                    :list/items [{:item/id 1 :item/label "A"}
                                                 {:item/id 2 :item/label "B"}]}})
 
-(defonce app (atom (uc/new-untangled-client :initial-state initial-state)))
+(defonce app (atom (uc/new-fulcro-client :initial-state initial-state)))
 
 (m/defmutation delete-item
   "Om Mutation: Delete an item from a list"

@@ -8,7 +8,7 @@ idea of what features are core and solid, and which ones are still evolving:
 
 ## Core Features
 
-Untangled is production-ready, and a number of companies are actively using it. Some of
+Fulcro is production-ready, and a number of companies are actively using it. Some of
 the newer features still have some rough edges.
 
 - Client-side rendering (100%)
@@ -27,7 +27,7 @@ Be sure to watch the [whiteboard discussion video](https://youtu.be/mT4jJHf929Q?
 ## HTML5 Routing
 
 The primitives to support this are well-defined in `routing.cljc`. There are a few gotchas, and
-it is recommended that you carefully examine the new [Untangled Template](https://github.com/untangled-web/untangled-template).
+it is recommended that you carefully examine the new [Fulcro Template](https://github.com/fulcro-web/fulcro-template).
 
 Server-side rendering still needs to be checked and possibly augmented so that
 you can pre-render the correct page.
@@ -138,8 +138,8 @@ in future versions, but if you find a great use-case, let us know!
 
 ## Devcards
 
-The `cards.cljc` namespace includes an `untangled-app` macro that lets you
-embed a full-stack Untangled app within a card. It works, but has a few
+The `cards.cljc` namespace includes an `fulcro-app` macro that lets you
+embed a full-stack Fulcro app within a card. It works, but has a few
 small issues (one is that hot code reload restarts the app). Combine this
 with `ui-iframe` from elements to get the CSS and rendering fully encapsulated
 in a card. See the Bootstrap devcards in the Developer's Guide.
