@@ -4,7 +4,7 @@
   goog.module
   goog.module.ModuleLoader
   [goog.module.ModuleManager :as module-manager]
-  [untangled.i18n :as i18n]
+  [fulcro.i18n :as i18n]
   app.i18n.en)
  (:import goog.module.ModuleManager))
 

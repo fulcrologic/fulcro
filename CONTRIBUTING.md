@@ -2,7 +2,7 @@
 
 If you'd like to submit a PR, please follow these general guidelines:
 
-- Either talk about it in Slack on #untangled, or open a github issue
+- Either talk about it in Slack on #fulcro, or open a github issue
 - Do development against the *develop* branch (we use git flow). PRs should be directed at the develop branch. Master is
   the latest release, not the live development.
 - In general, please squash your change into a single commit
@@ -35,7 +35,7 @@ https://help.github.com/categories/collaborating-with-issues-and-pull-requests/
 ## General Guidelines
 
 In general we'd prefer there be tests for code that is added/modified. The
-testing style is BDD, where we use untangled-spec to allow for a more
+testing style is BDD, where we use fulcro-spec to allow for a more
 human-readable test-suite.
 
 The intention is to have a specification be named by a sentence
@@ -83,7 +83,7 @@ the console.
 $ lein run -m clojure.main -e '(server-test-server)'
 ```
 
-and open [http://localhost:8888/untangled-spec-server-tests.html]().
+and open [http://localhost:8888/fulcro-spec-server-tests.html]().
 
 Before submitting a PR, you should at least run `lein test-refresh :run-once`.
 

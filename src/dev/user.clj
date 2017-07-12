@@ -9,8 +9,8 @@
     [clojure.tools.namespace.repl :as tools-ns :refer [disable-reload! refresh clear set-refresh-dirs]]
     [figwheel-sidecar.system :as fig]
     [com.stuartsierra.component :as component]
-    [untangled-spec.selectors :as sel]
-    [untangled-spec.suite :as suite]))
+    [fulcro-spec.selectors :as sel]
+    [fulcro-spec.suite :as suite]))
 
 (suite/def-test-suite server-test-server
   {:config {:port 8888}

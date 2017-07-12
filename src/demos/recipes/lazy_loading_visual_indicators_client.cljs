@@ -1,15 +1,15 @@
 (ns recipes.lazy-loading-visual-indicators-client
   (:require
-    [untangled.client.core :as uc]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.mutations :as m :refer [defmutation]]
+    [fulcro.client.core :as uc]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.mutations :as m :refer [defmutation]]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
 
 (def initial-state {:ui/react-key "abc"
                     :panel        {}})
 
-(defonce app (atom (uc/new-untangled-client :initial-state initial-state)))
+(defonce app (atom (uc/new-fulcro-client :initial-state initial-state)))
 
 (declare Item)
 

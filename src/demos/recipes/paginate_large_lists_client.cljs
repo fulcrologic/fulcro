@@ -1,8 +1,8 @@
 (ns recipes.paginate-large-lists-client
   (:require
-    [untangled.client.core :as uc]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.mutations :as m]
+    [fulcro.client.core :as uc]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.mutations :as m]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
 

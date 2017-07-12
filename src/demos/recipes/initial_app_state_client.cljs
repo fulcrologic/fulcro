@@ -1,12 +1,12 @@
 (ns recipes.initial-app-state-client
   (:require
-    [untangled.client.core :as uc :refer [InitialAppState initial-state]]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.mutations :as m]
+    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.mutations :as m]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
 
-(defonce app (atom (uc/new-untangled-client)))
+(defonce app (atom (uc/new-fulcro-client)))
 
 (defmethod m/mutate 'nav/settings [{:keys [state]} sym params]
   {:action (fn [] (swap! state assoc :panes [:settings :singleton]))})
@@ -105,7 +105,7 @@
 (def ui-main (om/factory Main {:keyfn :type}))
 
 ;; This is a to-one union component. Again, it has no state of its own or rendering. The initial state is the single
-;; child that should appear. Untangled (during startup) will detect this component, and then use the query to figure out
+;; child that should appear. Fulcro (during startup) will detect this component, and then use the query to figure out
 ;; what other children (the ones that have initial-state defined) should be placed into app state.
 (defui ^:once PaneSwitcher
   static InitialAppState

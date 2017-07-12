@@ -1,4 +1,4 @@
-# Evaluating Untangled (or web development tools in general)
+# Evaluating Fulcro (or web development tools in general)
 
 We understand that it is hard to evaluate tools. Developers spend countless
 hours trying to figure out what tool is right for the job at hand.
@@ -9,8 +9,8 @@ Those concerns rarely affect your long-term success. Look more deeply.
 Try writing a simple full-stack application in each (or at least look for
 a full-stack example.
 
-Untangled brings some great things to the table, but it also has some
-costs. When we first decided to develop Untangled, there were a number
+Fulcro brings some great things to the table, but it also has some
+costs. When we first decided to develop Fulcro, there were a number
 of criteria that were important to us, and some we didn't really care
 about.
 
@@ -23,7 +23,7 @@ place the result in the correct place in the spreadsheet.
 
 Here is a link to a spreadsheet you can clone in Google Docs that has
 many of the criteria that have a significant advantage/disadvantage
-in Untangled. Add other tools you're evaluating and use if for
+in Fulcro. Add other tools you're evaluating and use if for
 an in-house custom a head-to-head comparison. Good Luck!
 
 [Web Tool Comparison Worksheet](https://docs.google.com/spreadsheets/d/1kBJLjN2Z1AFJM4W8S7YTn0PS_drzqtIMY5siSIZ5OWI)

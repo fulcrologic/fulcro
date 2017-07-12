@@ -2,16 +2,16 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.initial-app-state-client :as client]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.logging :as log]))
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.logging :as log]))
 
 
 (dc/defcard-doc
   "# Initial State
 
-  Untangled's initial state support allows you to compose the initial (startup) state using the components themselves.
+  Fulcro's initial state support allows you to compose the initial (startup) state using the components themselves.
   This allows you to co-locate the component initial state for local reasoning, and compose children into
   parents so that any component in the app can be easily relocated. If such components also have an ident, any
   mutations need to interact with those components will automatically just work, since you'll be working on
@@ -34,6 +34,6 @@
   though one of them is not in the initial tree of initial state (PaneSwitcher composes in Main, but Settings is
   auto-found and added as well).
   "
-  (untangled-app client/Root)
+  (fulcro-app client/Root)
   {}
   {:inspect-data true})

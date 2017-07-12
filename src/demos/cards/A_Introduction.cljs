@@ -2,13 +2,13 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.background-loads-client :as bg]
-    [untangled.client.cards :refer [untangled-app]]
+    [fulcro.client.cards :refer [fulcro-app]]
     [om.dom :as dom]))
 
 (dc/defcard-doc
-  "# Untangled Demos
+  "# Fulcro Demos
 
-  This devcards application includes a number of demonstrations of Untangled solving various problems. Some of the demos
+  This devcards application includes a number of demonstrations of Fulcro solving various problems. Some of the demos
   are client-side only, and some require a server.
 
   The source code is all in `src/demos`:

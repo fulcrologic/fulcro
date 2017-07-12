@@ -1,6 +1,6 @@
-# The Benefits of Untangled
+# The Benefits of Fulcro
 
-In a nutshell: Untangled eliminates a lot of incidental complexity. It allows you to think
+In a nutshell: Fulcro eliminates a lot of incidental complexity. It allows you to think
 about rendering as a pure function of data, which then allows you to think about the
 clean evolution of your data model from one state to the next through *mutations* on that
 data model (atomic steps that complete one operation). The UI pretty much takes care
@@ -8,7 +8,7 @@ of itself.
 
 In the interest of giving you some talking points:
 
-## Why to Use Untangled
+## Why to Use Fulcro
 
 - Use an advanced, fast, FP language on both the client and server.
 - Reason about the UI as a pure function (no "bit twiddling" to modify the DOM).
@@ -39,17 +39,17 @@ mechanisms (no two-way data binding causing (or failing to cause) storms of refr
 - Meta-programming is quite powerful when used well (think of building a DSL that can then be used to build
 elements of your program). Clojure is homoiconic, making this easier.
 
-## When not to Use Untangled
+## When not to Use Fulcro
 
-Untangled does try to provide you with a full-stack story. It also requires that you learn
+Fulcro does try to provide you with a full-stack story. It also requires that you learn
 (and *unlearn*) a few things that some people find initially challenging. Here are some reasons
-you might *not* want to use Untangled:
+you might *not* want to use Fulcro:
 
-- You are writing a game. Untangled shines when it comes to data-driven applications. Games typically need very fast
-  framerates and low UI overhead. Untangled is fast enough for data-driven apps, but it really would not make
+- You are writing a game. Fulcro shines when it comes to data-driven applications. Games typically need very fast
+  framerates and low UI overhead. Fulcro is fast enough for data-driven apps, but it really would not make
   sense for animation-heavy gaming.
 - You don't want to learn something radically different from what you're used to.
 - Your co-workers don't want to learn something radically different.
-- Your company cannot be convinced that the long-term benefits of Untangled will pay off in the long run compared to the
+- Your company cannot be convinced that the long-term benefits of Fulcro will pay off in the long run compared to the
 costs of re-training/tooling.
 

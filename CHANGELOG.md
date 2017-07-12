@@ -1,5 +1,6 @@
 1.0.0-beta2
 -----
+- RENAMED PROJECT: Fulcro. All relevant namespaces and interface names updated to use the new naming.
 - Added more form field types (html5-input supports all text-like html 5 input types)
 - Improved options can be passed when rendering form fields (still needs more)
 - Form commit now accepts a fallback

@@ -1,14 +1,14 @@
 (ns recipes.server-query-security-client
   (:require
-    [untangled.client.core :as uc]
-    [untangled.client.data-fetch :as df]
-    [untangled.client.mutations :as m]
+    [fulcro.client.core :as uc]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.mutations :as m]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
 
 (def initial-state {:ui/react-key "abc"})
 
-(defonce app (atom (uc/new-untangled-client
+(defonce app (atom (uc/new-fulcro-client
                      :initial-state initial-state
                      :started-callback
                      (fn [{:keys [reconciler]}]
@@ -31,7 +31,7 @@
 
 (defui ^:once Root
   static om/IQuery
-  (query [this] [:ui/react-key {:person (om/get-query Person)} :untangled/server-error])
+  (query [this] [:ui/react-key {:person (om/get-query Person)} :fulcro/server-error])
   Object
   (render [this]
     (let [{:keys [ui/react-key person server-error] :or {ui/react-key "ROOT"} :as props} (om/props this)]
