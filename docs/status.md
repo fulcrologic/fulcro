@@ -27,7 +27,7 @@ Be sure to watch the [whiteboard discussion video](https://youtu.be/mT4jJHf929Q?
 ## HTML5 Routing
 
 The primitives to support this are well-defined in `routing.cljc`. There are a few gotchas, and
-it is recommended that you carefully examine the new [Fulcro Template](https://github.com/fulcro-web/fulcro-template).
+it is recommended that you carefully examine the new [Fulcro Template](https://github.com/fulcrologic/fulcro-template).
 
 Server-side rendering still needs to be checked and possibly augmented so that
 you can pre-render the correct page.
