@@ -17,7 +17,7 @@ To help you evaluate it, you might want to:
 
 - Read more about [the benefits of Fulcro](benefits.html)
 - Clone and play with the [Fulcro Template](https://github.com/fulcrologic/fulcro-template) project.
-- Clone and play with an Fulcro [TODOMVC](https://github.com/fulcro-web/fulcro-todomvc) (full-stack!).
+- Clone and play with an Fulcro [TODOMVC](https://github.com/fulcrologic/fulcro-todomvc) (full-stack!).
 - Understand [how Fulcro improves stock Om Next](vsom-next.html) (assumes you understand something about Om Next)
 - Use the [Fulcro Evaluation Spreadsheet](evaluation.html)
 
@@ -118,7 +118,7 @@ and I'll be glad to include you in the list!
 
 ## Social Media???
 
-You can follow [@fulcrofw](http://www.twitter.com/fulcrofw) on twitter.
+You can follow [@fulcrologic](http://www.twitter.com/fulcrologic) on twitter.
 
 ## Contributing
 
