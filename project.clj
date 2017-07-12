@@ -16,7 +16,7 @@
                  [commons-codec "1.10"]
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.10.0"]
-                 [fulcrologic/fulcro-spec "1.0.0-beta1" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "1.0.0-beta2-SNAPSHOT" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
                  [bidi "2.1.1"]
