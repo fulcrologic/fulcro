@@ -101,7 +101,7 @@ a lot of our own code and getting a lot of stuff for free.
 <br/>
 <br/>
 At this point we've also integrated Fulcro into our backend (which was actually pretty easy),
-and use most of Fulcro: Fulcro-spec, server-side rendering, fulcro-web/om-css, i18n, and
+and use most of Fulcro: fulcro-spec, server-side rendering, fulcro-css, i18n, and
 the devcards integrations (a lot, our UX designer even started writing some UI stuff in there).
 <br/>
 <br/>
