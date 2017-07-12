@@ -7,7 +7,7 @@ time to the project.
 
 There are a number of ways you can help:
 
-- [Become a Patron or Corporate Sponsor](https://www.patreon.com/fulcrofw).
+- [Become a Patron or Corporate Sponsor](https://www.patreon.com/fulcro).
 - [Send a one-time Donation](https://paypal.me/untangledfw).
 - Ask for some consulting, training, or give a bounty for a feature.
 
