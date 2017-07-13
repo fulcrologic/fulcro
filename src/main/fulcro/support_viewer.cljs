@@ -5,9 +5,14 @@
     [fulcro.client.data-fetch :refer [load]]
     [fulcro.client.core :as core]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [yahoo.intl-messageformat-with-locales]
+    yahoo.intl-messageformat-with-locales
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.network :as net]))
+
+(defonce support-viewer (atom nil))
+
+(defn get-target-app []
+  (-> @support-viewer :application))
 
 (defn history-entry [history n]
   (let [steps    (:steps history)
@@ -16,8 +21,8 @@
     (get states state-id)))
 
 (defn history-step [state delta-fn]
-  (let [{:keys [application history playback-speed]} @state
-
+  (let [{:keys [history playback-speed]} @state
+        application    (get-target-app)
         max-idx        (dec (count (:steps history)))
         p              (:current-position @state)
         playback-speed (max 1 playback-speed)               ;; Playback speed min is 1.
@@ -41,7 +46,7 @@
     (swap! state
       (fn [s]
         (let [req      (:support-request @state)
-              app      (:application @state)
+              app      (get-target-app)
               comments (:comment req)
               history  (:history req)
               frames   (-> history :steps count)
@@ -56,33 +61,33 @@
 
 (defmutation step-forward
   [params]
-  (action [{:keys [state]}] #(history-step state inc)))
+  (action [{:keys [state]}] (history-step state inc)))
 
 (defmutation step-back
   [params]
-  (action [{:keys [state]}] #(history-step state dec)))
+  (action [{:keys [state]}] (history-step state dec)))
 
 (defmutation toggle-position
   [params]
-  (action [{:keys [state]}] (fn []
-                              (let [{:keys [position]} @state
-                                    new-position (cond
-                                                   (= :controls-left position) :controls-right
-                                                   :else :controls-left)]
-                                (swap! state assoc :position new-position)))))
+  (action [{:keys [state]}]
+    (let [{:keys [position]} @state
+          new-position (cond
+                         (= :controls-left position) :controls-right
+                         :else :controls-left)]
+      (swap! state assoc :position new-position))))
 
 (defmutation go-to-beg
   [params]
-  (action [{:keys [state]}] #(history-step state (fn [pos] 0))))
+  (action [{:keys [state]}] (history-step state (fn [pos] 0))))
 
 (defmutation go-to-end
   [params]
-  (action [{:keys [state]}] #(let [steps (-> @state :history :steps count dec)]
-                               (history-step state (fn [pos] steps)))))
+  (action [{:keys [state]}] (let [steps (-> @state :history :steps count dec)]
+                              (history-step state (fn [pos] steps)))))
 
 (defmutation update-playback-speed
   [{:keys [playback-speed]}]
-  (action [{:keys [state]}] #(swap! state assoc :playback-speed playback-speed)))
+  (action [{:keys [state]}] (swap! state assoc :playback-speed playback-speed)))
 
 (defui ^:once SupportViewerRoot
   static om/IQuery
@@ -118,17 +123,13 @@
           (dom/button #js {:className "history-end"
                            :onClick   #(om/transact! this `[(go-to-end {})])} (tr "End")))))))
 
-
-
 (defrecord SupportViewer [support dom-id app-root application history]
   core/FulcroApplication
-  (mount [this root-component dom-id-or-node]
-    (if (:mounted? @support)
-      (do (core/refresh this) this)
-      (do
-        (reset! application (core/mount @application app-root dom-id))
-        (reset! support (core/mount @support SupportViewerRoot dom-id-or-node))
-        @support)))
+  (mount [this support-root dom-id-or-node]
+    (do
+      (reset! application (core/mount @application app-root dom-id))
+      (reset! support (core/mount @support support-root dom-id-or-node))
+      @support))
 
   (reset-state! [this new-state] (core/reset-state! @application new-state))
 
@@ -139,24 +140,22 @@
   "Create and display a new fulcro support viewer on the given app root, with VCR controls to browse through the given history. The support HTML file must include
   a div with app-dom-id (to mount the app) and a div with support-dom-id to mount the viewer controls."
   [support-dom-id AppRoot app-dom-id]
-  (let [app    (atom (core/new-fulcro-client :networking (net/mock-network)))
-        viewer (map->SupportViewer
+  (let [viewer (map->SupportViewer
                  {:app-root    AppRoot
                   :dom-id      app-dom-id
-                  :application app
+                  :application (atom (core/new-fulcro-client :networking (net/mock-network)))
                   :support     (atom (core/new-fulcro-client
                                        :initial-state {:history          {}
-                                                       :application      app
                                                        :position         :controls-left
                                                        :client-time      (js/Date.)
                                                        :playback-speed   1
                                                        :frames           0
                                                        :current-position 0}
                                        :started-callback
-                                       (fn [{:keys [reconciler]}]
-                                         (load reconciler :support-request nil
+                                       (fn [app]
+                                         (load app :support-request nil
                                            {:params        {:id (core/get-url-param "id")}
+                                            :refresh       [:frames]
                                             :post-mutation `initialize-history}))))})]
+    (reset! support-viewer viewer)
     (core/mount viewer SupportViewerRoot support-dom-id)))
-
-
