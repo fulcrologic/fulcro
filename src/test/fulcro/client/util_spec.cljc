@@ -145,7 +145,7 @@
         (is (= sample (util/transit-str->clj (util/transit-clj->str sample))))))))
 
 #?(:clj
-   (specification "SSR script tag generation" :focused
+   (specification "SSR script tag generation"
      (assertions
        "puts an assignment on the document window"
        (-> (util/initial-state->script-tag []) :attrs :dangerouslySetInnerHTML :__html) => "window.INITIAL_APP_STATE = '[]'"
@@ -154,7 +154,7 @@
        (-> (util/initial-state->script-tag []) :tag) => "script")))
 
 #?(:cljs
-   (specification "SSR initial-state extraction" :focused
+   (specification "SSR initial-state extraction"
      (let [state (util/transit-clj->str [])]
        (set! (.-INITIAL_APP_STATE js/window) state)
        (assertions

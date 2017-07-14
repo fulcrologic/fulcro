@@ -23,7 +23,7 @@
                  [com.taoensso/sente "1.11.0"]
                  [com.rpl/specter "1.0.1"]
                  [garden "1.3.2"]
-                 [org.clojure/test.check "0.9.0" :scope "test"]]
+                 [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
   :source-paths ["src/main"]
   :resource-paths ["resources"]

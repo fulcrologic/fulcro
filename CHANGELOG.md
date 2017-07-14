@@ -1,3 +1,10 @@
+1.0.0-beta4
+-----
+- Made routing.cljc more friendly to SSR
+- Added fulcro.core/merge-component to help merging a new instance of a
+component to app state in mutations.
+- Added fulcro.core/merge-alternate-union-elements (no exclamation) that can work on state maps.
+
 1.0.0-beta3
 -----
 - Fixed support viewer. Porting for defmutation had broken it.

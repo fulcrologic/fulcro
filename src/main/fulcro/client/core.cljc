@@ -2,7 +2,7 @@
   (:require
     [om.next :as om]
     [fulcro.client.impl.application :as app]
-    #?(:cljs fulcro.client.mutations)                    ; DO NOT REMOVE. Ensures built-in mutations load on start
+    #?(:cljs fulcro.client.mutations)                       ; DO NOT REMOVE. Ensures built-in mutations load on start
     [fulcro.client.network :as net]
     [fulcro.client.logging :as log]
     #?(:clj
@@ -133,12 +133,29 @@
   (history [this] "Return a serialized version of the current history of the application, suitable for network transfer")
   (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
-;q: {:a (gq A) :b (gq B)
-;is: (is A)  <-- default branch
-;state:   { kw { id [:page :a]  }}
-(defn merge-alternate-union-elements! [app root-component]
-  (letfn [
-          (walk-ast
+(defn merge-component
+  "Given a state map of the application database, a component, and a tree of component-data: normalizes
+   the tree of data and merges the component table entries into the state, returning a new state map.
+   Since there is not an implied root, the component itself won't be linked into your graph (though it will
+   remain correctly linked for its own consistency).
+   Therefore, this function is just for dropping normalized things into tables
+   when they themselves have a recursive nature. This function is useful when you want to create a new component instance
+   and put it in the database, but the component instance has recursive normalized state. This is a basically a
+   thin wrapper around `om/tree->db`."
+  [state-map component component-data]
+  (if-let [top-ident (util/get-ident component component-data)]
+    (let [query          [{top-ident (om/get-query component)}]
+          state-to-merge {top-ident component-data}
+          table-entries  (-> (om/tree->db query state-to-merge true)
+                           (dissoc ::om/tables top-ident))]
+      (util/deep-merge state-map table-entries))
+    state-map))
+
+(defn merge-alternate-unions
+  "Walks the given query and calls (merge-fn parent-union-component union-child-initial-state) for each non-default element of a union that has initial app state.
+  You probably want to use merge-alternate-union-elements[!] on a state map or app."
+  [merge-fn root-component]
+  (letfn [(walk-ast
             ([ast visitor]
              (walk-ast ast visitor nil))
             ([{:keys [children component type dispatch-key union-key key] :as parent-ast} visitor parent-union]
@@ -157,10 +174,34 @@
               (when-not default-initial-state
                 (log/warn "Subelements of union " (.. parent-union -displayName) " have initial state, but the union itself has no initial state. Your app state may suffer."))
               (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
-                (merge-state! app parent-union component-initial-state))))]
+                (merge-fn parent-union component-initial-state))))]
     (walk-ast
       (om/query->ast (om/get-query root-component))
       merge-union)))
+
+;q: {:a (gq A) :b (gq B)
+;is: (is A)  <-- default branch
+;state:   { kw { id [:page :a]  }}
+(defn merge-alternate-union-elements!
+  "Walks the query and initial state of root-component and merges the alternate sides of unions with initial state into
+  the application state database. See also `merge-alternate-union-elements`, which can be used on a state map and
+  is handy for server-side rendering. This function side-effects on your app, and returns nothing."
+  [app root-component]
+  (merge-alternate-unions (partial merge-state! app) root-component))
+
+(defn merge-alternate-union-elements
+  "Just like merge-alternate-union-elements!, but usable from within mutations and on server-side rendering. Ensures
+  that when a component has initial state it will end up in the state map, even if it isn't currently in the
+  initial state of the union component (which can only point to one at a time)."
+  [state-map root-component]
+  (let [initial-state  (get-initial-state root-component nil)
+        state-map      (om/tree->db root-component initial-state true)
+        update-fn      (fn [])
+        state-map-atom (atom state-map)
+        merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
+        _              (merge-alternate-unions merge-to-state root-component)
+        new-state      @state-map-atom]
+    new-state))
 
 (defn- start-networking
   "Starts all remotes in a map. If a remote's `start` returns something that implements `FulcroNetwork`,

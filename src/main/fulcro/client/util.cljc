@@ -98,7 +98,8 @@
     react-instance))
 
 (defn first-node
-  "Finds (and returns) the first child that is an instance of the given React class (or nil if not found)."
+  "Finds (and returns) the first instance of the given React class (or nil if not found) in a sequence of instances. Useful
+  for finding a child of the correct type when nesting react components."
   [react-class sequence-of-react-instances]
   (some #(react-instance? react-class %) sequence-of-react-instances))
 
