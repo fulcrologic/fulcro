@@ -79,13 +79,12 @@
        (catch #?(:cljs js/Error :clj Exception) e
          (throw (ex-info "fulcro.client.impl.util/log-app-state expects an atom with an fulcro client" {}))))))
 
-#?(:clj
-   (defn conform! [spec x]
-     (let [rt (s/conform spec x)]
-       (when (s/invalid? rt)
-         (throw (ex-info (s/explain-str spec x)
-                  (s/explain-data spec x))))
-       rt)))
+(defn conform! [spec x]
+  (let [rt (s/conform spec x)]
+    (when (s/invalid? rt)
+      (throw (ex-info (s/explain-str spec x)
+               (s/explain-data spec x))))
+    rt))
 
 #?(:clj
    (def TRUE (s/with-gen (constantly true) sg/int)))

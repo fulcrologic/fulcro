@@ -2,6 +2,7 @@
   (:require [fulcro-spec.core :refer [specification behavior assertions when-mocking component]]
             [fulcro.client.routing :as r :refer [defrouter]]
             [om.dom :as dom]
+            [fulcro.client.util :as util]
             [om.next :as om :refer [defui]]
             [fulcro.client.mutations :as m]
             [fulcro.client.core :as uc]))
@@ -21,9 +22,9 @@
 (specification "Routers"
   (assertions
     "Have a top-level table namespaced to the fulcro routing library"
-    (om/ident SampleRouter {}) => [r/routers-table :router-1]
+    (util/get-ident SampleRouter {}) => [r/routers-table :router-1]
     "Use the user-supplied ident function for the union"
-    (om/ident SampleRouter-Union {:type :screen1}) => [:screen1 :top]))
+    (util/get-ident SampleRouter-Union {:type :screen1}) => [:screen1 :top]))
 
 (specification "current-route"
   (let [state-map {r/routers-table {:router-1 {:id :router-1 :current-route [:A :top]}
