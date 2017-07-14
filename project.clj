@@ -86,7 +86,7 @@
                 :source-paths ["src/main" "src/devguide"]
                 :compiler     {:main          fulcro-devguide.guide
                                :asset-path    "js"
-                               :optimizations :whitespace
+                               :optimizations :simple
                                :devcards      true
                                :output-to     "docs/js/guide.js"
                                :output-dir    "docs/js"

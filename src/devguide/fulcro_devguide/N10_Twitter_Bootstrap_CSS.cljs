@@ -673,9 +673,9 @@
     (apply dom/div nil
       (dom/style nil ".boxed {border: 1px solid black}")
       (dom/link #js {:rel  "stylesheet"
-                     :href "/bootstrap-3.3.7/css/bootstrap-theme.min.css"})
+                     :href "bootstrap-3.3.7/css/bootstrap-theme.min.css"})
       (dom/link #js {:rel  "stylesheet"
-                     :href "/bootstrap-3.3.7/css/bootstrap.min.css"})
+                     :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       children)))
 
 (defn sample [ele description]
