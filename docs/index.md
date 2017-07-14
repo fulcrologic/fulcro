@@ -59,7 +59,7 @@ our first full stack Clojure project and it took 3 developers 4 months to delive
 smoothest launch in our company's history.
 </blockquote>
 
-Wilker Lucio – [www.daveconservatoire.org](www.daveconservatoire.org) (open-source)
+Wilker Lucio – [http://www.daveconservatoire.org](www.daveconservatoire.org) (open-source)
 
 <blockquote>
 Om.next provides a robust architecture for building your client applications, but dealing with it
