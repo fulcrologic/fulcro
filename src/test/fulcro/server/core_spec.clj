@@ -114,6 +114,7 @@
           =fn=> (fn [sys]
                   (t/is (not (nil? (get-in sys [::SimpleTestModule]))))
                   true)))
+
       (component "components"
         (assertions
           (core/components (make-dep-test-module)) =fn=> :test-dep

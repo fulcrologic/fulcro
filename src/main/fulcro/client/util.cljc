@@ -4,7 +4,10 @@
     [clojure.spec.alpha :as s]
     clojure.walk
     [om.next :as om]
+    [om.dom :as dom]
     [om.next.protocols :as omp]
+    om.transit
+    [cognitect.transit :as t]
     [om.next.impl.parser :as parser]
     #?(:clj
     [clojure.spec.gen.alpha :as sg]))
@@ -22,8 +25,8 @@
 (defn unique-key
   "Get a unique string-based key. Never returns the same value."
   []
-  (let [s #?(:clj (System/currentTimeMillis)
-             :cljs (system-time))]
+  (let [s #?(:clj (java.util.UUID/randomUUID)
+             :cljs (random-uuid))]
     (str s)))
 
 (defn force-render
@@ -55,25 +58,26 @@
     (apply merge-with deep-merge xs)
     (last xs)))
 
-(defn log-app-state
-  "Helper for logging the app-state. Pass in an fulcro application atom and either top-level keys, data-paths
-   (like get-in), or both."
-  [app-atom & keys-and-paths]
-  (try
-    (let [app-state (om/app-state (:reconciler @app-atom))]
-      (pprint
-        (letfn [(make-path [location]
-                  (if (sequential? location) location [location]))
-                (process-location [acc location]
-                  (let [path (make-path location)]
-                    (assoc-in acc path (get-in @app-state path))))]
+#?(:cljs
+   (defn log-app-state
+     "Helper for logging the app-state. Pass in an fulcro application atom and either top-level keys, data-paths
+      (like get-in), or both."
+     [app-atom & keys-and-paths]
+     (try
+       (let [app-state (om/app-state (:reconciler @app-atom))]
+         (pprint
+           (letfn [(make-path [location]
+                     (if (sequential? location) location [location]))
+                   (process-location [acc location]
+                     (let [path (make-path location)]
+                       (assoc-in acc path (get-in @app-state path))))]
 
-          (condp = (count keys-and-paths)
-            0 @app-state
-            1 (get-in @app-state (make-path (first keys-and-paths)))
-            (reduce process-location {} keys-and-paths)))))
-    (catch #?(:cljs js/Error :clj Exception) e
-      (throw (ex-info "fulcro.client.impl.util/log-app-state expects an atom with an fulcro client" {})))))
+             (condp = (count keys-and-paths)
+               0 @app-state
+               1 (get-in @app-state (make-path (first keys-and-paths)))
+               (reduce process-location {} keys-and-paths)))))
+       (catch #?(:cljs js/Error :clj Exception) e
+         (throw (ex-info "fulcro.client.impl.util/log-app-state expects an atom with an fulcro client" {}))))))
 
 #?(:clj
    (defn conform! [spec x]
@@ -98,3 +102,32 @@
   "Finds (and returns) the first child that is an instance of the given React class (or nil if not found)."
   [react-class sequence-of-react-instances]
   (some #(react-instance? react-class %) sequence-of-react-instances))
+
+(defn transit-clj->str
+  "Use transit to encode clj data as a string. Useful for encoding initial app state from server-side rendering."
+  [coll]
+  #?(:cljs (t/write (om.transit/writer) coll)
+     :clj
+           (with-open [out (java.io.ByteArrayOutputStream.)]
+             (t/write (om.transit/writer out) coll)
+             (.toString out "UTF-8"))))
+
+(defn transit-str->clj
+  "Use transit to decode a string into a clj data structure. Useful for decoding initial app state when starting from a server-side rendering."
+  [str]
+  #?(:cljs (t/read (om.next/reader) str)
+     :clj  (t/read (om.next/reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8"))))))
+
+#?(:clj
+   (defn initial-state->script-tag
+     "Render a react script that that sets js/window.INITIAL_APP_STATE to a transit-encoded string version of initial-state."
+     [initial-state]
+     (dom/script {:type "text/javascript" :dangerouslySetInnerHTML {:__html (str "window.INITIAL_APP_STATE = '" (transit-clj->str initial-state) "'")}})))
+
+#?(:cljs
+   (defn get-SSR-initial-state
+     "Obtain the value of the INITIAL_APP_STATE set from server-side rendering. Use initial-state->script-tag on the server to embed the state."
+     []
+     (if-let [state-string (.-INITIAL_APP_STATE js/window)]
+       (transit-str->clj state-string)
+       {:STATE "No server-side script tag was rendered from your server-side rendering."})))
