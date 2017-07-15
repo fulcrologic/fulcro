@@ -195,8 +195,6 @@
   initial state of the union component (which can only point to one at a time)."
   [state-map root-component]
   (let [initial-state  (get-initial-state root-component nil)
-        state-map      (om/tree->db root-component initial-state true)
-        update-fn      (fn [])
         state-map-atom (atom state-map)
         merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
         _              (merge-alternate-unions merge-to-state root-component)

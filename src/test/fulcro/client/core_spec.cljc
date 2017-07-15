@@ -504,12 +504,13 @@
   (query [this] [{:reports (om/get-query Reports)}]))
 
 (specification "merge-alternate-union-elements" :focused
-  (let [initial-state (fc/get-initial-state MRRoot nil)
+  (let [initial-state (merge (fc/get-initial-state MRRoot nil) {:a 1})
         state-map     (om/tree->db MRRoot initial-state true)
         new-state     (fc/merge-alternate-union-elements state-map MRRoot)]
     (assertions
       "can be used to merge alternate union elements to raw state"
       (get-in new-state [:table 1]) => table-1
       "(existing state isn't touched)"
+      (get new-state :a) => 1
       (get new-state :reports) => [:graph 1]
       (get-in new-state [:graph 1]) => graph-1)))

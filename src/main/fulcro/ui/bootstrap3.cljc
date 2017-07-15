@@ -177,7 +177,7 @@
         help-id            (str id "-help")
         attrs              (cond-> (dissoc attrs :split :help :warning :error :success :input-generator)
                              help (assoc :aria-describedby help-id)
-                             :always (update :className #(str " form-control")))]
+                             :always (update :className #(str % " form-control")))]
     (cond
       (int? split) (dom/div #js {:className form-group-classes}
                      (dom/label #js {:className (str "control-label col-sm-" split) :htmlFor id} label)
