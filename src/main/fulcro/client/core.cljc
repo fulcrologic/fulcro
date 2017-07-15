@@ -92,6 +92,9 @@
   and is called once for each mutation that had a return value on the server. Returning nil from this function is safe, and will be ignored
   with a console message for debugging. If you need information about the original mutation arguments then you must reflect
   them back from the server in your return value. By default such values are discarded.
+  
+  `:reconciler-options (optional). A map that will be merged into the reconciler options for Om.next. Currently it's mostly
+  useful to override things like :root-render and :root-unmount for React Native Apps.`
 
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
