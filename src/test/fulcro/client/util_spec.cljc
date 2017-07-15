@@ -144,19 +144,3 @@
       (doseq [sample samples]
         (is (= sample (util/transit-str->clj (util/transit-clj->str sample))))))))
 
-#?(:clj
-   (specification "SSR script tag generation"
-     (assertions
-       "puts an assignment on the document window"
-       (-> (util/initial-state->script-tag []) :attrs :dangerouslySetInnerHTML :__html) => "window.INITIAL_APP_STATE = '[]'"
-       (dom/render-to-str (util/initial-state->script-tag [])) =fn=> #(.contains % "window.INITIAL_APP_STATE = '[]'")
-       "in a script tag"
-       (-> (util/initial-state->script-tag []) :tag) => "script")))
-
-#?(:cljs
-   (specification "SSR initial-state extraction"
-     (let [state (util/transit-clj->str [])]
-       (set! (.-INITIAL_APP_STATE js/window) state)
-       (assertions
-         "Can pull the initial state from the document's window"
-         (util/get-SSR-initial-state) => []))))

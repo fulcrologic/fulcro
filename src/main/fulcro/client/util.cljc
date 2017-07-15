@@ -117,17 +117,3 @@
   [str]
   #?(:cljs (t/read (om.next/reader) str)
      :clj  (t/read (om.next/reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8"))))))
-
-#?(:clj
-   (defn initial-state->script-tag
-     "Render a react script that that sets js/window.INITIAL_APP_STATE to a transit-encoded string version of initial-state."
-     [initial-state]
-     (dom/script {:type "text/javascript" :dangerouslySetInnerHTML {:__html (str "window.INITIAL_APP_STATE = '" (transit-clj->str initial-state) "'")}})))
-
-#?(:cljs
-   (defn get-SSR-initial-state
-     "Obtain the value of the INITIAL_APP_STATE set from server-side rendering. Use initial-state->script-tag on the server to embed the state."
-     []
-     (if-let [state-string (.-INITIAL_APP_STATE js/window)]
-       (transit-str->clj state-string)
-       {:STATE "No server-side script tag was rendered from your server-side rendering."})))

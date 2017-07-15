@@ -4,6 +4,12 @@
 - Added fulcro.core/merge-component to help merging a new instance of a
 component to app state in mutations.
 - Added fulcro.core/merge-alternate-union-elements (no exclamation) that can work on state maps.
+- Improved CSS on devguide a little
+- Made util more SSR-friendly
+- Added SSR-related initial state helpers to fulcro.server-render
+- Added clj encode/decode to transit string to util
+- Added tests for remaining functions in util
+
 
 1.0.0-beta3
 -----

@@ -453,7 +453,7 @@
   static om/Ident
   (ident [this props] [:person/by-id (:id props)]))
 
-(specification "merge-component" :focused
+(specification "merge-component"
   (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
         sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
         phone-3          {:id 3 :number "111-2222"}
@@ -503,7 +503,7 @@
   static om/IQuery
   (query [this] [{:reports (om/get-query Reports)}]))
 
-(specification "merge-alternate-union-elements" :focused
+(specification "merge-alternate-union-elements"
   (let [initial-state (merge (fc/get-initial-state MRRoot nil) {:a 1})
         state-map     (om/tree->db MRRoot initial-state true)
         new-state     (fc/merge-alternate-union-elements state-map MRRoot)]
