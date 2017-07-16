@@ -167,7 +167,7 @@
   Installing a translation map can be done as:
 
   ```
-  (swap! fulcro.i18n.core/*loaded-translations* assoc \"es\" {\"|This is a test\" \"Spanish for 'this is a test'\"})
+  (swap! fulcro.i18n/loaded-translations assoc \"es\" {\"|This is a test\" \"Spanish for 'this is a test'\"})
   ```
 
   in other words there is a global atom that holds the currently-loaded translations as a map, keyed by locale. The

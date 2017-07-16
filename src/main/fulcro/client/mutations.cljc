@@ -75,16 +75,19 @@
 (defmulti post-mutate om/dispatch)
 (defmethod post-mutate :default [env k p] nil)
 
+(defn change-locale-impl [state-map lang]
+  (reset! i18n/*current-locale* lang) ; TODO: client needs to init current locale on stated-callback if SSR
+  (-> state-map
+    (assoc :ui/locale lang)
+    (assoc :ui/react-key lang)))
+
 #?(:cljs
    (fulcro.client.mutations/defmutation change-locale
      "Om mutation: Change the locale of the UI."
      [{:keys [lang]}]
      (action [{:keys [state]}]
        (reset! i18n/*current-locale* lang)
-       (swap! state #(-> %
-                       (assoc :ui/locale lang)
-                       (assoc :ui/react-key lang))))))
-
+       (swap! state change-locale-impl lang))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation set-props

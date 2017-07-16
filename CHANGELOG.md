@@ -1,3 +1,8 @@
+1.0.0-beta5
+-----------
+- Made sure that server-side rendering of i18n worked properly, including trf
+
+
 1.0.0-beta4.1
 -------------
 - Changed the SSR client-side retrieval function to return nil instead of a state marker.

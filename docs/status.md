@@ -64,7 +64,7 @@ translations for other languages.
 - Core code (100%)
 - String extraction (80%)
 - Dynamic Loading (80%)
-- Server-side rendering (0%)
+- Server-side rendering (80%)
 
 ## Websockets
 
