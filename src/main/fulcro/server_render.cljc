@@ -19,9 +19,8 @@
    (defn get-SSR-initial-state
      "Obtain the value of the INITIAL_APP_STATE set from server-side rendering. Use initial-state->script-tag on the server to embed the state."
      []
-     (if-let [state-string (.-INITIAL_APP_STATE js/window)]
-       (util/transit-str->clj state-string)
-       {:STATE "No server-side script tag was rendered from your server-side rendering."})))
+     (when-let [state-string (.-INITIAL_APP_STATE js/window)]
+       (util/transit-str->clj state-string))))
 
 (defn build-initial-state
   "This function normalizes the given state-tree using the root-component's query into standard client db format,
