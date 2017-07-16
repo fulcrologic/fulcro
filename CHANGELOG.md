@@ -9,7 +9,7 @@ component to app state in mutations.
 - Added SSR-related initial state helpers to fulcro.server-render
 - Added clj encode/decode to transit string to util
 - Added tests for remaining functions in util
-
+- Added section M50-Server-Side-Rendering to the Dev Guide
 
 1.0.0-beta3
 -----
