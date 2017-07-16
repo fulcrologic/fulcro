@@ -130,7 +130,7 @@
   (enqueue-reads app))
 
 (defn- send-payload
-  "Sends a network payload. There are two kinds of payloads in Untanged. The first is
+  "Sends a network payload. There are two kinds of payloads in Fulcro. The first is
   for reads, which are tracked by load descriptors in the app state. These load descriptors
   tell the plumbing how to handle the response, and expect to only be merged in once. Mutations
   do not have a payload, and can technically received progress updates from the network. The built-in

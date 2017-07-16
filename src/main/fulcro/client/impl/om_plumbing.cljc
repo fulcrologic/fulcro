@@ -24,17 +24,17 @@
   [user-read {:keys [query target state ast] :as env} dkey params]
   (if-let [custom-result (user-read env dkey params)]
     custom-result
-  (when (not target)
-    (case dkey
-      (let [top-level-prop (nil? query)
-            key            (or (:key ast) dkey)
-            by-ident?      (util/ident? key)
-            union?         (map? query)
-            data           (if by-ident? (get-in @state key) (get @state key))]
-        {:value
-         (cond
-           union? (get (om/db->tree [{key query}] @state @state) key)
-           top-level-prop data
+    (when (not target)
+      (case dkey
+        (let [top-level-prop (nil? query)
+              key            (or (:key ast) dkey)
+              by-ident?      (util/ident? key)
+              union?         (map? query)
+              data           (if by-ident? (get-in @state key) (get @state key))]
+          {:value
+           (cond
+             union? (get (om/db->tree [{key query}] @state @state) key)
+             top-level-prop data
              :else (om/db->tree query data @state))})))))
 
 (defn write-entry-point
@@ -44,11 +44,11 @@
   can be useful, for example, in cases where you have some post-processing that needs
   to happen for a given (sub)set of mutations (that perhaps you did not define)."
   [env k params]
-  (let [rv (try
-             (m/mutate env k params)
-             (catch #?(:cljs :default :clj Exception) e
-               (log/error (str "Mutation " k " failed with exception") e)
-               nil))
+  (let [rv     (try
+                 (m/mutate env k params)
+                 (catch #?(:cljs :default :clj Exception) e
+                   (log/error (str "Mutation " k " failed with exception") e)
+                   nil))
         action (:action rv)]
     (if action
       (assoc rv :action (fn []
@@ -84,23 +84,23 @@
   "Removes all fulcro/load and tx/fallback mutations from the query"
   [query]
   (let [symbols-to-filter #{'fulcro/load 'tx/fallback `fulcro.client.data-fetch/fallback}
-        ast (om/query->ast query)
-        children (:children ast)
-        new-children (filter (fn [child] (not (contains? symbols-to-filter (:dispatch-key child)))) children)
-        new-ast (assoc ast :children new-children)]
+        ast               (om/query->ast query)
+        children          (:children ast)
+        new-children      (filter (fn [child] (not (contains? symbols-to-filter (:dispatch-key child)))) children)
+        new-ast           (assoc ast :children new-children)]
     (om/ast->query new-ast)))
 
 (defn fallback-query [query resp]
   "Filters out everything from the query that is not a fallback mutation.
   Returns nil if the resulting expression is empty."
   (let [symbols-to-find #{'tx/fallback 'fulcro.client.data-fetch/fallback}
-        ast (om/query->ast query)
-        children (:children ast)
-        new-children (->> children
+        ast             (om/query->ast query)
+        children        (:children ast)
+        new-children    (->> children
                           (filter (fn [child] (contains? symbols-to-find (:dispatch-key child))))
                           (map (fn [ast] (update ast :params assoc :execute true :error resp))))
-        new-ast (assoc ast :children new-children)
-        fallback-query (om/ast->query new-ast)]
+        new-ast         (assoc ast :children new-children)
+        fallback-query  (om/ast->query new-ast)]
     (when (not-empty fallback-query)
       fallback-query)))
 
@@ -112,7 +112,7 @@
 (defn strip-ui
   "Returns a new query with fragments that are in the `ui` namespace removed."
   [query]
-  (let [ast (om/query->ast query)
+  (let [ast              (om/query->ast query)
         drop-ui-children (fn drop-ui-children [ast-node]
                            (assoc ast-node :children
                                            (reduce (fn [acc n]
@@ -146,25 +146,25 @@
 (defn add-meta-to-recursive-queries [q]
   (let [a (atom q)]
     (->> q
-         (prewalk
-           #(cond
-             (and (vector? %)
-                  (-> % meta :map-entry? false?))
-             (do (reset! a %) %)
+      (prewalk
+        #(cond
+           (and (vector? %)
+             (-> % meta :map-entry? false?))
+           (do (reset! a %) %)
 
-             (number? %) (with-meta '... {:... @a :depth %})
+           (number? %) (with-meta '... {:... @a :depth %})
 
-             (recursive? %) (with-meta % {:... @a})
-             :else %))
-         (postwalk
-           #(cond
-             (and (vector? %)
-                  (not (some-> % meta :map-entry?))
-                  (= (count %) 2)
-                  (some-> % second meta :depth number?))
-             [(first %) (-> % second meta :depth)]
+           (recursive? %) (with-meta % {:... @a})
+           :else %))
+      (postwalk
+        #(cond
+           (and (vector? %)
+             (not (some-> % meta :map-entry?))
+             (= (count %) 2)
+             (some-> % second meta :depth number?))
+           [(first %) (-> % second meta :depth)]
 
-             :else %)))))
+           :else %)))))
 
 (defn as-leaf
   "Returns data with meta-data marking it as a leaf in the result."
@@ -180,7 +180,7 @@
     (not (coll? data))
     (empty? data)
     (and (coll? data)
-         (-> data meta :fulcro/leaf boolean))))
+      (-> data meta :fulcro/leaf boolean))))
 
 (defn mark-missing
   "Recursively walk the query and response marking anything that was *asked for* in the query but is *not* in the response as missing.
@@ -193,8 +193,8 @@
   [result query]
   (letfn [(paramterized? [q]
             (and (list? q)
-                 (or (symbol? (first q))
-                     (= 2 (count q)))))
+              (or (symbol? (first q))
+                (= 2 (count q)))))
           (ok*not-found [res k]
             (cond
               (contains? res k) res
@@ -205,56 +205,56 @@
           (union? [q]
             (let [expr (cond-> q (seq? q) first)]
               (and (map? expr)
-                   (< 1 (count (seq expr))))))
+                (< 1 (count (seq expr))))))
           (step [res q]
-            (let [q (if (paramterized? q) (first q) q)
+            (let [q                   (if (paramterized? q) (first q) q)
                   [query-key ?sub-query] (cond
                                            (util/join? q)
                                            [(util/join-key q) (util/join-value q)]
                                            :else [q nil])
                   result-or-not-found (ok*not-found res query-key)
                   result-or-not-found (if (and (keyword? q) (map? result-or-not-found)) (update result-or-not-found q as-leaf) result-or-not-found)
-                  sub-result (get result-or-not-found query-key)]
+                  sub-result          (get result-or-not-found query-key)]
               (cond
                 ;; singleton union result
                 (and (union? ?sub-query) (map? sub-result))
                 (assoc result-or-not-found query-key
                                            (mark-missing sub-result
-                                                         (union->query (get q query-key))))
+                                             (union->query (get q query-key))))
 
                 ;; list union result
                 (and (union? ?sub-query) (coll? sub-result))
                 (as-> sub-result <>
-                      (mapv #(mark-missing % (union->query (get q query-key))) <>)
-                      (assoc result-or-not-found query-key <>))
+                  (mapv #(mark-missing % (union->query (get q query-key))) <>)
+                  (assoc result-or-not-found query-key <>))
 
                 ;; ui.*/ fragment's are ignored
                 (is-ui-query-fragment? q) (as-leaf res)
 
                 ;; recur
                 (and ?sub-query
-                     (not= nf sub-result)
-                     (not (recursive? ?sub-query)))
+                  (not= nf sub-result)
+                  (not (recursive? ?sub-query)))
                 (as-> sub-result <>
-                      (if (vector? <>)
-                        (mapv #(mark-missing % ?sub-query) <>)
-                        (mark-missing <> ?sub-query))
-                      (assoc result-or-not-found query-key <>))
+                  (if (vector? <>)
+                    (mapv #(mark-missing % ?sub-query) <>)
+                    (mark-missing <> ?sub-query))
+                  (assoc result-or-not-found query-key <>))
 
                 ;; recursive?
                 (recursive? ?sub-query)
                 (if-let [res- (get res query-key)]
                   (as-> res- <>
-                        (if (vector? <>)
-                          (mapv #(mark-missing % ?sub-query) <>)
-                          (mark-missing <> ?sub-query))
-                        (assoc res query-key <>))
+                    (if (vector? <>)
+                      (mapv #(mark-missing % ?sub-query) <>)
+                      (mark-missing <> ?sub-query))
+                    (assoc res query-key <>))
                   result-or-not-found)
 
                 ;; nf so next step
                 :else result-or-not-found)))]
     (reduce step result
-            (if (recursive? query)
-              (-> query meta :... add-meta-to-recursive-queries)
-              (add-meta-to-recursive-queries query)))))
+      (if (recursive? query)
+        (-> query meta :... add-meta-to-recursive-queries)
+        (add-meta-to-recursive-queries query)))))
 

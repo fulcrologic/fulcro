@@ -1,6 +1,23 @@
+1.0.0-beta4
+-----
+- Made routing.cljc more friendly to SSR
+- Added fulcro.core/merge-component to help merging a new instance of a
+component to app state in mutations.
+- Added fulcro.core/merge-alternate-union-elements (no exclamation) that can work on state maps.
+- Improved CSS on devguide a little
+- Made util more SSR-friendly
+- Added SSR-related initial state helpers to fulcro.server-render
+- Added clj encode/decode to transit string to util
+- Added tests for remaining functions in util
+- Added section M50-Server-Side-Rendering to the Dev Guide
+
+1.0.0-beta3
+-----
+- Fixed support viewer. Porting for defmutation had broken it.
+
 1.0.0-beta2
 -----
-- RENAMED PROJECT: Fulcro. All relevant namespaces and interface names updated to use the new naming.
+- RENAMED PROJECT: Fulcro. All relevant namespaces and interface names updated to use the new naming. Use bin/rename-untangled.sh to fix your project.
 - Added more form field types (html5-input supports all text-like html 5 input types)
 - Improved options can be passed when rendering form fields (still needs more)
 - Form commit now accepts a fallback

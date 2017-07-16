@@ -25,6 +25,7 @@
     fulcro-devguide.M15-Routing-UI
     fulcro-devguide.M30-Advanced-Mutation
     fulcro-devguide.M40-Advanced-Server-Topics
+    fulcro-devguide.M50-Server-Side-Rendering
     fulcro-devguide.N10-Twitter-Bootstrap-CSS
     fulcro-devguide.N15-Twitter-Bootstrap-Components
     fulcro-devguide.O01-Forms-The-Basics

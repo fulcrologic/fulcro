@@ -7,6 +7,67 @@
     [fulcro.client.logging :as log]
     [fulcro.i18n :as i18n]))
 
+
+#?(:clj (s/def ::action (s/cat
+                          :action-name (fn [sym] (= sym 'action))
+                          :action-args (fn [a] (and (vector? a) (= 1 (count a))))
+                          :action-body (s/+ (constantly true)))))
+
+#?(:clj (s/def ::remote (s/cat
+                          :remote-name symbol?
+                          :remote-args (fn [a] (and (vector? a) (= 1 (count a))))
+                          :remote-body (s/+ (constantly true)))))
+
+#?(:clj (s/def ::mutation-args (s/cat
+                                 :sym symbol?
+                                 :doc (s/? string?)
+                                 :arglist vector?
+                                 :action (s/? #(and (list? %) (= 'action (first %))))
+                                 :remote (s/* #(and (list? %) (not= 'action (first %)))))))
+
+#?(:clj
+   (defmacro ^{:doc      "Define an Fulcro mutation.
+
+                       The given symbol will be prefixed with the namespace of the current namespace, as if
+                       it were def'd into the namespace.
+
+                       The arglist should be the *parameter* arglist of the mutation, NOT the complete argument list
+                       for the equivalent defmethod. For example:
+
+                          (defmutation boo [{:keys [id]} ...) => (defmethod m/mutate *ns*/boo [{:keys [state ref]} _ {:keys [id]}] ...)
+
+                       The mutation may include any combination of action and any number of remotes (by the remote name).
+
+                       If `action` is supplied, it must be first.
+
+                       (defmutation boo \"docstring\" [params-map]
+                         (action [env] ...)
+                         (my-remote [env] ...)
+                         (other-remote [env] ...)
+                         (remote [env] ...))"
+               :arglists '([sym docstring? arglist action]
+                            [sym docstring? arglist action remote]
+                            [sym docstring? arglist remote])} defmutation
+     [& args]
+     (let [{:keys [sym doc arglist action remote]} (conform! ::mutation-args args)
+           fqsym         (symbol (name (ns-name *ns*)) (name sym))
+           {:keys [action-args action-body]} (if action
+                                               (conform! ::action action)
+                                               {:action-args ['env] :action-body []})
+           remotes       (if (seq remote)
+                           (map #(conform! ::remote %) remote)
+                           [{:remote-name :remote :remote-args ['env] :remote-body [false]}])
+           env-symbol    (gensym "env")
+           remote-blocks (map (fn [{:keys [remote-name remote-args remote-body]}]
+                                `(let [~(first remote-args) ~env-symbol]
+                                   {~(keyword (name remote-name)) (do ~@remote-body)})
+                                ) remotes)]
+       `(defmethod fulcro.client.mutations/mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
+          (merge
+            (let [~(first action-args) ~env-symbol]
+              {:action (fn [] ~@action-body)})
+            ~@remote-blocks)))))
+
 ;; Add methods to this to implement your local mutations
 (defmulti mutate om/dispatch)
 
@@ -103,65 +164,4 @@
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (if event (target-value event) value)]
     (set-value! component field value)))
-
-
-#?(:clj (s/def ::action (s/cat
-                          :action-name (fn [sym] (= sym 'action))
-                          :action-args (fn [a] (and (vector? a) (= 1 (count a))))
-                          :action-body (s/+ (constantly true)))))
-
-#?(:clj (s/def ::remote (s/cat
-                          :remote-name symbol?
-                          :remote-args (fn [a] (and (vector? a) (= 1 (count a))))
-                          :remote-body (s/+ (constantly true)))))
-
-#?(:clj (s/def ::mutation-args (s/cat
-                                 :sym symbol?
-                                 :doc (s/? string?)
-                                 :arglist vector?
-                                 :action (s/? #(and (list? %) (= 'action (first %))))
-                                 :remote (s/* #(and (list? %) (not= 'action (first %)))))))
-
-#?(:clj
-   (defmacro ^{:doc      "Define an Fulcro mutation.
-
-                       The given symbol will be prefixed with the namespace of the current namespace, as if
-                       it were def'd into the namespace.
-
-                       The arglist should be the *parameter* arglist of the mutation, NOT the complete argument list
-                       for the equivalent defmethod. For example:
-
-                          (defmutation boo [{:keys [id]} ...) => (defmethod m/mutate *ns*/boo [{:keys [state ref]} _ {:keys [id]}] ...)
-
-                       The mutation may include any combination of action and any number of remotes (by the remote name).
-
-                       If `action` is supplied, it must be first.
-
-                       (defmutation boo \"docstring\" [params-map]
-                         (action [env] ...)
-                         (my-remote [env] ...)
-                         (other-remote [env] ...)
-                         (remote [env] ...))"
-               :arglists '([sym docstring? arglist action]
-                            [sym docstring? arglist action remote]
-                            [sym docstring? arglist remote])} defmutation
-     [& args]
-     (let [{:keys [sym doc arglist action remote]} (conform! ::mutation-args args)
-           fqsym         (symbol (name (ns-name *ns*)) (name sym))
-           {:keys [action-args action-body]} (if action
-                                               (conform! ::action action)
-                                               {:action-args ['env] :action-body []})
-           remotes       (if (seq remote)
-                           (map #(conform! ::remote %) remote)
-                           [{:remote-name :remote :remote-args ['env] :remote-body [false]}])
-           env-symbol    (gensym "env")
-           remote-blocks (map (fn [{:keys [remote-name remote-args remote-body]}]
-                                `(let [~(first remote-args) ~env-symbol]
-                                   {~(keyword (name remote-name)) (do ~@remote-body)})
-                                ) remotes)]
-       `(defmethod fulcro.client.mutations/mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
-          (merge
-            (let [~(first action-args) ~env-symbol]
-              {:action (fn [] ~@action-body)})
-            ~@remote-blocks)))))
 

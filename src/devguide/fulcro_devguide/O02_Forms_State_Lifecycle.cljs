@@ -16,7 +16,7 @@
 
   Form support is meant to track the state of one or more entities through
   the process of editing. It is important to remember the general
-  model of Om/Untanged is one where the application moves from
+  model of Om/Fulcro is one where the application moves from
   state to state over time, and the components themselves have (ideally)
   no local state.
 

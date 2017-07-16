@@ -1,7 +1,7 @@
 (ns fulcro.client.core-spec
   (:require
     [om.next :as om :refer [defui]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [om.next.protocols :as omp]
     [clojure.core.async :as async]
@@ -9,15 +9,15 @@
     [fulcro.client.impl.om-plumbing :as plumbing]
     [fulcro.client.util :as util]))
 
-(defui Child
+(defui ^:once Child
   static om/Ident
   (ident [this props] [:child/by-id (:id props)])
   static om/IQuery
   (query [this] [:id :label]))
 
-(defui Parent
-  static uc/InitialAppState
-  (uc/initial-state [this params] {:ui/checked true})
+(defui ^:once Parent
+  static fc/InitialAppState
+  (fc/initial-state [this params] {:ui/checked true})
   static om/Ident
   (ident [this props] [:parent/by-id (:id props)])
   static om/IQuery
@@ -27,13 +27,13 @@
    (specification "merge-state!"
      (assertions
        "merge-query is the component query joined on it's ident"
-       (#'uc/component-merge-query Parent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (om/get-query Child)}]}])
+       (#'fc/component-merge-query Parent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (om/get-query Child)}]}])
      (component "preprocessing the object to merge"
        (let [no-state             (atom {:parent/by-id {}})
-             no-state-merge-data  (:merge-data (#'uc/preprocess-merge no-state Parent {:id 42}))
+             no-state-merge-data  (:merge-data (#'fc/preprocess-merge no-state Parent {:id 42}))
              state-with-old       (atom {:parent/by-id {42 {:ui/checked true :id 42 :title "Hello"}}})
              id                   [:parent/by-id 42]
-             old-state-merge-data (-> (#'uc/preprocess-merge state-with-old Parent {:id 42}) :merge-data :fulcro/merge)]
+             old-state-merge-data (-> (#'fc/preprocess-merge state-with-old Parent {:id 42}) :merge-data :fulcro/merge)]
          (assertions
            "Uses the existing object in app state as base for merge when present"
            (get-in old-state-merge-data [id :ui/checked]) => true
@@ -47,7 +47,7 @@
          (when-mocking
            (util/get-ident c d) => :ident
            (om/get-query comp) => union-query
-           (uc/component-merge-query comp data) => :merge-query
+           (fc/component-merge-query comp data) => :merge-query
            (om/db->tree q d r) => {:ident :data}
            (plumbing/mark-missing d q) => (do
                                             (assertions
@@ -57,12 +57,12 @@
                                             {:ident :data})
            (util/deep-merge d1 d2) => :merge-result
 
-           (#'uc/preprocess-merge state :comp :data))))
+           (#'fc/preprocess-merge state :comp :data))))
      (let [state (atom {})
            data  {}]
        (when-mocking
-         (uc/preprocess-merge s c d) => {:merge-data :the-data :merge-query :the-query}
-         (uc/integrate-ident! s i op args op args) => :ignore
+         (fc/preprocess-merge s c d) => {:merge-data :the-data :merge-query :the-query}
+         (fc/integrate-ident! s i op args op args) => :ignore
          (util/get-ident c p) => [:table :id]
          (om/merge! r d q) => :ignore
          (om/app-state r) => state
@@ -70,7 +70,7 @@
                                 "schedules re-rendering of all affected paths"
                                 kw => [:children :items])
 
-         (uc/merge-state! :reconciler :component data :append [:children] :replace [:items 0])))))
+         (fc/merge-state! :reconciler :component data :append [:children] :replace [:items 0])))))
 
 (specification "integrate-ident!"
   (let [state (atom {:a    {:path [[:table 2]]}
@@ -78,30 +78,30 @@
                      :d    [:table 6]
                      :many {:path [[:table 99] [:table 88] [:table 77]]}})]
     (behavior "Can append to an existing vector"
-      (uc/integrate-ident! state [:table 3] :append [:a :path])
+      (fc/integrate-ident! state [:table 3] :append [:a :path])
       (assertions
         (get-in @state [:a :path]) => [[:table 2] [:table 3]])
-      (uc/integrate-ident! state [:table 3] :append [:a :path])
+      (fc/integrate-ident! state [:table 3] :append [:a :path])
       (assertions
         "(is a no-op if the ident is already there)"
         (get-in @state [:a :path]) => [[:table 2] [:table 3]]))
     (behavior "Can prepend to an existing vector"
-      (uc/integrate-ident! state [:table 3] :prepend [:b :path])
+      (fc/integrate-ident! state [:table 3] :prepend [:b :path])
       (assertions
         (get-in @state [:b :path]) => [[:table 3] [:table 2]])
-      (uc/integrate-ident! state [:table 3] :prepend [:b :path])
+      (fc/integrate-ident! state [:table 3] :prepend [:b :path])
       (assertions
         "(is a no-op if already there)"
         (get-in @state [:b :path]) => [[:table 3] [:table 2]]))
     (behavior "Can create/replace a to-one ident"
-      (uc/integrate-ident! state [:table 3] :replace [:c :path])
-      (uc/integrate-ident! state [:table 3] :replace [:d])
+      (fc/integrate-ident! state [:table 3] :replace [:c :path])
+      (fc/integrate-ident! state [:table 3] :replace [:d])
       (assertions
         (get-in @state [:d]) => [:table 3]
         (get-in @state [:c :path]) => [:table 3]
         ))
     (behavior "Can replace an existing to-many element in a vector"
-      (uc/integrate-ident! state [:table 3] :replace [:many :path 1])
+      (fc/integrate-ident! state [:table 3] :replace [:many :path 1])
       (assertions
         (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
 
@@ -113,69 +113,69 @@
     (assertions
       "Can append to an existing vector"
       (-> state
-        (uc/integrate-ident [:table 3] :append [:a :path])
+        (fc/integrate-ident [:table 3] :append [:a :path])
         (get-in [:a :path]))
       => [[:table 2] [:table 3]]
 
       "(is a no-op if the ident is already there)"
       (-> state
-        (uc/integrate-ident [:table 3] :append [:a :path])
+        (fc/integrate-ident [:table 3] :append [:a :path])
         (get-in [:a :path]))
       => [[:table 2] [:table 3]]
 
       "Can prepend to an existing vector"
       (-> state
-        (uc/integrate-ident [:table 3] :prepend [:b :path])
+        (fc/integrate-ident [:table 3] :prepend [:b :path])
         (get-in [:b :path]))
       => [[:table 3] [:table 2]]
 
       "(is a no-op if already there)"
       (-> state
-        (uc/integrate-ident [:table 3] :prepend [:b :path])
+        (fc/integrate-ident [:table 3] :prepend [:b :path])
         (get-in [:b :path]))
       => [[:table 3] [:table 2]]
 
       "Can create/replace a to-one ident"
       (-> state
-        (uc/integrate-ident [:table 3] :replace [:d])
+        (fc/integrate-ident [:table 3] :replace [:d])
         (get-in [:d]))
       => [:table 3]
       (-> state
-        (uc/integrate-ident [:table 3] :replace [:c :path])
+        (fc/integrate-ident [:table 3] :replace [:c :path])
         (get-in [:c :path]))
       => [:table 3]
 
       "Can replace an existing to-many element in a vector"
       (-> state
-        (uc/integrate-ident [:table 3] :replace [:many :path 1])
+        (fc/integrate-ident [:table 3] :replace [:many :path 1])
         (get-in [:many :path]))
       => [[:table 99] [:table 3] [:table 77]])))
 
 #?(:cljs
    (specification "Fulcro Application -- clear-pending-remote-requests!"
      (let [channel  (async/chan 1000)
-           mock-app (uc/map->Application {:send-queues {:remote channel}})]
+           mock-app (fc/map->Application {:send-queues {:remote channel}})]
        (async/put! channel 1 #(async/put! channel 2 (fn [] (async/put! channel 3 (fn [] (async/put! channel 4))))))
 
-       (uc/clear-pending-remote-requests! mock-app nil)
+       (fc/clear-pending-remote-requests! mock-app nil)
 
        (assertions
          "Removes any pending items in the network queue channel"
          (async/poll! channel) => nil))))
 
-(defui BadResetAppRoot
+(defui ^:once BadResetAppRoot
   Object
   (render [this] nil))
 
-(defui ResetAppRoot
-  static uc/InitialAppState
+(defui ^:once ResetAppRoot
+  static fc/InitialAppState
   (initial-state [this params] {:x 1}))
 
 #?(:cljs
    (specification "Fulcro Application -- reset-app!"
      (let [scb-calls        (atom 0)
            custom-calls     (atom 0)
-           mock-app         (uc/map->Application {:send-queues      {:remote :fake-queue}
+           mock-app         (fc/map->Application {:send-queues      {:remote :fake-queue}
                                                   :started-callback (fn [] (swap! scb-calls inc))})
            cleared-network? (atom false)
            merged-unions?   (atom false)
@@ -186,19 +186,19 @@
          (when-mocking
            (log/error e) => (assertions
                               e => "The specified root component does not implement InitialAppState!")
-           (uc/reset-app! mock-app BadResetAppRoot nil)))
+           (fc/reset-app! mock-app BadResetAppRoot nil)))
 
        (behavior "On a proper app root"
          (when-mocking
-           (uc/clear-queue t) => (reset! cleared-network? true)
+           (fc/clear-queue t) => (reset! cleared-network? true)
            (om/app-state r) => state
-           (uc/merge-alternate-union-elements! app r) => (reset! merged-unions? true)
-           (uc/reset-history-impl a) => (reset! history-reset? true)
+           (fc/merge-alternate-union-elements! app r) => (reset! merged-unions? true)
+           (fc/reset-history-impl a) => (reset! history-reset? true)
            (util/force-render a) => (reset! re-rendered? true)
 
-           (uc/reset-app! mock-app ResetAppRoot nil)
-           (uc/reset-app! mock-app ResetAppRoot :original)
-           (uc/reset-app! mock-app ResetAppRoot (fn [a] (swap! custom-calls inc))))
+           (fc/reset-app! mock-app ResetAppRoot nil)
+           (fc/reset-app! mock-app ResetAppRoot :original)
+           (fc/reset-app! mock-app ResetAppRoot (fn [a] (swap! custom-calls inc))))
 
          (assertions
            "Clears the network queue"
@@ -220,43 +220,43 @@
    (specification "Mounting an Fulcro Application"
      (let [mounted-mock-app {:mounted? true :initial-state {}}]
        (provided "When it is already mounted"
-         (uc/refresh* a) =1x=> (do
+         (fc/refresh* a) =1x=> (do
                                  (assertions
                                    "Refreshes the UI"
                                    1 => 1)
                                  a)
 
-         (uc/mount* mounted-mock-app :fake-root :dom-id)))
+         (fc/mount* mounted-mock-app :fake-root :dom-id)))
      (behavior "When is is not already mounted"
        (behavior "and root does NOT implement InitialAppState"
          (let [mock-app {:mounted? false :initial-state {:a 1} :reconciler-options :OPTIONS}]
            (when-mocking
-             (uc/initialize app state root dom opts) => (do
+             (fc/initialize app state root dom opts) => (do
                                                           (assertions
                                                             "Initializes the app with a plain map"
                                                             state => {:a 1}
                                                             ))
 
-             (uc/mount* mock-app :fake-root :dom-id)))
+             (fc/mount* mock-app :fake-root :dom-id)))
          (let [supplied-atom (atom {:a 1})
                mock-app      {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
            (when-mocking
-             (uc/initialize app state root dom opts) => (do
+             (fc/initialize app state root dom opts) => (do
                                                           (assertions
                                                             "Initializes the app with a supplied atom"
                                                             {:a 1} => @state))
 
-             (uc/mount* mock-app :fake-root :dom-id))))
+             (fc/mount* mock-app :fake-root :dom-id))))
        (behavior "and root IMPLEMENTS InitialAppState"
          (let [mock-app {:mounted? false :initial-state {:a 1} :reconciler-options :OPTIONS}]
            (when-mocking
              (log/warn msg) =1x=> (assertions "warns about duplicate initialization"
                                     msg =fn=> (partial re-matches #"^You supplied.*"))
-             (uc/initialize app state root dom opts) => (assertions
+             (fc/initialize app state root dom opts) => (assertions
                                                           "Initializes the app with the InitialAppState"
-                                                          state => (uc/get-initial-state Parent nil))
+                                                          state => (fc/get-initial-state Parent nil))
 
-             (uc/mount* mock-app Parent :dom-id)))
+             (fc/mount* mock-app Parent :dom-id)))
          (let [mock-app {:mounted? false :initial-state (atom {:a 1}) :reconciler-options :OPTIONS}]
            (behavior "When both atom and InitialAppState are present:"
              (when-mocking
@@ -269,60 +269,70 @@
                                                        "uses the Root UI component query"
                                                        c => Parent
                                                        "uses InitialAppState as the data"
-                                                       d => (uc/get-initial-state Parent nil)))
+                                                       d => (fc/get-initial-state Parent nil)))
                                                    :NORMALIZED-STATE)
-               (uc/initialize app state root dom opts) => (do
+               (fc/initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Overwrites the supplied atom with the normalized InitialAppState"
                                                               @state => :NORMALIZED-STATE))
 
-               (uc/mount* mock-app Parent :dom-id))))
+               (fc/mount* mock-app Parent :dom-id))))
          (let [mock-app {:mounted? false :reconciler-options :OPTIONS}]
            (behavior "When only InitialAppState is present:"
              (when-mocking
                (fulcro.client.core/initial-state root-component nil) => :INITIAL-UI-STATE
-               (uc/initialize app state root dom opts) => (do
+               (fc/initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Supplies the raw InitialAppState to internal initialize"
                                                               state => :INITIAL-UI-STATE))
 
-               (uc/mount* mock-app Parent :dom-id))))))))
+               (fc/mount* mock-app Parent :dom-id))))))))
 
 
-(defui MergeX
-  static uc/InitialAppState
-  (initial-state [this params] {:n :x})
+(defui ^:once MergeX
+  static fc/InitialAppState
+  (initial-state [this params] {:type :x :n :x})
+  static om/IQuery
+  (query [this] [:n :type]))
+
+(defui ^:once MergeY
+  static fc/InitialAppState
+  (initial-state [this params] {:type :y :n :y})
+  static om/IQuery
+  (query [this] [:n :type]))
+
+
+(defui ^:once MergeAChild
+  static fc/InitialAppState
+  (initial-state [this params] {:child :merge-a})
+  static om/Ident
+  (ident [this props] [:mergea :child])
+  static om/IQuery
+  (query [this] [:child]))
+
+(defui ^:once MergeA
+  static fc/InitialAppState
+  (initial-state [this params] {:type :a :n :a :child (fc/get-initial-state MergeAChild nil)})
+  static om/IQuery
+  (query [this] [:type :n {:child (om/get-query MergeAChild)}]))
+
+(defui ^:once MergeB
+  static fc/InitialAppState
+  (initial-state [this params] {:type :b :n :b})
   static om/IQuery
   (query [this] [:n]))
 
-(defui MergeY
-  static uc/InitialAppState
-  (initial-state [this params] {:n :y})
-  static om/IQuery
-  (query [this] [:n]))
-
-
-(defui MergeA
-  static uc/InitialAppState
-  (initial-state [this params] {:n :a})
-  static om/IQuery
-  (query [this] [:n]))
-
-(defui MergeB
-  static uc/InitialAppState
-  (initial-state [this params] {:n :b})
-  static om/IQuery
-  (query [this] [:n]))
-
-(defui MergeUnion
-  static uc/InitialAppState
-  (initial-state [this params] (uc/get-initial-state MergeA {}))
+(defui ^:once MergeUnion
+  static fc/InitialAppState
+  (initial-state [this params] (fc/get-initial-state MergeA {}))
+  static om/Ident
+  (ident [this props] [:mergea-or-b :at-union])
   static om/IQuery
   (query [this] {:a (om/get-query MergeA) :b (om/get-query MergeB)}))
 
-(defui MergeRoot
-  static uc/InitialAppState
-  (initial-state [this params] {:a 1 :b (uc/get-initial-state MergeUnion {})})
+(defui ^:once MergeRoot
+  static fc/InitialAppState
+  (initial-state [this params] {:a 1 :b (fc/get-initial-state MergeUnion {})})
   static om/IQuery
   (query [this] [:a {:b (om/get-query MergeUnion)}]))
 
@@ -335,27 +345,27 @@
 ;;   U2       A2
 ;;  X  Y
 
-(defui U2
-  static uc/InitialAppState
-  (initial-state [this params] (uc/get-initial-state MergeX {}))
+(defui ^:once U2
+  static fc/InitialAppState
+  (initial-state [this params] (fc/get-initial-state MergeX {}))
   static om/IQuery
   (query [this] {:x (om/get-query MergeX) :y (om/get-query MergeY)}))
 
-(defui R2
-  static uc/InitialAppState
-  (initial-state [this params] {:id 1 :u2 (uc/get-initial-state U2 {})})
+(defui ^:once R2
+  static fc/InitialAppState
+  (initial-state [this params] {:id 1 :u2 (fc/get-initial-state U2 {})})
   static om/IQuery
   (query [this] [:id {:u2 (om/get-query U2)}]))
 
-(defui U1
-  static uc/InitialAppState
-  (initial-state [this params] (uc/get-initial-state MergeB {}))
+(defui ^:once U1
+  static fc/InitialAppState
+  (initial-state [this params] (fc/get-initial-state MergeB {}))
   static om/IQuery
   (query [this] {:r2 (om/get-query R2) :b (om/get-query MergeB)}))
 
-(defui NestedRoot
-  static uc/InitialAppState
-  (initial-state [this params] {:u1 (uc/get-initial-state U1 {})})
+(defui ^:once NestedRoot
+  static fc/InitialAppState
+  (initial-state [this params] {:u1 (fc/get-initial-state U1 {})})
   static om/IQuery
   (query [this] [{:u1 (om/get-query U1)}]))
 
@@ -365,58 +375,142 @@
 ;;   SU1   SU2
 ;;  A   B  X  Y
 
-(defui SU1
-  static uc/InitialAppState
-  (initial-state [this params] (uc/get-initial-state MergeB {}))
+(defui ^:once SU1
+  static fc/InitialAppState
+  (initial-state [this params] (fc/get-initial-state MergeB {}))
+  static om/Ident
+  (ident [this props] [(:type props) 1])
   static om/IQuery
   (query [this] {:a (om/get-query MergeA) :b (om/get-query MergeB)}))
 
-(defui SU2
-  static uc/InitialAppState
-  (initial-state [this params] (uc/get-initial-state MergeX {}))
+(defui ^:once SU2
+  static fc/InitialAppState
+  (initial-state [this params] (fc/get-initial-state MergeX {}))
+  static om/Ident
+  (ident [this props] [(:type props) 2])
   static om/IQuery
   (query [this] {:x (om/get-query MergeX) :y (om/get-query MergeY)}))
 
 
-(defui SiblingRoot
-  static uc/InitialAppState
-  (initial-state [this params] {:su1 (uc/get-initial-state SU1 {}) :su2 (uc/get-initial-state SU2 {})})
+(defui ^:once SiblingRoot
+  static fc/InitialAppState
+  (initial-state [this params] {:su1 (fc/get-initial-state SU1 {}) :su2 (fc/get-initial-state SU2 {})})
   static om/IQuery
   (query [this] [{:su1 (om/get-query SU1)} {:su2 (om/get-query SU2)}]))
-
 
 (specification "merge-alternate-union-elements!"
   (behavior "For applications with sibling unions"
     (when-mocking
-      (uc/merge-state! app comp state) =1x=> (do
+      (fc/merge-state! app comp state) =1x=> (do
                                                (assertions
                                                  "Merges level one elements"
-                                                 state => (uc/get-initial-state MergeA {})))
-      (uc/merge-state! app comp state) =1x=> (do
+                                                 comp => SU1
+                                                 state => (fc/get-initial-state MergeA {})))
+      (fc/merge-state! app comp state) =1x=> (do
                                                (assertions
                                                  "Merges only the state of branches that are not already initialized"
-                                                 state => (uc/get-initial-state MergeY {})))
+                                                 comp => SU2
+                                                 state => (fc/get-initial-state MergeY {})))
 
-      (uc/merge-alternate-union-elements! :app SiblingRoot)))
+      (fc/merge-alternate-union-elements! :app SiblingRoot)))
 
   (behavior "For applications with nested unions"
     (when-mocking
-      (uc/merge-state! app comp state) =1x=> (do
+      (fc/merge-state! app comp state) =1x=> (do
                                                (assertions
                                                  "Merges level one elements"
-                                                 state => (uc/get-initial-state R2 {})))
-      (uc/merge-state! app comp state) =1x=> (do
+                                                 comp => U1
+                                                 state => (fc/get-initial-state R2 {})))
+      (fc/merge-state! app comp state) =1x=> (do
                                                (assertions
                                                  "Merges only the state of branches that are not already initialized"
-                                                 state => (uc/get-initial-state MergeY {})))
+                                                 comp => U2
+                                                 state => (fc/get-initial-state MergeY {})))
 
-      (uc/merge-alternate-union-elements! :app NestedRoot)))
+      (fc/merge-alternate-union-elements! :app NestedRoot)))
   (behavior "For applications with non-nested unions"
     (when-mocking
-      (uc/merge-state! app comp state) => (do
+      (fc/merge-state! app comp state) => (do
                                             (assertions
                                               "Merges only the state of branches that are not already initialized"
-                                              state => (uc/get-initial-state MergeB {})))
+                                              comp => MergeUnion
+                                              state => (fc/get-initial-state MergeB {})))
 
-      (uc/merge-alternate-union-elements! :app MergeRoot))))
+      (fc/merge-alternate-union-elements! :app MergeRoot))))
 
+(defn phone-number [id n] {:id id :number n})
+(defn person [id name numbers] {:id id :name name :numbers numbers})
+
+(defui MPhone
+  static om/IQuery
+  (query [this] [:id :number])
+  static om/Ident
+  (ident [this props] [:phone/by-id (:id props)]))
+
+(defui MPerson
+  static om/IQuery
+  (query [this] [:id :name {:numbers (om/get-query MPhone)}])
+  static om/Ident
+  (ident [this props] [:person/by-id (:id props)]))
+
+(specification "merge-component"
+  (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
+        sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
+        phone-3          {:id 3 :number "111-2222"}
+        state-map        {:people       [[:person/by-id :sally]]
+                          :phone/by-id  {3 phone-3}
+                          :person/by-id {:sally sally}}
+        new-state-map    (fc/merge-component state-map MPerson component-tree)
+        expected-person  {:id :tony :name "Tony" :numbers [[:phone/by-id 1] [:phone/by-id 2]]}
+        expected-phone-1 {:id 1 :number "555-1212"}
+        expected-phone-2 {:id 2 :number "123-4555"}]
+    (assertions
+      "merges the top-level component with normalized links to children"
+      (get-in new-state-map [:person/by-id :tony]) => expected-person
+      "merges the normalized children"
+      (get-in new-state-map [:phone/by-id 1]) => expected-phone-1
+      (get-in new-state-map [:phone/by-id 2]) => expected-phone-2
+      "leaves the original state untouched"
+      (contains? new-state-map :people) => true
+      (get-in new-state-map [:person/by-id :sally]) => sally
+      (get-in new-state-map [:phone/by-id 3]) => phone-3)))
+
+(def table-1 {:type :table :id 1 :rows [1 2 3]})
+(defui Table
+  static fc/InitialAppState
+  (initial-state [c p] table-1)
+  static om/IQuery
+  (query [this] [:type :id :rows]))
+
+(def graph-1 {:type :graph :id 1 :data [1 2 3]})
+(defui Graph
+  static fc/InitialAppState
+  (initial-state [c p] graph-1)
+  static om/IQuery
+  (query [this] [:type :id :data]))
+
+(defui Reports
+  static fc/InitialAppState
+  (initial-state [c p] (fc/get-initial-state Graph nil))    ; initial state will already include Graph
+  static om/Ident
+  (ident [this props] [(:type props) (:id props)])
+  static om/IQuery
+  (query [this] {:graph (om/get-query Graph) :table (om/get-query Table)}))
+
+(defui MRRoot
+  static fc/InitialAppState
+  (initial-state [c p] {:reports (fc/get-initial-state Reports nil)})
+  static om/IQuery
+  (query [this] [{:reports (om/get-query Reports)}]))
+
+(specification "merge-alternate-union-elements"
+  (let [initial-state (merge (fc/get-initial-state MRRoot nil) {:a 1})
+        state-map     (om/tree->db MRRoot initial-state true)
+        new-state     (fc/merge-alternate-union-elements state-map MRRoot)]
+    (assertions
+      "can be used to merge alternate union elements to raw state"
+      (get-in new-state [:table 1]) => table-1
+      "(existing state isn't touched)"
+      (get new-state :a) => 1
+      (get new-state :reports) => [:graph 1]
+      (get-in new-state [:graph 1]) => graph-1)))

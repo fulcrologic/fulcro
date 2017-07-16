@@ -13,9 +13,9 @@
     [fulcro-spec.suite :as suite]))
 
 (suite/def-test-suite server-test-server
-  {:config {:port 8888}
-           :test-paths ["src/test"]
-           :source-paths ["src/main"]}
+  {:config       {:port 8888}
+   :test-paths   ["src/test"]
+   :source-paths ["src/main"]}
   {:available #{:focused}
    :default   #{::sel/none :focused}})
 
@@ -40,7 +40,7 @@
      (swap! figwheel component/start)
      (fig/cljs-repl (:figwheel-system @figwheel)))))
 
-(set-refresh-dirs "src/demos" "src/main" "src/test")
+(set-refresh-dirs "src/demos" "src/main" "src/test" "src/dev")
 
 (defonce demo-server (atom nil))
 

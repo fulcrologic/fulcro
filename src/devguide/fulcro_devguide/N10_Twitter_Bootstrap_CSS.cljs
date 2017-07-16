@@ -635,6 +635,8 @@
   their orientation and current state via props. You can include a single child (tree), and the popover will use
   that as its boundary for locating itself.
 
+  (Only the Toggle All is hooked up in this example)
+
   `(b/ui-popover {:orientation :top :active true} DOM-TO-TARGET)`
   "
   (fn [state _]
@@ -673,9 +675,8 @@
     (apply dom/div nil
       (dom/style nil ".boxed {border: 1px solid black}")
       (dom/link #js {:rel  "stylesheet"
-                     :href "bootstrap-3.3.7/css/bootstrap-theme.min.css"})
-      (dom/link #js {:rel  "stylesheet"
-                     :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+                     :href "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"})
+      #_(dom/link #js {:rel  "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       children)))
 
 (defn sample [ele description]

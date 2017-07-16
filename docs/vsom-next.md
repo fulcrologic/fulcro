@@ -35,7 +35,7 @@ to interact with something like Datascript is a heck of a lot harder than `get-i
 The primary disadvantage is that you don't have full support of all of the query langauge features
 in the client.
 Om Next has the general idea that since you're writing the guts of query engine, you can "interpret" the query on the fly.
-This is a great idea, but the Fulcro philosophy is that most people don't want to thing about feeding their
+This is a great idea, but the Fulcro philosophy is that most people don't want to think about feeding their
 UI by having to write query parsing "emitters". It decouples things in a way that is powerful, but overkill for
 most applications.
 
@@ -187,7 +187,7 @@ The first has a clear point in time, and need not be related to parsing, and
 the second also has a clear point in time (i.e. a mutation happened due to a user action, timeout, etc).
 
 Furthermore, you typically want to put some kind of "busy" indicator to keep track of
-what is loading (and render that), and the hack in some kind of state change code to
+what is loading (and render that), and then hack in some kind of state change code to
 put markers in app state to indicate when there is an error.
 
 So, instead of having you write the logic of load into the places that are trying
