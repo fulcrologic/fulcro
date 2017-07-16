@@ -1,3 +1,7 @@
+1.0.0-beta4.1
+-------------
+- Changed the SSR client-side retrieval function to return nil instead of a state marker.
+
 1.0.0-beta4
 -----
 - Made routing.cljc more friendly to SSR
