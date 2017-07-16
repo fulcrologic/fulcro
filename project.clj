@@ -1,10 +1,10 @@
-(defproject fulcrologic/fulcro "1.0.0-beta4.1"
+(defproject fulcrologic/fulcro "1.0.0-beta5-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.9.0-alpha17" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.671" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.814" :scope "provided"]
                  [org.clojure/spec.alpha "0.1.123"]
                  [devcards "0.2.3" :scope "provided" :exclusions [cljsjs/react-dom cljsjs/react]]
                  [org.omcljs/om "1.0.0-beta1"]

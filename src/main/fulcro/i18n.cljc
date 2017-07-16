@@ -1,8 +1,7 @@
 (ns fulcro.i18n
+  ;; IMPORTANT: DO NOT REQUIRE A BUNCH OF STUFF HERE!!! It can adversely affect code splitting, since translations have to pull this NS in in order to complete loads
   #?(:cljs (:require-macros fulcro.i18n))
-  (:require
-    [fulcro.client.logging :as log]
-    #?(:cljs yahoo.intl-messageformat-with-locales))
+  #?(:cljs (:require yahoo.intl-messageformat-with-locales))
   #?(:clj
      (:import (com.ibm.icu.text MessageFormat)
               (java.util Locale))))
@@ -58,9 +57,7 @@
              translation  (get translations msg-key fmt)
              formatter    (new MessageFormat translation (Locale/forLanguageTag (current-locale)))]
          (.format formatter argmap))
-       (catch Exception e
-         (log/error "Failed to format " fmt " args: " args " exception: " e)
-         "???")))
+       (catch Exception e "???")))
    :cljs
    (set! js/trf
      (fn trf [fmt & {:keys [] :as argmap}]
@@ -70,8 +67,7 @@
                translation  (get translations msg-key fmt)
                formatter    (js/IntlMessageFormat. translation (current-locale))]
            (.format formatter (clj->js argmap)))
-         (catch :default e (log/error "Failed to format " fmt " args: " argmap " exception: " e)
-                           "???")))))
+         (catch :default e "???")))))
 
 #?(:clj
    (defmacro tr-unsafe
