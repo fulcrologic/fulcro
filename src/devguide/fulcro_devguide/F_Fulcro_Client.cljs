@@ -37,12 +37,12 @@
   (ns app.core
     (:require
       app.mutations ; remember to load your add-on mutations
-      [fulcro.client.core :as uc]
+      [fulcro.client.core :as fc]
       [app.ui :as ui]
       yahoo.intl-messageformat-with-locales ; if using i18n
       [om.next :as om]))
 
-  (defonce app (atom (uc/new-fulcro-client :initial-state { :some-data 42 })))
+  (defonce app (atom (fc/new-fulcro-client :initial-state { :some-data 42 })))
   (reset! app (core/mount @app ui/Root \"app\"))
   ```
 

@@ -9,7 +9,7 @@
             [om.next.impl.parser :as p]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.core :as uc]))
+            [fulcro.client.core :as fc]))
 
 ; TODO: (advanced?) Client headers? Cookies? related stuff to security.
 
@@ -177,7 +177,7 @@
   {:remote true})
 
 (defui Root
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] {})
   Object
   (render [this]

@@ -6,7 +6,7 @@
     [om.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [om.next :as om]))
 
 (dc/defcard security-card

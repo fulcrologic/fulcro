@@ -1,6 +1,6 @@
 (ns recipes.background-loads-client
   (:require
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [om.dom :as dom]
@@ -26,7 +26,7 @@
 (def ui-child (om/factory Child {:keyfn :id}))
 
 (defui ^:once Root
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c params] {:children [{:id 1 :name "A"} {:id 2 :name "B"} {:id 3 :name "C"}]})
   static om/IQuery
   (query [this] [:ui/react-key {:children (om/get-query Child)}])

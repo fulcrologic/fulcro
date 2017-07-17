@@ -2,14 +2,14 @@
   (:require [fulcro.client.routing :as r :refer-macros [defrouter]]
             [om.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+            [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
             [fulcro.client.cards :refer-macros [fulcro-app]]
             [fulcro.client.data-fetch :as df]
             [om.next :as om :refer [defui]]
             [fulcro.client.mutations :as m]))
 
 (om/defui ^:once Main
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [clz params] {:page :main :label "MAIN"})
   static om/IQuery
   (query [this] [:page :label])
@@ -20,7 +20,7 @@
         label))))
 
 (om/defui ^:once Login
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [clz params] {:page :login :label "LOGIN"})
   static om/IQuery
   (query [this] [:page :label])
@@ -31,7 +31,7 @@
         label))))
 
 (om/defui ^:once NewUser
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [clz params] {:page :new-user :label "New User"})
   static om/IQuery
   (query [this] [:page :label])
@@ -42,7 +42,7 @@
         label))))
 
 (om/defui ^:once StatusReport
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [clz params] {:id :a :page :status-report})
   static om/IQuery
   (query [this] [:id :page :label])
@@ -52,7 +52,7 @@
                      (dom/div nil (str "Status " id))))))
 
 (om/defui ^:once GraphingReport
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [clz params] {:id :a :page :graphing-report})
   static om/IQuery
   (query [this] [:id :page :label])                         ; make sure you query for everything need by the router's ident function!
@@ -72,9 +72,9 @@
 
 ; BIG GOTCHA: Make sure you query for the prop (in this case :page) that the union needs in order to decide. It won't pull it itself!
 (om/defui ^:once ReportsMain
-  static uc/InitialAppState
+  static fc/InitialAppState
   ; nest the router under any arbitrary key, just be consistent in your query and props extraction.
-  (initial-state [clz params] {:page :report :report-router (uc/get-initial-state ReportRouter {})})
+  (initial-state [clz params] {:page :report :report-router (fc/get-initial-state ReportRouter {})})
   static om/IQuery
   (query [this] [:page {:report-router (om/get-query ReportRouter)}])
   Object
@@ -113,10 +113,10 @@
               (r/router-instruction :report-router [:status-report :param/report-id])]})
 
 (om/defui ^:once Root
-  static uc/InitialAppState
+  static fc/InitialAppState
   ; r/routing-tree-key implies the alias of fulcro.client.routing as r.
   (initial-state [clz params] {r/routing-tree-key routing-tree
-                               :top-router        (uc/get-initial-state TopRouter {})})
+                               :top-router        (fc/get-initial-state TopRouter {})})
   static om/IQuery
   (query [this] [:ui/react-key {:top-router (om/get-query TopRouter)}])
   Object

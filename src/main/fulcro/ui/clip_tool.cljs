@@ -1,7 +1,7 @@
 (ns fulcro.ui.clip-tool
   (:require [om.next :as om :refer [defui]]
             [om.dom :as dom]
-            [fulcro.client.core :as uc]
+            [fulcro.client.core :as fc]
             [fulcro.ui.clip-geometry :as cg]))
 
 (defn refresh-clip-region [this props]
@@ -136,8 +136,8 @@
     (om/update-state! comp assoc :clip-region clip)))
 
 (defui ^:once ClipTool
-  static uc/InitialAppState
-  (uc/initial-state [clz {:keys [image-url id aspect-ratio handle-size width height] :or {image-url    "https://upload.wikimedia.org/wikipedia/en/6/61/Minions_image.jpg" id "clip-1"
+  static fc/InitialAppState
+  (fc/initial-state [clz {:keys [image-url id aspect-ratio handle-size width height] :or {image-url    "https://upload.wikimedia.org/wikipedia/en/6/61/Minions_image.jpg" id "clip-1"
                                                                                           aspect-ratio 1 width 400 height 400 handle-size 10} :as params}]
     {:id           id
      :url          image-url

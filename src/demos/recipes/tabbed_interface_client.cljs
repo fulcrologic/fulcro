@@ -4,7 +4,7 @@
     [om.next :as om :refer [defui]]
     [fulcro.client.routing :as r]
     [fulcro.client.mutations :as m]
-    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]))
 
 (defui ^:once SomeSetting

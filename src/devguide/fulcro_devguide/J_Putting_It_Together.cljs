@@ -8,7 +8,7 @@
             [fulcro-devguide.putting-together.soln-ex-3 :as soln3]
             [fulcro-devguide.putting-together.soln-ex-4 :as soln4]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.core :as uc]
+            [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]))
 
 (defcard-doc
@@ -34,7 +34,7 @@
   ")
 
 (defui CheckSetupRoot
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] {})
   static om/IQuery
   (query [this] [:ui/react-key :something])

@@ -2,7 +2,7 @@
   (:require
     [om.next :as om :refer [defui]]
     [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.logging :as log]
     [fulcro.client.mutations :as m]
     [fulcro.client.util :as uu]
@@ -23,7 +23,7 @@
 (specification "Utility functions"
   (assertions
     "Can detect query, ident, and form protocols on class"
-    (uc/iident? Stub) => true
+    (fc/iident? Stub) => true
     (f/iform? Stub) => true
     (om/iquery? Stub) => true
     "Can tack fulcro form namespace to a generated keyword"
@@ -313,7 +313,7 @@
       (f/form-ident (get-in actual [:phone/by-id 2])) => [:phone/by-id 2])))
 
 (defui LeafForm
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this {:keys [id]}] {:id id :value 1 :leaf true})
   static om/IQuery
   (query [this] [:id :leaf])
@@ -329,11 +329,11 @@
   (ident [this props] [:data (:id props)]))
 
 (defui ToManyForm
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] {:id      99
                                 :to-many true
                                 :value   1
-                                :leaves  [(uc/get-initial-state LeafForm {:id 3}) (uc/get-initial-state LeafForm {:id 4})]})
+                                :leaves  [(fc/get-initial-state LeafForm {:id 3}) (fc/get-initial-state LeafForm {:id 4})]})
   static om/IQuery
   (query [this] [{:leaves (om/get-query LeafForm)} :value])
   static om/Ident
@@ -342,12 +342,12 @@
   (form-spec [this] [(f/subform-element :leaves LeafForm :many)]))
 
 (defui Level2Form
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] {:id     2
                                 :level2 true
                                 :value  1
-                                :leaf1  (uc/get-initial-state LeafForm {:id 5})
-                                :leaf2  (uc/get-initial-state LeafForm {:id 6})})
+                                :leaf1  (fc/get-initial-state LeafForm {:id 5})
+                                :leaf2  (fc/get-initial-state LeafForm {:id 6})})
   static om/IQuery
   (query [this] [{:leaf1 (om/get-query LeafForm)}
                  {:non-form (om/get-query NonForm)}
@@ -361,7 +361,7 @@
                      (f/subform-element :leaf3 LeafForm :one)]))
 
 (defui OtherRootForm
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this {:keys [id]}] {:id id :value 50 :other true})
   static om/IQuery
   (query [this] [:id :other])
@@ -371,11 +371,11 @@
   (form-spec [this] []))
 
 (defui Level3Form
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] {:id         1
                                 :level3     true
-                                :other-root (uc/get-initial-state OtherRootForm {:id 100})
-                                :level2     (uc/get-initial-state Level2Form {})})
+                                :other-root (fc/get-initial-state OtherRootForm {:id 100})
+                                :level2     (fc/get-initial-state Level2Form {})})
   static om/IQuery
   (query [this] [{:other-root (om/get-query OtherRootForm)}
                  {:level2 (om/get-query Level2Form)}])
@@ -397,10 +397,10 @@
     (#'f/subforms* ToManyForm) => [[[:leaves] LeafForm]]))
 
 (def nested-form-db (om/tree->db [{:root (om/get-query Level3Form)}]
-                      {:root (uc/get-initial-state Level3Form {})}, true))
+                      {:root (fc/get-initial-state Level3Form {})}, true))
 
 (def tomany-form-db (om/tree->db [{:root (om/get-query ToManyForm)}]
-                      {:root (uc/get-initial-state ToManyForm {})}, true))
+                      {:root (fc/get-initial-state ToManyForm {})}, true))
 
 (specification "to-idents"
   (assertions

@@ -4,7 +4,7 @@
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [om.next :as om :refer [defui]]
     [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [goog.events :as events]
@@ -48,7 +48,7 @@
       (swap! state assoc-in [:top :conv :cljs] cljs))))
 
 (defui HTMLConverter
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [clz params] {:html "<div></div>" :cljs (list)})
   static om/IQuery
   (query [this] [:cljs :html])
@@ -68,8 +68,8 @@
 (def ui-html-convert (om/factory HTMLConverter))
 
 (defui HTMLConverterApp
-  static uc/InitialAppState
-  (initial-state [clz params] {:converter (uc/initial-state HTMLConverter {})})
+  static fc/InitialAppState
+  (initial-state [clz params] {:converter (fc/initial-state HTMLConverter {})})
   static om/IQuery
   (query [this] [{:converter (om/get-query HTMLConverter)} :react-key])
   Object

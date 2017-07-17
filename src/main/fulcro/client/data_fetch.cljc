@@ -7,7 +7,7 @@
     [fulcro.client.mutations :refer [mutate defmutation]]
     [fulcro.client.logging :as log]
     [om.dom :as dom]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [om.util :as util]))
 
 (declare load load-action load-field load-field-action)
@@ -120,11 +120,11 @@
   ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
    {:pre [(or (om/component? app-or-comp-or-reconciler)
             (om/reconciler? app-or-comp-or-reconciler)
-            #?(:cljs (implements? uc/FulcroApplication app-or-comp-or-reconciler)
-               :clj  (satisfies? uc/FulcroApplication app-or-comp-or-reconciler)))]}
+            #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
+               :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler)))]}
    (let [config        (merge {:marker true :parallel false :refresh [] :without #{}} config)
-         reconciler    (if #?(:cljs (implements? uc/FulcroApplication app-or-comp-or-reconciler)
-                              :clj  (satisfies? uc/FulcroApplication app-or-comp-or-reconciler))
+         reconciler    (if #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
+                              :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler))
                          (get app-or-comp-or-reconciler :reconciler)
                          app-or-comp-or-reconciler)
          mutation-args (load-params* server-property-or-ident SubqueryClass config)]

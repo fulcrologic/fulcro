@@ -3,7 +3,7 @@
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.core :as uc]))
+            [fulcro.client.core :as fc]))
 
 (defcard-doc
   "
@@ -153,13 +153,13 @@
          update-in path). Append will refuse to append a duplicate.
 
          ```
-         (uc/integrate-ident! state [:new-ident (rand-int 100000)]
+         (fc/integrate-ident! state [:new-ident (rand-int 100000)]
            :append [:table/by-id 1 :list-of-things])
          ```
          "
          (fn [state _]
            (dom/div nil
-             (dom/button #js {:onClick #(uc/integrate-ident! state [:new-ident (rand-int 100000)]
+             (dom/button #js {:onClick #(fc/integrate-ident! state [:new-ident (rand-int 100000)]
                                                              :append [:table/by-id 1 :list-of-things]
                                                              )} "Append a random ident")))
          {:table/by-id {1 {:list-of-things []}}}
@@ -169,13 +169,13 @@
          "You can also use it to prepend. It will refuse to prepend a duplicate.
 
          ```
-         (uc/integrate-ident! state [:new-ident (rand-int 100000)]
+         (fc/integrate-ident! state [:new-ident (rand-int 100000)]
            :prepend [:table/by-id 1 :list-of-things])
          ```
          "
          (fn [state _]
            (dom/div nil
-             (dom/button #js {:onClick #(uc/integrate-ident! state [:new-ident (rand-int 100000)]
+             (dom/button #js {:onClick #(fc/integrate-ident! state [:new-ident (rand-int 100000)]
                                                              :prepend [:table/by-id 1 :list-of-things]
                                                              )} "Prepend a random ident")))
          {:table/by-id {1 {:list-of-things []}}}
@@ -185,13 +185,13 @@
          "You can use it to replace an item. The target MUST already exist, and can be a to-one or to-many.
 
          ```
-         (uc/integrate-ident! state [:new-ident (rand-int 100000)]
+         (fc/integrate-ident! state [:new-ident (rand-int 100000)]
            :replace [:table/by-id 1 :list-of-things 0])
          ```
          "
          (fn [state _]
            (dom/div nil
-             (dom/button #js {:onClick #(uc/integrate-ident! state [:new-ident (rand-int 100000)]
+             (dom/button #js {:onClick #(fc/integrate-ident! state [:new-ident (rand-int 100000)]
                                                              :replace [:table/by-id 1 :list-of-things 0]
                                                              )} "Replace first with a random ident")))
          {:table/by-id {1 {:list-of-things [[:old-ident 1] [:old-ident 2]]}}}
@@ -201,7 +201,7 @@
          "The function allows you to specify as many operations as you need to do at once.
 
          ```
-         (uc/integrate-ident! state [:new-ident (rand-int 100000)]
+         (fc/integrate-ident! state [:new-ident (rand-int 100000)]
            :append [:table/by-id 1 :list-of-things]
            :prepend [:table/by-id 2 :list-of-things]
            :replace [:the-thing-I-like]
@@ -210,7 +210,7 @@
          "
          (fn [state _]
            (dom/div nil
-             (dom/button #js {:onClick #(uc/integrate-ident! state [:new-ident (rand-int 100000)]
+             (dom/button #js {:onClick #(fc/integrate-ident! state [:new-ident (rand-int 100000)]
                                                              :append [:table/by-id 3 :list-of-things]
                                                              :prepend [:table/by-id 2 :list-of-things]
                                                              :replace [:the-thing-I-like]

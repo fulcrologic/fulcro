@@ -1,6 +1,6 @@
 (ns recipes.component-local-state-client
   (:require
-    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
@@ -128,4 +128,4 @@
         (dom/br nil)
         (ui-child child)))))
 
-(defonce app (atom (uc/new-fulcro-client)))
+(defonce app (atom (fc/new-fulcro-client)))

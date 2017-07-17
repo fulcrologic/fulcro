@@ -1,7 +1,7 @@
 (ns fulcro.client.initial-app-state-card
   (:require [devcards.core :as dc :refer-macros [defcard]]
             [om.dom :as dom]
-            [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+            [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
             [fulcro.client.cards :refer [fulcro-app]]
             [om.next :as om :refer [defui]]))
 

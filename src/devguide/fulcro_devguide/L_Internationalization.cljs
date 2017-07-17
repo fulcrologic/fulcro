@@ -5,7 +5,7 @@
             [fulcro.i18n :refer-macros [tr trc trf]]
             yahoo.intl-messageformat-with-locales
             [fulcro.client.cards :refer [fulcro-app]]
-            [fulcro.client.core :as uc]
+            [fulcro.client.core :as fc]
             [cljs.reader :as r]
             [om.next.impl.parser :as p]
             [om.dom :as dom]
@@ -119,7 +119,7 @@
 ")
 
 (defui Format
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [clz p] {:ui/label "Your Name"})
   static om/Ident
   (ident [this props] [:components :ui])
@@ -139,8 +139,8 @@
 (def ui-format (om/factory Format))
 
 (defui Root2
-  static uc/InitialAppState
-  (initial-state [clz p] {:format (uc/initial-state Format {})})
+  static fc/InitialAppState
+  (initial-state [clz p] {:format (fc/initial-state Format {})})
   static om/IQuery
   (query [this] [:ui/react-key :ui/locale {:format (om/get-query Format)}])
   Object

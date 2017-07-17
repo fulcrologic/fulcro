@@ -4,13 +4,13 @@
     [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
-            [fulcro.client.core :as uc]
+            [fulcro.client.core :as fc]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [cljs.reader :as r]
             [fulcro.client.mutations :as m]))
 
 (defui Child
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] {:id 1 :x 1})
   static om/IQuery
   (query [this] [:id :x])
@@ -24,8 +24,8 @@
 (def ui-child (om/factory Child))
 
 (defui Root
-  static uc/InitialAppState
-  (initial-state [this params] {:root-prop 42 :child (uc/initial-state Child {})})
+  static fc/InitialAppState
+  (initial-state [this params] {:root-prop 42 :child (fc/initial-state Child {})})
   static om/IQuery
   (query [this] [:ui/react-key :root-prop {:child (om/get-query Child)}])
   Object
@@ -62,7 +62,7 @@
 
   ```
   (ns ...
-     (:require [fulcro.client.core :as uc]))
+     (:require [fulcro.client.core :as fc]))
   ```
 
   "
@@ -178,7 +178,7 @@
 
 
 (defui ^:once AQueryRoot
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c p] {})                                  ; empty, but present initial state
   static om/IQuery
   (query [this] [[:root-prop '_]])                          ; A asks for something from root, but has no local props (empty map)
@@ -201,8 +201,8 @@
 (def ui-b (om/factory BQueryRoot))
 
 (defui ^:once RootQueryRoot
-  static uc/InitialAppState
-  (initial-state [c p] {:root-prop 42 :a (uc/get-initial-state AQueryRoot {}) :b nil}) ; b has no state
+  static fc/InitialAppState
+  (initial-state [c p] {:root-prop 42 :a (fc/get-initial-state AQueryRoot {}) :b nil}) ; b has no state
   static om/IQuery
   (query [this] [{:a (om/get-query AQueryRoot) :b (om/get-query BQueryRoot)}])
   Object

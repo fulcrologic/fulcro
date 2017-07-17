@@ -386,16 +386,16 @@ do with queries:
 ----
 (:require
   [om.next :refer-macros [defui]]
-  [fulcro.client.core :as uc])
+  [fulcro.client.core :as fc])
 
 (defui Child
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [clz params] { :a 1 })
   ...)
 
 (defui Parent
-  static uc/InitialAppState
-  (initial-state [clz params] { :x 1 :child (uc/initial-state Child) })
+  static fc/InitialAppState
+  (initial-state [clz params] { :x 1 :child (fc/initial-state Child) })
   ...)
 ----
 

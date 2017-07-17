@@ -1,6 +1,6 @@
 (ns recipes.paginate-large-lists-client
   (:require
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [om.dom :as dom]
@@ -77,7 +77,7 @@
 (def ui-list-item (om/factory ListItem {:keyfn :item/id}))
 
 (defui ^:once ListPage
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c p] {:page/number 1 :page/items []})
   static om/IQuery
   (query [this] [:page/number {:page/items (om/get-query ListItem)}])
@@ -93,8 +93,8 @@
 (def ui-list-page (om/factory ListPage {:keyfn :page/number}))
 
 (defui ^:once LargeList
-  static uc/InitialAppState
-  (initial-state [c params] {:list/current-page (uc/get-initial-state ListPage {})})
+  static fc/InitialAppState
+  (initial-state [c params] {:list/current-page (fc/get-initial-state ListPage {})})
   static om/IQuery
   (query [this] [{:list/current-page (om/get-query ListPage)}])
   static om/Ident
@@ -111,8 +111,8 @@
 (def ui-list (om/factory LargeList))
 
 (defui ^:once Root
-  static uc/InitialAppState
-  (initial-state [c params] {:pagination/list (uc/get-initial-state LargeList {})})
+  static fc/InitialAppState
+  (initial-state [c params] {:pagination/list (fc/get-initial-state LargeList {})})
   static om/IQuery
   (query [this] [:ui/react-key {:pagination/list (om/get-query LargeList)}])
   Object

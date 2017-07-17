@@ -9,7 +9,7 @@
             [om.next.impl.parser :as p]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.core :as uc]))
+            [fulcro.client.core :as fc]))
 
 (defcard-doc
   "# Server-side Rendering
@@ -183,7 +183,7 @@
    to decode the server-sent state:
 
    ```
-   (defonce app (atom (uc/new-fulcro-client :initial-state (fulcro.server-render/get-SSR-initial-state))))
+   (defonce app (atom (fc/new-fulcro-client :initial-state (fulcro.server-render/get-SSR-initial-state))))
    ```
 
    Of course, you could use `:started-callback` to do various other bits (like start your HTML5 routing), but this

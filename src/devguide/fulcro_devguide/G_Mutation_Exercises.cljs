@@ -3,7 +3,7 @@
                    [fulcro-devguide.tutmacros :refer [fulcro-app]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
-            [fulcro.client.core :as uc]
+            [fulcro.client.core :as fc]
             [fulcro.client.mutations :as m]
             [devcards.core :as dc :include-macros true :refer-macros [defcard defcard-doc dom-node]]
             [cljs.reader :as r]

@@ -1,6 +1,6 @@
 (ns recipes.load-samples-client
   (:require
-    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [om.next :as om]
@@ -26,7 +26,7 @@
 (def ui-person (om/factory Person {:keyfn :db/id}))
 
 (defui ^:once People
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c {:keys [kind]}] {:people/kind kind})
   static om/IQuery
   (query [this] [:people/kind {:people (om/get-query Person)}])
@@ -43,9 +43,9 @@
 (def ui-people (om/factory People {:keyfn :people/kind}))
 
 (defui ^:once Root
-  static uc/InitialAppState
-  (initial-state [c {:keys [kind]}] {:friends (uc/get-initial-state People {:kind :friends})
-                                     :enemies (uc/get-initial-state People {:kind :enemies})})
+  static fc/InitialAppState
+  (initial-state [c {:keys [kind]}] {:friends (fc/get-initial-state People {:kind :friends})
+                                     :enemies (fc/get-initial-state People {:kind :enemies})})
   static om/IQuery
   (query [this] [:ui/react-key
                  {:enemies (om/get-query People)}
@@ -59,7 +59,7 @@
         (dom/h4 nil "Enemies")
         (ui-people enemies)))))
 
-(defonce app (atom (uc/new-fulcro-client
+(defonce app (atom (fc/new-fulcro-client
                      :started-callback (fn [app]
                                          ; Make sure you're running the app from the real server port (not fighweel).
                                          ; This is a sample of loading a list of people into a given target, including

@@ -4,7 +4,7 @@
     [fulcro.client.cards :refer [fulcro-app]]
     [om.next :as om :refer [defui]]
     [om.dom :as dom]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.routing :as r :refer [defrouter]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.logging :as log]
@@ -12,7 +12,7 @@
     [fulcro.ui.forms :as f]
     [fulcro.client.data-fetch :as df]
     [cljs.reader :refer [read-string]]
-    [fulcro.client.network :as un]
+    [fulcro.client.network :as fcn]
     [fulcro.ui.bootstrap3 :as b]))
 
 (defn make-phone-number [id type num]
@@ -63,7 +63,7 @@
 
 ; Networking that pretends to talk to server. You'd never write this part
 (defrecord MockNetwork [complete-app]
-  un/FulcroNetwork
+  fcn/FulcroNetwork
   (send [this edn ok err]
     ; simulates a network delay:
     (js/setTimeout
@@ -140,7 +140,7 @@
 (def ui-phone-row (om/factory PhoneDisplayRow {:keyfn :db/id}))
 
 (defui ^:once PhoneEditor
-  static uc/InitialAppState
+  static fc/InitialAppState
   ; make sure to include the :screen-type so the router can get the ident of this component
   (initial-state [cls params] {:screen-type :screen/phone-editor})
   static om/IQuery
@@ -178,7 +178,7 @@
 (defui ^:once PhoneList
   static om/IQuery
   (query [this] [:screen-type {:phone-numbers (om/get-query PhoneDisplayRow)}])
-  static uc/InitialAppState
+  static fc/InitialAppState
   ; make sure to include the :screen-type so the router can get the ident of this component
   (initial-state [this params] {:screen-type   :screen/phone-list
                                 :phone-numbers []})
@@ -203,11 +203,11 @@
 (defui ^:once Root
   static om/IQuery
   (query [this] [:ui/react-key {:main-ui-router (om/get-query TopLevelRouter)}])
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [cls params]
     ; merge the routing tree into the app state
     (merge
-      {:main-ui-router (uc/get-initial-state TopLevelRouter {})}
+      {:main-ui-router (fc/get-initial-state TopLevelRouter {})}
       (r/routing-tree
         (r/make-route :route/phone-list [(r/router-instruction :top-router [:screen/phone-list :tab])])
         (r/make-route :route/phone-editor [(r/router-instruction :top-router [:screen/phone-editor :tab])]))))

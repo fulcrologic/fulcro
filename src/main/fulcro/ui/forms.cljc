@@ -8,7 +8,7 @@
     [om.util :as util]
     [clojure.tools.reader :as reader]
     [clojure.spec.alpha :as s]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.util :as uu :refer [conform!]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
@@ -106,7 +106,7 @@
   such that removing the reference indicates that the target is no longer used and can be removed from the database."
   ([field form-class cardinality & {:keys [isComponent]}]
    (assert (contains? #{:one :many} cardinality) "subform-element requires a cardinality of :one or :many")
-   (assert ((every-pred #(uc/iident? %) #(iform? %) #(om/iquery? %)) form-class)
+   (assert ((every-pred #(fc/iident? %) #(iform? %) #(om/iquery? %)) form-class)
      (str "Subform element " field " MUST implement IForm, IQuery, and Ident."))
    (with-meta {:input/name          field
                :input/is-form?      true
@@ -382,12 +382,12 @@
                               (fail! "Subforms cannot be on union queries. You will have to manually group your subforms if you use unions."
                                 {:ast-node ast-node}))
                             (when (and wants-to-be?
-                                    (not (and (uc/iident? form-class) (iform? form-class) (om/iquery? form-class))))
+                                    (not (and (fc/iident? form-class) (iform? form-class) (om/iquery? form-class))))
                               (fail! (str "Declared subform for property " prop
                                        " does not implement IForm, IQuery, and Ident.")
                                 {:ast-node ast-node}))
                             (and form-class wants-to-be? join? (not union?) (om/iquery? form-class)
-                              (uc/iident? form-class) (iform? form-class))))
+                              (fc/iident? form-class) (iform? form-class))))
          sub-forms      (->> ast :children
                           (keep (fn [ast-node]
                                   (when (is-form-node? ast-node)
@@ -640,7 +640,7 @@
 
   ```
   (defui ^:once PhoneForm
-    static uc/InitialAppState
+    static fc/InitialAppState
     (initial-state [this params] (f/build-form this (or params {})))
     static f/IForm
     (form-spec [this] [(f/id-field :db/id)

@@ -4,7 +4,7 @@
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [om.next :as om :refer [defui]]
     [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.client.mutations :refer [defmutation]]
     [goog.events :as events]
@@ -24,9 +24,9 @@
     (dom/div #js {:className "col-sm-10"} (apply f/form-field comp form name params))))
 
 (defui ^:once FileUploadDemo
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params]
-    (f/build-form this {:db/id 1 :short-story (uc/get-initial-state FileUploadInput {:id :story})}))
+    (f/build-form this {:db/id 1 :short-story (fc/get-initial-state FileUploadInput {:id :story})}))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
                      (file-upload-input :short-story)])
@@ -46,8 +46,8 @@
 (def ui-example (om/factory FileUploadDemo {:keyfn :db/id}))
 
 (defui ^:once CommitRoot
-  static uc/InitialAppState
-  (initial-state [this _] {:demo (uc/initial-state FileUploadDemo {:db/id 1})})
+  static fc/InitialAppState
+  (initial-state [this _] {:demo (fc/initial-state FileUploadDemo {:db/id 1})})
   static om/IQuery
   (query [this] [:ui/react-key
                  {:demo (om/get-query FileUploadDemo)}])
