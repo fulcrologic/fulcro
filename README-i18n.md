@@ -64,3 +64,13 @@ In order to use the translations, you have two options:
 be autoloaded when you use `change-locale`. (NOT WORKING YET. Waiting on July 2017 release of better
 module support).
 
+## Server-side Rendering
+
+The UI will render whatever the current locale is set to. This is a global dynamic variable holding an atom that can
+be set on the server (TODO: wrap a wrapper for this that can error check it):
+
+```
+(reset! fulcro.i18n/*current-locale* :es)
+(dom/render-to-str (ui-root props))
+```
+
