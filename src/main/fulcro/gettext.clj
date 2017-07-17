@@ -7,13 +7,13 @@
             [clojure.java.shell :refer [sh]])
   (:import (java.io File)))
 
-(defn cljs-output-dir
+(defn- cljs-output-dir
   "Given a base source path (no trailing /) and a ns, returns the path to the directory that should contain it."
   [src-base ns]
   (let [path-from-ns (-> ns (str/replace #"\." "/") (str/replace #"-" "_"))]
     (str src-base "/" path-from-ns)))
 
-(defn group-chunks
+(defn- group-chunks
   "Subdivide a translation chunk into a list of translation components, placing msgctxt/msgid/msgstr components into
   individual vectors with their corresponding values."
   [translation-chunk]
@@ -24,7 +24,7 @@
                 (update-in acc [(dec (count acc))] conj unescaped-newlines))))
     [] translation-chunk))
 
-(defn join-quoted-strings
+(defn- join-quoted-strings
   "Join quoted strings together.
 
   Parameters:
@@ -35,7 +35,7 @@
   (reduce (fn [acc quoted-string]
             (str acc (last (re-matches #"(?ms)^.*\"(.*)\"" quoted-string)))) "" strings))
 
-(defn group-translations
+(defn- group-translations
   "Group the content of a .po file by translations.
 
   Parameters:
@@ -51,7 +51,7 @@
         keyed-chunks       (map group-chunks uncommented-chunks)]
     (if (empty? keyed-chunks) nil keyed-chunks)))
 
-(defn map-translation-components
+(defn- map-translation-components
   "Map translation components to translation values.
 
   Parameters:
@@ -66,7 +66,7 @@
                   value (join-quoted-strings trans-subcomponent)]
               (assoc mapped-translation key value))) acc grouped-trans-chunk))
 
-(defn map-translations
+(defn- map-translations
   "Map translated strings to lookup keys.
 
   Parameters:
@@ -89,7 +89,7 @@
       {} mapped-translations)))
 
 
-(defn wrap-with-swap
+(defn- wrap-with-swap
   "Wrap a translation map with supporting clojurescript code
 
   Parameters:
@@ -108,18 +108,18 @@
         swap-decl (pp/write (list 'swap! 'fulcro.i18n/*loaded-translations* 'assoc locale 'translations) :stream nil)]
     (str/join "\n\n" [ns-decl comment trans-def swap-decl])))
 
-(defn write-cljs-translation-file [fname translations-string]
+(defn- write-cljs-translation-file [fname translations-string]
   (println "Writing " fname)
   (spit fname translations-string))
 
-(defn po-path [{:keys [podir]} po-file] (.getAbsolutePath (new File podir po-file)))
+(defn- po-path [{:keys [podir]} po-file] (.getAbsolutePath (new File podir po-file)))
 
-(defn find-po-files
+(defn- find-po-files
   "Finds any existing po-files, and adds them to settings. Returns the new settings."
   [{:keys [podir] :as settings}]
   (assoc settings :existing-po-files (filter #(.endsWith % ".po") (str/split-lines (:out (sh "ls" (.getAbsolutePath podir)))))))
 
-(defn gettext-missing?
+(defn- gettext-missing?
   "Checks for gettext. Returns settings if all OK, nil otherwise."
   [settings]
   (let [xgettext (:exit (sh "which" "xgettext"))
@@ -130,7 +130,7 @@
         nil)
       settings)))
 
-(defn run
+(defn- run
   "Run a shell command and logging the command and result."
   [& args]
   (println "Running: " (str/join " " args))
@@ -139,29 +139,26 @@
       (print "Command Failed: " (str/join " " args))
       (println result))))
 
-
-(defn clojure-ize-locale [po-filename]
+(defn- clojure-ize-locale [po-filename]
   (-> po-filename
     (str/replace #"^([a-z]+_*[A-Z]*).po$" "$1")
     (str/replace #"_" "-")))
 
-(def i18n-defaults {:translation-ns "translations" :po-folder "i18n/msgs"})
-
-(defn expand-settings
+(defn- expand-settings
   "Adds defaults and some additional helpful config items"
   [{:keys [src ns po] :as settings}]
   (let [srcdir      ^File (some-> src (io/as-file))
         output-path (some-> src (cljs-output-dir ns))
         outdir      ^File (some-> output-path (io/as-file))
         podir       ^File (some-> po (io/as-file))]
-    (merge i18n-defaults settings
+    (merge settings
       {:messages-pot (some-> podir (File. "messages.pot") (.getAbsolutePath))
        :podir        podir
        :outdir       outdir
        :srcdir       srcdir
        :output-path  output-path})))
 
-(defn verify-source-folders
+(defn- verify-source-folders
   "Verifies that the source folder (target of the translation cljs) and ..."
   [{:keys [^File srcdir ^File outdir] :as settings}]
   (cond
@@ -173,7 +170,7 @@
                                settings)
     :else settings))
 
-(defn verify-po-folders
+(defn- verify-po-folders
   "Verifies that po files can be generated. Returns settings if so, nil otherwise."
   [{:keys [^File podir] :as settings}]
   (cond
@@ -187,7 +184,15 @@
     :else settings))
 
 (defn extract-strings
-  "Extract strings from a compiled js file (whitespace optimized)."
+  "Extract strings from a compiled js file (whitespace optimized) as a PO template. If existing translations exist
+  then this function will auto-update those (using `msgmerge`) as well.
+
+  Remember that you must first compile your application (*without* modules) and with `:whitespace` optimization to generate
+  a single javascript file. The gettext tools know how to extract from Javascript, but not Clojurescript.
+
+  Parameters:
+  `:js-path` - The path to your generated javascript
+  `:po` - The directory where your PO template and PO files should live. "
   [{:keys [js-path po] :as settings}]
   (when-let [{:keys [existing-po-files messages-pot]
               :as   settings} (some-> settings
@@ -203,8 +208,14 @@
         (run "msgmerge" "--force-po" "--no-wrap" "-U" (po-path settings po) messages-pot)))))
 
 (defn deploy-translations
-  "This subtask converts translated .po files into locale-specific .cljs files for runtime string translation."
-  [{:keys [src ns po] :as settings}]
+  "Scans for .po files and generates cljs for those translations in your app.
+
+  The settings map should contain:
+  :src - The source folder (base) of where to emit the files. Defaults to `src`
+  :ns - The namespace where your translations will live. Defaults to `translations`.
+  :po - The directory where you po files live. Defaults to `i18n`
+  "
+  [{:keys [src ns po] :or {src "src" ns "translations" po "i18n"} :as settings}]
   (let [{:keys [existing-po-files output-path outdir]
          :as   settings} (some-> settings
                            expand-settings
