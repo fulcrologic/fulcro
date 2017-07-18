@@ -40,7 +40,7 @@
 (defui ^:once CounterPanel
   static fc/InitialAppState
   (fc/initial-state [this params]
-    {:counters [(fc/initial-state Counter {:id 1 :start 1})]})
+    {:counters [(fc/get-initial-state Counter {:id 1 :start 1})]})
   static om/IQuery
   (query [this] [{:counters (om/get-query Counter)}])
   static om/Ident
@@ -75,7 +75,7 @@
 (defui ^:once Root
   static fc/InitialAppState
   (fc/initial-state [this params]
-    {:panel (fc/initial-state CounterPanel {})})
+    {:panel (fc/get-initial-state CounterPanel {})})
   static om/IQuery
   (query [this] [:ui/loading-data
                  {:panel (om/get-query CounterPanel)}
@@ -364,7 +364,8 @@
 
   Note the mirroring again between the initial state and the query. The initial state provides an initial model
   of what should be in the database *for the component at hand*, and the query indicates which bits of that state are
-  required for that same local component.
+  required for that same local component. (we're using `get-initial-state`. Technically you could call the protocol `initial-state`,
+  but this helper function makes sure the composition can happen in server-side code as well for server-side rendering).
 
   In this case the query contains a map, which is the query syntax for a JOIN. You can read this query as
   'Query for :counters, which is a JOIN on Counter'. Note that since initial state is setting up a vector

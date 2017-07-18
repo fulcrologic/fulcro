@@ -71,6 +71,19 @@
       (-> (reconciler-with-config {:parser identity}) :parser)
       =fn=> #(not= % identity))))
 
+(specification "Server-side rendering of locale"
+  (let [state             {:ui/locale :es}
+        unmounted-app     (fc/new-fulcro-client
+                            :initial-state state
+                            :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
+        app               (fc/mount unmounted-app Root "application-mount-point")
+        mounted-app-state (om/app-state (:reconciler app))]
+
+    (assertions
+      "is honored by the client"
+      @i18n/*current-locale* => :es
+      (get @mounted-app-state :ui/locale) => :es)))
+
 (specification "Fulcro Application (integration tests)"
   (let [startup-called    (atom false)
         thing-1           {:id 1 :name "A"}
@@ -106,8 +119,8 @@
           "normalizes and uses the initial state"
           (get-in @mounted-app-state [:thing/by-id 1]) => {:id 1 :name "A"}
           (get-in @mounted-app-state [:things 0]) => [:thing/by-id 1]
-          "sets the language to en-US"
-          (get @mounted-app-state :ui/locale) => "en-US"
+          "sets the default language to :en"
+          (get @mounted-app-state :ui/locale) => :en
           "gives app-state to global error function"
           (@(get-in app [:networking :remote :global-error-callback])) => thing-1)))
 

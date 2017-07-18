@@ -25,7 +25,7 @@
 
 (defui Root
   static fc/InitialAppState
-  (initial-state [this params] {:root-prop 42 :child (fc/initial-state Child {})})
+  (initial-state [this params] {:root-prop 42 :child (fc/get-initial-state Child {})})
   static om/IQuery
   (query [this] [:ui/react-key :root-prop {:child (om/get-query Child)}])
   Object
@@ -72,10 +72,12 @@
   (dc/mkdn-pprint-source Root)
 
   "
-  Note the parallel composition of queries and state. It really is that simple: just use the `initial-state` function
+  Note the parallel composition of queries and state. It really is that simple: just use the `fc/get-initial-state` function
   to grab the child state and make sure each component that should appear has some initial state. Be careful that
   component with an ident will have initial state that will give them a correct db identity, or things won't normalize
-  correctly.
+  correctly. (Note, we use `fc/get-initial-state` instead of calling the protocol directly. This is because the JVM
+  doesn't support any way of doing `Class<Component> extends InitialAppState`. So, for server-sider rendering we have
+  to do a bit of behind-the-scenes magic.)
 
   Your top-level creation of the client now becomes much simpler. Fulcro will sense initial state (if it exists in the
   root component`, and will automatically:
@@ -122,8 +124,8 @@
   and main in place at the same time! Thus, when you go to compose the initial state in the UI you have something like this:
 
   ```
-  ; Assumed composed from an initial state in root of `{:tab-switcher (initial-state TabSwitcher)}`
-  ; which expands to `{:tab-switcher (initial-state MainTab)}`
+  ; Assumed composed from an initial state in root of `{:tab-switcher (get-initial-state TabSwitcher)}`
+  ; which expands to `{:tab-switcher (get-initial-state MainTab)}`
   ; which give the final initial 'tree' of:
   { :tab-switcher { :main-tab-property 1 } }
   ```

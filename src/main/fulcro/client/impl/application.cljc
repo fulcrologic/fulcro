@@ -184,7 +184,7 @@
   (letfn [(re-render [k r o n] (when (om/mounted? (om/app-root reconciler)) (om/force-root-render! reconciler)))]
     (remove-watch i18n/*current-locale* :locale)
     (add-watch i18n/*loaded-translations* :locale re-render) ; when a module load completes, it stores the translations here
-    (add-watch i18n/*current-locale* :locale re-render))) ; when the local itself changes
+    (add-watch i18n/*current-locale* :locale re-render)))   ; when the local itself changes
 
 (defn sweep-one "Remove not-found keys from m (non-recursive)" [m]
   (cond
@@ -247,11 +247,17 @@
                                       (plumbing/rewrite-tempids-in-request-queue queue tempids))
                                     (let [state-migrate (or migrate plumbing/resolve-tempids)]
                                       (state-migrate pure tempids)))
-        initial-state-with-locale (if (util/atom? initial-state)
-                                    (do
-                                      (swap! initial-state assoc :ui/locale "en-US")
-                                      initial-state)
-                                    (assoc initial-state :ui/locale "en-US"))
+        initial-state-with-locale (let [set-default-locale (fn [s] (update s :ui/locale (fnil identity :en)))
+                                        is-atom?           (util/atom? initial-state)
+                                        incoming-locale    (get (if is-atom? @initial-state initial-state) :ui/locale)]
+                                    (when incoming-locale
+                                      (reset! i18n/*current-locale* incoming-locale))
+                                    (if is-atom?
+                                      (do
+                                        (swap! initial-state set-default-locale)
+                                        initial-state)
+                                      (do
+                                        (set-default-locale initial-state))))
         config                    (merge {}
                                     reconciler-options
                                     {:migrate     tempid-migrate
