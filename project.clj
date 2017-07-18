@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "1.0.0-beta5-SNAPSHOT"
+(defproject fulcrologic/fulcro "1.0.0-beta5"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
