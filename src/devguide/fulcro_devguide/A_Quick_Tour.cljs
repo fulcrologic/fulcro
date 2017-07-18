@@ -14,7 +14,7 @@
 
 (defui ^:once Counter
   static fc/InitialAppState
-  (fc/initial-state [this {:keys [id start]
+  (initial-state [this {:keys [id start]
                            :or   {id 1 start 1}
                            :as   params}] {:counter/id id :counter/n start})
   static om/IQuery
@@ -39,7 +39,7 @@
 
 (defui ^:once CounterPanel
   static fc/InitialAppState
-  (fc/initial-state [this params]
+  (initial-state [this params]
     {:counters [(fc/get-initial-state Counter {:id 1 :start 1})]})
   static om/IQuery
   (query [this] [{:counters (om/get-query Counter)}])
@@ -60,7 +60,7 @@
 
 (defui ^:once CounterSum
   static fc/InitialAppState
-  (fc/initial-state [this params] {})
+  (initial-state [this params] {})
   static om/IQuery
   (query [this] [[:counter/by-id '_]])
   Object
@@ -74,7 +74,7 @@
 
 (defui ^:once Root
   static fc/InitialAppState
-  (fc/initial-state [this params]
+  (initial-state [this params]
     {:panel (fc/get-initial-state CounterPanel {})})
   static om/IQuery
   (query [this] [:ui/loading-data
