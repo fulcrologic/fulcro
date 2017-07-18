@@ -1,83 +1,63 @@
 (ns fulcro.gettext
   "A set of functions for working with GNU gettext translation files, including translation generation tools to go
-  from PO files to cljs."
+  from PO files to cljc."
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [clojure.pprint :as pp]
             [clojure.java.shell :refer [sh]])
   (:import (java.io File)))
 
-(defn- cljs-output-dir
+(defn- cljc-output-dir
   "Given a base source path (no trailing /) and a ns, returns the path to the directory that should contain it."
   [src-base ns]
   (let [path-from-ns (-> ns (str/replace #"\." "/") (str/replace #"-" "_"))]
     (str src-base "/" path-from-ns)))
 
-(defn- group-chunks
-  "Subdivide a translation chunk into a list of translation components, placing msgctxt/msgid/msgstr components into
-  individual vectors with their corresponding values."
-  [translation-chunk]
-  (reduce (fn [acc line]
-            (let [unescaped-newlines (str/replace line #"\\n" "\n")]
-              (if (re-matches #"^msg.*" line)
-                (conj acc [unescaped-newlines])
-                (update-in acc [(dec (count acc))] conj unescaped-newlines))))
-    [] translation-chunk))
+(defn strip-comments
+  "Given a sequence of strings that possibly contain comments of the form # ... <newline>: Return the sequence of
+  strings without those comments."
+  [string]
+  (str/replace string #"(?m)^#[^\n\r]*(\r\n|\n|\r|$)" ""))
 
-(defn- join-quoted-strings
-  "Join quoted strings together.
+(defn is-header? [entry]
+  (str/starts-with? entry "msgid \"\"\nmsgstr \"\"\n\"Project-Id-V"))
 
-  Parameters:
-  * `strings` - a vector of strings, where the string may contain a string in \"\"
+(defn get-blocks
+  [resource]
+  (filter (comp not is-header?) (map strip-comments (str/split (slurp resource) #"\n\n"))))
 
-  Returns a string which is a concatenation of the quoted substrings in the vector."
-  [strings]
-  (reduce (fn [acc quoted-string]
-            (str acc (last (re-matches #"(?ms)^.*\"(.*)\"" quoted-string)))) "" strings))
+(defn stripquotes [s]
+  (-> s
+    (str/replace #"^\"" "")
+    (str/replace #"\"$" "")))
 
-(defn- group-translations
-  "Group the content of a .po file by translations.
-
-  Parameters:
-  * `fname` - the path to a .po file on disk
-
-  Returns a vector of corresponding translation components."
-  [fname]
-  (let [fstring            (slurp fname)
-        trans-chunks       (rest (str/split fstring #"(?ms)\n\n"))
-        grouped-chunks     (map str/split-lines trans-chunks)
-        comment?           #(re-matches #"^#.*" %)
-        uncommented-chunks (map #(remove comment? %) grouped-chunks)
-        keyed-chunks       (map group-chunks uncommented-chunks)]
-    (if (empty? keyed-chunks) nil keyed-chunks)))
-
-(defn- map-translation-components
-  "Map translation components to translation values.
-
-  Parameters:
-  * `acc` - an accumulator into which translation key/values will be placed
-  * `grouped-trans-chunk` - a vector of translation components
-
-  Used to reduce over a vector of `grouped-trans-chunk`'s, returns a map of :msgid/:msgctxt/:msgstr to their respective
-  string values."
-  [acc grouped-trans-chunk]
-  (reduce (fn [mapped-translation trans-subcomponent]
-            (let [key   (->> trans-subcomponent first (re-matches #"^(msg[a-z]+) .*$") last keyword)
-                  value (join-quoted-strings trans-subcomponent)]
-              (assoc mapped-translation key value))) acc grouped-trans-chunk))
+(defn block->translation
+  [gettext-block]
+  (let [lines (str/split-lines gettext-block)]
+    (-> (reduce (fn [{:keys [msgid msgctxt msgstr section] :as acc} line]
+                  (let [[_ k v :as keyline] (re-matches #"^(msgid|msgctxt|msgstr)\s+\"(.*)\"\s*$" line)]
+                    (cond
+                      (and line (.matches line "^\".*\"$")) (update acc section #(str % (stripquotes line)))
+                      (and k (#{"msgid" "msgctxt" "msgstr"} k)) (-> acc
+                                                                  (assoc :section (keyword k))
+                                                                  (update (keyword k) #(str % v)))
+                      :else (do
+                              (println "Unexpected input -->" line "<--")
+                              acc)))) {} lines)
+      (dissoc :section))))
 
 (defn- map-translations
   "Map translated strings to lookup keys.
 
   Parameters:
-  * `fname` - the path to a .po file on disk
+  * `resource` - A resource to read the po from.
 
   Returns a map of msgstr values to msgctxt|msgid string keys."
-  [fname]
-  (let [translation-groups  (group-translations fname)
-        mapped-translations (reduce (fn [trans-maps translation]
-                                      (conj trans-maps (map-translation-components {} translation)))
-                              [] translation-groups)]
+  [file-or-resource]
+  (let [translations (map block->translation (get-blocks
+                                               (if (string? file-or-resource)
+                                                 (io/as-file file-or-resource)
+                                                 file-or-resource)))]
     (reduce (fn [acc translation]
               (let [{:keys [msgctxt msgid msgstr] :or {msgctxt "" msgid "" msgstr ""}} translation
                     msg (if (and (-> msgstr .trim .isEmpty) (-> msgid .trim .isEmpty not))
@@ -86,8 +66,7 @@
                             msgid)
                           msgstr)]
                 (assoc acc (str msgctxt "|" msgid) msg)))
-      {} mapped-translations)))
-
+      {} translations)))
 
 (defn- wrap-with-swap
   "Wrap a translation map with supporting clojurescript code
@@ -108,9 +87,7 @@
         swap-decl (pp/write (list 'swap! 'fulcro.i18n/*loaded-translations* 'assoc locale 'translations) :stream nil)]
     (str/join "\n\n" [ns-decl comment trans-def swap-decl])))
 
-(defn- write-cljs-translation-file [fname translations-string]
-  (println "Writing " fname)
-  (spit fname translations-string))
+
 
 (defn- po-path [{:keys [podir]} po-file] (.getAbsolutePath (new File podir po-file)))
 
@@ -148,7 +125,7 @@
   "Adds defaults and some additional helpful config items"
   [{:keys [src ns po] :as settings}]
   (let [srcdir      ^File (some-> src (io/as-file))
-        output-path (some-> src (cljs-output-dir ns))
+        output-path (some-> src (cljc-output-dir ns))
         outdir      ^File (some-> output-path (io/as-file))
         podir       ^File (some-> po (io/as-file))]
     (merge settings
@@ -159,7 +136,7 @@
        :output-path  output-path})))
 
 (defn- verify-source-folders
-  "Verifies that the source folder (target of the translation cljs) and ..."
+  "Verifies that the source folder (target of the translation cljc) and ..."
   [{:keys [^File srcdir ^File outdir] :as settings}]
   (cond
     (not (.exists srcdir)) (do
@@ -208,13 +185,12 @@
         (run "msgmerge" "--force-po" "--no-wrap" "-U" (po-path settings po) messages-pot)))))
 
 (defn deploy-translations
-  "Scans for .po files and generates cljs for those translations in your app.
+  "Scans for .po files and generates cljc for those translations in your app.
 
   The settings map should contain:
   :src - The source folder (base) of where to emit the files. Defaults to `src`
   :ns - The namespace where your translations will live. Defaults to `translations`.
-  :po - The directory where you po files live. Defaults to `i18n`
-  "
+  :po - The directory where you po files live. Defaults to `i18n`"
   [{:keys [src ns po] :or {src "src" ns "translations" po "i18n"} :as settings}]
   (let [{:keys [existing-po-files output-path outdir]
          :as   settings} (some-> settings
@@ -229,8 +205,9 @@
     (doseq [po existing-po-files]
       (let [locale            (clojure-ize-locale po)
             translation-map   (map-translations (po-path settings po))
-            cljs-translations (wrap-with-swap :ns ns :locale locale :translation translation-map)
-            cljs-trans-path   (str output-path "/" (replace-hyphen locale) ".cljs")]
-        (write-cljs-translation-file cljs-trans-path cljs-translations)))
+            cljc-translations (wrap-with-swap :ns ns :locale locale :translation translation-map)
+            cljc-trans-path   (str output-path "/" (replace-hyphen locale) ".cljc")]
+        (println "Writing " cljc-trans-path)
+        (spit cljc-trans-path cljc-translations)))
     (println "Deployed translations.")))
 

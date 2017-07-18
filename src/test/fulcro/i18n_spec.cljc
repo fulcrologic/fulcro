@@ -101,7 +101,10 @@
                (trf "{a, date, short}" :a (date 1990 3 1 13 45 22 0)) => "01/04/90")))
   (behavior "formats plurals - Spanish"
     (assertions
-      (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n 0) => "nada"
+      (trf "{n,plural,=0 {none} =1 {one} other {#}}
+
+      and some
+      \" embedded weirdness \n" :n 0) => "nada"
       (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n 1) => "uno"
       (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n 2) => "2"
       (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n 146) => "146")))
