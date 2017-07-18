@@ -199,7 +199,7 @@
         (notify-listeners client-dropped listeners component uid))
 
       (defmethod message-received :chsk/ws-ping [{:keys [client-id ?data ring-req uid] :as message}]
-        (timbre/debug "Ping from client" client-id))
+        (timbre/trace "Ping from client" client-id))
 
       component))
 

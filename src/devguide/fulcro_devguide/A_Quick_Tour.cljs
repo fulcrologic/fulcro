@@ -164,10 +164,6 @@
    Om Next application. In many cases Fulcro is required to 'make a call' about how to do something.
    When it does, our documentation tries to discuss the relative merits and costs.
 
-  The name 'Fulcro' is *not* meant to be a commentary on Om Next, but instead on the general state of web
-  development circa 2016. Om Next and Fulcro are two layers of a solution that makes things
-  simpler for you.
-
   ## Om Next Components can use Stock React components
 
   The first major strength is that Om Next (and therefore Fulcro) integrates with stock React components. So, if you already

@@ -44,8 +44,8 @@
   the UI if no translation is available.
   - The ability to extract these UI strings for translation in POT files (GNU gettext-style)
       - The translator can use tools like POEdit to generate translation files
-  - The ability to convert the translation files into Clojurescript as modules that can be dynamically loaded when
-    the locale is changed.
+  - The ability to convert the translation files into Clojurescript
+  - The ability to code-split your locales so they can be dynamically loaded when the locale is changed (July 2017).
   - The ability to format messages (using Yahoo's formatJS library), including very configurable plural support
 
   Fulcro leverages the GNU `xgettext` tool, and Yahoo's formatJS library (which in turn leverages browser support
@@ -79,7 +79,7 @@
   parameter (which can use the ISO standard two-letter language with an optional country code):
 
   ```
-  (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang \"en-US\"})])
+  (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang :es})])
   ```
 
   The rendering functions will search for a translation in that language and country, fall back to the language if
@@ -158,7 +158,7 @@
 
 (defcard-doc
   "
-  ## Manually Installing Translations (NOT recommended)
+  ## Manually Installing Translations (see automation below as well)
 
   The format for translations is rather simple, so you can hand-code translations if you care to. The
   format of a translation entry key is \"context|msgkey\". So, for example the key for a `(tr \"Hi\")`
@@ -167,11 +167,11 @@
   Installing a translation map can be done as:
 
   ```
-  (swap! fulcro.i18n.core/*loaded-translations* assoc \"es\" {\"|This is a test\" \"Spanish for 'this is a test'\"})
+  (swap! fulcro.i18n/loaded-translations assoc \"es\" {\"|This is a test\" \"Spanish for 'this is a test'\"})
   ```
 
   in other words there is a global atom that holds the currently-loaded translations as a map, keyed by locale. The
-  map entries are the abovementioned translation entry keys and the desired translation.
+  map entries are the above-mentioned translation entry keys and the desired translation.
 
   ## Using Tools to Generate Translation Files
 
@@ -187,40 +187,19 @@
   xgettext --from-code=UTF-8 --debug -k -ktr:1 -ktrc:1c,2 -ktrf:1 -o messages.pot compiled.js
   ```
 
-  A leiningen plugin exists for doing this for you:
+  If you have existing translations, you'd then merge this POT file into them. If you needed to make a new locale, you'd
+  use the GNU `msginit` command.
+
+  Fulcro comes with a function to do both the extraction and merging from a REPL: `(fulcro.gettext { options })`.
 
   ```
-  (defproject boo \"0.1.0-SNAPSHOT\"
-    ...
-    :plugins [fulcrologic/fulcro-lein-i18n \"0.2.0\"]
-
-    :fulcro-i18n {:default-locale        \"en\" ;; the default locale of your app
-                     :translation-namespace \"app.i18n\" ;; the namespace for generating cljs translations
-                     :source-folder         \"src\" ;; the target source folder for generated code
-                     :translation-build     \"i18n\" ;; The name of the cljsbuild to compile your code that has tr calls
-                     :po-files              \"msgs\" ;; The folder where you want to store gettext files  (.po/.pot)
-                     :production-build      \"prod\"} ;; The name of your production build
-
-    :cljsbuild {:builds [{:id           \"i18n\"
-                          :source-paths [\"src\"]
-                          :compiler     {:output-to     \"i18n/out/compiled.js\"
-                                         :main          entry-point
-                                         :optimizations :whitespace}}
-                         {:id \"prod\"
-                          :source-paths [\"src\"]
-                          :compiler {:asset-path    \"js\"
-                                     :output-dir \"resources/public/js\"
-                                     :main       core
-                                     :output-to  \"resources/public/js/main.js\"
-                                     :optimizations :advanced
-                                     :source-map    true}}]})
+  $ lein run -m clojure.main
+  user=> (require 'fulcro.gettext)
+  user=> (fulcro.gettext/extract-strings {:js-path \"i18n/i18n.js\" :po \"i18n\"})
   ```
 
-  ```
-  lein i18n extract-strings
-  ```
-
-  should run a cljs build of your i18n build and then generate the file `msgs/messages.pot`.
+  The `js-path` is the path to the whitespace-optimized js version of your app. The `po` is the folder where your
+  POT and PO files live.
 
   NOTE: This task will automatically merge the generated `.pot` file into any pre-existing `.po` files as a final step,
   so updating translations will just involve sending off the locale-specific `.po` files.
@@ -229,77 +208,28 @@
 
   Once you've extracted the strings to a POT file you may translate them as you would any other gettext app. We
   recommend the GUI program POEdit. You should end up with a number of translations in files that you place
-  in files like `msgs/es.po`, where `es` is the locale of the translation. Note that the extract-strings lein task
-  will update these files with new (needed) translations for you. Generally you'll check your `.po` files into source
-  control in order to keep track of the translations you've already done.
+  in files like `i18n/es.po`, where `es` is the locale of the translation.
+  Generally you'll check your `.po` files into source control in order to keep track of the translations you've already done,
+  since the overall process allows carrying over old translations to newly extracted files.
 
-  ## Generating Clojurescript Versions of the Translations
+  ## Generating Clojure Versions of the Translations
 
-  If you're using the i18n lein plugin, then there are two possible way to generate translation code: as loadable modules,
-  and as part of the final compiled application. If you have a lot of strings and locales it can save some initial start
-  time to use modules, at the expense of a more complicated project configuration.
-
-  The i18n plugin command is simple enough:
+  Again, a function is provided for you that can be run from the REPL:
 
   ```
-  lein i18n deploy-translations
+  (fulcro.gettext/deploy-translations {:ns \"fulcro-template.locales\" :src \"src/main\" :po \"i18n\"})
   ```
 
-  and the overall configuration (without modules) is shown in the section on extracting the strings.
-
-  If you want to use modules, there are a few more steps:
-
-  1. Ensure you do *not* require any of your specific locales in any source file.
-  2. Include a module definition in your production cljs build for every locale you want to make dynamically
-  loadable. Be sure to use the locale name as the (keyword) key of the module.
-
-  Something like the following should work:
-
-  ```
-  (defproject boo \"0.1.0-SNAPSHOT\"
-    ...
-    :plugins [fulcrologic/fulcro-lein-i18n \"0.2.0\"]
-
-    :fulcro-i18n {:default-locale        \"en\" ;; the default locale of your app
-                     :translation-namespace \"app.i18n\" ;; the namespace for generating cljs translations
-                     :source-folder         \"src\" ;; the target source folder for generated code
-                     :translation-build     \"i18n\" ;; The name of the cljsbuild to compile your code that has tr calls
-                     :po-files              \"msgs\" ;; The folder where you want to store gettext files  (.po/.pot)
-                     :production-build      \"prod\"} ;; The name of your production build
-
-    :cljsbuild {:builds [{:id           \"i18n\"
-                          :source-paths [\"src\"]
-                          :compiler     {:output-to     \"i18n/out/compiled.js\"
-                                         :main          entry-point
-                                         :optimizations :whitespace}}
-                         {:id \"prod\"
-                          :source-paths [\"src\"]
-                          :compiler {:asset-path    \"js\"
-                                     :output-dir \"resources/public/js\"
-                                     :optimizations :advanced
-                                     :source-map    true
-                                     :modules       {;; The main program
-                                                     :cljs-base {:output-to \"resources/public/js/main.js \"}
-                                                     ;; One entry for each locale
-                                                     :de        {:output-to \"resources/public/js/de.js \" :entries #{\"app.i18n.de \"}}
-                                                     :es        {:output-to \"resources/public/js/es.js \" :entries #{\"app.i18n.es \"}}}}}]})
-  ```
+  Where `ns` is the target namespace for the CLJC files, `src` is your target source folder, and `:po` is where
+  you keep your PO files. This step will generate one cljc file for each PO file.
 
   ### Using the Generated Translation Code
 
-  The generated source will be in the namespace you configure in your project file (e.g. `app.i18n`). The generated
-  code will include a `locales.cljs` file. You should require this file and use the `set-locale` function within it.
-  This function will be set up to automatically load any dynamic locale modules (assuming you configured them correctly).
+  In your client setup file, just require all of the locales so they'll get loaded. That's it!
 
-  If you didn't use modules, then no dynamic loading will be attempted.
+  If you place each locale into a module in Clojurescript 1.9.0-800+ then you can use your locales as loadable modules (coming July 2017). The
+  `change-locale` mutation will automatically trigger loads (coming July 2017. may require a parameter).
 
-  ```
-  (ns some.ui
-    (:require [app.i18n.locales :as l]))
-
-  ...
-  (l/set-locale \"es\") ; change the UI locale, possibly triggering a dynamic module load.
-  ```
   ")
 
 

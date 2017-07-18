@@ -1,8 +1,6 @@
 (ns fulcro.ui.bootstrap3
   (:require [om.dom :as dom]
             [om.next :as om :refer [defui]]
-    #?(:clj
-            js)
             [fulcro.ui.elements :as ele]
             [fulcro.events :as evt]
             [fulcro.ui.html-entities :as ent]
