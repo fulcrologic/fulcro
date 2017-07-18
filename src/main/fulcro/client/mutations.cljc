@@ -76,7 +76,10 @@
 (defmulti post-mutate om/dispatch)
 (defmethod post-mutate :default [env k p] nil)
 
-(defn change-locale-impl [state-map lang]
+(defn change-locale-impl
+  "Given a state map and locale, returns a new state map with the locale properly changed. Also potentially triggers a module load.
+  There is also the mutation `change-locale` that can be used from transact."
+  [state-map lang]
   (reset! i18n/*current-locale* lang)                       ; TODO: client needs to init current locale on stated-callback if SSR
   (-> state-map
     (assoc :ui/locale lang)
