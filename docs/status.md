@@ -61,9 +61,9 @@ i18n support, it just affects the ease in which you can generate
 translations for other languages.
 
 - Core code (100%)
-- String extraction (80%)
-- Dynamic Loading (80%)
-- Server-side rendering (80%)
+- String extraction (100%)
+- Server-side rendering (100%)
+- Dynamic Loading (80%) (waiting on cljs release July 2017)
 
 ## Websockets
 
@@ -153,12 +153,10 @@ This is a relatively new feature, and some of the bits have not been well-tested
 
 We know that the general DOM rendering is fine, and rest-assured it is a first-class
 feature; however,
-also understand that you may run into an issue. Event though most everything has been
+also understand that you may run into an issue. Even though most everything has been
 written to support SSR, these areas in particular have not been well-tested and
 may need additional work:
 
-- SSR of alternate pages that use HTML5 Routing
-- Rendering a non-default language with Internationalization
 - Pre-rendering a page that uses the forms support
 
 ## Random Bits
