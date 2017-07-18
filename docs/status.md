@@ -29,8 +29,7 @@ Be sure to watch the [whiteboard discussion video](https://youtu.be/mT4jJHf929Q?
 The primitives to support this are well-defined in `routing.cljc`. There are a few gotchas, and
 it is recommended that you carefully examine the new [Fulcro Template](https://github.com/fulcrologic/fulcro-template).
 
-Server-side rendering still needs to be checked and possibly augmented so that
-you can pre-render the correct page.
+Supported on both client and for SSR (100%).
 
 ## Form Support
 
@@ -117,6 +116,7 @@ by browsers. It is highly unlikely that this level of optimization will break th
 so as long as your web server does a good job with cache headers it really
 should not be that big of a deal for your deployment size to be a little larger.
 
+Om Next currently has an issue with Advanced (1.0.0-beta1)
 
 ## Elements
 
