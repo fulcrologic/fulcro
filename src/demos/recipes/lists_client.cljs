@@ -1,7 +1,7 @@
 (ns recipes.lists-client
   (:require
     [fulcro.client.mutations :as m]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [om.dom :as dom]
     [om.next :as om :refer-macros [defui]]))
 
@@ -12,7 +12,7 @@
                                    :list/items [{:item/id 1 :item/label "A"}
                                                 {:item/id 2 :item/label "B"}]}})
 
-(defonce app (atom (uc/new-fulcro-client :initial-state initial-state)))
+(defonce app (atom (fc/new-fulcro-client :initial-state initial-state)))
 
 (m/defmutation delete-item
   "Om Mutation: Delete an item from a list"
@@ -26,7 +26,7 @@
             (update-in [:lists 1 :list/items] filter-item)))))))
 
 (defui ^:once Item
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c {:keys [id label]}] {:item/id id :item/label label})
   static om/IQuery
   (query [this] [:item/id :item/label])
@@ -43,11 +43,11 @@
 (def ui-list-item (om/factory Item :item/id))
 
 (defui ^:once ItemList
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c p] {:list/id    1
                         :list/name  "List 1"
-                        :list/items [(uc/get-initial-state Item {:id 1 :label "A"})
-                                     (uc/get-initial-state Item {:id 2 :label "B"})]})
+                        :list/items [(fc/get-initial-state Item {:id 1 :label "A"})
+                                     (fc/get-initial-state Item {:id 2 :label "B"})]})
   static om/IQuery
   (query [this] [:list/id :list/name {:list/items (om/get-query Item)}])
   static om/Ident
@@ -65,8 +65,8 @@
 (def ui-list (om/factory ItemList))
 
 (defui ^:once Root
-  static uc/InitialAppState
-  (initial-state [c p] {:main-list (uc/get-initial-state ItemList {})})
+  static fc/InitialAppState
+  (initial-state [c p] {:main-list (fc/get-initial-state ItemList {})})
   static om/IQuery
   (query [this] [:ui/react-key {:main-list (om/get-query ItemList)}])
   Object

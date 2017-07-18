@@ -5,7 +5,7 @@
             [om.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.core :as uc]))
+            [fulcro.client.core :as fc]))
 
 ; TODO: Explain Om's HATEOS (keyword listing in :keys)
 ; see: https://github.com/omcljs/om/wiki/Quick-Start-%28om.next%29
@@ -198,7 +198,7 @@
   is well-defined and trivial to access.
 
   ```
-  (uc/new-fulcro-client
+  (fc/new-fulcro-client
     :initial-state {}
     :started-callback
       (fn [{:keys [reconciler] :as app}]

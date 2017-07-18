@@ -1,6 +1,6 @@
 (ns fulcro.client.impl.application-spec
   (:require
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [om.next :as om :refer [defui]]
     [fulcro-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
     [om.dom :as dom]
@@ -76,11 +76,11 @@
         thing-1           {:id 1 :name "A"}
         state             {:things [thing-1 {:id 2 :name "B"}]}
         callback          (fn [app] (reset! startup-called (:initial-state app)))
-        unmounted-app     (uc/new-fulcro-client
+        unmounted-app     (fc/new-fulcro-client
                             :initial-state state
                             :started-callback callback
                             :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
-        app               (uc/mount unmounted-app Root "application-mount-point")
+        app               (fc/mount unmounted-app Root "application-mount-point")
         mounted-app-state (om/app-state (:reconciler app))
         reconciler        (:reconciler app)
         reconciler-config (:config reconciler)
@@ -153,11 +153,11 @@
 
 (specification "Fulcro Application (multiple remotes)"
   (let [state             {}
-        unmounted-app     (uc/new-fulcro-client
+        unmounted-app     (fc/new-fulcro-client
                             :initial-state state
                             :networking {:a (net/mock-network)
                                          :b (net/mock-network)})
-        app               (uc/mount unmounted-app Root "application-mount-point")
+        app               (fc/mount unmounted-app Root "application-mount-point")
         mounted-app-state (om/app-state (:reconciler app))
         reconciler        (:reconciler app)
         reconciler-config (:config reconciler)

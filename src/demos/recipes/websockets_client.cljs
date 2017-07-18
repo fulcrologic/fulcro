@@ -1,7 +1,7 @@
 (ns recipes.websockets-client
   (:require
     [om.next :as om]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [fulcro.websockets.networking :as wn]

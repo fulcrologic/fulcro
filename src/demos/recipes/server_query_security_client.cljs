@@ -1,6 +1,6 @@
 (ns recipes.server-query-security-client
   (:require
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [om.dom :as dom]
@@ -8,7 +8,7 @@
 
 (def initial-state {:ui/react-key "abc"})
 
-(defonce app (atom (uc/new-fulcro-client
+(defonce app (atom (fc/new-fulcro-client
                      :initial-state initial-state
                      :started-callback
                      (fn [{:keys [reconciler]}]

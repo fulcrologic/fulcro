@@ -1,12 +1,12 @@
 (ns recipes.initial-app-state-client
   (:require
-    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]))
 
-(defonce app (atom (uc/new-fulcro-client)))
+(defonce app (atom (fc/new-fulcro-client)))
 
 (defmethod m/mutate 'nav/settings [{:keys [state]} sym params]
   {:action (fn [] (swap! state assoc :panes [:settings :singleton]))})

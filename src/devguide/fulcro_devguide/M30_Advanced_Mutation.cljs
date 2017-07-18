@@ -4,7 +4,7 @@
             [om.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro-devguide.A-Quick-Tour :as tour]
-            [fulcro.client.core :as uc]
+            [fulcro.client.core :as fc]
             [fulcro.client.logging :as log]
             [fulcro.client.data-fetch :as df]))
 
@@ -126,7 +126,7 @@
 (defonce merge-sample-app (atom nil))
 
 (defn add-counter [app counter]
-  (uc/merge-state! app tour/Counter counter
+  (fc/merge-state! app tour/Counter counter
                    :append [:panels/by-kw :counter :counters]))
 
 (defui ^:once Root
@@ -174,8 +174,8 @@
          "The button in the UI calls `(add-counter app {:counter/id 4 :counter/n 22})`"
          (dc/dom-node
            (fn [state-atom node]
-             (reset! merge-sample-app (uc/new-fulcro-client :initial-state state-atom :networking (tour/map->MockNetwork {})))
-             (reset! merge-sample-app (uc/mount @merge-sample-app Root node))))
+             (reset! merge-sample-app (fc/new-fulcro-client :initial-state state-atom :networking (tour/map->MockNetwork {})))
+             (reset! merge-sample-app (fc/mount @merge-sample-app Root node))))
          {:panel         [:panels/by-kw :counter]
           :panels/by-kw  {:counter {:counters []}}
           :counter/by-id {}}

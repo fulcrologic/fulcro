@@ -99,8 +99,8 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 
   ```
   (defui Root
-    static uc/InitialAppState
-    (initial-state [cls params]  (merge {:child-key (uc/get-initial-state Child)}
+    static fc/InitialAppState
+    (initial-state [cls params]  (merge {:child-key (fc/get-initial-state Child)}
                                         (routing-tree
                                           (make-route :route/a [(router-instruction ...)])
                                           ...)))

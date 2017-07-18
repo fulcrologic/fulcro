@@ -1,10 +1,10 @@
 (ns fulcro-devguide.simulated-server
   (:require
     [om.next :as om]
-    [fulcro.client.network :as u-net]))
+    [fulcro.client.network :as fcn]))
 
 (defrecord MockNetwork [server]
-  u-net/FulcroNetwork
+  fcn/FulcroNetwork
   (send [this edn ok err]
     (let [resp (server {} edn)]
       (js/setTimeout #(ok resp) 700)))

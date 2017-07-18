@@ -6,7 +6,7 @@
     [om.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
-    [fulcro.client.core :as uc]))
+    [fulcro.client.core :as fc]))
 
 (dc/defcard mutation-return-value-card
   "
@@ -70,7 +70,7 @@
   The remainder of the setup is just giving the merge handler function to the application at startup:
 
   ```
-  (uc/new-fulcro-client :mutation-merge merge-return-value)
+  (fc/new-fulcro-client :mutation-merge merge-return-value)
   ```
 
   The UI code for the demo is:

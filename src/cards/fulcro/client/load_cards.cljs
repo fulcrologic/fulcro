@@ -1,7 +1,7 @@
 (ns fulcro.client.load-cards
   (:require
     [devcards.core :as dc :refer-macros [defcard]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.cards :refer [fulcro-app]]
     [om.next :as om :refer [defui]]
     [om.dom :as dom]

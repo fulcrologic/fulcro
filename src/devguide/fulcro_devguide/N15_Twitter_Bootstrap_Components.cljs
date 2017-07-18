@@ -12,11 +12,11 @@
             [fulcro.client.cards :refer [fulcro-app]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.ui.bootstrap3 :as b]
-            [fulcro.client.core :as uc]
+            [fulcro.client.core :as fc]
             [devcards.core :as dc]))
 
 (defui DropdownRoot
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this props] {:dropdown   (b/dropdown :file "File" [(b/dropdown-item :open "Open")
                                                                      (b/dropdown-item :close "Close")
                                                                      (b/dropdown-divider :divider-1)
@@ -72,7 +72,7 @@
 
   ```
   (defui DropdownRoot
-    static uc/InitialAppState
+    static fc/InitialAppState
     (initial-state [this props] {:dropdown (b/dropdown :file \"File\" [(b/dropdown-item :open \"Open\")
                                                                      (b/dropdown-item :close \"Close\")
                                                                      (b/dropdown-divider)
@@ -94,7 +94,7 @@
   (action [{:keys [state]}] (swap! state assoc :current-page page)))
 
 (defui NavRoot
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this props] {:current-page :home
                                ; Embed the nav in app state as a child of this component
                                :nav          (b/nav :main-nav :tabs :normal
@@ -145,7 +145,7 @@
 (defcard nav-tabs (fulcro-app NavRoot) {} {:inspect-data false})
 
 (defui HomeScreen
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c p] {:screen-type :home})
   static om/IQuery
   (query [this] [:screen-type])
@@ -154,7 +154,7 @@
     (dom/div nil "HOME SCREEN")))
 
 (defui OtherScreen
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c p] {:screen-type :other})
   static om/IQuery
   (query [this] [:screen-type])
@@ -179,12 +179,12 @@
                      (b/set-active-nav-link* :main-nav tab))))))
 
 (defui RouterRoot
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c p] {
                         :nav    (b/nav :main-nav :tabs :normal
                                   :home
                                   [(b/nav-link :home "Home" false) (b/nav-link :other "Other" false)])
-                        :router (uc/get-initial-state MainRouter {})})
+                        :router (fc/get-initial-state MainRouter {})})
   static om/IQuery
   (query [this] [{:router (om/get-query MainRouter)} {:nav (om/get-query b/Nav)}])
   Object
@@ -294,7 +294,7 @@
   (ident [this props] (person-ident props))
   static om/IQuery
   (query [this] [:db/id :person/name])
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c {:keys [id name]}] {:db/id id :person/name name})
   ;; Just a simple component to display a person
   Object
@@ -362,8 +362,8 @@
   ; We're storing both the real modal and the person-editor's state in this custom modal (which combines the two).
   ; The person-editor field will eventually need to point to the person to edit (by ident in the normalized db)
   ; When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
-  static uc/InitialAppState
-  (initial-state [t p] {:person-editor nil :modal (uc/get-initial-state b/Modal {:id :edit-modal :backdrop true :keyboard false})})
+  static fc/InitialAppState
+  (initial-state [t p] {:person-editor nil :modal (fc/get-initial-state b/Modal {:id :edit-modal :backdrop true :keyboard false})})
   ; ident will come from UI router
   static om/IQuery
   (query [this] [{:person-editor (om/get-query PersonEditor)} {:modal (om/get-query b/Modal)}])
@@ -389,8 +389,8 @@
 
 (defui ^:once WarningModal
   ; NOTE: When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
-  static uc/InitialAppState
-  (initial-state [t p] {:message "Stuff broke" :modal (uc/get-initial-state b/Modal {:id :warning-modal :backdrop true})})
+  static fc/InitialAppState
+  (initial-state [t p] {:message "Stuff broke" :modal (fc/get-initial-state b/Modal {:id :warning-modal :backdrop true})})
   ; ident will come from UI router
   static om/IQuery
   (query [this] [:message {:modal (om/get-query b/Modal)}]) ; so a mutation can change the message, in this case.
@@ -436,15 +436,15 @@
                        :modal-router]))
 
 (defui ^:once ModalRoot
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c p] (merge
                          ; make a routing tree for the two modals and merge it in the app state
                          (routing/routing-tree
                            (routing/make-route :edit [(routing/router-instruction :modal-router [:edit-modal :singleton])])
                            (routing/make-route :warning [(routing/router-instruction :modal-router [:warning-modal :singleton])]))
                          ; general initial state
-                         {:person       (uc/get-initial-state DemoPerson {:id 1 :name "Sam"})
-                          :modal-router (uc/get-initial-state ModalRouter {})}))
+                         {:person       (fc/get-initial-state DemoPerson {:id 1 :name "Sam"})
+                          :modal-router (fc/get-initial-state ModalRouter {})}))
   static om/IQuery
   (query [this] [{:person (om/get-query DemoPerson)} {:modal-router (om/get-query ModalRouter)}])
   Object
@@ -587,8 +587,8 @@
 
 (defui ^:once CollapseRoot
   ; Use the initial state of b/Collapse to make the proper state for one
-  static uc/InitialAppState
-  (initial-state [c p] {:collapse-1 (uc/get-initial-state b/Collapse {:id 1 :start-open false})})
+  static fc/InitialAppState
+  (initial-state [c p] {:collapse-1 (fc/get-initial-state b/Collapse {:id 1 :start-open false})})
   ; Join it into your query
   static om/IQuery
   (query [this] [{:collapse-1 (om/get-query b/Collapse)}])
@@ -635,11 +635,11 @@
 
 (defui ^:once CollapseGroupRoot
   ; Create a to-many list of collapse items in app state (or you could do them one by one)
-  static uc/InitialAppState
-  (initial-state [c p] {:collapses [(uc/get-initial-state b/Collapse {:id 1 :start-open false})
-                                    (uc/get-initial-state b/Collapse {:id 2 :start-open false})
-                                    (uc/get-initial-state b/Collapse {:id 3 :start-open false})
-                                    (uc/get-initial-state b/Collapse {:id 4 :start-open false})]})
+  static fc/InitialAppState
+  (initial-state [c p] {:collapses [(fc/get-initial-state b/Collapse {:id 1 :start-open false})
+                                    (fc/get-initial-state b/Collapse {:id 2 :start-open false})
+                                    (fc/get-initial-state b/Collapse {:id 3 :start-open false})
+                                    (fc/get-initial-state b/Collapse {:id 4 :start-open false})]})
   ; join it into the query
   static om/IQuery
   (query [this] [{:collapses (om/get-query b/Collapse)}])
@@ -681,8 +681,8 @@
   (fulcro-app CollapseGroupRoot))
 
 (defui CarouselExample
-  static uc/InitialAppState
-  (initial-state [c p] {:carousel (uc/get-initial-state b/Carousel {:id :sample :interval 2000})})
+  static fc/InitialAppState
+  (initial-state [c p] {:carousel (fc/get-initial-state b/Carousel {:id :sample :interval 2000})})
   static om/IQuery
   (query [this] [{:carousel (om/get-query b/Carousel)}])
   Object

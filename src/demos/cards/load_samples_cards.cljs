@@ -6,7 +6,7 @@
     [om.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
-    [fulcro.client.core :as uc]))
+    [fulcro.client.core :as fc]))
 
 (dc/defcard load-samples-card
   "
@@ -37,7 +37,7 @@
   On startup, the following loads are run via the started callback:
 
   ```
-  (uc/new-fulcro-client
+  (fc/new-fulcro-client
     :started-callback
       (fn [app]
         (df/load app :load-samples/people client/Person {:target [:lists/by-type :enemies :people]

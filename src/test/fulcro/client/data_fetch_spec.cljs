@@ -11,7 +11,7 @@
     [fulcro.client.mutations :as m]
     [fulcro.client.logging :as log]
     [om.next.protocols :as omp]
-    [fulcro.client.core :as uc]))
+    [fulcro.client.core :as fc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP

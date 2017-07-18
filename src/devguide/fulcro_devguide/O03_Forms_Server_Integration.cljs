@@ -6,7 +6,7 @@
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
     [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m]
     [fulcro.ui.forms :as f]
     [fulcro.i18n :refer [tr]]))

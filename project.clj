@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "1.0.0-beta4.1"
+(defproject fulcrologic/fulcro "1.0.0-beta5"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -16,7 +16,7 @@
                  [commons-codec "1.10"]
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.10.0"]
-                 [fulcrologic/fulcro-spec "1.0.0-beta2" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "1.0.0-beta3" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
                  [bidi "2.1.1"]
@@ -112,6 +112,14 @@
                                                 {:provides ["cljsjs.codemirror.addons.matchbrackets"]
                                                  :requires ["cljsjs.codemirror"]
                                                  :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
+               {:id           "i18n-extraction"
+                :source-paths ["src/main" "src/test"]
+                :compiler     {:output-to      "resources/private/js/i18n.js"
+                               :main           fulcro.automated-test-main
+                               :output-dir     "resources/private/js/i18n"
+                               :asset-path     "js/i18n"
+                               :parallel-build true
+                               :optimizations  :whitespace}}
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to      "resources/private/js/unit-tests.js"

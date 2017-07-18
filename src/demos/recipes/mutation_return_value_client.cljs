@@ -4,7 +4,7 @@
     [fulcro.client.mutations :as m]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
-    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]))
+    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]))
 
 (defmulti merge-return-value (fn [state sym return-value] sym))
 

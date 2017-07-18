@@ -1,6 +1,6 @@
 (ns recipes.sql-client
   (:require
-    [fulcro.client.core :as uc :refer [InitialAppState initial-state]]
+    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [om.dom :as dom]
@@ -37,7 +37,7 @@
         (dom/ul nil
           (map #(ui-person %) people))))))
 
-(defonce app (atom (uc/new-fulcro-client
+(defonce app (atom (fc/new-fulcro-client
                      :started-callback (fn [app]
                                          (df/load app :people Person)))))
 
@@ -46,6 +46,6 @@
    :action (fn []
              (let [ident [:person/by-id id]]
                (swap! state assoc-in ident {:db/id id :person/name name :person/age age})
-               (uc/integrate-ident! state ident :append [:people])))})
+               (fc/integrate-ident! state ident :append [:people])))})
 
 

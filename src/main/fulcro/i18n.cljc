@@ -1,15 +1,14 @@
 (ns fulcro.i18n
+  ;; IMPORTANT: DO NOT REQUIRE A BUNCH OF STUFF HERE!!! It can adversely affect code splitting, since translations have to pull this NS in in order to complete loads
   #?(:cljs (:require-macros fulcro.i18n))
-  (:require
-    [fulcro.client.logging :as log]
-    #?(:cljs yahoo.intl-messageformat-with-locales)))
+  #?(:cljs (:require yahoo.intl-messageformat-with-locales))
+  #?(:clj
+     (:import (com.ibm.icu.text MessageFormat)
+              (java.util Locale))))
 
 (def ^:dynamic *current-locale* (atom "en-US"))
-
 (def ^:dynamic *loaded-translations* (atom {}))
-
 (defn current-locale [] @*current-locale*)
-
 (defn translations-for-locale [] (get @*loaded-translations* (current-locale)))
 
 ;; This set of constructions probably looks pretty screwy. In order for xgettext to work right, it
@@ -24,43 +23,51 @@
 ;; for cases where you must have logic invoved, but lets you know that you must have some other
 ;; way of ensuring those translations make it into your final product.
 
-#?(:cljs
-   (set! js/tr
-     (fn [msg]
-       (let [msg-key      (str "|" msg)
-             translations (translations-for-locale)
-             translation  (get translations msg-key msg)]
-         translation))))
+(defmacro if-cljs
+  [then else]
+  (if (:ns &env) then else))
 
-#?(:cljs
-   (set! js/trc
-     (fn [ctxt msg]
-       (let [msg-key      (str ctxt "|" msg)
-             translations (translations-for-locale)
-             translation  (get translations msg-key msg)]
-         translation))))
+(letfn [(real-tr [msg]
+          (let [msg-key      (str "|" msg)
+                translations (translations-for-locale)
+                translation  (get translations msg-key msg)]
+            translation))]
+  #?(:clj
+     (defn tr-ssr [msg] (real-tr msg))
+     :cljs
+     (set! js/tr (fn tr [msg] (real-tr msg)))))
 
-#?(:cljs
+(letfn [(real-trc [ctxt msg]
+          (let [msg-key      (str ctxt "|" msg)
+                translations (translations-for-locale)
+                translation  (get translations msg-key msg)]
+            translation))]
+  #?(:clj
+     (defn trc-ssr [ctxt msg] (real-trc ctxt msg))
+     :cljs
+     (set! js/trc (fn [ctxt msg] (real-trc ctxt msg)))))
+
+#?(:clj
+   (defn trf-ssr
+     [fmt & {:keys [] :as args}]
+     (try
+       (let [argmap       (into {} (map (fn [[k v]] [(name k) v]) args))
+             msg-key      (str "|" fmt)
+             translations (translations-for-locale)
+             translation  (get translations msg-key fmt)
+             formatter    (new MessageFormat translation (Locale/forLanguageTag (current-locale)))]
+         (.format formatter argmap))
+       (catch Exception e "???")))
+   :cljs
    (set! js/trf
-     (fn [fmt & {:keys [] :as argmap}]
+     (fn trf [fmt & {:keys [] :as argmap}]
        (try
          (let [msg-key      (str "|" fmt)
                translations (translations-for-locale)
                translation  (get translations msg-key fmt)
                formatter    (js/IntlMessageFormat. translation (current-locale))]
            (.format formatter (clj->js argmap)))
-         (catch :default e (log/error "Failed to format " fmt " args: " argmap " exception: " e)
-                           "???")))))
-
-#?(:clj
-   (defmacro tr
-     "Translate the given literal string. The argument MUST be a literal string so that it can be properly extracted
-     for use in gettext message files as the message key. This macro throws a detailed assertion error if you
-     violate this restriction. See trf for generating translations that require formatting (e.g. construction from
-     variables)."
-     [msg]
-     (assert (string? msg) (str "In call to tr(" msg "). Argument MUST be a literal string, not a symbol or expression. Use trf for formatting."))
-     `(js/tr ~msg)))
+         (catch :default e "???")))))
 
 #?(:clj
    (defmacro tr-unsafe
@@ -68,7 +75,7 @@
      happen for you. This means you have to use some other mechanism to make sure the string ends up in translation
      files (such as manually calling tr on the various raw string values elsewhere in your program)"
      [msg]
-     `(js/tr ~msg)))
+     `(if-cljs (js/tr ~msg) (tr-ssr ~msg))))
 
 #?(:clj
    (defmacro trlambda
@@ -77,8 +84,24 @@
      violate this restriction. See trf for generating translations that require formatting (e.g. construction from
      variables)."
      [msg]
-     (assert (string? msg) (str "In call to tr(" msg "). Argument MUST be a literal string, not a symbol or expression. Use trf for formatting."))
-     `#(js/tr ~msg)))
+     (let [{:keys [line]} (meta &form)
+           msg (if (string? msg)
+                 msg
+                 (str "ERROR: tr-lambda requires a literal string on line " line " in " (str *ns*)))]
+       `(fn [] (if-cljs (js/tr ~msg) (tr-ssr ~msg))))))
+
+#?(:clj
+   (defmacro tr
+     "Translate the given literal string. The argument MUST be a literal string so that it can be properly extracted
+     for use in gettext message files as the message key. This macro throws a detailed assertion error if you
+     violate this restriction. See trf for generating translations that require formatting (e.g. construction from
+     variables)."
+     [msg]
+     (let [{:keys [line]} (meta &form)
+           msg (if (string? msg)
+                 msg
+                 (str "ERROR: tr requires a literal string on line " line " in " (str *ns*)))]
+       `(if-cljs (js/tr ~msg) (tr-ssr ~msg)))))
 
 #?(:clj
    (defmacro trc
@@ -98,8 +121,11 @@
      lets the translator know what you want. Of course, the msg key is the default language value (US English)
      "
      [context msg]
-     (assert (and (string? msg) (string? context)) (str "In call to trc(" context msg "). Arguments MUST be literal strings."))
-     `(js/trc ~context ~msg)))
+     (let [{:keys [line]} (meta &form)
+           [context msg] (if (and (string? context) (string? msg))
+                           [context msg]
+                           ["" (str "ERROR: trc requires literal strings on line " line " in " (str *ns*))])]
+       `(if-cljs (js/trc ~context ~msg) (trc-ssr ~context ~msg)))))
 
 #?(:clj
    (defmacro trf
@@ -112,5 +138,8 @@
      The format string is an ICU message format. See FormatJS for details.
      "
      [format & args]
-     (assert (string? format) (str "Message format in call to trf(" format args ") MUST be literal string (arguments can be variables)."))
-     `(js/trf ~format ~@args)))
+     (let [{:keys [line]} (meta &form)
+           [format args] (if (string? format)
+                           [format args]
+                           ["ERROR: trf requires a literal string on line {line} in {file}" [:line line :file (str *ns*)]])]
+       `(if-cljs (js/trf ~format ~@args) (trf-ssr ~format ~@args)))))

@@ -5,7 +5,7 @@
   (:require
     #?(:clj [fulcro.client.augmentation :as aug :refer [inject-augment]])
     #?(:cljs [devcards.core :as dc :include-macros true])
-            [fulcro.client.core :as uc]
+            [fulcro.client.core :as fc]
             [om.next :as om]
             [om.dom :as dom]))
 
@@ -57,11 +57,11 @@
         (@ThingB)))))
 
 #?(:cljs
-   (defonce client (atom (uc/new-fulcro-test-client))))
+   (defonce client (atom (fc/new-fulcro-test-client))))
 
 #?(:cljs
    (dc/defcard fancy-defui
      "##fulcro.client.ui/defui"
      (dc/dom-node
        (fn [_ node]
-         (reset! client (uc/mount @client ThingA node))))))
+         (reset! client (fc/mount @client ThingA node))))))

@@ -6,7 +6,7 @@
     [om.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [om.next :as om]
     [fulcro.websockets.networking :as wn]))
 
@@ -48,7 +48,7 @@
   This is probably the simplest step. Just add the `:networking` option when creating the client:
 
   ```
-  (uc/new-fulcro-client
+  (fc/new-fulcro-client
     :networking (wn/make-channel-client \"/chsk\" :global-error-callback (constantly nil))
     ...)
   ```

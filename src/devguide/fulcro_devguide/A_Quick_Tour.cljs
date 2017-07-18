@@ -3,8 +3,8 @@
                    [fulcro-devguide.tutmacros :refer [fulcro-app]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
-            [fulcro.client.core :as uc]
-            [fulcro.client.network :as un]
+            [fulcro.client.core :as fc]
+            [fulcro.client.network :as fcn]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
             [fulcro.client.logging :as log]
@@ -13,8 +13,8 @@
 (defn increment-counter [counter] (update counter :counter/n inc))
 
 (defui ^:once Counter
-  static uc/InitialAppState
-  (uc/initial-state [this {:keys [id start]
+  static fc/InitialAppState
+  (fc/initial-state [this {:keys [id start]
                            :or   {id 1 start 1}
                            :as   params}] {:counter/id id :counter/n start})
   static om/IQuery
@@ -38,9 +38,9 @@
    :action (fn [] (swap! state update-in [:counter/by-id id] increment-counter))})
 
 (defui ^:once CounterPanel
-  static uc/InitialAppState
-  (uc/initial-state [this params]
-    {:counters [(uc/initial-state Counter {:id 1 :start 1})]})
+  static fc/InitialAppState
+  (fc/initial-state [this params]
+    {:counters [(fc/initial-state Counter {:id 1 :start 1})]})
   static om/IQuery
   (query [this] [{:counters (om/get-query Counter)}])
   static om/Ident
@@ -59,8 +59,8 @@
 (def ui-counter-panel (om/factory CounterPanel))
 
 (defui ^:once CounterSum
-  static uc/InitialAppState
-  (uc/initial-state [this params] {})
+  static fc/InitialAppState
+  (fc/initial-state [this params] {})
   static om/IQuery
   (query [this] [[:counter/by-id '_]])
   Object
@@ -73,9 +73,9 @@
 (def ui-counter-sum (om/factory CounterSum))
 
 (defui ^:once Root
-  static uc/InitialAppState
-  (uc/initial-state [this params]
-    {:panel (uc/initial-state CounterPanel {})})
+  static fc/InitialAppState
+  (fc/initial-state [this params]
+    {:panel (fc/initial-state CounterPanel {})})
   static om/IQuery
   (query [this] [:ui/loading-data
                  {:panel (om/get-query CounterPanel)}
@@ -127,7 +127,7 @@
 
 ; Networking that pretends to talk to server. You'd never write this part
 (defrecord MockNetwork [complete-app]
-  un/FulcroNetwork
+  fcn/FulcroNetwork
   (send [this edn ok err]
     (let [resp (server {} edn)]
       ; simulates a network delay:
@@ -163,10 +163,6 @@
   provide default implementations of all of the artifacts you'd normally have to write to make a full-stack
    Om Next application. In many cases Fulcro is required to 'make a call' about how to do something.
    When it does, our documentation tries to discuss the relative merits and costs.
-
-  The name 'Fulcro' is *not* meant to be a commentary on Om Next, but instead on the general state of web
-  development circa 2016. Om Next and Fulcro are two layers of a solution that makes things
-  simpler for you.
 
   ## Om Next Components can use Stock React components
 

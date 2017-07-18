@@ -6,7 +6,7 @@
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m]
     [fulcro.ui.forms :as f]
     [fulcro.i18n :refer [tr]]))

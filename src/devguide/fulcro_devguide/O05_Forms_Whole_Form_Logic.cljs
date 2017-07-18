@@ -5,7 +5,7 @@
     [com.stuartsierra.component :as component]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.ui.icons :as i]
     [fulcro.ui.forms :as f]
@@ -13,7 +13,7 @@
     [fulcro-devguide.simulated-server :refer [make-mock-network]]
     [fulcro.client.logging :as log]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.network :as un]
+    [fulcro.client.network :as fcn]
     [fulcro.ui.bootstrap3 :as b]))
 
 (defn read-handler [{:keys [users]} k {:keys [name] :as params}]
@@ -36,7 +36,7 @@
 
 ; Networking that pretends to talk to server. You'd never write this part
 (defrecord MockNetwork [complete-app]
-  un/FulcroNetwork
+  fcn/FulcroNetwork
   (send [this edn ok err]
     ; simulates a network delay:
     (js/setTimeout
@@ -74,7 +74,7 @@
   (remote [env] (df/remote-load env)))
 
 (defui ^:once Person
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
@@ -108,8 +108,8 @@
 (def ui-person (om/factory Person {:keyfn :db/id}))
 
 (defui ^:once CommitRoot
-  static uc/InitialAppState
-  (initial-state [this _] {:person (uc/initial-state Person {:db/id 1})})
+  static fc/InitialAppState
+  (initial-state [this _] {:person (fc/initial-state Person {:db/id 1})})
   static om/IQuery
   (query [this] [:ui/react-key
                  {:person (om/get-query Person)}])
@@ -144,7 +144,7 @@
 
   ```
   (defui ^:once Person
-    static uc/InitialAppState
+    static fc/InitialAppState
     (initial-state [this params] (f/build-form this (or params {})))
     static f/IForm
     (form-spec [this] [(f/id-field :db/id)

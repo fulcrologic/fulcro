@@ -1,6 +1,6 @@
 (ns recipes.lazy-loading-visual-indicators-client
   (:require
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [om.dom :as dom]
@@ -9,7 +9,7 @@
 (def initial-state {:ui/react-key "abc"
                     :panel        {}})
 
-(defonce app (atom (uc/new-fulcro-client :initial-state initial-state)))
+(defonce app (atom (fc/new-fulcro-client :initial-state initial-state)))
 
 (declare Item)
 
@@ -57,7 +57,7 @@
 (def ui-child (om/factory Child))
 
 (defui ^:once Panel
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c params] {:child nil})
   static om/IQuery
   (query [this] [[:ui/loading-data '_] {:child (om/get-query Child)}])
@@ -77,8 +77,8 @@
 ; Note: Kinda hard to do idents/lazy loading right on root...so generally just have root render a div
 ; and then render a child that has the rest.
 (defui ^:once Root
-  static uc/InitialAppState
-  (initial-state [c params] {:ui/react-key "A" :panel (uc/get-initial-state Panel nil)})
+  static fc/InitialAppState
+  (initial-state [c params] {:ui/react-key "A" :panel (fc/get-initial-state Panel nil)})
   static om/IQuery
   (query [this] [:ui/loading-data :ui/react-key {:panel (om/get-query Panel)}])
   Object

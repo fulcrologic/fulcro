@@ -100,7 +100,7 @@ In your api you may add something like this:
 In the client we need to override the default networking:
 
 ```clojure
-(defonce app (atom (uc/new-fulcro-client
+(defonce app (atom (fc/new-fulcro-client
                      :networking (wn/make-channel-client "/chsk" :global-error-callback (constantly nil))
                      :initial-state initial-state
                      :started-callback (fn [{:keys [reconciler]}]
@@ -113,9 +113,9 @@ We override the default network with our own implementation of a network. We hoo
 We will also need to extend the `fulcro.websockets.networking/push-received` multimethods, for handling pushed messages.
 
 ```clojure
-(require '[fulcro.websockets.networking :as un])
+(require '[fulcro.websockets.networking :as fwn])
 
-(defmethod un/push-received :app/data-update [{:keys [reconciler] :as app} {:keys [topic msg] :as message}] ;; message => {:topic verb :msg edn}
+(defmethod fwn/push-received :app/data-update [{:keys [reconciler] :as app} {:keys [topic msg] :as message}] ;; message => {:topic verb :msg edn}
   (om/transact! reconciler `[(do.with/data {:data msg}) :data]))
 ```
 

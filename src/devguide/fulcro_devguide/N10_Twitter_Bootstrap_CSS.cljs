@@ -10,7 +10,7 @@
             [fulcro.client.cards :refer [fulcro-app]]
             [fulcro.client.mutations :as m]
             [fulcro.ui.bootstrap3 :as b]
-            [fulcro.client.core :as uc]
+            [fulcro.client.core :as fc]
             [fulcro.ui.html-entities :as ent]))
 
 (declare render-example sample)

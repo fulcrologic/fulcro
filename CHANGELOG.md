@@ -1,3 +1,8 @@
+1.0.0-beta5
+-----------
+- Made sure that server-side rendering of i18n worked properly, including trf
+
+
 1.0.0-beta4.1
 -------------
 - Changed the SSR client-side retrieval function to return nil instead of a state marker.
@@ -173,8 +178,8 @@ upload support)
 - Added `(start [this app])` to the `UntangledNetwork` protocol.
 - Log-app-state now requires the atom containing a mounted untangled client, define it in the user namespace like so:
 ```
-(defonce app (atom (uc/new-untangled-client ... )))
-(swap! app uc/mount RootComponent "app-div")
+(defonce app (atom (fc/new-untangled-client ... )))
+(swap! app fc/mount RootComponent "app-div")
 (def log-app-state (partial util/log-app-state app))
 ```
 - `global-error-callback` now expectes an arity 2 function. First param is the status and the second is the response.

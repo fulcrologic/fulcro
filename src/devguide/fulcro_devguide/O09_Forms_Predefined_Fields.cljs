@@ -4,7 +4,7 @@
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [om.next :as om :refer [defui]]
     [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.ui.elements :as ele]
     [fulcro.client.mutations :refer [defmutation]]
@@ -29,8 +29,8 @@
     (dom/div #js {:className "col-sm-10"} (apply f/form-field comp form name params))))
 
 (defui ^:once KitchenSink
-  static uc/InitialAppState
-  (initial-state [this params] (f/build-form this {:db/id 1 :short-story (uc/get-initial-state FileUploadInput {:id :story})}))
+  static fc/InitialAppState
+  (initial-state [this params] (f/build-form this {:db/id 1 :short-story (fc/get-initial-state FileUploadInput {:id :story})}))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
                      (f/text-input :text)
@@ -70,8 +70,8 @@
 (def ui-sink (om/factory KitchenSink {:keyfn :db/id}))
 
 (defui ^:once CommitRoot
-  static uc/InitialAppState
-  (initial-state [this _] {:sink (uc/initial-state KitchenSink {:db/id 1})})
+  static fc/InitialAppState
+  (initial-state [this _] {:sink (fc/initial-state KitchenSink {:db/id 1})})
   static om/IQuery
   (query [this] [:ui/react-key
                  {:sink (om/get-query KitchenSink)}])

@@ -1,6 +1,6 @@
 (ns recipes.error-handling-client
   (:require
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
@@ -22,7 +22,7 @@
   (action [env] (log/warn "Read specific fallback: " error)))
 
 (defui ^:once Child
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [c params] {})
   static om/IQuery
   ;; you can query for the server-error using a link from any component that composes to root
@@ -45,8 +45,8 @@
 (def ui-child (om/factory Child))
 
 (defui ^:once Root
-  static uc/InitialAppState
-  (initial-state [c params] {:child (uc/get-initial-state Child {})})
+  static fc/InitialAppState
+  (initial-state [c params] {:child (fc/get-initial-state Child {})})
   static om/IQuery
   (query [_] [:ui/react-key {:child (om/get-query Child)}])
   Object

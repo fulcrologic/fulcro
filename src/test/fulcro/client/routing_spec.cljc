@@ -5,10 +5,10 @@
             [fulcro.client.util :as util]
             [om.next :as om :refer [defui]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.core :as uc]))
+            [fulcro.client.core :as fc]))
 
 (defui Screen1
-  uc/InitialAppState
+  fc/InitialAppState
   (initial-state [cls params] {:type :screen1})
   Object
   (render [this] (dom/div nil "TODO")))

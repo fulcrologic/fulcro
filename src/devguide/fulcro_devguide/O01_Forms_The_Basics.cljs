@@ -5,7 +5,7 @@
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.cards :refer [fulcro-app]]
     [fulcro.ui.forms :as f :refer [defvalidator]]
@@ -41,7 +41,7 @@
      (dom/label nil (f/form-field comp form name) label))))
 
 (defui ^:once PhoneForm
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)                    ; Mark which thing is the ID of this entity
@@ -66,12 +66,12 @@
           person-ident [:people/by-id person]
           phone-ident  (om/ident ValidatedPhoneForm new-phone)]
       (swap! state assoc-in phone-ident new-phone)
-      (uc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
+      (fc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
 
 (defui PhoneRoot
   static om/IQuery
   (query [this] [{:phone (om/get-query PhoneForm)}])
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params]
     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
       {:phone (f/build-form PhoneForm phone-number)}))
@@ -105,7 +105,7 @@
       [com.stuartsierra.component :as component]
       [om.dom :as dom]
       [om.next :as om :refer [defui]]
-      [fulcro.client.core :as uc]
+      [fulcro.client.core :as fc]
       [fulcro.client.mutations :as m]
       [fulcro.ui.forms :as f]
       [fulcro.i18n :refer [tr]]))
@@ -201,7 +201,7 @@
   #_{:inspect-data true})
 
 (defui ^:once ValidatedPhoneForm
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
@@ -224,7 +224,7 @@
 (defui ValidatedPhoneRoot
   static om/IQuery
   (query [this] [f/form-key {:phone (om/get-query ValidatedPhoneForm)}])
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params]
     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
       {:phone (f/build-form ValidatedPhoneForm phone-number)}))
@@ -275,7 +275,7 @@ TODO: remove the need to pass the component? The form is just om/props of the co
   (fulcro-app ValidatedPhoneRoot))
 
 (defui ^:once PersonForm
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
@@ -324,19 +324,19 @@ TODO: remove the need to pass the component? The form is just om/props of the co
 (def ui-person-form (om/factory PersonForm))
 
 (defui ^:once Root
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [this params]
     {:ui/person-id 1
-     :person       (uc/initial-state PersonForm
+     :person       (fc/initial-state PersonForm
                      {:db/id                      1
                       :person/name                "Tony Kay"
                       :person/age                 23
                       :person/registered-to-vote? false
-                      :person/phone-numbers       [(uc/initial-state ValidatedPhoneForm
+                      :person/phone-numbers       [(fc/initial-state ValidatedPhoneForm
                                                      {:db/id        22
                                                       :phone/type   :work
                                                       :phone/number "(123) 412-1212"})
-                                                   (uc/initial-state ValidatedPhoneForm
+                                                   (fc/initial-state ValidatedPhoneForm
                                                      {:db/id        23
                                                       :phone/type   :home
                                                       :phone/number "(541) 555-1212"})]})})
@@ -418,7 +418,7 @@ TODO: remove the need to pass the component? The form is just om/props of the co
             person-ident [:people/by-id person]
             phone-ident  (om/ident ValidatedPhoneForm new-phone)]
         (swap! state assoc-in phone-ident new-phone)
-        (uc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
+        (fc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
   ```
 
   Notice that there is nothing really special going on here. Just add an additional item to the database (which is

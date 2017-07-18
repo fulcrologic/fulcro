@@ -7,7 +7,7 @@
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
     [om.transit :as t]
-    [fulcro.client.core :as uc]
+    [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.ui.icons :as icons]
     [fulcro.client.mutations :refer [defmutation]]
@@ -134,7 +134,7 @@
   static f/IForm
   (form-spec [this] [(f/id-field :file-upload/id)
                      (f/subform-element :file-upload/files File :many)])
-  static uc/InitialAppState
+  static fc/InitialAppState
   (initial-state [cls {:keys [id]}] (f/build-form FileUploadInput {:file-upload/id id :file-upload/files []}))
   static om/IQuery
   (query [this] [f/form-key f/form-root-key :file-upload/id
@@ -309,7 +309,7 @@
      [{:keys [file-upload file-id name size js-file]}]
      (action [{:keys [state target]}]
        (swap! state (fn [st] (-> st
-                               (uc/integrate-ident (file-ident file-id)
+                               (fc/integrate-ident (file-ident file-id)
                                  :append (conj (file-upload-ident file-upload) :file-upload/files))
                                (assoc-in (file-ident file-id) (f/build-form File
                                                                 {:file/id       file-id
