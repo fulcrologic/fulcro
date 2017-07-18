@@ -1,7 +1,8 @@
 1.0.0-beta5
 -----------
 - Made sure that server-side rendering of i18n worked properly, including trf
-
+- Set up client to honor incoming locale from server (if it sets :ui/locale in initial state)
+- Removed experimental defui augments. Copy from old source if you use it.
 
 1.0.0-beta4.1
 -------------
