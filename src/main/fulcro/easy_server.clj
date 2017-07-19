@@ -10,7 +10,6 @@
     [bidi.bidi :as bidi]
     [org.httpkit.server :refer [run-server]]
     [ring.middleware.content-type :refer [wrap-content-type]]
-    [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
     [ring.middleware.gzip :refer [wrap-gzip]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
     [ring.middleware.resource :refer [wrap-resource]]
@@ -257,24 +256,3 @@
                              :handler handler]
         all-components      (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
-
-(defrecord WrapDefaults [handler defaults-config]
-  component/Lifecycle
-  (start [this]
-    (let [pre-hook (get-pre-hook handler)]
-      ;; We want wrap-defaults to take precedence.
-      (set-pre-hook! handler (comp #(wrap-defaults % defaults-config) pre-hook))
-      this))
-  (stop [this] this))
-
-(defn make-wrap-defaults
-  "Create a component that adds `ring.middleware.defaults/wrap-defaults` to the middleware in the prehook.
-
-  - `defaults-config` - (Optional) The configuration passed to `wrap-defaults`.
-  The 0 arity will use `ring.middleware.defaults/site-defaults`."
-  ([]
-   (make-wrap-defaults site-defaults))
-  ([defaults-config]
-   (component/using
-     (map->WrapDefaults {:defaults-config defaults-config})
-     [:handler])))

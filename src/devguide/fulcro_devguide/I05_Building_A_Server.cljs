@@ -1,4 +1,4 @@
-(ns fulcro-devguide.I-Building-A-Server
+(ns fulcro-devguide.I05-Building-A-Server
   (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]

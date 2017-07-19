@@ -1,3 +1,8 @@
+1.0.0-beta6
+-----------
+- Removed the wrap-defaults module. It is trivial to write, and pulls in deps that can cause downstream problems
+- Changed :initial-state option: The explicit parameter will override InitialAppState. The old behavior always takes InitialAppState, which turns out to be backwards (and no one should be supplying both unless they mean to override).
+
 1.0.0-beta5
 -----------
 - Made sure that server-side rendering of i18n worked properly, including trf

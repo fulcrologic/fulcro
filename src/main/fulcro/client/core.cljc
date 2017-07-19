@@ -263,16 +263,14 @@
     (do (refresh* app) app)
     (let [uses-initial-app-state? (iinitial-app-state? root-component)
           ui-declared-state       (and uses-initial-app-state? (fulcro.client.core/initial-state root-component nil))
-          atom-supplied?          (util/atom? initial-state)
-          init-conflict?          (and (or atom-supplied? (seq initial-state)) (iinitial-app-state? root-component))
+          explicit-state?         (or (util/atom? initial-state) (map? initial-state))
+          init-conflict?          (and explicit-state? (iinitial-app-state? root-component))
           state                   (cond
-                                    (not uses-initial-app-state?) (if initial-state initial-state {})
-                                    atom-supplied? (do
-                                                     (reset! initial-state (om/tree->db root-component ui-declared-state true))
-                                                     initial-state)
-                                    :otherwise ui-declared-state)]
+                                    explicit-state? (if initial-state initial-state {})
+                                    ui-declared-state ui-declared-state
+                                    :otherwise {})]
       (when init-conflict?
-        (log/warn "You supplied an initial state AND a root component with initial state. Using root's InitialAppState (atom overwritten)!"))
+        (log/warn "You supplied an initial state AND a root component with initial state. Using explicit state INSTEAD of InitialAppState!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
 (defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues response-channels reconciler read-local parser mounted? reconciler-options]

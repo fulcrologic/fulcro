@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "1.0.0-beta5"
+(defproject fulcrologic/fulcro "1.0.0-beta6-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -6,22 +6,20 @@
   :dependencies [[org.clojure/clojure "1.9.0-alpha17" :scope "provided"]
                  [org.clojure/clojurescript "1.9.671" :scope "provided"]
                  [org.clojure/spec.alpha "0.1.123"]
+                 ; TODO: PR to Bruce for devcards
                  [devcards "0.2.3" :scope "provided" :exclusions [cljsjs/react-dom cljsjs/react]]
                  [org.omcljs/om "1.0.0-beta1"]
                  [lein-doo "0.1.7" :scope "test"]
                  [http-kit "2.2.0"]
-                 [ring/ring-defaults "0.2.3"]
-                 [ring/ring-core "1.6.1"]
+                 [ring/ring-core "1.6.2" :exclusions [commons-codec]]
                  [bk/ring-gzip "0.2.1"]
-                 [commons-codec "1.10"]
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.10.0"]
                  [fulcrologic/fulcro-spec "1.0.0-beta3" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
-                 [bidi "2.1.1"]
+                 [bidi "2.1.2"]
                  [com.taoensso/sente "1.11.0"]
-                 [com.rpl/specter "1.0.1"]
                  [garden "1.3.2"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
@@ -137,6 +135,7 @@
                                   [cljsjs/d3 "3.5.7-1"]
                                   [cljsjs/victory "0.9.0-0"]
                                   [hickory "0.7.1"]
+                                  [com.rpl/specter "1.0.1"] ; only used in demos
                                   [org.flywaydb/flyway-core "4.0.3"]
                                   [com.layerware/hugsql "0.4.7"]
                                   [org.clojure/tools.namespace "0.3.0-alpha4"]

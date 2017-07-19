@@ -1,4 +1,4 @@
-(ns fulcro-devguide.I-Building-A-Server-Exercises
+(ns fulcro-devguide.I05-Building-A-Server-Exercises
   (:require-macros [cljs.test :refer [is]]
                    [fulcro-devguide.tutmacros :refer [fulcro-app]])
   (:require [om.next :as om :refer-macros [defui]]
