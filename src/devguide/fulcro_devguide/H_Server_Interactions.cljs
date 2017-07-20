@@ -180,7 +180,7 @@
 
   All of these functions are calls to the built-in `fulcro/load` mutation behind the scenes, so requests made by these functions
   go through the same networking layer and have similar named parameters (see the doc strings
-  in the [data-fetch namespace](https://github.com/fulcro-web/fulcro-client/blob/master/src/fulcro/client/data_fetch.cljs)).
+  in the [data-fetch namespace](https://github.com/fulcrologic/fulcro/blob/master/src/main/fulcro/client/data_fetch.cljc)).
   The only difference is in how the query is specified. `load` requires a top-level keyword and a component, `load-data`
   must be passed a complete query, and `load-field` uses the passed-in component and a field name to create its query.
   `load` and `load-data` are subtle variants with the former being more consice, and the latter more generally flexible.
@@ -369,7 +369,7 @@
   (for example, when the app initially loads), and will render each person in the list of people once the button is
   clicked and the data has been loaded. By including `:ui/fetch-state` in the subcomponent's query, `lazily-loaded`
   is able to render different UIs for ready, loading, and failure states as well. See the
-  [lazy loading cookbook recipe](https://github.com/fulcro-web/fulcro-cookbook/tree/master/recipes/lazy-loading-visual-indicators)
+  [lazy loading cookbook recipe](https://github.com/fulcrologic/fulcro/blob/master/src/demos/cards/lazy_loading_indicators_cards.cljs)
   for a running example.
 
   The action-suffixed load functions are useful when performing an action in the user interface that must *both* modify

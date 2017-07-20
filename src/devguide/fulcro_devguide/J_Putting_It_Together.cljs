@@ -159,7 +159,7 @@
   ## Further Reading
 
   There are many examples of client-only and full-stack applications in the
-  [https://github.com/fulcro-web/fulcro-cookbook](Fulcro Cookbook).
+  [Fulcro Demos](https://github.com/fulcrlogic/fulcro/src/demos).
 
   ## A Final, working, solution
   ")

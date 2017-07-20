@@ -146,8 +146,9 @@
 
   See this [YouTube getting started video](https://youtu.be/Rj6ll6bNXn0?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R) for an in-depth demonstration.
 
-  You can also clone [https://github.com/fulcro-web/getting-started-video](https://github.com/fulcro-web/getting-started-video)
-  and check out the `tabs-union` tag (`git checkout tabs-union`) to explore a working application using this technique.
+  You can also clone [https://github.com/fulcrologic/getting-started-video](https://github.com/fulcrologic/getting-started-video)
+  and check out the `tabs-union` tag (`git checkout tabs-union`) to explore a working application using this technique. NOTE: This
+  still uses the legacy Untangled lib and naming. 
 
   ## Additional Helpers
 

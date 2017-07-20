@@ -122,10 +122,11 @@ We will also need to extend the `fulcro.websockets.networking/push-received` mul
 Note that you have access to the reconciler (for that matter the entire app) here. You can call `(om.next/merge! reconciler ...)` or `(om.next/transact! reconciler ...)` alternatively. That part is up to you.
 
 
-Check out the [Fulcro Cookbook](https://github.com/fulcro-web/fulcro-cookbook) for an example usage. Feel free to ping the `fulcro` on clojurians slack for help.
+Check out the demos in [Fulcro](https://github.com/fulcrologic/fulcro) for an example usage. Feel free to ping the `fulcro` on clojurians slack for help.
 
 ## License
 
 Copyright © 2016 NAVIS
+Copyright © 2017 Fulcrologic
 
 Distributed under the MIT License.

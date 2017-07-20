@@ -28,8 +28,8 @@
   - A core namespace that creates the application and loads things like i18n support. This is referred to by the production
   build and the development-only namespace.
 
-  You can see a standalone example of this setup in the [Fulcro TODO MVC project](https://github.com/fulcro-web/fulcro-todomvc) and in the Fulcro Template
-  (coming soon. A development version is at [https://github.com/fulcrologic/fulcro-template-workspace](https://github.com/fulcrologic/fulcro-template-workspace)).
+  You can see a standalone example of this setup in the [Fulcro TODO MVC project](https://github.com/fulcrologic/fulcro-todomvc) and in the 
+  [Fulcro Template](https://github.com/fulcrologic/fulcro-template)).
 
   ## Enabling re-render on hot code reload
 
