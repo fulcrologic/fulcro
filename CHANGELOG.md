@@ -1,7 +1,10 @@
 1.0.0-beta6
 -----------
-- Removed the wrap-defaults module. It is trivial to write, and pulls in deps that can cause downstream problems
+- Removed the wrap-defaults module and ring-defaults dependency. It is trivial to write, and pulls in deps that can cause downstream problems.
 - Changed :initial-state option: The explicit parameter will override InitialAppState. The old behavior always takes InitialAppState, which turns out to be backwards (and no one should be supplying both unless they mean to override).
+- Dramatically improved devcards support: state persistent, eliminated console errors. Must port to new
+functions/macros to use. Legacy `fulcro-app` works better than it did, but it is not recommended and will
+cause cards that render the same app to collide.
 
 1.0.0-beta5
 -----------
