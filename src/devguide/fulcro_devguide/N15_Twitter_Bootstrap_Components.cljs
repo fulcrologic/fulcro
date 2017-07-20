@@ -9,7 +9,7 @@
             [fulcro-devguide.N10-Twitter-Bootstrap-CSS :refer [render-example sample]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.elements :as ele]
-            [fulcro.client.cards :refer [fulcro-app fulcro-application]]
+            [fulcro.client.cards :refer [fulcro-app fulcro-application defcard-fulcro]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.ui.bootstrap3 :as b]
             [fulcro.client.core :as fc]
@@ -280,7 +280,7 @@
   ## The Overall Result
   ")
 
-(defcard nav-with-router (fulcro-app RouterRoot) {} {:inspect-data false})
+(defcard-fulcro nav-with-router RouterRoot)
 
 (defn person-ident
   "Returns an ident. Accepts either the full entity (props) or just an ID. Returns an ident for a person."
@@ -533,11 +533,11 @@
   ```
   ")
 
-(defcard modal
-  (fulcro-application modal ModalRoot)
+(defcard-fulcro modal
+  ModalRoot
   {}
-  {:inspect-data true
-   :watch-atom false})
+  {:inspect-data     true
+   :started-callback (fn [app] (js/console.log :STARTED!))})
 
 (defcard modal-variation-small
   (render-example "100%" "300px"
@@ -619,15 +619,15 @@
   "
   (dc/mkdn-pprint-source CollapseRoot))
 
-(defcard collapse-card
+(defcard-fulcro collapse-card
   "The live version of the collapse in action:"
-  (fulcro-app CollapseRoot))
+  CollapseRoot)
 
 (defn accordian-section [this all-ids collapse]
   (letfn [(toggle [] (om/transact! this `[(b/toggle-collapse-group-item {:item-id      ~(:db/id collapse)
                                                                          :all-item-ids ~all-ids})]))]
-    (b/panel nil
-      (b/panel-heading nil
+    (b/panel {:key (str "section-" (:db/id collapse))}
+      (b/panel-heading {:key (str "heading-" (:db/id collapse))}
         (b/panel-title nil
           (dom/a #js {:onClick toggle} "Section Heading")))
       (b/ui-collapse collapse
@@ -643,15 +643,15 @@
                                     (fc/get-initial-state b/Collapse {:id 4 :start-open false})]})
   ; join it into the query
   static om/IQuery
-  (query [this] [{:collapses (om/get-query b/Collapse)}])
+  (query [this] [:ui/react-key {:collapses (om/get-query b/Collapse)}])
   Object
   (render [this]
-    (let [{:keys [collapses]} (om/props this)               ; pull from db
+    (let [{:keys [ui/react-key collapses]} (om/props this)  ; pull from db
           all-ids [1 2 3 4]]                                ; convenience for all ids
       (render-example "100%" "300px"
         ; map over our helper function
-        (b/panel-group nil
-          (map (fn [c] (accordian-section this all-ids c)) collapses))))))
+        (b/panel-group {:key react-key}
+          (mapv (fn [c] (accordian-section this all-ids c)) collapses))))))
 
 (defcard-doc
   "# Accordian (group of collapse)
@@ -677,9 +677,9 @@
   correct this by closing all open sections except the one being opened.
   ")
 
-(defcard collapse-group-card
+(defcard-fulcro collapse-group-card
   "Live Accordian"
-  (fulcro-app CollapseGroupRoot))
+  CollapseGroupRoot)
 
 (defui ^:once CarouselExample
   static fc/InitialAppState
@@ -699,13 +699,13 @@
 
 
 #_(defcard-doc
-  "# Carousel
+    "# Carousel
 
-  The carousel has a number of configurable options
+    The carousel has a number of configurable options
 
-  "
-  (dc/mkdn-pprint-source CarouselExample))
+    "
+    (dc/mkdn-pprint-source CarouselExample))
 
 #_(defcard
-  "# Carousel Live Demo"
-  (fulcro-app CarouselExample))
+    "# Carousel Live Demo"
+    (fulcro-app CarouselExample))

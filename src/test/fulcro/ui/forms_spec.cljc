@@ -632,7 +632,7 @@
         (f/valid? (get-phone 2) :phone/number) => true
         (f/invalid? (get-phone 2) :phone/number) => false))))
 
-(defn fix-tx "hack/fix for github.com/fulcro-web/fulcro-spec/issues/6"
+(defn fix-tx "hack/fix for github.com/fulcroloic/fulcro-spec/issues/6"
   [tx] (mapcat #(if (seq? %) (vec %) [%]) tx))
 
 #?(:cljs (let [app-state              (-> person-db

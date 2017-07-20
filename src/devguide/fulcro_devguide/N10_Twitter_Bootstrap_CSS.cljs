@@ -672,11 +672,11 @@
 
 (defn render-example [width height & children]
   (ele/ui-iframe {:frameBorder 0 :height height :width width}
-    (apply dom/div nil
+    (apply dom/div #js {:key "example-frame-key"}
       (dom/style nil ".boxed {border: 1px solid black}")
-      (dom/link #js {:rel  "stylesheet"
+      #_(dom/link #js {:rel  "stylesheet"
                      :href "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"})
-      #_(dom/link #js {:rel  "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+      (dom/link #js {:rel  "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       children)))
 
 (defn sample [ele description]
