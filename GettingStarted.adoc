@@ -196,7 +196,7 @@ For Emacs + Cider:
                    :dependencies [[binaryage/devtools "0.9.4"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                  [figwheel-sidecar "0.5.11" :exclusions [org.clojure/tools.nrepl]]
+                                  [figwheel-sidecar "0.5.11"]
                                   [org.clojure/tools.nrepl "0.2.13"]]}})
 ----
 * With `src/def/user.clj` open in a buffer, choose `M-x cider-jack-in-clojurescript` or `C-c M-J` (`M-J` with capital J).
