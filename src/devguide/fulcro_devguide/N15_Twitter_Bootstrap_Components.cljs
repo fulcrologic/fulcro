@@ -536,8 +536,8 @@
 (defcard-fulcro modal
   ModalRoot
   {}
-  {:inspect-data     true
-   :started-callback (fn [app] (js/console.log :STARTED!))})
+  {:inspect-data true
+   :fulcro       {:started-callback (fn [app] (js/console.log :STARTED!))}})
 
 (defcard modal-variation-small
   (render-example "100%" "300px"
