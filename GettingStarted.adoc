@@ -186,6 +186,23 @@ Within IntelliJ:
 
 Now you should be able to start it from the Run menu.
 
+For Emacs + Cider:
+
+* Add a piggieback dev-time dependency and repl-option in `project.clj`:
+[source]
+----
+  :profiles {:dev {:source-paths ["src/dev" "src/main"]
+                   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+                   :dependencies [[binaryage/devtools "0.9.4"]
+                                  [com.cemerick/piggieback "0.2.1"]
+                                  [org.clojure/tools.namespace "0.3.0-alpha4"]
+                                  [figwheel-sidecar "0.5.11" :exclusions [org.clojure/tools.nrepl]]
+                                  [org.clojure/tools.nrepl "0.2.13"]]}})
+----
+* With `src/def/user.clj` open in a buffer, choose `M-x cider-jack-in-clojurescript` or `C-c M-J` (`M-J` with capital J).
+
+Two repls will open up, one for clojure, one for clojurescript.
+
 You should see the application printing "Hello World" at: http://localhost:3449[]
 
 Now that you have a basic project working, let's understand how to add some
