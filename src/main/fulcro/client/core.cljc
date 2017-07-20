@@ -254,13 +254,22 @@
   [app]
   #?(:cljs (assoc app :reconciler (update-in (:reconciler app) [:config :history] #(omc/cache (.-size %))))))
 
-(defn refresh* [{:keys [reconciler] :as app}]
+(defn refresh* [{:keys [reconciler] :as app} root target]
+  ; NOTE: from devcards, the mount target node could have changed. So, we re-call Om's add-root
+  #?(:cljs (js/console.log))
+  (let [old-target (-> reconciler :state deref :target)]
+    (when (not (identical? old-target target))
+      (log/info "Mounting on newly supplied target.")
+      (om/remove-root! reconciler old-target)
+      (om/add-root! reconciler root target)))
   (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
   (util/force-render reconciler))
 
 (defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
   (if mounted?
-    (do (refresh* app) app)
+    (do
+      (refresh* app root-component dom-id-or-node)
+      app)
     (let [uses-initial-app-state? (iinitial-app-state? root-component)
           ui-declared-state       (and uses-initial-app-state? (fulcro.client.core/initial-state root-component nil))
           explicit-state?         (or (util/atom? initial-state) (map? initial-state))
