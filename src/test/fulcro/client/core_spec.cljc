@@ -217,14 +217,14 @@
            @custom-calls => 1)))))
 
 #?(:cljs
-   (specification "Mounting an Fulcro Application"
+   (specification "Mounting a Fulcro Application"
      (let [mounted-mock-app {:mounted? true :initial-state {}}]
        (provided "When it is already mounted"
-         (fc/refresh* a) =1x=> (do
-                                 (assertions
-                                   "Refreshes the UI"
-                                   1 => 1)
-                                 a)
+         (fc/refresh* a r t) =1x=> (do
+                                     (assertions
+                                       "Refreshes the UI"
+                                       1 => 1)
+                                     a)
 
          (fc/mount* mounted-mock-app :fake-root :dom-id)))
      (behavior "When is is not already mounted"
