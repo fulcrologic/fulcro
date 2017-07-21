@@ -7,7 +7,7 @@
                  [org.clojure/clojurescript "1.9.671" :scope "provided"]
                  [org.clojure/spec.alpha "0.1.123"]
                  ; TODO: PR to Bruce for devcards
-                 [devcards "0.2.3" :scope "provided" :exclusions [cljsjs/react-dom cljsjs/react]]
+                 [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
                  [org.omcljs/om "1.0.0-beta1"]
                  [lein-doo "0.1.7" :scope "test"]
                  [http-kit "2.2.0"]
