@@ -212,9 +212,9 @@
   *`components`         OPTIONAL, a map of Sierra component instances keyed by their desired names in the overall system component.
                         These additional components will merged with the fulcro-server components to compose a new system component.
 
-  *`parser`             REQUIRED, an om parser function for parsing requests made of the server. To report errors, the
+  *`parser`             OPTIONAL, an om parser function for parsing requests made of the server. To report errors, the
                         parser must throw an ExceptionInfo with a map with keys `:status`, `:headers`, and `:body`.
-                        This map will be converted into the response sent to the client.
+                        This map will be converted into the response sent to the client. Defaults to `server/fulcro-parser`
 
   *`parser-injections`  a vector of keywords which represent components which will be injected as the om parsing env.
 
@@ -228,7 +228,7 @@
   Returns a Sierra system component.
   "
   [& {:keys [app-name parser parser-injections config-path components extra-routes]
-      :or   {config-path "/usr/local/etc/fulcro.edn"}
+      :or   {config-path "/usr/local/etc/fulcro.edn" parser (server/fulcro-parser)}
       :as   params}]
   {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))

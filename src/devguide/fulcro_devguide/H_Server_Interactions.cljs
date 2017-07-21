@@ -138,7 +138,7 @@
   - Morph the response *back into UI shape*, and normalize it. Note this is a data transform aided by Om primitives.
 
   So, the key realization is the *in practice Om reads requires some kind of **mutation** before a read can occur*! The
-  additional realization is the after the read run, and you've normalized data into the database, you often *want* to
+  additional realization is the after the read runs, and you've normalized data into the database, you often *want* to
   morph the database into something special on your UI that the server need not understand.
 
   So, Fulcro provides the 'triggering' mutations, and gives you a way to hook into the result so that you can
