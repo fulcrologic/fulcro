@@ -20,7 +20,7 @@
 
 (defn- dom-with-class [dom-factory cls attrs children]
   (let [attrs (-> attrs
-                (update :key (fnil identity "placeholder-key"))
+                #_(update :key (fnil identity "placeholder-key"))
                 (update :className #(str cls " " %)))]
     (apply dom-factory (clj->js attrs) children)))
 
