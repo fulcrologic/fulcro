@@ -199,7 +199,7 @@ For Emacs + Cider:
                                   [figwheel-sidecar "0.5.11"]
                                   [org.clojure/tools.nrepl "0.2.13"]]}})
 ----
-* With `src/def/user.clj` open in a buffer, choose `M-x cider-jack-in-clojurescript` or `C-c M-J` (`M-J` with capital J).
+* With `src/dev/user.clj` open in a buffer, choose `M-x cider-jack-in-clojurescript` or `C-c M-J` (`M-J` with capital J).
 
 Two repls will open up, one for clojure, one for clojurescript.
 
