@@ -259,7 +259,7 @@
   "Place a ready-to-load marker into the application state. This should be done from
   a mutate function that is abstractly loading something. This is intended for internal use.
 
-  See the `load-data` and `load-field` functions in `fulcro.client.data-fetch` for the public API."
+  See the `load` and `load-field` functions in `fulcro.client.data-fetch` for the public API."
   [{:keys [state] :as config}]
   (swap! state update :fulcro/ready-to-load (fnil conj []) (ready-state (merge {:marker true :refresh [] :without #{}} config))))
 

@@ -315,8 +315,9 @@ default-malformed-response
     "Should return the key under which the module will be located in the system map.
      Unique-ness is checked and will be asserted.")
   (components [this]
-    "Should return a map of components that this Module needs to bring in to work.
-     Unique-ness is checked and will be asserted."))
+    "Should return a map of components that this Module wants to build. Note that this does *not* cause
+    them to be injected into this module. You still need to do that by wrapping an instance of the module
+    in component/using! Unique-ness of the keywords is checked and will be asserted, so it pays to namespace them."))
 
 (defprotocol APIHandler
   (api-read [this]
@@ -332,10 +333,10 @@ default-malformed-response
   "INTERNAL use only, use `fulcro-system` instead."
   [F api-fn module]
   (if-not (satisfies? APIHandler module) F
-    (let [parser-fn (api-fn module)]
-      (fn [env k p]
-        (or (parser-fn (merge module env) k p)
-            (F env k p))))))
+                                         (let [parser-fn (api-fn module)]
+                                           (fn [env k p]
+                                             (or (parser-fn (merge module env) k p)
+                                               (F env k p))))))
 
 (defn- comp-api-modules
   "INTERNAL use only, use `fulcro-system` instead."
@@ -402,13 +403,12 @@ default-malformed-response
    config, etc...
 
    Takes a map with keys:
-   * `:api-handler-key` - OPTIONAL, Where to place the api-handler in the system-map, will have `:middleware`
-                          and is a (fn [h] (fn [req] resp)) that handles /api requests.
-                          Should only really be of use if you want to embed an fulcro-server inside
-                          some other application or language, eg: java servlet (or jvm hosted language).
-                          Defaults to `::api-handler`.
+   * `:api-handler-key` - OPTIONAL, Where to place the generated (composed from modules) api-handler in the system-map. The
+                          generated component will be injectable, and will contain the key `:middleware` whose value
+                          is a (fn [h] (fn [req] resp)) that handles `/api` requests.
+                          Defaults to `:fulcro.server/api-handler`.
    * `:app-name` - OPTIONAL, a string that will turn \"/api\" into \"/<app-name>/api\".
-   * `:components` - A `com.stuartsierra.component/system-map`.
+   * `:components` - A `com.stuartsierra.component/system-map` of components that this module wants to ADD to the overall system. Libraries should namespace their components.
    * `:modules` - A vector of implementations of Module (& optionally APIHandler),
                   that will be composed in the order they were passed in.
                   Eg: [mod1 mod2 ...] => mod1 will be tried first, mod2 next, etc...

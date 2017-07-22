@@ -17,7 +17,7 @@
   "
   # Using Easy Server
 
-  The pre-built easy server component for Fulcro uses the Stuart Seirra's Component library. The server has no
+  The pre-built easy server component for Fulcro uses Stuart Sierra's Component library. The server has no
   global state except for a debugging atom that holds the entire system, and can therefore be easily restarted
   with a code refresh to avoid costly restarts of the JVM.
 
@@ -70,6 +70,15 @@
   ```
   { :port 3000 }
   ```
+
+  The configuration component has a number of built-in features:
+
+  - You can override the configuration to use with a JVM option: `-Dconfig=filename`
+  - The `defaults.edn` is the target of configuration merge. Your config EDN file must be a map, and anything
+  in it will override what is in defaults. The merge is a deep merge.
+  - Values can take the form `:env/VAR`, which will use the *string* value of that environment variable as the value
+  - Values can take the form `:env.edn/VAR`, which will use `read-string` to interpret the environment variable as the value
+  - Relative paths for the config file can be used, and will search the CLASSPATH resources. This allows you to package your config with you jar.
 
   ## Pre-installed components
 
@@ -125,10 +134,8 @@
 
   ### Handling a Root Query
 
-  Given a query of the form: `[:a {:b [:x]} :c]`, the server will trigger a server-side query for each element, but
-  not recursively.
-
-  Thus, the server query processing will see a query for `:a`, `{:b [:x]}`, and `:c`. Each will appear as a \"root\"
+  Given a query of the form: `[:a {:b [:x]} :c]`, the server will trigger a server-side query for each element:
+  `:a`, `{:b [:x]}`, and `:c`. Each will appear as a \"root\"
   query, thus the macro name to supply the hook is `defquery-root`:
 
   ```
@@ -173,7 +180,7 @@
 
   ### Handling an Entity Query
 
-  The query notation can be used to issue a join on an ident. Since an ident names both a table and ID, it implies
+  Query notation can be used to issue a join on an ident. Since an ident names both a table and ID, it implies
   a query for a specific entity (and its sub-graph). The client can issue these in at least two ways:
 
   ```
@@ -183,8 +190,8 @@
   (df/refresh this)
   ```
 
-  These will result in a query that looks like `[{[:table id] [:prop]}]`. For convenience, the `defquery-entity`
-  gives you easy access to the parts of this query:
+  These will result in a query that looks like this: `[{[:person/by-id id] [:db/id :person/name]}]`. For convenience,
+  the `defquery-entity` gives you easy access to the parts of this query:
 
   ```
   (defquery-entity :person/by-id
@@ -192,8 +199,8 @@
     (value [env id params] {:db/id id :person/name \"Joe\"}))
   ```
 
-  You will notice that you receive the same `env` as in the other query processing, along with the `id` side of the
-  ident (as a parameter), and params (which can be sent with the extra parameters of `load`).
+  You will notice that you receive the same `env` as in the other query processing, along with the `id` portion of the
+  ident, and params (which can be sent with the extra parameters of `load`).
 
   ### Handling Mutations
 

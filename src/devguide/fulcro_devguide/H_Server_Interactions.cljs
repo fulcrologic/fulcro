@@ -166,9 +166,8 @@
 
   Fulcro includes a few helper functions that can assist you in invoking the `fulcro/load` mutation.
 
-  1. `load` and `load-action` : Newer, preferred API for most loads
-  1. `load-data` and `load-data-action` : Alternate API. Harder to use for some cases.
-  2. `load-field` and `load-field-action` : Field-targeted API (for lazy loading a component field)
+  - `load` and `load-action` : API for most loads
+  - `load-field` and `load-field-action` : Field-targeted API (for lazy loading a component field)
 
   The former of each pair are methods that directly invoke a `transact!` to place load requests into a load queue.
 
@@ -176,14 +175,14 @@
   own mutations (e.g. you want to switch to a new area of the UI (local mutation), but also trigger a *remote read* to load the
   content of that UI at the same time).
 
-  ### Load vs. Load Data vs. Load Field
+  ### Load vs. Load Field
 
   All of these functions are calls to the built-in `fulcro/load` mutation behind the scenes, so requests made by these functions
   go through the same networking layer and have similar named parameters (see the doc strings
   in the [data-fetch namespace](https://github.com/fulcrologic/fulcro/blob/master/src/main/fulcro/client/data_fetch.cljc)).
-  The only difference is in how the query is specified. `load` requires a top-level keyword and a component, `load-data`
-  must be passed a complete query, and `load-field` uses the passed-in component and a field name to create its query.
-  `load` and `load-data` are subtle variants with the former being more consice, and the latter more generally flexible.
+  `data-fetch/load` (the function) is meant for most general loading. It can load any sub-graph of your database using
+  an ident or keyword and an optional component to complete the graph query. Load can be used with the app, reconciler,
+  or any component.
 
   `load-field` is really just a helper for a common use-case: loading a field of some specific thing on the screen. It
   focuses the component's query to the specified field, associates the component's ident with the query,
@@ -192,28 +191,22 @@
   
   #### Use case - Initial load
 
-  In Fulcro, initial load is an explicit step. You simply put calls to `load` or `load-data` in your app start callback.
+  In Fulcro, initial load is an explicit step. You simply put calls to `load` in your app start callback.
   State markers are put in place that allow you to then render the fact that you are loading data. Any number of separate
   server queries can be queued, and the queries themselves are used for normalization. Post-processing of the response
   is well-defined and trivial to access.
 
   ```
   (fc/new-fulcro-client
-    :initial-state {}
     :started-callback
       (fn [{:keys [reconciler] :as app}]
-        (df/load app :items CollectionComponent {:without #{:comments} :post-mutation 'app/build-views})
-        ; OR (less preferred)
-        (df/load-data reconciler [{:items (om/get-query CollectionComponent)}]
-                                   :without #{:comments}
-                                   :post-mutation 'app/build-views)))
+        (df/load app :items CollectionComponent {:without #{:comments} :post-mutation 'app/build-views})))
   ```
 
   In the above example the client is created (which must be mounted as a separate step). Once the application is mounted 
-  it will call the `:started-callback` which in turn will trigger a load. These helper functions are really a call to
-  om `transact!` that places `ready-to-load` markers in the app state, which in turn triggers the network plumbing. The
-  network plumbing pulls these from the app state and processes them via the server and all of the normalization bits of 
-  Om (and Fulcro).
+  it will call the `:started-callback` which in turn will trigger a load. These are really calls to
+  `transact!` that place `ready-to-load` markers in the app state, which in turn triggers the network plumbing. The
+  network plumbing pulls these from the app state and processes them via the server and database normalization.
 
   The `:without` parameter will elide portions of the query. So for example, if you'd like to lazy load some portion of the
   collection (e.g. comments on each item) at a later time you can prevent the server from being asked to send them.
@@ -336,9 +329,9 @@
 
   ### Load vs. Load-Action
 
-  `load`, `load-field`, and `load-data` will call `om/transact!` under the hood, targeting fulcro's built-in `fulcro/load`
-  mutation, which is responsible for sending your request to the server. By contrast, `load-action`, `load-field-action`,
-  and `load-data-action` **do not** call `om/transact!`, but can be used to initialize a load inside of one of your own
+  `load` and `load-field` will call `om/transact!` under the hood, targeting fulcro's built-in `fulcro/load`
+  mutation, which is responsible for sending your request to the server. By contrast, `load-action` and `load-field-action`
+  **do not** call `om/transact!`, but can be used to initialize a load inside of one of your own
   client-side mutations.
 
   Let's look at an example of a standard load. Say you want to load a list of people from the server:
@@ -384,18 +377,32 @@
   (defmethod mutate 'app/change-view [{:keys [state] :as env} _ {:keys [new-view]}]
     {:remote (df/remote-load env) ;; (2)
      :action (fn []
-                (let [new-view-query (cond
-                                       (= new-view :main) (om/get-query ui/Main)
-                                       (= new-view :settings) (om/get-query ui/Settings)]
-                (df/load-data-action state new-view-query) ;; (1)
+                (let [new-view-comp (cond
+                                       (= new-view :main)  ui/Main
+                                       (= new-view :settings) ui/Settings]
+                (df/load-action state new-view new-view-comp) ;; (1)
                 (swap! state update :app/current-view new-view))})
+  ```
+
+  If you'd rather use `defmutation`, it looks nearly identical:
+
+  ```
+  ; note, the mutation is now in the namespace of declaration (not app anymore)
+  (defmutation change-view [{:keys [new-view]}]
+    (action [{:keys [state] :as env}]
+                (let [new-view-comp (cond
+                                       (= new-view :main)  ui/Main
+                                       (= new-view :settings) ui/Settings]
+                  (df/load-action state new-view new-view-comp)
+                  (swap! state update :app/current-view new-view))}))
+    (remote [env] (df/remote-load env)))
   ```
 
   This snippet defines a mutation that modifies the app state to display the view passed in via the mutation parameters
   and loads the data for that view. A few important points:
 
   1. If an action thunk calls one or more `action`-suffixed load functions (which do nothing but queue the load
-     request) then it MUST also use a call to `remote-load` for the remote keyword.
+     request) then it MUST also call `remote-load` on the remote side.
   2. The `remote-load` function *changes* the mutation's dispatch key to `fulcro/load` which in turn triggers
      the networking layer that one or more loads are ready.
   3. If you find yourself wanting to put a call to any `load-*` in a React Lifecycle method try reworking
@@ -428,7 +435,7 @@
   For example:
 
   ```
-  (load-data reconciler [:prop])
+  (load reconciler :prop nil)
   ```
 
   is a simple helper that is ultimately identical to:

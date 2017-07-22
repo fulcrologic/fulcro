@@ -14,13 +14,12 @@
 
 (specification "make-fulcro-server"
   (assertions
-    "requires :parser as a parameter, and that parser be a function"
-    (easy/make-fulcro-server) =throws=> (AssertionError #"")
-    (easy/make-fulcro-server :parser 'cymbal) =throws=> (AssertionError #"")
+    "requires :parser to be a function"
+    (easy/make-fulcro-server :parser 'cymbal) =throws=> (AssertionError #"fn?")
     "requires that :components be a map"
-    (easy/make-fulcro-server :parser #() :components [1 2 3]) =throws=> (AssertionError #"")
+    (easy/make-fulcro-server :parser #() :components [1 2 3]) =throws=> (AssertionError #"map\? components")
     "throws an exception if injections are not keywords"
-    (easy/make-fulcro-server :parser #() :parser-injections [:a :x 'sym]) =throws=> (AssertionError #"")))
+    (easy/make-fulcro-server :parser #() :parser-injections [:a :x 'sym]) =throws=> (AssertionError #"every\? keyword")))
 
 (defrecord SimpleTestModule []
   core/Module
