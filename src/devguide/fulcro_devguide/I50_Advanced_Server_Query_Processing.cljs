@@ -1,4 +1,4 @@
-(ns fulcro-devguide.I-Building-A-Server
+(ns fulcro-devguide.I50-Advanced-Server-Query-Processing
   (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
@@ -15,113 +15,10 @@
 
 (defcard-doc
   "
-  # Building the server
-
-  The pre-built server components for Fulcro use Stuart Seirra's Component library. The server has no
-  global state except for a debugging atom that holds the entire system. The project has already
-  been set up with a basic server, and we'll cover what's in there, and what you need to write.
-
-  You should have a firm understanding of Stuart's component library, since we won't be covering that
-  in detail here.
-
-  ## Constructing a base server
-
-  The base server is trivial to create:
-
-  ```
-  (ns app.system
-    (:require
-      [fulcro.easy-server :as server]
-      [app.api :as api]
-      [om.next.server :as om]))
-
-  (defn make-system []
-    (server/make-fulcro-server
-      ; where you want to store your override config file
-      :config-path \"/usr/local/etc/app.edn\"
-
-      ; Standard Om parser
-      :parser (om/parser {:read api/api-read :mutate api/mutate})
-
-      ; The keyword names of any components you want auto-injected into the parser env (e.g. databases)
-      :parser-injections #{}
-
-      ; Additional components you want added to the server
-      :components {}))
-  ```
-
-  ### Configuring the server
-
-  Server configuration requires two EDN files:
-
-  - `resources/config/defaults.edn`: This file should contain a single EDN map that contains
-  defaults for everything that the application wants to configure.
-  - `/abs/path/of/choice`: This file can be named what you want (you supply the name when
-  making the server). It can also contain an empty map, but is meant to be machine-local
-  overrides of the configuration in the defaults. This file is required. We chose to do this because
-  it keeps people from starting the app in an unconfigured production environment.
-
-  ```
-  (defn make-system []
-    (server/make-fulcro-server
-      :config-path \"/usr/local/etc/app.edn\"
-      ...
-  ```
-
-  The only parameter that the default server looks for is the network port to listen on:
-
-  ```
-  { :port 3000 }
-  ```
-
-  ### Pre-installed components
-
-  When you start an Fulcro server it comes pre-supplied with injectable components that your
-  own component can depend on, as well as inject into the server-side Om parsing environment.
-
-  The most important of these, of course, is the configuration itself. The available components
-  are known by the following keys:
-
-  - `:config`: The configuration component. The actual EDN value is in the `:value` field
-  of the component.
-  - `:handler`: The component that handles web traffic. You can inject your own Ring handlers into
-  two different places in the request/response processing. Early or Late (to intercept or supply a default).
-  - `:server`: The actual web server.
-
-  The component library, of course, figures out the dependency order and ensures things are initialized
-  and available where necessary.
-
-  ### Making components available in the processing environment
-
-  Any components in the server can be injected into the processing pipeline so they are
-  available when writing your mutations and query procesing. Making them available is as simple
-  as putting their component keyword into the `:parser-injections` set when building the server:
-
-  ```
-  (defn make-system []
-    (server/make-fulcro-server
-      :parser-injections #{:config}
-      ...))
-  ```
-
-  ### Provisioning a request parser
+  # Provisioning a Custom Request Parser
 
   All incoming client communication will be in the form of Om Queries/Mutations. Om supplies
-  a parser to do the low-level parsing, but you must supply the bits that do the real logic.
-  Learning how to build these parts is relatively simple, and is the only thing you need
-  to know to process all possible communications from a client.
-
-  #### The Easy Way
-
-  Fulcro includes a pre-built server parser and macros to install handlers for communications. These are
-  covered in the
-  [Getting Started Guide](https://github.com/fulcrologic/fulcro/blob/develop/GettingStarted.adoc)
-  and can handle much of what you'd want to do.
-
-  We recommend that you start with that approach, and hand-build a parser if you find
-  yourself needing more in-depth support for query or mutation processing.
-
-  #### About Om Parsers
+  a parser to do the low-level parsing, but to use it you must supply the bits that do the real logic.
 
   Om parsers require two things: A function to process reads, and a function to process mutations.
   These are completely open to your choice of implementation. They simply need to be functions
@@ -135,16 +32,12 @@
       - Anything components you've asked to be injected during construction. Usually some kind
       of database connection and configuration.
       - `ast`: An AST representation of the item being parsed.
+      - `query`: The subquery (e.g. of a join)
       - `parser`: The Om parser itself (to allow you to do recursive calls)
       - `request`: The actual incoming request (with headers)
-      - ... TODO: finish this
   - The `key` is the dispatch key for the item being parsed. We'll cover that shortly.
   - The `params` are any params being passed to the item being parsed.
 
-  ")
-
-(defcard-doc
-  "
   ## Processing reads
 
   The Om parser is exactly what it sounds like: a parser for the query grammar. Now, formally
@@ -497,7 +390,7 @@
   "
 
   The first (possibly surprising thing) is that your result includes a nested
-  object. The parser creates the result, and the recusion natually nested the
+  object. The parser creates the result, and the recursion naturally nested the
   result correctly.
 
   Next you should remember that join implies a there could be one OR many results.
@@ -576,17 +469,6 @@
   "
 
   All of the code shown here is being actively pulled (and run) from `fulcro-devguide.state-reads.parser-2`.
-
-  Now, I feel compelled to mention a few things:
-
-  - Keeping track of where you are in the parse (e.g. person can be generalized to
-  'the current thing I'm working on') allows you to generalize this algorithm.
-  - `db->tree` can still do everything we've done so far.
-  - If you fully generalize the property and join parsing, you'll essentially recreate
-  `db->tree`.
-
-  So now you should be trying to remember why we're doing all of this. So let's talk
-  about a case that `db->tree` can't handle: parameters.
 
   ## Parameters
 

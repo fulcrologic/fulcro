@@ -3,9 +3,12 @@
   (:require [cljs.pprint :refer [cl-format]]
             [cljsjs.victory]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+            [fulcro.ui.clip-tool :as ct]
+            [fulcro.client.cards :refer [fulcro-app]]
             [om.dom :as dom]
             [om.next :as om :refer-macros [defui]]
-            [om.util :as util]))
+            [om.util :as util]
+            [fulcro.client.core :as fc]))
 
 (defn us-dollars [n]
   (str "$" (cl-format nil "~:d" n)))
@@ -204,3 +207,23 @@
   (defonce app (atom (new-fulcro-client :read-local my-read)))
   ```
   ")
+
+
+
+(defui ^:once ICRoot
+  static fc/InitialAppState
+  (initial-state [c p] {:ctool (fc/get-initial-state ct/ClipTool {:id :clipper :aspect-ratio 0.5})})
+  static om/IQuery
+  (query [this] [:ui/react-key :ctool])
+  Object
+  (render [this]
+    (let [{:keys [ui/react-key ctool]} (om/props this)]
+      (dom/div #js {:key react-key}
+        (ct/ui-clip-tool (om/computed ctool {:onChange (fn [props] (om/set-state! this props))}))
+        (ct/ui-preview-clip (merge (om/get-state this) {:filename "minions.jpg"
+                                                          :width    200 :height 200}))))))
+
+(defcard image-clip
+  (fulcro-app ICRoot)
+  {}
+  {:inspect-data true})

@@ -318,10 +318,6 @@
         will render the logged-in user if the response is good. Use `started-callback` to trigger this to check if the user
         is logged in at application startup.
 
-  TODO: CSRF
-
-  TODO: Server-side rendering
-
   ## Solutions to Exercises
 
   See `src/server/solutions/advanced_server.clj` for sample solutions to all exercises.

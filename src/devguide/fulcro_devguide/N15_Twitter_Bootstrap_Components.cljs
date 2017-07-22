@@ -9,13 +9,13 @@
             [fulcro-devguide.N10-Twitter-Bootstrap-CSS :refer [render-example sample]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.elements :as ele]
-            [fulcro.client.cards :refer [fulcro-app]]
+            [fulcro.client.cards :refer [fulcro-app fulcro-application defcard-fulcro]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.ui.bootstrap3 :as b]
             [fulcro.client.core :as fc]
             [devcards.core :as dc]))
 
-(defui DropdownRoot
+(defui ^:once DropdownRoot
   static fc/InitialAppState
   (initial-state [this props] {:dropdown   (b/dropdown :file "File" [(b/dropdown-item :open "Open")
                                                                      (b/dropdown-item :close "Close")
@@ -93,7 +93,7 @@
 (m/defmutation nav-to [{:keys [page]}]
   (action [{:keys [state]}] (swap! state assoc :current-page page)))
 
-(defui NavRoot
+(defui ^:once NavRoot
   static fc/InitialAppState
   (initial-state [this props] {:current-page :home
                                ; Embed the nav in app state as a child of this component
@@ -144,7 +144,7 @@
 
 (defcard nav-tabs (fulcro-app NavRoot) {} {:inspect-data false})
 
-(defui HomeScreen
+(defui ^:once HomeScreen
   static fc/InitialAppState
   (initial-state [c p] {:screen-type :home})
   static om/IQuery
@@ -153,7 +153,7 @@
   (render [this]
     (dom/div nil "HOME SCREEN")))
 
-(defui OtherScreen
+(defui ^:once OtherScreen
   static fc/InitialAppState
   (initial-state [c p] {:screen-type :other})
   static om/IQuery
@@ -178,7 +178,7 @@
                      (routing/set-route :main-router [tab :singleton])
                      (b/set-active-nav-link* :main-nav tab))))))
 
-(defui RouterRoot
+(defui ^:once RouterRoot
   static fc/InitialAppState
   (initial-state [c p] {
                         :nav    (b/nav :main-nav :tabs :normal
@@ -280,7 +280,7 @@
   ## The Overall Result
   ")
 
-(defcard nav-with-router (fulcro-app RouterRoot) {} {:inspect-data false})
+(defcard-fulcro nav-with-router RouterRoot)
 
 (defn person-ident
   "Returns an ident. Accepts either the full entity (props) or just an ID. Returns an ident for a person."
@@ -446,12 +446,12 @@
                          {:person       (fc/get-initial-state DemoPerson {:id 1 :name "Sam"})
                           :modal-router (fc/get-initial-state ModalRouter {})}))
   static om/IQuery
-  (query [this] [{:person (om/get-query DemoPerson)} {:modal-router (om/get-query ModalRouter)}])
+  (query [this] [:ui/react-key {:person (om/get-query DemoPerson)} {:modal-router (om/get-query ModalRouter)}])
   Object
   (render [this]
-    (let [{:keys [person modal-router]} (om/props this)]
+    (let [{:keys [:ui/react-key person modal-router]} (om/props this)]
       (render-example "100%" "500px"
-        (dom/div nil
+        (dom/div #js {:key react-key}
           (b/button {:onClick #(show-warning this)} "Show Warning")
           ; show the current value of the person
           (ui-demoperson person)
@@ -533,10 +533,11 @@
   ```
   ")
 
-(defcard modal
-  (fulcro-app ModalRoot)
+(defcard-fulcro modal
+  ModalRoot
   {}
-  {:inspect-data false})
+  {:inspect-data true
+   :fulcro       {:started-callback (fn [app] (js/console.log :STARTED!))}})
 
 (defcard modal-variation-small
   (render-example "100%" "300px"
@@ -558,7 +559,7 @@
       (ui-warning-modal {:message "This is a large modal."
                          :modal   {:id :large :modal/active true :modal/visible true :modal/size :lg :backdrop false}}))))
 
-(defui GridModal
+(defui ^:once GridModal
   Object
   (render [this]
     (b/ui-modal (om/props this)
@@ -618,15 +619,15 @@
   "
   (dc/mkdn-pprint-source CollapseRoot))
 
-(defcard collapse-card
+(defcard-fulcro collapse-card
   "The live version of the collapse in action:"
-  (fulcro-app CollapseRoot))
+  CollapseRoot)
 
 (defn accordian-section [this all-ids collapse]
   (letfn [(toggle [] (om/transact! this `[(b/toggle-collapse-group-item {:item-id      ~(:db/id collapse)
                                                                          :all-item-ids ~all-ids})]))]
-    (b/panel nil
-      (b/panel-heading nil
+    (b/panel {:key (str "section-" (:db/id collapse))}
+      (b/panel-heading {:key (str "heading-" (:db/id collapse))}
         (b/panel-title nil
           (dom/a #js {:onClick toggle} "Section Heading")))
       (b/ui-collapse collapse
@@ -642,15 +643,15 @@
                                     (fc/get-initial-state b/Collapse {:id 4 :start-open false})]})
   ; join it into the query
   static om/IQuery
-  (query [this] [{:collapses (om/get-query b/Collapse)}])
+  (query [this] [:ui/react-key {:collapses (om/get-query b/Collapse)}])
   Object
   (render [this]
-    (let [{:keys [collapses]} (om/props this)               ; pull from db
+    (let [{:keys [ui/react-key collapses]} (om/props this)  ; pull from db
           all-ids [1 2 3 4]]                                ; convenience for all ids
       (render-example "100%" "300px"
         ; map over our helper function
-        (b/panel-group nil
-          (map (fn [c] (accordian-section this all-ids c)) collapses))))))
+        (b/panel-group {:key react-key}
+          (mapv (fn [c] (accordian-section this all-ids c)) collapses))))))
 
 (defcard-doc
   "# Accordian (group of collapse)
@@ -676,11 +677,11 @@
   correct this by closing all open sections except the one being opened.
   ")
 
-(defcard collapse-group-card
+(defcard-fulcro collapse-group-card
   "Live Accordian"
-  (fulcro-app CollapseGroupRoot))
+  CollapseGroupRoot)
 
-(defui CarouselExample
+(defui ^:once CarouselExample
   static fc/InitialAppState
   (initial-state [c p] {:carousel (fc/get-initial-state b/Carousel {:id :sample :interval 2000})})
   static om/IQuery
@@ -690,18 +691,21 @@
     (let [{:keys [carousel]} (om/props this)]
       (render-example "100%" "400px"
         (b/ui-carousel carousel
+
           (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNzc3OiM1NTUvdGV4dDpGaXJzdCBzbGlkZQpDcmVhdGVkIHdpdGggSG9sZGVyLmpzIDIuNi4wLgpMZWFybiBtb3JlIGF0IGh0dHA6Ly9ob2xkZXJqcy5jb20KKGMpIDIwMTItMjAxNSBJdmFuIE1hbG9waW5za3kgLSBodHRwOi8vaW1za3kuY28KLS0+PGRlZnM+PHN0eWxlIHR5cGU9InRleHQvY3NzIj48IVtDREFUQVsjaG9sZGVyXzE1Y2QxZTI2YzkxIHRleHQgeyBmaWxsOiM1NTU7Zm9udC13ZWlnaHQ6Ym9sZDtmb250LWZhbWlseTpBcmlhbCwgSGVsdmV0aWNhLCBPcGVuIFNhbnMsIHNhbnMtc2VyaWYsIG1vbm9zcGFjZTtmb250LXNpemU6NDVwdCB9IF1dPjwvc3R5bGU+PC9kZWZzPjxnIGlkPSJob2xkZXJfMTVjZDFlMjZjOTEiPjxyZWN0IHdpZHRoPSI5MDAiIGhlaWdodD0iNTAwIiBmaWxsPSIjNzc3Ii8+PGc+PHRleHQgeD0iMzA4LjI5Njg3NSIgeT0iMjcwLjEiPkZpcnN0IHNsaWRlPC90ZXh0PjwvZz48L2c+PC9zdmc+" :alt "1"})
           (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNjY2OiM0NDQvdGV4dDpTZWNvbmQgc2xpZGUKQ3JlYXRlZCB3aXRoIEhvbGRlci5qcyAyLjYuMC4KTGVhcm4gbW9yZSBhdCBodHRwOi8vaG9sZGVyanMuY29tCihjKSAyMDEyLTIwMTUgSXZhbiBNYWxvcGluc2t5IC0gaHR0cDovL2ltc2t5LmNvCi0tPjxkZWZzPjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+PCFbQ0RBVEFbI2hvbGRlcl8xNWNkMWUyODg2NSB0ZXh0IHsgZmlsbDojNDQ0O2ZvbnQtd2VpZ2h0OmJvbGQ7Zm9udC1mYW1pbHk6QXJpYWwsIEhlbHZldGljYSwgT3BlbiBTYW5zLCBzYW5zLXNlcmlmLCBtb25vc3BhY2U7Zm9udC1zaXplOjQ1cHQgfSBdXT48L3N0eWxlPjwvZGVmcz48ZyBpZD0iaG9sZGVyXzE1Y2QxZTI4ODY1Ij48cmVjdCB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgZmlsbD0iIzY2NiIvPjxnPjx0ZXh0IHg9IjI2NC45NTMxMjUiIHk9IjI3MC4xIj5TZWNvbmQgc2xpZGU8L3RleHQ+PC9nPjwvZz48L3N2Zz4=" :alt "2"})
           (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNTU1OiMzMzMvdGV4dDpUaGlyZCBzbGlkZQpDcmVhdGVkIHdpdGggSG9sZGVyLmpzIDIuNi4wLgpMZWFybiBtb3JlIGF0IGh0dHA6Ly9ob2xkZXJqcy5jb20KKGMpIDIwMTItMjAxNSBJdmFuIE1hbG9waW5za3kgLSBodHRwOi8vaW1za3kuY28KLS0+PGRlZnM+PHN0eWxlIHR5cGU9InRleHQvY3NzIj48IVtDREFUQVsjaG9sZGVyXzE1Y2QxZTI3MmM4IHRleHQgeyBmaWxsOiMzMzM7Zm9udC13ZWlnaHQ6Ym9sZDtmb250LWZhbWlseTpBcmlhbCwgSGVsdmV0aWNhLCBPcGVuIFNhbnMsIHNhbnMtc2VyaWYsIG1vbm9zcGFjZTtmb250LXNpemU6NDVwdCB9IF1dPjwvc3R5bGU+PC9kZWZzPjxnIGlkPSJob2xkZXJfMTVjZDFlMjcyYzgiPjxyZWN0IHdpZHRoPSI5MDAiIGhlaWdodD0iNTAwIiBmaWxsPSIjNTU1Ii8+PGc+PHRleHQgeD0iMjk4LjMyMDMxMjUiIHk9IjI3MC4xIj5UaGlyZCBzbGlkZTwvdGV4dD48L2c+PC9nPjwvc3ZnPg==" :alt "3"}))))))
 
+
+
 #_(defcard-doc
-  "# Carousel
+    "# Carousel
 
-  The carousel has a number of configurable options
+    The carousel has a number of configurable options
 
-  "
-  (dc/mkdn-pprint-source CarouselExample))
+    "
+    (dc/mkdn-pprint-source CarouselExample))
 
 #_(defcard
-  "# Carousel Live Demo"
-  (fulcro-app CarouselExample))
+    "# Carousel Live Demo"
+    (fulcro-app CarouselExample))

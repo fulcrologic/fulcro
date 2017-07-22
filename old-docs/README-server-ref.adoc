@@ -1,0 +1,560 @@
+= Untangled Server Docs
+:source-highlighter: coderay
+:source-language: clojure
+:toc:
+:toc-placement!:
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:sectnums:
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+ifdef::env-github[]
+toc::[]
+endif::[]
+
+== Fetching Data From the Server
+
+There are a number of convenient things that the network stack does automatically, as shown in the
+diagram below:
+
+[ditaa,target=plumbing]
+....
+   /-----\            /-----\
+   |Query|  strip ui  |Queue|                                          Network Request
+   |     |----------->|     |---------------------------------------------------------->---+
+   \-----/            \-----/                                                              |
+                                                                                        /------\
+                                                                                        |API   |
+                                                                                        |      |
+   /-----\                /-----\            /-----\ Mark                               \------/
+   |App  | post mutation  |App  | Sweep/remap|App  | Missing + Merge  Network Response     |
+   |State|<---------------|State|<-----------|State|<---------------------------------<----+
+   \-----/                \-----/            \-----/
+....
+
+Strip UI::
+   This stage removes any attributes in the query that are namespaced to `ui`. For example, `:ui/checked`. This
+   allows you to place attributes on a UI component that use the app database for storage (and then query for them) while
+   still being able to easily use that component's query as part of a server query.
+
+Queue::
+   All queries are placed on a queue, and are processed one-at-a-time. There is an option to do queries in parallel and
+   bypass this queue.
+
+API::
+   This is the server-side API you write to process the query.
+
+Mark missing/Merge::
+   This is the first stage of the client response processing. During this phase the query and response are walked. If
+   the response does not contain a value for an attribute that was in the query, then a special `:untangled.client.impl.om-plumbing/not-found`
+   value is added to the incoming response. This composite value is then deep merged with the application state. This forces
+   anything that has "disappeared" from the server to be marked as `:untangled.client.impl.om-plumbing/not-found` in the app database.
+
+Sweep::
+   This post-processing stage walks the app database and removes anything that has a value of `:untangled.client.impl.om-plumbing/not-found`.
+   This is the second half of the mark/sweep of data that has disappeared from the server.
+
+Remap::
+   If the request was a mutation (instead of a query), then the response may contain tempid remaps. This step walks the
+   app database replacing IDs that have been remapped.
+
+Post Mutation::
+   The client API for network queries allows for a user-defined post mutation to run at the end of the chain. This is
+   used to create or update alternate UI views of the recently loaded data, if necessary.
+
+=== Loading Data During Initialization
+
+When an Untangled Application is mounted, it will render the application using initial application state as described
+in the http://untangled-web.github.io/untangled/reference/reference.html#_initial_application_state[Initial Application State section].
+The first opportunity for an Untangled app to load data from a remote server is in the function defined under the
+`:started-callback` parameter when making a new untangled client:
+
+[source]
+----
+(:require
+  [untangled.client.core :as uc]
+  [untangled.client.data-fetch :as df])
+
+(uc/new-untangled-client
+    :started-callback (fn [reconciler]
+                        (df/load-data reconciler [:some {:query [:on-app-load]}])))
+----
+
+One or more calls to `untangled.client.data-fetch/load-data` can be used to queue up initial reads from your server, and each of those
+loads can specify `:parallel true` to indicate that the loads are not order dependent (if that is indeed true).
+You may also choose to hit an external API on app load and manually merge data into the app-state by calling
+`(om/app-state reconciler)` to get the app-state atom.
+
+NOTE: A re-render is *not* scheduled after the started-callback is run. If you decide to manually change the app-state
+atom in the started-callback, you must schedule your own re-render of the root component. Data fetches are standard
+transactions, and will take care of scheduling their own re-renders.
+
+=== Loading Data On Demand
+
+Any event (timeout, user interaction, etc) can be used to trigger additional loads. The typical calls used for this
+are `untangled.client.data-fetch/load-data` and `untangled.client.data-fetch/load-field`. The former is completely general
+and allows for an arbitrary query. The latter is component-centric, and can be used to auto-construct a server query
+based on the component's ident, fields, and sub-queries.
+
+There are a number of examples in the
+https://github.com/untangled-web/untangled-cookbook[Untangled Cookbook].
+
+WARNING: Due to the various circumstances under which React Lifecycle methods are called, we do not recommend that data
+fetches are executed within the body of overridden Lifecycle methods in your Om components. Your network traffic may be
+higher tha necessary if Lifecycle methods are triggered multiple times. Data fetches trigger also trigger a re-render
+cycle, which could potentially put your application into an infinite loop of loading and re-rendering.
+
+=== Server reads (after mutation)
+
+If you execute a mutation that does not optimistically update the client before executing on the server, then the
+server will have updated information that needs to make its way back to the client.
+
+However, *server mutation return values beyond tempid remapping are ignored*.
+
+The Om model is that mutations can only remap tempids, and will never return newly created data. Even if mutations did
+have return values, they do not contain a query that the client could use to properly merge the server's data into the
+client-side database.
+
+When the client is displaying data and runs a mutation that will modify that data, there are two possible execution paths:
+
+1. Update the client-side database first (optimistically), and then send the mutation to run on the server.
+2. Send the mutation directly to the server, followed immediately by a remote read to obtain the new data.
+
+The Untangled design patterns favor the first execution path over the second, however, both are supported. The first
+execution path is made possible by specifying both a `:remote` keyword and an `:action` keyword in the map returned
+by your mutation, which follow standard Om patterns:
+
+[source]
+----
+(:require
+  [untangled.client.mutations :refer [mutate]])
+
+(defmutation mutate 'person/add-friend [env k params]
+    {:remote true
+     :action (fn []
+                ;; code to optimistically add friend of `friend-id`
+                ;; to the person `person-id` in the client-side database
+                )})
+
+----
+
+You can utilize the second execution path by adding a server read to a transaction that also contains a mutation.
+In this case the mutations and reads will be split, the mutations will run, then the reads will run (ordered using the
+network queue). Server reads take the form of an `untangled/load` built-in client mutation, including all of the
+parameters supported by a call to `load-data`:
+
+[source]
+----
+(:require
+  [om.next :as om]
+  [untangled.client.mutations])
+
+(om/transact! component '[(app/remote-action)
+                          (untangled/load {:query [:data-changed-by-remote-action]
+                                           :post-mutation data/modify-server-response
+                                           :fallback app/handle-failures})])
+----
+
+For a walkthrough of this remote mutation and load execution path, see the getting started video about
+https://youtu.be/t49JYB27fv8?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R&t=1535[server basics at roughly 25:20]
+
+=== Loading markers
+
+When an item reaches the tip of networking queue and is pulled off Untangled will replace the data being loaded with a
+marker that the UI can use to show an alternate representation (e.g. a spinner in place of a table). There
+is also a global loading marker at the top of the application state.
+
+To access the global loading marker, add `[:ui/loading-data '_]` to the query of any component that composes to root.
+This will put a boolean flag in that component's props indicating if there is some some data fetch occurring at the
+moment that the component is rendered.
+
+The `:ui/loading-data` keyword is set to true when *any load* is occurring. If you want to be sure that a particular
+piece of data is being loaded at a given moment, then you will want to access the data fetch state on that field:
+
+[source]
+----
+(:require
+  [om.next :as om]
+  [om.dom :as dom])
+
+(defui Item
+    static om/IQuery (query [this] [:id :title :ui/fetch-state])
+    ;; note that the *subcomponent* queries for :ui/fetch-state
+    ;; ...
+    Object
+    (render [this]
+        ;; render an item
+    ))
+
+(def ui-item (om/factory Item {:keyfn :id}))
+
+(defui ItemList
+    static om/IQuery (query [this] [{:items (om/get-query Item)}])
+    ;; ...
+    Object
+    (render [this]
+        (let [{:keys [items]} (om/props this)]
+            (if (:ui/fetch-state items)
+                (dom/div nil "Loading...")
+                (dom/div nil (map ui-item items))))))
+
+----
+
+In this case, we might be loading items in the `ItemList` component, and we might not. If we are, then we can tell
+that the field `:items` is being loaded because the map at the `:items` key in props has a `:ui/fetch-state` key.
+If it did not, then we know that there is data available to be rendered (even if that data is `nil`).
+
+Take a look at `untangled.client.data-fetch/lazily-loaded`, which handles the conditional logic in the render-method
+above for you, and offers several enhancements.
+
+If you do not want markers to wipe out the existing data on the client when reloading that data, you may specify the `:marker`
+parameter as `false` in your calls to any of the data fetch methods.
+
+Loading markers are covered in more depth in this https://youtu.be/t49JYB27fv8[getting started video]
+and the https://github.com/untangled-web/untangled-cookbook/tree/master/recipes/lazy-loading-visual-indicators[Untangled
+Cookbook recipe about lazy loading visual indicators].
+
+=== Out-of-band Data (websocket, timeout, XHR)
+
+When using things like websocket server push, timeouts, and manual XHR requests you may have data that you'd like to
+place in your application's state that does not arrive through the normal Untangled processing pipeline. In these cases
+you may use Om's `merge!` function or Untangled's `merge-state!`. The latter does a bit of common work for you if you
+can structure the data in a way that looks like the response to an existing query of a UI component with an ident.
+
+Basically, you structure the data to be a tree of maps that could exist in the database for a given component (and
+children). The `merge-state!` function will extract the ident from that data, normalize the tree into objects, and
+merge everything into tables.
+
+Any number of named parameters can be given at the same time to add that object's ident to other locations in the
+database.
+
+See the docstring of `merge-state!` and `integrate-ident!` in the `untangled.client.core` namespace.
+
+=== Handling network errors
+
+There are several different kinds of errors that can happen when working with a full-stack application:
+
+- Hard network errors (e.g. lost WiFi, server crashed)
+- Unexpected server errors (code threw an unexpected exception)
+- API errors (client made a bad request, server state is out of sync with client, etc.)
+
+Untangled gives you a few mechanisms for dealing with full-stack errors:
+
+- A global handler that can be set when you create a client (see `:network-error-callback` in `new-untangled-client`). This
+is only available if you use the default network implementation. This function will also be called on server
+exceptions, since the default server implementation sends back a hard error.
+- Fallbacks: A fallback is a placeholder in mutations that is called if the mutation transaction fails. It can modify
+the app state in any way it sees fit to represent the handling of the error (e.g. change UI state to show an error
+dialog, reload the page, etc.).
+
+For a more in depth explanation of handling server errors please see the
+https://github.com/untangled-web/untangled-cookbook/tree/master/recipes/error-handling#error-handling[Error Handling Recipe]
+
+== Returning Data to the Client
+
+=== Implementing server queries
+
+The server-side queries come in a the full EDN send from the client. The Untangled Server code automatically decodes
+this query and passes it to an Om parser that you define. The basics of processing these queries are covered in the
+https://github.com/untangled-web/untangled-tutorial[tutorial].
+
+The primary thing to remember is that server query processing functions (which run inside of a parser)
+should return a map whose only key is `:value` and whose value is the value for that query attribute/fragment.
+
+=== Implementing server mutations
+
+Server mutations are coded exactly like client mutations, but their body does whatever server-side operations you care
+to do (instead of mutating a client-focused UI database).
+
+There are a few things to understand when implementing a mutation:
+
+- You must return a map whose main key is `:action` and whose value is a function that will accomplish the change
+   - The function should return a map. If any data came into the mutation from the client as a temporary ID, then
+     the map should contain the key `:tempids` whose value is a map from the incoming tempid to the newly assigned
+     permanent ID. You may optionally add a `:keys` entry whose value is a list of the attributes where data changed.
+     Untangled will not do anything with the `:keys` entry, but you may choose to use it for documentation of what
+     entities changed during the server mutation.
+
+== Building your own components
+
+When creating an untangled server, it is often desirable to create
+custom app specific https://github.com/stuartsierra/component[Stuart Sierra Components]. +
+`make-untangled-server` takes a `:component` map keyed by component name with the components as values.
+
+[source]
+----
+(:require
+  [com.stuartsierra.component :as component]
+  [om.next.server :as oms])
+
+(defrecord MyComp [name]
+  component/Lifecycle ;;<5>
+  (start [this] ...)
+  (stop [this] ...))
+(defn build-my-comp [name]
+  (component/using ;;<4>
+    (map->MyDatabase {:name name})
+    [:config]))
+
+(make-untangled-server
+  :parser-injections #{:config :database} ;;<1>
+  :components {:database ;;<2>
+               (build-my-comp "Best Component")} ;;<3>
+  :parser (oms/parser {:read api-read :mutate api-mutate})) ;;<6>
+
+(defn api-read [{:as env :keys [config]} k params] ...) ;;<6>
+(defn api-mutate [{:as env :keys [config]} k params] ...) ;;<6>
+----
+<1> Injects the named components into your parser environment for access during reads and mutations.
+<2> Name of the component, for parser injections.
+<3> The Component itself.
+<4> The component can be wrapped with `component/using` for dependency injection.
+<5> Should implement `component/Lifecycle`.
+<6> `:database` is now available in the parser env, ie: the first argument to api-read and api-mutate.
+
+[NOTE]
+====
+The components `:config`, `:handler`, and `:server` are always available. +
+To make them available you *must* include them in either your:
+
+- `:parser-injections`
+- component depenencies, eg: `(component/using MyComp dependencies)`
+====
+
+== Ring Handler Injection (Easy)
+
+There are two locations in untangled-server's pre-built handler stack, https://github.com/untangled-web/untangled-server/blob/8dba26aafe36a5f0dab36d0dc89a98f43212df1d/src/untangled/server/impl/components/handler.clj#L176[pre-hook] and https://github.com/untangled-web/untangled-server/blob/8dba26aafe36a5f0dab36d0dc89a98f43212df1d/src/untangled/server/impl/components/handler.clj#L170[fallback-hook], that are made publically accessible.
+The first step is to create a component that depends (`component/using`) on the `:handler`, and then on start to get and set the desired hook.
+[source]
+----
+(:require
+  [com.stuartsierra.component :as component]
+  [untangled.server.impl.components.handler :as h])
+
+(defrecord Hooks [handler]
+  component/Lifecycle
+  (start [this]
+    (let [pre-hook (h/get-pre-hook handler)]
+      (h/set-pre-hook! handler
+        (comp
+          ... your-wrap-handlers-here ...
+          pre-hook
+          ...or-here...)))))
+(defn build-hooks []
+  (component/using
+    (map->Hooks {})
+    [:handler]))
+----
+
+An alternative to injecting middleware into the global stack is to wrap the function/component that uses that middleware with that handler directly. Here's an example:
+[source]
+----
+(defn wrap-with-user [handler] ;;<1>
+  (fn [req] (assoc req :user ...get-user...))) ;;<2>
+(defn authorize-request! [req] ;;<3>
+  ((-> (fn [req] ...assert-authorized...) ;;<4>
+     wrap-with-user
+     ...more handlers...)
+   req)) ;;<5>
+----
+<1> Can be your own or from a library (eg: `ring.middleware.*`)
+<2> Takes a handler, and returns a fn that takes a req and returns a response
+<3> Can be a function, a component, a whatever, so long as it can take request
+<4> Wrap/thread your original function into the handlers
+<6> DON'T forget to pass the resulting composition of handlers the request
+
+== API Routes (Easy)
+
+Simply add an `:extra-routes` map to `make-untangled-server` with keys `:routes` and `:handlers`.
+
+* `:routes` contains a https://github.com/juxt/bidi[bidi] mapping from url route to a key in the `:handlers` map.
+* `:handlers` is a mapping from handler key (from `:routes`) to a function `(fn [env match] ... res)`.
+
+Eg:
+[source]
+----
+(:require
+  [untangled.server.core :refer [make-untangled-server])
+
+(make-untangled-server
+  :extra-routes
+  {:routes ["" {"/store-file" :store-file}]
+   :handlers {:store-file (fn [env match] (store-file (:db env) (get-in env [:request :body]))))})
+----
+
+== Untangled System (Simple)
+
+`untangled.server.core/untangled-system` is the recommended way to build untangled servers. +
+The advantages to the "(Easy)" way are as follows:
+
+include::../README.adoc[tag=untangled-system]
+
+== Configuration
+
+=== Abstract
+Configuration for your application is about tweaking the behavior of your program statically before it even runs.
+Traditionally configuration is an formed by aggregating a plethera of sources, however, untangled holds that constraining you to one file and some sane defaults, leads to more a maintanable and debuggable system.
+
+Untangled configuration is done by reading two *edn* files, a `config/defaults.edn` and one specified by you when creating an untangled-server.
+It then does a deep merging of the two files, where the defaults are always overriden if specified in the other file.
+
+[TIP]
+====
+You can inject config into your parser environment by putting it in your `:parser-injections`, or in your component by using `component/using`.
+[source]
+----
+(:require
+  [com.stuartsierra.component :as component]
+  [untangled.server.core :refer [make-untangled-server])
+
+(make-untangled-server
+  :parser-injections #{:config})
+
+(component/using
+  (map->MyComponent {})
+  [:config])
+----
+See <<Building your own components>> for more detail on parser injections.
+====
+
+=== Default values
+Your application must have a `config/defaults.edn` available in your `:resource-paths`,
+and it must be a map containing safe default values for your application. +
+An example of a "safe" default is not auto migrating or dropping tables on startup.
+[source]
+----
+{:datomic
+  {:dbs
+    {:your-db
+      {:uri "..."
+       :auto-migrate false
+       :auto-drop    false}
+----
+
+The values in your `defaults.edn` file are deep merged underneath the file you specify in <<Specifying a config file>>.
+[source]
+.for example
+----
+;;defaults.edn
+{:override {:me 13}
+ :keep :me}
+
+;;myconfig.edn
+{:override {:me 42
+            :seven 7}
+ :hello "world"}
+
+;;results in =>
+{:override {:me 42
+            :seven 7}
+ :hello "world"
+ :keep :me}
+----
+
+=== Specifying a config file
+Simply pass `make-untangled-server` a `:config-path`.
+[WARNING]
+====
+- If it begins with a slash "/" => it should be an absolute path.
+- If it doesn't => it should be on your classpath, eg: your `resources` folder.
+====
+
+==== Configurable config path
+An useful pattern to follow is to parameterize the `:config-path` passed to `make-untangled-server`. +
+This lets you use different config paths when developing in the repl, but keep a single production configuration path.
+[source]
+.src/yourapp/system.clj
+----
+(:require
+  [untangled.server.core :refer [make-untangled-server])
+
+(defn make-system [cfg-path]
+  (make-untangled-server
+    :config-path cfg-path))
+----
+[source]
+.dev/server/user.clj (see: https://github.com/stuartsierra/component#reloading[here] for more info)
+----
+;;development
+(:require
+  [my.app.system :refer [make-system]])
+
+(def config-paths
+  {:dev "config/dev.edn"
+   :secure "config/secure.edn"})
+(defn init [path]
+  (make-system (get config-paths path)))
+----
+[source]
+.src/yourapp/core.clj (see: http://clojure.org/reference/compilation#_gen_class_examples[here] for info on -main)
+----
+;;production
+(:require
+  [com.stuartsierra.component :as component]
+  [untangled.server.core :refer [make-untangled-server])
+
+(defn -main [& args]
+  (component/start (make-system "/usr/local/etc/my_app.edn")))
+----
+
+==== Production override
+In production builds however it is convenient to be able to point to switch between configs at run time. +
+So when running your server you can specify the path of the config file using the `-Dconfig=...` config system property.
+
+TIP: Options come before the jar +
+`java [-options] -jar jarfile [args...]`.
+
+WARNING: Use this option sparingly and as needed, as you should be relying on the previously described methods first.
+
+=== Environmental Variables
+It is often convenient & useful to be able to reference environmental variables, so we provide a way to access env vars from your config file as follows:
+
+- `:env/PORT` => "8080"
+- `:env.edn/PORT` => 8080
+
+[WARNING]
+====
+Note the subtle distinction between the two.
+
+- `+++:env/*+++` will read the env var as a *string*.
+- `+++:env.edn/*+++` will read it as *edn* using `clojure.edn/read-string`.
+====
+
+=== Extending or replacing the config component
+If you find yourself wanting to replace the built-in configuration component & semantics, you can simply specify in the `:components` map of `make-untangled-server` a `:config` component.
+[WARNING]
+====
+The new config component must satisfy two criteria:
+
+- Must implement `component/Lifecycle`.
+- Should place the loaded configuration in itself under `:value`.
+====
+
+[source]
+.a naive but simple example
+----
+(:require
+  [untangled.server.core :refer [make-untangled-server]]
+  [com.stuartsierra.component :as component]
+  [clojure.java.io :as io])
+
+(defrecord MyConfig [value]
+  component/Lifecycle
+  (start [this]
+    (->> (System/getproperty "config")
+         io/resource
+         slurp
+         read-string
+         (hash-map :value)))
+  (stop [this] this))
+(make-untangled-server
+  :components {:config (->MyConfig)})
+----

@@ -10,11 +10,10 @@
     [bidi.bidi :as bidi]
     [org.httpkit.server :refer [run-server]]
     [ring.middleware.content-type :refer [wrap-content-type]]
-    [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
     [ring.middleware.gzip :refer [wrap-gzip]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
     [ring.middleware.resource :refer [wrap-resource]]
-    [ring.util.response :as rsp :refer [response file-response resource-response]] )
+    [ring.util.response :as rsp :refer [response file-response resource-response]])
   (:gen-class))
 
 (defn index [req]
@@ -34,12 +33,12 @@
 
 (defn app-namify-api [default-routes app-name]
   (if-not app-name default-routes
-    (update default-routes 1
-      (fn [m]
-        (let [api-val (get m default-api-key)]
-          (-> m
-            (dissoc default-api-key)
-            (assoc (str "/" app-name default-api-key) api-val)))))))
+                   (update default-routes 1
+                     (fn [m]
+                       (let [api-val (get m default-api-key)]
+                         (-> m
+                           (dissoc default-api-key)
+                           (assoc (str "/" app-name default-api-key) api-val)))))))
 
 (def default-routes
   ["" {"/"             :index
@@ -68,16 +67,16 @@
                          :parser api-parser
                          :env (assoc om-parsing-env :request req)
                          :app-name app-name))
-        (handler req))))
+      (handler req))))
 
 (defn wrap-extra-routes [dflt-handler {:as extra-routes :keys [routes handlers]} om-parsing-env]
   (if-not extra-routes dflt-handler
-    (do (assert (and routes handlers) extra-routes)
-      (fn [req]
-        (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
-          (if-let [bidi-handler (get handlers (:handler match))]
-            (bidi-handler (assoc om-parsing-env :request req) match)
-            (dflt-handler req)))))))
+                       (do (assert (and routes handlers) extra-routes)
+                           (fn [req]
+                             (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
+                               (if-let [bidi-handler (get handlers (:handler match))]
+                                 (bidi-handler (assoc om-parsing-env :request req) match)
+                                 (dflt-handler req)))))))
 
 (defn not-found-handler []
   (fn [req]
@@ -188,20 +187,17 @@
         (throw e))))
   (stop [this]
     (if-not server this
-      (do (server)
-        (timbre/info "web server stopped.")
-        (assoc this :server nil)))))
+                   (do (server)
+                       (timbre/info "web server stopped.")
+                       (assoc this :server nil)))))
 
 (defn make-web-server
   "Builds a web server with an optional argument that
    specifies which component to get `:middleware` from,
-   defaults to `:handler`."
+   defaults to `:handler`. This component requires that your
+   system has a Config component under the key :config."
   [& [handler]]
-  (component/using
-    (component/using
-      (map->WebServer {})
-      [:config])
-    {:handler (or handler :handler)}))
+  (component/using (map->WebServer {}) {:config :config :handler (or handler :handler)}))
 
 (defn make-fulcro-server
   "Make a new fulcro server.
@@ -213,9 +209,9 @@
   *`components`         OPTIONAL, a map of Sierra component instances keyed by their desired names in the overall system component.
                         These additional components will merged with the fulcro-server components to compose a new system component.
 
-  *`parser`             REQUIRED, an om parser function for parsing requests made of the server. To report errors, the
+  *`parser`             OPTIONAL, an om parser function for parsing requests made of the server. To report errors, the
                         parser must throw an ExceptionInfo with a map with keys `:status`, `:headers`, and `:body`.
-                        This map will be converted into the response sent to the client.
+                        This map will be converted into the response sent to the client. Defaults to `server/fulcro-parser`
 
   *`parser-injections`  a vector of keywords which represent components which will be injected as the om parsing env.
 
@@ -229,7 +225,7 @@
   Returns a Sierra system component.
   "
   [& {:keys [app-name parser parser-injections config-path components extra-routes]
-      :or   {config-path "/usr/local/etc/fulcro.edn"}
+      :or   {config-path "/usr/local/etc/fulcro.edn" parser (server/fulcro-parser)}
       :as   params}]
   {:pre [(some-> parser fn?)
          (or (nil? components) (map? components))
@@ -257,24 +253,3 @@
                              :handler handler]
         all-components      (flatten (concat built-in-components components))]
     (apply component/system-map all-components)))
-
-(defrecord WrapDefaults [handler defaults-config]
-  component/Lifecycle
-  (start [this]
-    (let [pre-hook (get-pre-hook handler)]
-      ;; We want wrap-defaults to take precedence.
-      (set-pre-hook! handler (comp #(wrap-defaults % defaults-config) pre-hook))
-      this))
-  (stop [this] this))
-
-(defn make-wrap-defaults
-  "Create a component that adds `ring.middleware.defaults/wrap-defaults` to the middleware in the prehook.
-
-  - `defaults-config` - (Optional) The configuration passed to `wrap-defaults`.
-  The 0 arity will use `ring.middleware.defaults/site-defaults`."
-  ([]
-   (make-wrap-defaults site-defaults))
-  ([defaults-config]
-   (component/using
-     (map->WrapDefaults {:defaults-config defaults-config})
-     [:handler])))

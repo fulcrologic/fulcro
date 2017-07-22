@@ -164,15 +164,15 @@
   - `field`: A field on the component's query that you wish to load.
 
   Named Parameters:
-  - `without`: See `load-data`
-  - `params`: See `load-data`
-  - `post-mutation`: See `load-data`
-  - `post-mutation-params`: See `load-data`
-  - `parallel`: See `load-data`
-  - `fallback`: See `load-data`
-  - `marker`: See `load-data`
-  - `remote`: See `load-data`
-  - `refresh`: See `load-data`
+  - `without`: See `load`
+  - `params`: See `load`
+  - `post-mutation`: See `load`
+  - `post-mutation-params`: See `load`
+  - `parallel`: See `load`
+  - `fallback`: See `load`
+  - `marker`: See `load`
+  - `remote`: See `load`
+  - `refresh`: See `load`
 
   NOTE: The :ui/loading-data attribute is always included in refresh. This means you probably don't want to
   query for that attribute near the root of your UI. Instead, create some leaf component with an ident that queries for :ui/loading-data
@@ -230,8 +230,8 @@
 
 (defn remote-load
   "Returns the correct value for the `:remote` side of a mutation that should act as a
-  trigger for remote loads. Must be used in conjunction with running `load-data-action` or
-  `load-data-field` in the `:action` side of the mutation (which queues the exact things to
+  trigger for remote loads. Must be used in conjunction with running `load-action` or
+  `load-field-action` in the `:action` side of the mutation (which queues the exact things to
   load)."
   [parsing-env]
   (let [ast (:ast parsing-env)]

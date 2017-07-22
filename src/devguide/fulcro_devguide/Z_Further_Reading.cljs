@@ -11,7 +11,7 @@
   ## TODO MVC
 
   Even though Om Next and Fulcro are not MVC, we've provided a
-  [full-stack implementation](https://github.com/fulcro-web/fulcro-todomvc) of this well-known
+  [full-stack implementation](https://github.com/fulcrologic/fulcro-todomvc) of this well-known
   project.
 
   ## The #fulcro Channel on Slack

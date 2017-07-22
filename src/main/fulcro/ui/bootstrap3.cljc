@@ -6,6 +6,7 @@
             [fulcro.ui.html-entities :as ent]
             [fulcro.i18n :refer [tr tr-unsafe]]
             [fulcro.client.mutations :as m :refer [defmutation]]
+    #?(:clj [clojure.future :refer :all])
             [clojure.string :as str]
             [clojure.set :as set]
             [fulcro.client.core :as fc]
@@ -19,7 +20,9 @@
 ;; Bootstrap CSS and Components for Fulcro
 
 (defn- dom-with-class [dom-factory cls attrs children]
-  (let [attrs (update attrs :className #(str cls " " %))]
+  (let [attrs (-> attrs
+                #_(update :key (fnil identity "placeholder-key"))
+                (update :className #(str cls " " %)))]
     (apply dom-factory (clj->js attrs) children)))
 
 (defn- div-with-class [cls attrs children] (dom-with-class dom/div cls attrs children))

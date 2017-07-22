@@ -217,14 +217,14 @@
            @custom-calls => 1)))))
 
 #?(:cljs
-   (specification "Mounting an Fulcro Application"
+   (specification "Mounting a Fulcro Application"
      (let [mounted-mock-app {:mounted? true :initial-state {}}]
        (provided "When it is already mounted"
-         (fc/refresh* a) =1x=> (do
-                                 (assertions
-                                   "Refreshes the UI"
-                                   1 => 1)
-                                 a)
+         (fc/refresh* a r t) =1x=> (do
+                                     (assertions
+                                       "Refreshes the UI"
+                                       1 => 1)
+                                     a)
 
          (fc/mount* mounted-mock-app :fake-root :dom-id)))
      (behavior "When is is not already mounted"
@@ -248,33 +248,22 @@
 
              (fc/mount* mock-app :fake-root :dom-id))))
        (behavior "and root IMPLEMENTS InitialAppState"
-         (let [mock-app {:mounted? false :initial-state {:a 1} :reconciler-options :OPTIONS}]
+         (let [mock-app {:mounted? false :reconciler-options :OPTIONS}]
            (when-mocking
-             (log/warn msg) =1x=> (assertions "warns about duplicate initialization"
-                                    msg =fn=> (partial re-matches #"^You supplied.*"))
              (fc/initialize app state root dom opts) => (assertions
                                                           "Initializes the app with the InitialAppState"
                                                           state => (fc/get-initial-state Parent nil))
 
              (fc/mount* mock-app Parent :dom-id)))
-         (let [mock-app {:mounted? false :initial-state (atom {:a 1}) :reconciler-options :OPTIONS}]
+         (let [mock-app {:mounted? false :initial-state {:EXPLICIT-STATE 1} :reconciler-options :OPTIONS}]
            (behavior "When both atom and InitialAppState are present:"
              (when-mocking
-               (log/warn msg) =1x=> true
-               (om/tree->db c d merge-idents) => (do
-                                                   (behavior "Normalizes InitialAppState:"
-                                                     (assertions
-                                                       "includes Om tables"
-                                                       merge-idents => true
-                                                       "uses the Root UI component query"
-                                                       c => Parent
-                                                       "uses InitialAppState as the data"
-                                                       d => (fc/get-initial-state Parent nil)))
-                                                   :NORMALIZED-STATE)
+               (log/warn msg) =1x=> (assertions "warns about duplicate initialization"
+                                      msg =fn=> (partial re-matches #"^You supplied.*"))
                (fc/initialize app state root dom opts) => (do
                                                             (assertions
-                                                              "Overwrites the supplied atom with the normalized InitialAppState"
-                                                              @state => :NORMALIZED-STATE))
+                                                              "Prefers the *explicit* state"
+                                                              state => {:EXPLICIT-STATE 1}))
 
                (fc/mount* mock-app Parent :dom-id))))
          (let [mock-app {:mounted? false :reconciler-options :OPTIONS}]
