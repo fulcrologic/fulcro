@@ -7,6 +7,7 @@ functions/macros to use. Legacy `fulcro-app` works better than it did, but it is
 cause cards that render the same app to collide.
 - Worked a lot on the server parts of the devguide. Also fixed some doc strings that still referred to load-data
 - Set load markers to be placed when load transacts, instead of waiting for the queue processing. This should help with loading UI flicker.
+- Backported to Clojure 1.8. Existing apps should still be able to still use 1.9, but this prevents it from being a requirement.
 
 1.0.0-beta5
 -----------
