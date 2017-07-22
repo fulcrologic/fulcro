@@ -6,6 +6,7 @@
             [fulcro.ui.html-entities :as ent]
             [fulcro.i18n :refer [tr tr-unsafe]]
             [fulcro.client.mutations :as m :refer [defmutation]]
+    #?(:clj [clojure.future :refer [int?]])
             [clojure.string :as str]
             [clojure.set :as set]
             [fulcro.client.core :as fc]
