@@ -10,8 +10,6 @@
             [fulcro.client.mutations :as m]
             [fulcro.client.impl.om-plumbing :as plumbing]))
 
-; TODO: Some of this API is public, and should be in the non-impl ns.
-
 (declare data-remote data-target data-path data-uuid data-field data-query-key data-query set-loading! full-query loaded-callback error-callback data-marker?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implementation for public api
@@ -41,19 +39,23 @@
     (not (data-field load-marker))
     (util/ident? (data-query-key load-marker))))
 
+
+(defn- place-load-marker [state-map marker]
+  (update-in state-map (data-path marker)
+    (fn [current-val]
+      (if (is-direct-table-load? marker)
+        (when (map? current-val) (assoc current-val :ui/fetch-state marker))
+        {:ui/fetch-state marker}))))
+
 (defn- place-load-markers
   "Place load markers in the app state at their data paths so that UI rendering can see them."
   [state-atom items-to-load]
   (swap! state-atom
     (fn [state-map]
       (reduce (fn [s item]
-                (let [i            (set-loading! item)
-                      place-marker (fn [current-val marker]
-                                     (if (is-direct-table-load? marker)
-                                       (when (map? current-val) (assoc current-val :ui/fetch-state marker))
-                                       {:ui/fetch-state marker}))]
+                (let [i (set-loading! item)]
                   (cond-> (update s :fulcro/loads-in-progress (fnil conj #{}) (data-uuid i))
-                    (data-marker? i) (update-in (data-path i) place-marker i))))
+                    (data-marker? i) (place-load-marker i))))
         state-map items-to-load))))
 
 (defn mark-parallel-loading
@@ -242,7 +244,7 @@
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
     {::type                 :ready
      ::uuid                 #?(:cljs (str (cljs.core/random-uuid))
-                               :clj (str (System/currentTimeMillis)))
+                               :clj  (str (System/currentTimeMillis)))
      ::target               target
      ::remote               remote
      ::ident                ident                           ; only for component-targeted loads
@@ -261,7 +263,11 @@
 
   See the `load` and `load-field` functions in `fulcro.client.data-fetch` for the public API."
   [{:keys [state] :as config}]
-  (swap! state update :fulcro/ready-to-load (fnil conj []) (ready-state (merge {:marker true :refresh [] :without #{}} config))))
+  (let [marker?      (not (identical? false (:marker config)))
+        load-request (ready-state (merge {:marker true :refresh [] :without #{}} config))]
+    (swap! state (fn [s]
+                   (cond-> (update s :fulcro/ready-to-load (fnil conj []) load-request)
+                     marker? (place-load-marker load-request))))))
 
 (defn data-target
   "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
