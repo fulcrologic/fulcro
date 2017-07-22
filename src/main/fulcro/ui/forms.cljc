@@ -6,7 +6,7 @@
     [om.dom :as dom]
     [om.next :as om]
     [om.util :as util]
-    #?(:clj [clojure.future :refer [int?]])
+    #?(:clj [clojure.future :refer :all])
     [clojure.tools.reader :as reader]
     [clojure.spec.alpha :as s]
     [fulcro.client.core :as fc]
