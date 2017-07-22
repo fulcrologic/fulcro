@@ -57,3 +57,5 @@ docs/js/sablono/
 docs/js/fulcro/
 docs/js/fulcro_devguide/
 
+old-docs/.asciidoctor
+old-docs/plumbing.png

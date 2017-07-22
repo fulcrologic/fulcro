@@ -117,7 +117,7 @@ cycle, which could potentially put your application into an infinite loop of loa
 If you execute a mutation that does not optimistically update the client before executing on the server, then the
 server will have updated information that needs to make its way back to the client.
 
-However, *server mutations in Untangled do not have return values*.
+However, *server mutation return values beyond tempid remapping are ignored*.
 
 The Om model is that mutations can only remap tempids, and will never return newly created data. Even if mutations did
 have return values, they do not contain a query that the client could use to properly merge the server's data into the

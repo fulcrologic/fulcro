@@ -11,7 +11,7 @@
 ; see: https://github.com/omcljs/om/wiki/Quick-Start-%28om.next%29
 ; TODO: Error handling (UI and server), exceptions, fallbacks, status codes
 ; Remember that global-error-handler is a function of the network impl
-; TODO: (advanced) cookies/headers (needs extension to U.Server see issue #13)
+; TODO: (advanced) cookies/headers/augmented response
 
 (defui ^:once CategoryQuery
   static om/IQuery
