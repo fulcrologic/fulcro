@@ -256,7 +256,9 @@
 
 (defn refresh* [{:keys [reconciler] :as app} root target]
   ; NOTE: from devcards, the mount target node could have changed. So, we re-call Om's add-root
-  (let [old-target (-> reconciler :state deref :target)]
+  (let [old-target (-> reconciler :state deref :target)
+        target     #?(:clj target
+                      :cljs (if (string? target) (gdom/getElement target) target))]
     (when (and old-target (not (identical? old-target target)))
       (log/info "Mounting on newly supplied target.")
       (om/remove-root! reconciler old-target)
