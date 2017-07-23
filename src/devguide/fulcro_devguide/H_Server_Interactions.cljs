@@ -731,7 +731,7 @@
 
   There is no difference between optimistic updates in Fulcro and in standard Om Next. You define a mutation, that
    mutation does a `swap!` on the `state` atom from the mutation's `env` parameter, and you're done. The details are
-   covered in [Section G - Mutations](http://localhost:3449/#!/fulcro_devguide.G_Mutation).
+   covered in [Section G - Mutations](http://localhost:8080/#!/fulcro_devguide.G_Mutation).
 
   ### Sending and responding to server writes
 
