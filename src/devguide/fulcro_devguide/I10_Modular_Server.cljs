@@ -109,8 +109,8 @@
                       wrap-api                            ; from fulcro-system modules. Handles /api
                       fulcro.server/wrap-transit-params   ; REQUIRED
                       fulcro.server/wrap-transit-response ; REQUIRED
-                      wrap-content-type
-                      wrap-not-modified
+                      wrap-content-type ; REQUIRED
+                      wrap-not-modified ; these are recommended
                       wrap-params
                       wrap-gzip))))
     (stop [this] (dissoc this :full-server-middleware)))
