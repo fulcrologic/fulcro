@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "1.0.0-beta6.1"
+(defproject fulcrologic/fulcro "1.0.0-beta7"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -6,8 +6,6 @@
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
                  [org.clojure/clojurescript "1.9.671" :scope "provided"]
                  [clojure-future-spec "1.9.0-alpha17"]
-                 ; TODO: PR to Bruce for devcards
-                 [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
                  [org.omcljs/om "1.0.0-beta1"]
                  [lein-doo "0.1.7" :scope "test"]
                  [http-kit "2.2.0"]
@@ -130,6 +128,7 @@
   :profiles {:dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
                    :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :dependencies [[binaryage/devtools "0.9.4"]
+                                  [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [figwheel-sidecar "0.5.11"]
                                   [cljsjs/d3 "3.5.7-1"]
