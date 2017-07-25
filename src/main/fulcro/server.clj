@@ -10,6 +10,7 @@
     [om.next.server :as om]
     om.util
     [ring.util.response :as resp]
+    [ring.util.request :as req]
     [taoensso.timbre :as log]
     [fulcro.client.util :as util])
   (:import (clojure.lang ExceptionInfo)
@@ -109,7 +110,7 @@
     ret))
 
 (defn- transit-request? [request]
-  (if-let [type (:content-type request)]
+  (if-let [type (req/content-type request)]
     (let [mtch (re-find #"^application/transit\+(json|msgpack)" type)]
       [(not (empty? mtch)) (keyword (second mtch))])))
 
