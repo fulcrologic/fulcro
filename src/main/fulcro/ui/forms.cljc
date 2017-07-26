@@ -633,6 +633,14 @@
   `form-ident` The ident of the entity's data in app state."
   [app-state form-class form-ident] (init-form* app-state form-class form-ident {}))
 
+#?(:cljs
+   (defmutation initialize-form
+     "Fulcro mutation: Recursively initialize a form. No parameters are required, but must
+     be triggered from the component that roots the form you want to set up."
+     [ignored]
+     (action [{:keys [ref component state]}]
+       (swap! state init-form component ref))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; VALIDATION SUPPORT
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
