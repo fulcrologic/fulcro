@@ -266,8 +266,8 @@
                mock-app {:mounted? false :initial-state explicit-non-empty-map :reconciler-options :OPTIONS}]
            (behavior "When an explicit non-empty map and InitialAppState are present:"
              (when-mocking
-               (log/warn msg) =1x=> (assertions "warns about duplicate initialization"
-                                      msg =fn=> (partial re-matches #"^You supplied.*"))
+               (log/debug msg) =1x=> (assertions "warns about duplicate initialization"
+                                      msg =fn=> (partial re-matches #"^NOTE: You supplied.*"))
                (fc/initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Prefers the *explicit* state"
@@ -278,8 +278,8 @@
                mock-app {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
            (behavior "When an explicit atom and InitialAppState are present:"
              (when-mocking
-               (log/warn msg) =1x=> (assertions "warns about duplicate initialization"
-                                      msg =fn=> (partial re-matches #"^You supplied.*"))
+               (log/debug msg) =1x=> (assertions "warns about duplicate initialization"
+                                      msg =fn=> (partial re-matches #"^NOTE: You supplied.*"))
                (fc/initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Prefers the *explicit* state"
