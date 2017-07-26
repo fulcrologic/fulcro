@@ -1,3 +1,10 @@
+1.0.0-beta7
+-----------
+- Added initialize-form mutation to forms.
+- Fixed deprecated ring content-type handling in server
+- Made devcards dynamically load so it isn't a hard dependency
+
+
 1.0.0-beta6
 -----------
 - Removed the wrap-defaults module and ring-defaults dependency. It is trivial to write, and pulls in deps that can cause downstream problems.
