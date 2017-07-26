@@ -186,6 +186,22 @@
   (for example, a mutation that is changing the UI to display the form can simultaneously initialize the entity to-be-edited
   at the same time.
 
+  IMPORTANT: If you're doing server-side rendering you should not use `build-form` via InitialAppState. The server cannot
+  do that properly. There is a mutation that can be run from a component's React `componentWillMount` to recursively
+  initialize the form support on a specific form with its subforms:
+
+  ```
+  (defui ^:once MyForm
+    ...
+    Object
+    (componentWillMount [this]
+      (when-not (f/is-form? (om/props this))
+        (om/transact! this `[(f/initialize-form {})])))
+    ...
+  ```
+
+  Note that this mutation derives all the info it needs by being run on the top-level entity of the form.
+
   ## A Complete Form Component
 
   If we compose the above form into this UI root:
