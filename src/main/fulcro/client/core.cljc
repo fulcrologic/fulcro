@@ -46,10 +46,10 @@
   If you supply a `:request-transform` it must be a function:
 
   ```
- (fn [edn headers] [edn' headers'])
+ (fn [{:keys [body headers]}] {:body body' :headers headers'})
   ```
 
-  it can replace the outgoing EDN or headers (returning both as a vector). NOTE: Both of these are clojurescript types.
+  it can replace the outgoing EDN of body or headers (returning both as a vector). NOTE: Both of these are clojurescript types.
   The edn will be encoded with transit, and the headers will be converted to a js map. IMPORTANT: Only supported
   when using the default built-in single-remote networking.
 

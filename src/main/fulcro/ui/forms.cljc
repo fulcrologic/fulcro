@@ -848,7 +848,9 @@
     (if form-class
       (update-forms app-state form
         (comp #(validate-fields % opts) :form))
-      (fail! "Unable to validate form. No component associated with form. Did you remember to use build-form?"))))
+      (do
+        (fail! "Unable to validate form. No component associated with form. Did you remember to use build-form?")
+        app-state))))
 
 #?(:cljs (defmutation validate-field
            "Om Mutation: run validation on a specific field.
