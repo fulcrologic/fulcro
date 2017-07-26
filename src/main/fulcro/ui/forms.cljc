@@ -6,7 +6,8 @@
     [om.dom :as dom]
     [om.next :as om]
     [om.util :as util]
-    #?(:clj [clojure.future :refer :all])
+    #?(:clj
+    [clojure.future :refer :all])
     [clojure.tools.reader :as reader]
     [clojure.spec.alpha :as s]
     [fulcro.client.core :as fc]
@@ -536,6 +537,11 @@
    the default field values for the declared input fields.
    This function does **not** recursively build out nested forms, even when declared. See `init-form`."
   [form-class entity-state]
+  #?(:clj
+     (do
+       (log/error "WARN: You cannot server-side pre-generate forms state with build-form. Use client-side component lifecycle to ensure it is initialized.")
+       entity-state)
+     :cljs
   (let [{:keys [elements form]} (get-form-spec* form-class)
         element-keys             (map :input/name elements)
         elements-by-name         (zipmap element-keys elements)
@@ -561,7 +567,7 @@
                                       init-state)
                   :subforms         (or (filterv :input/is-form? elements) [])
                   :validation       validation})
-               (vary-meta merge {:component form-class}))))))
+                  (vary-meta merge {:component form-class})))))))
 
 (declare init-form*)
 
@@ -849,7 +855,7 @@
       (update-forms app-state form
         (comp #(validate-fields % opts) :form))
       (do
-        (fail! "Unable to validate form. No component associated with form. Did you remember to use build-form?")
+        (fail! "Unable to validate form. No component associated with form. Did you remember to use build-form or send the initial state from server-side?")
         app-state))))
 
 #?(:cljs (defmutation validate-field
