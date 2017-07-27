@@ -3,7 +3,7 @@
             [om.next.impl.parser :as op]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]
-            [cards.server-api :as api]
+            [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
             [om.next.impl.parser :as op]))
 
 (def all-users [{:db/id 1 :person/name "A" :kind :friend}
@@ -11,16 +11,17 @@
                 {:db/id 3 :person/name "C" :kind :enemy}
                 {:db/id 4 :person/name "D" :kind :friend}])
 
-(defmethod api/server-read :load-samples.person/by-id [{:keys [ast query-root] :as env} _ p]
-  (let [id     (second (:key ast))
-        person (first (filter #(= id (:db/id %)) all-users))]
-    {:value (assoc person :person/age-ms (System/currentTimeMillis))}))
+(defquery-entity :load-samples.person/by-id
+  (value [{:keys [] :as env} id p]
+    (let [person (first (filter #(= id (:db/id %)) all-users))]
+      (assoc person :person/age-ms (System/currentTimeMillis)))))
 
-(defmethod api/server-read :load-samples/people [env _ {:keys [kind]}]
-  (Thread/sleep 400)
-  (let [result (->> all-users
-                 (filter (fn [p] (= kind (:kind p))))
-                 (mapv (fn [p] (-> p
-                                 (select-keys [:db/id :person/name])
-                                 (assoc :person/age-ms (System/currentTimeMillis))))))]
-    {:value result}))
+(defquery-root :load-samples/people
+  (value [env {:keys [kind]}]
+    (Thread/sleep 400)
+    (let [result (->> all-users
+                   (filter (fn [p] (= kind (:kind p))))
+                   (mapv (fn [p] (-> p
+                                   (select-keys [:db/id :person/name])
+                                   (assoc :person/age-ms (System/currentTimeMillis))))))]
+      result)))

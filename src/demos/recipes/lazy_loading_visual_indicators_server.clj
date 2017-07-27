@@ -3,20 +3,20 @@
             [om.next.impl.parser :as op]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]
-            [cards.server-api :as api]
+            [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
             [om.next.impl.parser :as op]))
 
 
-(defmethod api/server-read :lazy-load/ui [{:keys [ast query] :as env} dispatch-key params]
-  (let [component (second (:key ast))]
+(defquery-entity :lazy-load/ui
+  (value [env id params]
     (Thread/sleep 1000)
-    (case component
-      :panel {:value {:child {:db/id 5 :child/label "Child"}}}
-      :child {:value {:items [{:db/id 1 :item/label "A"} {:db/id 2 :item/label "B"}]}}
+    (case id
+      :panel {:child {:db/id 5 :child/label "Child"}}
+      :child {:items [{:db/id 1 :item/label "A"} {:db/id 2 :item/label "B"}]}
       nil)))
 
-(defmethod api/server-read :lazy-load.items/by-id [{:keys [query-root] :as env} _ params]
-  (let [id (second query-root)]
+(defquery-entity :lazy-load.items/by-id
+  (value [env id params]
     (timbre/info "Item query for " id)
     (Thread/sleep 1000)
-    {:value {:db/id id :item/label (str "Refreshed Label " (rand-int 100))}}))
+    {:db/id id :item/label (str "Refreshed Label " (rand-int 100))}))

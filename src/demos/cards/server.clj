@@ -2,16 +2,17 @@
   (:require [om.next.server :as om]
             [taoensso.timbre :as timbre]
             [om.next.impl.parser :as op]
-            [cards.server-api :as api]
             [recipes.background-loads-server :as bg]
             recipes.error-handling-server
             recipes.lazy-loading-visual-indicators-server
             recipes.load-samples-server
             recipes.mutation-return-value-server
             recipes.paginate-large-lists-server
+            recipes.tabbed-interface-server
             [recipes.server-query-security-server :as server-security]
             [recipes.websockets-server :as wsdemo]
             [fulcro.easy-server :as core]
+            [fulcro.server :refer [server-read server-mutate]]
             [fulcro.websockets.components.channel-server :as cs]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -21,17 +22,20 @@
 ;; here
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; We're using Fulcro's multimethods, but logging access. This allows us to use the
+; server-side query and mutation macros
 (defn logging-mutate [env k params]
   (timbre/info "Mutation Request: " k)
-  (api/server-mutate env k params))
+  (server-mutate env k params))
 
 (defn logging-query [{:keys [ast] :as env} k params]
   (timbre/info "Query: " (op/ast->expr ast))
-  (api/server-read env k params))
+  (server-read env k params))
 
 (defn make-system []
   (core/make-fulcro-server
     :config-path "config/demos.edn"
+    ;; This is fulcro.server/fulcro-parser, but we've added in logging
     :parser (om/parser {:read logging-query :mutate logging-mutate})
     :parser-injections #{:authorization}
     ;; extra routes (for websockets demo)

@@ -2,6 +2,7 @@
   (:require
     devcards.core
     cards.A-Introduction
+    cards.autocomplete-cards
     cards.component-local-state-cards
     cards.background-load-cards
     cards.error-handling-cards

@@ -45,8 +45,9 @@
     (let [{:keys [child/label items] :as props} (om/props this)
           ; NOTE: Demostration of two ways of showing an item is refreshing...
           render-item (fn [idx i] (if (= idx 0)
-                                    (ui-item i) ; use the childs method of showing refresh
-                                    (df/lazily-loaded ui-item i))) ; replace child with a load marker
+                                    (ui-item i)             ; use the childs method of showing refresh
+                                    (dom/span #js {:key (str "ll-" idx)} ; the span is so we have a react key in the list
+                                      (df/lazily-loaded ui-item i)))) ; replace child with a load marker
           render-list (fn [items] (map-indexed render-item items))]
       (dom/div nil
         (dom/p nil "Child Label: " label)
@@ -54,7 +55,7 @@
         (df/lazily-loaded render-list items
           :not-present-render (fn [items] (dom/button #js {:onClick #(df/load-field this :items)} "Load Items")))))))
 
-(def ui-child (om/factory Child))
+(def ui-child (om/factory Child {:keyfn :child/label}))
 
 (defui ^:once Panel
   static fc/InitialAppState
