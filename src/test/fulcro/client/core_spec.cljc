@@ -216,6 +216,13 @@
            "Calls the supplied started-callback when callback is a function"
            @custom-calls => 1)))))
 
+(defui RootNoState Object (render [this]))
+(defui RootWithState
+  static fc/InitialAppState
+  (initial-state [c p] {:a 1})
+  Object
+  (render [this]))
+
 #?(:cljs
    (specification "Mounting a Fulcro Application"
      (let [mounted-mock-app {:mounted? true :initial-state {}}]
@@ -229,53 +236,65 @@
          (fc/mount* mounted-mock-app :fake-root :dom-id)))
      (behavior "When is is not already mounted"
        (behavior "and root does NOT implement InitialAppState"
-         (let [mock-app {:mounted? false :initial-state {:a 1} :reconciler-options :OPTIONS}]
+         (let [supplied-state       {:a 1}
+               app-with-initial-map {:mounted? false :initial-state supplied-state :reconciler-options :OPTIONS}]
            (when-mocking
              (fc/initialize app state root dom opts) => (do
                                                           (assertions
                                                             "Initializes the app with a plain map"
-                                                            state => {:a 1}
-                                                            ))
+                                                            state => supplied-state))
 
-             (fc/mount* mock-app :fake-root :dom-id)))
-         (let [supplied-atom (atom {:a 1})
-               mock-app      {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
+             (fc/mount* app-with-initial-map RootNoState :dom-id)))
+         (let [supplied-atom         (atom {:a 1})
+               app-with-initial-atom {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
            (when-mocking
              (fc/initialize app state root dom opts) => (do
                                                           (assertions
                                                             "Initializes the app with a supplied atom"
-                                                            {:a 1} => @state))
+                                                            (identical? state supplied-atom) => true))
 
-             (fc/mount* mock-app :fake-root :dom-id))))
+             (fc/mount* app-with-initial-atom RootNoState :dom-id))))
        (behavior "and root IMPLEMENTS InitialAppState"
-         (let [mock-app {:mounted? false :reconciler-options :OPTIONS}]
+         (let [mock-app {:mounted? false :initial-state {} :reconciler-options :OPTIONS}]
            (when-mocking
              (fc/initialize app state root dom opts) => (assertions
-                                                          "Initializes the app with the InitialAppState"
-                                                          state => (fc/get-initial-state Parent nil))
+                                                          "Initializes the app with the InitialAppState if the supplied state is empty"
+                                                          state => (fc/get-initial-state RootWithState nil))
 
-             (fc/mount* mock-app Parent :dom-id)))
-         (let [mock-app {:mounted? false :initial-state {:EXPLICIT-STATE 1} :reconciler-options :OPTIONS}]
-           (behavior "When both atom and InitialAppState are present:"
+             (fc/mount* mock-app RootWithState :dom-id)))
+         (let [explicit-non-empty-map {:a 1}
+               mock-app {:mounted? false :initial-state explicit-non-empty-map :reconciler-options :OPTIONS}]
+           (behavior "When an explicit non-empty map and InitialAppState are present:"
              (when-mocking
-               (log/warn msg) =1x=> (assertions "warns about duplicate initialization"
-                                      msg =fn=> (partial re-matches #"^You supplied.*"))
+               (log/debug msg) =1x=> (assertions "warns about duplicate initialization"
+                                      msg =fn=> (partial re-matches #"^NOTE: You supplied.*"))
                (fc/initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Prefers the *explicit* state"
-                                                              state => {:EXPLICIT-STATE 1}))
+                                                              (identical? state explicit-non-empty-map) => true))
 
-               (fc/mount* mock-app Parent :dom-id))))
+               (fc/mount* mock-app RootWithState :dom-id))))
+         (let [supplied-atom (atom {})
+               mock-app {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
+           (behavior "When an explicit atom and InitialAppState are present:"
+             (when-mocking
+               (log/debug msg) =1x=> (assertions "warns about duplicate initialization"
+                                      msg =fn=> (partial re-matches #"^NOTE: You supplied.*"))
+               (fc/initialize app state root dom opts) => (do
+                                                            (assertions
+                                                              "Prefers the *explicit* state"
+                                                              (identical? state supplied-atom) => true))
+
+               (fc/mount* mock-app RootWithState :dom-id))))
          (let [mock-app {:mounted? false :reconciler-options :OPTIONS}]
            (behavior "When only InitialAppState is present:"
              (when-mocking
-               (fulcro.client.core/initial-state root-component nil) => :INITIAL-UI-STATE
                (fc/initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Supplies the raw InitialAppState to internal initialize"
-                                                              state => :INITIAL-UI-STATE))
+                                                              state => (fc/get-initial-state RootWithState nil)))
 
-               (fc/mount* mock-app Parent :dom-id))))))))
+               (fc/mount* mock-app RootWithState :dom-id))))))))
 
 
 (defui ^:once MergeX

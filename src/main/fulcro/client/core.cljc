@@ -273,14 +273,14 @@
       app)
     (let [uses-initial-app-state? (iinitial-app-state? root-component)
           ui-declared-state       (and uses-initial-app-state? (fulcro.client.core/initial-state root-component nil))
-          explicit-state?         (or (util/atom? initial-state) (map? initial-state))
+          explicit-state?         (or (util/atom? initial-state) (and (seq initial-state) (map? initial-state)))
           init-conflict?          (and explicit-state? (iinitial-app-state? root-component))
           state                   (cond
                                     explicit-state? (if initial-state initial-state {})
                                     ui-declared-state ui-declared-state
                                     :otherwise {})]
       (when init-conflict?
-        (log/warn "You supplied an initial state AND a root component with initial state. Using explicit state INSTEAD of InitialAppState!"))
+        (log/debug "NOTE: You supplied an initial state AND a root component with initial state. Using explicit state over InitialAppState!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
 (defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues response-channels reconciler read-local parser mounted? reconciler-options]

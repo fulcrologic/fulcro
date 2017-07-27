@@ -4,28 +4,31 @@
             [om.next.impl.parser :as op]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]
+            [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
             [fulcro.websockets.components.channel-server :as cs]
-            [fulcro.websockets.protocols :refer [WSListener client-dropped client-added add-listener remove-listener push]]
-            [cards.server-api :as api]))
+            [fulcro.websockets.protocols :refer [WSListener client-dropped client-added add-listener remove-listener push]]))
 
 (def db
   (atom {:app/users       []
-         :app/channels    [{:db/id            :db.temp/channel-1
-                            :channel/title    "general"}]
+         :app/channels    [{:db/id         :db.temp/channel-1
+                            :channel/title "general"}]
          :default-channel :db.temp/channel-1}))
 
 (defn- get-from-db [dispatch-key]
   (get @db dispatch-key))
 
-(defmethod api/server-read :app/users [{:keys [ast query] :as env} dispatch-key params]
-  {:value (get-from-db dispatch-key)})
+(defquery-root :app/users
+  (value [env params]
+    (get-from-db :app/users)))
 
-(defmethod api/server-read :app/channels [{:keys [ast query] :as env} dispatch-key params]
-  {:value (get-from-db dispatch-key)})
+(defquery-root :app/channels
+  (value [env params]
+    (get-from-db :app/channels)))
 
-(defmethod api/server-read :default-channel [{:keys [ast query]} dispatch-key params]
-  {:value (let [chan-id (get @db :default-channel)]
-            (some #(when (= chan-id (:db/id %))) (get-in @db :app/channels)))})
+(defquery-root :default-channel
+  (value [env params]
+    (let [chan-id (get @db :default-channel)]
+      (some #(when (= chan-id (:db/id %))) (get-in @db :app/channels)))))
 
 (defn update-channel [id component]
   (fn [chans msg]
@@ -43,7 +46,7 @@
                   (push ws-net id verb edn))
              (disj clients cid)))))
 
-(defmethod api/server-mutate 'message/add [{:keys [cid ws-net] :as env} _ params]
+(defmethod server-mutate 'message/add [{:keys [cid ws-net] :as env} _ params]
   {:action (fn []
              (swap! db update :app/channels (update-channel (get @db :default-channel) :channel/messages) params)
              (notify-others ws-net cid :message/new params)
@@ -71,17 +74,17 @@
                   (conj acc next)))
         [] channels))))
 
-(defmethod api/server-mutate 'user/add [{:keys [cid ws-net] :as env} _ params]
+(defmethod server-mutate 'user/add [{:keys [cid ws-net] :as env} _ params]
   {:action (fn []
              (let [temp-id (:db/id params)
-                   params (assoc params :db/id cid)]
+                   params  (assoc params :db/id cid)]
                (add-user (get @db :default-channel) params)
                (notify-others ws-net cid :user/new params)
                {:tempids {temp-id cid}}))})
 
-(defmethod api/server-mutate 'user/remove [{:keys [cid ws-net] :as env} _ params])
+(defmethod server-mutate 'user/remove [{:keys [cid ws-net] :as env} _ params])
 
-(defmethod api/server-mutate 'app/subscribe [{:keys [ws-net cid] :as env} _ {:keys [topic] :as params}]
+(defmethod server-mutate 'app/subscribe [{:keys [ws-net cid] :as env} _ {:keys [topic] :as params}]
   {:action (fn []
              {})})
 
