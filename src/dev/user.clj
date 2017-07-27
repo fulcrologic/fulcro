@@ -44,21 +44,14 @@
 
 (defonce demo-server (atom nil))
 
-(defn- init
-  "Create a web server from configurations. Use `start` to start it."
-  []
-  (reset! demo-server (svr/make-system)))
-
-(defn- start-demo-server "Start (an already initialized) web server." [] (swap! demo-server component/start))
-
 (defn stop-demo-server "Stop the running web server." []
   (when @demo-server
     (swap! demo-server component/stop)
     (reset! demo-server nil)))
 
 (defn run-demo-server "Load the overall web server system and start it." []
-  (init)
-  (start-demo-server))
+  (reset! demo-server (svr/make-system))
+  (swap! demo-server component/start))
 
 (defn restart-demo-server
   "Stop the web server, refresh all namespace source code from disk, then restart the web server."
