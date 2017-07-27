@@ -229,5 +229,13 @@
 
   See the [Fulcro Template](https://github.com/fulcrologic/fulcro-template/blob/develop/src/main/fulcro_template/server.clj) for a complete example
   that also injects and uses additional components.
+
+  ## Using Other Web Server Technologies
+
+  Since the modular support gives you the ability to grab a function that can serve the API, you can use that to
+  plug into whatever you want. For example, using Pedestal would just require placing your API ring stack into
+  something like their [Ring example](https://github.com/pedestal/pedestal/tree/master/samples/ring-middleware).
+
+  The primary thing to remember is that the transit stuff must happen on the incoming/outgoing data.
   ")
 
