@@ -226,9 +226,9 @@
         parser              (om/parser {:read (partial plumbing/read-local read-local) :mutate plumbing/write-entry-point})
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
                                        :parser parser :mounted? true)
-        rec                 (app/generate-reconciler initial-app initial-state parser reconciler-options)
-        partial-app         (assoc initial-app :reconciler rec)
-        completed-app       (assoc partial-app :networking (start-networking network-map partial-app))
+        app-with-networking (assoc initial-app :networking (start-networking network-map initial-app))
+        rec                 (app/generate-reconciler app-with-networking initial-state parser reconciler-options)
+        completed-app       (assoc app-with-networking :reconciler rec)
         node #?(:cljs (if (string? dom-id-or-node)
                         (gdom/getElement dom-id-or-node)
                         dom-id-or-node)
