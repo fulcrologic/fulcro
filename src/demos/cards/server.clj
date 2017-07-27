@@ -9,6 +9,7 @@
             recipes.mutation-return-value-server
             recipes.paginate-large-lists-server
             recipes.tabbed-interface-server
+            recipes.autocomplete-server
             [recipes.server-query-security-server :as server-security]
             [recipes.websockets-server :as wsdemo]
             [fulcro.easy-server :as core]
