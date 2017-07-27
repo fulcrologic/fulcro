@@ -529,7 +529,6 @@
                       s))
     empty-form-state field-keys-to-initialize))
 
-; TODO: Not clj compatible. Will cause server-side rendering to fail
 (defn build-form
   "Build an empty form based on the given entity state. Returns an entity that is compatible with the original, but
    that has had form support added. If any fields are declared on
@@ -539,7 +538,7 @@
   [form-class entity-state]
   #?(:clj
      (do
-       (log/error "WARN: You cannot server-side pre-generate forms state with build-form. Use client-side component lifecycle to ensure it is initialized.")
+       (log/debug "NOTE: You cannot server-side pre-generate forms state with build-form. Use client-side component lifecycle to ensure it is initialized.")
        entity-state)
      :cljs
   (let [{:keys [elements form]} (get-form-spec* form-class)
@@ -676,7 +675,7 @@
    :input/name                     :on-form-change
    :on-form-change/mutation-symbol mut-sym})
 
-(defn- get-on-form-change-mutation
+(defn get-on-form-change-mutation
   "Get the Om mutation symbol to invoke when the form changes. This is typically used in the implementation
   of form field renderers as part of the transaction to run on change and blur events.
 
