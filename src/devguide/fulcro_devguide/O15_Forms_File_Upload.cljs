@@ -3,10 +3,11 @@
     [om.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [om.next :as om :refer [defui]]
-    [fulcro.client.cards :refer [fulcro-app]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.client.mutations :refer [defmutation]]
+    [fulcro-devguide.N10-Twitter-Bootstrap-CSS :refer [render-example]]
     [goog.events :as events]
     [fulcro.client.network :as net]
     [clojure.string :as str]
@@ -40,8 +41,8 @@
           not-valid? (not (f/would-be-valid? props))]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this props :short-story "Story (PDF):" :accept "application/pdf" :multiple? true)
-        (b/button {:disabled   not-valid?
-                      :onClick #(f/commit-to-entity! this :remote true)} "Submit")))))
+        (b/button {:disabled not-valid?
+                   :onClick  #(f/commit-to-entity! this :remote true)} "Submit")))))
 
 (def ui-example (om/factory FileUploadDemo {:keyfn :db/id}))
 
@@ -54,20 +55,21 @@
   Object
   (render [this]
     (let [{:keys [ui/react-key demo]} (om/props this)]
-      (dom/div #js {:key react-key}
-        (ui-example demo)))))
+      (render-example "100%" "230px"
+        (dom/div #js {:key react-key}
+         (ui-example demo))))))
 
 (defcard-doc
   "# Forms – File Upload
 
-  SEE: upload_server.clj and the devcards in this file for an example.
+  ## Setup
 
   There are a few steps for setting up a working file upload control:
 
   1. Install file upload server support in your server's Ring stack and add logic for dealing with
   forms submissions that contain uploaded files.
   2. Run the server
-  3. Add file-upload networking as an extra remote in Fulcro Client (requires v0.8.1+, and Om alpha48+)
+  3. Add file-upload networking as an extra remote in Fulcro Client (requires v1.0.0+, and Om alpha48+)
   4. Load the page through your server (not figwheel).
 
   This repository includes a script named `run-file-upload-server.sh`. The devcard in this file should be loaded
@@ -195,9 +197,25 @@
   "
   (dc/mkdn-pprint-source FileUploadDemo))
 
-(defcard form-file-upload
-  (fulcro-app CommitRoot
-    :networking {:remote      (net/make-fulcro-network "/api" :global-error-callback identity)
-                 :file-upload (file-upload-networking)})
+(defcard-fulcro form-file-upload
+  "
+  This card is full-stack, and uses a special server. The separate server is not necessary, but
+  it makes it clearer to the reader what is related to file upload. The server-side code is in `upload_server.clj`.
+
+  You can start the server for these demos at a CLJ REPL:
+
+  ```
+  $ lein repl
+  user=> (run-upload-server)
+  ```
+
+  or with the shell script `run-file-upload-server.sh`.
+
+  The server for these examples is on port 8085, so use this page via
+  [http://localhost:8085/guide.html#!/fulcro_devguide.O15_Forms_File_Upload](http://localhost:8085/guide.html#!/fulcro_devguide.O15_Forms_File_Upload).
+  "
+  CommitRoot
   {}
-  {:inspect-data false})
+  {:inspect-data false
+   :fulcro       {:networking {:remote      (net/make-fulcro-network "/api" :global-error-callback identity)
+                               :file-upload (file-upload-networking)}}})

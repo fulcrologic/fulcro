@@ -9,6 +9,7 @@
     [clojure.tools.namespace.repl :as tools-ns :refer [disable-reload! refresh clear set-refresh-dirs]]
     [figwheel-sidecar.system :as fig]
     [com.stuartsierra.component :as component]
+    [fulcro-devguide.upload-server :as upload]
     [fulcro-spec.selectors :as sel]
     [fulcro-spec.suite :as suite]))
 
@@ -58,3 +59,8 @@
   []
   (stop-demo-server)
   (refresh :after 'user/run-demo-server))
+
+(defn run-upload-server
+  "Load and start the server that can handle the file upload form examples."
+  []
+  (upload/go))

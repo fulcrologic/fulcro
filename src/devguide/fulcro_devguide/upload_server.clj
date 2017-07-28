@@ -82,8 +82,6 @@
   (component/using
     (map->ApiHandler {}) deps))
 
-
-
 (defn MIDDLEWARE [handler component]
   ((get component :middleware) handler))
 
@@ -91,8 +89,6 @@
   {:status  404
    :headers {"Content-Type" "text/plain"}
    :body    "Resource not found."})
-
-
 
 (defrecord CustomMiddleware [middleware api-handler upload]
   component/Lifecycle
@@ -142,15 +138,10 @@
 
 (defonce system (atom nil))
 
-(defn- init
-  "Create a web server from configurations. Use `start` to start it."
+(defn go
+  "Load the overall web server system and start it."
   []
-  (reset! system (make-system "config/upload-server.edn")))
-
-(defn- start "Start (an already initialized) web server." [] (swap! system component/start))
-
-(defn go "Load the overall web server system and start it." []
-  (init)
-  (start))
+  (reset! system (make-system "config/upload-server.edn"))
+  (swap! system component/start))
 
 
