@@ -252,6 +252,12 @@
 ;; GENERAL FORM STATE ACCESS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn server-initialized?
+  "Returns true if the state of the form was set up by a server. If this is the case on the client then you must call
+  initialize on the form before interacting with it."
+  [form]
+  (get-in form [form-key :server-initialized?] false))
+
 (defn is-form? [?form] (get ?form form-key))
 
 (defn form-component
@@ -536,18 +542,18 @@
    the default field values for the declared input fields.
    This function does **not** recursively build out nested forms, even when declared. See `init-form`."
   [form-class entity-state]
-  #?(:clj
-     (do
-       (log/debug "NOTE: You cannot server-side pre-generate forms state with build-form. Use client-side component lifecycle to ensure it is initialized.")
-       entity-state)
-     :cljs
+  #?(:clj (log/debug "NOTE: You cannot server-side pre-generate forms state with build-form. Use client-side component lifecycle to ensure it is initialized."))
   (let [{:keys [elements form]} (get-form-spec* form-class)
         element-keys             (map :input/name elements)
         elements-by-name         (zipmap element-keys elements)
         {:keys [state validation]} (default-state elements)
         entity-state-of-interest (select-keys entity-state element-keys)
         init-state               (initialized-state state element-keys entity-state-of-interest)
-        final-state              (merge entity-state init-state)]
+        final-state              (merge entity-state init-state)
+        add-meta                 (fn [f]
+                                   (-> f
+                                     (vary-meta merge {:component form-class})
+                                     #?(:clj (assoc :server-initialized? true))))]
     (-> final-state
       (assoc form-key
              (-> form
@@ -566,12 +572,15 @@
                                       init-state)
                   :subforms         (or (filterv :input/is-form? elements) [])
                   :validation       validation})
-                  (vary-meta merge {:component form-class})))))))
+               add-meta)))))
 
 (declare init-form*)
 
-(defn initialized? "Returns true if the given form is already initialized with form setup data"
-  [form] (map? (get form form-key)))
+(defn initialized?
+  "Returns true if the given form is already initialized with form setup data. Use `server-initialized?` to detect
+  if it was initialized in clj, which means it won't work right on the UI without being re-initialized."
+  [form]
+  (map? (get form form-key)))
 
 (defn init-one
   [state base-form subform-spec visited]
@@ -1006,9 +1015,7 @@
                           `[(select-option ~field-info)
                             ~@(get-on-form-change-mutation form field-name :edit)
                             ~form-root-key])
-                        (if (fn? onChange)
-                          (onChange event)
-                          (log/warn ":onChange is not a function"))))}
+                        (when (and onChange (fn? onChange)) (onChange event))))}
       (when optional?
         (dom/option #js {:value ::none} ""))
       (map (fn [{:keys [option/key option/label]}]
