@@ -1,13 +1,13 @@
 (ns fulcro-devguide.J-Putting-It-Together
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
+  (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [fulcro-devguide.putting-together.soln-ex-1 :as soln1]
             [fulcro-devguide.putting-together.soln-ex-2 :as soln2]
             [fulcro-devguide.putting-together.soln-ex-3 :as soln3]
             [fulcro-devguide.putting-together.soln-ex-4 :as soln4]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
+            [devcards.core :as dc :refer-macros [defcard-doc]]
             [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]))
 
@@ -26,6 +26,8 @@
   - Working with mutations that do optimistic update and remote mutations
 
   ## Setting up
+
+  FIXME: During the reorg this exercise got lost...
 
   First, review the steps for getting the server running in [Building A Server Exercises](#!/fulcro_devguide.I_Building_A_Server_Exercises).
 
@@ -46,9 +48,13 @@
           (dom/p nil "SERVER RESPONDED WITH 66!")
           (dom/p nil "No response from server. You might have a problem. Make sure the API in api.clj is returning {:value 66} for :something, and your browser is hitting the correct server port."))))))
 
-(defcard check-setup
+(defcard-fulcro check-setup
   "This card checks to see if your server is working. Start your server, then reload this page on that server and you should see a SERVER RESPONDED message."
-  (fulcro-app CheckSetupRoot :started-callback (fn [{:keys [reconciler] :as app}] (df/load reconciler :something nil))))
+  CheckSetupRoot
+  {}
+  {:fulcro {:started-callback
+            (fn [{:keys [reconciler] :as app}]
+              (df/load reconciler :something nil))}})
 
 (defcard-doc "
   ## The Project
@@ -101,9 +107,9 @@
   Object
   (render [this] (dom/div nil "TODO")))
 
-(defcard todo-list-application
+(defcard-fulcro todo-list-application
   "This card can be used to show your application. "
-  (fulcro-app TodoList)
+  TodoList
   {}
   {:inspect-data true})
 
@@ -165,7 +171,7 @@
   ")
 
 
-(defcard todo-list-application-solution-post-mutation
+(defcard-fulcro todo-list-application-solution-post-mutation
   "A final solution. The source is in:
 
   - `fulcro-devguide.putting-together.soln-ex-3` (cljs for UI)
@@ -175,17 +181,16 @@
   NOTE: THESE TWO SOLUTIONS SHARE server state but are not connected. Thus, changing one will not reflect in the other.
   You should reload the page between playing with each of them.
   "
-
-  (fulcro-app soln3/TodoList
-    :started-callback
-    (fn [{:keys [reconciler]}]
-      (df/load reconciler :ex4/list soln3/TodoItem {:params        {:list "My List"}
-                                                    :refresh       [:item-list]
-                                                    :post-mutation 'pit-soln/populate-list})))
+  soln3/TodoList
   {}
-  {:inspect-data true})
+  {:fulcro       {:started-callback
+                  (fn [{:keys [reconciler]}]
+                    (df/load reconciler :ex4/list soln3/TodoItem {:params        {:list "My List"}
+                                                                  :refresh       [:item-list]
+                                                                  :post-mutation 'pit-soln/populate-list}))}
+   :inspect-data true})
 
-(defcard todo-list-application-solution-bonus
+(defcard-fulcro todo-list-application-solution-bonus
   "The bonus for the final solution:
 
   You can avoid the post-mutation by loading via ident. Of course you must implement
@@ -206,10 +211,10 @@
   NOTE: THESE TWO SOLUTIONS SHARE server state but are not connected. Thus, changing one will not reflect in the other.
   You should reload the page between playing with each of them.
   "
-  (fulcro-app soln3/TodoList
-    :started-callback
-    (fn [{:keys [reconciler]}]
-      (df/load reconciler [:lists/by-title "My List"] soln3/ItemList)))
+  soln3/TodoList
   {}
-  {:inspect-data true})
+  {:fulcro       {:started-callback
+                  (fn [{:keys [reconciler]}]
+                    (df/load reconciler [:lists/by-title "My List"] soln3/ItemList))}
+   :inspect-data true})
 

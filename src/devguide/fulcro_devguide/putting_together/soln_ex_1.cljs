@@ -1,9 +1,6 @@
 (ns fulcro-devguide.putting-together.soln-ex-1
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]))
 
@@ -18,10 +15,9 @@
   (render [this]
     (let [{:keys [item/id item/label item/done]} (om/props this)]
       (dom/li nil
-              (dom/input #js {:type "checkbox" :checked done})
-              label
-              (dom/button #js {} "X")
-              ))))
+        (dom/input #js {:type "checkbox" :checked done})
+        label
+        (dom/button #js {} "X")))))
 
 (def ui-item (om/factory TodoItem))
 

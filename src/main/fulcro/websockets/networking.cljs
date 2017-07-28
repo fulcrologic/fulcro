@@ -11,6 +11,7 @@
             [fulcro.websockets.transit-packer :as tp]))
 
 (defprotocol ChannelSocket
+  (install-push-handlers [this app] "Install the push handlers. Must be called in started callback, passed the websocket network object, and the completed app" )
   (reconnect [this] "Reconnect the socket"))
 
 (defonce router_ (atom nil))
@@ -39,6 +40,26 @@
 
 (defrecord ChannelClient [ch-recv url init-chan channel-socket send-fn global-error-callback req-params parse-queue completed-app]
   ChannelSocket
+  (install-push-handlers [this app]
+    (defmethod message-received :default [{:keys [ch-recv send-fn state event id ?data]}]
+      (let [command (:command ?data)]
+        (log/debug "Message Routed to default handler " command)))
+
+    (defmethod message-received :api/parse [{:keys [?data]}]
+      (put! parse-queue ?data))
+
+    (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
+      (push-received app ?data))
+
+    (defmethod message-received :chsk/handshake [{:keys [ch-recv send-fn state event id ?data] :as message}]
+      (log/debug "Message Routed to handshake handler " state))
+
+    (defmethod message-received :chsk/state [{:keys [ch-recv send-fn state event id ?data] :as message}]
+      (log/debug "Message Routed to state handler" (keys message))
+      (log/debug "Event" event)
+      (log/debug "State" state)
+      (when (:ever-opened? @state)
+        (put! init-chan true))))
   (reconnect [this]
     (sente/chsk-reconnect! channel-socket))
 
@@ -63,30 +84,12 @@
         (send-fn `[:api/parse ~{:action  :send-message
                                 :command :send-om-request
                                 :content edn}]))))
-  (start [this app]
-    (let [this (assoc this :completed-app app)]
-      (defmethod message-received :default [{:keys [ch-recv send-fn state event id ?data]}]
-        (let [command (:command ?data)]
-          (log/debug "Message Routed to default handler " command)))
-
-      (defmethod message-received :api/parse [{:keys [?data]}]
-        (put! parse-queue ?data))
-
-      (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
-        (let [app (:completed-app this)]
-          (push-received app ?data)))
-
-      (defmethod message-received :chsk/handshake [{:keys [ch-recv send-fn state event id ?data] :as message}]
-        (log/debug "Message Routed to handshake handler " state))
-
-      (defmethod message-received :chsk/state [{:keys [ch-recv send-fn state event id ?data] :as message}]
-        (log/debug "Message Routed to state handler" (keys message))
-        (log/debug "Event" event)
-        (log/debug "State" state)
-        (when (:ever-opened? @state)
-          (put! init-chan true))))
+  (start [this]
+    (log/debug "Remember to install the push handlers.")
     (start-router! ch-recv message-received)
-    ))
+    this))
+
+
 
 (defn make-channel-client
   "Creates a client side networking component for use in place of the default fulcro networking component.
@@ -102,7 +105,7 @@
   - `transit-handlers` (Optional) - Expects a map with `:read` and/or `:write` key containing a map of transit handlers,
   "
   [url & {:keys [global-error-callback host req-params state-callback transit-handlers]}]
-  (let [parse-queue (chan)
+  (let [parse-queue    (chan)
         {:keys [chsk
                 ch-recv
                 send-fn
@@ -121,8 +124,8 @@
                                             :req-params            req-params
                                             :parse-queue           parse-queue})]
     (cond
-      (fn? state-callback)            (add-watch state ::state-callback (fn [a k o n]
-                                                                          (state-callback o n)))
+      (fn? state-callback) (add-watch state ::state-callback (fn [a k o n]
+                                                               (state-callback o n)))
       (instance? Atom state-callback) (add-watch state ::state-callback (fn [a k o n]
                                                                           (@state-callback o n))))
     channel-client))

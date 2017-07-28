@@ -1,10 +1,10 @@
 (ns fulcro-devguide.G-Mutation-Exercises
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
+  (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.mutations :as m]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :include-macros true :refer-macros [defcard defcard-doc dom-node]]
             [cljs.reader :as r]
             [om.next.impl.parser :as p]))
@@ -26,7 +26,7 @@
         (dom/p nil "n: " n)
         (dom/button #js {:onClick #(om/transact! this '[(exercise/g-ex1-inc)])} "Increment")))))
 
-(defcard mutation-exercise-1
+(defcard-fulcro mutation-exercise-1
   "
   ## Exercise 1 - Basic mutation, the thunk
 
@@ -47,7 +47,7 @@
 
     Fix the implementation.
     "
-  (fulcro-app Ex1-Root)
+  Ex1-Root
   {:n 1})
 
 (defui ^:once Ex2-Child
@@ -77,7 +77,7 @@
 (defmethod m/mutate 'exercise/g-ex2-inc [{:keys [state]} k {:keys [id]}]
   )
 
-(defcard mutation-exercise-2
+(defcard-fulcro mutation-exercise-2
   "## Exercise 2 - Mutation parameters
 
   Now move onto the source for Ex2-Root. Notice the transact is now on a child, and uses a
@@ -85,7 +85,7 @@
 
   Be sure to examine the app database content (shown at the bottom of this card and in the source).
   "
-  (fulcro-app Ex2-Root)
+  Ex2-Root
   {:items       [[:child/by-id 1] [:child/by-id 2]]
    :child/by-id {1 {:id 1 :n 3}
                  2 {:id 2 :n 9}}}
@@ -135,7 +135,7 @@
       (dom/div #js {:key react-key}
         (map ui-ex3-list lists)))))
 
-(defcard mutation-exercise-3
+(defcard-fulcro mutation-exercise-3
   "## Exercise 3 - Mutations and rendering
 
   Using the same source and mutation from the prior example, try out this card (it won't work
@@ -163,7 +163,7 @@
   overlap and render some of the same items (and reload the page). Note that all of the
   rendering updates are working perfectly now.
   "
-  (fulcro-app Ex3-Root)
+  Ex3-Root
   {:items       [[:child/by-id 1] [:child/by-id 2]]
    :lists       [[:list/by-id 1] [:list/by-id 2]]
    :list/by-id  {1 {:id 1 :title "Small" :max 10}

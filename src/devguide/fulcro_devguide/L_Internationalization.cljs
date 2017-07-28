@@ -1,10 +1,9 @@
 (ns fulcro-devguide.L-Internationalization
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
-  (:require [devcards.core :as dc :include-macros true :refer-macros [defcard defcard-doc dom-node]]
+  (:require-macros [cljs.test :refer [is]])
+  (:require [devcards.core :as dc :include-macros true :refer-macros [defcard-doc dom-node]]
             [fulcro.i18n :refer-macros [tr trc trf]]
             yahoo.intl-messageformat-with-locales
-            [fulcro.client.cards :refer [fulcro-app]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.core :as fc]
             [cljs.reader :as r]
             [om.next.impl.parser :as p]
@@ -67,10 +66,10 @@
   By default (you have not created any translations) a call to `tr` will simply return the parameter unaltered.
   ")
 
-(defcard sample-translation
+(defcard-fulcro sample-translation
   "This card shows the output of a call to `tr`. Note that this page has translations for the string, so if you
   change the locale this string will change."
-  (fulcro-app Test))
+  Test)
 
 (defcard-doc "
   ## Changing the Locale
@@ -152,9 +151,9 @@
         (ui-format format)))))
 
 
-(defcard formatted-examples
+(defcard-fulcro formatted-examples
   "This card shows the results of some formatted and translated strings"
-  (fulcro-app Root2))
+  Root2)
 
 (defcard-doc
   "

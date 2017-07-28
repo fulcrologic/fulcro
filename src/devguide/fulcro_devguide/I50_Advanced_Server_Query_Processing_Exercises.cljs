@@ -1,11 +1,11 @@
 (ns fulcro-devguide.I50-Advanced-Server-Query-Processing-Exercises
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
+  (:require-macros [cljs.test :refer [is]] )
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]
             [fulcro.client.mutations :as m]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :include-macros true :refer-macros [defcard defcard-doc dom-node]]
             [cljs.reader :as r]
             [om.next.impl.parser :as p]))
@@ -95,7 +95,7 @@
         (dom/button #js {:onClick (fn [evt] (df/load this :something nil))} "Load data")
         (df/lazily-loaded render-something something)))))
 
-(defcard server-exercise-1
+(defcard-fulcro server-exercise-1
   "## Exercise 1 - Modify a Server Query
 
   First, play with this card and notice what happens. A global state marker (`:ui/loading-data`)
@@ -114,6 +114,6 @@ TODO: Make this better...this is so lame.
 
   Now `(reset)` your server and try the UI button again.
   "
-  (fulcro-app Ex1-Root)
+  Ex1-Root
   {:something 22}
   {:inspect-data true})

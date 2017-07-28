@@ -1,10 +1,10 @@
 (ns fulcro-devguide.A-Quick-Tour
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
+  (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.network :as fcn]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
             [fulcro.client.logging :as log]
@@ -15,8 +15,8 @@
 (defui ^:once Counter
   static fc/InitialAppState
   (initial-state [this {:keys [id start]
-                           :or   {id 1 start 1}
-                           :as   params}] {:counter/id id :counter/n start})
+                        :or   {id 1 start 1}
+                        :as   params}] {:counter/id id :counter/n start})
   static om/IQuery
   (query [this] [:counter/id :counter/n])
   static om/Ident
@@ -126,14 +126,13 @@
   (server-parser (assoc env :state server-state) tx))
 
 ; Networking that pretends to talk to server. You'd never write this part
-(defrecord MockNetwork [complete-app]
+(defrecord MockNetwork []
   fcn/FulcroNetwork
   (send [this edn ok err]
     (let [resp (server {} edn)]
       ; simulates a network delay:
       (js/setTimeout #(ok resp) 700)))
-  (start [this app]
-    (assoc this :complete-app app)))
+  (start [this] this))
 
 (defcard-doc
   "# Quick Tour
@@ -477,23 +476,23 @@
   {:watch-atom   true
    :inspect-data true})
 
-(defcard FinalResult
+(defcard-fulcro FinalResult
   "Below is the final result of the above application, complete with faked server interactions (we use
   setTimeout to fake network latency). If you reload this page and jump to the bottom, you'll see the initial
   server loading. (If you see an error related to mounting a DOM node, try reloading the page). You can
   see the mocked server processing take place in a delayed fashion in the Javascript Console of your
   browser.
 
-  NOTE: The map shown at the bottom is our simulated server state. Note how, if you click rapidly on
+  NOTE: The map shown in the card above this one is our simulated server state. Note how, if you click rapidly on
   increment, that the server state lags behind (because of our simulated delay). You can see how the UI
   remains responsive even though the server is lagging."
-  (fulcro-app Root
-    :started-callback (fn [app]
-                        (log/info "Application (re)started")
-                        (df/load app :all-counters Counter {:target [:panels/by-kw :counter :counters]}))
-    :networking (map->MockNetwork {}))
+  Root
   {}
-  {:inspect-data true})
+  {:inspect-data true
+   :fulcro       {:started-callback (fn [app]
+                                      (log/info "Application (re)started")
+                                      (df/load app :all-counters Counter {:target [:panels/by-kw :counter :counters]}))
+                  :networking       (map->MockNetwork {})}})
 
 (defcard-doc
   "### The Grand Total

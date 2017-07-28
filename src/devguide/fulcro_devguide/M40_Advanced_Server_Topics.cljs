@@ -1,13 +1,12 @@
 (ns fulcro-devguide.M40-Advanced-Server-Topics
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
+  (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
+            [devcards.core :as dc :refer-macros [defcard-doc deftest]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [cljs.reader :as r]
             [om.next.impl.parser :as p]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
             [fulcro.client.core :as fc]))
 
@@ -183,13 +182,13 @@
   (render [this]
     (dom/button #js {:onClick #(om/transact! this '[(exercise5/trigger)])} "Click Me")))
 
-(defcard server-trigger
+(defcard-fulcro server-trigger
   "This card will trigger your server mutation.
 
   **IMPORTANT:** You MUST be running the devguide from your server URL (port).
 
   When you click the button below it will trigger an `exercise5/trigger` remote mutation."
-  (fulcro-app Root))
+  Root)
 
 (defcard-doc
   "
@@ -303,20 +302,10 @@
 
   ## Cookies, Headers, and Login oh my!
 
-  TODO: There is a lot of potential work here. This is still an area where we're experimenting with solutions. Below
-  you can read an outline of a technique that doesn't involve having to set cookies via Om server mutations (which isn't
-  even allowed), nor does it require the server to even return cookie headers from the server. This technique can be used to model login
-  that remembers session on page reloads, but does not require the server to send cookie headers:
+  See the fulcro-template for examples of login. See `augment-response` on the server for modifying headers from the
+  server. Use wrap-session to do sessions/cookies.
 
-  - One technique for Cookies/session (that doesn't require handling the cookies in the response):
-      - Add wrap-cookies to Ring middleware (so they get decoded in the request)
-      - For user-driven, do an Om mutation (e.g. `[(user/login {:token (om/tempid) :name n :password p})]` with a tempid. tempid gets remapped to server-side session token
-      - Use follow-on remote read to send query (e.g. `[(user/login ...) (fulcro/load ...)]`), with post-mutation that checks for session token in state and sets it
-        on cookie in browser via cljs. The follow-on remote read is just to sequence the post mutation.
-      - Create a remote-only query that can checks for the session token in the browser cookie, and returns something
-        reasonable as a response (e.g. `[:logged-in?]`). Invoke that query with `load-data` and a post-mutation that
-        will render the logged-in user if the response is good. Use `started-callback` to trigger this to check if the user
-        is logged in at application startup.
+  Most os these techniques are demonstrated in the fulcro-template.
 
   ## Solutions to Exercises
 

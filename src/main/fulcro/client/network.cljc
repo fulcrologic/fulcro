@@ -24,8 +24,8 @@
   (send [this edn done-callback error-callback]
     "Send EDN. Calls either the done or error callback when the send is done. You must call one of those only once.
      Implement ProgressiveTransfer if you want to do progress updates during network transmission.")
-  (start [this complete-app]
-    "Starts the network, passing in the app for any components that may need it."))
+  (start [this]
+    "Starts the network."))
 
 (defprotocol IXhrIOCallbacks
   (response-ok [this xhrio ok-cb] "Called by XhrIo on OK")
@@ -93,8 +93,7 @@
          (.send xhrio url "POST" post-data headers)
          (events/listen xhrio (.-SUCCESS EventType) #(response-ok this xhrio ok))
          (events/listen xhrio (.-ERROR EventType) #(response-error this xhrio error)))))
-  (start [this app]
-    (assoc this :complete-app app)))
+  (start [this] this))
 
 
 (defn make-fulcro-network
@@ -130,7 +129,6 @@
   [complete-app]
   FulcroNetwork
   (send [this edn ok err] (log/info "Ignored (mock) Network request " edn))
-  (start [this app]
-    (assoc this :complete-app app)))
+  (start [this] this))
 
 (defn mock-network [] (map->MockNetwork {}))

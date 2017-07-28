@@ -333,21 +333,21 @@
 (defrecord MockNetwork-Legacy []
   net/FulcroNetwork
   (send [this edn done-callback error-callback])
-  (start [this complete-app] this))
+  (start [this] this))
 
 (defrecord MockNetwork-Parallel []
   net/NetworkBehavior
   (serialize-requests? [this] false)
   net/FulcroNetwork
   (send [this edn done-callback error-callback])
-  (start [this complete-app] this))
+  (start [this] this))
 
 (defrecord MockNetwork-ExplicitSequential []
   net/NetworkBehavior
   (serialize-requests? [this] true)
   net/FulcroNetwork
   (send [this edn done-callback error-callback])
-  (start [this complete-app] this))
+  (start [this] this))
 
 (specification "is-sequential? (detection of network queue behavior)"
   (assertions

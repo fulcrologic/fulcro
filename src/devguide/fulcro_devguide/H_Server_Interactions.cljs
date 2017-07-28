@@ -1,8 +1,8 @@
 (ns fulcro-devguide.H-Server-Interactions
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
+  (:require-macros [cljs.test :refer [is]] )
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
             [fulcro.client.core :as fc]))
@@ -667,10 +667,10 @@
   (dc/mkdn-pprint-source add-to-category)
   (dc/mkdn-pprint-source group-items))
 
-(defcard toolbar-with-items-by-category
+(defcard-fulcro toolbar-with-items-by-category
   "This card allows you to simulate the post-mutation defined above, and see the resulting UI and database change. The
   Reset button will restore the db to the pre-mutation state, so you can A/B compare the before and after picture."
-  (fulcro-app Toolbar)
+  Toolbar
   (om/tree->db component-query sample-server-response true)
   {:inspect-data true})
 

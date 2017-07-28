@@ -298,7 +298,6 @@
 
 (def d3-thing (om/factory D3Thing))
 
-
 (defcard-doc
   "
   ## Component state

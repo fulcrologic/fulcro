@@ -1,8 +1,8 @@
 (ns fulcro-devguide.M30-Advanced-Mutation
-  (:require-macros [fulcro-devguide.tutmacros :refer [fulcro-app]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro-devguide.A-Quick-Tour :as tour]
             [fulcro.client.core :as fc]
             [fulcro.client.logging :as log]
@@ -76,23 +76,22 @@
   ")
 
 (defcard sample-of-tree->db
-         "In this card, we're using the above TopQuery query to convert the data in the displayed map `:from` into
-         `:result`. The specific operation used here is:
+  "In this card, we're using the above TopQuery query to convert the data in the displayed map `:from` into
+  `:result`. The specific operation used here is:
 
-         ```
-         (om/tree->db TopQuery (:from @state) true)
-         ```
-
-         "
-         (fn [state _]
-           (dom/div nil
-             (dom/button #js {:onClick (fn []
-                                         (let [result (om/tree->db TopQuery (:from @state) true)]
-                                           (swap! state assoc :result result)))} "Run tree->db")
-             (dom/button #js {:onClick (fn []
-                                         (swap! state dissoc :result))} "Reset")))
-         {:from {:id :top-1 :subs [{:id :sub-1 :data 1} {:id :sub-2 :data 2}]}}
-         {:inspect-data true})
+  ```
+  (om/tree->db TopQuery (:from @state) true)
+  ```
+  "
+  (fn [state _]
+    (dom/div nil
+      (dom/button #js {:onClick (fn []
+                                  (let [result (om/tree->db TopQuery (:from @state) true)]
+                                    (swap! state assoc :result result)))} "Run tree->db")
+      (dom/button #js {:onClick (fn []
+                                  (swap! state dissoc :result))} "Reset")))
+  {:from {:id :top-1 :subs [{:id :sub-1 :data 1} {:id :sub-2 :data 2}]}}
+  {:inspect-data true})
 
 (defcard-doc
   "
@@ -127,7 +126,7 @@
 
 (defn add-counter [app counter]
   (fc/merge-state! app tour/Counter counter
-                   :append [:panels/by-kw :counter :counters]))
+    :append [:panels/by-kw :counter :counters]))
 
 (defui ^:once Root
   static om/IQuery
@@ -170,14 +169,12 @@
   "
   (dc/mkdn-pprint-source add-counter))
 
-(defcard sample-of-counter-app-with-merge-state
-         "The button in the UI calls `(add-counter app {:counter/id 4 :counter/n 22})`"
-         (dc/dom-node
-           (fn [state-atom node]
-             (reset! merge-sample-app (fc/new-fulcro-client :initial-state state-atom :networking (tour/map->MockNetwork {})))
-             (reset! merge-sample-app (fc/mount @merge-sample-app Root node))))
-         {:panel         [:panels/by-kw :counter]
-          :panels/by-kw  {:counter {:counters []}}
-          :counter/by-id {}}
-         {:inspect-data true})
+(defcard-fulcro sample-of-counter-app-with-merge-state
+  "The button in the UI calls `(add-counter app {:counter/id 4 :counter/n 22})`"
+  Root
+  {:panel         [:panels/by-kw :counter]
+   :panels/by-kw  {:counter {:counters []}}
+   :counter/by-id {}}
+  {:inspect-data true
+   :fulcro       {:networking (tour/map->MockNetwork {})}})
 

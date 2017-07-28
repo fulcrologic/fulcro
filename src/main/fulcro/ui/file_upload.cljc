@@ -276,7 +276,7 @@
   net/FulcroNetwork
   (send [this edn ok-callback error-callback]
     (net/updating-send this edn ok-callback error-callback identity))
-  (start [this complete-app] (reset! app complete-app)))
+  (start [this] this))
 
 (defn file-upload-networking
   "Create an instance of a file upload networking object. You should install one of these as the

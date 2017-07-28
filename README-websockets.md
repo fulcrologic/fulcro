@@ -100,12 +100,13 @@ In your api you may add something like this:
 In the client we need to override the default networking:
 
 ```clojure
+(def cs-net (wn/make-channel-client "/chsk" :global-error-callback (constantly nil)))
+
 (defonce app (atom (fc/new-fulcro-client
-                     :networking (wn/make-channel-client "/chsk" :global-error-callback (constantly nil))
+                     :networking cs-net
                      :initial-state initial-state
-                     :started-callback (fn [{:keys [reconciler]}]
-                                         ;; You may want to put some code here to run on startup.
-                                         ))))
+                     ; IMPORTANT: install the push handlers once started! push-received won't work unless you do this.
+                     :started-callback (fn [app] (wn/install-push-handlers cs-net app)))))
 ```
 
 We override the default network with our own implementation of a network. We hook the client up to use "/chsk" as the route for communicating with the server, and we give a callback for global errors.

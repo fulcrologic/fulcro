@@ -1,15 +1,5 @@
 (ns fulcro-devguide.M50-Server-Side-Rendering
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
-            [devcards.util.edn-renderer :refer [html-edn]]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
-            [cljs.reader :as r]
-            [om.next.impl.parser :as p]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.mutations :as m]
-            [fulcro.client.core :as fc]))
+  (:require [devcards.core :as dc :refer-macros [defcard-doc]]))
 
 (defcard-doc
   "# Server-side Rendering

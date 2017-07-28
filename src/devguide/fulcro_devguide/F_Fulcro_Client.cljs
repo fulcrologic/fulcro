@@ -67,16 +67,16 @@
 
   ## Running Fulcro in a Dev Card
 
-  In devcards, you can embed a full Fulcro application in a card using the macro `fulcro-app` defined in this project
-  in `tutmacros.clj`. This macro creates and mounts the application for you, and accepts the same arguments as
-  `new-fulcro-client`. The only exception is that initial state is passed in from the card itself:
 
   ```clojure
-  (defcard sample
-     (tm/fulcro-app ui/Root)
-     { :some-data 42} ; <-- initial state from the card.
-                      ; Not used if using InitialAppState (next section)
-     { :inspect-data true}) ; <-- devcard options, see app state in the card!
+  (ns boo (:require [fulcro.client.cards :refer [defcard-fulcro]]))
+
+  (defcard-fulcro sample
+     \"Optional markdown\"
+     ui/Root
+     { :some-data 42} ; initial state from the card (If empty, uses InitialAppState which is covered later).
+     { :inspect-data true ; devcard options
+       :fulcro {:started-callback (fn [app] ...) }) ; fulcro client options
   ```
 
   ## Initial Application State

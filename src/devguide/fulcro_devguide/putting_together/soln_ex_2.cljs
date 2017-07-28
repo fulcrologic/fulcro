@@ -1,9 +1,6 @@
 (ns fulcro-devguide.putting-together.soln-ex-2
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]
             [fulcro.client.mutations :as m]))
@@ -13,18 +10,18 @@
 
 (defmethod m/mutate 'pit-soln/delete-item [{:keys [state]} k {:keys [list id]}]
   {:action (fn []
-             (let [current-items (get-in @state [:lists/by-title list :list/items])
+             (let [current-items   (get-in @state [:lists/by-title list :list/items])
                    ident-to-remove [:items/by-id id]
-                   result-items (vec (filter #(not= ident-to-remove %) current-items))]
+                   result-items    (vec (filter #(not= ident-to-remove %) current-items))]
                (swap! state (fn [m]
                               (-> m
-                                  (assoc-in [:lists/by-title list :list/items] result-items)
-                                  (update-in [:items/by-id] dissoc id))))))})
+                                (assoc-in [:lists/by-title list :list/items] result-items)
+                                (update-in [:items/by-id] dissoc id))))))})
 
 (defmethod m/mutate 'pit-soln/add-item [{:keys [state]} k {:keys [id label list]}]
   {:action (fn []
              (let [new-ident [:items/by-id id]
-                   new-item {:item/id id :item/label label :item/done false}]
+                   new-item  {:item/id id :item/label label :item/done false}]
                (swap! state assoc-in [:items/by-id id] new-item)
                (fc/integrate-ident! state new-ident :append [:lists/by-title list :list/items])))})
 
@@ -40,9 +37,9 @@
     (let [{:keys [item/id item/label item/done]} (om/props this)
           delete (om/get-computed this :onDelete)]
       (dom/li nil
-              (dom/input #js {:type "checkbox" :onChange #(om/transact! this `[(pit-soln/toggle-done ~{:id id})]) :checked done})
-              label
-              (dom/button #js {:onClick #(when delete (delete id))} "X")))))
+        (dom/input #js {:type "checkbox" :onChange #(om/transact! this `[(pit-soln/toggle-done ~{:id id})]) :checked done})
+        label
+        (dom/button #js {:onClick #(when delete (delete id))} "X")))))
 
 (def ui-item (om/factory TodoItem))
 

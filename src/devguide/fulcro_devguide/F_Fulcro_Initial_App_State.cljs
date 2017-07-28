@@ -1,10 +1,9 @@
 (ns fulcro-devguide.F-Fulcro-Initial-App-State
-  (:require-macros
-    [fulcro-devguide.tutmacros :refer [fulcro-app]]
-    [cljs.test :refer [is]])
+  (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [fulcro.client.core :as fc]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [cljs.reader :as r]
             [fulcro.client.mutations :as m]))
@@ -87,9 +86,9 @@
   3. Will do a post-initialization step to ensure alternate branches of to-one unions are initialized.
   ")
 
-(defcard sample-app
+(defcard-fulcro sample-app
   "This card shows the app from above, actively rendered. The resulting normalized app database is shown below the UI."
-  (fulcro-app Root)
+  Root
   {}
   {:inspect-data true})
 
@@ -245,11 +244,11 @@
   (dc/mkdn-pprint-source BQueryRoot)
   (dc/mkdn-pprint-source RootQueryRoot))
 
-(defcard root-prop-query-gotcha
+(defcard-fulcro root-prop-query-gotcha
   "The live version of the code showing a root prop query problem. B has no state at all, so it's query isn't processed
   even though we could technically find the data needed. Queries and state are walked together by the query processing,
   so missing state for a component will keep its query from being processed."
-  (fulcro-app RootQueryRoot) {} {:inspect-data true})
+  RootQueryRoot {} {:inspect-data true})
 
 (defcard-doc "
   ## Moving on

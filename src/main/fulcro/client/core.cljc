@@ -207,9 +207,9 @@
 (defn- start-networking
   "Starts all remotes in a map. If a remote's `start` returns something that implements `FulcroNetwork`,
   update the network map with this value. Returns possibly updated `network-map`."
-  [network-map app]
+  [network-map]
   #?(:cljs (into {} (for [[k remote] network-map
-                          :let [started (net/start remote app)
+                          :let [started (net/start remote)
                                 valid   (if (implements? net/FulcroNetwork started) started remote)]]
                       [k valid]))
      :clj  {}))
@@ -226,7 +226,7 @@
         parser              (om/parser {:read (partial plumbing/read-local read-local) :mutate plumbing/write-entry-point})
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
                                        :parser parser :mounted? true)
-        app-with-networking (assoc initial-app :networking (start-networking network-map initial-app))
+        app-with-networking (assoc initial-app :networking (start-networking network-map))
         rec                 (app/generate-reconciler app-with-networking initial-state parser reconciler-options)
         completed-app       (assoc app-with-networking :reconciler rec)
         node #?(:cljs (if (string? dom-id-or-node)
@@ -256,9 +256,9 @@
 
 (defn refresh* [{:keys [reconciler] :as app} root target]
   ; NOTE: from devcards, the mount target node could have changed. So, we re-call Om's add-root
-  (let [old-target (-> reconciler :state deref :target)
-        target     #?(:clj target
-                      :cljs (if (string? target) (gdom/getElement target) target))]
+  (let [old-target     (-> reconciler :state deref :target)
+        target #?(:clj target
+                  :cljs (if (string? target) (gdom/getElement target) target))]
     (when (and old-target (not (identical? old-target target)))
       (log/info "Mounting on newly supplied target.")
       (om/remove-root! reconciler old-target)
