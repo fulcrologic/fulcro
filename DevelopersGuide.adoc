@@ -1,0 +1,634 @@
+Fulcro Developers Guide
+=======================
+:author: Tony Kay
+:revdate: July 28, 2017
+:revnumber: 1.0
+:lang: en
+:encoding: UTF-8
+:doctype: book
+:source-highlighter: coderay
+:source-language: clojure
+:toc:
+:toclevels: 2
+:sectlinks:
+:sectanchors:
+:sectnums:
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+ifdef::env-github[]
+toc::[]
+endif::[]
+
+[dedication]
+To the many friends, co-workers, and developers that helped make Fulcro a possibility.
+
+[preface]
+= Preface
+
+= PLAN: I think I need to turn the devcards things back into a SHORT tutorial. Then make this guide the authoritative reference manual on everything you'd want to know.
+
+Web development has ...
+
+= Why Clojure and Clojurescript?
+
+. *Dramatically simpler language.*
++
+Clojure has very little syntax. At first this seems a liability until you realize the
+amount of boilerplate the eliminates. What's more, because the language is written
+as a data structure it means that metaprogramming (augmenting the compiler to do
+something new) is nearly as easy as writing regular code. This means things like
+domain-specific languages are easy to create for your specialized problems. A typical
+Clojure program is significantly shorter than what you're used to.
++
+. *First-class immutable data structures.*
++
+If you're coming from the non-functional world this seems like a very odd thing at
+first.
++
+. *The code itself is written in a data language, which means you can easily transmit it, store it, transform it, etc.*
+. *Great support for concurrency.*
+. *One language on both the front and back-end that isn't Javascript + Node.*
+
+It is likely that you can dive in and start playing with Fulcro without knowing too
+much about Clojure, but you should check out a book like
+"Clojure for the Brave and True" to at least get through the basics.
+
+= Core Concepts
+
+== Immutable Data Structures
+
+Many of the most interesting and compelling features of Fulcro are directly or
+indirectly enabled (or made simple) by the use of persistent data structures
+that are a first-class citizen of the language.
+
+In imperative programming languages like Java and Javascript you have no idea what
+a function or method might do to your program state:
+
+[source,java]
+-----
+Person p = new Person();
+
+doSomethingOnAnotherThread(p);
+
+p.fumble();
+
+// did p just change??? Did I just cause a race condition???
+-----
+
+This leads to all sorts of subtle bugs and is arguable the source of many problems
+in software today. What if you had to do this instead if you wanted to modify person:
+
+
+[source,java]
+-----
+Person p = new Person();
+
+doSomethingOnAnotherThread(p);
+
+Person q = p.fumble();
+
+// p is definitely unchanged, but q could be different
+-----
+
+Now I can reason about what will happen. The other thread will see `p` exactly as
+it was when I (locally) reasoned about it. Furthermore, `q` cannot be affected
+because if `p` is truly "read-only" then I still know what it is when I use it to
+derive `q` (the other thread can't modify it either).
+
+In order to derive these benefits, you need to either write objects that enforce
+this behavior (which is highly inconvenient and hard to make efficient
+in imperative langauges), or use a programming language that supplies the ability
+to do so as a first-class feature.
+
+Another benefit is that persistent data structures can do *structural sharing*. Basically
+the new version of a map, vector, list, or set can use references to point to any
+parts of the old version that are still the same in the new version. This means,
+for example, that adding an element to a list that had 1,000,000 entries
+(where only one is being changed) is still a constant time operation!
+
+Here are some of the features in Fulcro that result from using persistent data structures:
+
+. A Time-travel UI history viewer that consumes little space.
+. Extremely efficient detection of data changes that affect the UI (can be ref compare instead of data compare)
+. Really effective "Pure Rendering"
+
+== Pure Rendering
+
+Fulcro uses Facebook's React to accomplish updates to the browser DOM. React, in
+concept, is really simple:
+
+Render is a function you make that generates a data structure known as the
+VDOM (a lightweight virtual DOM)
+
+. On The first "frame", the real DOM is made to match this data structure.
+. On every subsequent frame, render is used to make a new VDOM. React
+compares the prior VDOM (which is cached) to the new one, and then applies the
+changes to the DOM.
+
+The cool realization the creators of React had was that the DOM operations
+that are slow and heavy, but there are efficient ways to figure out what
+needs to be changed via the VDOM without you having to write a bunch of
+controller logic.
+
+Now, because React lives in a mutable space (Javascript), it allows all sorts of things
+that can embed "rendering logic" within a component. This sounds like a good
+idea to our OOP brains, but consider this:
+
+What if you could have a complete snapshot of the state of your application, pass
+that to a function, and have the screen just "look right". Like writing a 2D game: you
+just redraw the screen based on the new "state of the world". All of the sudden your
+mind shifts away from "bit twiddling" to thinking more about the representation
+of your model with minimal data!
+
+That is what we mean by "pure rendering".
+
+[ditaa, target=rendering]
+....
+
+   /-------\   /-------\   /-------\   /-------\
+   | state |-->| state |-->| state |-->| state |
+   \-------/   \-------/   \-------/   \-------/
+       |           |           |           |
+       |render     |render     |render     |render
+       |           |(diff)     |(diff)     |(diff)
+       v           v           v           v
+   /-------\   /-------\   /-------\   /-------\
+   |  DOM  |   |  DOM  |   |  DOM  |   |  DOM  |
+   \-------/   \-------/   \-------/   \-------/
+....
+
+
+Here's an example to whet your appetite: Nested check-boxes. I used to *hate* these
+things. Each checkbox has it's own state, and when we want a "check all"
+(which itself is usually a stateful checkbox component) we end up
+writing nightmares of logic to make sure the thing works right because we're
+having to *store a mutable value* into an object that then does the rendering.
+Then we play with it and turns into this kind of thing: Oh crap, I
+forgot to handle that event on every sub-box so that when I uncheck one it
+fires an event to unchecks the "select all"...oh wait, but when I do that
+it accidentally fires the event from "check all" which unchecks everything
+and then goes into an infinite loop!
+
+What a mess! Maybe you eventually figure out something that's tractable, but
+that extra bit of state in the "check all" is definitely the source of bugs.
+
+Here's what you do in pure rendering with immutable data:
+
+Each sub-item checkbox is a simple data structure with a `:checked?` key that has a boolean
+value.
+
+```
+(def state {:items [{:id :a :checked? true} {:id :b :checked? false} ...]})
+```
+
+For a "state of the world", these are read-only. (you have to make a "new
+state of the world" to change one). When you render, the state of the
+check-all is just the conjunction of it's children's `:checked?`:
+
+[source,clojure]
+----
+(let [all-checked (every? :checked? (get state :items)]
+   (dom/input #js {:checked all-checked}))
+----
+
+The check-all button would have *no application state at all*.
+When the sub-items change, a new "state of the world"
+is generated with the altered item:
+
+```
+(def next-state (assoc-in state [:items 0 :checked?] false))
+```
+
+and the *entire* UI is re-rendered (React makes this fast
+using the VDOM diff), the "check all" checkbox will just be
+right!
+
+If the "check all" button is pressed, then the logic is similarly very simple:
+
+```
+(def next-state-2
+  (let [all-checked? (every? :checked? (get state :items))
+        c            (not all-checked?)
+        old-items    (get state :items)
+        new-items    (mapv #(assoc % :checked? c) old-items)]
+    (assoc state :items new-items)))
+```
+
+and again you get to pretend you're rendering an entire new frame on the screen!
+
+Not only will you continually be surprised at how simple your logic gets in the UI,
+you'll also derive these benefits:
+
+. Use devcards to make "snapshots" of the various ways your UI should look just by
+passing a simple data structure to your component's render. This leads to easy
+visual regression testing, and is a dream for CSS tweaking!
+. TODO
+. TODO
+
+== Data-Driven
+
+Data-driven concepts were pioneered in web development by Facebook's GraphQL and
+Netflix's Falcor. The idea is quite powerful, and eliminates huge amounts of
+complexity is your network communication and application development.
+
+The basic idea is this: Your UI, which might have various versions (mobile, web, tablet)
+all have different but related data needs. The prevalent way of talking to our
+servers is to use REST, but REST itself isn't a very good query or update
+language. It creates a lot of complexity that we have to deal with in order
+to do the simplest things. In the small, it is "easy". In the large, it isn't
+the best fit.
+
+Data-driven applications basically use a more detailed protocol that allows the
+client UIs to specify what they need, and also typically includes a "mutation
+on the wire" notation that allows the client to abstractly say what it
+needs the server to do.
+
+So, instead of `/person/3` you can instead say "I need person 3, but only their
+name, age, and billing info. But in the billing info, I only need to know their
+billing zip code".
+
+Notice that this abstract expression (which of course has a syntax we're
+not showing you yet) is "walking a graph". This is why Facebook calls their language
+"GraphQL".
+
+You can imagine that the person and billing info might be stored in two tables
+of a database, with a to-one relationship, and our query is basically asking
+to query this little sub-graph:
+
+[ditaa,graph-query-abstract]
+....
+[person: age? name?]--->[billing info: zip?]
+....
+
+Modifications are done in a similar, abstract way. We model them as if
+they were "function calls on the wire". Like RPC/RMI:
+
+```
+'(change-person {:id 3 :age 44})
+```
+
+but instead of actually *calling* the function, we encode this list as
+a data structure (the power of Clojure!) and then process that
+data locally (in the back-end of the UI) and optionally also
+transmit it *as data* over the wire!
+
+
+
+= Component Rendering
+
+== Plain Functions as Helpers
+
+Talk about how you don't need a component in order to split out rendering tasks.
+State clearly what a component is for (props), vs. the utility of helper
+functions that just generate some VDOM.
+
+== Render and Props
+
+== Callbacks
+
+== Derived Values
+
+. things like the "check all" state, possibly ordering
+
+== Computed Props
+
+== Controlled Inputs
+
+== Lifecycle Methods
+
+. Focusing an input
+. Taking control of the sub-DOM (D3, etc)
+. Dynamically rendering into a canvas
+
+== Using React Refs
+
+NOTE: Remember to talk about what you can and cannot do.
+
+== Component Local State
+
+
+
+
+= Client Application State
+
+== The Root
+
+== Tables and Idents
+
+
+
+= The Query and Mutation Language
+
+== Properties
+
+== Joins
+
+== Unions
+
+== Parameters
+
+== Queries on Idents
+
+== Link Queries
+
+== Mutations
+
+== The AST
+
+=== Morphing Mutations: Adding Parameters
+
+
+
+= Walking the Graph
+
+NOTE: Build up a root-level query, add joins, show the walking. Show how unions affect
+the returned data.
+
+== Queries on Components
+
+== Composition Rules
+
+== Normalization via UI Queries
+
+= Composing Data-Driven Components in the UI
+
+= Initial Application State
+
+== Nested Data Mirrors Nested Query
+
+== Alternate Branches of Unions
+
+
+
+= Handling Mutations
+
+== Transactional Behavior
+
+== Recommendations
+
+. Write the logic as functions that operate on
+specific entities in your application.
+. Write your mutations as simple swaps that call (1)
+
+== Mutation Composition
+
+Write your mutations in terms of implementation
+functions that reason about specific entities. Each
+entity has an ident, so you can compose any new
+mutation out of such functions with this pattern:
+
+```
+; do something to the state that represents just a thing
+(defn thing-mutation-impl [thing] ...)
+
+; in a mutation
+(swap! state (fn [s]
+  (-> s
+      ; use ident with update-in to apply changes
+      (update-in thing-ident thing-mutation-impl)
+      (update-in thing-ident-2 thing-mutation-impl)
+      (update-in thing-ident-3 thing-mutation-impl)
+      ...)))
+```
+
+== Quoting and Unquoting
+
+== Parameters
+
+== Using `integrate-ident!`
+
+== Using `merge-state!`
+
+== Remote Mutations
+
+=== Altering the Mutation
+
+WARNING: You cannot rely on the values in state when
+computing anything for the remote. The state was
+already changed by the optimistic update (mutation
+handling is a multi-pass mechanism). If you need to
+rely on data as it existed at the time of
+`transact!` then you *must* pass it as a parameter to the
+mutation.
+
+== Mutations that Trigger one or more Loads
+
+
+
+= Server Construction
+
+== Easy Server
+
+=== Injecting Components
+
+=== Augmenting the Ring Stack
+
+=== Adding Extra Routes
+
+== Modular Server
+
+Just use new devguide chapter
+
+
+
+= Full-Stack Operations
+
+== Theory of Operation
+
+. Think in graphs
+. Use the UI queries to get what you need
+. Startup, and on event
+. Targeting Root
+. Targeting A Component
+. Avoiding name collisions on Root
+. `:ui/*` are omitted automatically
+. Writes sent before reads
+. Merge "stomping" is intelligent
+
+WARNING: React lifecycle and Load
+
+=== Merge, Normalization, and the Query
+
+=== Incremental Loading
+
+. Using Without
+. Loading a field
+
+== Processing Remote Queries
+
+=== Using `defquery-root` and `defquery-entity`
+
+=== Datomic Tips
+
+=== SQL Tips
+
+== Remote Mutations
+
+=== Using `defmutation`
+
+=== Creating Things: Tempid Remapping
+
+=== Returning a Value
+
+
+
+
+
+= Advanced Om-based Parsing
+
+For use in UI or on server.
+
+== Top-level parsing
+
+== Recursion
+
+== Using the AST Directly
+
+== Using Advanced Parsing on the Client
+
+
+= UI Routing
+
+== defrouter
+
+== Integrating with Bidi and Pushy
+
+== Other Uses for UI Routing
+
+. Example of side-by-side hetero list/detail
+
+
+
+
+= Bootstrap Helpers
+
+== CSS and Icons
+
+== Components
+
+
+
+
+= Forms
+
+== Basics
+
+=== Declaration
+
+=== Rendering
+
+== Validation
+
+=== Field Validation
+
+=== Whole Form Validation
+
+== Simple Submission
+
+== Custom Submission
+
+== File Uploads
+
+== Custom Form Elements
+
+
+
+= Server-side Rendering
+
+== Generating Initial State
+
+=== Alternate Union Branches
+
+=== Forms
+
+== Updating State for a Given Route
+
+
+= Websockets
+
+== Client-side Setup
+
+== Server-side Setup
+
+== Server Push
+
+
+= Customizing the Networking
+
+== Optional Sequential Operation
+
+== Implementing Send
+
+=== Merging State
+
+=== Error Handling
+
+== Supporting Progress Updates
+
+== Interfacing with REST Servers
+
+
+= Internationalization
+
+== Basic Strings
+
+== Formatted Strings
+
+== Strings in Variables
+
+== Extracting Strings
+
+== Generating Translations
+
+== Modular Locale Loading
+
+== Polyfills
+
+
+
+= Devcards
+
+== Developing Component UI
+
+== Developing Active Screens
+
+
+
+= Support Viewer
+
+== Submitting Support Requests
+
+== Supplying State to the Support Viewer
+
+
+
+= Testing
+
+== Specifications
+
+== Assertions
+
+== Exceptions
+
+== Functional Assertions
+
+== Mocking
+
+=== Specifying Call Count
+
+=== Checking Order
+
+=== Verifying Parameters
+
+=== Limitations
+
+. Can't mock inline, protocols, or macros
+. You're always creating "partial mocks"
+
