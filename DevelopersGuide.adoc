@@ -227,14 +227,8 @@ all to unchecked if they were all checked:
 
 and again you get to pretend you're rendering an entire new frame on the screen!
 
-Not only will you continually be surprised at how simple your logic gets in the UI,
-you'll also derive these benefits:
-
-. Use devcards to make "snapshots" of the various ways your UI should look just by
-passing a simple data structure to your component's render. This leads to easy
-visual regression testing, and is a dream for CSS tweaking!
-. TODO
-. TODO
+You'll be continually surprised at how simple your logic gets in the UI once you
+adjust to this way of thinking about the problem.
 
 == Data-Driven
 
@@ -366,11 +360,33 @@ you should adopt conventions to namespace things in the root node.
 
 = Component Rendering
 
-== Plain Functions as Helpers
+The core of DOM rendering is taken care of by simple factory functions that
+generate the core VDOM elements. These stand-ins are ultimately what React
+uses to generate, diff, and update the real DOM.
 
-Talk about how you don't need a component in order to split out rendering tasks.
-State clearly what a component is for (props), vs. the utility of helper
-functions that just generate some VDOM.
+So, there are functions for every possible HTML5 element. These are in the
+`om.dom` namespace, and take a Javascript map for attributes (this gives
+optimal performance, since React wants to consume Javascript data):
+
+```
+(dom/div #js { :className "some-class" }
+  (dom/ul nil
+    (dom/li ...)))
+```
+
+Remember that this (nested) call of functions results in a representation of
+what you'd like to end up on the screen.
+
+The next level of abstraction you can use to render things is simply a function.
+Combining more complex bits of UI into a function is a great way to group
+re-usable nested DOM:
+
+```
+(defn my-header []
+  (dom/div #js { :className "some-class" }
+    (dom/ul nil
+      (dom/li ...))))
+```
 
 == Render and Props
 
