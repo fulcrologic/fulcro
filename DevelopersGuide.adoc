@@ -41,13 +41,13 @@ Web development has ...
 . *Dramatically simpler language.*
 +
 Clojure has very little syntax. At first this seems a liability until you realize the
-amount of boilerplate the eliminates. What's more, because the language is written
+amount of boilerplate it eliminates. What's more, because the language is written
 as a data structure it means that metaprogramming (augmenting the compiler to do
 something new) is nearly as easy as writing regular code. This means things like
 domain-specific languages are easy to create for your specialized problems. A typical
-Clojure program is significantly shorter than what you're used to.
+Clojure program is significantly shorter than what you're used to in Java or Javascript.
 +
-. *First-class immutable data structures.*
+. *First-class immutable (persistent) data structures.*
 +
 If you're coming from the non-functional world this seems like a very odd thing at
 first.
@@ -83,8 +83,8 @@ p.fumble();
 -----
 
 This leads to all sorts of subtle bugs and is arguable the source of many problems
-in software today. What if you had to do this instead if you wanted to modify person:
-
+in software today. What if `Person` couldn't change and you instead had to copy
+instead if you wanted to modify?
 
 [source,java]
 -----
@@ -97,8 +97,8 @@ Person q = p.fumble();
 // p is definitely unchanged, but q could be different
 -----
 
-Now I can reason about what will happen. The other thread will see `p` exactly as
-it was when I (locally) reasoned about it. Furthermore, `q` cannot be affected
+Now you can reason about what will happen. The other thread will see `p` exactly as
+it was when you (locally) reasoned about it. Furthermore, `q` cannot be affected
 because if `p` is truly "read-only" then I still know what it is when I use it to
 derive `q` (the other thread can't modify it either).
 
@@ -110,7 +110,7 @@ to do so as a first-class feature.
 Another benefit is that persistent data structures can do *structural sharing*. Basically
 the new version of a map, vector, list, or set can use references to point to any
 parts of the old version that are still the same in the new version. This means,
-for example, that adding an element to a list that had 1,000,000 entries
+for example, that adding an element to the head of a list that had 1,000,000 entries
 (where only one is being changed) is still a constant time operation!
 
 Here are some of the features in Fulcro that result from using persistent data structures:
@@ -165,14 +165,13 @@ That is what we mean by "pure rendering".
 ....
 
 
-Here's an example to whet your appetite: Nested check-boxes. I used to *hate* these
-things. Each checkbox has it's own state, and when we want a "check all"
-(which itself is usually a stateful checkbox component) we end up
-writing nightmares of logic to make sure the thing works right because we're
+Here's an example to whet your appetite: Nested check-boxes.
+In imperative programming each checkbox has it's own state, and when we want a "check all"
+we end up writing nightmares of logic to make sure the thing works right because we're
 having to *store a mutable value* into an object that then does the rendering.
-Then we play with it and turns into this kind of thing: Oh crap, I
-forgot to handle that event on every sub-box so that when I uncheck one it
-fires an event to unchecks the "select all"...oh wait, but when I do that
+Then we play with it and find out we
+forgot to handle that event where some sub-box gets unchecked to
+fire an event to ensure to uncheck the "select all"...oh wait, but when I do that
 it accidentally fires the event from "check all" which unchecks everything
 and then goes into an infinite loop!
 
@@ -182,7 +181,9 @@ that extra bit of state in the "check all" is definitely the source of bugs.
 Here's what you do in pure rendering with immutable data:
 
 Each sub-item checkbox is a simple data structure with a `:checked?` key that has a boolean
-value.
+value. You use that to directly tell the checkbox what it's state should be
+(and React enforces that...making it impossible for the UI to draw it any
+differently)
 
 ```
 (def state {:items [{:id :a :checked? true} {:id :b :checked? false} ...]})
@@ -198,7 +199,8 @@ check-all is just the conjunction of it's children's `:checked?`:
    (dom/input #js {:checked all-checked}))
 ----
 
-The check-all button would have *no application state at all*.
+The check-all button would have *no application state at all*, and React will
+force it to the correct state based on the calculated value.
 When the sub-items change, a new "state of the world"
 is generated with the altered item:
 
@@ -211,6 +213,8 @@ using the VDOM diff), the "check all" checkbox will just be
 right!
 
 If the "check all" button is pressed, then the logic is similarly very simple:
+change the state for the subitems to checked if any were unchecked, or set them
+all to unchecked if they were all checked:
 
 ```
 (def next-state-2
@@ -240,7 +244,7 @@ complexity is your network communication and application development.
 
 The basic idea is this: Your UI, which might have various versions (mobile, web, tablet)
 all have different but related data needs. The prevalent way of talking to our
-servers is to use REST, but REST itself isn't a very good query or update
+servers is to use REST, but REST itself isn't a very good query 'or' update
 language. It creates a lot of complexity that we have to deal with in order
 to do the simplest things. In the small, it is "easy". In the large, it isn't
 the best fit.
@@ -274,11 +278,90 @@ they were "function calls on the wire". Like RPC/RMI:
 '(change-person {:id 3 :age 44})
 ```
 
-but instead of actually *calling* the function, we encode this list as
-a data structure (the power of Clojure!) and then process that
+but instead of actually 'calling' the function, we encode this list as
+a data structure (it is a list containing a symbol and a map: the power of Clojure!) and then process that
 data locally (in the back-end of the UI) and optionally also
-transmit it *as data* over the wire!
+transmit it 'as data' over the wire for server processing!
 
+== Graph Database
+
+The client-side of Fulcro keeps all relevant data in a simple graph database, which
+is referenced by a single top-level atom. The database itself is a persistent map.
+
+The database should be thought of as a root-level node (the top-level map itsef),
+and tables that can hold data relevant to any
+particular component or entity in your program (component or entity nodes).
+
+The tables are also simple maps, with a naming convention and well-defined structure.
+The name of the table is typically namespaced with the "kind" of thing you're storing,
+and has a name that indicates the way it is indexed:
+
+```
+{ :person/by-id { 4    { :id 4 :person/name "Joe" }}}
+;   ^      ^      ^    ^
+; kind   indexed  id   entity value itself
+```
+
+Items are joined together into a graph using a tuple of the table name and the key of
+an entity. For example, the item above is known as `[:person/by-id 4]`. Notice that this
+tuple
+is also exactly the vector you'd need it an operation that would pull data from that
+entity or modify it:
+
+```
+(update-in state-db [:person/by-id 4] assoc :person/age 33)
+(get-in state-db [:person/by-id 4])
+```
+
+These tuples are known as 'idents'. Idents can be used anywhere one node
+in the graph needs to point to another. If the idents (which are vectors)
+'appear' in a vector, then you are creating a 'to-many' relation:
+
+[source,clojure]
+------
+{ :person/by-id
+    {  1  {:id 1 :person/name "Joe"
+           :person/spouse [:person/by-id 4]                           <1>
+           :person/children [ [:person/by-id 2] [:person/by-id 3] ] } <2>
+       2  { :id 2 :person/name "Julie" }
+       3  { :id 3 :person/name "Billy" }
+       4  { :id 4 :person/name "Heather"
+            :person/spouse [:person/by-id 1]}}                        <3>
+------
+
+<1> A to-one relation to Joe's spouse (Heather)
+<2> A to-many relation to Joe's kids
+<3> A to-relation back to Joe from Heather
+
+Notice in the example above that Joe and Heather point at each other. This creates
+a 'loop' in the graph. This is perfectly legal. Graphs can contain loops. The
+table in the example contains 4 nodes.
+
+The client database treats the 'root' node as a special set of non-table properties
+in the top of the database map. Thus, an entire state database with 'root node'
+properties might look like this:
+
+[source,clojure]
+------
+{ :people [ [:person/by-id 1] [:person/by-id 2]                       <1>
+            [:person/by-id 3] [:person/by-id 4] ]
+  :person/by-id                                                       <2>
+    {  1  {:id 1 :person/name "Joe"
+           :person/spouse [:person/by-id 4]
+           :person/children [ [:person/by-id 2] [:person/by-id 3] ] }
+       2  { :id 2 :person/name "Julie" }
+       3  { :id 3 :person/name "Billy" }
+       4  { :id 4 :person/name "Heather"
+            :person/spouse [:person/by-id 1]}}
+------
+
+<1> A root property called `:people` that points to all of the people nodes
+<2> The people table that contains the people nodes.
+
+IMPORTANT: Since the root node and the tables containing other nodes are merged
+together into the same overall map it is generally important that you use
+care when storing things so as not to accidentally collide on a name. Larger programs
+you should adopt conventions to namespace things in the root node.
 
 
 = Component Rendering
@@ -551,6 +634,7 @@ For use in UI or on server.
 == Updating State for a Given Route
 
 
+
 = Websockets
 
 == Client-side Setup
@@ -558,6 +642,7 @@ For use in UI or on server.
 == Server-side Setup
 
 == Server Push
+
 
 
 = Customizing the Networking
