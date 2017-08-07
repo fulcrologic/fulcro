@@ -83,7 +83,7 @@
 (defn remove-loads-and-fallbacks
   "Removes all fulcro/load and tx/fallback mutations from the query"
   [query]
-  (let [symbols-to-filter #{'fulcro/load 'tx/fallback `fulcro.client.data-fetch/fallback}
+  (let [symbols-to-filter #{'fulcro/load `fulcro.client.data-fetch/load 'tx/fallback `fulcro.client.data-fetch/fallback}
         ast               (om/query->ast query)
         children          (:children ast)
         new-children      (filter (fn [child] (not (contains? symbols-to-filter (:dispatch-key child)))) children)

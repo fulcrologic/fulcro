@@ -1,4 +1,4 @@
-Fulcro Developers Guide
+Fulcro Reference Guide
 =======================
 :author: Tony Kay
 :revdate: July 28, 2017
@@ -26,39 +26,16 @@ ifdef::env-github[]
 toc::[]
 endif::[]
 
-[dedication]
-To the many friends, co-workers, and developers that helped make Fulcro a possibility.
+= About This Book
 
-[preface]
-= Preface
+This book is meant to serve as a guide for Fulcro developers that have already gone
+through the Developer's Guide tutorial and understand the core principles of
+Fulcro. This book is organized by topic, and is not in order or importance. It
+gives a greater level of detail on each topic and assumes you have at least
+a passing knowledge of all of the core concepts and topics.
 
-= PLAN: I think I need to turn the devcards things back into a SHORT tutorial. Then make this guide the authoritative reference manual on everything you'd want to know.
-
-Web development has ...
-
-= Why Clojure and Clojurescript?
-
-. *Dramatically simpler language.*
-+
-Clojure has very little syntax. At first this seems a liability until you realize the
-amount of boilerplate it eliminates. What's more, because the language is written
-as a data structure it means that metaprogramming (augmenting the compiler to do
-something new) is nearly as easy as writing regular code. This means things like
-domain-specific languages are easy to create for your specialized problems. A typical
-Clojure program is significantly shorter than what you're used to in Java or Javascript.
-+
-. *First-class immutable (persistent) data structures.*
-+
-If you're coming from the non-functional world this seems like a very odd thing at
-first.
-+
-. *The code itself is written in a data language, which means you can easily transmit it, store it, transform it, etc.*
-. *Great support for concurrency.*
-. *One language on both the front and back-end that isn't Javascript + Node.*
-
-It is likely that you can dive in and start playing with Fulcro without knowing too
-much about Clojure, but you should check out a book like
-"Clojure for the Brave and True" to at least get through the basics.
+The first chapter does go over the core concepts to aid the reader in
+additional clarifications about the model and design critical to Fulcro.
 
 = Core Concepts
 
@@ -286,6 +263,19 @@ The database should be thought of as a root-level node (the top-level map itsef)
 and tables that can hold data relevant to any
 particular component or entity in your program (component or entity nodes).
 
+[ditaa,target=dbmodel]
+....
++-------------------+
+| prop     42       |
+|                   |
+| table  { ID val   |
+|          ... }    |
+| table  { ID val   |
+|          ... }    |
+|                   |
++-------------------+
+....
+
 The tables are also simple maps, with a naming convention and well-defined structure.
 The name of the table is typically namespaced with the "kind" of thing you're storing,
 and has a name that indicates the way it is indexed:
@@ -296,10 +286,11 @@ and has a name that indicates the way it is indexed:
 ; kind   indexed  id   entity value itself
 ```
 
+=== Idents
+
 Items are joined together into a graph using a tuple of the table name and the key of
 an entity. For example, the item above is known as `[:person/by-id 4]`. Notice that this
-tuple
-is also exactly the vector you'd need it an operation that would pull data from that
+tuple is also exactly the vector you'd need it an operation that would pull data from that
 entity or modify it:
 
 ```
@@ -331,6 +322,8 @@ Notice in the example above that Joe and Heather point at each other. This creat
 a 'loop' in the graph. This is perfectly legal. Graphs can contain loops. The
 table in the example contains 4 nodes.
 
+=== A Complete Database
+
 The client database treats the 'root' node as a special set of non-table properties
 in the top of the database map. Thus, an entire state database with 'root node'
 properties might look like this:
@@ -352,10 +345,91 @@ properties might look like this:
 <1> A root property called `:people` that points to all of the people nodes
 <2> The people table that contains the people nodes.
 
+The above data structure can now be thought of as a graph database looking like this:
+
+[ditaa,target=dbgraph]
+....
+root                [:person/by-id 1] <----+
++-----------+      +-----------------+     |
+|           |      | id 1            |     |
+| people    |-+--->| name "Joe"      |     |
+|           | | +----spouse          |     |
+|           | | |  | children ---------+------+
++-----------+ | |  +------------------     |  |
+              | |                          |  |
+              +-+->[:person/by-id 2]       |  |
+              |    +-----------------+     |  |
+              |    | id 2            |     |  |
+              |    | name "Julie     |     |  |
+              |    | spouse ---------------+  |
+              |    +------------------        |
+              |                               |
+              +--> [:person/by-id 3] <--------+
+              |    +-----------------+        |
+              |    | id 3            |        |
+              |    | name "Billie"   |        |
+              |    |                 |        |
+              |    +-----------------+        |
+              |                               |
+              +--> [:person/by-id 4] <--------+
+                   +-----------------+
+                   | id 4            |
+                   | name "Heather"  |
+                   |                 |
+                   +-----------------+
+....
+
+This makes for a very compact representation of a graph with an arbitrary number of nodes and edges.
+All nodes but the special "root node" live in tables. The root node itself is special because
+it is the storage location for both root properties *and* for the tables themselves.
+
 IMPORTANT: Since the root node and the tables containing other nodes are merged
 together into the same overall map it is generally important that you use
 care when storing things so as not to accidentally collide on a name. Larger programs
-you should adopt conventions to namespace things in the root node.
+should adopt the convention to namespace all keywords.
+
+=== A Special Note about The Client-Side Database
+
+The graph database on the client is the most central and key concept to understand in Fulcro. Remember
+that we are doing pure rendering. This means that the UI is simply a function transforming this
+graph database into the the UI.
+
+There are two primary things to write in Fulcro: the UI and the mutations. The UI pulls data from
+this database and displays it. The mutations evolve this database to a new version.
+Every interaction that changes the UI should be thought of as a *data manipulation*. You're making
+a new *state of the world* that your pure renderer turns into DOM.
+
+The graph format of the database means that your data manipulation, the main dynamic thing in
+the entire application, is simplified down to updating properties/nodes, which themselves
+live at the top of the state atom or are only 2-3 levels deep:
+
+```
+; change the root list of people, and modify the name and age of person 2
+(swap! state (fn [s]
+               (-> s
+                 (assoc :people [[:people/by-id 1] [:people/by-id 2]])
+                 (assoc-in [:people/by-id 2 :person/name] "George")
+                 (assoc-in [:people/by-id 2 :person/age] 33))))
+```
+
+For the most part the UI takes care of itself. Clojure has very good functions for manipulating
+maps and vectors, so even when your data structures get more complex you task is still about
+as simple as it can be.
+
+=== Client Database Naming Conventions
+
+To avoid collisions in your database, the following naming conventions are recommended for
+use in the Fulcro client-side graph database:
+
+[horizontal]
+*UI-only Properties*:: `:ui/name`. These are special in that they never end up in server queries
+derived from components. Can be used on any node to hold UI-only state. Not needed if the node itself
+is not involved with server interaction.
+*Tables*:: `:entity-type/index-indicator`. Examples: `:person/by-id` or `:graph/by-type`
+*Root properties*:: `:root/prop-name`
+*Targeted Loads*:: Loads temporarily place their results in root. Targeting relocates them. If you've followed the
+other naming conventions, then these can elide a namespace if that facilitates server interactions.
+*Node properties*:: `:entity-type/property-name`. Examples: `:person/name` or `:graph/data`
 
 
 = Component Rendering
@@ -373,7 +447,7 @@ optimal performance, since React wants to consume Javascript data):
   (dom/ul nil
     (dom/li ...)))
 ```
-
+l
 Remember that this (nested) call of functions results in a representation of
 what you'd like to end up on the screen.
 

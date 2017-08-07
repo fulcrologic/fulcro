@@ -144,7 +144,7 @@
   So, Fulcro provides the 'triggering' mutations, and gives you a way to hook into the result so that you can
   do this post-transform when the remote read is complete.
 
-  ## The `fulcro/load` Mutation
+  ## The `fulcro/load` Mutation (also known as `fulcro.client.data-fetch/load`)
 
   Fulcro has a built-in mutation called `fulcro/load`. This mutation *can* be used directly from `om/transact!` (and often is).
 
