@@ -118,6 +118,10 @@
   to reason about optimistic updates (Starting more than one at a time via async calls could
   lead to out-of-order execution, and impossible-to-reason-about recovery from errors).
   - You may provide fallbacks that indicate error-handling mutations to run on failures
+  - Writes and reads that are enqueued together will always be performed in write-first order.
+  - Any `:ui/` namespaced query elements are automatically elided when talking to a server.
+  - Normalization of a remote query result is automatic.
+  - Deep merge of query results uses intelligent overwrite (described below in Deep Merge)
 
   ## General Theory of Operation
 
@@ -477,7 +481,7 @@
 
   In practice, we've found that the idea that something involves a server is pretty clear-cut even at the UI layer,
   so the ability to completely abstract it away really isn't that necessary pragmatically, and the cost of writing
-  the behind-the-scenes logic related making a parser trigger remote reads is somewhat high.
+  the behind-the-scenes logic related to making a parser trigger the remote reads is somewhat high.
 
   #### A bit More About How it Works
 
@@ -591,7 +595,7 @@
   "
   (dc/mkdn-pprint-source hand-written-query)
   "
-  However, if you were to use the hand-written query then Om would not know how to normalize the server result
+  However, if you were to use the hand-written query then Fulcro would not know how to normalize the server result
   into your database because the Ident functions would not be known (the `get-query` function adds metadata to
   the query to tell Om how to normalize the result`).
 
@@ -847,9 +851,12 @@
 
   ### Writing Server Mutations
 
-  Server-side mutations in Fulcro are written the same way as in Om. A mutation returns a map with a key `:action`
+  Server-side mutations in Fulcro are written the same way as on the client: A mutation returns a map with a key `:action`
   and a function of no variables as a value. That function then creates, updates, and/or deletes data from the data
   storage passed in the `env` parameter to the mutation.
+
+  If you're using `defmutation` on the client, then you may wish to use the `fulcro-parser` on the server (the default
+  on the easy server) and then use the server-side version of `defmutation` from `fulcro.server`.
 
   #### New item creation – Temporary IDs
 
@@ -969,7 +976,7 @@
       - This need to modify the query (or write server code that could handle various different configurations of the UI)
         led us to the realization that we really wanted a table in our app database on canonical data, and \"views\" of
         that data (e.g. a sorted page of it, items grouped by category, etc.) While you can do this with the parser, it
-        is crazy complicated compared to the simple idea: Any time you load data into a given table, allow the user to
+        is complicated compared to the simple idea: Any time you load data into a given table, allow the user to
         regenerate derived views in the app state, so that the UI queries just naturally work without parsing logic for
         *each* re-render. The con, of course, is that you have to keep the derived \"views\" up to date, but this is
         much easier to reason about (and codify into a central update function) in practice than a parser.
@@ -991,5 +998,4 @@
   up to you in your send method.
 
   In Fulcro, initial load is an explicit step. You simply put calls to `load` in your app start callback.
-
 ")
