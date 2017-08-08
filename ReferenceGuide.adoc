@@ -254,7 +254,7 @@ a data structure (it is a list containing a symbol and a map: the power of Cloju
 data locally (in the back-end of the UI) and optionally also
 transmit it 'as data' over the wire for server processing!
 
-== Graph Database
+== Graph Database [[GraphDB]]
 
 The client-side of Fulcro keeps all relevant data in a simple graph database, which
 is referenced by a single top-level atom. The database itself is a persistent map.
@@ -447,7 +447,7 @@ optimal performance, since React wants to consume Javascript data):
   (dom/ul nil
     (dom/li ...)))
 ```
-l
+
 Remember that this (nested) call of functions results in a representation of
 what you'd like to end up on the screen.
 
@@ -462,42 +462,566 @@ re-usable nested DOM:
       (dom/li ...))))
 ```
 
+== The `defui` Macro
+
+The `defui` macro generates a React component. It is 100% compatible with the React ecosystem. The macro is intended
+to look a bit like a class declaration, and borrows generation notation style from `defrecord`. There is no
+minimum required list of methods (e.g. you don't even have to define `render`). This latter fact is useful
+for cases where you want a component for server queries and database normalization, but not for rendering.
+
+=== React (Object) methods
+
+`defui` is aware of the following React-centric methods, which you can override:
+
+```
+(defui MyComponent
+  Object
+  (initLocalState [this] ...)
+  (shouldComponentUpdate [this next-props next-state] ...)
+  (componentWillReceiveProps [this next-props] ...)
+  (componentWillUpdate [this next-props next-state] ...)
+  (componentDidUpdate [this prev-props prev-state] ...)
+  (componentWillMount [this] ...)
+  (componentDidMount [this] ...)
+  (componentWillUnmount [this] ...)
+  (render [this] ...))
+```
+
+See <<ReactLifecycle, React Lifecycle Examples>> for some specific examples, and the React documentation for a complete description of each of these.
+
+NOTE: Fulcro does override `shouldComponentUpdate` to short-circuit renders of a component whose props have not changed. You
+generally do *not* want to change this to make it render more frequently; however, when using Fulcro with
+libraries like D3 that want to "own" the portion of the DOM they render you may need to make it so that
+React never updates the component once mounted (by returning `false` always). The Developer's Guide shows an example
+of this in the UI section.
+
+=== The `static` Protocol Qualifier
+
+`defui` supports implementations of protocols in a `static` context. It basically
+means that you'd like the methods you're defining to go on the class (instead of instance), but conform to the
+given protocol. There is no Java analogue for this, but in Javascript the classes themselves are open.
+
+WARNING: Since there is no JVM equivalent of implementing `static` methods, a hack is used internally where the
+protocol methods are placed in metadata on the resulting symbol. This is the reason functions like
+`get-initial-state` exist. Calling the protocol (e.g. `initial-state`) in Javascript will work, but if you
+try that when doing server-side rendering on the JVM, it will blow up.
+
+=== IQuery and Ident
+
+There are two core protocols for supporting a component's data in the graph database. They work in tandem to
+find data in the database for the component, and also to take data (e.g. from a server response or initial state) and
+normalize it into the database.
+
+Both of these protocols *must* be declared *static*. The reason for this is initial normalization and query: The
+system has to be able to ask components about their ident and query generation in order to turn a tree of data
+into a normalized database.
+
+[ditaa,target=queryidentoperation]
+....
+
+Tree of Data --> Component-based Query/Ident --> Normalized Data
+
+
+Normalized Data --> Component Query --> Tree of UI Data
+
+....
+
+Queries *must* be composed towards the root component (so you end up with a UI query that can pull the entire
+tree of data for the UI).
+
+```
+(defui ListItem
+  static om/IQuery
+  (query [this] [:db/id :item/label])
+  static om/Ident
+  (ident [this props] [:list-item/by-id (:db/id props)])
+  ...)
+
+(defui List
+  static om/IQuery
+  (query [this] [:db/id {:list/items (om/get-query ListItem)}])
+  static om/Ident
+  (ident [this props] [:list/by-id (:db/id props)])
+  ...)
+
+;; queries compose up to root
+```
+
+==== Notes on the IQuery Protocol
+
+Even though the method itself is declared statically, there are some interesting things about the `query` method:
+
+- Once mounted, a component can have a dynamic query. This means calling `(om/get-query this)` will return either
+the static query, or whatever has been set on that component via `(om/set-query! ...)`.
+- The `get-query` accessor method not only helps with server-side invocation, it annotates the query with
+metadata that includes the component info. This is what makes normalization work.
+
+Some rules about the query itself:
+
+- A query *must not* be stolen from another component (*even* if it seems more DRY):
++
+```
+(defui PersonView1
+  static om/IQuery
+  (query [this] (om/get-query PersonView2)) ;; WRONG!!!!
+```
++
+This is wrong because the query will end up annotated with `PersonView2`'s metadata. Never use the return
+value of `get-query` as the return value for your own `query`.
+- The query will be structured with joins to follow the UI tree. In this manner the render and query
+follow form. If you query for some subcomponent's data, then you should pass that data to that
+component's factory function for rendering.
+
+==== Notes on the Ident Protocol
+
+The ident of a component is often needed in mutations, since you're always manipulating the graph. To avoid
+typos, it is generally recommended that you write a function like this:
+
+```
+(defn person-ident [id-or-props]
+  (if (map? id-or-props)
+    [:person/by-id (:db/id id-or-props)]
+    [:person/by-id id-or-props]))
+```
+
+and use that in both your component's ident implementation and all of your mutations:
+
+```
+(defui Person
+  static om/Ident
+  (ident [this props] (person-ident props)))
+
+...
+
+(defmutation change-name [{:keys [id name]}]
+  (action [{:keys [state]}]
+    (let [name-path (conj (person-ident id) :person/name)]
+      (swap! state assoc-in name-path name))))
+```
+
+==== How Normalization Works
+
+The function `om/tree-db` is the workhorse that turns an incoming tree of data into normalized data (which can then
+be merged into the overall database).
+
+Imagine an incoming tree of data:
+
+```
+{ :people [ {:db/id 1 :person/name "Joe" ...} {:db/id 2 ...} ... ] }
+```
+
+and the query:
+
+```
+[{:people (om/get-query Person)}]
+```
+
+which expands to:
+```
+[{:people [:db/id :person/name]}]
+          ^ metadata {:component Person}
+```
+
+`tree->db` recursively walks the data structure and query:
+
+- At the root, it sees `:people` as a root key and property. It remembers it will be writing `:people` to the root.
+- It examines the value of `:people` and finds it to be a vector of maps. This indicates a to-one relationship.
+- It examines the metadata on the subquery of `:people` and discovers that the entries are represented by
+the component `Person`
+- For each map in the vector, it calls the `ident` function of `Person` (which it found in the metadata) to get a
+database location. It then places the "person" values into the result via `assoc-in` on the ident.
+- It replaces the entries in the vector with the idents.
+
+If the metadata was missing then it would assume the person data did not need normalization. This is why it is
+critical to compose queries correctly. The query and tree of data must have a parallel structure, as should the
+UI. This actually makes it relatively easy to cross-check your work. In general, you can glance at a component
+for problems as described in the comments below:
+
+```
+(defui Component
+   static om/Ident
+   (ident [this props] (component-ident props)) ; most components should have an ident. Must be static.
+   static om/IQuery
+   (query [this] [:prop {:join (om/get-query JoinComponent)}]) ;children are composed via a join. Static.
+   Object
+   (render [this]
+     (let [{:keys [prop join]} (om/props this)] ; The destructuring and query match. You won't get data you don't ask for.
+       (ui-join-component join) ; The joined component's data is passed to it for rendering.
+       ...))
+```
+
+NOTE: A common question is "why can't this be generated for me, since it has such a predictable structure?" The answer
+is that it could probably be made shorter for many cases, but overall generality of syntax would be lost. For example
+assume you invented something like `(defcomponent X :prop :join JoinComponent (render [prop join] (ui-join-component join)))`. You
+could probably make a macro that could parse that successfully and turn it into the correct thing, but it gets more
+complicated when you also want to support react lifecycle, ident, etc. You are always free to invent such macros, but
+for clarity we currently supply just the most general version.
+
+==== Normalization: Initial State, Server Interations, and Mutations
+
+The process described above is how most data interactions occur. At startup the `InitialAppState` supplies data that
+exactly matches the tree of the UI. This gives your UI some initial state to render. The normalization mechanism
+described above is exaclty what happens to that initial tree when it is detected by Fulcro at startup.
+
+Network interactions send a UI-based query (which remember is annotated with the components). The query is
+remembered and when a response tree of data is received (which must match the tree structure of the query), the
+normalization process is applied and the resulting normalized data is merged with the database.
+
+If using websockets, it is the same thing: A server push gives you a tree of data. You could hand-normalize that data,
+but actually if you know the structure of the incoming data you can easily generate a client-side query (using
+`defui`) that can be used in conjunction with `om/tree->db` to normalize that incoming data.
+
+Mutations can do the same thing. If a new instance of some entity is being generated by the UI as a tree of data, then
+the query for that UI component can be used to turn it into normalized data that can be merged into the state
+within the mutation.
+
+Some useful functions to know about:
+
+- `fulcro.core/merge-component` - A utility function for merging new instances of a (possibly recursive) entity state into
+the normalized database. Usable from within mutations.
+- `fulcro.core/merge-state!` - A utility function for merging out-of-band (e.g. push notification) data into your application.
+Includes ident integration options, and honors the Fulcro merge clobbering algorithm (if the query doesn't ask for it,
+then merge doesn't affect it). Also queues rendering for affected components (derived from integration of idents). Generally
+*not* used within mutations (use `merge-component` and `integrate-ident!` instead).
+- `om.next/tree->db` - General utility for normalizing data via a query and chunk of data.
+- `fulcro.core/integrate-ident!` - A utility for adding an ident into existing to-one and to-many relations in your database.
+Can be used within mutations.
+- `fulcro.client.util/deep-merge` - An implementation of merge that is recursive
+
+
+== Factories
+
+Factories are how you generate React elements (the virtual DOM nodes) from your React classes. You
+make a new factory using `om.next/factory`:
+
+```
+(def ui-component (om/factory MyComponent {:keyfn f :validator v :instrument? true}))
+```
+
+There are 3 supported options to a factory:
+
+[horizontal]
+`:keyfn`:: A function from `props` to a React key. Should generally be supplied to ensure React rendering can properly diff.
+`:validator`:: A function from props to boolean. If it returns false then an assertion will be thrown at runtime.
+`:instrument?`:: A boolean. If true, it indicates that Om Next's instrumentation should be enabled on the component.
+Instrumentation is a function you can install on the reconciler that wraps component `render` allowing you to add
+measurement and debugging code to your component's rendering.
+
 == Render and Props
 
-== Callbacks
+Properties are always passed to a component factory as the first argument. The properties can be accessed
+from within `render` by calling `om.next/props` on the parameter passed to `render` (typically named `this`
+to remind you that it is a reference to the instance itself).
 
-== Derived Values
+In components with queries there is a strong correlation between the query (which must join the child's query),
+props (from which you must extract the child's props), and calling of the child's factory
+(to which you must pass the child's data).
 
-. things like the "check all" state, possibly ordering
+If you are using components that do not have queries, then you may pass whatever properties you deem useful.
 
-== Computed Props
+Details about additional aspects of rendering are in the sections that follow.
+
+=== Derived Values
+
+It is possible that your logic and state will be much simpler if your UI components derive some values at render time.
+A prime example of this is the state of a "check all" button. The state of such a button is dependent on other components
+in the UI, and it is *not* a separate value. Thus, your UI should compute it and not store it else it could
+easily become out of sync and lead to more complex logic.
+
+```
+(defn item-checked? [item] (:checked? item))
+
+(defui Checkboxes
+  static om/IQuery
+  (query [this] [{:items (om/get-query CheckboxItem)}])
+  Object
+  (render [this]
+    (let [{:keys [items]} (om/props this)
+          all-checked? (every item-checked? items)]
+      (dom/div nil
+        "All: " (dom/input #js {:checked all-checked? ...})
+      (dom/ul nil ...))))
+```
+
+General Guidelines for Derived Values
+
+You should consider computing a derived value when:
+- The known data from the props already gives you sufficient information to calculate the value.
+- The computation is relatively light.
+
+Some examples where UI computation are effective, light, or even necessary:
+
+- Rendering an internationalized value. (e.g. `tr`)
+- Rendering a check-all button
+- Rendering "row numbering" or other decorations like row highlighting
+
+There are some trade-offs, but most significantly you generally do *not* want to compute things like the order/pagination of a list of items.
+The logic and overhead in sorting and pagination often needs caching, and there are
+clear and easy "events" (user clicking on sort-by-name) that make it clear when to call the mutation to update
+the database. You still have to store the selected sort order, and you have to have idents pointing to the list of
+items. It is possible for your "selected sort order" and list to become out of sync, but the trade-offs of sorting
+in the UI are typically high, particularly when pagination is involved and large amounts of data would have
+to be fed to the UI.
+
+
+=== Computed Props and Callbacks
+
+Many reusable components will need to tell their parent about some event. For example, a list item generally wants
+to tell the parent when the user has clicked on the "remote" button for that item. The item itself cannot
+be truly composable if it has to know details of the parent. But a parent must always know the details of
+a child (it rendered it, didn't it?). As such, manipulations that affect the content of a parent should be
+communicated to that parent for processing. The mechanism for this is identical to what you'd do in stock
+React: callbacks from the child.
+
+The one *major* difference is how you pass the callback *to* a component.
+
+The query and data feed mechanisms that supply props to a component are capable of refreshing a child *without*
+refreshing a parent. This UI optimization can pull the props directly from the database using the query, and
+re-feed them to the child.
+
+But this mechanism knows nothing about callbacks, because they are not (and should not be) stored in
+the client database. Such a targeted refresh of a component cannot pass callbacks through the props
+because the parent is where that is coded, but the parent may not be involved in the refresh!
+
+So, any value (function or otherwise) that is generated on-the-fly by the parent must be passed via
+`om.next/computed`. This tells the data feed system how to reconstruct the complete data should it do a targeted update.
+
+```
+(defui Child
+  static om/IQuery
+  (query [this] [:y])
+  Object
+  (render [this]
+    (let [{:keys [y]} (om/props this)
+          onDelete (om/get-computed this :onDelete)]
+    ...))
+
+(defui Parent
+  static om/IQuery
+  (query [this] [:x {:child (om/get-query Child)}])
+  Object
+  (render [this]
+    (let [{:keys [x child]} (om/props this)
+          onDelete (fn [id] (om/transact! ...))
+          child-props-with-callbacks (om/computed child {:onDelete onDelete})]
+      (ui-child child-props-with-callbacks))))
+```
+
+WARNING: Not understanding this can cause a lot of head scratching: The initial render will always work perfectly,
+because the parent is involved. All events will be processed, and you'll thing everything is fine; however, if you
+have passed a callback incorrectly it will mysteriously stop working after a (possibly unnoticeable) refresh. This
+means you'll "test it" and say it is OK, only to discover you have a bug that shows up during heavier use.
+
+=== Children
+
+A very common pattern in React is to define a number of custom components that are intended to work in a nested fashion. So,
+instead of just passing `props` to a factory, you might also want to pass other React elements. This is fully supported
+in Fulcro, but can cause confusion when you first try to mix it with the data-driven aspect of the system.
+
+==== Working with Children
+
+Fulcro includes a few functions that are helpful when designing React components that are intended to be nested as direct
+children within a single render:
+
+[horizontal]
+`(om.next/children this)`:: Returns the React children of `this`
+`(fulcro.client.util/react-instance? Component instance)`:: Returns true if the given element is an instance of the given component (`defui`) class. Otherwise `nil`.
+`(fulcro.client.util/first-node` Component child-seq):: Returns the first of a sequence of elements that has the given component class.
+
+So, say you wanted to create the following kind of rendering scheme:
+
+```
+(defui Panel ...)
+(def ui-panel (om/factory Panel)
+(defui PanelHeader ...)
+(def ui-panel-header (om/factory PanelHeader)
+(defui PanelBody ...)
+(def ui-panel-body (om/factory PanelBody)
+
+(ui-panel {}
+  (ui-panel-header {} "Some Heading Text")
+  (ui-panel-body {}
+     (dom/div nil "Some sub-DOM")))
+```
+
+The your `render` for `Panel` will need to find the header and body children:
+
+```
+(defui Panel
+  Object
+  (render [this]
+    (let [children (om/children this)
+          header (util/first-node PanelHeader children)
+          body (util/first-node PanelBody children)]
+      (when header
+        (dom/h4 nil header))
+      (when body
+        (dom/div nil body)))))
+```
+
+Basically, the child or children can simply be dropped into the place where they should be rendered.
+
+#### Mixing Data-Driven Children
+
+At first this seems a little mind-bending, because you are in fact nesting components in the UI, but in this case
+the query nesting may not exactly mimic the UI tree. A good example is a *reusable component* that renders the
+"current page"
+
+TODO: CONTINUE HERE. Bootstrap page indicator.
+
 
 == Controlled Inputs
 
-== Lifecycle Methods
+== React Lifecycle Examples [[ReactLifecycle]]
 
-. Focusing an input
-. Taking control of the sub-DOM (D3, etc)
-. Dynamically rendering into a canvas
+There are some common use-cases that can only be solved by working directly with the React Lifecycle methods.
 
-== Using React Refs
+Some topics you should be familiar with in React to accomplish many of these things are:
 
-NOTE: Remember to talk about what you can and cannot do.
+- Component references: A mechanism that allows you access to the *real* DOM of the component once it's on-screen.
+- Component-local state: A stateful mechanism where mutable data is stored on the component instance.
+- General DOM manipulation. The Google Closure library has your JQuery equivalents, should you need them.
 
-== Component Local State
+=== Focusing an input
 
+Focus is a stateful browser mechanism, and React cannot force the rendering of "focus". As such, when you need
+to deal with UI focus it generally involves some interpretation, and possibly component local state. One way
+of dealing with deciding when to focus is to look at a component's prior vs. next properties. This can be
+done in `componentDidUpdate`. For example, say you have an item that renders as a string, but when clicked
+turns into an input field. You'd certainly want to focus that, and place the cursor at the end of the
+existing data (or highlight it all).
 
+If your component had a property called `editing?` that you made true to indicate it should render as an input
+instead of just a value, then you could write your focus logic based on the transition of your component's props
+from `:editing?` false to `:editing?` true:
 
+```
+(defui ClickToEditField
+  Object
+  (componentDidUpdate [this prev-props _]
+    (when (and (not (:editing? prev-props)) (:editing? (om/props this)))
+      (let [input-field        (js/ReactDOM.findDOMNode (.. this -refs -edit_field))
+            input-field-length (.. input-field -value -length)]
+        (.focus input-field)
+        (.setSelectionRange input-field input-field-length input-field-length))))
+  (render [this]
+    (let [{:keys [value editing?]} (om/props this)]
+      (if editing?
+         (dom/span #js {:onClick #(m/toggle! this :editing?) } value)
+         (dom/input #js {:value value :ref "edit_field"})))))
+```
 
-= Client Application State
+NOTE: React documentation encourages a more functional form of `ref` (you supply a function instead of a string).
+This example could also cache that in component local state like this:
 
-== The Root
+```
+(defui ClickToEditField
+  Object
+  (componentDidUpdate [this prev-props _]
+    (when (and (not (:editing? prev-props)) (:editing? (om/props this)))
+      (let [input-field        (om/get-state! this :input)
+            input-field-length (.. input-field -value -length)]
+        (.focus input-field)
+        (.setSelectionRange input-field input-field-length input-field-length))))
+  (render [this]
+    (let [{:keys [value editing?]} (om/props this)]
+      (if editing?
+         (dom/span #js {:onClick #(m/toggle! this :editing?) } value)
+         (dom/input #js {:value value :ref (fn [r] (om/set-state! this {:input r}))})))))
+```
 
-== Tables and Idents
+=== Taking control of the sub-DOM (D3, etc)
 
+Libraries like D3 are great for dynamic visualizations, but they need full control
+of the portion of the DOM that they create and manipulate.
 
+In general this means that your `render` method should be called once
+(and only once) to install the base DOM onto which the other library
+will control.
+
+For example, let's say we wanted to use D3 to render things. We'd first
+write a function that would take the *real* DOM node and the incoming
+props:
+
+```
+(defn db-render [DOM-NODE props] ...)
+```
+
+This function should do everything necessary to render the sub-dom (and
+update it if the props change).
+
+Then the general layout is:
+
+```
+(defui D3Thing
+  Object
+  ; make sure renders into the sub-dom on first mount
+  (componentDidMount [this] (d3-render (dom/node this) (om/props this)))
+  ; Never let React re-call render (which would wipe out the stateful DOM underneath)
+  (shouldComponentUpdate [this next-props next-state] false)
+  ; On prop changes, ask the library to re-render the sub-DOM
+  (componentWillReceiveProps [this props] (d3-render (dom/node this) props))
+  (render [this]
+    (dom/svg #js {:style   #js {:backgroundColor "rgb(240,240,240)"}
+                  :width   200 :height 200
+                  :viewBox "0 0 1000 1000"})))
+```
+
+=== Dynamically rendering into a canvas
+
+In this example we're assuming you want to keep control of the DOM. For speed,
+you will generally want to use component local state (Transactions are fine for
+data-driven interactions, but can easily take 10ms+ which isn't good for
+high-speed graphical interactions).
+
+You'll also typically use React refs to grab the actual low-level canvas.
+
+A running example of this is the `component-local-state` demo in the Demos. The primary scheme is
+to store the reference to the canvas DOM along with the rapidly changing data in the component local state.
+Rendering for each event (e.g. mouse move in this case) can then be accomplished without triggering the
+low-level query mechanisms. This gives you lightning fast interactive performance that should be equivalent
+to the same kind of "stateful" rendering in Javascript.
+
+```
+(defn render-hover-and-marker [props state]
+  (let [canvas (:canvas state)]
+  ; render stuff on the canvas
+   ...))
+
+(defn hover-marker
+  "Updates the hover location of a proposed marker using canvas coordinates. Hover location is stored in component
+  local state (meaning that a low-level app database query will not run to do the render that responds to this change)"
+  [child evt]
+  (om/update-state! child assoc :coords (event->dom-coords evt (om/get-state child :canvas)))
+  (render-hover-and-marker (om/props child) (om/get-state child)))
+
+(defui ^:once Child
+  static InitialAppState
+  (initial-state [cls _] {:id 0 :size 50 :marker [0.5 0.5]})
+  static om/IQuery
+  (query [this] [:id :size :marker])
+  static om/Ident
+  (ident [this props] [:child/by-id (:id props)])
+  Object
+  (initLocalState [this] {:coords [-50 -50]})
+  ; Remember that this "render" just renders the DOM (e.g. the canvas DOM element). The graphical rendering within the canvas is done during event handling.
+  (render [this]
+    (let [{:keys [size]} (om/props this)]
+      (dom/canvas #js {:onMouseMove (fn [evt] (hover-marker this evt))
+                       ; This is a pure React mechanism for getting the underlying DOM element.
+                       ; Note: when the DOM element changes this fn gets called with nil (to help you manage memory leaks), then the new element
+                       :ref         (fn [r]
+                                      (when r
+                                        (om/update-state! this assoc :canvas r)
+                                        (render-hover-and-marker (om/props this) (om/get-state this))))}))))
+```
 
 = The Query and Mutation Language
+
+Before reading this chapter you should make sure you've read <<GraphDB,The Graph Database Chapter>>. It details
+the low-level format of the application state, and talks about general manipulation strategies and functions that
+are referenced in this chapter.
+
 
 == Properties
 
