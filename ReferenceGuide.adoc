@@ -863,14 +863,76 @@ Basically, the child or children can simply be dropped into the place where they
 
 #### Mixing Data-Driven Children
 
-At first this seems a little mind-bending, because you are in fact nesting components in the UI, but in this case
-the query nesting may not exactly mimic the UI tree. A good example is a *reusable component* that renders the
-"current page"
+At first this seems a little mind-bending, because you are in fact nesting components in the UI, but
+the query nesting need only mimic the stateful portion of the UI tree. This means there is ample opportunity
+to use React children in a way that looks incorrect from what you've learned so far. On deeper inspection
+it turns out it is alignment with the rules, but it takes a minute on first exposure.
 
-TODO: CONTINUE HERE. Bootstrap page indicator.
+Take the Bootstrap collapse component. It needs state of its own in order to know when it is collapsed,
+and we'd like that to be part of the application database so that the support history viewer can show the
+correct thing. However, the children of the collapse cannot be known in advance when writing the collapse
+reusable library component.
 
+The solution is simple once you see it: Query for the collapse component's state and the child state in
+the common parent component, then do the UI nesting in that component. Technically the component that is "laying out" the
+UI (the ultimate parent) is in charge of both obtaining and rendering the data.  The fact that the UI child ends
+up nested in a query sibling is perfectly fine.
+
+The collapse component itself is only concerned with the fact that it is open/closed, and that it has children that
+should be shown/hidden. The actual DOM elements of those children are immaterial, and can be assembled by the parent:
+
+```
+(defui ^:once CollapseExample
+  static fc/InitialAppState
+  (initial-state [c p] {:collapse-1 (fc/get-initial-state b/Collapse {:id 1 :start-open false})})
+  static om/IQuery
+  (query [this] [{:collapse-1 (om/get-query b/Collapse)}
+                 {:child (om/get-query SomeChild)}])
+  Object
+  (render [this]
+    (let [{:keys [collapse-1 child]} (om/props this)]
+      (dom/div nil
+        (b/button {:onClick (fn [] (om/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
+        (b/ui-collapse collapse-1
+          (ui-child child))))))
+```
 
 == Controlled Inputs
+
+Form inputs in React can take two possible approaches: controlled and uncontrolled. The browser normally maintains
+the value state of inputs for you as mutable data; however, this breaks our overall model of pure rendering! The
+advantage is UI interaction speed: If your UI gets rather large, it is possible that UI updates on keystrokes in
+form inputs may be too slow. This is the same sort of trade-off that we talked about when covering component
+local state for rendering speed with more graphical components.
+
+If you're using UI routers to split up your UI, then you're also getting the speed benefits of not running anything
+but the current active screen's query. This should, in fact, be fast enough to do on every keystroke (in fact, you'll
+see warnings in your browser console if this gets slower than 60 FPS).
+
+So, in general it is recommended that you use controlled inputs and retain the benefits of pure rendering: no embedded
+state, your UI exactly represents your data representation, concrete devcards support for UI prototyping, and full
+support viewer support.
+
+Most inputs become controlled when you set their `:value` property. The table below lists the mechanism whereby
+a form input is completely controlled by React:
+
+[width="80%",options="header"]
+|================================
+| Input type  | Attribute | Notes
+| input       | :value    | (not checkboxes or radio)
+| checkbox    | :checked  |
+| radio       | :checked  | (only one in a group should be checked)
+| textarea    | :value    |
+| select      | :value    | Instead of marking an option selected. Match `select`'s `:value` to the `:value` of a nested `option`.
+|================================
+
+IMPORTANT: React will consider `nil` to mean you want an uncontrolled component. This can result in
+a warning about converting uncontrolled to controlled components. In order to prevent this warning you should make
+sure that `:checked` is always a boolean, and that other inputs have a valid `:value` (e.g. an empty string). The
+`select` input can be given an "extra" option that stands for "not selected yet" so that you can start its value
+at something valid.
+
+See https://facebook.github.io/react/docs/forms.html[React Forms] for more details.
 
 == React Lifecycle Examples [[ReactLifecycle]]
 
