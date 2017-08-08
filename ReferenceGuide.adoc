@@ -707,6 +707,12 @@ There are 3 supported options to a factory:
 Instrumentation is a function you can install on the reconciler that wraps component `render` allowing you to add
 measurement and debugging code to your component's rendering.
 
+In Fulcro documentation we generally adopt the naming convention for UI factories to be prefixed with `ui-`. This
+is because you often want to name joins the same thing as a component: e.g. your query might be
+`[{:child (om/get-query Child)}]`, and then when you destructure in render: `(let [{:keys [child]} (om/props this) ...`
+you have local data in the symbol `child`. If your UI factor was also called `child` this would cause annoying name
+collisions. Prefixing the factories with `ui-` makes it very clear what is data, and what will generate UI.
+
 == Render and Props
 
 Properties are always passed to a component factory as the first argument. The properties can be accessed
@@ -1084,26 +1090,285 @@ Before reading this chapter you should make sure you've read <<GraphDB,The Graph
 the low-level format of the application state, and talks about general manipulation strategies and functions that
 are referenced in this chapter.
 
+In Fulcro all data is pulled from the database using a notation that is a subset of Datomic's pull query syntax. Since
+the query is a graph walk, it must start at some specific spot. Usually, this is the root node of your database. Thus,
+a complete query from the Root UI component will be a graph query that can start at the root node.
+
+However, you'll note that any query *fragment* is implied to be relative to where we are in the walk of the graph
+database. This is important to understand: no component's query can just be grabbed and run against the database
+as-is. Then again, if you know the `ident` of a component, then you can *start* at that table entry in the database
+and go from there.
+
+The mutation language is a data representation of the abstract actions you'd like to take on the data model. It is
+intended to be network agnostic: The UI need not be aware that a given mutation does local-only modifications and/or
+remote operations against any number of remote servers. As such, the mutations, like queries, are simply data. Data
+that can be interpreted by local logic, or data that can be sent over the wire to be interpreted by a server.
+
+Queries can either be a vector or a map of vectors. The former is a regular component query, and the latter is
+known as a *union* query. Union queries are useful when you're walking a graph edge and the target could be
+one of many different kinds of nodes, so you're not sure which query to use until you actually are walking
+the graph.
 
 == Properties
 
+The simplest thing to query are properties "right here" in the graph. Such a query is represented by a simple
+keyword.
+
+```
+[:a :b]
+```
+
+would ask for the properties known as `:a` and `:b` at the "current node" in the graph traversal.
+
 == Joins
+
+A join is similar to a property query, in that the linkage is stored at the given keyword, but the linkage
+walks to another node in the graph. The notation is to create a map with a single key (the local property at
+the current node) and whose single value is the query for the remainder of the graph walk:
+
+```
+[{:children (om/get-query Child)}]
+```
+
+The query itself cannot specify that this is a to-one or to-many join. The data in the database graph itself
+determines this when the query is being run. Basically, if walking the join property leads to a vector of
+links, it is to-many. If it leads to a single link, then it is to-one. Of course, rendering the data is going
+to have the same concern, so the arity of the relation more strongly affects the rendering code.
+
+Joins should always use `get-query` to get the next component in the graph. This annotates the sub-query
+with the proper metadata so that normalization can work correctly.
 
 == Unions
 
-== Parameters
+Unions cannot stand alone. They are meant to select one of many possible alternate queries when the link in the
+graph is reached. Unions are always used in tandem with a join, and can therefore not be used on root-level
+components. The union query itself is a map of options:
 
-== Queries on Idents
+```
+(defui PersonPlaceOrThingUnion
+  static om/IQuery
+  (query [this] {:person (om/get-query Person) :place (om/get-query Place) :thing (om/get-query Thing)}))
+```
 
-== Link Queries
+and such a query must be joined in by a parent component. Therefore, you'll always end up with something
+like this:
+
+```
+(defui Parent
+  static om/IQuery
+  (query [this] [{:person-place-or-thing (om/get-query PersonPlaceOrThingUnion)}]))
+```
+
+Union queries take a little getting used to because there are a number of rules to follow when
+using them in order for everything to work correctly (normalization, queries, and rendering).
+
+Here is what a graph database might look like for the above query assuming we started at `Parent`:
+
+```
+{ :peron-place-or-thing [:place 3]
+  :place { 3 { :id 3 :location "New York" }}}
+```
+
+The query would start at the root. When it saw the join it would detect a union. The union would be resolved
+by looking at the *first* component of the *ident in the database* (in this case `[:place 3]`). That keyword
+would be used to select the query to follow next (in this example, `Place`).
+
+A to-many linkage works just as well:
+
+```
+{ :peron-place-or-thing [[:person 1] [:place 3]]
+  :person { 1 { :id 1 :name "Julie" }}
+  :place { 3 { :id 3 :location "New York" }}}
+```
+
+and now you have a mixed to-many relationship where the correct sub-query will be used for each item in turn.
+
+Normalization of unions requires that the union component itself have an ident function that can properly
+generate idents for all of the possible kinds of things that could be found. Often this means that you'll need
+to encode some kind of type indicator in the data itself.
+
+Say you had this incoming tree of data:
+
+```
+{:person-place-or-thing [ {:id 1 :name "Joe"} {:id 3 :location "New York"} ]}
+```
+
+In order to normalize this correctly we need to end up with the correct person and place idents. The resulting
+ident function might look like this:
+
+```
+(defui PersonPlaceOrThingUnion
+  static om/Ident
+  (ident [this props]
+    (cond
+      (contains? props :name) [:person (:id props)]
+      (contains? props :location) [:place (:id props)]
+      :else [:thing (:id props)])))
+```
+
+Often it is easier to just include a `:type` field so that `ident` can look up both the type and id.
+
+Rendering the correct thing in the UI of the union component has the same concern: you must detect what
+kind of data (among the options) that you actually receive, and pass that on to the correct child factory (e.g.
+`ui-person`, `ui-place`, or `ui-thing`.
 
 == Mutations
 
+Mutations are also just data, as we mentioned earlier. However, they are intended to *look like* single-
+argument function calls where the single argument is a map of parameters:
+
+```
+[(do-something)]
+```
+
+The main concern is that this expression, in normal Clojure, will be evaluated because it contains a raw list.
+In order to keep it data, one must quote expressions with mutations. Of course you may use syntax quoting
+or literal quoting. Usually we recommend namespacing your mutations (with `defmutation`) and then using
+syntax quoting to get reasonably short expressions:
+
+```
+(ns app.mutations)
+
+(defmutation do-something [params] ...)
+```
+
+```
+(ns app.ui
+  (:require [app.mutations :as am]))
+
+...
+   (om/transact! this `[(am/do-something {})])
+```
+
+The syntax quoting always ensures everything is fully-qualified, so this results in the raw symbol within
+the `transact!`: `app.mutations/do-something`. When using IDEs like Cursive this allows you to enable support
+for code navigation to the definition of mutations.
+
+The parameter map on mutations is optional.
+
+== Parameters
+
+Most of the query elements also support a parameter map. In Fulcro these are mainly useful when sending a query
+to the server, and it is rare you will write such a query "by hand". However, for completeness you should know
+what these look like. Basically, you just surround the property or join with parentheses, and add a map as
+parameters. This is just like mutations, except instead of a symbol as the first element of the list it is either
+a keyword (prop) or a map (join).
+
+Thus a property can be parameterized:
+
+```
+[(:prop {:x 1})]
+```
+
+This would cause, for example, a server's query processing to see `{:x 1}` in the `params` when handling the read
+for `:prop`.
+
+A join is similarly parameterized:
+
+```
+[({:child (om/get-query Child)} {:x 1})]
+```
+
+with the same kind of effect.
+
+NOTE: The plain list has the same requirement as for mutations: quoting. Generally syntax quoting is again the best
+choice, since you'll often need unquoting. For example, the join example above would actually be written in code as:
+
+```
+  ...
+  (query [this] `[({:child ~(om/get-query Child)} {:x 1})])
+  ...
+```
+
+to avoid trying to use the map as a function for execution, yet allowing the nested `get-query` to run and embed
+the proper subquery.
+
+== Queries on Idents
+
+Idents are valid in queries as a plain prop or a join. When used as a plain prop you will end up with the ident
+as a key in the `props`, and the complete (still-normalized) table entry as a value:
+
+```
+[ [:person/by-id 1] ]
+```
+
+results in something like this in props:
+
+```
+{ [:person/by-id 1] {:id 1 :person/spouse [:person/by-id 1]} }
+```
+
+This is not typically what you want because you'd typically want it to follow the graph links.
+Instead, `idents` are normally queried with a join:
+
+```
+[{[:person/by-id 1] (om/get-query Person)}]
+```
+
+which has the effect of "re-rooting" the graph walk at that node, and continuing from there. You still get
+the ident in the props, but now spouse would resolve to a map of real properties.
+
+== Link Queries
+
+There are times when you want to start "back at the root" node. This is useful for pulling data that has
+a singleton representation in the root node itself. For example, the current UI locale or currently logged-in
+user. There is a special notation for this the looks like an ident without an ID:
+
+```
+[ [:ui/locale '_] ]
+```
+
+This component query would result in `:ui/locale` in your props (not an ident) with a value that came from the
+overall root node of the database. Of course, denormalization just requires you use a join:
+
+```
+[ {[:current-user '_] (om/get-query Person)} ]
+```
+
+would pull `:current-user` into the component's props with a continued walk of the graph (e.g. person's spouse would
+be populated).
+
+WARNING: Link queries require that the component doing the query have a database node, even if empty. The database
+query engine will not try to run the query of a component that has no data presence in the graph. Remember: the
+query and database are walked together. If it runs out of data, it stops. So, if you had a component
+asking for only `:current-user` via a link, but that component itself did not exist in the database then you
+will never get to the link query at all. The fix is simple: include an empty map where that component's state
+should be.
+
 == The AST
 
-=== Morphing Mutations: Adding Parameters
+Om Next can convert any expression in the query/mutation language into an AST (abstract syntax tree) and vice
+versa. This lends itself to doing complex parsing of the query (typically on the server). The functions
+of interest are `om.next/query->ast` and `ast->query`.
 
+There are many uses for this. One such use might be to convert the graph expression into another form. For
+example, say you wanted to run an Om query against and SQL database. You could write an algorithm that translates
+the AST into a series of SQL queries to build the desired result. The AST is always available as one
+of the parameters in the mutation/query `env` on the client and server.
 
+Another use for the AST is in mutations targeted at a remote: it turns out you can morph a mutation before
+sending it to the server.
+
+=== Morphing Mutations
+
+The most common use of the AST is probably adding parameters that the UI is unaware need to be sent to
+a remote. When processing a mutation with `defmutation` (or just the raw defmethod) you will receive
+the AST of the mutation in the `env`. It is legal to return *any* valid AST from the remote side of a
+mutation. This has the effect of changing what will be sent to the server:
+
+```
+(defmutation do-thing [params]
+  (action [env] ...)
+  (remote [{:keys [ast]}] ast)) ; same effect as `true`
+
+(defmutation do-thing [params]
+  (action [env] ...)
+  (remote [{:keys [ast]}] (om/query->ast `[(do-other-thing)])) ; completely change what gets sent to `remote`
+
+(defmutation do-thing [params]
+  (action [env] ...)
+  (remote [{:keys [ast]}] (assoc ast :params {:y 3}))) ; change the parameters
+```
 
 = Walking the Graph
 
