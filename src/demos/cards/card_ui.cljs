@@ -15,7 +15,10 @@
     cards.paginate-large-list-cards
     cards.server-query-security-cards
     cards.tabbed-interface-cards
-    cards.websocket-cards))
+    cards.websocket-cards
+    [fulcro.client.logging :as log]))
+
+(log/set-level :debug)
 
 (devcards.core/start-devcard-ui!)
 

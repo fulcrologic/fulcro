@@ -1,5 +1,6 @@
 1.0.0-beta7
 -----------
+- REQUIRES: Clojurescript 1.9.854+
 - Added initialize-form mutation to forms with docs in devguide.
 - Fixed deprecated ring content-type handling in server
 - Made devcards dynamically load so it isn't a hard dependency
