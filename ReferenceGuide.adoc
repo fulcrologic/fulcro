@@ -126,6 +126,7 @@ of your model with minimal data!
 
 That is what we mean by "pure rendering".
 
+[[PureRenderingDiagram]]
 [ditaa, target=rendering]
 ....
 
@@ -1138,7 +1139,7 @@ to have the same concern, so the arity of the relation more strongly affects the
 Joins should always use `get-query` to get the next component in the graph. This annotates the sub-query
 with the proper metadata so that normalization can work correctly.
 
-== Unions
+== Unions [[Unions]]
 
 Unions cannot stand alone. They are meant to select one of many possible alternate queries when the link in the
 graph is reached. Unions are always used in tandem with a join, and can therefore not be used on root-level
@@ -1212,7 +1213,7 @@ Rendering the correct thing in the UI of the union component has the same concer
 kind of data (among the options) that you actually receive, and pass that on to the correct child factory (e.g.
 `ui-person`, `ui-place`, or `ui-thing`.
 
-== Mutations
+== Mutations [[Mutations]]
 
 Mutations are also just data, as we mentioned earlier. However, they are intended to *look like* single-
 argument function calls where the single argument is a map of parameters:
@@ -1370,30 +1371,240 @@ mutation. This has the effect of changing what will be sent to the server:
   (remote [{:keys [ast]}] (assoc ast :params {:y 3}))) ; change the parameters
 ```
 
-= Walking the Graph
+= Walking the UI Graph
 
 NOTE: Build up a root-level query, add joins, show the walking. Show how unions affect
 the returned data.
 
 == Queries on Components
 
-== Composition Rules
-
-== Normalization via UI Queries
-
-= Composing Data-Driven Components in the UI
 
 = Initial Application State
 
-== Nested Data Mirrors Nested Query
+When starting any application one thing has to be done before just about anything else: Establish a starting state. In Fulcro
+this just means generating a client-side application database (normalized). Other parts of this guide have talked about
+the <<GraphDB, Graph Database>>. You can well imagine that hand-coding one of these for a large application's starting
+state could be kind of a pain. Actually, coding it is less of a pain than maintaining it as you refactor and evolve your
+UI!
+
+However, the system already knows how to normalize a tree of data, and your UI is the tree you're interested in. So, Fulcro
+encourages you to co-locate initial application state with the components that need the state and compose it towards
+the root, just like you do for queries. This gives some nice results:
+
+- Your initial application state is reasoned about local to each component, just like the queries.
+- Refactoring the UI just means local recomposition of queries and initial state locally to that part of the UI.
+- Fulcro understands unions (you can only initialize one branch of a to-one relation), and can scan for and initialize alternate branches.
+
+To add initial state, follow these steps:
+
+1. For each component that should appear initially: add the InitialAppState protocol
+2. Compose the components in (1) all the way to your root.
+
+That's it! Fulcro will automatically detect initial state on the root, and use it for the application!
+
+NOTE: Pulling the initial state from a component should be done with `fulcro.core/get-initial-state`. Calling a static
+protocol cannot work on the server, so this helper method makes server-side rendering possible for your components.
+
+```
+(defui Child
+  static fulcro.core/InitialAppState
+  (initial-state [cls params] { :x 1 }) ; set :x to 1 for this component's state
+  static om/IQuery
+  (query [this] [:x]) ; query for :x
+  static om/Ident
+  (ident [this props] ...) ; how to normalize
+  Object
+  (render [this]
+    (let [{:keys [x]} (om/props this)] ; pull x from props
+      ...)))
+
+(defui Parent
+  static fulcro.core/InitialAppState
+  (initial-state [cls params] { :y 2 :child (fc/get-initial-state Child {}) }) ; set y, and compose in child's state
+  static om/IQuery
+  (query [this] [:y {:child (om/get-query Child)}]) ; query for :y and compose child's query
+  static om/Ident
+  (ident [this props] ...) ; how to normalize
+  Object
+  (render [this]
+    (let [{:keys [y child]} (om/props this)] ; pull y and child from props
+      ...)))
+
+...
+```
+
+Notice the nice symmetry here. The initial state is (usually) a map that represents (recursively) the entity and
+it's children. The query is a vector that lists the "scalar" props, and joins as maps.  So, in `Child` we have
+initial state for `:x` and a query for `:x`. In the parent we have a query for the property `:y` and a join to
+the child, and initial state for the scalar value of `:y` and the composed initial state of the `Child`. Render has
+the same thing: the things you pull out of props will be the things for which you queried. Thus, all three essentially
+list the same things, but in slightly different forms.
 
 == Alternate Branches of Unions
 
+The one "extra" feature that initial state support does for you is to initialized alternate branches of components that
+have a <<Unions, union query>>. Remember that a to-one relation from a union could be to any number of alternates.
 
+Take this union query: `{:person (om/get-query Person) :place (om/get-query Place)}`
+
+It means "if you find an ident in the graph pointing to a `:person`, then query for the person. If you find one
+for `:place`, then query for a place. The problem is: if it is a to-one relation then only one can be there at a
+time!
+
+```
+{ :person-or-place [:person 2]
+  :person {2 {:id 2 ...}}}
+```
+
+If you look at a proposed initial state, it will make the problem more clear:
+
+```
+(defui Person
+  static fc/InitialAppState
+  (initial-state [c {:keys [id name]}] {:id id :name name :type :person})
+  ...)
+
+(defui PersonPlaceUnion
+  static fc/InitialAppState
+  (initial-state [c p] (fc/get-initial-state Person {:id 1 :name "Joe"}))
+  static om/IQuery
+  (query [this] {:person (om/get-query Person) :place (om/get-query Place)})
+  ...)
+
+(defui Parent
+  static fc/InitialAppState
+  (initial-state [c p] {:person-or-place (fc/get-initial-state PersonPlaceUnion)})
+  static om/IQuery
+  (query [this] [{:person-or-place (om/get-query PersonPlaceUnion)}]))
+```
+
+This would result in a person in the initial state, but not a place.
+
+Fulcro solves this at startup in the following manner: It pulls the query from root, and walks it. If it finds
+a union component, then for each branch it sees if that component (via the query metadata) has initial state. If
+it does, it places it in app state. This does *not*, of course, join it to anything in the graph since it isn't the
+"default branch" that was explicitly listed (in `PersonPlaceUnion`'s `InitialAppState`).
+
+This behavior is critical when using unions to handle UI routing, which is in turn essential for good application
+performance.
+
+== State Progressions
+
+If you remember from the <<PureRenderingDiagram, diagram>> about pure rendering, then you'll also note that this step
+generates the first state in that progression. Rendering that state results in the UI.
+
+Now, an additional note is that this model also results in a really useful property: You can take the initial state,
+run it though the implementation of one or more mutations, and end up with any other state. This means you can
+"initialize" your application in any state, which is useful for things like testing and server-side rendering.
+
+In fact, writing tests against the state model and mutation implementations is a great way to unit test your application
+without needing to involve the UI itself!
 
 = Handling Mutations
 
+<<Mutations, Mutations>> are triggered using `om.next/transact!`. The meaning of this function is to
+"run a sequence of operations that can have both local and remote side-effects". The
+mutation expression itself is just data, and must be quoted since it uses plain
+lists.
+
+Mutations are known by their symbol and are dispatched to the internal multimethod
+`fulcro.client.mutations/mutate`. To handle a mutation you can do two basic things: use `defmethod`
+to add a mutation support, or use the macro `defmutation`. The macro is recommended for most cases
+because it namespaces the mutation, prevents some common errors, and works better with IDEs.
+
+== Stages of Mutation
+
+There are multiple passes on a mutation: one local, and one for each possible remote. It is
+technically the job of the mutation handler to return a lambda for the local pass, and a boolean (or AST)
+for each remote. Returning `nil` from any pass means to not do anything for that concern.
+
+For example, say you have three remotes: one for normal API, one that hits a REST API, and one for
+file uploads. Each would have a name, and each pass of the mutation handling would be interested
+in knowing what you'd like to do for the local or remote.
+
+The mutation environment (`env` in the examples) contains a target that is set to a remote's name when
+the mutation is being asked for details about how to handle the mutation with respect to that remote.
+
+For each pass the mutation is supposed to return a map whose key is `:action` or the name of the remote, and
+whose value is the thing to do (a lambda for `:action`, and AST or true/false for remotes).
+
+Summary:
+
+1. You `transact!` somewhere in the UI
+2. The internals call your mutation with `:target` set to nil in `env`. You return a map with an `:action` key
+whose value is the function to run.
+3. The internals call your mutation once for each remote, with `:target` set. You return a map with
+that remote's keyword as the key, and either a boolean or AST as the remote action. (true means send the
+AST for the expression sent in (1) to the remote)
+
+== Using the Multimethod Directly
+
+Typically the multipass nature is ignored by the mutation itself, and it just returns a map
+containing all of the possible things that should be done. This looks like:
+
+```
+(defmethod fulcro.client.mutations/mutate `mutation-symbol [{:keys [state ast target] :as env} k params]
+   {:action (fn [] ...)
+    :rest-api true ; trigger this remotely on the rest API AND the normal one.
+    :remote true })
+```
+
+Since the action is just data, it doesn't matter that we "generate" it for the multiple passes. Same for
+the remotes. Note that the example above uses syntax quoting on the symbol, which will add the current
+namespace to it. In any case, the symbol is just that: a symbol (data) that acts as the dispatch
+key for the multimethod. If you use a plain quote (`'`) then you should still namespace the symbol.
+
+Some common possible mistakes are:
+
+1. You side-effect. Since your mutation will be called at least two times, this is a bad idea.
+2. You assume that the remote expression "sees" the old state (e.g. you might build an AST based on
+what is in app state). The local action is usually run before the remote passes, meaning that state has already changed.
+3. You could forget to return a map with the correct keys (usually if you made mistake 1).
+
+There is no guaranteed order to evaluation. Therefore if you need a value from state as it was seen
+when the mutation was triggered: send it as a parameter to the mutation. That way the call has closed
+over the old value.
+
+== Using `defmutation`
+
+`defmutation` is a macro that writes the multimethod for you. It looks like this:
+
+```
+(defmutation mutation-symbol
+  "docstring"
+  [params]
+  (action [{:keys [state] :as env}]
+    (swap! state ...))
+  (rest-api [env] true)
+  (remote [env] true))
+```
+
+Thus it ends up looking more like a function definition. IDE's like Cursive can be told how to resolve
+the macro (as `defn` in this case) and will then let you read the docstrings and navigate from the
+use in transact. This makes development a lot easier.
+
+Another advantage is that the symbol is placed into the namespace in which it is declared (not interned,
+just given the namespace...it is still just symbol data). Syntax quoting can expand these, which means
+you get a very nice tool experience at usage site:
+
+```
+(ns app
+  (:require [app.mutations :as am]))
+
+...
+   (om/transact! this `[(am/mutation-symbol {})]) ; am gets expanded to app.mutations
+```
+
+The final advantage is it is harder to accidentally side-effect. The `action` section of `defmutation`
+will wrap the logic in a lambda, meaning that it can read as-if you're side-effecting, but in fact
+will do the right thing.
+
+Unless you are tied to inventing namespaces that are separate from the place where they are declared, then
+you should use `defmutation`.
+
 == Transactional Behavior
+
+
 
 == Recommendations
 
@@ -1422,10 +1633,6 @@ mutation out of such functions with this pattern:
       ...)))
 ```
 
-== Quoting and Unquoting
-
-== Parameters
-
 == Using `integrate-ident!`
 
 == Using `merge-state!`
@@ -1434,17 +1641,47 @@ mutation out of such functions with this pattern:
 
 === Altering the Mutation
 
-WARNING: You cannot rely on the values in state when
-computing anything for the remote. The state was
-already changed by the optimistic update (mutation
-handling is a multi-pass mechanism). If you need to
-rely on data as it existed at the time of
-`transact!` then you *must* pass it as a parameter to the
+WARNING: You cannot use the values in state when
+computing anything for the remote because the optimistic
+update of the `action` will have already been applied!
+If you need to rely on data as it existed at the time of
+`transact!` then you *must* pass it as a *parameter* to the
 mutation.
 
 == Mutations that Trigger one or more Loads
 
+Mutations generally need not expose their full-stack nature to the UI. For
+example a `next-page` mutation might trigger a load for the next page of
+data or simply swap in some already cached data. The UI need not be
+aware of the logic of this distinction (though typically the UI will
+want to include loading markers, so it is common for there to be some
+kind of knowledge about lazy loading).
 
+Instead of coding complex "do I need to load that?" logic in the UI
+(where it most certainly does *not* belong) one should instead write
+mutations that abstract it into a nice concept.
+
+Fulcro handles loads by placing load markers into a special place in the
+application database. Whenever a remote operation is triggered, the
+networking layer will check this queue and process it.
+
+The `fulcro.client.data-detch/load` function simply runs a `transact!`
+that does both (adds the load to the queue and triggers remote processing).
+
+If you'd like to compose one or more loads into a mutation, there are helper
+functions that will help you do just that: `df/load-action` and `df/remote-load`.
+
+The basic pattern is:
+
+```
+(defmutation next-page [params]
+  (action [{:keys [state] :as env}]
+    (swap! state ...) ; local optimistic db updates
+    (df/load-action state :prop Component) ; same basic args as `load`, except state atom instead of `this`
+    (df/load-action state :other Other)) ; as many as you need...
+  (remote [env]
+    (df/remote-load env))) ; notifies back-end that there is some loading to do
+```
 
 = Server Construction
 
@@ -1633,6 +1870,100 @@ For use in UI or on server.
 
 == Supplying State to the Support Viewer
 
+= Code Splitting (modules)
+
+Clojurescript 1.9.854+ has expanded support for code splitting (older versions do too, but require a bit more code). The
+main things you need to do to accomplish code splitting are:
+
+1. Make sure your main app doesn't don't accidentally refer to things in the module. Hard dependencies make it
+impossible to split the code.
+2. Define a mechanism whereby your loaded code can find and install itself into the application.
+
+Since you're working with a data-driven application with components that have queries, this typically means that you're
+going to have to have the newly loaded components somehow modify the main application's query to tie them in. Also,
+since parents technically render children, you're going to have to have an extensible mechanism for that as well.
+
+To demonstrate one technique we'll assume that what you load is a "section" of the application that can be routed to. The
+main application knows to provide the link, but it does not yet have the rendering factory, class, or query.
+
+== The Source Structure
+
+TODO: Add a dynamic query routing component to `routing.cljc`
+
+TODO: multimethods for getting class by well-known name. Use keyword (which parent can know) as dispatch. Use dynamic query for that router.
+
+== The Compiler Config
+
+- Add modules
+
+== The Extension Point
+
+== Server-Side Rendering
+
+Of course this affects server-side rendering as well. If you want to pre-render a page that is normally loaded as a
+module then you must make sure it is loaded properly on the server. This is typically relatively simple, since you won't
+need the module splitting or the loading code to do anything. Instead, you just need to make sure the namespace is required so
+that the multimethod has been installed. There is also the problem of the dynamic query: you don't have component instances
+or a reconciler, so there is no place to set the query. Instead, you'll have to use reader conditionals so that the query
+is statically complete when used on the server.
+
+```
+(defui RouterUnion
+  static om/IQuery
+  (query [this]
+    #?(:cljs {:main-screen (om/get-query Main)}
+       :clj {:main-screen (om/get-query Main) :other (om/get-query Other) ...}))
+```
+
+= Performance
+
+Fuclro and React behave in a very performant manner for most data-driven applications. There are ways, however,
+in which you can negatively affect performance.
+
+== Poor Query Performance
+
+This is by far the most common source of performance issues. Evaluating the UI query is relatively fast, but relative is
+the key word. The larger the query, the more work that has to be done to get the data for it. Remember that you compose all
+component queries to the root. If you do this with *only* joins and props, then your root query will ask for *everything* that
+your UI could ever show, on every frame! This will perform very badly.
+
+The solution to this is to make use of UI routing to ensure that your query contains only the currently relevant things.
+There are a number of possible solutions for this, but the two most highly suggested are to use union or dynamic queries.
+
+The `fulcro.client.routing` namespace includes primitives for building your UI routes using Unions (the unions are written
+for you). It has a number of features, including the ability to nicely integrate with HTML5 history events for full HTML5
+routing in your application.
+
+The dynamic query approach is detailed more in this article: https://anmonteiro.com/2016/02/routing-in-om-next-a-catalog-of-approaches/
+
+It is also important to note that you need not normalize things that are really just big blobs of data that you don't
+intend to mutate. An example of this is large reports where the data is read-only. You could write a big
+nested bunch of components, normalize all of the parts, and write a query that joins it all back together; however,
+that incurs a lot of overhead both in loading the data, and every time you render.
+
+Instead, realize that a property query like `[:report-data]` can pull *any* kind of (serializable, if you want
+support viewer support) value from the
+application state. You can put a js/Date there. You can put a map there. Anything. Furthermore, this query is super-fast
+since it just pulls that big blob of data from app state and adds it to the result tree. Structural sharing makes that
+fast.
+
+== Poor Rendering Performance
+
+In general Fulcro should be able to handle a reasonably high frame-rate. In fact, the design is meant to facilitate
+60FPS rendering. Remember, however, that there are a number of stages in rendering, and each of them has an overhead. Large
+UIs can have negative performance impacts at both the query and DOM layers.
+
+Since React does your rendering, it is best to understand how to best optimize it using their suggestions and documentation. Note
+that Fulcro already ensures (through Om Next) that `shouldComponentUpdate` is defined to a sane value that should prevent refresh of DOM that has
+not changed in an efficient manner.
+
+Some general tips to start with are:
+
+1. Make sure your components have a *stable* react key. If the key changes, React will ignore the diff and redo the DOM. This is *very* slow. So,
+if you've generated keys using something like random numbers just to get warnings to go away, then you're asking for trouble.
+2. You're generally better off changing classes than DOM structure. For example, having a `(when render? (dom/div ...))` will cause entire
+sections to be inserted and removed from the DOM. Using a class is much more efficient: `(dom/div #js {:className (str "" (when-not render? " hidden"))} ...)`.
+3. Large DOM. React is pretty good with eliminating unnecessary changes, but that is still no reason to try to render a table with 1000's of rows. Paginate.
 
 
 = Testing
