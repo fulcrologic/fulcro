@@ -148,8 +148,8 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                    (some-> target-kw
                      get-dynamic-router-target
                      om/get-query))]
-    (log/debug (str "Setting routing query for " router-id " to " query))
     (when query
+      (log/debug (str "Setting routing query for " router-id " to " query))
       (om/set-query! router {:query [:id {:current-route query}]}))))
 
 (defn update-routing-links

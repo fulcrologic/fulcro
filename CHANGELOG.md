@@ -9,6 +9,7 @@
   has always been broken. If you have custom networking you'll have to remove that param to start.
 - NOTE: You must upgrade fulcro-spec (if you use it) to beta7 as well on this release.
 - Added DynamicRouter to routing. Should work as soon as newest cljs compiler module loader is debugged and fixed.
+- Fixed initialize form to work for SSR
 
 1.0.0-beta6
 -----------
