@@ -265,7 +265,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
         (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
         [])
       (reduce (fn [routes {:keys [target-router target-screen]}]
-                (let [router (om/ref->any reconciler target-router)]
+                (let [router (om/ref->any reconciler [routers-table target-router])]
                   (if (and (is-dynamic-router? router) (route-target-missing? target-screen))
                     (conj routes (first target-screen))
                     routes))) [] routing-instructions))))

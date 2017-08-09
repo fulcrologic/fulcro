@@ -10,18 +10,6 @@
             [fulcro.client.logging :as log]
             [fulcro.client.util :as util]))
 
-(om/defui ^:once Main
-  static fc/InitialAppState
-  (initial-state [clz params] {r/dynamic-route-key :main :label "MAIN"})
-  static om/Ident
-  (ident [this props] [:main :singleton])
-  static om/IQuery
-  (query [this] [r/dynamic-route-key :label])
-  Object
-  (render [this]
-    (let [{:keys [label]} (om/props this)]
-      (dom/div #js {:style #js {:backgroundColor "red"}}
-        label))))
 
 (om/defui ^:once Login
   static fc/InitialAppState
@@ -56,7 +44,9 @@
                                   (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
                                   (r/make-route :login [(r/router-instruction :top-router [:login :singleton])])
                                   (r/make-route :new-user [(r/router-instruction :top-router [:new-user :singleton])]))
-                                {:top-router (fc/get-initial-state r/DynamicRouter {:id :top-router})}))
+                                {:top-router            (fc/get-initial-state r/DynamicRouter {:id :top-router})
+                                 ; this gets the Login screens data into app state. Still have to route to it for it to show.
+                                 :ignored/initial-route (fc/get-initial-state Login {})}))
   static om/IQuery
   (query [this] [:ui/react-key {:top-router (om/get-query r/DynamicRouter)}])
   Object
@@ -71,6 +61,6 @@
 
 ; these would happen as a result of module loads:
 (defn application-loaded [{:keys [reconciler]}]
-  (om/transact! reconciler `[(r/install-route {:target-kw :main :component ~Main})
-                             (r/install-route {:target-kw :new-user :component ~NewUser})
-                             (r/install-route {:target-kw :login :component ~Login})]))
+  (om/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
+                             (r/install-route {:target-kw :login :component ~Login})
+                             (r/route-to {:handler :login})]))

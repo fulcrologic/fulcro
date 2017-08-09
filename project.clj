@@ -30,7 +30,7 @@
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target"]
 
-  :plugins [[lein-cljsbuild "1.1.6"]
+  :plugins [[lein-cljsbuild "1.1.7"]
             [lein-doo "0.1.7"]
             [com.jakemccrary/lein-test-refresh "0.19.0"]]
 
@@ -42,7 +42,8 @@
   :doo {:build "automated-tests"
         :paths {:karma "node_modules/karma/bin/karma"}}
 
-  :figwheel {:server-port 8080}
+  :figwheel {:server-port     8080
+             :validate-config false}
 
   :cljsbuild {:builds
               [{:id           "test"
@@ -70,15 +71,15 @@
                {:id           "demos"
                 :source-paths ["src/main" "src/dev" "src/demos"]
                 :figwheel     {:devcards true}
-                :compiler     {:main                 cards.card_ui
-                               :devcards             true
-                               :output-to            "resources/public/js/demos.js"
-                               :output-dir           "resources/public/js/demos"
-                               :asset-path           "js/demos"
-                               :preloads             [devtools.preload]
-                               :parallel-build       true
-                               :source-map-timestamp true
-                               :optimizations        :none}}
+                :compiler     {:devcards       true
+                               :output-dir     "resources/public/js/demos"
+                               :asset-path     "js/demos"
+                               :preloads       [devtools.preload]
+                               :modules        {:entry-point {:output-to "resources/public/js/demos/demos.js"
+                                                              :entries   #{cards.card_ui}}
+                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
+                                                              :entries   #{recipes.dynamic-ui-main}}}
+                               :optimizations  :none}}
                {:id           "devguide-live"
                 :source-paths ["src/main" "src/devguide"]
                 :compiler     {:main          fulcro-devguide.guide
@@ -131,7 +132,7 @@
                    :dependencies [[binaryage/devtools "0.9.4"]
                                   [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
                                   [com.cemerick/piggieback "0.2.1"]
-                                  [figwheel-sidecar "0.5.11"]
+                                  [figwheel-sidecar "0.5.12"]
                                   [cljsjs/d3 "3.5.7-1"]
                                   [cljsjs/victory "0.9.0-0"]
                                   [hickory "0.7.1"]
