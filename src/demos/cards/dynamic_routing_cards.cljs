@@ -5,9 +5,10 @@
             [fulcro.client.cards :refer-macros [fulcro-app]]))
 
 (defcard router-demo
-  "# Router Demo
+  "# Dyanmic Router Demo
 
-  Background colors are used to show where the screens shown are different, and possibly nested."
+  NOTE: Not working yet. Seems like a bug in new code splitting load support.
+  "
   (fulcro-app dur/Root :started-callback dur/application-loaded)
   {}
   {:inspect-data true})
