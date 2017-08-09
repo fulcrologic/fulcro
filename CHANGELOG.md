@@ -8,6 +8,7 @@
 - BREAKING CHANGE: Removed passing `app` to networking. This caused a dependency loop that was unsolvable internally and
   has always been broken. If you have custom networking you'll have to remove that param to start.
 - NOTE: You must upgrade fulcro-spec (if you use it) to beta7 as well on this release.
+- Added DynamicRouter to routing. Should work as soon as newest cljs compiler module loader is debugged and fixed.
 
 1.0.0-beta6
 -----------
