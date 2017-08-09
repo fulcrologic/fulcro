@@ -6,6 +6,7 @@
 - Fixed a bug in new initial app state handling
 - BREAKING CHANGE: Removed passing `app` to networking. This caused a dependency loop that was unsolvable internally and
   has always been broken. If you have custom networking you'll have to remove that param to start.
+- NOTE: You must upgrade fulcro-spec (if you use it) to beta7 as well on this release.
 
 1.0.0-beta6
 -----------
