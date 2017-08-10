@@ -17,7 +17,6 @@
     fulcro-devguide.G-Mutation-Solutions
     fulcro-devguide.H-Server-Interactions
     fulcro-devguide.I50-Advanced-Server-Query-Processing
-    fulcro-devguide.I50-Advanced-Server-Query-Processing-Exercises
     fulcro-devguide.I10-Modular-Server
     fulcro-devguide.J-Putting-It-Together
     fulcro-devguide.K-Testing
