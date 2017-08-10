@@ -2150,8 +2150,7 @@ itself, rather than the work you have to do. Create a new namespace `src/main/ap
       ; STEP 3 (see response-ok above)
       (events/listen xhrio (.-SUCCESS EventType) #(net/response-ok this xhrio ok))
       (events/listen xhrio (.-ERROR EventType) #(net/response-error this xhrio error))))
-  (start [this app]
-    (assoc this :complete-app app)))
+  (start [this] this))
 
 (defn make-rest-network [] (map->Network {}))
 ----
