@@ -13,7 +13,7 @@
 
   Fulcro's easy server support is an attempt to get you going quickly, but it suffers from a few drawbacks:
 
-  - Library authors cannot easily provide composable full-stack components that interact with your parser.
+  - Library authors cannot easily provide composable full-stack components.
   - The Ring stack can only be modified at pre-hook and post-hook locations.
   - Adding new features to easy-server would lead to a swiss-army knife API with a dizzying array of options.
 
