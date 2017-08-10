@@ -6,14 +6,16 @@
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
-    [fulcro.client.mutations :refer [defmutation]]
+    [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro-devguide.N10-Twitter-Bootstrap-CSS :refer [render-example]]
     [goog.events :as events]
     [fulcro.client.network :as net]
     [clojure.string :as str]
     [fulcro.ui.file-upload :as fu :refer [FileUploadInput file-upload-input file-upload-networking]]
     [fulcro.client.logging :as log]
-    [fulcro.ui.bootstrap3 :as b])
+    [fulcro.ui.bootstrap3 :as b]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.ui.file-upload :as upload])
   (:refer-clojure :exclude [send])
   (:import [goog.net XhrIo EventType]))
 
@@ -27,20 +29,21 @@
 (defui ^:once FileUploadDemo
   static fc/InitialAppState
   (initial-state [this params]
-    (f/build-form this {:db/id 1 :short-story (fc/get-initial-state FileUploadInput {:id :story})}))
+    (f/build-form this {:db/id 1 :image-uploads (fc/get-initial-state FileUploadInput {:id :image-uploads})}))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
-                     (file-upload-input :short-story)])
+                     (file-upload-input :image-uploads)])
   static om/IQuery
-  (query [this] [f/form-root-key f/form-key :db/id :text {:short-story (om/get-query FileUploadInput)}])
+  (query [this] [f/form-root-key f/form-key :db/id :text {:image-uploads (om/get-query FileUploadInput)}])
   static om/Ident
   (ident [this props] [:example/by-id (:db/id props)])
   Object
   (render [this]
     (let [{:keys [db/id] :as props} (om/props this)
+          onDone     (om/get-computed this :onDone)
           not-valid? (not (f/would-be-valid? props))]
       (dom/div #js {:className "form-horizontal"}
-        (field-with-label this props :short-story "PDF Files:" :accept "application/pdf" :multiple? true
+        (field-with-label this props :image-uploads "Image Files:" :accept "image/*" :multiple? true
           :renderFile (fn [file-component]
                         (let [onCancel (om/get-computed file-component :onCancel)
                               {:keys [file/id file/name file/size file/progress file/status] :as props} (om/props file-component)
@@ -65,24 +68,101 @@
                              (dom/label #js {:htmlFor control-id} (b/glyphicon {:className "btn btn-primary"} :plus)
                                (dom/input attrs)))))
         (b/button {:disabled not-valid?
-                   :onClick  #(f/commit-to-entity! this :remote true)} "Submit")))))
+                   :onClick  #(when onDone (onDone))} "Done")))))
 
 (def ui-example (om/factory FileUploadDemo {:keyfn :db/id}))
 
-(defui ^:once CommitRoot
-  static fc/InitialAppState
-  (initial-state [this _] {:demo (fc/initial-state FileUploadDemo {:db/id 1})})
+(defui ^:once Image
+  static om/Ident
+  (ident [this props] [:image/by-id (:db/id props)])
   static om/IQuery
-  (query [this] [:ui/react-key
+  (query [this] [:db/id :image/url :ui/fetch-state])
+  Object
+  (render [this]
+    (let [{:keys [image/url]} (om/props this)]
+      (b/col {:xs 2}
+        (dom/img #js {:width "100%" :src url})))))
+
+(def ui-image (om/factory Image {:keyfn :db/id}))
+
+(defn- load-images [component page]
+  (df/load component :server/image-library Image {:params {:page (or page 1)}
+                                                  :target [:image-library/by-id 1 :library/images]}))
+
+(defui ^:once ImageLibrary
+  static fc/InitialAppState
+  (initial-state [c p] {:db/id (:id p) :ui/page 1 :library/images []})
+  static om/Ident
+  (ident [this props] [:image-library/by-id (:db/id props)])
+  static om/IQuery
+  (query [this] [:db/id :ui/page {:library/images (om/get-query Image)}])
+  Object
+  (componentDidMount [this props]
+    (let [{:keys [library/images ui/page]} (om/props this)]
+      (when (or (map? images) (empty? images)) (load-images this (or page 1)))))
+  (render [this]
+    (let [{:keys [db/id library/images ui/page]} (om/props this)
+          onUpload (om/get-computed this :onUpload)]
+      (dom/div nil
+        (b/button {:onClick #(when onUpload (onUpload))} "Upload")
+        (if (map? images)                                   ; it is a loading marker
+          (dom/p nil "Loading...")
+          (let [rows (partition-all 6 images)]
+            (dom/div nil
+              (dom/span nil (str "Page " page))
+              (when (not= 1 page)
+                (b/button {:onClick (fn []
+                                      (m/set-value! this :ui/page (dec page))
+                                      (load-images this (dec page)))} "Prior"))
+              (when (= 6 (count (last rows)))
+                (b/button {:onClick (fn []
+                                      (m/set-value! this :ui/page (inc page))
+                                      (load-images this (inc page)))} "Next"))
+
+              (map-indexed (fn [idx row]
+                             (b/row {}
+                               (mapv ui-image row))) rows))))))))
+
+(def ui-image-library (om/factory ImageLibrary))
+
+(defmutation clear-upload-list [ignored]
+  (action [{:keys [state]}]
+    (swap! state upload/clear-upload-list-impl :image-uploads)))
+
+(defui ^:once ImageLibraryDemo
+  static fc/InitialAppState
+  (initial-state [this _] {:demo          (fc/get-initial-state FileUploadDemo {:db/id 1})
+                           :image-library (fc/get-initial-state ImageLibrary {:id 1})})
+  static om/Ident
+  (ident [this props] [:demo/by-id :images])
+  static om/IQuery
+  (query [this] [:ui/show-library?
+                 {:image-library (om/get-query ImageLibrary)}
                  {:demo (om/get-query FileUploadDemo)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key demo]} (om/props this)]
+    (let [{:keys [ui/react-key ui/show-library? demo image-library]} (om/props this)]
+      (if show-library?
+        (ui-image-library (om/computed image-library {:onUpload #(m/toggle! this :ui/show-library?)}))
+        (ui-example (om/computed demo {:onDone (fn []
+                                                 (om/transact! this `[(clear-upload-list {})])
+                                                 (m/toggle! this :ui/show-library?))}))))))
+
+(def ui-demo (om/factory ImageLibraryDemo))
+
+(defui ^:once DemoRoot
+  static fc/InitialAppState
+  (initial-state [this _] {:screen (fc/get-initial-state ImageLibraryDemo {})})
+  static om/IQuery
+  (query [this] [:ui/react-key {:screen (om/get-query ImageLibraryDemo)}])
+  Object
+  (render [this]
+    (let [{:keys [ui/react-key screen]} (om/props this)]
       (render-example "100%" "230px"
         (dom/div #js {:key react-key}
           ; In an iframe, so embed list style via react
           (dom/style #js {} ".file-upload-list { padding-left: 0; }")
-          (ui-example demo))))))
+          (ui-demo screen))))))
 
 (defcard-doc
   "
@@ -103,9 +183,10 @@
 
   ## Understanding File Upload
 
-  The lifecycle of the file upload control is meant to be tied to form interactions and submission. You can use
-  the file upload without forms, but in that case you'll need to write some mutation code that you trigger to
-  tell your server what the file upload is for.
+  The lifecycle of the file upload control can be tied to form interactions and submission, or can act as
+  a standalone upload system (though you'll still embed it in a form, of sorts). When upload is triggered the file object
+  on the client gets an ID remap from your server storage component, and you can easily inject that server component into your
+  parsing environment or other server handlers to deal with the result.
 
   The abstract composition of a file upload into your application takes the following steps:
 
@@ -207,6 +288,8 @@
   From there, you can use regular React DOM tricks (e.g. `:ref`) to do the rest in a custom
   file row rendering.
 
+
+
   # Demo
 
   The following demo component does custom rendering for both the control and list items. Note that the file uploads
@@ -235,7 +318,7 @@
   The server for these examples is on port 8085, so use this page via
   [http://localhost:8085/guide.html#!/fulcro_devguide.O15_Forms_File_Upload](http://localhost:8085/guide.html).
   "
-  CommitRoot
+  DemoRoot
   {}
   {:inspect-data false
    :fulcro       {:started-callback (fn [{:keys [reconciler]}] (fu/install-reconciler! upload-networking reconciler))

@@ -28,8 +28,8 @@
    (defprotocol IFileUpload
      (upload-prefix [this] "Returns the exact URI at which to install the file upload POST handler.")
      (is-allowed? [this request] "Return true if the given file upload request is acceptable (e.g. authorized)")
-     (store [this file] "Save the given file. Return an ID that this file will be known by with respect to this file upload component.")
-     (retrieve [this id] "Return a file with the content that was previously stored. Id is what store originally returned.")
+     (store [this file] "Save the given file, which is a map containing the filename, content-type, size, and tempfile. Return an ID that this file will be known by with respect to this file upload component.")
+     (retrieve ^java.io.File [this id] "Return a java.io.File with the content that was previously stored. Id is what store originally returned.")
      (delete [this id] "Ensure that the space consumed by file with id is no reclaimed.")))
 
 #?(:clj
@@ -38,10 +38,10 @@
      [req upload]
      (when-not (is-allowed? upload req)
        (throw (ex-info "Upload denied" {})))
-     (let [{:keys [filename content-type size tempfile]} (get-in req [:params "file"])
+     (let [file    (get-in req [:params "file"])
            str-id  (get-in req [:params "id"])
            id      (util/transit-str->clj str-id)
-           real-id (store upload tempfile)]
+           real-id (store upload file)]
        (ring.util.response/response {:tempids {id real-id}}))))
 
 #?(:clj
@@ -130,6 +130,11 @@
   [file-upload]
   (:file-upload/files file-upload))
 
+(defn clear-upload-list-impl
+  "Implementation for a mutation that clears the file list on a file upload input by its ID."
+  [state-map id]
+  (assoc-in state-map (conj (file-upload-ident id) :file-upload/files) []))
+
 (defui ^:once FileUploadInput
   static f/IForm
   (form-spec [this] [(f/id-field :file-upload/id)
@@ -156,7 +161,8 @@
                                (conj (mapv (fn [file-idx]
                                              (let [fid     (om/tempid)
                                                    js-file (.item js-file-list file-idx)
-                                                   tx-call `(add-file ~{:file-upload file-upload-id :file-id fid
+                                                   tx-call `(add-file ~{:file-upload file-upload-id
+                                                                        :file-id     fid
                                                                         :js-file     js-file})]
                                                tx-call)) (range (.-length js-file-list)))
                                  f/form-root-key))))

@@ -346,7 +346,7 @@
                 (dissoc :size)
                 (assoc :aria-hidden true)
                 (assoc :style #js {:fontSize size})
-                (update :className #(str "glyphicon glyphicon-" (name icon)))
+                (update :className #(str % " glyphicon glyphicon-" (name icon)))
                 clj->js)]
     (dom/span attrs "")))
 

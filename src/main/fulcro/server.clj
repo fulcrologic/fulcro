@@ -467,7 +467,9 @@ default-malformed-response
             :arglists '([sym docstring? arglist action])} defmutation
   [& args]
   (let [{:keys [sym doc arglist action remote]} (util/conform! ::mutation-args args)
-        fqsym      (symbol (name (ns-name *ns*)) (name sym))
+        fqsym      (if (namespace sym)
+                     sym
+                     (symbol (name (ns-name *ns*)) (name sym)))
         {:keys [action-args action-body]} (if action
                                             (util/conform! ::action action)
                                             {:action-args ['env] :action-body []})
@@ -555,7 +557,7 @@ The return value of `value` will be sent to the client.
     {:db/id 2 :question/value \"What time is it?\"}
     {:db/id 3 :question/value \"How old are you?\"}]))
 "
-            :arglists '([entity-type docstring? value])} defquery-root
+            :arglists '([root-kw docstring? value-method])} defquery-root
   [& args]
   (let [{:keys [kw doc value]} (util/conform! ::query-root-args args)
         {:keys [value-args value-body]} (util/conform! ::root-value value)
