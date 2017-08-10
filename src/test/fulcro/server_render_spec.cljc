@@ -48,7 +48,7 @@
        (ssr/initial-state->script-tag []) => "<script type='text/javascript'>\nwindow.INITIAL_APP_STATE = '[]'\n</script>\n")))
 
 #?(:cljs
-   (specification "SSR initial-state extraction" :focused
+   (specification "SSR initial-state extraction"
      (let [state (util/transit-clj->str [])]
        (set! (.-INITIAL_APP_STATE js/window) state)
        (assertions
@@ -83,7 +83,7 @@
   static om/IQuery
   (query [this] [{:reports (om/get-query Reports)}]))
 
-(specification "Build Initial State" :focused
+(specification "Build Initial State"
   (let [state-tree (fc/get-initial-state MRRoot nil)
         norm-db    (ssr/build-initial-state state-tree MRRoot)]
     (assertions

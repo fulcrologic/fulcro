@@ -1,5 +1,5 @@
 (ns fulcro.client.routing-spec
-  (:require [fulcro-spec.core :refer [specification behavior assertions when-mocking component]]
+  (:require [fulcro-spec.core :refer [specification behavior assertions when-mocking component provided]]
             [fulcro.client.routing :as r :refer [defrouter]]
             [om.dom :as dom]
             [fulcro.client.util :as util]
@@ -61,20 +61,22 @@
         (r/current-route new-state-map :router-1) => [:screen1 :target-id]))))
 
 (specification "route-to mutation"
-  (let [r         (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
-        r2        (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
-                                      (r/router-instruction :router-1 [:screen1 :other])])
-        tree      (r/routing-tree r r2)
-        state-map (merge tree
-                    {r/routers-table {:router-1 {:id :router-1 :current-route [:initial :top]}
-                                      :router-2 {:id :router-2 :current-route [:initial :top]}}})
-        state     (atom state-map)
-        action    (:action (m/mutate {:state state} `r/route-to {:handler :boo}))]
+  (provided "There are no missing dynamically loaded routes: "
+    (r/get-missing-routes r s p) => []
+    (let [r         (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
+         r2        (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
+                                       (r/router-instruction :router-1 [:screen1 :other])])
+         tree      (r/routing-tree r r2)
+         state-map (merge tree
+                     {r/routers-table {:router-1 {:id :router-1 :current-route [:initial :top]}
+                                       :router-2 {:id :router-2 :current-route [:initial :top]}}})
+         state     (atom state-map)
+         action    (:action (m/mutate {:state state} `r/route-to {:handler :boo}))]
 
-    (action)
+     (action)
 
-    (assertions
-      "Switches the current routes according to the route instructions"
-      (r/current-route @state :router-1) => [:screen1 :top])))
+     (assertions
+       "Switches the current routes according to the route instructions"
+       (r/current-route @state :router-1) => [:screen1 :top]))))
 
 
