@@ -12,51 +12,60 @@
             [fulcro.client.data-fetch :as df]))
 
 (defcard-doc
-  "
-  # Putting it all together
+  "# Putting it Together
 
-  This section is a large interactive exercise. In this exercise you'll use the server that is partially built in
-  this project, and you'll build your client right here in this file (in devcards).
+  This section will be a full-stack exercise, but the original version of it got corrupted in the naming transition and over
+  time. Needs a re-write.
 
-  Our goal is to demonstrate the following core features:
-
-  - Building a UI that will be (eventually) populated from a server (using InitialAppState as a guiding light)
-  - Writing a server-side query response that can fill that UI
-  - Using the `started-callback` to trigger an initial load of the data into the UI
-  - Working with mutations that do optimistic update and remote mutations
-
-  ## Setting up
-
-  FIXME: During the reorg this exercise got lost...
-
-  First, review the steps for getting the server running in [Building A Server Exercises](#!/fulcro_devguide.I_Building_A_Server_Exercises).
-
-  Make sure you can start the server, and make sure you're loading this *through the server* (e.g. check
-  the port, it should not be 3449. Check your server logs, as the port is reported there.)
+  The old version can be seen in the source of the J_Putting_It_Together.cljs file.
   ")
+(comment
+  (defcard-doc
+    "
+    # Putting it all together
 
-(defui CheckSetupRoot
-  static fc/InitialAppState
-  (initial-state [this params] {})
-  static om/IQuery
-  (query [this] [:ui/react-key :something])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key something]} (om/props this)]
-      (dom/div #js {:key react-key :style #js {:border "1px solid black"}}
-        (if (= 66 something)
-          (dom/p nil "SERVER RESPONDED WITH 66!")
-          (dom/p nil "No response from server. You might have a problem. Make sure the API in api.clj is returning {:value 66} for :something, and your browser is hitting the correct server port."))))))
+    This section is a large interactive exercise. In this exercise you'll use the server that is partially built in
+    this project, and you'll build your client right here in this file (in devcards).
 
-(defcard-fulcro check-setup
-  "This card checks to see if your server is working. Start your server, then reload this page on that server and you should see a SERVER RESPONDED message."
-  CheckSetupRoot
-  {}
-  {:fulcro {:started-callback
-            (fn [{:keys [reconciler] :as app}]
-              (df/load reconciler :something nil))}})
+    Our goal is to demonstrate the following core features:
 
-(defcard-doc "
+    - Building a UI that will be (eventually) populated from a server (using InitialAppState as a guiding light)
+    - Writing a server-side query response that can fill that UI
+    - Using the `started-callback` to trigger an initial load of the data into the UI
+    - Working with mutations that do optimistic update and remote mutations
+
+    ## Setting up
+
+    FIXME: During the reorg this exercise got lost...
+
+    First, review the steps for getting the server running in [Building A Server Exercises](#!/fulcro_devguide.I_Building_A_Server_Exercises).
+
+    Make sure you can start the server, and make sure you're loading this *through the server* (e.g. check
+    the port, it should not be 3449. Check your server logs, as the port is reported there.)
+    ")
+
+  (defui CheckSetupRoot
+    static fc/InitialAppState
+    (initial-state [this params] {})
+    static om/IQuery
+    (query [this] [:ui/react-key :something])
+    Object
+    (render [this]
+      (let [{:keys [ui/react-key something]} (om/props this)]
+        (dom/div #js {:key react-key :style #js {:border "1px solid black"}}
+          (if (= 66 something)
+            (dom/p nil "SERVER RESPONDED WITH 66!")
+            (dom/p nil "No response from server. You might have a problem. Make sure the API in api.clj is returning {:value 66} for :something, and your browser is hitting the correct server port."))))))
+
+  (defcard-fulcro check-setup
+    "This card checks to see if your server is working. Start your server, then reload this page on that server and you should see a SERVER RESPONDED message."
+    CheckSetupRoot
+    {}
+    {:fulcro {:started-callback
+              (fn [{:keys [reconciler] :as app}]
+                (df/load reconciler :something nil))}})
+
+  (defcard-doc "
   ## The Project
 
   We're going to write a simple TODO list, with a very simple UI. Use what you've learned to lay out the following
@@ -92,28 +101,28 @@
   if you get stuck.
   ")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;START HERE
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#_(defui ^:once TodoItem
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;START HERE
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  #_(defui ^:once TodoItem
+      Object
+      (render [this]))
+
+  #_(defui ^:once ItemList
+      Object
+      (render [this]))
+
+  (defui ^:once TodoList
     Object
-    (render [this]))
+    (render [this] (dom/div nil "TODO")))
 
-#_(defui ^:once ItemList
-    Object
-    (render [this]))
+  (defcard-fulcro todo-list-application
+    "This card can be used to show your application. "
+    TodoList
+    {}
+    {:inspect-data true})
 
-(defui ^:once TodoList
-  Object
-  (render [this] (dom/div nil "TODO")))
-
-(defcard-fulcro todo-list-application
-  "This card can be used to show your application. "
-  TodoList
-  {}
-  {:inspect-data true})
-
-(defcard-doc "
+  (defcard-doc "
   ## Exercise 2 -- Add Some Local Mutations
 
   First, let's make it so we can check/uncheck items. A simple mutation that toggles done should do this, once it is
@@ -171,50 +180,50 @@
   ")
 
 
-(defcard-fulcro todo-list-application-solution-post-mutation
-  "A final solution. The source is in:
+  (defcard-fulcro todo-list-application-solution-post-mutation
+    "A final solution. The source is in:
 
-  - `fulcro-devguide.putting-together.soln-ex-3` (cljs for UI)
-  - `fulcro-devguide.putting-together.soln-ex-4` (cljs for post mutation)
-  - `solutions.putting-together` (clj server-side API implementation)
+    - `fulcro-devguide.putting-together.soln-ex-3` (cljs for UI)
+    - `fulcro-devguide.putting-together.soln-ex-4` (cljs for post mutation)
+    - `solutions.putting-together` (clj server-side API implementation)
 
-  NOTE: THESE TWO SOLUTIONS SHARE server state but are not connected. Thus, changing one will not reflect in the other.
-  You should reload the page between playing with each of them.
-  "
-  soln3/TodoList
-  {}
-  {:fulcro       {:started-callback
-                  (fn [{:keys [reconciler]}]
-                    (df/load reconciler :ex4/list soln3/TodoItem {:params        {:list "My List"}
-                                                                  :refresh       [:item-list]
-                                                                  :post-mutation 'pit-soln/populate-list}))}
-   :inspect-data true})
+    NOTE: THESE TWO SOLUTIONS SHARE server state but are not connected. Thus, changing one will not reflect in the other.
+    You should reload the page between playing with each of them.
+    "
+    soln3/TodoList
+    {}
+    {:fulcro       {:started-callback
+                    (fn [{:keys [reconciler]}]
+                      (df/load reconciler :ex4/list soln3/TodoItem {:params        {:list "My List"}
+                                                                    :refresh       [:item-list]
+                                                                    :post-mutation 'pit-soln/populate-list}))}
+     :inspect-data true})
 
-(defcard-fulcro todo-list-application-solution-bonus
-  "The bonus for the final solution:
+  (defcard-fulcro todo-list-application-solution-bonus
+    "The bonus for the final solution:
 
-  You can avoid the post-mutation by loading via ident. Of course you must implement
-  the query response correctly on the server, which we've done in `putting_together.clj`):
+    You can avoid the post-mutation by loading via ident. Of course you must implement
+    the query response correctly on the server, which we've done in `putting_together.clj`):
 
-  The load will be:
+    The load will be:
 
-  ```clojure
-  (df/load reconciler [:lists/by-title \"My List\"] soln3/ItemList)
-  ```
+    ```clojure
+    (df/load reconciler [:lists/by-title \"My List\"] soln3/ItemList)
+    ```
 
-  and the query sent to the server will end up being a join on the ident:
+    and the query sent to the server will end up being a join on the ident:
 
-  ```clojure
-  [{[:lists/by-title \"My List\"] (om/get-query ItemList)}]
-  ```
+    ```clojure
+    [{[:lists/by-title \"My List\"] (om/get-query ItemList)}]
+    ```
 
-  NOTE: THESE TWO SOLUTIONS SHARE server state but are not connected. Thus, changing one will not reflect in the other.
-  You should reload the page between playing with each of them.
-  "
-  soln3/TodoList
-  {}
-  {:fulcro       {:started-callback
-                  (fn [{:keys [reconciler]}]
-                    (df/load reconciler [:lists/by-title "My List"] soln3/ItemList))}
-   :inspect-data true})
+    NOTE: THESE TWO SOLUTIONS SHARE server state but are not connected. Thus, changing one will not reflect in the other.
+    You should reload the page between playing with each of them.
+    "
+    soln3/TodoList
+    {}
+    {:fulcro       {:started-callback
+                    (fn [{:keys [reconciler]}]
+                      (df/load reconciler [:lists/by-title "My List"] soln3/ItemList))}
+     :inspect-data true}))
 
