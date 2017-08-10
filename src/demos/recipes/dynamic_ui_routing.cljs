@@ -61,6 +61,7 @@
 
 ; these would happen as a result of module loads:
 (defn application-loaded [{:keys [reconciler]}]
+  ; Let the dynamic router know that two of the routes are already loaded.
   (om/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
                              (r/install-route {:target-kw :login :component ~Login})
                              (r/route-to {:handler :login})]))

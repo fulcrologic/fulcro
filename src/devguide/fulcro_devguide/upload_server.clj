@@ -58,7 +58,7 @@
     {:handler (or handler :handler)}))
 
 (defn logging-mutate [env k params]
-  (timbre/info "Mutation Request: " k)
+  (timbre/info "Mutation Request: " k " params:" params " env: " env)
   {})
 
 (defn logging-query [{:keys [ast] :as env} k params]
@@ -134,14 +134,25 @@
                   ::middleware (build-middleware)
                   :upload      (map->PretendFileUpload {})
                   :web-server  (easy/make-web-server ::middleware)}
-     :modules    [(build-api-handler [])]}))
+     ; The commit mutation will need to access the upload component in order to deal with the files there.
+     :modules    [(build-api-handler [:upload])]}))
 
 (defonce system (atom nil))
 
 (defn go
   "Load the overall web server system and start it."
   []
+  (set-refresh-dirs "src/devguide" "src/main")
   (reset! system (make-system "config/upload-server.edn"))
   (swap! system component/start))
 
+(defn stop "Stop the running web server." []
+  (when @system
+    (swap! system component/stop)
+    (reset! system nil)))
 
+(defn restart
+  "Stop the web server, refresh all namespace source code from disk, then restart the web server."
+  []
+  (stop)
+  (refresh :after `go))

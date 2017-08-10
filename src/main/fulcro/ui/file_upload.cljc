@@ -18,7 +18,8 @@
     #?(:clj
     [ring.util.request :as ru])
     [om.next.protocols :as omp]
-    [clojure.set :as set])
+    [clojure.set :as set]
+    [fulcro.client.util :as util])
   (:refer-clojure :exclude [send])
   #?(:cljs (:import [goog.net XhrIo EventType])))
 
@@ -28,7 +29,7 @@
      (upload-prefix [this] "Returns the exact URI at which to install the file upload POST handler.")
      (is-allowed? [this request] "Return true if the given file upload request is acceptable (e.g. authorized)")
      (store [this file] "Save the given file. Return an ID that this file will be known by with respect to this file upload component.")
-     (retrieve [this id] "Return a file with the content that was previously stored. Id is what save originally returned.")
+     (retrieve [this id] "Return a file with the content that was previously stored. Id is what store originally returned.")
      (delete [this id] "Ensure that the space consumed by file with id is no reclaimed.")))
 
 #?(:clj
@@ -38,11 +39,10 @@
      (when-not (is-allowed? upload req)
        (throw (ex-info "Upload denied" {})))
      (let [{:keys [filename content-type size tempfile]} (get-in req [:params "file"])
-           id      (get-in req [:params "id"])
+           str-id  (get-in req [:params "id"])
+           id      (util/transit-str->clj str-id)
            real-id (store upload tempfile)]
-       (-> {id real-id}
-         (ring.util.response/response)
-         (resp/content-type (format "application/transit+json; charset=utf-8"))))))
+       (ring.util.response/response {:tempids {id real-id}}))))
 
 #?(:clj
    (defn wrap-file-upload
@@ -86,7 +86,7 @@
     (str (.substring name 0 maxlen) "...")
     name))
 
-(defui File
+(defui ^:once File
   static f/IForm
   (form-spec [this] [(f/id-field :file/id)
                      (f/text-input :file/name)
@@ -130,7 +130,7 @@
   [file-upload]
   (:file-upload/files file-upload))
 
-(defui FileUploadInput
+(defui ^:once FileUploadInput
   static f/IForm
   (form-spec [this] [(f/id-field :file-upload/id)
                      (f/subform-element :file-upload/files File :many)])
@@ -142,7 +142,6 @@
   static om/Ident
   (ident [this props] (file-upload-ident (:file-upload/id props)))
   Object
-
   (render [this]
     (let [{:keys [file-upload/id file-upload/files] :as props} (om/props this)
           {:keys [accept multiple? renderControl renderFile]} (om/get-computed this)
@@ -172,7 +171,7 @@
                            :always clj->js)]
       (dom/div nil
         (when (seq files)
-          (dom/ul nil (mapv #(ui-file (om/computed % {:onCancel onCancel :renderFile renderFile})) files)))
+          (dom/ul #js {:className "file-upload-list"} (mapv #(ui-file (om/computed % {:onCancel onCancel :renderFile renderFile})) files)))
         (when can-add-more?
           (if renderControl
             (renderControl onChange accept multiple?)
@@ -212,60 +211,65 @@
 (defprotocol Abort
   (abort-send [this id] "Abort the send with the given ID."))
 
-(defrecord FileUploadNetwork [app active-transfers transfers-to-skip upload-url]
+(defrecord FileUploadNetwork [reconciler active-transfers transfers-to-skip upload-url]
   net/ProgressiveTransfer
-  (updating-send [this edn ok error update]
+  (updating-send [this edn ok error update-fn]
     #?(:cljs
-       (try (let [state (om/app-state (:reconciler @app))]
-              (doseq [call edn]
-                (log/info "updating send called with " call)
-                (let [action     (-> call first)
-                      params     (-> call second)
-                      js-file    (:js-file params)
-                      id         (:file-id params)
-                      is-add?    (= action `add-file)
-                      is-cancel? (= action `cancel-file-upload)]
-                  (cond
-                    (and is-add? (@transfers-to-skip id)) (do
-                                                            (swap! transfers-to-skip disj id)
-                                                            (ok {}))
+       (try
+         (when-not @reconciler
+           (log/error "File upload networking does not have the reconciler. In your started-callback, please call `fulcro.ui.file-upload/install-reconciler!`."))
+         (let [state (om/app-state @reconciler)]
+           (doseq [call edn]
+             (log/info "updating send called with " call)
+             (let [action     (-> call first)
+                   params     (-> call second)
+                   js-file    (:js-file params)
+                   id         (:file-id params)
+                   is-add?    (= action `add-file)
+                   is-cancel? (= action `cancel-file-upload)]
+               (cond
+                 (and is-add? (@transfers-to-skip id)) (do
+                                                         (swap! transfers-to-skip disj id)
+                                                         (ok {}))
 
-                    is-cancel? (abort-send this id)
-                    is-add? (let [xhrio        (XhrIo.)
-                                  done-fn      (fn [edn]
-                                                 (let [ident    (file-ident id)
-                                                       file-obj (get-in @state ident)
-                                                       file     (assoc file-obj :file/progress 100 :file/status :done)]
-                                                   (ok {ident file} {ident (om/get-query File)})
-                                                   ; force update of forms at completion of upload, so validation states can update
-                                                   (omp/queue! (:reconciler @app) [f/form-root-key])))
-                                  progress-fn  (fn [evt]
-                                                 (let [ident    (file-ident id)
-                                                       file-obj (get-in @state ident)
-                                                       file     (assoc file-obj :file/progress (progress% evt))]
-                                                   (update {ident file} {ident (om/get-query File)})))
-                                  error-fn     (fn [evt]
-                                                 (let [ident    (file-ident id)
-                                                       file-obj (get-in @state ident)
-                                                       file     (assoc file-obj :file/progress 0 :file/status :failed)]
-                                                   (update {ident file} {ident (om/get-query File)}))
-                                                 (error evt))
-                                  with-dispose (fn [f] (fn [arg] (try
-                                                                   (f arg)
-                                                                   (finally
-                                                                     (swap! active-transfers dissoc id)
-                                                                     (.dispose xhrio)))))
-                                  form         (js/FormData.)]
-                              (swap! active-transfers assoc id xhrio)
-                              (.append form "file" js-file)
-                              (.append form "id" id)
-                              (.setProgressEventsEnabled xhrio true)
-                              (events/listen xhrio (.-SUCCESS EventType) (with-dispose #(done-fn (ct/read (t/reader {}) (.getResponseText xhrio)))))
-                              (events/listen xhrio (.-UPLOAD_PROGRESS EventType) #(progress-fn %))
-                              (events/listen xhrio (.-ERROR EventType) (with-dispose #(error-fn %)))
-                              (.send xhrio upload-url "POST" form #js {}))))))
-            (catch js/Object e (log/error "NETWORKING THREW " e)
-                               (error e)))))
+                 is-cancel? (abort-send this id)
+                 is-add? (let [xhrio        (XhrIo.)
+                               done-fn      (fn [edn]
+                                              (let [ident             (file-ident id)
+                                                    real-id           (get-in edn [`add-file :tempids id] id)
+                                                    file-obj          (get-in @state ident)
+                                                    file              (assoc file-obj :file/id real-id :file/progress 100 :file/status :done)
+                                                    incoming-remap-id (->> edn :tempids keys first)]
+                                                ; force update of forms at completion of upload, so validation states can update
+                                                (omp/queue! @reconciler [f/form-root-key])
+                                                (ok {ident file `add-file edn} [{ident (om/get-query File)}])))
+                               progress-fn  (fn [evt]
+                                              (let [ident    (file-ident id)
+                                                    file-obj (get-in @state ident)
+                                                    file     (assoc file-obj :file/progress (progress% evt))]
+                                                (update-fn {ident file} {ident (om/get-query File)})))
+                               error-fn     (fn [evt]
+                                              (let [ident    (file-ident id)
+                                                    file-obj (get-in @state ident)
+                                                    file     (assoc file-obj :file/progress 0 :file/status :failed)]
+                                                (update-fn {ident file} {ident (om/get-query File)}))
+                                              (error evt))
+                               with-dispose (fn [f] (fn [arg] (try
+                                                                (f arg)
+                                                                (finally
+                                                                  (swap! active-transfers dissoc id)
+                                                                  (.dispose xhrio)))))
+                               form         (js/FormData.)]
+                           (swap! active-transfers assoc id xhrio)
+                           (.append form "file" js-file)
+                           (.append form "id" (util/transit-clj->str id))
+                           (.setProgressEventsEnabled xhrio true)
+                           (events/listen xhrio (.-SUCCESS EventType) (with-dispose #(done-fn (ct/read (t/reader {}) (.getResponseText xhrio)))))
+                           (events/listen xhrio (.-UPLOAD_PROGRESS EventType) #(progress-fn %))
+                           (events/listen xhrio (.-ERROR EventType) (with-dispose #(error-fn %)))
+                           (.send xhrio upload-url "POST" form #js {}))))))
+         (catch js/Object e (log/error "NETWORKING THREW " e)
+                            (error e)))))
   Abort
   (abort-send [this file-id]
     (if-let [net (get @active-transfers file-id)]
@@ -278,6 +282,9 @@
     (net/updating-send this edn ok-callback error-callback identity))
   (start [this] this))
 
+(defn install-reconciler! [file-upload-networking reconciler]
+  (reset! (:reconciler file-upload-networking) reconciler))
+
 (defn file-upload-networking
   "Create an instance of a file upload networking object. You should install one of these as the
   `:file-upload` remote in your fulcro client. Upload url defaults to /file-upload, but can
@@ -286,7 +293,7 @@
   ([upload-url] (map->FileUploadNetwork {:upload-url        (or upload-url "/file-upload")
                                          :active-transfers  (atom {})
                                          :transfers-to-skip (atom #{})
-                                         :app               (atom nil)})))
+                                         :reconciler        (atom nil)})))
 
 #?(:cljs
    (defmutation cancel-file-upload

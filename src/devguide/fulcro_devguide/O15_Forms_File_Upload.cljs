@@ -11,7 +11,7 @@
     [goog.events :as events]
     [fulcro.client.network :as net]
     [clojure.string :as str]
-    [fulcro.ui.file-upload :refer [FileUploadInput file-upload-input file-upload-networking]]
+    [fulcro.ui.file-upload :as fu :refer [FileUploadInput file-upload-input file-upload-networking]]
     [fulcro.client.logging :as log]
     [fulcro.ui.bootstrap3 :as b])
   (:refer-clojure :exclude [send])
@@ -20,9 +20,9 @@
 (defn field-with-label
   "A non-library helper function, written by you to help lay out your form."
   [comp form name label & params]
-  (dom/div #js {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
-    (dom/label #js {:className "col-sm-2" :htmlFor name} label)
-    (dom/div #js {:className "col-sm-10"} (apply f/form-field comp form name params))))
+  (b/row {}
+    (b/col {:xs 2 :htmlFor name} label)
+    (b/col {:xs 10} (apply f/form-field comp form name params))))
 
 (defui ^:once FileUploadDemo
   static fc/InitialAppState
@@ -37,10 +37,33 @@
   (ident [this props] [:example/by-id (:db/id props)])
   Object
   (render [this]
-    (let [props      (om/props this)
+    (let [{:keys [db/id] :as props} (om/props this)
           not-valid? (not (f/would-be-valid? props))]
       (dom/div #js {:className "form-horizontal"}
-        (field-with-label this props :short-story "Story (PDF):" :accept "application/pdf" :multiple? true)
+        (field-with-label this props :short-story "PDF Files:" :accept "application/pdf" :multiple? true
+          :renderFile (fn [file-component]
+                        (let [onCancel (om/get-computed file-component :onCancel)
+                              {:keys [file/id file/name file/size file/progress file/status] :as props} (om/props file-component)
+                              label    (fu/cropped-name name 20)]
+                          (dom/li #js {:style #js {:listStyleType "none"} :key (str "file-" id)}
+                            (str label " (" size " bytes) ") (b/glyphicon {:size "14pt" :onClick #(onCancel id)} :remove-circle)
+                            (dom/br nil)
+                            (case status
+                              :failed (dom/span nil "FAILED!")
+                              :done ""
+                              (b/progress-bar {:current progress})))))
+          :renderControl (fn [onChange accept multiple?]
+                           (let [control-id (str "add-control-" id)
+                                 attrs      (cond-> {:onChange (fn [evt] (onChange evt))
+                                                     :id       control-id
+                                                     :style    #js {:display "none"}
+                                                     :value    ""
+                                                     :type     "file"}
+                                              accept (assoc :accept accept)
+                                              multiple? (assoc :multiple "multiple")
+                                              :always clj->js)]
+                             (dom/label #js {:htmlFor control-id} (b/glyphicon {:className "btn btn-primary"} :plus)
+                               (dom/input attrs)))))
         (b/button {:disabled not-valid?
                    :onClick  #(f/commit-to-entity! this :remote true)} "Submit")))))
 
@@ -57,10 +80,13 @@
     (let [{:keys [ui/react-key demo]} (om/props this)]
       (render-example "100%" "230px"
         (dom/div #js {:key react-key}
-         (ui-example demo))))))
+          ; In an iframe, so embed list style via react
+          (dom/style #js {} ".file-upload-list { padding-left: 0; }")
+          (ui-example demo))))))
 
 (defcard-doc
-  "# Forms – File Upload
+  "
+  # Forms – File Upload
 
   ## Setup
 
@@ -83,19 +109,18 @@
 
   The abstract composition of a file upload into your application takes the following steps:
 
-
+  - Ensuring that the server's ring middleware will encode file uploads into a temp directory and add them to the request.
+  - Adding a network handler for the file uploads to the server.
+  - Adding a networking remote to the client to talk to the server.
 
   ### Customizing the Ring Stack
 
   If you're using the modular server support for Fulcro, then you can build a stack that contains at least
   the following middleware: transit, API hander, file upload, and wrap-multipart-params. Other bits are also
-  commonly useful. Here's a sample middleware component that has been tested to work:
+  commonly useful.
 
-  TODO: Show how to inject this into the normal API handler so you can access the files on form submission...
-
-  TODO: Finish upload handler (needs metadata and storage plugin, like image upload...probably just use that)
-
-  TODO: For now, just look at upload-server namespace in dev source directory.
+  Here's a sample middleware component for a modular server that has been tested to work (see `upload-server.clj` for the
+  complete code):
 
   ```
   (defrecord CustomMiddleware [middleware api-handler]
@@ -114,19 +139,30 @@
                     wrap-params
                     wrap-multipart-params ; TURN UPLOADS INTO DISK FILES
                     wrap-gzip))))
+  ```
 
-  ### Adding UC File Upload remote
+  ### Adding the File Upload remote:
 
   The client-side setup is very simple, just add a `:networking` parameter to your client that has a map
   containing the normal remote and a file upload remote:
 
   ```
+  ; You need a reference to the network, because it needs to be told about the reconciler in order to send progress
+  ; updates
+  (defonce upload-networking (fulcro.ui.file-upload/file-upload-networking))
+
   (new-fulcro-client
+    ; Once started, tell the networking where to find the reconciler
+    :started-callback (fn [{:keys [reconciler]}] (fulcro.ui.file-upload/install-reconciler! upload-networking reconciler))
     :networking {:remote      (net/make-fulcro-network \"/api\" :global-error-callback identity)
-                 :file-upload (fulcro.ui.file-upload/file-upload-networking)})
+                 :file-upload upload-networking})
   ```
 
   ## Customizing the Rendering
+
+  The normal form field rendering is predefined as it is for all form fields, but in the case of this control
+  there are a number of elements: the button to add files, along with a mechansim to show the files that have been
+  added.
 
   You can customize how the overall upload UI looks in a few ways.
 
@@ -140,28 +176,20 @@
   The function is responsible for hooking up to a HTML file input onChange event, and invoking the
   `upload/add-file` mutation on each file that is to be added.
 
+  The example on this page shows the details.
+
   ### Changing the UI of the Individual Files
 
-  The file upload control *always* renders the current list of files in a `ul` DOM parent. Each
-  file in this list can be customized using the `:renderFile` parameter, which should be a function
-  that receives the file component and renders the correct DOM. This function will be called during upload
+  The file upload control *always* renders the current list of files in a `ul` DOM parent with the
+  CSS class `file-upload-list`. By default, it places each file into this list with an `li` element.
+  However, this can be customized using the `:renderFile` parameter, which should be a function
+  that receives the file component and renders the correct DOM. This function will also be called during upload
   refreshes, and the `:file/progress` in props will indicate progres and `:file/status` will indicate
   if the transfer is still active. The computed props will include an `onCancel` function that you can
   call to cancel the inclusion of the file (i.e. you can hook a call to `onCancel` up to a cancel button
   in your rendering).
 
-  ```
-  (defn render-a-file [file-comp]
-    (let [onCancel   (om/get-computed file-comp :onCancel)
-          {:keys [file/id file/name file/size file/progress file/status] :as props} (om/props file-comp)]
-      (dom/li #js {:key (str \"file-\" id)} (str label \" (\" size \" bytes) \")
-        (case status
-          :failed (dom/span nil \"FAILED!\")
-          :done (dom/span nil \"Ready.\")
-          (dom/span nil \"Sending...\" progress \"%\"))
-        (e/ui-icon {:onClick #(onCancel id)
-                    :glyph   :cancel}))))))
-  ```
+  Again, see the code in the demo on this page for details.
 
   ### Rendering Details Outside of the Control
 
@@ -177,25 +205,18 @@
   Calling `(get-js-file file-props)` will return the `js/File` object of the file.
 
   From there, you can use regular React DOM tricks (e.g. `:ref`) to do the rest in a custom
-  file row rendering:
+  file row rendering.
 
-  TODO: TEST THIS AND REFINE IT!!!
+  # Demo
 
-  (defn render-a-file [file-comp]
-    (let [onCancel   (om/get-computed file-comp :onCancel)
-          {:keys [file/id file/name file/size file/progress file/status] :as props} (om/props file-comp)
-          js-file (get-js-file props)]
-      (dom/li #js {:key (str \"file-\" id)} (str label \" (\" size \" bytes) \")
-        (case status
-          :failed (dom/span nil \"FAILED!\")
-          :done (dom/span nil \"Ready.\")
-          (dom/span nil \"Sending...\" progress \"%\"))
-        (dom/img #js {:width \"100px\" :ref (fn [c] (.setFile c js-file))})
-        (e/ui-icon {:onClick #(onCancel id)
-                    :glyph   :cancel}))))))
-
+  The following demo component does custom rendering for both the control and list items. Note that the file uploads
+  actually happen progressively as you add them, but using tempids. The submit button submits the form data,
+  but the files will already be on the server. The submission is about you recording the files.
+  On submit you would persist the record of the files to a database and (optionally) remap the tempids to real ids.
   "
   (dc/mkdn-pprint-source FileUploadDemo))
+
+(defonce upload-networking (file-upload-networking))
 
 (defcard-fulcro form-file-upload
   "
@@ -212,10 +233,11 @@
   or with the shell script `run-file-upload-server.sh`.
 
   The server for these examples is on port 8085, so use this page via
-  [http://localhost:8085/guide.html#!/fulcro_devguide.O15_Forms_File_Upload](http://localhost:8085/guide.html#!/fulcro_devguide.O15_Forms_File_Upload).
+  [http://localhost:8085/guide.html#!/fulcro_devguide.O15_Forms_File_Upload](http://localhost:8085/guide.html).
   "
   CommitRoot
   {}
   {:inspect-data false
-   :fulcro       {:networking {:remote      (net/make-fulcro-network "/api" :global-error-callback identity)
-                               :file-upload (file-upload-networking)}}})
+   :fulcro       {:started-callback (fn [{:keys [reconciler]}] (fu/install-reconciler! upload-networking reconciler))
+                  :networking       {:remote      (net/make-fulcro-network "/api" :global-error-callback identity)
+                                     :file-upload upload-networking}}})
