@@ -312,6 +312,12 @@
   {(if remote remote :remote) true
    :action                    (fn [] (impl/mark-ready (assoc config :state state)))})
 
+(defmethod mutate `load
+  [{:keys [state]} _ {:keys [post-mutation remote] :as config}]
+  (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
+  {(if remote remote :remote) true
+   :action                    (fn [] (impl/mark-ready (assoc config :state state)))})
+
 (defn- fallback-action*
   [env {:keys [action] :as params}]
   (some-> (mutate env action (dissoc params :action :execute)) :action (apply [])))

@@ -3,8 +3,9 @@
     devcards.core
     cards.A-Introduction
     cards.autocomplete-cards
-    cards.component-local-state-cards
     cards.background-load-cards
+    cards.component-local-state-cards
+    cards.dynamic-routing-cards
     cards.error-handling-cards
     cards.initial-state-cards
     cards.lazy-loading-indicators-cards
@@ -14,7 +15,10 @@
     cards.paginate-large-list-cards
     cards.server-query-security-cards
     cards.tabbed-interface-cards
-    cards.websocket-cards))
+    cards.websocket-cards
+    [fulcro.client.logging :as log]))
+
+(log/set-level :debug)
 
 (devcards.core/start-devcard-ui!)
 
