@@ -79,6 +79,8 @@
 
   ```
   (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang :es})])
+  ; or if you've aliased mutations to m:
+  (om/transact! reconciler `[(m/change-locale {:lang :es})])
   ```
 
   The rendering functions will search for a translation in that language and country, fall back to the language if
