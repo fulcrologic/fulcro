@@ -87,7 +87,9 @@
    :body    "Resource not found."})
 
 (defn wrap-image-library
-  "Handle requests at /image-library/ID by serving images from the PretendFileUpload store."
+  "Handle requests at /image-library/ID by serving images from the PretendFileUpload store. Of course this would be
+  better if it served resized images based on query params...but for a demo it's fine. Ideally, this function would
+  also support not-modified headers to allow browsers to cache the images."
   [handler upload]
   (let [prefix            "/image-library"
         is-file-download? (fn [req] (str/starts-with? (ru/path-info req) prefix))]

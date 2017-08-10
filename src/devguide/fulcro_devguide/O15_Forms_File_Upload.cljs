@@ -26,7 +26,7 @@
     (b/col {:xs 2 :htmlFor name} label)
     (b/col {:xs 10} (apply f/form-field comp form name params))))
 
-(defui ^:once FileUploadDemo
+(defui ^:once FileUploads
   static fc/InitialAppState
   (initial-state [this params]
     (f/build-form this {:db/id 1 :image-uploads (fc/get-initial-state FileUploadInput {:id :image-uploads})}))
@@ -70,22 +70,25 @@
         (b/button {:disabled not-valid?
                    :onClick  #(when onDone (onDone))} "Done")))))
 
-(def ui-example (om/factory FileUploadDemo {:keyfn :db/id}))
+(def ui-example (om/factory FileUploads {:keyfn :db/id}))
 
 (defui ^:once Image
   static om/Ident
   (ident [this props] [:image/by-id (:db/id props)])
+  ; each image has an ID and a URL. The upload-server can server images from that URL
   static om/IQuery
   (query [this] [:db/id :image/url :ui/fetch-state])
   Object
   (render [this]
     (let [{:keys [image/url]} (om/props this)]
-      (b/col {:xs 2}
+      (b/col {:xs 4}
         (dom/img #js {:width "100%" :src url})))))
 
 (def ui-image (om/factory Image {:keyfn :db/id}))
 
-(defn- load-images [component page]
+(defn- load-images
+  "A helper function to trigger a load of a page of images from the server."
+  [component page]
   (df/load component :server/image-library Image {:params {:page (or page 1)}
                                                   :target [:image-library/by-id 1 :library/images]}))
 
@@ -97,24 +100,27 @@
   static om/IQuery
   (query [this] [:db/id :ui/page {:library/images (om/get-query Image)}])
   Object
+  ; Ensure that we have a page of images loaded when we're shown.  Only trigger if the content is actually empty.
   (componentDidMount [this props]
     (let [{:keys [library/images ui/page]} (om/props this)]
-      (when (or (map? images) (empty? images)) (load-images this (or page 1)))))
+      (when (and (vector? images) (empty? images))
+        (load-images this (or page 1)))))
   (render [this]
     (let [{:keys [db/id library/images ui/page]} (om/props this)
           onUpload (om/get-computed this :onUpload)]
       (dom/div nil
         (b/button {:onClick #(when onUpload (onUpload))} "Upload")
-        (if (map? images)                                   ; it is a loading marker
+        ; When things are loading, the images will be a load marker, which is a map. We could also use lazily-loaded here.
+        (if (map? images)
           (dom/p nil "Loading...")
-          (let [rows (partition-all 6 images)]
+          (let [rows (partition-all 3 images)]
             (dom/div nil
               (dom/span nil (str "Page " page))
               (when (not= 1 page)
                 (b/button {:onClick (fn []
                                       (m/set-value! this :ui/page (dec page))
                                       (load-images this (dec page)))} "Prior"))
-              (when (= 6 (count (last rows)))
+              (when (= 3 (count (last rows)))
                 (b/button {:onClick (fn []
                                       (m/set-value! this :ui/page (inc page))
                                       (load-images this (inc page)))} "Next"))
@@ -125,26 +131,31 @@
 
 (def ui-image-library (om/factory ImageLibrary))
 
-(defmutation clear-upload-list [ignored]
+(defmutation clear-upload-list
+  "A mutation to clear the list of files that have been uploaded."
+  [ignored]
   (action [{:keys [state]}]
     (swap! state upload/clear-upload-list-impl :image-uploads)))
 
 (defui ^:once ImageLibraryDemo
   static fc/InitialAppState
-  (initial-state [this _] {:demo          (fc/get-initial-state FileUploadDemo {:db/id 1})
+  (initial-state [this _] {:demo          (fc/get-initial-state FileUploads {:db/id 1})
                            :image-library (fc/get-initial-state ImageLibrary {:id 1})})
   static om/Ident
   (ident [this props] [:demo/by-id :images])
   static om/IQuery
   (query [this] [:ui/show-library?
                  {:image-library (om/get-query ImageLibrary)}
-                 {:demo (om/get-query FileUploadDemo)}])
+                 {:demo (om/get-query FileUploads)}])
   Object
   (render [this]
     (let [{:keys [ui/react-key ui/show-library? demo image-library]} (om/props this)]
+      ; simple DOM toggle between the two UIs. This will cause componentWillMount to trigger on the image library, which
+      ; will load images if it hasn't already.
       (if show-library?
         (ui-image-library (om/computed image-library {:onUpload #(m/toggle! this :ui/show-library?)}))
         (ui-example (om/computed demo {:onDone (fn []
+                                                 ; when moving away from the upload screen, clear the list so we don't see it again when we come back
                                                  (om/transact! this `[(clear-upload-list {})])
                                                  (m/toggle! this :ui/show-library?))}))))))
 
@@ -158,7 +169,7 @@
   Object
   (render [this]
     (let [{:keys [ui/react-key screen]} (om/props this)]
-      (render-example "100%" "230px"
+      (render-example "100%" "500px"
         (dom/div #js {:key react-key}
           ; In an iframe, so embed list style via react
           (dom/style #js {} ".file-upload-list { padding-left: 0; }")
@@ -292,12 +303,24 @@
 
   # Demo
 
-  The following demo component does custom rendering for both the control and list items. Note that the file uploads
-  actually happen progressively as you add them, but using tempids. The submit button submits the form data,
-  but the files will already be on the server. The submission is about you recording the files.
-  On submit you would persist the record of the files to a database and (optionally) remap the tempids to real ids.
+  The following demo is an Image Upload Tool. It has two screens: the upload screen, and the library browser.
+  The FileUploads screen does custom rendering for both the upload form control and file list items. Note that the file uploads
+  actually happen progressively as you add them, but using tempids. Once the upload completes the tempids get remapped
+  to the real IDs assigned by the server. This means you can immediately use them. Note that the form is not valid
+  if uploads are in progress. If you were to submit the form, these real IDs would be part of the form delta you'd
+  receive in the commit, which could let you do further database associations with them.
+
+  The image library queries the server for uploaded images (which the server paginates). These are pulled from whatever
+  you've uploaded. Note that we're using the temporary ring files in `upload_server.clj`. Obviously for demonatration
+  purposes only.
+
+  See the comments in the source for more details:
   "
-  (dc/mkdn-pprint-source FileUploadDemo))
+  (dc/mkdn-pprint-source Image)
+  (dc/mkdn-pprint-source load-images)
+  (dc/mkdn-pprint-source ImageLibrary)
+  (dc/mkdn-pprint-source FileUploads)
+  (dc/mkdn-pprint-source ImageLibraryDemo))
 
 (defonce upload-networking (file-upload-networking))
 
