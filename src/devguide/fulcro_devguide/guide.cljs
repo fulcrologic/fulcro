@@ -16,9 +16,9 @@
     fulcro-devguide.G-Mutation-Exercises
     fulcro-devguide.G-Mutation-Solutions
     fulcro-devguide.H-Server-Interactions
-    fulcro-devguide.I50-Advanced-Server-Query-Processing
-    fulcro-devguide.I10-Modular-Server
-    fulcro-devguide.J-Putting-It-Together
+    fulcro-devguide.M45-Advanced-Server-Query-Processing
+    fulcro-devguide.I-Building-A-Server
+    fulcro-devguide.J-Exercise-on-Putting-It-Together
     fulcro-devguide.K-Testing
     fulcro-devguide.L-Internationalization
     fulcro-devguide.M10-Advanced-UI
@@ -40,8 +40,7 @@
     fulcro-devguide.Z-Glossary
     fulcro-devguide.Z-Query-Quoting
     fulcro-devguide.ZZ-HTML-to-CLJS
-    devcards.core
-    app.i18n.default-locale))
+    devcards.core))
 
 (devcards.core/start-devcard-ui!)
 

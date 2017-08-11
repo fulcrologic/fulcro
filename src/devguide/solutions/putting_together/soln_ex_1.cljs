@@ -1,4 +1,4 @@
-(ns fulcro-devguide.putting-together.soln-ex-1
+(ns solutions.putting-together.soln-ex-1
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [fulcro.client.core :as fc]
@@ -15,7 +15,7 @@
   (render [this]
     (let [{:keys [item/id item/label item/done]} (om/props this)]
       (dom/li nil
-        (dom/input #js {:type "checkbox" :checked done})
+        (dom/input #js {:type "checkbox" :checked (boolean done)})
         label
         (dom/button #js {} "X")))))
 

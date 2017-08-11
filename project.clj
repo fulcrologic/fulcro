@@ -71,20 +71,20 @@
                {:id           "demos"
                 :source-paths ["src/main" "src/dev" "src/demos"]
                 :figwheel     {:devcards true}
-                :compiler     {:devcards       true
-                               :output-dir     "resources/public/js/demos"
-                               :asset-path     "js/demos"
-                               :preloads       [devtools.preload]
-                               :modules        {:entry-point {:output-to "resources/public/js/demos/demos.js"
-                                                              :entries   #{cards.card_ui}}
-                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
-                                                              :entries   #{recipes.dynamic-ui-main}}}
-                               :optimizations  :none}}
+                :compiler     {:devcards      true
+                               :output-dir    "resources/public/js/demos"
+                               :asset-path    "js/demos"
+                               :preloads      [devtools.preload]
+                               :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
+                                                             :entries   #{cards.card_ui}}
+                                               :main        {:output-to "resources/public/js/demos/main-ui.js"
+                                                             :entries   #{recipes.dynamic-ui-main}}}
+                               :optimizations :none}}
                {:id           "devguide-live"
                 :source-paths ["src/main" "src/devguide"]
                 :compiler     {:main          fulcro-devguide.guide
                                :asset-path    "js"
-                               :optimizations :simple
+                               :optimizations :advanced
                                :devcards      true
                                :output-to     "docs/js/guide.js"
                                :output-dir    "docs/js"
@@ -94,6 +94,23 @@
                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
                                                 :requires ["cljsjs.codemirror"]
                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
+               {:id           "refguide"
+                :source-paths ["src/main" "src/refguide"]
+                :compiler     {:main           fulcro-refguide.live-examples
+                               :asset-path     "js/refguide"
+                               :output-to      "resources/public/js/refguide.js"
+                               :output-dir     "resources/public/js/refguide"
+                               :preloads       [devtools.preload]
+                               :optimizations  :none
+                               :parallel-build true}}
+               {:id           "refguide-live"
+                :source-paths ["src/main" "src/refguide"]
+                :compiler     {:main           fulcro-refguide.live-examples
+                               :asset-path     "js/refguide"
+                               :output-to      "resources/public/js/refguide.js"
+                               :output-dir     "resources/public/js/refguide"
+                               :optimizations  :advanced
+                               :parallel-build true}}
                {:id           "devguide"
                 :figwheel     {:devcards true}
                 :source-paths ["src/main" "src/devguide"]

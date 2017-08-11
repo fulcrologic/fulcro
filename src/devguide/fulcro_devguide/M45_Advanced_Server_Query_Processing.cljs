@@ -1,4 +1,4 @@
-(ns fulcro-devguide.I50-Advanced-Server-Query-Processing
+(ns fulcro-devguide.M45-Advanced-Server-Query-Processing
   (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]

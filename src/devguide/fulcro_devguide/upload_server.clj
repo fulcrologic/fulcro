@@ -198,7 +198,6 @@
 (defn go
   "Load the overall web server system and start it."
   []
-  (set-refresh-dirs "src/devguide" "src/main")
   (reset! system (make-system "config/upload-server.edn"))
   (swap! system component/start))
 

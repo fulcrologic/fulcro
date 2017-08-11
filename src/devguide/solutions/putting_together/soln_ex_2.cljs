@@ -1,29 +1,30 @@
-(ns fulcro-devguide.putting-together.soln-ex-2
+(ns solutions.putting-together.soln-ex-2
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]
-            [fulcro.client.mutations :as m]))
+            [fulcro.client.mutations :as m :refer [defmutation]]))
 
-(defmethod m/mutate 'pit-soln/toggle-done [{:keys [state]} k {:keys [id]}]
-  {:action (fn [] (swap! state update-in [:items/by-id id :item/done] not))})
+(defmutation toggle-done [{:keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state update-in [:items/by-id id :item/done] not)))
 
-(defmethod m/mutate 'pit-soln/delete-item [{:keys [state]} k {:keys [list id]}]
-  {:action (fn []
-             (let [current-items   (get-in @state [:lists/by-title list :list/items])
-                   ident-to-remove [:items/by-id id]
-                   result-items    (vec (filter #(not= ident-to-remove %) current-items))]
-               (swap! state (fn [m]
-                              (-> m
-                                (assoc-in [:lists/by-title list :list/items] result-items)
-                                (update-in [:items/by-id] dissoc id))))))})
+(defmutation delete-item [{:keys [list id]}]
+  (action [{:keys [state]}]
+    (let [current-items   (get-in @state [:lists/by-title list :list/items])
+          ident-to-remove [:items/by-id id]
+          result-items    (vec (filter #(not= ident-to-remove %) current-items))]
+      (swap! state (fn [m]
+                     (-> m
+                       (assoc-in [:lists/by-title list :list/items] result-items)
+                       (update-in [:items/by-id] dissoc id)))))))
 
-(defmethod m/mutate 'pit-soln/add-item [{:keys [state]} k {:keys [id label list]}]
-  {:action (fn []
-             (let [new-ident [:items/by-id id]
-                   new-item  {:item/id id :item/label label :item/done false}]
-               (swap! state assoc-in [:items/by-id id] new-item)
-               (fc/integrate-ident! state new-ident :append [:lists/by-title list :list/items])))})
+(defmutation add-item [{:keys [id label list]}]
+  (action [{:keys [state]}]
+    (let [new-ident [:items/by-id id]
+          new-item  {:item/id id :item/label label :item/done false}]
+      (swap! state assoc-in [:items/by-id id] new-item)
+      (fc/integrate-ident! state new-ident :append [:lists/by-title list :list/items]))))
 
 (defui ^:once TodoItem
   static fc/InitialAppState
@@ -34,10 +35,10 @@
   (ident [this props] [:items/by-id (:item/id props)])
   Object
   (render [this]
-    (let [{:keys [item/id item/label item/done]} (om/props this)
+    (let [{:keys [item/id item/label item/done] :or {done false}} (om/props this)
           delete (om/get-computed this :onDelete)]
       (dom/li nil
-        (dom/input #js {:type "checkbox" :onChange #(om/transact! this `[(pit-soln/toggle-done ~{:id id})]) :checked done})
+        (dom/input #js {:type "checkbox" :onChange #(om/transact! this `[(toggle-done ~{:id id})]) :checked (boolean done)})
         label
         (dom/button #js {:onClick #(when delete (delete id))} "X")))))
 
@@ -56,13 +57,13 @@
   Object
   (render [this]
     (let [{:keys [ui/new-item-text list/title list/items] :or {ui/new-item-text ""}} (om/props this)
-          delete-item (fn [item-id] (om/transact! this `[(pit-soln/delete-item {:list ~title :id ~item-id})]))]
+          delete-item (fn [item-id] (om/transact! this `[(delete-item {:list ~title :id ~item-id})]))]
       (dom/div nil
         (dom/h4 nil title)
-        (dom/input #js {:value new-item-text :onChange (fn [evt] (m/set-string! this :ui/new-item-text :event evt))})
-        (dom/button #js {:onClick #(om/transact! this `[(pit-soln/add-item {:id    ~(om/tempid)
-                                                                            :label ~new-item-text
-                                                                            :list  ~title})])} "Add")
+        (dom/input #js {:value (or new-item-text "") :onChange (fn [evt] (m/set-string! this :ui/new-item-text :event evt))})
+        (dom/button #js {:onClick #(om/transact! this `[(add-item {:id    ~(om/tempid)
+                                                                   :label ~new-item-text
+                                                                   :list  ~title})])} "Add")
         (dom/ol nil (map (fn [item] (ui-item (om/computed item {:onDelete delete-item}))) items))))))
 
 (def ui-item-list (om/factory ItemList))

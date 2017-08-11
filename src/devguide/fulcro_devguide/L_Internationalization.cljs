@@ -1,14 +1,13 @@
 (ns fulcro-devguide.L-Internationalization
   (:require-macros [cljs.test :refer [is]])
   (:require [devcards.core :as dc :include-macros true :refer-macros [defcard-doc dom-node]]
-            [fulcro.i18n :refer-macros [tr trc trf]]
+            [fulcro.i18n :as ic :refer-macros [tr trc trf]]
             yahoo.intl-messageformat-with-locales
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.core :as fc]
             [cljs.reader :as r]
             [om.next.impl.parser :as p]
             [om.dom :as dom]
-            [fulcro.i18n :as ic]
             [om.next :as om :refer [defui]]
             [fulcro.client.mutations :as m]))
 
@@ -28,7 +27,7 @@
     (let [{:keys [ui/react-key ui/locale]} (om/props this)]
       (dom/div #js {:key react-key}
         (locale-switcher this)
-        (dom/span nil "Locale: " locale)
+        (dom/span nil (str "Locale: " locale))
         (dom/br nil)
         (tr "This is a test")))))
 
@@ -148,7 +147,7 @@
   (render [this]
     (let [{:keys [ui/react-key ui/locale format]} (om/props this)]
       (dom/div #js {:key react-key}
-        (dom/span nil "Locale: " locale)
+        (dom/span nil (str "Locale: " locale))
         (dom/br nil)
         (ui-format format)))))
 
@@ -228,8 +227,8 @@
 
   In your client setup file, just require all of the locales so they'll get loaded. That's it!
 
-  If you place each locale into a module in Clojurescript 1.9.0-800+ then you can use your locales as loadable modules (coming July 2017). The
-  `change-locale` mutation will automatically trigger loads (coming July 2017. may require a parameter).
+  If you place each locale into a module in Clojurescript 1.9.0-800+ then you can use your locales as loadable modules (coming in 2017). The
+  `change-locale` mutation will automatically trigger loads (coming soon in 2017. may require a parameter).
 
   ")
 
