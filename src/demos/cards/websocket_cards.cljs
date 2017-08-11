@@ -2,7 +2,7 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.websockets-client :as client]
-    [fulcro.client.cards :refer [fulcro-app]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
     [om.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
@@ -10,7 +10,9 @@
     [om.next :as om]
     [fulcro.websockets.networking :as wn]))
 
-(dc/defcard websocket-card
+(defonce cs-net (wn/make-channel-client "/chsk" :global-error-callback (constantly nil)))
+
+(defcard-fulcro websocket-card
   "
   # Websockets
 
@@ -26,13 +28,15 @@
   Websockets ensure that each client has a persistent TCP connection to the server, and thus allow the server to push
   updates to the client. The client handles these via a predefined multimethod as described below.
   "
-  (fulcro-app client/Root
-    :networking (wn/make-channel-client "/chsk" :global-error-callback (constantly nil))
-    :started-callback (fn [{:keys [reconciler]}]
-                        (df/load reconciler :app/channels client/Channel {:refresh [:app/channels]})
-                        (df/load reconciler :app/users client/User {:refresh [:app/users]})))
+  client/Root
   {}
-  {:inspect-data false})
+  {:inspect-data false
+   :fulcro       {:networking       cs-net
+                  :started-callback (fn [{:keys [reconciler] :as app}]
+                                      (wn/install-push-handlers cs-net app)
+                                      (df/load reconciler :app/channels client/Channel {:refresh [:app/channels]})
+                                      (df/load reconciler :app/users client/User {:refresh [:app/users]}))}
+   })
 
 (dc/defcard-doc
   "# Websockets Setup
@@ -43,14 +47,26 @@
   2. Add websockets support to your server
   3. Add handlers to the client for receiving server push messages
 
+  When you've done this all API and server push traffic will go over the same persistent TCP websocket connection.
+
+  NOTE: You are allowed to install more than one networking handler, so it would be legal to have both a websocket
+  and normal XhrIO-based remote. Doing so just means your queries and mutations would then target the remote of
+  interest. However, it is not supported to have more than one websocket in a client.
+
   ## Setting up the client
 
-  This is probably the simplest step. Just add the `:networking` option when creating the client:
+  To set up the client:
+
+  - Create the networking object.
+  - Add it to the network stack.
+  - In started callback: install the push handlers.
 
   ```
+  (def cs-net (wn/make-channel-client \"/chsk\" :global-error-callback (constantly nil)))
+
   (fc/new-fulcro-client
-    :networking (wn/make-channel-client \"/chsk\" :global-error-callback (constantly nil))
-    ...)
+    :networking cs-net
+    :started-callback (fn [app] (wn/install-push-handlers cs-net app)))
   ```
 
   The default route for establishing websockets is `/chsk`. The internals use Sente to provide the websockets.
@@ -120,6 +136,5 @@
   So, a call on the server to `(push ws-net client-id :hello {:name \"Jo\"})` will result in a call on the client
   of `(push-received fulcro-app {:topic :hello :msg {:name \"Jo\"}})`.
   "
-  (dc/mkdn-pprint-source client/Root)
-  )
+  (dc/mkdn-pprint-source client/Root))
 

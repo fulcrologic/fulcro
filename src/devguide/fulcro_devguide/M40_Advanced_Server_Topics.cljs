@@ -1,13 +1,12 @@
 (ns fulcro-devguide.M40-Advanced-Server-Topics
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
+  (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
+            [devcards.core :as dc :refer-macros [defcard-doc deftest]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [cljs.reader :as r]
             [om.next.impl.parser :as p]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
             [fulcro.client.core :as fc]))
 
@@ -17,12 +16,9 @@
   "
   # Advanced Server Topics
 
-  This section includes exercises that use a pre-built server that is available in this project. If you're using IntelliJ,
-  you can set up this server as a Local Clojure REPL run configuration:
-
-  <img width=800 src=\"/img/server-settings.png\">
-
-  At the REPL, the `(go)` command will start the server, and `(reset)` will stop it, refresh the source, and restart it.
+  This section includes exercises that require an `easy` server. Use the solutions to the exercises of section J as
+  a starting point. This section explains various ways to extend the `easy` server to deal with multiple
+  configurations, add additional ring middleware, and handle extra routes.
 
   ## Working with Configuration
 
@@ -37,8 +33,8 @@
 
   ### Running with Alternate Configurations
 
-  You can select any alternate EDN file on the filesystem or CLASSPATH when you start the server. To do that,
-  simple include a JVM option: `-Dconfig=path-to-file`.  So, for example, you could place a `staging.edn` file
+  You can select any alternate EDN file on the filesystem (using an absolute path) or CLASSPATH (with a relative path)
+  when you start the server. To do that, include a JVM option: `-Dconfig=path-to-file`.  So, for example, you could place a `staging.edn` file
   in `resources/config` in your project, and use that directly (even from the uberjar) with `-Dconfig=config/staging.edn`.
 
   #### Exercise 1
@@ -46,11 +42,11 @@
   Create a `staging.edn` in `resources/config` with this content:
 
   ```
-  {:port 9000}
+  {:port 9001}
   ```
 
   and modify your startup to include the proper JVM parameter to use that config. Verify that when you restart your server
-  it is running on port 9000.
+  it is running on port 9001.
 
   #### Exercise 2
 
@@ -129,25 +125,38 @@
   If you instead use:
 
   ```
-  { :v :env.edn/V }
+  { :v :env/V }
   ```
 
   then your configuration will have the literal string.
 
   #### Exercise 4
 
-  You can set the environment in
-  the IntelliJ Run Configuration. Add the following JVM args and environment variables:
-
-  <img width=800 src=\"img/env-vars.png\">
-
+  You can set the environment and JVM args in the IntelliJ Run Configuration under JVM args.
   If you're using the command line, of course you'll just set them in the environment and run with JVM options.
+  Add the following JVM args and environment variables:
+
+  JVM Args:
+  ```
+  -Dconfig=config/exercise4.edn
+  ```
+
+  Environment variables (e.g. in bash):
+  ```
+  export PORT=9090
+  export MESSAGE=hello
+  ```
+
+  Running from the command line with lein:
+  ```
+  JVM_OPTS=-Dconfig=... lein run -m clojure.main
+  ```
 
   You'll need to kill your server REPL and restart it. Create an `exercise4.edn` file in `resources/config` that
   sets the network port from the `PORT` environment variable (be careful, you want it to *not* be a string), and
   sets your sample component's `:n` from the value of the `MESSAGE` environment variable (which is a string).
 
-  Start the REPL (don't forget -Dconfig=...) and start your server with `(go)` to see that it works as expected.
+  Start the REPL and start your server with `(go)` to see that it works as expected.
 
   ### Accessing Configuration Values in Queries and Mutations
 
@@ -183,13 +192,13 @@
   (render [this]
     (dom/button #js {:onClick #(om/transact! this '[(exercise5/trigger)])} "Click Me")))
 
-(defcard server-trigger
+(defcard-fulcro server-trigger
   "This card will trigger your server mutation.
 
-  **IMPORTANT:** You MUST be running the devguide from your server URL (port).
+  **IMPORTANT:** You MUST be running this page from your server URL (port).
 
   When you click the button below it will trigger an `exercise5/trigger` remote mutation."
-  (fulcro-app Root))
+  Root)
 
 (defcard-doc
   "
@@ -303,24 +312,13 @@
 
   ## Cookies, Headers, and Login oh my!
 
-  TODO: There is a lot of potential work here. This is still an area where we're experimenting with solutions. Below
-  you can read an outline of a technique that doesn't involve having to set cookies via Om server mutations (which isn't
-  even allowed), nor does it require the server to even return cookie headers from the server. This technique can be used to model login
-  that remembers session on page reloads, but does not require the server to send cookie headers:
+  See the fulcro-template for examples of login. See `augment-response` on the server for modifying headers from the
+  server. Use wrap-session to do sessions/cookies.
 
-  - One technique for Cookies/session (that doesn't require handling the cookies in the response):
-      - Add wrap-cookies to Ring middleware (so they get decoded in the request)
-      - For user-driven, do an Om mutation (e.g. `[(user/login {:token (om/tempid) :name n :password p})]` with a tempid. tempid gets remapped to server-side session token
-      - Use follow-on remote read to send query (e.g. `[(user/login ...) (fulcro/load ...)]`), with post-mutation that checks for session token in state and sets it
-        on cookie in browser via cljs. The follow-on remote read is just to sequence the post mutation.
-      - Create a remote-only query that can checks for the session token in the browser cookie, and returns something
-        reasonable as a response (e.g. `[:logged-in?]`). Invoke that query with `load-data` and a post-mutation that
-        will render the logged-in user if the response is good. Use `started-callback` to trigger this to check if the user
-        is logged in at application startup.
+  Most of these techniques are demonstrated in the fulcro-template.
 
   ## Solutions to Exercises
 
-  See `src/server/solutions/advanced_server.clj` for sample solutions to all exercises.
-
+  See `src/devguide/solutions/advanced_server.clj` for sample solutions to all exercises.
   ")
 

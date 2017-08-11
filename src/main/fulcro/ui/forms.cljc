@@ -6,7 +6,8 @@
     [om.dom :as dom]
     [om.next :as om]
     [om.util :as util]
-    #?(:clj [clojure.future :refer :all])
+    #?(:clj
+    [clojure.future :refer :all])
     [clojure.tools.reader :as reader]
     [clojure.spec.alpha :as s]
     [fulcro.client.core :as fc]
@@ -250,6 +251,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; GENERAL FORM STATE ACCESS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn server-initialized?
+  "Returns true if the state of the form was set up by a server. If this is the case on the client then you must call
+  initialize on the form before interacting with it."
+  [form]
+  (get-in form [form-key :server-initialized?] false))
 
 (defn is-form? [?form] (get ?form form-key))
 
@@ -528,7 +535,6 @@
                       s))
     empty-form-state field-keys-to-initialize))
 
-; TODO: Not clj compatible. Will cause server-side rendering to fail
 (defn build-form
   "Build an empty form based on the given entity state. Returns an entity that is compatible with the original, but
    that has had form support added. If any fields are declared on
@@ -536,13 +542,18 @@
    the default field values for the declared input fields.
    This function does **not** recursively build out nested forms, even when declared. See `init-form`."
   [form-class entity-state]
+  #?(:clj (log/debug "NOTE: You cannot server-side pre-generate forms state with build-form. Use client-side component lifecycle to ensure it is initialized."))
   (let [{:keys [elements form]} (get-form-spec* form-class)
         element-keys             (map :input/name elements)
         elements-by-name         (zipmap element-keys elements)
         {:keys [state validation]} (default-state elements)
         entity-state-of-interest (select-keys entity-state element-keys)
         init-state               (initialized-state state element-keys entity-state-of-interest)
-        final-state              (merge entity-state init-state)]
+        final-state              (merge entity-state init-state)
+        add-meta                 (fn [f]
+                                   (-> f
+                                     (vary-meta merge {:component form-class})
+                                     #?(:clj (assoc :server-initialized? true))))]
     (-> final-state
       (assoc form-key
              (-> form
@@ -561,12 +572,15 @@
                                       init-state)
                   :subforms         (or (filterv :input/is-form? elements) [])
                   :validation       validation})
-               (vary-meta merge {:component form-class}))))))
+               add-meta)))))
 
 (declare init-form*)
 
-(defn initialized? "Returns true if the given form is already initialized with form setup data"
-  [form] (map? (get form form-key)))
+(defn initialized?
+  "Returns true if the given form is already initialized with form setup data. Use `server-initialized?` to detect
+  if it was initialized in clj, which means it won't work right on the UI without being re-initialized."
+  [form]
+  (map? (get form form-key)))
 
 (defn init-one
   [state base-form subform-spec visited]
@@ -627,6 +641,14 @@
   `form-ident` The ident of the entity's data in app state."
   [app-state form-class form-ident] (init-form* app-state form-class form-ident {}))
 
+#?(:cljs
+   (defmutation initialize-form
+     "Fulcro mutation: Recursively initialize a form. No parameters are required, but must
+     be triggered from the component that roots the form you want to set up."
+     [ignored]
+     (action [{:keys [ref component state]}]
+       (swap! state init-form component ref))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; VALIDATION SUPPORT
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -662,7 +684,7 @@
    :input/name                     :on-form-change
    :on-form-change/mutation-symbol mut-sym})
 
-(defn- get-on-form-change-mutation
+(defn get-on-form-change-mutation
   "Get the Om mutation symbol to invoke when the form changes. This is typically used in the implementation
   of form field renderers as part of the transaction to run on change and blur events.
 
@@ -848,7 +870,9 @@
     (if form-class
       (update-forms app-state form
         (comp #(validate-fields % opts) :form))
-      (fail! "Unable to validate form. No component associated with form. Did you remember to use build-form?"))))
+      (do
+        (fail! "Unable to validate form. No component associated with form. Did you remember to use build-form or send the initial state from server-side?")
+        app-state))))
 
 #?(:cljs (defmutation validate-field
            "Om Mutation: run validation on a specific field.
@@ -991,9 +1015,7 @@
                           `[(select-option ~field-info)
                             ~@(get-on-form-change-mutation form field-name :edit)
                             ~form-root-key])
-                        (if (fn? onChange)
-                          (onChange event)
-                          (log/warn ":onChange is not a function"))))}
+                        (when (and onChange (fn? onChange)) (onChange event))))}
       (when optional?
         (dom/option #js {:value ::none} ""))
       (map (fn [{:keys [option/key option/label]}]

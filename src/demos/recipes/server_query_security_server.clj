@@ -1,5 +1,5 @@
 (ns recipes.server-query-security-server
-  (:require [cards.server-api :as api]
+  (:require [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
             [com.stuartsierra.component :as c]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as h]
@@ -58,16 +58,17 @@
 
 (def pretend-database {:person {:id 42 :name "Joe" :address "111 Nowhere" :cc-number "1234-4444-5555-2222"}})
 
-(defmethod api/server-read :person [{:keys [ast authorization request query] :as env} dispatch-key params]
-  (let [enforce-security? true
-        ; The user is added by the authentication hook into Ring
-        user              (:user request)]
-    (timbre/info authorization "w/user" user)
-    (when enforce-security?
-      (or (and
-            ;; of course, the params would be derived from the request/headers/etc.
-            (can-access-entity? authorization user :person 42)
-            (authorized-query? authorization user :person query))
-        (throw (ex-info "Unauthorized query!" {:status 401 :body {:query query}}))))
-    ;; Emulate a datomic pull kind of operation...
-    {:value (select-keys (get pretend-database :person) query)}))
+(defquery-root :person
+  (value [{:keys [ast authorization request query] :as env} params]
+    (let [enforce-security? true
+          ; The user is added by the authentication hook into Ring
+          user              (:user request)]
+      (timbre/info authorization "w/user" user)
+      (when enforce-security?
+        (or (and
+              ;; of course, the params would be derived from the request/headers/etc.
+              (can-access-entity? authorization user :person 42)
+              (authorized-query? authorization user :person query))
+          (throw (ex-info "Unauthorized query!" {:status 401 :body {:query query}}))))
+      ;; Emulate a datomic pull kind of operation...
+      (select-keys (get pretend-database :person) query))))

@@ -51,7 +51,9 @@
                             [sym docstring? arglist remote])} defmutation
      [& args]
      (let [{:keys [sym doc arglist action remote]} (conform! ::mutation-args args)
-           fqsym         (symbol (name (ns-name *ns*)) (name sym))
+           fqsym         (if (namespace sym)
+                           sym
+                           (symbol (name (ns-name *ns*)) (name sym)))
            {:keys [action-args action-body]} (if action
                                                (conform! ::action action)
                                                {:action-args ['env] :action-body []})

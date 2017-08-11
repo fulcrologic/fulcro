@@ -137,7 +137,7 @@
 
 (defui ^:once ClipTool
   static fc/InitialAppState
-  (fc/initial-state [clz {:keys [image-url id aspect-ratio handle-size width height] :or {image-url    "https://s-media-cache-ak0.pinimg.com/736x/34/c2/f5/34c2f59284fcdff709217e14df2250a0--film-minions-minions-images.jpg" id "clip-1"
+  (fc/initial-state [clz {:keys [image-url id aspect-ratio handle-size width height] :or {id           "clip-1"
                                                                                           aspect-ratio 1 width 400 height 400 handle-size 10} :as params}]
     {:id           id
      :url          image-url

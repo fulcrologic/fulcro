@@ -25,11 +25,10 @@
   so we don't accidentally try to do entry point operations more than once. It can also be used to do things
   like disable console logging.
   - A development-only namespace file that mounts the app in development mode. Only the dev build includes this source.
-  - A core namespace that creates the application and loads things like i18n support. This is referred to by the production
+  - A core namespace that creates the application. This is referred to by the production
   build and the development-only namespace.
 
-  You can see a standalone example of this setup in the [Fulcro TODO MVC project](https://github.com/fulcrologic/fulcro-todomvc) and in the 
-  [Fulcro Template](https://github.com/fulcrologic/fulcro-template)).
+  In general, using the [Fulcro Template](https://github.com/fulcrologic/fulcro-template) as a starting point (clone it) is a good idea.
 
   ## Enabling re-render on hot code reload
 
@@ -93,14 +92,11 @@
   default):
 
   ```
-  [binaryage/devtools \"0.5.2\"]
+  [binaryage/devtools \"0.9.2\"]
   ```
 
-  These tools require that you run this code as soon as possible:
-
-  ```
-  (defonce devtools-installed (devtools/install!))
-  ```
+  They can be autoinstalled via a compiler preload. In your compiler config in `project.clj`, include
+  `:preloads [devtools.preload]`
 
   AND you must enable custom formatters in Chrome dev tools: Dev tools -> Settings -> Console -> Enable Custom Formatters
 
@@ -114,8 +110,8 @@
 
   ### Other Helper Functions
 
-  The [template](https://github.com/fulcrologic/fulcro-template-workspace)) includes a few
-  [helper functions](https://github.com/fulcrologic/fulcro-template-workspace/blob/89758abfc093ced3216c06d3aad5069b3ef073d8/dev/client/cljs/user.cljs#L26).
+  The [template](https://github.com/fulcrologic/fulcro-template) includes a few
+  [helper functions](https://github.com/fulcrologic/fulcro-template/blob/develop/dev/client/cljs/user.cljs#L23).
   for working with queries and the app database.
 
   #### Getting the query for some component (class)

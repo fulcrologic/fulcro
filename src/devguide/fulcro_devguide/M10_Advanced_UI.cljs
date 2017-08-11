@@ -4,7 +4,7 @@
             [cljsjs.victory]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.clip-tool :as ct]
-            [fulcro.client.cards :refer [fulcro-app]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [om.dom :as dom]
             [om.next :as om :refer-macros [defui]]
             [om.util :as util]
@@ -17,16 +17,16 @@
   [class]
   (fn [props & children]
     (js/React.createElement class
-                            props
-                            (util/force-children children))))
+      props
+      (util/force-children children))))
 
 (defn factory-apply
   [class]
   (fn [props & children]
     (apply js/React.createElement
-           class
-           props
-           children)))
+      class
+      props
+      children)))
 
 (def vchart (factory-apply js/Victory.VictoryChart))
 (def vaxis (factory-apply js/Victory.VictoryAxis))
@@ -39,38 +39,38 @@
 (defui ^:once YearlyValueChart
   Object
   (render [this]
-          (let [{:keys [label
-                        plot-data
-                        x-step]}    (om/props this)
-                start-year          (apply min (map :year plot-data))
-                end-year            (apply max (map :year plot-data))
-                years               (range start-year (inc end-year) x-step)
-                dates               (clj->js (mapv #(new js/Date % 1 2) years))
-                {:keys [min-value
-                        max-value]} (reduce (fn [{:keys [min-value max-value] :as acc}
-                                                 {:keys [value] :as n}]
-                                              (assoc acc
-                                                     :min-value (min min-value value)
-                                                     :max-value (max max-value value)))
-                                            {}
-                                            plot-data)
-                min-value           (int (* 0.8 min-value))
-                max-value           (int (* 1.2 max-value))
-                points              (clj->js (mapv (fn [{:keys [year value]}]
-                                                     {:x (new js/Date year 1 2)
-                                                      :y value})
-                                                   plot-data))]
-            (vchart nil
-                    (vaxis #js {:label      label
-                                :standalone false
-                                :scale      "time"
-                                :tickFormat (fn [d] (.getFullYear d))
-                                :tickValues dates})
-                    (vaxis #js {:dependentAxis true
-                                :standalone    false
-                                :tickFormat    (fn [y] (us-dollars y))
-                                :domain        #js [min-value max-value]})
-                    (vline #js {:data points})))))
+    (let [{:keys [label
+                  plot-data
+                  x-step]} (om/props this)
+          start-year (apply min (map :year plot-data))
+          end-year   (apply max (map :year plot-data))
+          years      (range start-year (inc end-year) x-step)
+          dates      (clj->js (mapv #(new js/Date % 1 2) years))
+          {:keys [min-value
+                  max-value]} (reduce (fn [{:keys [min-value max-value] :as acc}
+                                           {:keys [value] :as n}]
+                                        (assoc acc
+                                          :min-value (min min-value value)
+                                          :max-value (max max-value value)))
+                                {}
+                                plot-data)
+          min-value  (int (* 0.8 min-value))
+          max-value  (int (* 1.2 max-value))
+          points     (clj->js (mapv (fn [{:keys [year value]}]
+                                      {:x (new js/Date year 1 2)
+                                       :y value})
+                                plot-data))]
+      (vchart nil
+        (vaxis #js {:label      label
+                    :standalone false
+                    :scale      "time"
+                    :tickFormat (fn [d] (.getFullYear d))
+                    :tickValues dates})
+        (vaxis #js {:dependentAxis true
+                    :standalone    false
+                    :tickFormat    (fn [y] (us-dollars y))
+                    :domain        #js [min-value max-value]})
+        (vline #js {:data points})))))
 
 (def yearly-value-chart (om/factory YearlyValueChart))
 
@@ -138,7 +138,7 @@
 (defcard sample-victory-chart
   (fn [state-atom _]
     (dom/div nil
-             (yearly-value-chart @state-atom)))
+      (yearly-value-chart @state-atom)))
   {:label     "Yearly Value"
    :x-step    2
    :plot-data [{:year 1983 :value 100}
@@ -163,56 +163,12 @@
                ]}
   {:inspect-data true})
 
-(defcard-doc
-  "
-  ## Filling UI Data using a Custom Client Read Handler
-
-  Stock Om Next has you supply a parser for which you supply read and mutation handlers. Fulcro supplies
-  both of these for you by default. This has the advantage of a much simpler code stack, but does have
-  the drawback that some queries supported by Om Query syntax can only be processed by a server.
-
-  In Fulcro the general philosophy is that you'd rather create the cached data structure that represents the
-  UI tree in your app state and update that via mutations; however, there are definitely cases where having
-  the ability to synthesize query results in the client on-the-fly is quite useful.
-
-  Fulcro 1.0.0-beta2 and above support doing just this, and it is quite simple (though your read function
-  itself might become quite complex).
-
-  Read the documentation about dealing with Om Next Queries (we describe this in the various server topics
-  of the guide to understand how to write such a read handler, but basically:
-  For a given **root** query. The Om parser calls the read function once for each top-level property:
-
-  ```
-  [:a {:j (om/get-query J)}]
-  ```
-
-  results in two calls to read (on `:a` and `:j`).
-
-  If you supply a custom read function, you may handle either of these. Once you start handling
-  it, you must finish (though that part is quite easy, since Om supplies `db->tree` that can be used
-  to do so against the remaining recursive parse).
-
-  **Notice that it does not recurse for you. The parser is passed to you in the `env`, so you can recurse if you want/need to.**
-  If you do choose to call the parser recursively, then you must handle that entire *path*. Fortunately, `db->tree` can
-  by used to finish up a read for queries that can come from the raw state.
-
-  Setting this up requires two steps:
-
-  1. Write your read function.
-  2. Install it using the `:read-local` option of the client.
-
-  ```
-  (defn my-read [env k params] ...)
-
-  (defonce app (atom (new-fulcro-client :read-local my-read)))
-  ```
-  ")
-
-
+(def minion-image "https://s-media-cache-ak0.pinimg.com/736x/34/c2/f5/34c2f59284fcdff709217e14df2250a0--film-minions-minions-images.jpg")
 
 (defui ^:once ICRoot
   static fc/InitialAppState
-  (initial-state [c p] {:ctool (fc/get-initial-state ct/ClipTool {:id :clipper :aspect-ratio 0.5})})
+  (initial-state [c p] {:ctool (fc/get-initial-state ct/ClipTool {:id        :clipper :aspect-ratio 0.5
+                                                                  :image-url minion-image})})
   static om/IQuery
   (query [this] [:ui/react-key :ctool])
   Object
@@ -221,9 +177,40 @@
       (dom/div #js {:key react-key}
         (ct/ui-clip-tool (om/computed ctool {:onChange (fn [props] (om/set-state! this props))}))
         (ct/ui-preview-clip (merge (om/get-state this) {:filename "minions.jpg"
-                                                          :width    200 :height 200}))))))
+                                                        :width    100 :height 200}))))))
 
-(defcard image-clip
-  (fulcro-app ICRoot)
+(defcard-doc
+  "
+  # An Image Clip Tool
+
+  Fulcro has the start of an image clip tool. Right now it is mainly for demonstration purposes, but it is in the main
+  library and is a good example of a complex UI component where two components have to talk to each other and share
+  image data.
+
+  You should study the source code to get the full details, but here is an overview of the critical facets:
+
+  - ClipTool creates a canvas on which to draw
+      - It uses initial state and a query to track the setup (e.g. size, aspect ratio, image to clip)
+      - For speed (and because some data is not serializable), it uses component-local state to track current clip region,
+        a javascript Image object and the DOM canvas (via React ref) for rendering, and the current active operation (e.g. dragging a handle).
+      - The mouse events are essentially handled as updates to the component local state, which causes a local component
+      render update.
+  - PreviewClip is a React component, but not data-driven (no query). Everything is just passed through props.
+      - It technically knows nothing of the clip tool.
+      - It expects an :image-object and clip data to be passed in...it just renders it on a canvas.
+      - It uses React refs to get the reference to the real DOM canvas for rendering
+      - It renders whenever props change
+  - A callback on the ClipTool communicates *through* the common parent's component local state. The parent
+  will re-render when its state changes, which will in turn force a new set of props to be passed to the preview).
+
+  As you can see, the interaction performance is quite good.
+  "
+  (dc/mkdn-pprint-source ct/ClipTool)
+  (dc/mkdn-pprint-source ct/refresh-image)
+  (dc/mkdn-pprint-source ct/PreviewClip)
+  (dc/mkdn-pprint-source ICRoot))
+
+(defcard-fulcro image-clip
+  ICRoot
   {}
   {:inspect-data true})

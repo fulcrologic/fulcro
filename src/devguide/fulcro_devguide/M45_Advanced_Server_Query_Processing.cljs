@@ -1,4 +1,4 @@
-(ns fulcro-devguide.I50-Advanced-Server-Query-Processing
+(ns fulcro-devguide.M45-Advanced-Server-Query-Processing
   (:require-macros [cljs.test :refer [is]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
@@ -15,69 +15,75 @@
 
 (defcard-doc
   "
-  # Provisioning a Custom Request Parser
+  # Advanced Query Processing
 
-  All incoming client communication will be in the form of Om Queries/Mutations. Om supplies
-  a parser to do the low-level parsing, but to use it you must supply the bits that do the real logic.
+  All incoming client communication will be in the form of Om Query/Mutation expressions. You've
+  already seen that your `defquery-root` and `defquery-entity` are called for each separate element
+  of a query or mutation; however, there is no built-in recursive processing, but the UI might
+  prune the query (using `:without` or `load-field`) and the server should really only respond
+  with that is requested; otherwise, you aren't being very data driven!
 
-  Om parsers require two things: A function to process reads, and a function to process mutations.
-  These are completely open to your choice of implementation. They simply need to be functions
-  with the signature:
+  The most important item in the query processing is the received environment (`env`). On
+  the server it contains:
 
-  ```
-  (fn [env key params] ...)
-  ```
+  - Anything components you've asked to be injected. Perhaps database and config components.
+  - `ast`: An AST representation of the item being parsed.
+  - `query`: The subquery (e.g. of a join)
+  - `parser`: The query expression parser itself (which allows you to do recursive calls)
+  - `request`: The full incoming Ring request, which will contain things like the headers, cookies, session, user agent info, etc.
 
-  - The `env` is the environment. On the *server* this will contain:
-      - Anything components you've asked to be injected during construction. Usually some kind
-      of database connection and configuration.
-      - `ast`: An AST representation of the item being parsed.
-      - `query`: The subquery (e.g. of a join)
-      - `parser`: The Om parser itself (to allow you to do recursive calls)
-      - `request`: The actual incoming request (with headers)
-  - The `key` is the dispatch key for the item being parsed. We'll cover that shortly.
-  - The `params` are any params being passed to the item being parsed.
+  ## The super-easy case: Datomic
 
-  ## Processing reads
+  If your database is Datomic, then you're most of the way done, since the query grammar is a subset of Datomic's pull
+  syntax. Just find the correct starting point, and run the `query` against Datomic itself.
 
-  The Om parser is exactly what it sounds like: a parser for the query grammar. Now, formally
-  a parser is something that takes apart input data and figures out what the parts mean (e.g.
-  that's a join, that's a mutation call, etc.). In an interpreter, each time the parser finds
-  a bit of meaning, it invokes a function to interpret that meaning and emit a result.
-  In this case, the meaning is a bit of result data; thus, for Om to be able to generate a
-  result from the parser, you must supply the \"read\" emitter.
+  If you're not using Datomic, then read on.
 
-  First, let's see what an Om parser in action.
+  ## The `env` Parser
+
+  The parser is exactly what it sounds like: a parser for the query grammar. The one you
+  get in `env` is already hooked into your dispatch mechanism (e.g. defquery-root).
+
+  Thus, if you run `(parser env [:x])` you should see a dispatch to your `defquery-root` on `:x`.
+
+  The return value of the parser will be a map containing keys for all of the queried items
+  that had a non-nil result from the dispatches.
+
+  If you understand that, you can probably already write a simple recursive parse of a query. If
+  you need a bit more hand-holding, then read on.
+
+  First, let's get a feeling for the parser in general:
+
   ")
 
 (defcard om-parser
   "This card will run an Om parser on an arbitrary query, record the calls to the read emitter,
-          and show the trace of those calls in order. Feel free to look at the source of this card.
+  and shows the trace of those calls in order. Feel free to look at the source of this card.
 
-          Essentially, it creates an Om parser:
+  Essentially, it creates an Om parser that dispatches reads to `read-tracking`:
 
-          ```
-           (om/parser {:read read-tracking})
-          ```
+  ```
+   (om/parser {:read read-tracking})
+  ```
 
-          where the `read-tracking` simply stores details of each call in an atom and shows those calls
-          when parse is complete.
+  where the `read-tracking` simply stores details of each call in an atom and shows those calls
+  when parse is complete.
 
-          The signature of a read function is:
+  The signature of a read function is:
 
-          `(read [env dispatch-key params])`
+  `(read [env dispatch-key params])`
 
-           where the env contains the state of your application, a reference to your parser (so you can
-                                                                                                call it recursively, if you wish), a query root marker, an AST node describing the exact
-          details of the element's meaning, a path, and *anything else* you want to put in there if
-          you call the parser recursively.
+   where the env contains the state of your application, a reference to your parser (so you can
+                                                                                        call it recursively, if you wish), a query root marker, an AST node describing the exact
+  details of the element's meaning, a path, and *anything else* you want to put in there if
+  you call the parser recursively.
 
-          Try some queries like these:
+  Try some queries like these:
 
-          - `[:a :b]`
-          - `[:a {:b [:c]}]` (note that the AST is recursively built, but only the top keys are actually parsed to trigger reads)
-          - `[(:a { :x 1 })]`  (note the value of params)
-          "
+  - `[:a :b]`
+  - `[:a {:b [:c]}]` (note that the AST is recursively built, but only the top keys are actually parsed to trigger reads)
+  - `[(:a { :x 1 })]`  (note the value of params)
+  "
   (fn [state _]
     (let [{:keys [v error]} @state
           trace (atom [])
@@ -122,13 +128,15 @@
 
   Much of the remainder of this section assumes this.
 
-  ## Implementing read
+  ## Read Dispatching
 
-  When building your server you must build a read function such that it can
-  pull data to fufill what the parser needs to fill in the result of a query parse.
+  When building your server there must be a read function that can
+  pull data to fufill what the parser needs to fill in the result of a query. Fulcro supplies this by default
+  and gives you the `defquery-*` macros as helpers to hook into it, but really it is just a multi-method.
 
-  The Om Next parser understands the grammar, and is written in such a way that the process
-  is very simple:
+  For educational purposes, we're going to walk you through implementing this read function yourself.
+
+  The Om Next parser understands the grammar, and is written to work as follows:
 
   - The parser calls your `read` with the key that it parsed, along with some other helpful information.
   - Your read function returns a value for that key (possibly calling the parser recursively if it is a join).
@@ -136,7 +144,7 @@
   the result at the correct position (relative to the query).
 
   Note that the parser only processes the query one level deep. Recursion (if you need it)
-  is controlled by *your* read.
+  is controlled by *you* calling the parser again from within the read function.
   ")
 
 (defcard parser-read-trace
@@ -280,9 +288,9 @@
         (when error
           (dom/div nil (str error)))
         (dom/h4 nil "Query Result")
-        (html-edn (:result @state))
+        (pr-str (:result @state))
         (dom/h4 nil "Database")
-        (html-edn (:db @state))))))
+        (pr-str (:db @state))))))
 
 (defcard property-read-for-the-meaning-of-life-the-universe-and-everything
   "This card is using the parser/read pairing shown above (the read returns
@@ -501,11 +509,18 @@
   (dc/mkdn-pprint-source parser3/app-state)
   (dc/mkdn-pprint-source parser3/read)
   (dc/mkdn-pprint-source parser3/parser)
-  "Now we can try the following queries:"
+  "Now we can try the following queries:
+
+  Query:"
   (dc/mkdn-pprint-source parser3/parse-result-mins)
+  "Result: "
   parser3/parse-result-mins
+  "Query: "
   (dc/mkdn-pprint-source parser3/parse-result-secs)
+  "Result: "
   parser3/parse-result-secs
+  "Query: "
   (dc/mkdn-pprint-source parser3/parse-result-ms)
+  "Result: "
   parser3/parse-result-ms)
 

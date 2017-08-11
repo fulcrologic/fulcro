@@ -6,7 +6,7 @@
 
 (defui Person
   static om/IQuery
-  (query [this] '[:person/name])
+  (query [this] [:person/name])
   Object
   (render [this] (let [{:keys [person/name]} (om/props this)] (dom/li nil name))))
 
@@ -20,7 +20,7 @@
 
 (defui Root
   static om/IQuery
-  (query [this] `[{:people ~(om/get-query Person)}])
+  (query [this] [{:people (om/get-query Person)}])
   Object
   (render [this]
     (let [{:keys [people]} (om/props this)] (dom/div nil (people-list people)))))

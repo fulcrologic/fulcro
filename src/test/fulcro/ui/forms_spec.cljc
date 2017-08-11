@@ -275,10 +275,26 @@
       (f/init-many person-db (get-in person-db [:people/by-id 7]) spec {}) =throws=> #?(:cljs (js/Error #"Initialize-many form did not") :clj (AssertionError #"Initialize-many form did not")))))
 
 (specification "Initializing a form recursively"
+  #?(:clj
+     (let [db   (f/init-form person-db Person [:people/by-id 7])
+           form (get-in db [:people/by-id 7])]
+       (assertions
+         "adds a :sever-initialized? flag when run on the server"
+         (f/server-initialized? form) => true))
+     :cljs
+     (let [db        (f/init-form person-db Person [:people/by-id 7])
+           db        (assoc-in db [:people/by-id 7 f/form-key :server-initialized?] true)
+           reinit-db (f/init-form person-db Person [:people/by-id 7])]
+       (assertions
+         "removes the server-initialized? flag when run on a server-initialized form in the client."
+         (f/server-initialized? (get-in db [:people/by-id 7])) => true
+         (f/server-initialized? (get-in reinit-db [:people/by-id 7])) => false)))
   (assertions
-    "detects initialized forms by looking for form state"
+    "initialized? detects initialized forms by looking for form state"
     (f/initialized? {:db/id 1}) => false
-    (f/initialized? {:db/id 1 f/form-key {}}) => true)
+    (f/initialized? {:db/id 1 f/form-key {}}) => true
+    (f/initialized? (with-meta {:db/id 1} {:component :thing})) => false
+    (f/initialized? (with-meta {:db/id 1 f/form-key {}} {:component :thing})) => true)
   (provided "when the form is already initialized"
     (f/initialized? f) => true
 
@@ -710,9 +726,7 @@
                      (-> basic-person
                        (assoc :person/number (f/build-form Phone {:db/id t1 :phone/number "123-4567"}))
                        f/diff-form
-                       :form/updates) => nil
-                     ))
-                 ; TODO: CONTINUE HERE...
+                       :form/updates) => nil))
                  (component ":form/add-relations"
                    (assertions
                      "Includes the new relation for a new to-one association"

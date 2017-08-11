@@ -18,7 +18,7 @@
                        (let [tempid (-> edn first second :id)]
                          (done-callback {'fulcro.client.load-cards/add-thing {:tempids {tempid 1010}}}))
                        (done-callback {[:thing/by-id 1010] {:id 1010 :label "B"}}))) 2000))
-  (start [this complete-app] this))
+  (start [this] this))
 
 (defui Thing
   static om/IQuery

@@ -18,6 +18,31 @@
 
   Fulcro is a set of libraries that together comprise a full-stack, feature-complete web development toolkit.
 
+  ## Why Clojure and Clojurescript?
+
+  1. *Dramatically simpler language.*
+  +
+  Clojure has very little syntax. At first this seems a liability until you realize the
+  amount of boilerplate it eliminates. What's more, because the language is written
+  as a data structure it means that metaprogramming (augmenting the compiler to do
+  something new) is nearly as easy as writing regular code. This means things like
+  domain-specific languages are easy to create for your specialized problems. A typical
+  Clojure program is significantly shorter than what you're used to in Java or Javascript.
+  +
+  2. *First-class immutable (persistent) data structures.*
+  +
+  If you're coming from the non-functional world this seems like a very odd thing at
+  first.
+  +
+  3. *The code itself is written in a data language, which means you can easily transmit it, store it, transform it, etc.*
+  4. *Great support for concurrency.*
+  5. *One language on both the front and back-end that isn't Javascript + Node.*
+
+  It is likely that you can dive in and start playing with Fulcro without knowing too
+  much about Clojure, but you should check out a book like
+  \"Clojure for the Brave and True\" to at least get through the basics.
+
+
   ## How is Fulcro related to Om (Next)?
 
   The Fulcro Client and Server libraries serve as an implementation of the network layer, plumbing, and default

@@ -71,7 +71,7 @@
 ;; this case. See api.clj.
 
 ;; When to consider the data missing? Check the state and find out.
-(defn missing-tab? [state tab] (empty? (-> @state :settings :tab :settings)))
+(defn missing-tab? [state tab] (not (vector? (-> @state :settings :tab :settings))))
 
 (m/defmutation lazy-load-tab [{:keys [tab]}]
   (action [{:keys [state] :as env}]
@@ -79,9 +79,9 @@
     (when (missing-tab? state tab)
       (df/load-action state :all-settings SomeSetting
         {:target  [:settings :tab :settings]
-         :refresh [:settings]})
-      ))
+         :refresh [:settings]})))
   (remote [{:keys [state] :as env}]
+    (js/console.log tab :m? (missing-tab? state tab))
     (when (missing-tab? state tab) (df/remote-load env))))
 
 (defui ^:once Root

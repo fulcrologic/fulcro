@@ -1,8 +1,8 @@
 (ns fulcro-devguide.M30-Advanced-Mutation
-  (:require-macros [fulcro-devguide.tutmacros :refer [fulcro-app]])
   (:require [om.next :as om :refer-macros [defui]]
             [om.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro-devguide.A-Quick-Tour :as tour]
             [fulcro.client.core :as fc]
             [fulcro.client.logging :as log]
@@ -60,6 +60,26 @@
   creates a concentration of cross-cutting concerns in `merge` with 
   little practical benefit).
 
+  ###  Using `integrate-ident`
+
+  When in a mutation you very often need to place an ident in various spots in your graph database. The helper
+  function `fulcro.client.core/integrate-ident` can by used from within mutations to help you do this. It accepts
+  any number of named parameters that specify operations to do with a given ident:
+
+  ```
+  (swap! state
+    (fn [s]
+      (-> s
+         (do-some-op)
+         (integrate-ident the-ident
+           :append [:table id :field]
+           :prepend [:other id :field]))))
+  ```
+
+  This function checks for the existence of the given ident in the target list, and will refuse to add it if it is
+  already there. The `:replace` option can be used on a to-one or to-many relation. When replacing on a to-many, you
+  use an index in the target path (e.g. `[:table id :field 2]` would replace the third element in a to-many `:field`)
+
   ### Creating Components *Just* For Their Queries
 
   If your UI doesn't have a query that is convenient for sending to the server (or for working on tree data like this),
@@ -76,23 +96,22 @@
   ")
 
 (defcard sample-of-tree->db
-         "In this card, we're using the above TopQuery query to convert the data in the displayed map `:from` into
-         `:result`. The specific operation used here is:
+  "In this card, we're using the above TopQuery query to convert the data in the displayed map `:from` into
+  `:result`. The specific operation used here is:
 
-         ```
-         (om/tree->db TopQuery (:from @state) true)
-         ```
-
-         "
-         (fn [state _]
-           (dom/div nil
-             (dom/button #js {:onClick (fn []
-                                         (let [result (om/tree->db TopQuery (:from @state) true)]
-                                           (swap! state assoc :result result)))} "Run tree->db")
-             (dom/button #js {:onClick (fn []
-                                         (swap! state dissoc :result))} "Reset")))
-         {:from {:id :top-1 :subs [{:id :sub-1 :data 1} {:id :sub-2 :data 2}]}}
-         {:inspect-data true})
+  ```
+  (om/tree->db TopQuery (:from @state) true)
+  ```
+  "
+  (fn [state _]
+    (dom/div nil
+      (dom/button #js {:onClick (fn []
+                                  (let [result (om/tree->db TopQuery (:from @state) true)]
+                                    (swap! state assoc :result result)))} "Run tree->db")
+      (dom/button #js {:onClick (fn []
+                                  (swap! state dissoc :result))} "Reset")))
+  {:from {:id :top-1 :subs [{:id :sub-1 :data 1} {:id :sub-2 :data 2}]}}
+  {:inspect-data true})
 
 (defcard-doc
   "
@@ -100,14 +119,14 @@
   of course, you can see that you're still going to need to merge the database table contents into your main app state
   and carefully integrate the other bits as well.
 
-  *IMPORTANT*: The *`Ident`* part of the component's is the magic here. This is why you *need* component queries for
+  *IMPORTANT*: The *`Ident`* part of the component is the magic here. This is why you *need* component queries for
   this work work right. The `ident` functions are used to determine the table locations and idents to place into
   the normalized database!
 
   ### Using `om/merge!`
 
   Om Next includes a function that takes care of the rest of these bits for you. It uses the Om Next reconciler (which
-  as we mentioned earlier can be taked from the Fulcro App). The arguments are similar to `tree->db`:
+  as we mentioned earlier can be obtained from the Fulcro App). The arguments are similar to `tree->db`:
 
   ```
   (om/merge! (:reconciler @app) ROOT-data ROOT-query)
@@ -118,16 +137,14 @@
 
   *IMPORTANT*: The biggest challenge with using this function is that it requires the data and query to be structured
   from the ROOT of the database! That is sometimes perfectly fine, but our next section talks about a helper that
-  might be more appropriate.
-
-")
+  might be easier to use.")
 
 (defonce timer-id (atom 0))
-(defonce merge-sample-app (atom nil))
+(declare sample-of-counter-app-with-merge-state-fulcro-app)
 
 (defn add-counter [app counter]
   (fc/merge-state! app tour/Counter counter
-                   :append [:panels/by-kw :counter :counters]))
+    :append [:panels/by-kw :counter :counters]))
 
 (defui ^:once Root
   static om/IQuery
@@ -136,7 +153,7 @@
   (render [this]
     (let [{:keys [panel]} (om/props this)]
       (dom/div #js {:style #js {:border "1px solid black"}}
-        (dom/button #js {:onClick #(add-counter @merge-sample-app {:counter/id 4 :counter/n 22})} "Simulate Data Import")
+        (dom/button #js {:onClick #(add-counter @sample-of-counter-app-with-merge-state-fulcro-app {:counter/id 4 :counter/n 22})} "Simulate Data Import")
         "Counters:"
         (tour/ui-counter-panel panel)))))
 
@@ -146,16 +163,22 @@
 
   There is a common special case that comes up often: You want to merge something that is in the context of some particular UI component.
 
-  Think of this case as: I have some data for a given component (which MUST have an Ident). I want to merge onto that
-  component's entry in the table, but I want to make sure the tree of data in my source data also gets normalized
+  ```
+  (merge-state! app ComponentClass ComponentData)
+  ```
+
+  Think of this case as: I have some data for a given component (which MUST have an Ident). I want to merge into that
+  component's entry in a table, but I want to make sure the recursive tree of data also gets normalized
   properly.
 
-  This helper function also integrates the functionality of `integrate-ident!`, and can often serve as a total one-stop
-  shop for merging data that is coming from some external source. Since this is an Fulcro function, it can work directly on
-  the app, but also accepts a reconciler.
+  `merge-state!` also integrates the functionality of `integrate-ident!` to pepper the ident of the merged entity throughout
+  your app database, and can often serve as a total one-stop
+  shop for merging data that is coming from some external source.
+
+  This first argument can be an application or reconciler.
 
   In the card below we're using part of our Counter application from earlier. The button simulates some external source of data that
-  we'd like to merge in. In this case, let's assume we are wanting to merge some newly arrived counter:
+  we'd like to merge in. In this case, let's assume we are wanting to merge some newly arrived counter entity:
 
   ```
   { :counter/id 5 :counter/n 66 }
@@ -164,20 +187,18 @@
   We'll want to:
 
   - Add the counter to the counter's table (which is not even present because we have none in our initial app state)
-  - Add the ident of the counter to the panel's counters tracking
+  - Add the ident of the counter to the UI panel so it's UI shows up
 
   We can do this with:
   "
   (dc/mkdn-pprint-source add-counter))
 
-(defcard sample-of-counter-app-with-merge-state
-         "The button in the UI calls `(add-counter app {:counter/id 4 :counter/n 22})`"
-         (dc/dom-node
-           (fn [state-atom node]
-             (reset! merge-sample-app (fc/new-fulcro-client :initial-state state-atom :networking (tour/map->MockNetwork {})))
-             (reset! merge-sample-app (fc/mount @merge-sample-app Root node))))
-         {:panel         [:panels/by-kw :counter]
-          :panels/by-kw  {:counter {:counters []}}
-          :counter/by-id {}}
-         {:inspect-data true})
+(defcard-fulcro sample-of-counter-app-with-merge-state
+  "The button in the UI calls `(add-counter app {:counter/id 4 :counter/n 22})`"
+  Root
+  {:panel         [:panels/by-kw :counter]
+   :panels/by-kw  {:counter {:counters []}}
+   :counter/by-id {}}
+  {:inspect-data true
+   :fulcro       {:networking (tour/map->MockNetwork {})}})
 

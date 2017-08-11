@@ -1,8 +1,6 @@
 (ns fulcro.client.cards
   #?(:cljs (:require-macros fulcro.client.cards))           ; this enables implicit macro loading
   (:require
-    devcards.core
-    [devcards.util.utils :as du]
     fulcro.client.core
     fulcro.client.util))
 
@@ -52,6 +50,13 @@
           ; ensures shows app state immediately if you're using inspect data true...otherwise you don't see it until the first interaction.
           (js/setTimeout (fn [] (swap! state-atom# assoc :ui/react-key (fulcro.client.util/unique-key))) 100)))))
 
+#?(:clj (in-ns 'devcards.util.utils))
+#?(:clj (clojure.core/declare devcards-active?))
+#?(:clj (in-ns 'devcards.core))
+#?(:clj (clojure.core/declare parse-card-args))
+#?(:clj (clojure.core/declare card))
+#?(:clj (in-ns 'fulcro.client.cards))
+
 #?(:clj
    (defmacro defcard-fulcro
      "Create a devcard with a full-blown Fulcro application. The arguments are identical to the devcard's
@@ -93,7 +98,9 @@
      See Bruce Hauman's devcards for more information.
      "
      [& exprs]
-     (when (du/devcards-active?)
+     (require 'devcards.util.utils)
+     (require 'devcards.core)
+     (when (devcards.util.utils/devcards-active?)
        (let [[vname docu root-component initial-data options] (devcards.core/parse-card-args exprs 'fulcro-root-card)
              app-sym        (symbol (str (name vname) "-fulcro-app"))
              fulcro-kvpairs (seq (:fulcro options))

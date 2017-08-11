@@ -217,7 +217,7 @@
   having a stateless UI. In React, you also pass your callbacks through props. In Om, we need a slight variation of
   this.
 
-  In Om, a component can have a [query](http://localhost:3449/index.html#!/fulcro_devguide.D_Queries) that asks
+  In Om, a component can have a [query](http://localhost:8080/index.html#!/fulcro_devguide.D_Queries) that asks
   the underlying system for data. If you complect callbacks and such with this queried data then you run into trouble.
   So, in general *props have to do with passing data that the component **requested in a query***.
 
@@ -297,7 +297,6 @@
                   :viewBox "0 0 1000 1000"})))
 
 (def d3-thing (om/factory D3Thing))
-
 
 (defcard-doc
   "

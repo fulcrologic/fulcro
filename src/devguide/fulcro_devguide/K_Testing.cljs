@@ -1,9 +1,5 @@
 (ns fulcro-devguide.K-Testing
-  (:require-macros [cljs.test :refer [is]]
-                   [fulcro-devguide.tutmacros :refer [fulcro-app]])
-  (:require [devcards.core :as dc :include-macros true :refer-macros [defcard defcard-doc dom-node]]
-            [cljs.reader :as r]
-            [om.next.impl.parser :as p]))
+  (:require [devcards.core :as dc :include-macros true :refer-macros [defcard-doc]]))
 
 (defcard-doc
   "# Testing

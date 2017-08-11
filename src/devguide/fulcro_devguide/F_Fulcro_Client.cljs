@@ -48,35 +48,33 @@
 
   This tiny bit of code does a *lot*:
 
-  - It creates an entire Om ecosystem:
-      - A parser for reads/mutates
-      - A local read function that can read your entire app database
-      - Plumbing to make it possible to do networking to your server
+  - It creates an entire ecosystem:
+      - A client-side ecosystem with i18n, state, query and mutation support.
+      - Plumbing to make it possible to do networking to your server.
       - Complete handling of tempids, merging, attribute conflict resolution, and more!
-      - Application locale handling
-      - Support VCR viewer recording with internal mutations that can submit support requests
-      - Support for refreshing the entire UI on hot code reload (with your help)
-  - It mounts the application UI on the given DOM element (you can pass a real node or string ID)
+      - Application locale handling.
+      - Support VCR viewer recording with internal mutations that can submit support requests.
+      - Support for refreshing the entire UI on hot code reload (with your help).
+  - It mounts the application UI on the given DOM element (you can pass a real node or string ID).
 
   Some additional things that are available (which we'll cover soon):
 
-  - The ability to load data on start using any queries you've placed on the UI or written elsewhere
-  - The ability to do deferred lazy-load on component fields (e.g. comments on an item)
+  - The ability to load data on start using any queries you've placed on the UI or written elsewhere.
+  - The ability to do deferred lazy-load on component fields (e.g. comments on an item).
 
   Wow! That's a lot for two lines of code.
 
   ## Running Fulcro in a Dev Card
 
-  In devcards, you can embed a full Fulcro application in a card using the macro `fulcro-app` defined in this project
-  in `tutmacros.clj`. This macro creates and mounts the application for you, and accepts the same arguments as
-  `new-fulcro-client`. The only exception is that initial state is passed in from the card itself:
-
   ```clojure
-  (defcard sample
-     (tm/fulcro-app ui/Root)
-     { :some-data 42} ; <-- initial state from the card.
-                      ; Not used if using InitialAppState (next section)
-     { :inspect-data true}) ; <-- devcard options, see app state in the card!
+  (ns boo (:require [fulcro.client.cards :refer [defcard-fulcro]]))
+
+  (defcard-fulcro sample
+     \"Optional markdown\"
+     ui/Root
+     { :some-data 42} ; initial state from the card (If empty, uses InitialAppState which is covered later).
+     { :inspect-data true ; devcard options
+       :fulcro {:started-callback (fn [app] ...) }) ; fulcro client options
   ```
 
   ## Initial Application State
@@ -88,7 +86,7 @@
   application database.
 
   We do *not* recommend initializing your application in *either* of these ways except in extremely simple circumstances,
-  instead Fulcro has a clever way for you to co-locate your initial app state locally on the components so that
+  instead Fulcro allows you to co-locate your initial app state locally on the components so that
   you just don't have to think much about it.
 
   You should definitely read the next section about [the InitialAppState mechanism](#!/fulcro_devguide.F_Fulcro_Initial_App_State). It

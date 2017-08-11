@@ -62,7 +62,7 @@
   (server-parser (assoc env :state server-state) tx))
 
 ; Networking that pretends to talk to server. You'd never write this part
-(defrecord MockNetwork [complete-app]
+(defrecord MockNetwork []
   fcn/FulcroNetwork
   (send [this edn ok err]
     ; simulates a network delay:
@@ -70,8 +70,7 @@
       #(let [resp (server {} edn)]
          (ok resp))
       1000))
-  (start [this app]
-    (assoc this :complete-app app)))
+  (start [this] this))
 
 
 

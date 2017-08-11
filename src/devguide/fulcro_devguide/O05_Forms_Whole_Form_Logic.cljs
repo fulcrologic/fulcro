@@ -35,7 +35,7 @@
   (server-parser (assoc env :users #{"tony" "sam"}) tx))
 
 ; Networking that pretends to talk to server. You'd never write this part
-(defrecord MockNetwork [complete-app]
+(defrecord MockNetwork []
   fcn/FulcroNetwork
   (send [this edn ok err]
     ; simulates a network delay:
@@ -43,8 +43,7 @@
       #(let [resp (server {} edn)]
          (ok resp))
       1000))
-  (start [this app]
-    (assoc this :complete-app app)))
+  (start [this] this))
 
 (defn field-with-label
   "A non-library helper function, written by you to help lay out your form."

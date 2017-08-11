@@ -8,7 +8,7 @@
   (send [this edn ok err]
     (let [resp (server {} edn)]
       (js/setTimeout #(ok resp) 700)))
-  (start [this app] this))
+  (start [this] this))
 
 (defn make-mock-network [state read+mutate]
   (->MockNetwork
