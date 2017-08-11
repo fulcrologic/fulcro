@@ -1,15 +1,17 @@
 1.0.0-beta7
 -----------
-- REQUIRES: Clojurescript 1.9.854+
-- Added initialize-form mutation to forms with docs in devguide.
-- Fixed deprecated ring content-type handling in server
-- Made devcards dynamically load so it isn't a hard dependency
-- Fixed a bug in new initial app state handling
+- REQUIRES: Clojurescript 1.9.854+.
 - BREAKING CHANGE: Removed passing `app` to networking. This caused a dependency loop that was unsolvable internally and
   has always been broken. If you have custom networking you'll have to remove that param to start.
-- NOTE: You must upgrade fulcro-spec (if you use it) to beta7 as well on this release.
+- NOTE: You must upgrade fulcro-spec (if you use it) to beta7 as well with this release.
+- Added initialize-form mutation to forms with docs in devguide.
+- Fixed deprecated ring content-type handling in server.
+- Made devcards dynamically load so it isn't a hard dependency.
+- Fixed a bug in new initial app state handling.
 - Added DynamicRouter to routing. Should work as soon as newest cljs compiler module loader is debugged and fixed.
-- Fixed initialize form to work for SSR
+- Fixed initialize form to work for SSR.
+- Quite a number of devguide improvements.
+- Got started on a better Reference Guide.
 
 1.0.0-beta6
 -----------
