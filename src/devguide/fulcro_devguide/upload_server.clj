@@ -14,7 +14,7 @@
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.middleware.resource :refer [wrap-resource]]
             [org.httpkit.server :refer [run-server]]
-            [clojure.tools.namespace.repl :refer [disable-reload! refresh clear set-refresh-dirs]]
+            [clojure.tools.namespace.repl :refer [disable-reload! refresh clear]]
             [com.stuartsierra.component :as component]
             [taoensso.timbre :as timbre]
             [fulcro.ui.file-upload :as upload]

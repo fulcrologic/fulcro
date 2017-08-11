@@ -10,6 +10,7 @@
 - NOTE: You must upgrade fulcro-spec (if you use it) to beta7 as well on this release.
 - Added DynamicRouter to routing. Should work as soon as newest cljs compiler module loader is debugged and fixed.
 - Fixed initialize form to work for SSR
+- A number of devguide improvements
 
 1.0.0-beta6
 -----------
