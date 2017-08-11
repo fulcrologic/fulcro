@@ -181,13 +181,13 @@
 
    ## A Complete Working Example
 
-   There is a complete working example of these techniques (include the HTML5 routing) on the `feature/ssr` branch
-   of the [fulcro-template](https://github.com/fulcrologic/fulcro-template/tree/feature/ssr).
+   There is a complete working example of these techniques (including the HTML5 routing) in the
+   [fulcro-template](https://github.com/fulcrologic/fulcro-template).
 
-   - [Server-side logic](https://github.com/fulcrologic/fulcro-template/blob/feature/ssr/src/main/fulcro_template/server.clj)
-   - [HTML5 Routing](https://github.com/fulcrologic/fulcro-template/blob/feature/ssr/src/main/fulcro_template/ui/html5_routing.cljc)
-   - [Client-side Initial State Generation and Modifications](https://github.com/fulcrologic/fulcro-template/blob/feature/ssr/src/main/fulcro_template/ui/root.cljc) (see `initial-app-state-tree`)
-   - [Client Start-up](https://github.com/fulcrologic/fulcro-template/blob/feature/ssr/src/main/fulcro_template/client.cljs) Note this example tolerates a failure of the server to send
+   - [Server-side logic](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/server.clj)
+   - [HTML5 Routing](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/ui/html5_routing.cljc)
+   - [Client-side Initial State Generation and Modifications](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/ui/root.cljc) (see `initial-app-state-tree`)
+   - [Client Start-up](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/client.cljs) Note this example tolerates a failure of the server to send
    initial state, so it runs initial startup steps if it detects that.
 
   ")

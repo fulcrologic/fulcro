@@ -288,9 +288,9 @@
         (when error
           (dom/div nil (str error)))
         (dom/h4 nil "Query Result")
-        (html-edn (:result @state))
+        (pr-str (:result @state))
         (dom/h4 nil "Database")
-        (html-edn (:db @state))))))
+        (pr-str (:db @state))))))
 
 (defcard property-read-for-the-meaning-of-life-the-universe-and-everything
   "This card is using the parser/read pairing shown above (the read returns
@@ -509,11 +509,18 @@
   (dc/mkdn-pprint-source parser3/app-state)
   (dc/mkdn-pprint-source parser3/read)
   (dc/mkdn-pprint-source parser3/parser)
-  "Now we can try the following queries:"
+  "Now we can try the following queries:
+
+  Query:"
   (dc/mkdn-pprint-source parser3/parse-result-mins)
+  "Result: "
   parser3/parse-result-mins
+  "Query: "
   (dc/mkdn-pprint-source parser3/parse-result-secs)
+  "Result: "
   parser3/parse-result-secs
+  "Query: "
   (dc/mkdn-pprint-source parser3/parse-result-ms)
+  "Result: "
   parser3/parse-result-ms)
 
