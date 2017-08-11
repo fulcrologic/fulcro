@@ -16,12 +16,9 @@
   "
   # Advanced Server Topics
 
-  This section includes exercises that use a pre-built server that is available in this project. If you're using IntelliJ,
-  you can set up this server as a Local Clojure REPL run configuration:
-
-  <img width=800 src=\"/img/server-settings.png\">
-
-  At the REPL, the `(go)` command will start the server, and `(reset)` will stop it, refresh the source, and restart it.
+  This section includes exercises that require an `easy` server. Use the solutions to the exercises of section J as
+  a starting point. This section explains various ways to extend the `easy` server to deal with multiple
+  configurations, add additional ring middleware, and handle extra routes.
 
   ## Working with Configuration
 
@@ -36,8 +33,8 @@
 
   ### Running with Alternate Configurations
 
-  You can select any alternate EDN file on the filesystem or CLASSPATH when you start the server. To do that,
-  simple include a JVM option: `-Dconfig=path-to-file`.  So, for example, you could place a `staging.edn` file
+  You can select any alternate EDN file on the filesystem (using an absolute path) or CLASSPATH (with a relative path)
+  when you start the server. To do that, include a JVM option: `-Dconfig=path-to-file`.  So, for example, you could place a `staging.edn` file
   in `resources/config` in your project, and use that directly (even from the uberjar) with `-Dconfig=config/staging.edn`.
 
   #### Exercise 1
@@ -45,11 +42,11 @@
   Create a `staging.edn` in `resources/config` with this content:
 
   ```
-  {:port 9000}
+  {:port 9001}
   ```
 
   and modify your startup to include the proper JVM parameter to use that config. Verify that when you restart your server
-  it is running on port 9000.
+  it is running on port 9001.
 
   #### Exercise 2
 
@@ -128,25 +125,38 @@
   If you instead use:
 
   ```
-  { :v :env.edn/V }
+  { :v :env/V }
   ```
 
   then your configuration will have the literal string.
 
   #### Exercise 4
 
-  You can set the environment in
-  the IntelliJ Run Configuration. Add the following JVM args and environment variables:
-
-  <img width=800 src=\"img/env-vars.png\">
-
+  You can set the environment and JVM args in the IntelliJ Run Configuration under JVM args.
   If you're using the command line, of course you'll just set them in the environment and run with JVM options.
+  Add the following JVM args and environment variables:
+
+  JVM Args:
+  ```
+  -Dconfig=config/exercise4.edn
+  ```
+
+  Environment variables (e.g. in bash):
+  ```
+  export PORT=9090
+  export MESSAGE=hello
+  ```
+
+  Running from the command line with lein:
+  ```
+  JVM_OPTS=-Dconfig=... lein run -m clojure.main
+  ```
 
   You'll need to kill your server REPL and restart it. Create an `exercise4.edn` file in `resources/config` that
   sets the network port from the `PORT` environment variable (be careful, you want it to *not* be a string), and
   sets your sample component's `:n` from the value of the `MESSAGE` environment variable (which is a string).
 
-  Start the REPL (don't forget -Dconfig=...) and start your server with `(go)` to see that it works as expected.
+  Start the REPL and start your server with `(go)` to see that it works as expected.
 
   ### Accessing Configuration Values in Queries and Mutations
 
@@ -185,7 +195,7 @@
 (defcard-fulcro server-trigger
   "This card will trigger your server mutation.
 
-  **IMPORTANT:** You MUST be running the devguide from your server URL (port).
+  **IMPORTANT:** You MUST be running this page from your server URL (port).
 
   When you click the button below it will trigger an `exercise5/trigger` remote mutation."
   Root)
@@ -305,11 +315,10 @@
   See the fulcro-template for examples of login. See `augment-response` on the server for modifying headers from the
   server. Use wrap-session to do sessions/cookies.
 
-  Most os these techniques are demonstrated in the fulcro-template.
+  Most of these techniques are demonstrated in the fulcro-template.
 
   ## Solutions to Exercises
 
-  See `src/server/solutions/advanced_server.clj` for sample solutions to all exercises.
-
+  See `src/devguide/solutions/advanced_server.clj` for sample solutions to all exercises.
   ")
 
