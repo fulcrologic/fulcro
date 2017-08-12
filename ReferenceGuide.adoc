@@ -2029,10 +2029,70 @@ remote names whose values are objects the implement FulcroNetworking.
 
 === Error Handling
 
+The general philosophy of a Fulcro application is that optimistic updates are not even triggered on the client
+unless they expect to succeed on the server. In other words, you write the application in such a way that operations cannot be triggered
+from the UI unless you're certain that a *functioning server* will execute them. A server should not throw an exception
+and trigger a need for network error handling unless there is a real, non-recoverable situation.
+
+If this is true, then a functioning server *does* need to do sanity checking for security reasons, but in general you
+don't need to give friendly errors when those checks fail: you should assume they are attempted hacks. Other serious
+problems are the similar: there is usually nothing you can do but throw an exception and let the user contact support.
+Exceptions to this rule certainly exist, but they are few and far between.
+
+There are some cases where the server has to be involved in a validation interaction non-optimistically. Login is a great
+example of this. However, invalid credentials on login *should not be treated as an error*! It should be treated as
+a response to a question. "Can I log in with these credentials?". Yes or no. This is a *query* and *response*, *not* an
+error handling interaction. Thus, something like login can be handled with a query (to get the answer) and post-mutation
+(to update the screen with an error or change the route on response).
+
+This philosophy eases the overhead in general application programming. You need not write a bunch of code in the UI
+that gives a nice friendly message for every kind of error that occurs. If an error occurs, you can pretty much assume
+it is either a bug, or a real outage. In both cases, there isn't a lot you can do that will work "well" for the user. If
+it is a bug, then you really have no chance of predicting what will fix it, otherwise you would have already fixed the
+bug. If it's an outage, again you have no way of knowing what has gone wrong. Is the user's WiFi out of range? Did your
+database take a dump?
+
+So, most error conditions can be treated as a problem that needs fairly radical recovery. Since you're working with
+a distributed application the recovery from errors is a difficult task. There is no sugar-coating it. What in your
+client database is now corrupt or out-of-sync?
+
+In general, it is recommended that full-stack error handling use the global error handler that is configured during
+the setup of your client application (you have to explicitly configure networking). This function can update application
+state to show some kind of top-level modal dialog that describes the problem, possibly allows the user to submit
+application history (for support viewer) to your servers, and then re-initializes the application in some way.
+
+You can, of course, get pretty creative with the re-initialization. For example, say you write screens so that they will
+refresh their persistent data whenever it is older than some amount of time, and write it so all entities have a timestamp.
+You could walk the state and "expire" all of the timestamps, and then close the dialog. Your lifecycle methods on the
+components could be set up to check for the expiration, which in turn would trigger loads. If the server is really having
+problems then the worst case is that the dialog pops back up telling them there is still a problem.
+
 === Supporting Progress Updates
 
-=== Interfacing with REST Servers
+The networking layer of Fulcro will, by default, place load markers at the target location for any data that is
+scheduled to be loaded or is currently loading. It also updates a global loading marker. This gives you ample
+opportunities to give the user feedback about network activity.
 
+However, many applications have custom desires beyond showing a busy indicator in place of the data being loaded.
+
+==== Alternative Busy Indicator
+
+One common pattern is for the current data to stay in-place while the new data is loading, and for a busy
+marker (for *that* data, not for global network activity) to show in the UI. In this case what you want is a load
+marker for the data, but you don't want it to appear at the target.
+
+The best way to support this use-case is to target the data to a temporary location in the UI, where you want to show
+the load marker. Then use a post-mutation to re-target it when loading is done.
+
+```
+(df/load :person Person {:params {:id 1} :target [:panel :person-editor :temp/person]
+                         :post-mutation `move-temp-to-editor})
+```
+
+where the `PersonEditor` would need to query for `:temp/person` (the load target) as well as `:person-to-edit`
+(the field that represents the actual thing being edited). When `:temp/person` has a load marker, show the busy indicator.
+
+=== Interfacing with REST Servers
 
 
 = Websockets
