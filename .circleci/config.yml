@@ -34,5 +34,6 @@ jobs:
           key: v1-dependencies-{{ checksum "project.clj" }}
 
       # run tests!
+      - run: npm install
       - run: lein test-refresh :run-once
       - run: lein doo firefox automated-tests once
