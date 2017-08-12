@@ -658,7 +658,7 @@ could probably make a macro that could parse that successfully and turn it into 
 complicated when you also want to support react lifecycle, ident, etc. You are always free to invent such macros, but
 for clarity we currently supply just the most general version.
 
-==== Normalization: Initial State, Server Interations, and Mutations
+==== Normalization: Initial State, Server Interations, and Mutations [[Normalization]]
 
 The process described above is how most data interactions occur. At startup the `InitialAppState` supplies data that
 exactly matches the tree of the UI. This gives your UI some initial state to render. The normalization mechanism
@@ -868,7 +868,7 @@ The your `render` for `Panel` will need to find the header and body children:
 
 Basically, the child or children can simply be dropped into the place where they should be rendered.
 
-#### Mixing Data-Driven Children
+==== Mixing Data-Driven Children
 
 At first this seems a little mind-bending, because you are in fact nesting components in the UI, but
 the query nesting need only mimic the stateful portion of the UI tree. This means there is ample opportunity
@@ -1599,56 +1599,179 @@ The final advantage is it is harder to accidentally side-effect. The `action` se
 will wrap the logic in a lambda, meaning that it can read as-if you're side-effecting, but in fact
 will do the right thing.
 
-Unless you are tied to inventing namespaces that are separate from the place where they are declared, then
-you should use `defmutation`.
+In general these advantages mean you should generally use the macro to define mutations, but it is good
+to be aware that underneath is just a multimethod.
 
-== Transactional Behavior
+== Recommendations About Writing Mutations
 
+Mutations really are aimed at being functions on your application state. Components have nice clean abstractions,
+and you will often benefit from writing low-level functions that represent the general operations on a component. As
+you move towards higher-level abstractions you'll want to compose those lower-level functions. As such, it pays
+to think a little about how this will look over time.
 
+If you write the *actual logic* of a mutation into a `defmutation`, then composition is difficult because the
+model does not encourage recursive calls to `transact!`. This will either lead to code duplication or other bad
+practices.
 
-== Recommendations
+To maximize code reuse, local reasoning, and general readability it pays to think about your mutations in the following manner:
 
-. Write the logic as functions that operate on
-specific entities in your application.
-. Write your mutations as simple swaps that call (1)
+1. A mutation is a function that changes the state of the application: `state -> mutation -> state'`
+2. Within a mutation, you are essentially doing operations to a graph, which means you have operations that
+work on some node in the graph: `node -> op -> node'`. These operations may modifiy a scalar or an edge to another node.
 
-== Mutation Composition
+=== Node-Specific Mutation
 
-Write your mutations in terms of implementation
-functions that reason about specific entities. Each
-entity has an ident, so you can compose any new
-mutation out of such functions with this pattern:
+You can run a node-specific operation with:
 
 ```
-; do something to the state that represents just a thing
-(defn thing-mutation-impl [thing] ...)
-
-; in a mutation
-(swap! state (fn [s]
-  (-> s
-      ; use ident with update-in to apply changes
-      (update-in thing-ident thing-mutation-impl)
-      (update-in thing-ident-2 thing-mutation-impl)
-      (update-in thing-ident-3 thing-mutation-impl)
-      ...)))
+(swap! state update-in node-ident op args)
 ```
 
-== Using `integrate-ident!`
+For example, say you want to implement a mutation that adds a person to another person's friend list. The data
+representation of a person is: `{:db/id 1 :person/name "Nancy" :person/friends []}`.
 
-== Using `merge-state!`
+The `ident` function can be coded into a top-level function and used by the `defui` and a person-centric function:
+
+```
+(defn person-ident [id-or-props]
+  (if (map? id-or-props)
+    (person-ident (:db/id id-or-props))
+    [:person/by-id id-or-props]))
+
+(defui Person
+  static om/Ident
+  (ident [this props] (person-ident props))
+  ...)
+```
+
+and our desired operation on the general state of a person can also be written as a simple function (add an ident
+to the :person/friends field):
+
+```
+(defn add-friend-impl
+   [person target-person-id]
+   (update person :person/friends (fnil conj []) (person-ident target-person-id)))
+```
+
+Note, in particular, that we always choose to put the item to be updated as the first argument so that functions
+like `update` are easier to use with it.
+
+Now `(add-friend-impl {:db/id 1 :person/name "Nancy"} 33)` results in
+`{:db/id 1, :person/name "Nancy", :person/friends [[:person/by-id 33]]}`.
+
+You can write a mutation to support this operation within Fulcro:
+
+```
+(defmutation add-friend [{:keys [source-person-id target-id]}]
+  (action [{:keys [state]}]
+    (swap! state update-in (person-ident source-person-id)
+      add-friend-impl target-id)))
+```
+
+You could even take it a step further with a little more sugar by defining a helper that can turn a node-specific
+op into a db-level operation (again note that the thing being updated is the first argument):
+
+```
+(defn update-person [state-map person-id person-fn & args]
+  (apply update-in state-map (person-ident person-id) person-fn args))
+
+(defmutation add-friend [{:keys [source-person-id target-id]}]
+  (action [{:keys [state]}]
+    (swap! state update-person source-person-id add-friend-impl target-id)))
+```
+
+=== Composition in Mutations
+
+Once you have your general operations written as basic functions on either the entire state (like `update-person`) or
+targeted to nodes (like `add-friend-impl`), then it becomes much easier to create mutations that compose together the
+necessary graph database operations to accomplish any higher-level task.
+
+For example, the `fulcro.client.routing/update-routing-links` function takes a state map, and changes all of the routers
+in the application state to show that particular screen. So, say you wanted add-friend to also
+take you to the screen that shows the details of that particular person. The top-level abstract mutation in the UI
+might still be called `add-friend`, but the internals now two things to do.
+
+Having all of these functions on the graph database allows you to write this in a very nice form as
+a sequence of operations on the state map itself through threading:
+
+```
+(defmutation add-friend
+  "Locally add a friend, and show them. Full stack operation.
+  [{:keys [source-id target-id]}]
+  (action [{:keys [state]}]
+    (swap! state
+      (fn [s]
+        (-> s
+          (r/update-routing-links {:handler :show-friend :route-params {:person-id target-id}})
+          (update-person source-id add-friend-impl target-id)))))
+  (remote [env] true)
+```
+
+and your mutations become a thing of beauty!
+
+Of course, this can also be overkill. It is true that it is often handy to be able to compose many db operations together
+into one abstract mutation, but don't forget that more that one mutation can be triggered by a single call
+to `transact!`. You'll want to balance your mutations just like you do any other library of code: so that
+reuse and clarity are maximized.
+
+```
+(om/transact! this `[(route-to {:handler :show-friend :route-params {:person-id ~target-id}})
+                     (add-friend {:source-person-id ~my-id :target-id ~target-id})])
+```
+
+=== Mutation Helpers
+
+As a reminder: the section on <<Normalization, normalization>> mentioned a number of helper functions that are useful
+when working on the graph database. Some of these can be very handy within mutation implementations.
 
 == Remote Mutations
 
+Fulcro comes with a default remote, named `:remote`, that by default talks to the origin server at `/api`. All of this
+is configurable when you create your fulcro client application. In fact, any number of remotes can be created and
+installed on your client, each with a unique name. See the section on <<Networking,networking>> for more details on
+adding remotes to your client.
+
+Mutations are already plain data, so Fulcro can pass them over the network as-is when the client invokes them. All you
+need to do to indicate that a given mutation should affect a given remote is add that remote to the mutation:
+
+```
+(defmutation add-friend [params]
+  (action ...) ; optimistic update of client state
+  (remote [env] true)) ; send the mutation to the remote known as :remote
+
+; or using the multimethod directly:
+(defmethod m/mutate `add-friend [env k params]
+  {:action (fn [] ...)
+   :remote true})
+```
+
 === Altering the Mutation
 
-WARNING: You cannot use the values in state when
-computing anything for the remote because the optimistic
-update of the `action` will have already been applied!
-If you need to rely on data as it existed at the time of
-`transact!` then you *must* pass it as a *parameter* to the
-mutation.
+It is sometimes desirable to alter the mutation that came from the UI before sending it to the remote. For example,
+you might want to add a parameter like a global security token so that you don't have to worry about security at the
+UI `transact!`.
 
-== Mutations that Trigger one or more Loads
+The `env` passed to the mutation contains an `ast`. This is the abstract syntax tree of the mutation (e.g. the symbol
+name and params). You may return this instead of `true` from the remote side of the mutation, and Fulcro will
+send the specific representation of that AST on the network. This means if you change the AST, you'll change
+what the remote sees.
+
+So, for example, to add an api-token to the parameters, you would do something like this:
+
+```
+(defmutation add-friend [params]
+  (action [env] ...)
+  (remote [{:keys [ast]}]
+    (update ast :params assoc :api-token @global-api-token)))
+```
+
+WARNING: The `state` is available in `remote`, but the `action` will run first. This means that you should not
+expect the "old" values in state when computing anything for the remote because the optimistic
+update of the `action` will have already been applied! If you need to rely on data as it existed at the time of
+`transact!` then you *must* pass it as a *parameter* to the mutation so that the original data is closed over for the
+duration of the mutation processing.
+
+=== Mutations that Trigger one or more Loads
 
 Mutations generally need not expose their full-stack nature to the UI. For
 example a `next-page` mutation might trigger a load for the next page of
@@ -1677,27 +1800,104 @@ The basic pattern is:
 (defmutation next-page [params]
   (action [{:keys [state] :as env}]
     (swap! state ...) ; local optimistic db updates
-    (df/load-action state :prop Component) ; same basic args as `load`, except state atom instead of `this`
-    (df/load-action state :other Other)) ; as many as you need...
+    (df/load-action state :prop Component {:remote :remote}) ; same basic args as `load`, except state atom instead of `this`
+    (df/load-action state :other Other) {:remote :other-remote}) ; as many as you need...
   (remote [env]
     (df/remote-load env))) ; notifies back-end that there is some loading to do
 ```
 
+IMPORTANT: The `remote-load` call need only be done for *any one* of the remotes you're talking to. It merely tells the
+back-end code to process remote requests (which will hit all remote queues). Thus, the parameters to the `load-action`
+calls are where you actually specify which remote a given load should actually talk to.
+
 = Server Construction
+
+The easy server is a fairly minimal server implementation that includes a simple Ring stack, component support,
+API query/mutation injections of server components, and resource and alternate route handling. It allows you to
+get going quickly, and is extensible; however, it is not as flexible as the modular server construction.
+
+In general if all you're using is a few components and the API, then the easy server is a great choice for getting
+started.
+
+If you have more interesting requirements, then you may want to explore composing Fulcro's back-end into your server
+with the modular components.
+
+Note that The Developer's Guide covers the easy and modular server, and has exercises. The Fulcro template comes with a modular
+server if you're looking to play with live code.
 
 == Easy Server
 
+See Developer's Guide
+
 === Injecting Components
+
+See Developer's Guide
 
 === Augmenting the Ring Stack
 
+See Developer's Guide
+
 === Adding Extra Routes
+
+See Developer's Guide
 
 == Modular Server
 
-Just use new devguide chapter
+See Developer's Guide
 
+=== API Modules
 
+The `fulcro.server` namespace's server's primary contribution to your server is the API handling. Everything else is
+pretty much up to you to construct. The general structure of your server will end up as shown in the following
+diagram.
+
+image::resources/public/svg/modular-server.svg[]
+
+You'll write (or find as a library) each Module (API Handler). You'll also construct whatever sort of network
+pipeline (Web Server) and join that all together using the `com.stuartsierra/component` library. The primary thing
+the Fulcro code does for you in this diagram is composes the Modules together into a *single* middleware component
+that you can inject and use in your own network stack (e.g. Ring).
+
+The primary requirement is that the `server/wrap-transit-params` and `server/wrap-transit-response` be in front
+of this compose API to ensure that the EDN can be encoded/decoded across the network.
+
+See Developer's Guide for more details.
+
+==== Accessing Server Components
+
+The modular server uses the Stuart Sierra component library. This allows you to inject any component into any other.
+The one place where there needs to be a bit of special support is in the API modules themselves. The modular server
+support of API Modules will automatically merge the Module's state with the parser environment. This means that
+any components that are injected into the API module component will appear in the `env` of the read/mutate methods
+for that module.
+
+==== Library Modules (composition)
+
+The modular server allows you to install more than one API handler. Remember that the expression parser will invoke
+the API once for each "top-level" expression (root query key or mutation). The modular server composes modules together
+leveraging these facts in the following manner:
+
+- For each expression:
+   - Try the modules in declared order
+   - Use the first non-nil result
+
+Thus, to ensure that your modules are composable you should ensure that your API's "default" handler returns nil when
+it doesn't recognize something.
+
+This is *not* the default behavior for the built-in server mutation handling. If you plan to compose API handlers and
+you're using the built-in server-read and server-mutation, you should install default handlers that return nil instead
+of throwing an error:
+
+```
+(defmethod server/server-mutate :default [env k p] nil)
+(defmethod server/read-root :default [env k p] nil)
+(defmethod server/read-entity :default [env type id p] nil)
+```
+
+Libraries that provide full-stack operations can simple provide an API module that has the same attributes. For example,
+say you wanted to create a Fulcro Image Library plug-in that came with server and client components. You could write
+the server-side as a module that handles just your reads and mutations, and allow your users to install it into
+the module chain.
 
 = Full-Stack Operations
 
@@ -1812,6 +2012,28 @@ For use in UI or on server.
 == Updating State for a Given Route
 
 
+= Networking [[Networking]]
+
+== Adding Additional Remotes
+
+Give a single FulcroNetworking object to `:networking` (which will be known as `:remote`), or a map of keyword
+remote names whose values are objects the implement FulcroNetworking.
+
+== Creating Custom Network Handlers
+
+=== Optional Sequential Operation
+
+=== Implementing Send
+
+=== Merging State
+
+=== Error Handling
+
+=== Supporting Progress Updates
+
+=== Interfacing with REST Servers
+
+
 
 = Websockets
 
@@ -1822,20 +2044,6 @@ For use in UI or on server.
 == Server Push
 
 
-
-= Customizing the Networking
-
-== Optional Sequential Operation
-
-== Implementing Send
-
-=== Merging State
-
-=== Error Handling
-
-== Supporting Progress Updates
-
-== Interfacing with REST Servers
 
 
 = Internationalization
