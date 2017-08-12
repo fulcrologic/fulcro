@@ -1,0 +1,7 @@
+dependencies:
+    override:
+        - npm install
+test:
+    override:
+        - lein test-refresh :run-once
+        - lein doo firefox automated-tests once
