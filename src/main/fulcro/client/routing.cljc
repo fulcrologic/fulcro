@@ -128,7 +128,12 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   [ident route-params]
   (mapv (fn [element]
           (if (and (keyword? element) (= "param" (namespace element)))
-            (keyword (get route-params (keyword (name element)) element))
+            (let [v (get route-params (keyword (name element)) element)]
+              (cond
+                (and (string? v) (seq (re-seq #"^[0-9][0-9]*$" v))) #?(:clj  (Integer/parseInt v)
+                                                                       :cljs (js/parseInt v))
+                (and (string? v) (seq (re-seq #"^[a-zA-Z]" v))) (keyword v)
+                :else v))
             element))
     ident))
 
@@ -283,7 +288,6 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                 finish  (fn [k]
                           (fn []
                             (swap! loaded inc)
-                            (js/console.log (str "Loaded " @loaded " of " to-load " missing router target modules."))
                             (when (= @loaded to-load)
                               (log/debug "Loading succeeded for missing router with name " k)
                               (swap! state add-route-state k (get-dynamic-router-target k))
