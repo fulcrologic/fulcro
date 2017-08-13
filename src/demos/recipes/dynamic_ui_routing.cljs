@@ -44,9 +44,7 @@
                                   (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
                                   (r/make-route :login [(r/router-instruction :top-router [:login :singleton])])
                                   (r/make-route :new-user [(r/router-instruction :top-router [:new-user :singleton])]))
-                                {:top-router            (fc/get-initial-state r/DynamicRouter {:id :top-router})
-                                 ; this gets the Login screens data into app state. Still have to route to it for it to show.
-                                 :ignored/initial-route (fc/get-initial-state Login {})}))
+                                {:top-router (fc/get-initial-state r/DynamicRouter {:id :top-router})}))
   static om/IQuery
   (query [this] [:ui/react-key {:top-router (om/get-query r/DynamicRouter)}])
   Object
