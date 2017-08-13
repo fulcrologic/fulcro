@@ -175,14 +175,17 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 
 (defmethod get-dynamic-router-target :default [k] nil)
 
-(defn- add-route-initial-state [state target-kw component]
+(defn add-route-state [state-map target-kw component]
   (let [tree-state       {:tmp/new-route (fc/get-initial-state component nil)}
         query            [{:tmp/new-route (om/get-query component)}]
         normalized-state (-> (om/tree->db query tree-state true)
                            (dissoc :tmp/new-route))]
-    (log/debug (str "Installing route for component " component))
-    (defmethod get-dynamic-router-target target-kw [k] component)
-    (swap! state util/deep-merge normalized-state)))
+    (util/deep-merge state-map normalized-state)))
+
+(defn- install-route-impl [state target-kw component]
+  (log/debug (str "Installing route for component " component))
+  (defmethod get-dynamic-router-target target-kw [k] component)
+  (swap! state add-route-state target-kw component))
 
 (defmutation install-route
   "Fulcro mutation: Install support for a dynamic route. `target-kw` is the keyword that represents the table name of
@@ -207,7 +210,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   "
   [{:keys [target-kw component]}]
   (action [{:keys [state]}]
-    (add-route-initial-state state target-kw component)))
+    (install-route-impl state target-kw component)))
 
 (def dynamic-route-key ::dynamic-route)
 
@@ -233,10 +236,13 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (defn- process-pending-route!
   "Finish doing the routing after a module completes loading"
   [{:keys [state reconciler] :as env}]
-  (let [target (::pending-route @state)]
+  (let [target     (::pending-route @state)
+        target-key (:handler target)]
+    (log/debug (str "Attempting to route to " target))
     (swap! state
       (fn [s]
         (cond-> (dissoc s ::pending-route)
+          target-key (add-route-state target-key (get-dynamic-router-target target-key))
           (contains? target :handler) (update-routing-links target))))))
 
 (defn- dynamic-route-load-failed!
@@ -277,7 +283,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                 to-load (count routes)
                 finish  (fn []
                           (swap! loaded inc)
-                          (log/debug (str "Loaded " @loaded " of " to-load " missing router target modules."))
+                          (js/console.log (str "Loaded " @loaded " of " to-load " missing router target modules."))
                           (when (= @loaded to-load)
                             (log/debug "Loading succeeded for missing routes.")
                             (process-pending-route! env)))]

@@ -76,7 +76,7 @@
                                :asset-path    "js/demos"
                                :preloads      [devtools.preload]
                                :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
-                                                             :entries   #{cards.card_ui}}
+                                                             :entries   #{cards.card_ui cards.dynamic-routing-cards recipes.dynamic-ui-routing fulcro.client.routing}}
                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
                                                              :entries   #{recipes.dynamic-ui-main}}}
                                :optimizations :none}}
