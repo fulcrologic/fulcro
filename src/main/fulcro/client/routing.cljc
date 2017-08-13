@@ -236,13 +236,12 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (defn- process-pending-route!
   "Finish doing the routing after a module completes loading"
   [{:keys [state reconciler] :as env}]
-  (let [target     (::pending-route @state)
-        target-key (:handler target)]
+  (let [target (::pending-route @state)
+        ]
     (log/debug (str "Attempting to route to " target))
     (swap! state
       (fn [s]
         (cond-> (dissoc s ::pending-route)
-          target-key (add-route-state target-key (get-dynamic-router-target target-key))
           (contains? target :handler) (update-routing-links target))))))
 
 (defn- dynamic-route-load-failed!
@@ -276,20 +275,22 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                     (conj routes (first target-screen))
                     routes))) [] routing-instructions))))
 
-(defn- load-routes [{:keys [state-atom reconciler] :as env} routes]
+(defn- load-routes [{:keys [state reconciler] :as env} routes]
   #?(:clj (log/info "Dynamic loading of routes is not done on the server itself.")
      :cljs
           (let [loaded  (atom 0)
                 to-load (count routes)
-                finish  (fn []
-                          (swap! loaded inc)
-                          (js/console.log (str "Loaded " @loaded " of " to-load " missing router target modules."))
-                          (when (= @loaded to-load)
-                            (log/debug "Loading succeeded for missing routes.")
-                            (process-pending-route! env)))]
+                finish  (fn [k]
+                          (fn []
+                            (swap! loaded inc)
+                            (js/console.log (str "Loaded " @loaded " of " to-load " missing router target modules."))
+                            (when (= @loaded to-load)
+                              (log/debug "Loading succeeded for missing router with name " k)
+                              (swap! state add-route-state k (get-dynamic-router-target k))
+                              (process-pending-route! env))))]
             (doseq [r routes]
               (log/debug (str "No route was loaded for " r ". Attempting to load."))
-              (loader/load r finish)))))
+              (loader/load r (finish r))))))
 
 (defn route-to-impl!
   "Mutation implementation, for use as a composition into other mutations. This function can be used
