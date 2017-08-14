@@ -3,11 +3,7 @@
             [om.dom :as dom]
             [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
             [om.next :as om :refer [defui]]
-            [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.client.logging :as log]
-            [fulcro.client.util :as util]
-            [cljs.loader :as loader]
-            [clojure.browser.repl :as repl]))
+            [cljs.loader :as loader]))
 
 
 (om/defui ^:once Login
@@ -62,10 +58,8 @@
   (om/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
                              (r/install-route {:target-kw :login :component ~Login})
                              (r/route-to {:handler :login})])
-  (loader/set-loaded! :entry-point)
-  (repl/connect "http://localhost:9000/repl"))
+  (loader/set-loaded! :entry-point))
 
 (comment
-
   ; use this when not using devcards
   (fc/mount (fc/new-fulcro-client :started-callback application-loaded) Root "app"))
