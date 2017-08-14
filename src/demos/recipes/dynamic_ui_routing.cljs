@@ -1,15 +1,13 @@
 (ns recipes.dynamic-ui-routing
   (:require [fulcro.client.routing :as r]
             [om.dom :as dom]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
-            [fulcro.client.cards :refer-macros [fulcro-app]]
-            [fulcro.client.data-fetch :as df]
             [om.next :as om :refer [defui]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.logging :as log]
             [fulcro.client.util :as util]
-            [cljs.loader :as loader]))
+            [cljs.loader :as loader]
+            [clojure.browser.repl :as repl]))
 
 
 (om/defui ^:once Login
@@ -64,4 +62,10 @@
   (om/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
                              (r/install-route {:target-kw :login :component ~Login})
                              (r/route-to {:handler :login})])
-  (loader/set-loaded! :entry-point))
+  (loader/set-loaded! :entry-point)
+  (repl/connect "http://localhost:9000/repl"))
+
+(comment
+
+  ; use this when not using devcards
+  (fc/mount (fc/new-fulcro-client :started-callback application-loaded) Root "app"))
