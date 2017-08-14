@@ -1,16 +1,14 @@
 (ns recipes.dynamic-ui-main
-  (:require [om.next :as om]
-            cards.dynamic-routing-cards
+  (:require [om.next :as om :refer [defui]]
             [fulcro.client.core :as fc]
             [fulcro.client.routing :as r]
             cljs.loader
-            [om.dom :as dom]
-            [fulcro.client.logging :as log]))
+            [om.dom :as dom]))
 
 ; This is a "screen" that we want to load with code-splitting modules. See the "demos" build in project.clj. The name
 ; of the module needs to match the first element of the ident, as that's how the dynamic router figures out what module
 ; to load.
-(om/defui ^:once Main
+(defui ^:once Main
   static fc/InitialAppState
   (initial-state [clz params] {r/dynamic-route-key :main :label "MAIN"})
   static om/Ident
@@ -24,4 +22,4 @@
         label))))
 
 (defmethod r/get-dynamic-router-target :main [k] Main)
-
+(cljs.loader/set-loaded! :main)

@@ -8,7 +8,8 @@
             [om.next :as om :refer [defui]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.logging :as log]
-            [fulcro.client.util :as util]))
+            [fulcro.client.util :as util]
+            [cljs.loader :as loader]))
 
 
 (om/defui ^:once Login
@@ -62,4 +63,5 @@
   ; Let the dynamic router know that two of the routes are already loaded.
   (om/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
                              (r/install-route {:target-kw :login :component ~Login})
-                             (r/route-to {:handler :login})]))
+                             (r/route-to {:handler :login})])
+  (loader/set-loaded! :entry-point))
