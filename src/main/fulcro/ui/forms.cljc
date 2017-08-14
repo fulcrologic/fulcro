@@ -37,8 +37,8 @@
 (defprotocol IForm
   (form-spec [this]
     "Returns the form specification,
-     ie: what the form is made of,
-     eg: fields, subforms, form change listeners."))
+     i.e.: what the form is made of,
+     e.g.: fields, subforms, form change listener."))
 
 (defn iform?
   "Returns true if the given class is an IForm. Works on clj and cljs."
@@ -50,23 +50,19 @@
                (extends? IForm class)))
      :cljs (implements? IForm x)))
 
-(defn- ui-ns [kw-name]
-  ;; workaround for no *ns* in cljs
-  (keyword (namespace ::_) kw-name))
-
 (def form-key
   "Query this in *all* of your form components, else form support will fail!
    (often in subtle/obscure ways, WIP on how to better catch & report this)"
-  (ui-ns "form"))
+  ::form)
 
 (def form-root-key
-  "Query this in your top level form component.
-   Is okay to have multiple 'root' components on screen at once,
+  "Query this in your top level form component of a nested for set.
+   It is okay to have multiple 'root' components on screen at once,
    as om and react will optimize the rendering step."
-  (ui-ns "form-root"))
+  ::form-root)
 
 (defn get-form-spec
-  "Get the form declared on a component class"
+  "Get the form specification that is declared on a component class. Works in clj and cljs."
   [class]
   #?(:clj  (when-let [fspec (-> class meta :form-spec)]
              (fspec class))
@@ -99,13 +95,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn subform-element
-  "Declare that the current form links to subforms through the given entity property in a :one or :many capacity. this
+  "Declare a subform as an element of the current form. Used as an entry to a form class's specifiation:
+  It declares that the current form links to subforms through the given entity property in a :one or :many capacity. this
   must be included in your list of form elements if you want form interactions to trigger across a form group.
 
   Additional named parameters:
 
   `isComponent` - A boolean to indicate that references to instances of this subform are the only uses of the target,
-  such that removing the reference indicates that the target is no longer used and can be removed from the database."
+  such that removing the reference indicates that the target is no longer used and can be removed from the database. This
+  affects how a diff is reported when calculated for submission."
   ([field form-class cardinality & {:keys [isComponent]}]
    (assert (contains? #{:one :many} cardinality) "subform-element requires a cardinality of :one or :many")
    (assert ((every-pred #(fc/iident? %) #(iform? %) #(om/iquery? %)) form-class)
@@ -117,19 +115,8 @@
                :input/type          ::subform}
      {:component form-class})))
 
-(defn form-switcher-input
-  "Create a field that understands it points to a to-many list of subforms, only one of which
-  can be interacted with at a time, but all of which will be affected by top-level form operations like commit and
-  validate. Functions like `valid?` check the validity of the list of subforms when applied to such a
-  field. Rendering such a field requires that you pass the desired value of `select-key` to select the subform."
-  [field FormClass select-key]
-  (assoc (subform-element field FormClass :many)
-    :input/type ::switcher
-    :input/select-key select-key))
-
 (defn id-field
-  "Declare a hidden identity field.
-   Required to read/write to/from other db tables,
+  "Declare a (hidden) identity field. Required to read/write to/from other db tables,
    and to make sure tempids and such follow along properly."
   [name]
   {:input/name name
@@ -253,90 +240,99 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn server-initialized?
-  "Returns true if the state of the form was set up by a server. If this is the case on the client then you must call
+  "Returns true if the state of the form's state was set up by server-side rendering. If this is the case on the client then you must call
   initialize on the form before interacting with it."
   [form]
   (get-in form [form-key :server-initialized?] false))
 
-(defn is-form? [?form] (get ?form form-key))
+(defn is-form?
+  "Do the given props represent the data for a form? Remember that you must query for f/form-key in your component or
+  your props cannot act as a form."
+  [?form] (get ?form form-key))
 
 (defn form-component
-  "Get the UI component that declared the given form."
-  [form] (-> form form-key meta :component))
+  "Get the UI component (class) that declared the given form props."
+  [form-props] (-> form-props form-key meta :component))
 
 (defn form-ident
   "Get the ident of this form's entity"
-  [form] (get-in form [form-key :ident]))
+  [form-props] (get-in form-props [form-key :ident]))
 
 (defn field-config
   "Get the configuration for the given field in the form."
-  [form name] (get-in form [form-key :elements/by-name name]))
+  [form-props name] (get-in form-props [form-key :elements/by-name name]))
 
 (defn field-type
   "Get the configuration for the given field in the form."
-  [form name] (:input/type (field-config form name)))
+  [form-props name] (:input/type (field-config form-props name)))
 
 (defn placeholder
   "Returns the current value of the placeholder, which may be a lambda or a string."
-  [form field]
-  (let [{:keys [:input/placeholder] :or {placeholder ""}} (field-config form field)]
+  [form-props field]
+  (let [{:keys [:input/placeholder] :or {placeholder ""}} (field-config form-props field)]
     (if (string? placeholder)
       placeholder
       (placeholder))))
 
 (defn is-subform?
-  "Returns whether the element, or the field-key in the form, is a subform."
-  ([element]
-   (:input/is-form? element))
-  ([form field-key]
-   (is-subform? (field-config form field-key))))
+  "Returns whether the form-field description (or the given field by field-key in the form), is a subform."
+  ([form-field-description]
+   (:input/is-form? form-field-description))
+  ([form-props field-key]
+   (is-subform? (field-config form-props field-key))))
 
 (defn- is-ui-query-fragment?
   "TODO: Maybe make it public & access it from fulcro-client ?"
   [kw] (when (keyword? kw) (some->> kw namespace (re-find #"^ui(?:\.|$)"))))
 
 (defn ui-field?
-  "For checking if a field is only a ui concern.
-   eg: should therefore not be sent to the server."
-  ([form field]
-   (-> (field-config form field)
+  "Is the given field for use in the UI only?
+
+  It is possible that you'd like a UI-only field to participate in a form interaction (e.g. for validation
+  or other interaction purposes). If a field's name is in the `ui` namespace, then it will never be included
+  in data diffs or server interactions."
+
+  ([form-props field]
+   (-> (field-config form-props field)
      :input/name is-ui-query-fragment?)))
 
 (defn current-value
   "Gets the current value of a field in a form."
-  [form field] (get form field))
+  [form-props field] (get form-props field))
 
 (declare set-validation)
 
 (defn update-current-value
-  "Updates the current value of a field in a form (with a fn) and marks it as :unchecked."
-  [form field f & args]
-  (as-> form the-form
+  "Like `update` but updates the current value of a field in a form (with a fn f) and marks it as :unchecked. Returns
+  the new form props (e.g. use within a mutation)."
+  [form-props field f & args]
+  (as-> form-props the-form
     (apply update the-form field f args)
     (set-validation the-form field :unchecked)))
 
 (defn set-current-value
-  "Sets the current value of a field in a form, and marks it as :unchecked."
-  [form field value]
-  (-> form
+  "Sets the current value of a field in a form, and marks it as :unchecked. Returns the new form state (props)."
+  [form-props field value]
+  (-> form-props
     (assoc field value)
     (set-validation field :unchecked)))
 
 (defn css-class
   "Gets the css class for the form field"
-  [form field]
-  (:input/css-class (field-config form field)))
+  [form-props field]
+  (:input/css-class (field-config form-props field)))
 
 (defn element-names
   "Get all of the field names that are defined on the form."
-  [form] (keys (get-in form [form-key :elements/by-name])))
+  [form-props] (keys (get-in form-props [form-key :elements/by-name])))
 
 (defn get-original-data
-  "Get the unmodified copy of the form state from when it was first initialized."
-  ([form] (get-in form [form-key :origin]))
-  ([form field] (get (get-original-data form) field)))
+  "Get the unmodified value of the form (or field) from when it was first initialized."
+  ([form-props] (get-in form-props [form-key :original-form-state]))
+  ([form-props field] (get (get-original-data form-props) field)))
 
-(defn- ?normalize [{:keys [input/cardinality]} x]
+(defn- ?normalize
+  [{:keys [input/cardinality]} x]
   (if-not (or (is-form? x) (and (coll? x) (seq x) (every? is-form? x)))
     x
     (case cardinality, :one (form-ident x), :many (mapv form-ident x), x)))
@@ -350,18 +346,18 @@
 (declare validator)
 
 (defn validatable-fields
-  "Get all of the names of the validatable fields that are defined on the (initialized) form."
-  [form] (filter #(not (is-subform? form %))
-           (element-names form)))
+  "Get all of the names of the validatable fields that are defined on the (initialized) form (non-recursive)."
+  [form-props] (filter #(not (is-subform? form-props %))
+                 (element-names form-props)))
 
 (defn commit-state
-  "Commits the state of the form to the entity, making it the new original data."
-  [form] (assoc-in form [form-key :origin]
-           (select-keys form (keys (get-original-data form)))))
+  "Commits the state of the form to the entity, making it the new original data. Returns new form props (use in a mutation)"
+  [form-props] (assoc-in form-props [form-key :original-form-state]
+                 (select-keys form-props (keys (get-original-data form-props)))))
 
 (defn reset-entity
-  "Resets the form back to the original state, ie when it was first created/initialized"
-  [form] (merge form (get-original-data form)))
+  "Resets the form back to the original state, ie when it was first created/initialized. Returns new props."
+  [form-props] (merge form-props (get-original-data form-props)))
 
 (defn- subforms*
   "Returns a map whose keys are the query key-path from the component's query that point to subforms, and whose values are the
@@ -436,30 +432,33 @@
 
   If there are any to-many relations in the database, they will be expanded to individual entries of the returned sequence.
   "
-  [app-state root-form-class form-ident]
-  (let [form (get-in app-state form-ident)]
+  [state-map root-form-class form-ident]
+  (let [form (get-in state-map form-ident)]
     (lazy-cat [{:ident form-ident :class root-form-class :form form}]
       (sequence (comp (mapcat (fn [[query-key-path class]]
-                                (for [ident (to-idents app-state form query-key-path)]
-                                  (let [value (get-in app-state ident)]
+                                (for [ident (to-idents state-map form query-key-path)]
+                                  (let [value (get-in state-map ident)]
                                     {:ident ident :class class :form value}))))
                   (filter :ident))
         (subforms* root-form-class)))))
 
 (defn update-forms
-  "Similar to update-in, but walks your form declaration to affect all (initialized and preset) nested forms.
-  Useful for applying validation or some mutation to all forms. Returns the new app-state. You supply a
-  `form-update-fn` of type (fn [{:keys [ident class form]}] => form), where:
-   * `:class` is the component that has the form,
-   * `:ident` is of the form in app state,
-   * `:form`  is the value of the form in app state."
-  [app-state form form-update-fn]
+  "Similar to `update`, but walks your form declaration to affect all (initialized and preset) nested forms.
+   Useful for applying validation or some mutation to all forms. Returns the new app-state. You supply a
+   `form-update-fn` of type (fn [{:keys [ident class form]}] => form), where:
+
+   * `:class` The component class that has the form,
+   * `:ident` of the form in app state,
+   * `:form`  the value of the form in app state.
+
+  Returns the updated state map."
+  [state-map form form-update-fn]
   (transduce (map #(assoc % :form (form-update-fn %)))
     (completing
       (fn [s {:keys [ident form]}]
         (assoc-in s ident form)))
-    app-state
-    (get-forms app-state
+    state-map
+    (get-forms state-map
       (form-component form)
       (form-ident form))))
 
@@ -471,9 +470,9 @@
    and the return value of form-fn will become the new accumulator.
 
    Returns the final accumulator value."
-  ([app-state form starting-value form-fn]
+  ([state-map form starting-value form-fn]
    (reduce form-fn starting-value
-     (get-forms app-state
+     (get-forms state-map
        (form-component form)
        (form-ident form)))))
 
@@ -558,20 +557,20 @@
       (assoc form-key
              (-> form
                (merge
-                 {:elements/by-name elements-by-name
-                  :ident            (uu/get-ident form-class final-state)
-                  :origin           (into {}
-                                      (map (fn [[k v]]
-                                             [k (if (and (is-subform? (elements-by-name k))
-                                                      (not (or (util/ident? v)
-                                                             (every? util/ident? v))))
-                                                  (case (:input/cardinality (elements-by-name k))
-                                                    :many (mapv form-ident v)
-                                                    (form-ident v))
-                                                  v)]))
-                                      init-state)
-                  :subforms         (or (filterv :input/is-form? elements) [])
-                  :validation       validation})
+                 {:elements/by-name    elements-by-name
+                  :ident               (uu/get-ident form-class final-state)
+                  :original-form-state (into {}
+                                         (map (fn [[k v]]
+                                                [k (if (and (is-subform? (elements-by-name k))
+                                                         (not (or (util/ident? v)
+                                                                (every? util/ident? v))))
+                                                     (case (:input/cardinality (elements-by-name k))
+                                                       :many (mapv form-ident v)
+                                                       (form-ident v))
+                                                     v)]))
+                                         init-state)
+                  :subforms            (or (filterv :input/is-form? elements) [])
+                  :validation          validation})
                add-meta)))))
 
 (declare init-form*)
@@ -636,10 +635,10 @@
   already an entity in the database. If there are subforms, this function will only initialize those that are present
   AND uninitialized. Under no circumstances will this function re-initialize a form or subform.
 
-  `app-state` The map of the current app state.
+  `app-state-map` The map of the current app state.
   `form-class` The defui class that defines the top-level form.
   `form-ident` The ident of the entity's data in app state."
-  [app-state form-class form-ident] (init-form* app-state form-class form-ident {}))
+  [app-state-map form-class form-ident] (init-form* app-state-map form-class form-ident {}))
 
 #?(:cljs
    (defmutation initialize-form
@@ -656,8 +655,9 @@
 #?(:cljs (defmutation noop "Do nothing." [params]))
 
 (defn on-form-change
-  "Declare an Fulcro mutation (as a properly namespaced symbol) that will be triggered on
-  each form change. Only one such mutation can be defined for a form.
+  "Declare a Fulcro mutation (as a properly namespaced symbol) that will be triggered on
+  each form change. Only one such mutation can be defined for a form. The mutation can do
+  anything, but it is intended to do extended kinds of dynamic form updates/validations.
 
   Add this to your IForm declarations:
 
@@ -685,7 +685,7 @@
    :on-form-change/mutation-symbol mut-sym})
 
 (defn get-on-form-change-mutation
-  "Get the Om mutation symbol to invoke when the form changes. This is typically used in the implementation
+  "Get the mutation symbol to invoke when the form changes. This is typically used in the implementation
   of form field renderers as part of the transaction to run on change and blur events.
 
   Returns a valid symbolic data structure that can be used inside of transact:
@@ -836,22 +836,22 @@
       :valid)))
 
 (defn validate-fields
-  "Runs validation on the defined fields and returns a new form with them properly marked."
+  "Runs validation on the defined fields and returns a new form with them properly marked. Non-recursive."
   [form & [{:keys [skip-unchanged?]}]]
   (transduce (filter (if skip-unchanged? (partial dirty-field? form) identity))
     (completing validate-field*)
     form (validatable-fields form)))
 
 (defn would-be-valid?
-  "Checks (recursively on this form and subforms) if the values on the given form would be
+  "Checks (recursively on this form and subforms from om/props) if the values on the given form would be
   considered valid if full validation were to be run on the form. Returns true/false."
-  [form]
+  [form-props]
   (letfn [(non-recursive-valid? [form]
             (reduce (fn [still-valid? field]
                       (let [f            (validate-field* form field)
                             field-valid? (valid? f field)]
                         (reduced-if false? (and still-valid? field-valid?)))) true (validatable-fields form)))]
-    (form-reduce form true (fn [result form] (and result (non-recursive-valid? form))))))
+    (form-reduce form-props true (fn [result form] (and result (non-recursive-valid? form))))))
 
 (defn dirty?
   "Checks if the top-level form, or any of the subforms, are dirty. NOTE: Forms remain dirty as long as they have tempids."
@@ -863,19 +863,19 @@
     (form-reduce form false (fn [_ form] (reduced-if true? (dirty-form? form))))))
 
 (defn validate-forms
-  "Run validation on an entire form (by ident) with subforms. Returns an updated app-state."
-  [app-state form-id & [opts]]
-  (let [form       (get-in app-state form-id)
+  "Run validation on an entire form (by ident) with subforms. Returns an updated app-state. Usable from within mutations."
+  [app-state-map form-ident & [opts]]
+  (let [form       (get-in app-state-map form-ident)
         form-class (form-component form)]
     (if form-class
-      (update-forms app-state form
+      (update-forms app-state-map form
         (comp #(validate-fields % opts) :form))
       (do
         (fail! "Unable to validate form. No component associated with form. Did you remember to use build-form or send the initial state from server-side?")
-        app-state))))
+        app-state-map))))
 
 #?(:cljs (defmutation validate-field
-           "Om Mutation: run validation on a specific field.
+           "Mutation: run validation on a specific field.
 
            `form-id` is the ident of the entity acting as a form.
            `field` is the declared name for the field to validate.
@@ -884,7 +884,7 @@
            (action [{:keys [state]}] (swap! state update-in form-id validate-field* field))))
 
 #?(:cljs (defmutation validate-form
-           "Om Mutation: run (recursive) validation on an entire form.
+           "Mutation: run (recursive) validation on an entire form.
 
            `form-id` is the ident of the entity acting as a form."
            [{:as opts :keys [form-id]}]
@@ -906,13 +906,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 #?(:cljs (defmutation toggle-field
-           "Toggle a boolean form field. `form-id` is the ident of the object acting as a form. `field` is the keyword
+           "Mutation: Toggle a boolean form field. `form-id` is the ident of the object acting as a form. `field` is the keyword
            name of the field to toggle."
            [{:keys [form-id field]}]
            (action [{:keys [state]}] (swap! state update-in form-id update-current-value field not))))
 
 #?(:cljs (defmutation set-field
-           "Om Mutation: Set the `field` on the form with an ident of `form-id` to the specified `value`"
+           "Mutation: Set the `field` on the form with an ident of `form-id` to the specified `value`"
            [{:keys [form-id field value]}]
            (action [{:keys [state]}] (swap! state update-in form-id set-current-value field value))))
 
@@ -929,7 +929,8 @@
   (fail! (str "Cannot dispatch to form-field renderer on form " form " for field " field-name)))
 
 (defn form-field
-  "Function for rendering form fields. Call this to render, but `defmethod` on `form-field*`."
+  "Function for rendering form fields. Call this to render. If you want to add a new form field renderer, then you can
+   do `defmethod` on `form-field*`."
   [component form field-name & params]
   (apply form-field* component form field-name params))
 
@@ -986,7 +987,7 @@
     (render-input-field component (select-keys params allowed-input-dom-props) form field-name "number" f->i i->f)))
 
 #?(:cljs (defmutation select-option
-           "Om mutation: Select a sepecific option from a selection list. form-id is the ident of the object acting as
+           "Mutation: Select a sepecific option from a selection list. form-id is the ident of the object acting as
            a form. field is the select field, and value is the value to select."
            [{:keys [form-id field value]}]
            (action [{:keys [state]}] (let [value (.substring value 1)]

@@ -45,19 +45,6 @@
         (:input/type f) => ::f/subform
         "tracks the class of the subform UI"
         (-> f meta :component) => Stub)))
-  (component "form-switcher-input"
-    (let [f (f/form-switcher-input :name Stub :k)]
-      (assertions
-        "defaults as a to-many relation"
-        (:input/cardinality f) => :many
-        "is marked as a subform"
-        f =fn=> f/is-subform?
-        "has a subform selection key"
-        (:input/select-key f) => :k
-        "has the correct type"
-        (:input/type f) => ::f/switcher
-        "tracks the class of the subform UI"
-        (-> f meta :component) => Stub)))
   (component "id-field"
     (let [field (f/id-field :name)]
       (assertions
