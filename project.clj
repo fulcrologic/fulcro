@@ -69,17 +69,16 @@
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "demos"
-                :source-paths ["src/main" "src/demos"]
+                :source-paths ["src/main" "src/dev" "src/demos"]
                 ;:figwheel     {:devcards true}
                 :compiler     {:devcards      true
                                :output-dir    "resources/public/js/demos"
                                :asset-path    "js/demos"
-                               ;:preloads      [devtools.preload]
+                               :preloads      [devtools.preload]
                                :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
                                                              :entries   #{cards.card-ui}}
                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
                                                              :entries   #{recipes.dynamic-ui-main}}}
-                               :verbose       true
                                :optimizations :none}}
                ; REMEBER TO USE devguide profile!!! Use `make guide`
                {:id           "devguide-live"
@@ -140,7 +139,7 @@
                                        [org.clojure/tools.namespace "0.3.0-alpha4"]
                                        [cljsjs/codemirror "5.8.0-0"]
                                        [org.clojure/tools.nrepl "0.2.13"]]}
-             :dev      {:source-paths ["src/main" "src/demos"]
+             :dev      {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
                         :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                         :dependencies [[binaryage/devtools "0.9.4"]
                                        [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
