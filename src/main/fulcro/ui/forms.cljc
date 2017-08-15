@@ -1187,6 +1187,13 @@
              (when (and remote target)
                (assoc ast :params (diff-form form))))))
 
+(defmutation commit-to-entity
+  [{:keys [form remote]}]
+  (action [{:keys [state]}] (swap! state entity-xform (form-ident form) commit-state))
+  (remote [{:keys [state ast target]}]
+    (when (and remote target)
+      (assoc ast :params (diff-form form)))))
+
 #?(:cljs (defmutation reset-from-entity
            "Om Mutation: Reset the entity back to its original state before editing. This will be the last state that
            the entity had just following initialization or the last commit.
