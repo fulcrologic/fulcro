@@ -4,7 +4,7 @@
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.854" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.905" :scope "provided"]
                  [clojure-future-spec "1.9.0-alpha17"]
                  [org.omcljs/om "1.0.0-beta1"]
                  [http-kit "2.2.0"]
@@ -69,14 +69,14 @@
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "demos"
-                :source-paths ["src/main" "src/dev" "src/demos"]
+                :source-paths ["src/main" "src/demos"]
                 :figwheel     {:devcards true}
                 :compiler     {:devcards      true
                                :output-dir    "resources/public/js/demos"
                                :asset-path    "js/demos"
                                :preloads      [devtools.preload]
                                :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
-                                                             :entries   #{cards.card-ui fulcro.client.routing}}
+                                                             :entries   #{cards.card-ui}}
                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
                                                              :entries   #{recipes.dynamic-ui-main}}}
                                :optimizations :none}}
