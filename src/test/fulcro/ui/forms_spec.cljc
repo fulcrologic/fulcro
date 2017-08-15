@@ -26,8 +26,6 @@
     (fc/iident? Stub) => true
     (f/iform? Stub) => true
     (om/iquery? Stub) => true
-    "Can tack fulcro form namespace to a generated keyword"
-    (#'f/ui-ns "boo") => :fulcro.ui.forms/boo
     "Can pull the ident for a component class"
     (uu/get-ident Stub {:db/id 3}) => [:stub/by-id 3]
     "Can pull the form spec from a component class"
