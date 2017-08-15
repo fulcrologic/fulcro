@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "1.0.0-beta7"
+(defproject fulcrologic/fulcro "1.0.0-beta8"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -76,7 +76,7 @@
                                :asset-path    "js/demos"
                                :preloads      [devtools.preload]
                                :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
-                                                             :entries   #{cards.card_ui}}
+                                                             :entries   #{cards.card-ui fulcro.client.routing}}
                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
                                                              :entries   #{recipes.dynamic-ui-main}}}
                                :optimizations :none}}
@@ -128,29 +128,29 @@
                                :parallel-build true
                                :optimizations  :none}}]}
 
-  :profiles {:devguide  {:source-paths [ "src/main"  "src/devguide" ]
-                         :dependencies [[devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
-                                        [cljsjs/d3 "3.5.7-1"]
-                                        [cljsjs/victory "0.9.0-0"]
-                                        [hickory "0.7.1"]
-                                        [com.rpl/specter "1.0.1"] ; only used in demos
-                                        [org.flywaydb/flyway-core "4.0.3"]
-                                        [com.layerware/hugsql "0.4.7"]
-                                        [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                        [cljsjs/codemirror "5.8.0-0"]
-                                        [org.clojure/tools.nrepl "0.2.13"]]}
-             :dev {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
-                   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :dependencies [[binaryage/devtools "0.9.4"]
-                                  [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
-                                  [com.cemerick/piggieback "0.2.1"]
-                                  [figwheel-sidecar "0.5.12"]
-                                  [cljsjs/d3 "3.5.7-1"]
-                                  [cljsjs/victory "0.9.0-0"]
-                                  [hickory "0.7.1"]
-                                  [com.rpl/specter "1.0.1"] ; only used in demos
-                                  [org.flywaydb/flyway-core "4.0.3"]
-                                  [com.layerware/hugsql "0.4.7"]
-                                  [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                  [cljsjs/codemirror "5.8.0-0"]
-                                  [org.clojure/tools.nrepl "0.2.13"]]}})
+  :profiles {:devguide {:source-paths ["src/main" "src/devguide"]
+                        :dependencies [[devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
+                                       [cljsjs/d3 "3.5.7-1"]
+                                       [cljsjs/victory "0.9.0-0"]
+                                       [hickory "0.7.1"]
+                                       [com.rpl/specter "1.0.1"] ; only used in demos
+                                       [org.flywaydb/flyway-core "4.0.3"]
+                                       [com.layerware/hugsql "0.4.7"]
+                                       [org.clojure/tools.namespace "0.3.0-alpha4"]
+                                       [cljsjs/codemirror "5.8.0-0"]
+                                       [org.clojure/tools.nrepl "0.2.13"]]}
+             :dev      {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
+                        :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+                        :dependencies [[binaryage/devtools "0.9.4"]
+                                       [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
+                                       [com.cemerick/piggieback "0.2.1"]
+                                       [figwheel-sidecar "0.5.12"]
+                                       [cljsjs/d3 "3.5.7-1"]
+                                       [cljsjs/victory "0.9.0-0"]
+                                       [hickory "0.7.1"]
+                                       [com.rpl/specter "1.0.1"] ; only used in demos
+                                       [org.flywaydb/flyway-core "4.0.3"]
+                                       [com.layerware/hugsql "0.4.7"]
+                                       [org.clojure/tools.namespace "0.3.0-alpha4"]
+                                       [cljsjs/codemirror "5.8.0-0"]
+                                       [org.clojure/tools.nrepl "0.2.13"]]}})

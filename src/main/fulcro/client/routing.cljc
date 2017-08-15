@@ -128,7 +128,12 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   [ident route-params]
   (mapv (fn [element]
           (if (and (keyword? element) (= "param" (namespace element)))
-            (keyword (get route-params (keyword (name element)) element))
+            (let [v (get route-params (keyword (name element)) element)]
+              (cond
+                (and (string? v) (seq (re-seq #"^[0-9][0-9]*$" v))) #?(:clj  (Integer/parseInt v)
+                                                                       :cljs (js/parseInt v))
+                (and (string? v) (seq (re-seq #"^[a-zA-Z]" v))) (keyword v)
+                :else v))
             element))
     ident))
 
@@ -175,14 +180,17 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 
 (defmethod get-dynamic-router-target :default [k] nil)
 
-(defn- add-route-initial-state [state target-kw component]
+(defn add-route-state [state-map target-kw component]
   (let [tree-state       {:tmp/new-route (fc/get-initial-state component nil)}
         query            [{:tmp/new-route (om/get-query component)}]
         normalized-state (-> (om/tree->db query tree-state true)
                            (dissoc :tmp/new-route))]
-    (log/debug (str "Installing route for component " component))
-    (defmethod get-dynamic-router-target target-kw [k] component)
-    (swap! state util/deep-merge normalized-state)))
+    (util/deep-merge state-map normalized-state)))
+
+(defn- install-route-impl [state target-kw component]
+  (log/debug (str "Installing route for component " component))
+  (defmethod get-dynamic-router-target target-kw [k] component)
+  (swap! state add-route-state target-kw component))
 
 (defmutation install-route
   "Fulcro mutation: Install support for a dynamic route. `target-kw` is the keyword that represents the table name of
@@ -207,7 +215,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   "
   [{:keys [target-kw component]}]
   (action [{:keys [state]}]
-    (add-route-initial-state state target-kw component)))
+    (install-route-impl state target-kw component)))
 
 (def dynamic-route-key ::dynamic-route)
 
@@ -233,7 +241,9 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (defn- process-pending-route!
   "Finish doing the routing after a module completes loading"
   [{:keys [state reconciler] :as env}]
-  (let [target (::pending-route @state)]
+  (let [target (::pending-route @state)
+        ]
+    (log/debug (str "Attempting to route to " target))
     (swap! state
       (fn [s]
         (cond-> (dissoc s ::pending-route)
@@ -270,20 +280,21 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                     (conj routes (first target-screen))
                     routes))) [] routing-instructions))))
 
-(defn- load-routes [{:keys [state-atom reconciler] :as env} routes]
+(defn- load-routes [{:keys [state reconciler] :as env} routes]
   #?(:clj (log/info "Dynamic loading of routes is not done on the server itself.")
      :cljs
           (let [loaded  (atom 0)
                 to-load (count routes)
-                finish  (fn []
-                          (swap! loaded inc)
-                          (log/debug (str "Loaded " @loaded " of " to-load " missing router target modules."))
-                          (when (= @loaded to-load)
-                            (log/debug "Loading succeeded for missing routes.")
-                            (process-pending-route! env)))]
+                finish  (fn [k]
+                          (fn []
+                            (swap! loaded inc)
+                            (when (= @loaded to-load)
+                              (log/debug "Loading succeeded for missing router with name " k)
+                              (swap! state add-route-state k (get-dynamic-router-target k))
+                              (process-pending-route! env))))]
             (doseq [r routes]
               (log/debug (str "No route was loaded for " r ". Attempting to load."))
-              (loader/load r finish)))))
+              (loader/load r (finish r))))))
 
 (defn route-to-impl!
   "Mutation implementation, for use as a composition into other mutations. This function can be used

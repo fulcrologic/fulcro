@@ -1,3 +1,14 @@
+1.0.0-beta8
+-----------
+- Added dynamic routing with code splitting support (not ready for prime time: waiting for compiler fixes still)
+- Added demos for defrouter as a detail viewer and dynamic routing
+- Fixed a bug with route params that caused numbers to not be usable as parameters
+- Continued expanding reference guide
+- Added more info on writing custom form submission to Dev Guide Form Server Interaction section.
+- Changed CI to use Circle CI
+- Cleaned up forms support a bit, and improved docs strings some
+
+
 1.0.0-beta7
 -----------
 - REQUIRES: Clojurescript 1.9.854+.

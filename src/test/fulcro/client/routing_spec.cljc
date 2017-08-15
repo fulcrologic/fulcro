@@ -64,19 +64,30 @@
   (provided "There are no missing dynamically loaded routes: "
     (r/get-missing-routes r s p) => []
     (let [r         (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
-         r2        (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
-                                       (r/router-instruction :router-1 [:screen1 :other])])
-         tree      (r/routing-tree r r2)
-         state-map (merge tree
-                     {r/routers-table {:router-1 {:id :router-1 :current-route [:initial :top]}
-                                       :router-2 {:id :router-2 :current-route [:initial :top]}}})
-         state     (atom state-map)
-         action    (:action (m/mutate {:state state} `r/route-to {:handler :boo}))]
+          r2        (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
+                                        (r/router-instruction :router-1 [:screen1 :other])])
+          tree      (r/routing-tree r r2)
+          state-map (merge tree
+                      {r/routers-table {:router-1 {:id :router-1 :current-route [:initial :top]}
+                                        :router-2 {:id :router-2 :current-route [:initial :top]}}})
+          state     (atom state-map)
+          action    (:action (m/mutate {:state state} `r/route-to {:handler :boo}))]
 
-     (action)
+      (action)
 
-     (assertions
-       "Switches the current routes according to the route instructions"
-       (r/current-route @state :router-1) => [:screen1 :top]))))
+      (assertions
+        "Switches the current routes according to the route instructions"
+        (r/current-route @state :router-1) => [:screen1 :top]))))
 
 
+(specification "Route parameter substitution"
+  (assertions
+    "Is applied to both elements of the ident."
+    (#'r/set-ident-route-params [:param/a :param/b] {:a :k :b 2}) => [:k 2]
+    "Converts incoming string parameters that are integers into numbers"
+    (#'r/set-ident-route-params [:param/a :param/b] {:a :person :b "2"}) => [:person 2]
+    "Converts incoming string parameters that start with letters to keywords"
+    (#'r/set-ident-route-params [:param/a :param/b] {:a "person" :b 2}) => [:person 2]
+    "Leaves all other values alone"
+    (#'r/set-ident-route-params [:param/a :param/b] {:a "9person" :b 2.6}) => ["9person" 2.6]
+    (#'r/set-ident-route-params [:param/a :param/b] {:a :x :b :y}) => [:x :y]))

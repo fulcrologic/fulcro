@@ -6,6 +6,7 @@
     cards.background-load-cards
     cards.component-local-state-cards
     cards.dynamic-routing-cards
+    cards.defrouter-for-type-selection-cards
     cards.error-handling-cards
     cards.initial-state-cards
     cards.lazy-loading-indicators-cards
