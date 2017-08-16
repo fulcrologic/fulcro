@@ -181,7 +181,9 @@
   "Configure a re-render when the locale changes and also when the translations arrive from a module load.
    During startup this function will be called once for each reconciler that is running on a page."
   [reconciler]
-  (letfn [(re-render [k r o n] (when (om/mounted? (om/app-root reconciler)) (om/force-root-render! reconciler)))]
+  (letfn [(re-render [k r o n] (when (om/mounted? (om/app-root reconciler))
+                                 (log/debug "Forcing a UI refresh on locale change.")
+                                 (util/force-render reconciler)))]
     (remove-watch i18n/*current-locale* :locale)
     (add-watch i18n/*loaded-translations* :locale re-render) ; when a module load completes, it stores the translations here
     (add-watch i18n/*current-locale* :locale re-render)))   ; when the local itself changes

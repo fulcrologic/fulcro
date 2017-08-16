@@ -21,7 +21,7 @@
       - The initial state must be defined, and it must have the name (1) under the key r/dynamic-route-key
       - The bottom of the file that defines the target screen *must* include a `defmethod` that associates the keyword (1) with the component (2). This
         is how the dynamic router finds the initial state of the screen, and the query to route to.
-      - IMPORTANT: Your dynamically loaded screen *MUST* require `cljs.loader`, even though it isn't calling it.
+      - IMPORTANT: Your dynamically loaded screen *MUST* have a call to `(cljs.loader/set-loaded! KW)` at the bottom of the file (where KW is from (1)).
   3. Configure your cljs build to use modules. Place the screen from (2) into a module with the name from (1).
   4. Use a DynamicRouter for the router that will route to the screen (2). This means you won't have to explicitly refer to the class of the component.
   5. Create your routing tree as usual. Remember that a routing tree is just routing instructions (keywords).
@@ -48,6 +48,7 @@
           label))))
 
   (defmethod r/get-dynamic-router-target :main [k] Main)
+  (cljs.loader/set-loaded! :main)
   ```
 
   ## Pre-loaded Routes

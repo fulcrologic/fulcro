@@ -1,3 +1,11 @@
+1.0.0-beta9
+-----------
+- Fixed bugs in gettext defaults for i18n extract/deploy.
+- Finished adding i18n dynamic module loading support to generated locales.
+- Added demo of dynamic locale loading.
+- Fixed a force-refresh bug in i18n on locale change.
+- Updated i18n dev guide documentation.
+
 1.0.0-beta8
 -----------
 - Added dynamic routing with code splitting support (not ready for prime time: waiting for compiler fixes still)

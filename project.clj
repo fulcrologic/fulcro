@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "1.0.0-beta8"
+(defproject fulcrologic/fulcro "1.0.0-beta9-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -77,9 +77,21 @@
                                :preloads      [devtools.preload]
                                :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
                                                              :entries   #{cards.card-ui}}
+                                               :de          {:output-to "resources/public/js/demos/de.js"
+                                                             :entries   #{translations.de}}
+                                               :es-MX       {:output-to "resources/public/js/demos/es-MX.js"
+                                                             :entries   #{translations.es-MX}}
                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
                                                              :entries   #{recipes.dynamic-ui-main}}}
                                :optimizations :none}}
+               {:id           "demo-i18n"
+                :source-paths ["src/main" "src/demos"]
+                :compiler     {:devcards      true
+                               :output-dir    "resources/public/js/demo-i18n"
+                               :asset-path    "js/demo-i18n"
+                               :output-to     "resources/public/js/demo-i18n.js"
+                               :main          cards.card-ui
+                               :optimizations :whitespace}}
                ; REMEBER TO USE devguide profile!!! Use `make guide`
                {:id           "devguide-live"
                 :source-paths ["src/main" "src/devguide"]
@@ -113,7 +125,7 @@
                                                  :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "i18n-extraction"
                 :source-paths ["src/main" "src/test"]
-                :compiler     {:output-to      "resources/private/js/i18n.js"
+                :compiler     {:output-to      "i18n/i18n.js"
                                :main           fulcro.automated-test-main
                                :output-dir     "resources/private/js/i18n"
                                :asset-path     "js/i18n"

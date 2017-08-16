@@ -5,6 +5,7 @@
     cards.autocomplete-cards
     cards.background-load-cards
     cards.component-local-state-cards
+    cards.dynamic-i18n-locale-cards
     cards.dynamic-routing-cards
     cards.defrouter-for-type-selection-cards
     cards.error-handling-cards
