@@ -76,7 +76,7 @@
                                :asset-path    "js/demos"
                                :preloads      [devtools.preload]
                                :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
-                                                             :entries   #{cards.card-ui figwheel.client.file-reloading}}
+                                                             :entries   #{cards.card-ui}}
                                                :de          {:output-to "resources/public/js/demos/de.js"
                                                              :entries   #{translations.de}}
                                                :es-MX       {:output-to "resources/public/js/demos/es-MX.js"
@@ -156,7 +156,7 @@
                         :dependencies [[binaryage/devtools "0.9.4"]
                                        [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
                                        [com.cemerick/piggieback "0.2.1"]
-                                       [figwheel-sidecar "0.5.12"]
+                                       [figwheel-sidecar "0.5.13"]
                                        [cljsjs/d3 "3.5.7-1"]
                                        [cljsjs/victory "0.9.0-0"]
                                        [hickory "0.7.1"]
