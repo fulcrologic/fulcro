@@ -4,7 +4,7 @@
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.905" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.908" :scope "provided"]
                  [clojure-future-spec "1.9.0-alpha17"]
                  [org.omcljs/om "1.0.0-beta1"]
                  [http-kit "2.2.0"]
@@ -76,7 +76,7 @@
                                :asset-path    "js/demos"
                                :preloads      [devtools.preload]
                                :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
-                                                             :entries   #{cards.card-ui}}
+                                                             :entries   #{cards.card-ui figwheel.client.file-reloading}}
                                                :de          {:output-to "resources/public/js/demos/de.js"
                                                              :entries   #{translations.de}}
                                                :es-MX       {:output-to "resources/public/js/demos/es-MX.js"
