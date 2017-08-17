@@ -5,6 +5,7 @@
 - Added demo of dynamic locale loading.
 - Fixed a force-refresh bug in i18n on locale change.
 - Updated i18n dev guide documentation.
+- Added a demo about using defrouter to switch between lists and editors for the items.
 
 1.0.0-beta8
 -----------
