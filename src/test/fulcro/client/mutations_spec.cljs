@@ -96,15 +96,18 @@
           (is (not (get-in @state [:baz :1 :4]))))))))
 
 (specification "Mutations via transact"
-  (let [state {}
-        parser (partial (om/parser {:read (partial plumb/read-local (constantly false)) :mutate m/mutate}))
+  (let [state      {}
+        parser     (partial (om/parser {:read (partial plumb/read-local (constantly false)) :mutate m/mutate}))
         reconciler (om/reconciler {:state  state
                                    :parser parser})]
 
     (behavior "can change the current localization."
-      (reset! i18n/*current-locale* "en-US")
-      (om/transact! reconciler `[(fulcro.client.mutations/change-locale {:lang "es-MX"}) :ui/locale])
-      (is (= "es-MX" @i18n/*current-locale*)))
+      (when-mocking
+        (m/locale-present? l) => true
+
+        (reset! i18n/*current-locale* "en-US")
+        (om/transact! reconciler `[(fulcro.client.mutations/change-locale {:lang "es-MX"}) :ui/locale])
+        (is (= "es-MX" @i18n/*current-locale*))))
 
     (behavior "reports an error if an undefined multi-method is called."
       (when-mocking

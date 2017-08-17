@@ -9,7 +9,8 @@
     [cljs.core.async :as async]
     [fulcro.client.impl.data-fetch :as f]
     [fulcro.client.impl.om-plumbing :as plumbing]
-    [fulcro.client.network :as net]))
+    [fulcro.client.network :as net]
+    [fulcro.client.mutations :as m]))
 
 (defui ^:once Thing
   static om/Ident
@@ -153,16 +154,19 @@
         (app/server-send :the-app :transactions :merge-callback)))
 
     (component "Changing app :ui/locale"
-      (let [react-key (:ui/react-key @mounted-app-state)]
-        (reset! i18n/*current-locale* "en")
-        (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
-        (assertions
-          "Changes the i18n locale for translation lookups"
-          (deref i18n/*current-locale*) => "es-MX"
-          "Places the new locale in the app state"
-          (:ui/locale @mounted-app-state) => "es-MX"
-          "Updates the react key to ensure render can redraw everything"
-          (not= react-key (:ui/react-key @mounted-app-state)) => true)))))
+      (when-mocking
+        (m/locale-present? l) => true
+
+        (let [react-key (:ui/react-key @mounted-app-state)]
+         (reset! i18n/*current-locale* "en")
+         (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
+         (assertions
+           "Changes the i18n locale for translation lookups"
+           (deref i18n/*current-locale*) => "es-MX"
+           "Places the new locale in the app state"
+           (:ui/locale @mounted-app-state) => "es-MX"
+           "Updates the react key to ensure render can redraw everything"
+           (not= react-key (:ui/react-key @mounted-app-state)) => true))))))
 
 (specification "Fulcro Application (multiple remotes)"
   (let [state             {}

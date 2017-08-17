@@ -17,6 +17,7 @@
     [:person/by-id id-or-props]))
 
 (declare PersonForm)
+
 (defmutation edit-person
   "Fulcro mutation: Edit the person with the given ID."
   [{:keys [id]}]
@@ -71,6 +72,7 @@
         (b/labeled-input {:split           4
                           :input-generator (fn [_]
                                              (dom/div nil
+                                               ; the follow-on read of :root/router ensures re-render from the router level
                                                (b/button {:onClick #(om/transact! this `[(cancel-edit {}) :root/router])} "Cancel")
                                                (b/button {:onClick #(om/transact! this `[(submit-person {:form form-props}) :root/router])} "Save")))} "")))))
 
@@ -83,6 +85,7 @@
   (render [this]
     (let [{:keys [db/id person/name] :as props} (om/props this)
           onSelect (om/get-computed this :onSelect)]
+      ; the follow-on read of :root/router ensures re-render from the router level
       (dom/li #js {:onClick #(om/transact! this `[(edit-person {:id ~id}) :root/router])}
         (dom/a #js {:href "javascript:void(0)"} name)))))
 
@@ -105,8 +108,6 @@
         (dom/h4 nil "People")
         (dom/ul nil
           (map (fn [i] (ui-person (om/computed i {:onSelect onSelect}))) people))))))
-
-(def ui-person-list (om/factory PersonList))
 
 (defrouter PersonListOrForm :listform-router
   (ident [this props]
