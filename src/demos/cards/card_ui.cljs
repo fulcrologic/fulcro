@@ -8,6 +8,7 @@
     cards.dynamic-i18n-locale-cards
     cards.dynamic-routing-cards
     cards.defrouter-for-type-selection-cards
+    cards.defrouter-list-and-editor-cards
     cards.error-handling-cards
     cards.initial-state-cards
     cards.lazy-loading-indicators-cards
