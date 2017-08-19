@@ -30,7 +30,7 @@
   (server-mutate env k params))
 
 (defn logging-query [{:keys [ast] :as env} k params]
-  (timbre/info "Query: " (op/ast->expr ast))
+  (timbre/info "Query: [" (op/ast->expr ast) "]")
   (server-read env k params))
 
 (defn make-system []
