@@ -4,4 +4,4 @@ tests:
 
 guide:
 	rm -rf docs/js/*
-	lein with-profile devguide cljsbuild once devguide-live
+	lein with-profile production cljsbuild once devguide-live
