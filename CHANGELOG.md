@@ -7,7 +7,7 @@
 - Updated i18n dev guide documentation.
 - Added a demo about using defrouter to switch between lists and editors for the items.
 - Added colocated CSS demo.
-
+- Increased the extra attrs that `form-field` allows on most built-in types (e.g. text, html5), to include `:ref` among others.
 
 1.0.0-beta8
 -----------
