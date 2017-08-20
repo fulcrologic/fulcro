@@ -15,7 +15,16 @@ It is written in an order that most naturally fits what you'll need to know as y
 
 ## Video Guides
 
-There is a video series of 5-30 minute videos that cover a good deal of material. I've
+A new [promo video](https://youtu.be/d_xDp5yWP7I?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE)
+is now available:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE" frameborder="0" allowfullscreen></iframe>
+
+A rename from Untangled is in progress, and new videos are being built. In the meantime all of 
+the old videos are useful, just with the understanding that things have been renamed
+(and have evolved some).
+
+The video series contains 5-30 minute videos that cover a good deal of material. I've
 tried to focus them tightly into consumable chunks. Use the playlist tool in the
 upper corner of the video to see (and jump to) the available videos:
 
@@ -23,7 +32,7 @@ upper corner of the video to see (and jump to) the available videos:
 
 ## Talks About Fulcro
 
-I've given a few talks on Fulcro. Again, use the playlist control at
+I've given a few talks on Fulcro (when it was named Untangled). Again, use the playlist control at
 the top-left of the video to choose what you want to watch.
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_Qsgm8JC1VyMevV9DVj-dCh" frameborder="0" allowfullscreen></iframe>
