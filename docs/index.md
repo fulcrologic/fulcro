@@ -1,8 +1,7 @@
 # Fulcro
 
 Fulcro is a library for building full-stack webapps using the Clojure and Clojurescript programming languages.
-It leverages Om Next and a number of other libraries to provide a strongly cohesive story that has many 
-advantages over techniques, libraries, and frameworks you might have used before.
+It provides a strongly cohesive story that has many advantages over techniques, libraries, and frameworks you might have used before.
 
 ## Is Fulcro for me?
 
@@ -18,7 +17,7 @@ To help you evaluate it, you might want to:
 - Read more about [the benefits of Fulcro](benefits.html)
 - Clone and play with the [Fulcro Template](https://github.com/fulcrologic/fulcro-template) project.
 - Clone and play with an Fulcro [TODOMVC](https://github.com/fulcrologic/fulcro-todomvc) (full-stack!).
-- Understand [how Fulcro improves stock Om Next](vsom-next.html) (assumes you understand something about Om Next)
+- Understand [how Fulcro improves on stock Om Next](vsom-next.html) (assumes you understand something about Om Next)
 - Use the [Fulcro Evaluation Spreadsheet](evaluation.html)
 
 ## What does it look Like?
@@ -43,7 +42,7 @@ file an issue if you notice something is outdated.
 Fulcro has a few companion projects that you should know about:
 
 - [Fulcro Spec](https://github.com/fulcrologic/fulcro-spec): A BDD testing library written in Fulcro that gives you powerful extensions and expressiveness over clj/cljs test. It can refresh and render test results in a browser for both client and server!
-- [Fulcro CSS](https://github.com/fulcrologic/fulcro-css): A library for writing/co-locating CSS on UI components in Om Next and Fulcro.
+- [Fulcro CSS](https://github.com/fulcrologic/fulcro-css): A library for writing/co-locating CSS on UI components.
 - [Fulcro Template](https://github.com/fulcrologic/fulcro-template): A (forkable) repository that has a full-stack starter app, and includes a rename script.
 - [Getting Started Files](https://github.com/fulcrologic/fulcro-getting-started): A repository that has the source code for the Getting Started Guide.
 - [In The Large Files](https://github.com/fulcrologic/fulcro-in-the-large): A repository with the source code for the Fulcro In the Large videos.
