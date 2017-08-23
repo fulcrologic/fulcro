@@ -15,15 +15,19 @@ It is written in an order that most naturally fits what you'll need to know as y
 
 ## Video Guides
 
-There is a video series of 5-30 minute videos that cover a good deal of material. I've
-tried to focus them tightly into consumable chunks. Use the playlist tool in the
-upper corner of the video to see (and jump to) the available videos:
+There are a number of helpful videos on Fulcro:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE" frameborder="0" allowfullscreen></iframe>
+
+More new videos are being built and added, but there are some old videos from when the tools
+were named Untangled. These older videos are a little outdated, but contain useful 
+information:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R" frameborder="0" allowfullscreen></iframe>
 
 ## Talks About Fulcro
 
-I've given a few talks on Fulcro. Again, use the playlist control at
+I've given a few talks on Fulcro (when it was named Untangled). Again, use the playlist control at
 the top-left of the video to choose what you want to watch.
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_Qsgm8JC1VyMevV9DVj-dCh" frameborder="0" allowfullscreen></iframe>
