@@ -15,18 +15,13 @@ It is written in an order that most naturally fits what you'll need to know as y
 
 ## Video Guides
 
-A new [promo video](https://youtu.be/d_xDp5yWP7I?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE)
-is now available:
+There are a number of helpful videos on Fulcro:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE" frameborder="0" allowfullscreen></iframe>
 
-A rename from Untangled is in progress, and new videos are being built. In the meantime all of 
-the old videos are useful, just with the understanding that things have been renamed
-(and have evolved some).
-
-The video series contains 5-30 minute videos that cover a good deal of material. I've
-tried to focus them tightly into consumable chunks. Use the playlist tool in the
-upper corner of the video to see (and jump to) the available videos:
+More new videos are being built and added, but there are some old videos from when the tools
+were named Untangled. These older videos are a little outdated, but contain useful 
+information:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R" frameborder="0" allowfullscreen></iframe>
 
