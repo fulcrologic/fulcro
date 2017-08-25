@@ -18,6 +18,7 @@
     cards.mutation-return-value-cards
     cards.paginate-large-list-cards
     cards.server-query-security-cards
+    cards.sql-graph-query-cards
     cards.tabbed-interface-cards
     cards.websocket-cards
     [fulcro.client.logging :as log]))
