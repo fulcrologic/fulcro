@@ -56,7 +56,7 @@
        (try
          (let [read-handlers  (:read transit-handlers)
                query-response (parse-response xhr-io read-handlers)]
-           (when (and query-response valid-data-callback) (valid-data-callback query-response)))
+           (when valid-data-callback (valid-data-callback (or query-response {}))))
          (finally (.dispose xhr-io)))))
   (response-error [this xhr-io error-callback]
     ;; Implies:  request was sent.
@@ -74,7 +74,7 @@
                                           (@global-error-callback status error)))]
            (if (zero? status)
              (log-and-dispatch-error
-               (str "UNTANGLED NETWORK ERROR: No connection established.")
+               (str "NETWORK ERROR: No connection established.")
                {:type :network})
              (log-and-dispatch-error
                (str "SERVER ERROR CODE: " status)
