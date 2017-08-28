@@ -90,9 +90,9 @@
                                       request-transform request-transform)
              post-data (ct/write (t/writer {:handlers handlers}) body)
              headers   (clj->js headers)]
-         (.send xhrio url "POST" post-data headers)
          (events/listen xhrio (.-SUCCESS EventType) #(response-ok this xhrio ok))
-         (events/listen xhrio (.-ERROR EventType) #(response-error this xhrio error)))))
+         (events/listen xhrio (.-ERROR EventType) #(response-error this xhrio error))
+         (.send xhrio url "POST" post-data headers))))
   (start [this] this))
 
 
