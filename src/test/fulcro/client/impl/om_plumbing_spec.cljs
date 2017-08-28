@@ -213,7 +213,7 @@
       {}
       {[:d 1] {:ui/fetch-state {:fulcro.client.impl.data-fetch/type :not-found}}}))
 
-  (behavior "paramterized"
+  (behavior "parameterized"
     (are [query ?missing-result exp]
       (= exp (impl/mark-missing ?missing-result query))
       '[:z (:y {})]
@@ -299,6 +299,10 @@
        :c {}}
 
       [{:j [:ui/b :c]}]
+      {:j {:c 5}}
+      {:j {:c 5}}
+
+      [{:j [{:ui/b [:d]} :c]}]
       {:j {:c 5}}
       {:j {:c 5}}))
 
