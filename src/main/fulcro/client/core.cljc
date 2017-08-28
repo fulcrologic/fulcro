@@ -237,9 +237,9 @@
     (app/initialize-global-error-callbacks completed-app)
     (app/start-network-sequential-processing completed-app)
     (merge-alternate-union-elements! completed-app root-component)
+    (om/add-root! rec root-component node)
     (when started-callback
       (started-callback completed-app))
-    (om/add-root! rec root-component node)
     completed-app))
 
 (defn clear-queue
