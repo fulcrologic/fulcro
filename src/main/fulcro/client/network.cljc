@@ -95,7 +95,6 @@
          (.send xhrio url "POST" post-data headers))))
   (start [this] this))
 
-
 (defn make-fulcro-network
   "Build an Fulcro Network object using the default implementation.
 
