@@ -22,11 +22,7 @@ To help you evaluate it, you might want to:
 
 ## What does it look Like?
 
-There is a [YouTube video playlist](https://www.youtube.com/playlist?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R) of relatively short videos that can help you get started quickly and often clarifies things that people struggle with.
-
-If you just want to get a quick look of what working in Fulcro looks like you might check this one out:
-
-- [Fulcro In The Large - Component Development](https://youtu.be/uxI2XVgdDBU?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R)
+There is a [YouTube video playlist](https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE) of relatively short videos that can help you get started quickly and often clarifies things that people struggle with.
 
 Those who prefer to read should *still* check out the videos at some point, but should then
 proceed to a complete overview in the
@@ -37,12 +33,19 @@ guide. Those that like videos are encouraged to also read this guide.
 our best to update the materials when possible, but it would be really helpful for you to
 file an issue if you notice something is outdated.
 
+There is also a playlist of [legacy videos](https://www.youtube.com/playlist?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R) from when the project was known as Untangled.
+These videos are still relevant, and may lead to insight by exposing you to
+different angles of the same topic. For the most part just substitute
+"Fulcro" every time you see or hear "Untangled".
+
 ## Companion Projects
 
 Fulcro has a few companion projects that you should know about:
 
 - [Fulcro Spec](https://github.com/fulcrologic/fulcro-spec): A BDD testing library written in Fulcro that gives you powerful extensions and expressiveness over clj/cljs test. It can refresh and render test results in a browser for both client and server!
 - [Fulcro CSS](https://github.com/fulcrologic/fulcro-css): A library for writing/co-locating CSS on UI components.
+- [Fulcro SQL](https://github.com/fulcrologic/fulcro-sql): A library that can run Fulcro
+graph queries against an SQL database.
 - [Fulcro Template](https://github.com/fulcrologic/fulcro-template): A (forkable) repository that has a full-stack starter app, and includes a rename script.
 - [Getting Started Files](https://github.com/fulcrologic/fulcro-getting-started): A repository that has the source code for the Getting Started Guide.
 - [In The Large Files](https://github.com/fulcrologic/fulcro-in-the-large): A repository with the source code for the Fulcro In the Large videos.
