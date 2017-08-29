@@ -10,16 +10,16 @@
 ; to load.
 (defui ^:once Main
   static fc/InitialAppState
-  (initial-state [clz params] {r/dynamic-route-key :main :label "MAIN"})
+  (initial-state [clz params] {r/dynamic-route-key :main :label "MAIN" :main-prop "main page data"})
   static om/Ident
   (ident [this props] [:main :singleton])
   static om/IQuery
-  (query [this] [r/dynamic-route-key :label])
+  (query [this] [r/dynamic-route-key :label :main-prop])
   Object
   (render [this]
-    (let [{:keys [label]} (om/props this)]
+    (let [{:keys [label main-prop]} (om/props this)]
       (dom/div #js {:style #js {:backgroundColor "red"}}
-        label))))
+        (str label " " main-prop)))))
 
 (defmethod r/get-dynamic-router-target :main [k] Main)
 (cljs.loader/set-loaded! :main)
