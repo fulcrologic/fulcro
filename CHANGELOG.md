@@ -8,6 +8,12 @@
 - Added a demo about using defrouter to switch between lists and editors for the items.
 - Added colocated CSS demo.
 - Increased the extra attrs that `form-field` allows on most built-in types (e.g. text, html5), to include `:ref` among others.
+- Fixed but in dynamic routing that was causing query to not change correctly
+- Fixed mark/sweep to not leave not-found idents lying around
+- Added demo for new fulcro-sql graph query against SQL
+- Bugfix: fixed joins on :ui attrs to work right with mark/sweep on loads
+- Changed initialization order around networking to prevent async races
+- Moved alternate union initialization to before initial render
 
 1.0.0-beta8
 -----------
