@@ -247,7 +247,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
     (swap! state
       (fn [s]
         (cond-> (dissoc s ::pending-route)
-          (contains? target :handler) (update-routing-links target))))))
+          (contains? target :handler) (update-routing-links target :reconciler reconciler))))))
 
 (defn- dynamic-route-load-failed!
   "TODO: Figure out how to figure this out and call it! I don't see a way to detect cljs module load failures."

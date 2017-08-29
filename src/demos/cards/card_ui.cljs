@@ -5,8 +5,11 @@
     cards.autocomplete-cards
     cards.background-load-cards
     cards.component-local-state-cards
+    cards.colocated-css-cards
+    cards.dynamic-i18n-locale-cards
     cards.dynamic-routing-cards
     cards.defrouter-for-type-selection-cards
+    cards.defrouter-list-and-editor-cards
     cards.error-handling-cards
     cards.initial-state-cards
     cards.lazy-loading-indicators-cards
@@ -15,6 +18,7 @@
     cards.mutation-return-value-cards
     cards.paginate-large-list-cards
     cards.server-query-security-cards
+    cards.sql-graph-query-cards
     cards.tabbed-interface-cards
     cards.websocket-cards
     [fulcro.client.logging :as log]))

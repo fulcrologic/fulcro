@@ -43,7 +43,7 @@
   - The ability to extract these UI strings for translation in POT files (GNU gettext-style)
       - The translator can use tools like POEdit to generate translation files
   - The ability to convert the translation files into Clojurescript
-  - The ability to code-split your locales so they can be dynamically loaded when the locale is changed (July 2017).
+  - The ability to code-split your locales so they can be dynamically loaded when the locale is changed (Clojurescript 1.9.905+ and Fulcro 1.0.0-beta9+).
   - The ability to format messages (using Yahoo's formatJS library), including very configurable plural support
 
   Fulcro leverages the GNU `xgettext` tool, and Yahoo's formatJS library (which in turn leverages browser support
@@ -217,19 +217,20 @@
   Again, a function is provided for you that can be run from the REPL:
 
   ```
-  (fulcro.gettext/deploy-translations {:ns \"fulcro-template.locales\" :src \"src/main\" :po \"i18n\"})
+  (fulcro.gettext/deploy-translations {:src \"src/main\" :po \"i18n\" :as-modules? true})
   ```
 
-  Where `ns` is the target namespace for the CLJC files, `src` is your target source folder, and `:po` is where
-  you keep your PO files. This step will generate one cljc file for each PO file.
+  `src` is your target source folder, and `:po` is where
+  you keep your PO files. This step will generate one cljc file for each PO file. If you supply `:as-modules?` then
+  your translations will support being dynamically loaded by `cljs-loader` (as of beta9).
+  Translations will be output to the `translations` package in namespaces that match the locale name.
 
   ### Using the Generated Translation Code
 
-  In your client setup file, just require all of the locales so they'll get loaded. That's it!
+  If you are using static translations (that all get loaded at once), then your client startup should just require all of the locales so they'll get loaded. That's it!
 
-  If you place each locale into a module in Clojurescript 1.9.0-800+ then you can use your locales as loadable modules (coming in 2017). The
-  `change-locale` mutation will automatically trigger loads (coming soon in 2017. may require a parameter).
-
+  If you place each locale into a module in Clojurescript 1.9.0-905+ then you can use your locales as loadable modules. The
+  `change-locale` mutation will automatically trigger loads if needed.
   ")
 
 

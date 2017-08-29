@@ -3,10 +3,10 @@
   (:require
     [clojure.spec.alpha :as s]
     [om.next :as om]
-    ; TODO: code splitting locales: [cljs.loader :as loader]
     [fulcro.client.util :refer [conform!]]
     [fulcro.client.logging :as log]
-    [fulcro.i18n :as i18n]))
+    [fulcro.i18n :as i18n]
+    #?(:cljs [cljs.loader :as loader])))
 
 
 #?(:clj (s/def ::action (s/cat
@@ -78,32 +78,47 @@
 (defmulti post-mutate om/dispatch)
 (defmethod post-mutate :default [env k p] nil)
 
+(defn default-locale? [locale-string] (#{"en" "en-US"} locale-string))
+
+(defn locale-present? [locale-string]
+  (or
+    (default-locale? locale-string)
+    (contains? @i18n/*loaded-translations* locale-string)))
+
+(defn locale-loadable?
+  "Returns true if the given locale is in a loadable module. Always returns false on the server-side."
+  [locale-key]
+  #?(:clj  false
+     :cljs (contains? cljs.loader/module-infos locale-key)))
+
+; NOTE: client needs to init current locale on stated-callback if SSR
 (defn change-locale-impl
   "Given a state map and locale, returns a new state map with the locale properly changed. Also potentially triggers a module load.
   There is also the mutation `change-locale` that can be used from transact."
   [state-map lang]
-  (reset! i18n/*current-locale* lang)                       ; TODO: client needs to init current locale on stated-callback if SSR
-  (-> state-map
-    (assoc :ui/locale lang)
-    (assoc :ui/react-key lang)))
-
-#?(:cljs
-   (defn load-locale [locale]
-     ; Use new module support to load the locales
-     #_(let [module-key (keyword "translations" (str locale))
-             locale-key (keyword (str locale))
-             loaded-sym (symbol "translations" (str locale))]
-         (when-not (contains? i18n/*loaded-translations* locale-key)
-           (loader/load module-key (fn []))))))
+  (assert (string? lang) "New locale must be a string (e.g. \"en-US\".")
+  (let [locale-key    (keyword lang)
+        valid-locale? (or
+                        (locale-present? lang)
+                        (locale-loadable? locale-key))]
+    (if valid-locale?
+      (do
+        #?(:cljs (when (and (-> lang locale-present? not)
+                         (locale-loadable? locale-key))
+                   (loader/load locale-key (fn [] (log/debug "Finished loading locale " lang)))))
+        (reset! i18n/*current-locale* lang)
+        (-> state-map
+          (assoc :ui/locale lang)
+          (assoc :ui/react-key lang)))
+      (do
+        (log/error "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module.")
+        state-map))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation change-locale
-     "Om mutation: Change the locale of the UI."
+     "Om mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\")."
      [{:keys [lang]}]
-     (action [{:keys [state]}]
-       (load-locale lang)
-       (reset! i18n/*current-locale* lang)
-       (swap! state change-locale-impl lang))))
+     (action [{:keys [state]}] (swap! state change-locale-impl lang))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation set-props

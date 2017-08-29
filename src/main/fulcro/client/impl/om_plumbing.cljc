@@ -107,20 +107,23 @@
 (defn- is-ui-query-fragment?
   "Check the given keyword to see if it is in the :ui namespace."
   [kw]
-  (when (keyword? kw) (some->> kw namespace (re-find #"^ui(?:\.|$)"))))
+  (let [kw (if (map? kw) (-> kw keys first) kw)]
+    (when (keyword? kw) (some->> kw namespace (re-find #"^ui(?:\.|$)")))))
 
 (defn strip-ui
   "Returns a new query with fragments that are in the `ui` namespace removed."
   [query]
   (let [ast              (om/query->ast query)
         drop-ui-children (fn drop-ui-children [ast-node]
-                           (assoc ast-node :children
-                                           (reduce (fn [acc n]
-                                                     (if (is-ui-query-fragment? (:dispatch-key n))
-                                                       acc
-                                                       (conj acc (drop-ui-children n))
-                                                       )
-                                                     ) [] (:children ast-node))))]
+                           (let [children (reduce (fn [acc n]
+                                                    (if (is-ui-query-fragment? (:dispatch-key n))
+                                                      acc
+                                                      (conj acc (drop-ui-children n))))
+                                            [] (:children ast-node))]
+                             (if (seq children)
+                               (assoc ast-node :children children)
+                               (dissoc ast-node :children))))]
+
     (om/ast->query (drop-ui-children ast))))
 
 (def nf ::not-found)

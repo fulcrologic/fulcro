@@ -1,10 +1,10 @@
-(defproject fulcrologic/fulcro "1.0.0-beta8"
+(defproject fulcrologic/fulcro "1.0.0-beta9"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.854" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.908" :scope "provided"]
                  [clojure-future-spec "1.9.0-alpha17"]
                  [org.omcljs/om "1.0.0-beta1"]
                  [http-kit "2.2.0"]
@@ -18,7 +18,7 @@
                  [com.taoensso/sente "1.11.0"]
                  [garden "1.3.2"]
 
-                 [fulcrologic/fulcro-spec "1.0.0-beta7" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "1.0.0-beta9" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.7" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
@@ -53,7 +53,7 @@
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
-                               :parallel-build       false
+                               :parallel-build       true
                                :preloads             [devtools.preload]
                                :asset-path           "js/test"
                                :optimizations        :none}}
@@ -69,17 +69,29 @@
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "demos"
-                :source-paths ["src/main" "src/dev" "src/demos"]
+                :source-paths ["src/main" "src/demos"]
                 :figwheel     {:devcards true}
                 :compiler     {:devcards      true
                                :output-dir    "resources/public/js/demos"
                                :asset-path    "js/demos"
                                :preloads      [devtools.preload]
                                :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
-                                                             :entries   #{cards.card-ui fulcro.client.routing}}
+                                                             :entries   #{cards.card-ui}}
+                                               :de          {:output-to "resources/public/js/demos/de.js"
+                                                             :entries   #{translations.de}}
+                                               :es-MX       {:output-to "resources/public/js/demos/es-MX.js"
+                                                             :entries   #{translations.es-MX}}
                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
                                                              :entries   #{recipes.dynamic-ui-main}}}
                                :optimizations :none}}
+               {:id           "demo-i18n"
+                :source-paths ["src/main" "src/demos"]
+                :compiler     {:devcards      true
+                               :output-dir    "resources/public/js/demo-i18n"
+                               :asset-path    "js/demo-i18n"
+                               :output-to     "resources/public/js/demo-i18n.js"
+                               :main          cards.card-ui
+                               :optimizations :whitespace}}
                ; REMEBER TO USE devguide profile!!! Use `make guide`
                {:id           "devguide-live"
                 :source-paths ["src/main" "src/devguide"]
@@ -113,7 +125,7 @@
                                                  :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "i18n-extraction"
                 :source-paths ["src/main" "src/test"]
-                :compiler     {:output-to      "resources/private/js/i18n.js"
+                :compiler     {:output-to      "i18n/i18n.js"
                                :main           fulcro.automated-test-main
                                :output-dir     "resources/private/js/i18n"
                                :asset-path     "js/i18n"
@@ -128,29 +140,33 @@
                                :parallel-build true
                                :optimizations  :none}}]}
 
-  :profiles {:devguide {:source-paths ["src/main" "src/devguide"]
-                        :dependencies [[devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
-                                       [cljsjs/d3 "3.5.7-1"]
-                                       [cljsjs/victory "0.9.0-0"]
-                                       [hickory "0.7.1"]
-                                       [com.rpl/specter "1.0.1"] ; only used in demos
-                                       [org.flywaydb/flyway-core "4.0.3"]
-                                       [com.layerware/hugsql "0.4.7"]
-                                       [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                       [cljsjs/codemirror "5.8.0-0"]
-                                       [org.clojure/tools.nrepl "0.2.13"]]}
-             :dev      {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
-                        :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                        :dependencies [[binaryage/devtools "0.9.4"]
-                                       [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
-                                       [com.cemerick/piggieback "0.2.1"]
-                                       [figwheel-sidecar "0.5.12"]
-                                       [cljsjs/d3 "3.5.7-1"]
-                                       [cljsjs/victory "0.9.0-0"]
-                                       [hickory "0.7.1"]
-                                       [com.rpl/specter "1.0.1"] ; only used in demos
-                                       [org.flywaydb/flyway-core "4.0.3"]
-                                       [com.layerware/hugsql "0.4.7"]
-                                       [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                       [cljsjs/codemirror "5.8.0-0"]
-                                       [org.clojure/tools.nrepl "0.2.13"]]}})
+  :profiles {:production {:source-paths ["src/main" "src/devguide"]
+                          :dependencies [[devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
+                                         [cljsjs/d3 "3.5.7-1"]
+                                         [cljsjs/victory "0.9.0-0"]
+                                         [hickory "0.7.1"]
+                                         [fulcrologic/fulcro-css "1.0.0"] ; demos
+                                         [com.rpl/specter "1.0.2"] ; only used in demos
+                                         [org.flywaydb/flyway-core "4.2.0"]
+                                         [com.layerware/hugsql "0.4.7"]
+                                         [org.clojure/tools.namespace "0.3.0-alpha4"]
+                                         [cljsjs/codemirror "5.8.0-0"]
+                                         [org.clojure/tools.nrepl "0.2.13"]]}
+             :dev        {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
+                          :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+                          :dependencies [[binaryage/devtools "0.9.4"]
+                                         [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
+                                         [fulcrologic/fulcro-css "1.0.0"] ; demos
+                                         [fulcrologic/fulcro-sql "0.0.1"] ; demos
+                                         [org.postgresql/postgresql "42.1.4"] ; demos
+                                         [com.cemerick/piggieback "0.2.1"]
+                                         [figwheel-sidecar "0.5.13"]
+                                         [cljsjs/d3 "3.5.7-1"]
+                                         [cljsjs/victory "0.9.0-0"]
+                                         [hickory "0.7.1"]
+                                         [com.rpl/specter "1.0.2"] ; only used in demos
+                                         [org.flywaydb/flyway-core "4.2.0"]
+                                         [com.layerware/hugsql "0.4.7"]
+                                         [org.clojure/tools.namespace "0.3.0-alpha4"]
+                                         [cljsjs/codemirror "5.8.0-0"]
+                                         [org.clojure/tools.nrepl "0.2.13"]]}})

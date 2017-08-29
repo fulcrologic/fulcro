@@ -56,7 +56,7 @@
        (try
          (let [read-handlers  (:read transit-handlers)
                query-response (parse-response xhr-io read-handlers)]
-           (when (and query-response valid-data-callback) (valid-data-callback query-response)))
+           (when valid-data-callback (valid-data-callback (or query-response {}))))
          (finally (.dispose xhr-io)))))
   (response-error [this xhr-io error-callback]
     ;; Implies:  request was sent.
@@ -74,7 +74,7 @@
                                           (@global-error-callback status error)))]
            (if (zero? status)
              (log-and-dispatch-error
-               (str "UNTANGLED NETWORK ERROR: No connection established.")
+               (str "NETWORK ERROR: No connection established.")
                {:type :network})
              (log-and-dispatch-error
                (str "SERVER ERROR CODE: " status)
@@ -90,11 +90,10 @@
                                       request-transform request-transform)
              post-data (ct/write (t/writer {:handlers handlers}) body)
              headers   (clj->js headers)]
-         (.send xhrio url "POST" post-data headers)
          (events/listen xhrio (.-SUCCESS EventType) #(response-ok this xhrio ok))
-         (events/listen xhrio (.-ERROR EventType) #(response-error this xhrio error)))))
+         (events/listen xhrio (.-ERROR EventType) #(response-error this xhrio error))
+         (.send xhrio url "POST" post-data headers))))
   (start [this] this))
-
 
 (defn make-fulcro-network
   "Build an Fulcro Network object using the default implementation.

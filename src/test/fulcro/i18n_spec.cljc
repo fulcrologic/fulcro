@@ -8,7 +8,7 @@
    "Abbreviation for Monday|M"                "L"
    "|{n,plural,=0 {none} =1 {one} other {#}}" "{n,plural,=0 {nada} =1 {uno} other {#}}"})
 
-(swap! i18n/*loaded-translations* (fn [x] (assoc x "es-MX" translations)))
+(swap! i18n/*loaded-translations* (fn [x] (assoc x "es-US" translations)))
 
 (defn date [year month day hour min sec millis]
   #?(:clj  (java.util.Date. (- year 1900) month day hour min sec)
@@ -20,7 +20,7 @@
     (tr "Hello") => "Hello"
     "returns message key if current-locale is en-US"
     (tr "Hi") => "Hi")
-  (reset! i18n/*current-locale* "es-MX")
+  (reset! i18n/*current-locale* "es-US")
   (assertions
     "returns message key if no translation map is found for the locale"
     (tr "Hello") => "Hello"
@@ -53,9 +53,9 @@
   (assertions
     "Formats in en-US locale"
     (trc "Abbreviation for Monday" "M") => "M")
-  (reset! i18n/*current-locale* "es-MX")
+  (reset! i18n/*current-locale* "es-US")
   (assertions
-    "Formats in es-MX locale"
+    "Formats in an es locale"
     (trc "Abbreviation for Monday" "M") => "L"))
 
 (specification "Message format translation -- trf"
@@ -99,6 +99,7 @@
                (trf "{a, date, long}" :a (date 1990 3 1 13 45 22 0)) => "1 de abril de 1990"
                (trf "{a, date, medium}" :a (date 1990 3 1 13 45 22 0)) =fn=> (fn [s] (re-matches #"01/04/1990" s))
                (trf "{a, date, short}" :a (date 1990 3 1 13 45 22 0)) => "01/04/90")))
+  (reset! i18n/*current-locale* "es-US")
   (behavior "formats plurals - Spanish"
     (assertions
       (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n 1) => "uno"

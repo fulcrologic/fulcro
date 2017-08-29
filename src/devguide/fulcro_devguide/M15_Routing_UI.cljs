@@ -70,6 +70,8 @@
   :status-report StatusReport
   :graphing-report GraphingReport)
 
+(def ui-report-router (om/factory ReportRouter))
+
 ; BIG GOTCHA: Make sure you query for the prop (in this case :page) that the union needs in order to decide. It won't pull it itself!
 (om/defui ^:once ReportsMain
   static fc/InitialAppState
@@ -83,7 +85,7 @@
       ; Screen-specific content to be shown "around" or "above" the subscreen
       "REPORT MAIN SCREEN"
       ; Render the sub-router. You can also def a factory for the router (e.g. ui-report-router)
-      ((om/factory ReportRouter) (:report-router (om/props this))))))
+      (ui-report-router (:report-router (om/props this))))))
 
 
 (defrouter TopRouter :top-router
@@ -104,19 +106,20 @@
 
   A value in this ident using the `param` namespace will be replaced with the incoming route parameter
   (without the namespace). E.g. the incoming route-param :report-id will replace :param/report-id"
-  {:main     [(r/router-instruction :top-router [:main :top])]
-   :login    [(r/router-instruction :top-router [:login :top])]
-   :new-user [(r/router-instruction :top-router [:new-user :top])]
-   :graph    [(r/router-instruction :top-router [:report :top])
-              (r/router-instruction :report-router [:graphing-report :param/report-id])]
-   :status   [(r/router-instruction :top-router [:report :top])
-              (r/router-instruction :report-router [:status-report :param/report-id])]})
+  (r/routing-tree
+    (r/make-route :main [(r/router-instruction :top-router [:main :top])])
+    (r/make-route :login [(r/router-instruction :top-router [:login :top])])
+    (r/make-route :new-user [(r/router-instruction :top-router [:new-user :top])])
+    (r/make-route :graph [(r/router-instruction :top-router [:report :top])
+                          (r/router-instruction :report-router [:graphing-report :param/report-id])])
+    (r/make-route :status [(r/router-instruction :top-router [:report :top])
+                           (r/router-instruction :report-router [:status-report :param/report-id])])))
 
 (om/defui ^:once Root
   static fc/InitialAppState
   ; r/routing-tree-key implies the alias of fulcro.client.routing as r.
-  (initial-state [clz params] {r/routing-tree-key routing-tree
-                               :top-router        (fc/get-initial-state TopRouter {})})
+  (initial-state [clz params] (merge routing-tree
+                                {:top-router (fc/get-initial-state TopRouter {})}))
   static om/IQuery
   (query [this] [:ui/react-key {:top-router (om/get-query TopRouter)}])
   Object
