@@ -53,7 +53,7 @@
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
-                               :parallel-build       false
+                               :parallel-build       true
                                :preloads             [devtools.preload]
                                :asset-path           "js/test"
                                :optimizations        :none}}

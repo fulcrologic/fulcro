@@ -158,15 +158,15 @@
         (m/locale-present? l) => true
 
         (let [react-key (:ui/react-key @mounted-app-state)]
-         (reset! i18n/*current-locale* "en")
-         (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
-         (assertions
-           "Changes the i18n locale for translation lookups"
-           (deref i18n/*current-locale*) => "es-MX"
-           "Places the new locale in the app state"
-           (:ui/locale @mounted-app-state) => "es-MX"
-           "Updates the react key to ensure render can redraw everything"
-           (not= react-key (:ui/react-key @mounted-app-state)) => true))))))
+          (reset! i18n/*current-locale* "en")
+          (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
+          (assertions
+            "Changes the i18n locale for translation lookups"
+            (deref i18n/*current-locale*) => "es-MX"
+            "Places the new locale in the app state"
+            (:ui/locale @mounted-app-state) => "es-MX"
+            "Updates the react key to ensure render can redraw everything"
+            (not= react-key (:ui/react-key @mounted-app-state)) => true))))))
 
 (specification "Fulcro Application (multiple remotes)"
   (let [state             {}
@@ -377,7 +377,7 @@
     (-> (app/sweep-one (with-meta [{:a 1 :b ::plumbing/not-found}] {:meta :data}))
       meta) => {:meta :data}))
 
-(specification "Sweep merge"
+(specification "Sweep merge" :focused
   (assertions
     "recursively merges maps"
     (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c 5}) => {:a 2 :c 5}
@@ -391,6 +391,11 @@
     (app/sweep-merge {:a 1 :c {:data-fetch :loading}} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
     (app/sweep-merge {:a 1 :c nil} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
     (app/sweep-merge {:a 1 :b {:c {:ui/fetch-state {:post-mutation 's}}}} {:a 2 :b {:c [{:x 1 :b ::plumbing/not-found}]}}) => {:a 2 :b {:c [{:x 1}]}}
+    "clears normalized table entries that has an id of not found"
+    (app/sweep-merge {:table {1 {:a 2}}} {:table {::plumbing/not-found {:db/id ::plumbing/not-found}}}) => {:table {1 {:a 2}}}
+    "clears idents whose ids were not found"
+    (app/sweep-merge {} {:table {1 {:db/id 1 :the-thing [:table-1 ::plumbing/not-found]}}
+                         :thing [:table-2 ::plumbing/not-found]}) => {:table {1 {:db/id 1}}}
     "sweeps not-found values from normalized table merges"
     (app/sweep-merge {:subpanel  [:dashboard :panel]
                       :dashboard {:panel {:view-mode :detail :surveys {:ui/fetch-state {:post-mutation 's}}}}

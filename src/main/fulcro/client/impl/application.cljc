@@ -1,6 +1,7 @@
 (ns fulcro.client.impl.application
   (:require [fulcro.client.logging :as log]
             [om.next :as om]
+            om.util
             [fulcro.i18n :as i18n]
             [fulcro.client.impl.data-fetch :as f]
             [fulcro.client.util :as util]
@@ -191,7 +192,10 @@
 (defn sweep-one "Remove not-found keys from m (non-recursive)" [m]
   (cond
     (map? m) (reduce (fn [acc [k v]]
-                       (if (= ::plumbing/not-found v) acc (assoc acc k v))) (with-meta {} (meta m)) m)
+                       (if (or (= ::plumbing/not-found k) (= ::plumbing/not-found v))
+                         acc
+                         (assoc acc k v)))
+               (with-meta {} (meta m)) m)
     (vector? m) (with-meta (mapv sweep-one m) (meta m))
     :else m))
 
@@ -200,7 +204,12 @@
   (cond
     (plumbing/leaf? m) (sweep-one m)
     (map? m) (reduce (fn [acc [k v]]
-                       (if (= ::plumbing/not-found v) acc (assoc acc k (sweep v)))) (with-meta {} (meta m)) m)
+                       (cond
+                         (or (= ::plumbing/not-found k) (= ::plumbing/not-found v)) acc
+                         (and (om.util/ident? v) (= ::plumbing/not-found (second v))) acc
+                         :otherwise (assoc acc k (sweep v))))
+               (with-meta {} (meta m))
+               m)
     (vector? m) (with-meta (mapv sweep m) (meta m))
     :else m))
 
@@ -211,12 +220,15 @@
   that may still exist on the server (in truth we don't know its status, since it wasn't asked for, but we leave
   it as our 'best guess')"
   [target source]
-  (reduce (fn [acc [k v]]
-            (cond
-              (= v ::plumbing/not-found) (dissoc acc k)
-              (plumbing/leaf? v) (assoc acc k (sweep-one v))
-              (and (map? (get acc k)) (map? v)) (update acc k sweep-merge v)
-              :else (assoc acc k (sweep v)))
+  (reduce (fn [acc [key new-value]]
+            (let [existing-value (get acc key)]
+              (cond
+                (= key ::plumbing/not-found) acc
+                (= new-value ::plumbing/not-found) (dissoc acc key)
+                (and (om.util/ident? new-value) (= ::plumbing/not-found (second new-value))) acc
+                (plumbing/leaf? new-value) (assoc acc key (sweep-one new-value))
+                (and (map? existing-value) (map? new-value)) (update acc key sweep-merge new-value)
+                :else (assoc acc key (sweep new-value))))
             ) target source))
 
 (defn merge-handler [mutation-merge target source]

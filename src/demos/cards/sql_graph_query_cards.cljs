@@ -49,9 +49,10 @@
       (dom/div nil
         (dom/h3 nil (str "Account for " name))
         (dom/ul nil
-          (dom/li nil
-            (dom/h3 nil "Settings")
-            (ui-settings settings))
+          (when (seq settings)
+            (dom/li nil
+             (dom/h3 nil "Settings")
+             (ui-settings settings)))
           (dom/li nil
             (dom/h3 nil "Members in the account")
             (map ui-member members)))))))
@@ -63,8 +64,8 @@
   (query [this] [:ui/react-key {:accounts (om/get-query Account)}])
   Object
   (render [this]
-    (let [{:keys [db/id accounts]} (om/props this)]
-      (dom/div nil
+    (let [{:keys [ui/react-key db/id accounts]} (om/props this)]
+      (dom/div #js {:key react-key}
         (dom/h3 nil "Accounts with settings and users")
         (map ui-account accounts)))))
 
@@ -102,8 +103,7 @@
   (dc/mkdn-pprint-source Settings)
   (dc/mkdn-pprint-source Member)
   (dc/mkdn-pprint-source Account)
-  (dc/mkdn-pprint-source Root)
-  )
+  (dc/mkdn-pprint-source Root))
 
 (defcard-fulcro sql-graph-demo
   Root
@@ -111,5 +111,4 @@
   {:inspect-data true
    :fulcro       {:started-callback
                   (fn [app]
-                    (js/console.log :LOADING)
                     (df/load app :graph-demo/accounts Account {:target [:accounts]}))}})
