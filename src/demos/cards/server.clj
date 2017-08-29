@@ -58,7 +58,7 @@
                            :channel-server   (cs/make-channel-server)
                            :channel-listener (wsdemo/make-channel-listener)}
                     include-postgres? (merge {:sqldb (component/using
-                                                       (sql/map->PostgreSQLDatabaseManager {})
+                                                       (sql/build-db-manager {})
                                                        [:config])})))))
 
 
