@@ -157,7 +157,7 @@
                           :dependencies [[binaryage/devtools "0.9.4"]
                                          [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
                                          [fulcrologic/fulcro-css "1.0.0"] ; demos
-                                         [fulcrologic/fulcro-sql "0.0.1-SNAPSHOT"] ; demos
+                                         [fulcrologic/fulcro-sql "0.0.1"] ; demos
                                          [org.postgresql/postgresql "42.1.4"] ; demos
                                          [com.cemerick/piggieback "0.2.1"]
                                          [figwheel-sidecar "0.5.13"]
