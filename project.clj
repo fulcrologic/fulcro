@@ -18,7 +18,7 @@
                  [com.taoensso/sente "1.11.0"]
                  [garden "1.3.2"]
 
-                 [fulcrologic/fulcro-spec "1.0.0-beta9-SNAPSHOT" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "1.0.0-beta9" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.7" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
@@ -146,8 +146,8 @@
                                          [cljsjs/victory "0.9.0-0"]
                                          [hickory "0.7.1"]
                                          [fulcrologic/fulcro-css "1.0.0"] ; demos
-                                         [com.rpl/specter "1.0.1"] ; only used in demos
-                                         [org.flywaydb/flyway-core "4.0.3"]
+                                         [com.rpl/specter "1.0.2"] ; only used in demos
+                                         [org.flywaydb/flyway-core "4.2.0"]
                                          [com.layerware/hugsql "0.4.7"]
                                          [org.clojure/tools.namespace "0.3.0-alpha4"]
                                          [cljsjs/codemirror "5.8.0-0"]
@@ -164,8 +164,8 @@
                                          [cljsjs/d3 "3.5.7-1"]
                                          [cljsjs/victory "0.9.0-0"]
                                          [hickory "0.7.1"]
-                                         [com.rpl/specter "1.0.1"] ; only used in demos
-                                         [org.flywaydb/flyway-core "4.0.3"]
+                                         [com.rpl/specter "1.0.2"] ; only used in demos
+                                         [org.flywaydb/flyway-core "4.2.0"]
                                          [com.layerware/hugsql "0.4.7"]
                                          [org.clojure/tools.namespace "0.3.0-alpha4"]
                                          [cljsjs/codemirror "5.8.0-0"]
