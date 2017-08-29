@@ -18,7 +18,7 @@
                  [com.taoensso/sente "1.11.0"]
                  [garden "1.3.2"]
 
-                 [fulcrologic/fulcro-spec "1.0.0-beta8" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "1.0.0-beta9-SNAPSHOT" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.7" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
@@ -157,6 +157,8 @@
                           :dependencies [[binaryage/devtools "0.9.4"]
                                          [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
                                          [fulcrologic/fulcro-css "1.0.0"] ; demos
+                                         [fulcrologic/fulcro-sql "0.0.1"] ; demos
+                                         [org.postgresql/postgresql "42.1.4"] ; demos
                                          [com.cemerick/piggieback "0.2.1"]
                                          [figwheel-sidecar "0.5.13"]
                                          [cljsjs/d3 "3.5.7-1"]
