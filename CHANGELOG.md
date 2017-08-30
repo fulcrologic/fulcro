@@ -1,3 +1,7 @@
+1.0.0-beta10
+------------
+- Fixed a bug in logging where the clj and cljs API didn't match
+
 1.0.0-beta9
 -----------
 - Fixed bugs in gettext defaults for i18n extract/deploy.
