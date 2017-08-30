@@ -52,4 +52,4 @@
      "output an ERROR level message to the Om logger"
      [& data]
      (glog/error *logger* (apply str (interpose " " data))))
-   :clj (def error debug))
+   :clj (defn error [& data] (apply println data)))
