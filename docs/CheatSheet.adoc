@@ -5,6 +5,7 @@
 - `[fulcro.client.core :as fc]`: Primary Fulcro namespace
 - `[fulcro.client.data-fetch :as df]`: Fulcro functions for loading data from remotes.
 - `[fulcro.client.mutations :as m]`: Fulcro mutations and mutation definition macro.
+- `[fulcro.client.util :as fu]`: Some helper functions
 - `[om.next :as om]`: Primary Om Next namespace
 - `[om.dom :as dom]`: HTML5 React factories
 - `[fulcro.server :as server]`: Fulcro server primitives.
@@ -32,7 +33,8 @@
   (componentDidMount [this] ...)
   (componentWillUnmount [this] ...)
   (render [this]
-    (let [{:keys [prop child]} (om/props this)]
+    (let [{:keys [prop child]} (om/props this)
+          {:keys [onSelect]    (om/get-computed this)]
       ; render prop and child
       (dom/div nil
         (dom/span nil prop)
@@ -41,6 +43,57 @@
 
 ```
 (def ui-component-name (om/factory ComponentName {:keyfn :id-prop}))
+```
+
+```
+(ui-component-name raw-props)
+;; or, if callbacks and such are needed:
+(ui-component-name (om/computed raw-props {:onSelect (fn [] ...)))
+```
+
+==== Trick for helping with computed props:
+
+```
+(let [factory (om/factory ComponentName {:keyfn :id-prop})]
+  (defn ui-component-name [props & {:keys [onSelect] :as computed-props}]
+    (factory (om/computed props computed-props))))
+```
+
+allows more readable `(ui-component-name props :onDelete (fn [e] ...))`. Other variations are possible,
+especially if you intend to use children.
+
+==== React Children
+
+- `(om/children this)` - Returns a (possibly empty) sequence of child elements sent to the React factory.
+- `(fu/react-instance? Component child)` - Returns true if child is a react element of the given type.
+- `(fu/first-node Component children)` - Returns the first react child of class Component, or nil.
+
+```
+(defui Heading
+  ...)
+(def ui-heading (om/factory Heading))
+
+(defui Note ...)
+(def ui-note (om/factory Note))
+
+(defui NotePanel
+  Object
+  (render [this]
+    (let [children (om/children this)
+          heading (first-node Heading children)
+          notes (filter #(react-instance? Note %) children)]
+      (dom/div nil
+        (dom/h4 nil heading)
+        (map ui-note notes)
+        ...))))
+(def ui-note-panel ...)
+
+...
+(ui-note-panel note-panel-props ; parent
+  (ui-heading heading-props) ; children
+  (ui-note note-props)
+  (ui-note note-props-2)
+  ...)
 ```
 
 == Sanity Checklist
@@ -73,6 +126,11 @@ static om/IQuery
 ```
 - Every component that has state (except your root) *should* have an `Ident`. Exceptions
 are possible but rare.
+- More than one component can use the same ident. This is common. PersonListView, PersonDetail,
+PersonSummary might all have the same `[:person/by-id id]` style ident.
+- If you need the same initial state in more than one place, put it there! All versions of the same
+(duplicated) tree in initial app state will merge and normalize into the same spot at startup.
+   - Ensure that duplicated initial state tree components share idents.
 
 == Queries
 
