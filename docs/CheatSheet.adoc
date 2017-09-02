@@ -2,14 +2,14 @@
 
 == Common Namespaces
 
-`[fulcro.client.core :as fc]` - Primary Fulcro namespace
-`[fulcro.client.data-fetch :as df]` - Fulcro functions for loading data from remotes.
-`[fulcro.client.mutations :as m]` - Fulcro mutations and mutation definition macro.
-`[fulcro.easy-server :as easy]` - Fulcro's easy-to-build web server.
-`[fulcro.server :as server]` - Fulcro server primitives.
-`[om.next :as om]` - Primary Om Next namespace
-`[om.dom :as dom]` - HTML5 React factories
-`[com.stuartsierra.component :as component]` - Component control and dependency injections
+- `[fulcro.client.core :as fc]`: Primary Fulcro namespace
+- `[fulcro.client.data-fetch :as df]`: Fulcro functions for loading data from remotes.
+- `[fulcro.client.mutations :as m]`: Fulcro mutations and mutation definition macro.
+- `[om.next :as om]`: Primary Om Next namespace
+- `[om.dom :as dom]`: HTML5 React factories
+- `[fulcro.server :as server]`: Fulcro server primitives.
+- `[fulcro.easy-server :as easy]`: Fulcro's one-step web server.
+- `[com.stuartsierra.component :as component]`: Component control and dependency injection
 
 == Defining Components
 
