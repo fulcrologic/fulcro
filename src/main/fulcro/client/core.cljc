@@ -549,6 +549,7 @@
                                    to-many?     (and (vector? state-params) (every? map? state-params))
                                    child-class  (get children k)]
                                (cond
+                                 (not (or to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
                                  to-one? `(fulcro.client.core/get-initial-state ~child-class ~(parameterized state-params))
                                  to-many? (mapv (fn [params]
                                                   `(fulcro.client.core/get-initial-state ~child-class ~(parameterized params)))
