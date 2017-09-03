@@ -102,7 +102,7 @@ especially if you intend to use children.
 - Every component that has state has it's *own* query. The following are errors:
   - `(query [this] (om/get-query OtherComponent))`
   - `(query [this] [(om/get-query OtherComponent)])`
-  - `(query [this] (concat (om/get-query OtherComponent) (om/get-query AnotherComponent))`
+  - `(query [this] [{:some-join (concat (om/get-query OtherComponent) (om/get-query AnotherComponent))}]`
 - Every child's query is composed in using an "invented" join name in the parent:
   - `(query [this] [{:invented-join-prop (om/get-query Child)}])`
 - Queries compose all the way to a single Root
