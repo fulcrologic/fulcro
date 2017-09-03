@@ -558,30 +558,101 @@
                        {:keys [~'onSelect]} (om.next/get-computed ~'this)
                        ~'c (om.next/children ~'this)]
                    (~'dom/div nil "Hello"))))))
-     (component "build-initial-state"
+     (component "make-state-map"
        (assertions
-         "Generates nothing if no map is supplied"
-         (#'fc/build-initial-state nil [:db/id] '{:person/job Job}) => nil
-         "Throws an exception if initial state contains things that are not in props/children"
-         (#'fc/build-initial-state {:thing 5} [:db/id] '{:person/job Job}) =throws=> (ExceptionInfo #"Initial state includes keys that are not")
-         "Generates proper initial state when given correct arguments"
-         (#'fc/build-initial-state {:db/id 4 :person/job {:id 1}} [:db/id] '{:person/job Job})
-         => `(~'static fulcro.client.core/InitialAppState
-               (~'initial-state [~'c ~'params] {:db/id 4 :person/job (fulcro.client.core/get-initial-state ~'Job {:id 1})}))
-         (#'fc/build-initial-state {:db/id 4 :person/job [{:id 1}]} [:db/id] '{:person/job Job})
-         => `(~'static fulcro.client.core/InitialAppState
-               (~'initial-state [~'c ~'params] {:db/id 4 :person/job [(fulcro.client.core/get-initial-state ~'Job {:id 1})]}))
-         (#'fc/build-initial-state {:db/id 4 :person/job [{:id 1} {:id 2}]} [:db/id] '{:person/job Job})
-         => `(~'static fulcro.client.core/InitialAppState
-               (~'initial-state [~'c ~'params] {:db/id 4 :person/job [(fulcro.client.core/get-initial-state ~'Job {:id 1})
-                                                                      (fulcro.client.core/get-initial-state ~'Job {:id 2})]}))
-         "Generates proper extraction code when a parameter should be used"
-         (#'fc/build-initial-state {:db/id :param/id :person/job [{:id :param/id1} {:id :param/id2}]} [:db/id] '{:person/job Job})
-         => `(~'static fulcro.client.core/InitialAppState
-               (~'initial-state [~'c ~'params] {:db/id      (:id ~'params)
-                                                :person/job [(fulcro.client.core/get-initial-state ~'Job {:id (:id1 ~'params)})
-                                                             (fulcro.client.core/get-initial-state ~'Job {:id (:id2 ~'params)})]}))
-         ))))
+         "Can initialize plain state from scalar values"
+         (fc/make-state-map {:db/id 1 :person/name "Tony"} {} nil) => {:db/id 1 :person/name "Tony"}
+         "Can initialize plain scalar values using parameters"
+         (fc/make-state-map {:db/id :param/id} {} {:id 1}) => {:db/id 1}
+         "Will elide properties from missing parameters"
+         (fc/make-state-map {:db/id :param/id :person/name "Tony"} {} nil) => {:person/name "Tony"}
+         "Can substitute parameters into nested maps (non-children)"
+         (fc/make-state-map {:scalar {:x :param/v}} {} {:v 1}) => {:scalar {:x 1}}
+         "Can substitute parameters into nested vectors (non-children)"
+         (fc/make-state-map {:scalar [:param/v]} {} {:v 1}) => {:scalar [1]}
+         "Will include properties from explicit nil parameters"
+         (fc/make-state-map {:db/id :param/id :person/name "Tony"} {} {:id nil}) => {:db/id nil :person/name "Tony"})
+       (when-mocking
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Obtains the child's initial state with the correct class and params"
+                                              c => :JOB
+                                              p => {:id 99})
+                                            :job-99)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Obtains the child's initial state with the correct class and params"
+                                              c => :JOB
+                                              p => :JOB-PARAMS)
+                                            :initialized-job)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Obtains the child's initial state with the correct class and params"
+                                              c => :JOB
+                                              p => {:id 4})
+                                            :initialized-job)
+
+         (assertions
+           "Supports to-one initialization"
+           (fc/make-state-map {:db/id 1 :person/job {:id 99}} {:person/job :JOB} nil) => {:db/id 1 :person/job :job-99}
+           "Supports to-one initialization from a parameter"
+           (fc/make-state-map {:db/id 1 :person/job :param/job} {:person/job :JOB} {:job :JOB-PARAMS}) => {:db/id 1 :person/job :initialized-job}
+           "supports to-one initialization from a map with nested parameters"
+           (fc/make-state-map {:db/id 1 :person/job {:id :param/job-id}} {:person/job :JOB} {:job-id 4})
+           => {:db/id 1 :person/job :initialized-job}))
+       (when-mocking
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the first element"
+                                              c => :JOB
+                                              p => {:id 1})
+                                            :job1)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the second element"
+                                              c => :JOB
+                                              p => {:id 2})
+                                            :job2)
+
+         (assertions
+           "supports non-parameterized to-many initialization"
+           (fc/make-state-map {:person/jobs [{:id 1} {:id 2}]}
+             {:person/jobs :JOB} nil) => {:person/jobs [:job1 :job2]}))
+       (when-mocking
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the first element"
+                                              c => :JOB
+                                              p => {:id 2})
+                                            :A)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the second element"
+                                              c => :JOB
+                                              p => {:id 3})
+                                            :B)
+
+         (assertions
+           "supports to-many initialization with nested parameters"
+           (fc/make-state-map {:db/id :param/id :person/jobs [{:id :param/id1} {:id :param/id2}]}
+             {:person/jobs :JOB} {:id 1 :id1 2 :id2 3}) => {:db/id 1 :person/jobs [:A :B]}))
+       (when-mocking
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the first element"
+                                              c => :JOB
+                                              p => {:id 1})
+                                            :A)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the second element"
+                                              c => :JOB
+                                              p => {:id 2})
+                                            :B)
+         (assertions
+           "supports to-many initialization with nested parameters"
+           (fc/make-state-map {:person/jobs :param/jobs}
+             {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
    (specification "defsc"
@@ -598,7 +669,12 @@
                        (dom/div nil "Boo")))
        => `(om.next/defui ~'Person
              ~'static fulcro.client.core/InitialAppState
-             (~'initial-state [~'c ~'params] {:db/id 42 :person/job (fulcro.client.core/get-initial-state ~'Job {:x 1})})
+             (~'initial-state [~'c ~'params]
+               (fulcro.client.core/make-state-map
+                 {:person/job {:x 1}
+                  :db/id      42}
+                 {:person/job ~'Job}
+                 ~'params))
              ~'static om.next/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
              ~'static om.next/IQuery

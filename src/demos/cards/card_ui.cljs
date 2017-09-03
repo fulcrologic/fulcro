@@ -5,7 +5,6 @@
     cards.autocomplete-cards
     cards.background-load-cards
     cards.component-local-state-cards
-    cards.convenience-macro-cards
     cards.colocated-css-cards
     cards.dynamic-i18n-locale-cards
     cards.dynamic-routing-cards

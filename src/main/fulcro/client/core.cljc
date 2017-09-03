@@ -529,6 +529,34 @@
                 ~childrensym (om.next/children ~thissym)]
             ~@body)))))
 
+(defn make-state-map
+  "Build a component's initial state using the defsc initial-state-data from
+  options, the children from options, and the params from the invocation of get-initial-state."
+  [initial-state children params]
+  (let [join-keys (set (keys children))
+        init-keys (set (keys initial-state))
+        is-child? (fn [k] (contains? join-keys k))
+        value-of  (fn value-of* [[k v]]
+                    (let [param-name    (fn [v] (and (keyword? v) (= "param" (namespace v)) (keyword (name v))))
+                          substitute    (fn [ele] (if-let [k (param-name ele)]
+                                                    (get params k)
+                                                    ele))
+                          param-key     (param-name v)
+                          param-exists? (contains? params param-key)
+                          param-value   (get params param-key)
+                          child-class   (get children k)]
+                      (cond
+                        (and param-key (not param-exists?)) nil
+                        (and (map? v) (is-child? k)) [k (get-initial-state child-class (into {} (keep value-of* v)))]
+                        (map? v) [k (into {} (keep value-of* v))]
+                        (and (vector? v) (is-child? k)) [k (mapv (fn [m] (get-initial-state child-class (into {} (keep value-of* m)))) v)]
+                        (and (vector? param-value) (is-child? k)) [k (mapv (fn [params] (get-initial-state child-class params)) param-value)]
+                        (vector? v) [k (mapv (fn [ele] (substitute ele)) v)]
+                        (and param-key (is-child? k) param-exists?) [k (get-initial-state child-class param-value)]
+                        param-key [k param-value]
+                        :else [k v])))]
+    (into {} (keep value-of initial-state))))
+
 #?(:clj
    (defn- build-initial-state [initial-state props children]
      (when initial-state
@@ -544,16 +572,18 @@
                                v))
              parameterized (fn [init-map] (into {} (map (fn [[k v]] (if-let [expr (param-expr v)] [k expr] [k v])) init-map)))
              child-state   (fn [k]
-                             (let [state-params (get initial-state k)
-                                   to-one?      (map? state-params)
-                                   to-many?     (and (vector? state-params) (every? map? state-params))
-                                   child-class  (get children k)]
+                             (let [state-params    (get initial-state k)
+                                   to-one?         (map? state-params)
+                                   to-many?        (and (vector? state-params) (every? map? state-params))
+                                   from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
+                                   child-class     (get children k)]
                                (cond
-                                 (not (or to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
+                                 (not (or from-parameter? to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
                                  to-one? `(fulcro.client.core/get-initial-state ~child-class ~(parameterized state-params))
                                  to-many? (mapv (fn [params]
                                                   `(fulcro.client.core/get-initial-state ~child-class ~(parameterized params)))
                                             state-params)
+                                 from-parameter? `(fulcro.client.core/get-initial-state ~child-class ~(param-expr state-params))
                                  :otherwise nil)))
              kv-pairs      (map (fn [k]
                                   [k (if (is-child? k)
@@ -563,8 +593,7 @@
          (when (seq illegal-keys)
            (throw (ex-info "Initial state includes keys that are not props or children" {:offending-keys illegal-keys})))
          `(~'static fulcro.client.core/InitialAppState
-            (~'initial-state [~'c ~'params] ~state-map))
-         ))))
+            (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children ~'params)))))))
 
 #?(:clj (s/def ::detail-map (s/keys :opt-un [::children ::props ::id ::table ::initial-state])))
 
