@@ -1,4 +1,5 @@
 (ns fulcro.client.core
+  #?(:cljs (:require-macros [fulcro.client.core :refer [defsc]]))
   (:require
     [om.next :as om]
     [fulcro.client.impl.application :as app]
@@ -12,7 +13,8 @@
     [fulcro.client.impl.om-plumbing :as plumbing]
     [clojure.set :as set]
     #?(:cljs [om.next.cache :as omc])
-    #?(:cljs [goog.dom :as gdom]))
+    #?(:cljs [goog.dom :as gdom])
+    [clojure.spec.alpha :as s])
   #?(:cljs (:import goog.Uri)))
 
 (declare map->Application merge-alternate-union-elements! merge-state! new-fulcro-client new-fulcro-test-client InitialAppState)
@@ -490,4 +492,115 @@
     (omp/queue! reconciler data-path-keys)
     @state))
 
+#?(:clj
+   (defn- build-query
+     "Build a query for a defsc component based on the detail map. Also error checks the propargs."
+     [propargs props children]
+     (assert (or (symbol? propargs) (map? propargs)) "Property args must be a symbol or destructuring expression.")
+     (let [joins             (map (fn [[k v]] {k `(om.next/get-query ~v)}) children)
+           to-keyword        (fn [s] (cond
+                                       (nil? s) nil
+                                       (keyword? s) s
+                                       :otherwise (let [nspc (namespace s)
+                                                        nm   (name s)]
+                                                    (keyword nspc nm))))
+           destructured-syms (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
+           legal-syms        (set (concat props (keys children)))
+           query             (vec (concat props joins))
+           to-sym            (fn [k] (symbol (namespace k) (name k)))
+           illegal-syms      (mapv to-sym (set/difference destructured-syms legal-syms))]
+       (when (seq illegal-syms)
+         (throw (ex-info "Syntax error in defsc. Destructured parameters do not name props or children." {:offending-symbols illegal-syms})))
+       `(~'static om.next/IQuery (~'query [~'this] ~query)))))
+
+#?(:clj
+   (defn- build-ident [id-prop table props]
+     (cond
+       (nil? table) nil
+       (not (contains? (set props) id-prop)) (throw (ex-info "ID property must appear in props (defaults to :db/id)" {}))
+       :otherwise `(~'static om.next/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))
+
+#?(:clj
+   (defn- build-render [thissym propsym compsym childrensym body]
+     `(~'Object
+        (~'render [~thissym]
+          (let [~propsym (om.next/props ~thissym)
+                ~compsym (om.next/get-computed ~thissym)
+                ~childrensym (om.next/children ~thissym)]
+            ~@body)))))
+
+#?(:clj
+   (defn- build-initial-state [initial-state props children]
+     (when initial-state
+       (let [join-keys     (set (keys children))
+             legal-keys    (set (concat props join-keys))
+             init-keys     (set (keys initial-state))
+             illegal-keys  (set/difference init-keys legal-keys)
+             is-child?     (fn [k] (contains? join-keys k))
+             param-expr    (fn [v]
+                             (if-let [kw (and (keyword? v) (= "param" (namespace v))
+                                           (keyword (name v)))]
+                               `(~kw ~'params)
+                               v))
+             parameterized (fn [init-map] (into {} (map (fn [[k v]] (if-let [expr (param-expr v)] [k expr] [k v])) init-map)))
+             child-state   (fn [k]
+                             (let [state-params (get initial-state k)
+                                   to-one?      (map? state-params)
+                                   to-many?     (and (vector? state-params) (every? map? state-params))
+                                   child-class  (get children k)]
+                               (cond
+                                 to-one? `(fulcro.client.core/get-initial-state ~child-class ~(parameterized state-params))
+                                 to-many? (mapv (fn [params]
+                                                  `(fulcro.client.core/get-initial-state ~child-class ~(parameterized params)))
+                                            state-params)
+                                 :otherwise nil)))
+             kv-pairs      (map (fn [k]
+                                  [k (if (is-child? k)
+                                       (child-state k)
+                                       (param-expr (get initial-state k)))]) init-keys)
+             state-map     (into {} kv-pairs)]
+         (when (seq illegal-keys)
+           (throw (ex-info "Initial state includes keys that are not props or children" {:offending-keys illegal-keys})))
+         `(~'static fulcro.client.core/InitialAppState
+            (~'initial-state [~'c ~'params] ~state-map))
+         ))))
+
+#?(:clj (s/def ::detail-map (s/keys :opt-un [::children ::props ::id ::table ::initial-state])))
+
+#?(:clj (s/def ::defsc-args (s/cat
+                              :sym symbol?
+                              :doc (s/? string?)
+                              :arglist (s/and vector? #(= 4 (count %)))
+                              :detail-map ::detail-map
+                              :body (s/+ (constantly true)))))
+
+#?(:clj
+   (defn defsc*
+     [args]
+     (let [{:keys [sym doc arglist detail-map body]} (s/conform ::defsc-args args)
+           [thissym propsym computedsym childrensym] arglist
+           {:keys [id table props children initial-state] :or {id :db/id props [] children {}}} detail-map
+           ident-forms  (build-ident id table props)
+           state-forms  (build-initial-state initial-state props children)
+           query-forms  (build-query propsym props children)
+           render-forms (build-render thissym propsym computedsym childrensym body)]
+       `(om.next/defui ~(with-meta sym {:once true})
+          ~@state-forms
+          ~@ident-forms
+          ~@query-forms
+          ~@render-forms))))
+
+#?(:clj
+   (defmacro defsc
+     "(defsc Component
+        docstring
+        [this props computed children]
+        body)"
+     [& args]
+     (let [location (str (:file (meta &form)) ":" (:line (meta &form)))]
+       (assert (s/valid? ::defsc-args args) (str "Syntax error in `defsc` at " location))
+       (try
+         (defsc* args)
+         (catch Exception e
+           (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
 
