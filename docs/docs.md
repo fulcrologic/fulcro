@@ -13,6 +13,11 @@ The [Developer's Guide](guide.html) is interactive. You can view it online, but 
 It includes coding exercises and covers most topics in great detail.
 It is written in an order that most naturally fits what you'll need to know as you progress in your use of Fulcro.
 
+## Cheat Sheet
+
+A quick summary of common calls and such are laid out in a concise form
+in the [Cheat Sheet](https://github.com/fulcrologic/fulcro/blob/develop/docs/CheatSheet.adoc)
+
 ## Video Guides
 
 There are a number of helpful videos on Fulcro:

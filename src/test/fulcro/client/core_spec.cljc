@@ -7,7 +7,9 @@
     [clojure.core.async :as async]
     [fulcro.client.logging :as log]
     [fulcro.client.impl.om-plumbing :as plumbing]
-    [fulcro.client.util :as util]))
+    [fulcro.client.util :as util])
+  #?(:clj
+     (:import (clojure.lang ExceptionInfo))))
 
 (defui ^:once Child
   static om/Ident
@@ -263,11 +265,11 @@
 
              (fc/mount* mock-app RootWithState :dom-id)))
          (let [explicit-non-empty-map {:a 1}
-               mock-app {:mounted? false :initial-state explicit-non-empty-map :reconciler-options :OPTIONS}]
+               mock-app               {:mounted? false :initial-state explicit-non-empty-map :reconciler-options :OPTIONS}]
            (behavior "When an explicit non-empty map and InitialAppState are present:"
              (when-mocking
                (log/debug msg) =1x=> (assertions "warns about duplicate initialization"
-                                      msg =fn=> (partial re-matches #"^NOTE: You supplied.*"))
+                                       msg =fn=> (partial re-matches #"^NOTE: You supplied.*"))
                (fc/initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Prefers the *explicit* state"
@@ -275,11 +277,11 @@
 
                (fc/mount* mock-app RootWithState :dom-id))))
          (let [supplied-atom (atom {})
-               mock-app {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
+               mock-app      {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
            (behavior "When an explicit atom and InitialAppState are present:"
              (when-mocking
                (log/debug msg) =1x=> (assertions "warns about duplicate initialization"
-                                      msg =fn=> (partial re-matches #"^NOTE: You supplied.*"))
+                                       msg =fn=> (partial re-matches #"^NOTE: You supplied.*"))
                (fc/initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Prefers the *explicit* state"
@@ -522,3 +524,198 @@
       (get new-state :a) => 1
       (get new-state :reports) => [:graph 1]
       (get-in new-state [:graph 1]) => graph-1)))
+
+#?(:clj
+   (specification "defsc helpers" :focused
+     (component "build-query"
+       (assertions
+         "Composes properties and joins into a proper query expression as a list of defui forms"
+         (#'fc/build-query 'props '[:db/id :person/name] '{:person/job Job :person/settings Settings})
+         => `(~'static om.next/IQuery (~'query [~'this]
+                                        [:db/id :person/name {:person/job (om.next/get-query ~'Job)}
+                                         {:person/settings (om.next/get-query ~'Settings)}]))
+         "Verifies the propargs matches queries data when not a symbol"
+         (#'fc/build-query '{:keys [db/id person/nme person/job]} '[:db/id :person/name] '{:person/job Job})
+         =throws=> (ExceptionInfo #"Destructured parameters" (fn [e]
+                                                               (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
+     (component "build-ident"
+       (assertions
+         "Generates nothing when there is no table"
+         (#'fc/build-ident :db/id nil []) => nil
+         (#'fc/build-ident :id nil [:boo]) => nil
+         "Requires the ID to be in the declared props"
+         (#'fc/build-ident :id :TABLE/by-id []) =throws=> (ExceptionInfo #"ID property must appear in props")
+         "Generates a list of forms to emit as the ident function"
+         (#'fc/build-ident :id :TABLE/by-id [:id])
+         => `(~'static om.next/Ident (~'ident [~'this ~'props] [:TABLE/by-id (:id ~'props)]))))
+     (component "build-render"
+       (assertions
+         "emits a list of forms for the render itself"
+         (#'fc/build-render 'this {:keys ['a]} {:keys ['onSelect]} 'c '((dom/div nil "Hello")))
+         => `(~'Object
+               (~'render [~'this]
+                 (let [{:keys [~'a]} (om.next/props ~'this)
+                       {:keys [~'onSelect]} (om.next/get-computed ~'this)
+                       ~'c (om.next/children ~'this)]
+                   (~'dom/div nil "Hello"))))))
+     (component "make-state-map"
+       (assertions
+         "Can initialize plain state from scalar values"
+         (fc/make-state-map {:db/id 1 :person/name "Tony"} {} nil) => {:db/id 1 :person/name "Tony"}
+         "Can initialize plain scalar values using parameters"
+         (fc/make-state-map {:db/id :param/id} {} {:id 1}) => {:db/id 1}
+         "Will elide properties from missing parameters"
+         (fc/make-state-map {:db/id :param/id :person/name "Tony"} {} nil) => {:person/name "Tony"}
+         "Can substitute parameters into nested maps (non-children)"
+         (fc/make-state-map {:scalar {:x :param/v}} {} {:v 1}) => {:scalar {:x 1}}
+         "Can substitute parameters into nested vectors (non-children)"
+         (fc/make-state-map {:scalar [:param/v]} {} {:v 1}) => {:scalar [1]}
+         "Will include properties from explicit nil parameters"
+         (fc/make-state-map {:db/id :param/id :person/name "Tony"} {} {:id nil}) => {:db/id nil :person/name "Tony"})
+       (when-mocking
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Obtains the child's initial state with the correct class and params"
+                                              c => :JOB
+                                              p => {:id 99})
+                                            :job-99)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Obtains the child's initial state with the correct class and params"
+                                              c => :JOB
+                                              p => :JOB-PARAMS)
+                                            :initialized-job)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Obtains the child's initial state with the correct class and params"
+                                              c => :JOB
+                                              p => {:id 4})
+                                            :initialized-job)
+
+         (assertions
+           "Supports to-one initialization"
+           (fc/make-state-map {:db/id 1 :person/job {:id 99}} {:person/job :JOB} nil) => {:db/id 1 :person/job :job-99}
+           "Supports to-one initialization from a parameter"
+           (fc/make-state-map {:db/id 1 :person/job :param/job} {:person/job :JOB} {:job :JOB-PARAMS}) => {:db/id 1 :person/job :initialized-job}
+           "supports to-one initialization from a map with nested parameters"
+           (fc/make-state-map {:db/id 1 :person/job {:id :param/job-id}} {:person/job :JOB} {:job-id 4})
+           => {:db/id 1 :person/job :initialized-job}))
+       (when-mocking
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the first element"
+                                              c => :JOB
+                                              p => {:id 1})
+                                            :job1)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the second element"
+                                              c => :JOB
+                                              p => {:id 2})
+                                            :job2)
+
+         (assertions
+           "supports non-parameterized to-many initialization"
+           (fc/make-state-map {:person/jobs [{:id 1} {:id 2}]}
+             {:person/jobs :JOB} nil) => {:person/jobs [:job1 :job2]}))
+       (when-mocking
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the first element"
+                                              c => :JOB
+                                              p => {:id 2})
+                                            :A)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the second element"
+                                              c => :JOB
+                                              p => {:id 3})
+                                            :B)
+
+         (assertions
+           "supports to-many initialization with nested parameters"
+           (fc/make-state-map {:db/id :param/id :person/jobs [{:id :param/id1} {:id :param/id2}]}
+             {:person/jobs :JOB} {:id 1 :id1 2 :id2 3}) => {:db/id 1 :person/jobs [:A :B]}))
+       (when-mocking
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the first element"
+                                              c => :JOB
+                                              p => {:id 1})
+                                            :A)
+         (fc/get-initial-state c p) =1x=> (do
+                                            (assertions
+                                              "Uses parameters for the second element"
+                                              c => :JOB
+                                              p => {:id 2})
+                                            :B)
+         (assertions
+           "supports to-many initialization with nested parameters"
+           (fc/make-state-map {:person/jobs :param/jobs}
+             {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
+
+#?(:clj
+   (specification "defsc"
+     (assertions
+       "works with initial state"
+       (#'fc/defsc* '(Person
+                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
+                       {:props         [:db/id]
+                        :children      {:person/job Job}
+                        :initial-state {:person/job {:x 1}
+                                        :db/id      42}
+                        :id            :db/id
+                        :table         :PERSON/by-id}
+                       (dom/div nil "Boo")))
+       => `(om.next/defui ~'Person
+             ~'static fulcro.client.core/InitialAppState
+             (~'initial-state [~'c ~'params]
+               (fulcro.client.core/make-state-map
+                 {:person/job {:x 1}
+                  :db/id      42}
+                 {:person/job ~'Job}
+                 ~'params))
+             ~'static om.next/Ident
+             (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
+             ~'static om.next/IQuery
+             (~'query [~'this] [:db/id {:person/job (om.next/get-query ~'Job)}])
+             ~'Object
+             (~'render [~'this]
+               (let [{:keys [~'person/job ~'db/id] :as ~'props} (om.next/props ~'this)
+                     {:keys [~'onSelect] :as ~'computed} (om.next/get-computed ~'this)
+                     ~'children (om.next/children ~'this)]
+                 (~'dom/div nil "Boo"))))
+       "works without initial state"
+       (fc/defsc* '(Person
+                     [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
+                     {:props    [:db/id]
+                      :children {:person/job Job}
+                      :id       :db/id
+                      :table    :PERSON/by-id}
+                     (dom/div nil "Boo")))
+       => `(om.next/defui ~'Person
+             ~'static om.next/Ident
+             (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
+             ~'static om.next/IQuery
+             (~'query [~'this] [:db/id {:person/job (om.next/get-query ~'Job)}])
+             ~'Object
+             (~'render [~'this]
+               (let [{:keys [~'person/job ~'db/id] :as ~'props} (om.next/props ~'this)
+                     {:keys [~'onSelect] :as ~'computed} (om.next/get-computed ~'this)
+                     ~'children (om.next/children ~'this)]
+                 (~'dom/div nil "Boo"))))
+       "works without an ident"
+       (fc/defsc* '(Person
+                     [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
+                     {:props    [:db/id]
+                      :children {:person/job Job}}
+                     (dom/div nil "Boo")))
+       => `(om.next/defui ~'Person
+             ~'static om.next/IQuery
+             (~'query [~'this] [:db/id {:person/job (om.next/get-query ~'Job)}])
+             ~'Object
+             (~'render [~'this]
+               (let [{:keys [~'person/job ~'db/id] :as ~'props} (om.next/props ~'this)
+                     {:keys [~'onSelect] :as ~'computed} (om.next/get-computed ~'this)
+                     ~'children (om.next/children ~'this)]
+                 (~'dom/div nil "Boo")))))))

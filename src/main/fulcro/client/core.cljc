@@ -1,4 +1,5 @@
 (ns fulcro.client.core
+  #?(:cljs (:require-macros [fulcro.client.core :refer [defsc]]))
   (:require
     [om.next :as om]
     [fulcro.client.impl.application :as app]
@@ -12,7 +13,8 @@
     [fulcro.client.impl.om-plumbing :as plumbing]
     [clojure.set :as set]
     #?(:cljs [om.next.cache :as omc])
-    #?(:cljs [goog.dom :as gdom]))
+    #?(:cljs [goog.dom :as gdom])
+    [clojure.spec.alpha :as s])
   #?(:cljs (:import goog.Uri)))
 
 (declare map->Application merge-alternate-union-elements! merge-state! new-fulcro-client new-fulcro-test-client InitialAppState)
@@ -490,4 +492,177 @@
     (omp/queue! reconciler data-path-keys)
     @state))
 
+#?(:clj
+   (defn- build-query
+     "Build a query for a defsc component based on the detail map. Also error checks the propargs."
+     [propargs props children]
+     (assert (or (symbol? propargs) (map? propargs)) "Property args must be a symbol or destructuring expression.")
+     (let [joins             (map (fn [[k v]] {k `(om.next/get-query ~v)}) children)
+           to-keyword        (fn [s] (cond
+                                       (nil? s) nil
+                                       (keyword? s) s
+                                       :otherwise (let [nspc (namespace s)
+                                                        nm   (name s)]
+                                                    (keyword nspc nm))))
+           destructured-syms (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
+           legal-syms        (set (concat props (keys children)))
+           query             (vec (concat props joins))
+           to-sym            (fn [k] (symbol (namespace k) (name k)))
+           illegal-syms      (mapv to-sym (set/difference destructured-syms legal-syms))]
+       (when (seq illegal-syms)
+         (throw (ex-info "Syntax error in defsc. Destructured parameters do not name props or children." {:offending-symbols illegal-syms})))
+       `(~'static om.next/IQuery (~'query [~'this] ~query)))))
+
+#?(:clj
+   (defn- build-ident [id-prop table props]
+     (cond
+       (nil? table) nil
+       (not (contains? (set props) id-prop)) (throw (ex-info "ID property must appear in props (defaults to :db/id)" {}))
+       :otherwise `(~'static om.next/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))
+
+#?(:clj
+   (defn- build-render [thissym propsym compsym childrensym body]
+     `(~'Object
+        (~'render [~thissym]
+          (let [~propsym (om.next/props ~thissym)
+                ~compsym (om.next/get-computed ~thissym)
+                ~childrensym (om.next/children ~thissym)]
+            ~@body)))))
+
+(defn make-state-map
+  "Build a component's initial state using the defsc initial-state-data from
+  options, the children from options, and the params from the invocation of get-initial-state."
+  [initial-state children params]
+  (let [join-keys (set (keys children))
+        init-keys (set (keys initial-state))
+        is-child? (fn [k] (contains? join-keys k))
+        value-of  (fn value-of* [[k v]]
+                    (let [param-name    (fn [v] (and (keyword? v) (= "param" (namespace v)) (keyword (name v))))
+                          substitute    (fn [ele] (if-let [k (param-name ele)]
+                                                    (get params k)
+                                                    ele))
+                          param-key     (param-name v)
+                          param-exists? (contains? params param-key)
+                          param-value   (get params param-key)
+                          child-class   (get children k)]
+                      (cond
+                        (and param-key (not param-exists?)) nil
+                        (and (map? v) (is-child? k)) [k (get-initial-state child-class (into {} (keep value-of* v)))]
+                        (map? v) [k (into {} (keep value-of* v))]
+                        (and (vector? v) (is-child? k)) [k (mapv (fn [m] (get-initial-state child-class (into {} (keep value-of* m)))) v)]
+                        (and (vector? param-value) (is-child? k)) [k (mapv (fn [params] (get-initial-state child-class params)) param-value)]
+                        (vector? v) [k (mapv (fn [ele] (substitute ele)) v)]
+                        (and param-key (is-child? k) param-exists?) [k (get-initial-state child-class param-value)]
+                        param-key [k param-value]
+                        :else [k v])))]
+    (into {} (keep value-of initial-state))))
+
+#?(:clj
+   (defn- build-initial-state [initial-state props children]
+     (when initial-state
+       (let [join-keys     (set (keys children))
+             legal-keys    (set (concat props join-keys))
+             init-keys     (set (keys initial-state))
+             illegal-keys  (set/difference init-keys legal-keys)
+             is-child?     (fn [k] (contains? join-keys k))
+             param-expr    (fn [v]
+                             (if-let [kw (and (keyword? v) (= "param" (namespace v))
+                                           (keyword (name v)))]
+                               `(~kw ~'params)
+                               v))
+             parameterized (fn [init-map] (into {} (map (fn [[k v]] (if-let [expr (param-expr v)] [k expr] [k v])) init-map)))
+             child-state   (fn [k]
+                             (let [state-params    (get initial-state k)
+                                   to-one?         (map? state-params)
+                                   to-many?        (and (vector? state-params) (every? map? state-params))
+                                   from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
+                                   child-class     (get children k)]
+                               (cond
+                                 (not (or from-parameter? to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
+                                 to-one? `(fulcro.client.core/get-initial-state ~child-class ~(parameterized state-params))
+                                 to-many? (mapv (fn [params]
+                                                  `(fulcro.client.core/get-initial-state ~child-class ~(parameterized params)))
+                                            state-params)
+                                 from-parameter? `(fulcro.client.core/get-initial-state ~child-class ~(param-expr state-params))
+                                 :otherwise nil)))
+             kv-pairs      (map (fn [k]
+                                  [k (if (is-child? k)
+                                       (child-state k)
+                                       (param-expr (get initial-state k)))]) init-keys)
+             state-map     (into {} kv-pairs)]
+         (when (seq illegal-keys)
+           (throw (ex-info "Initial state includes keys that are not props or children" {:offending-keys illegal-keys})))
+         `(~'static fulcro.client.core/InitialAppState
+            (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children ~'params)))))))
+
+#?(:clj (s/def ::detail-map (s/keys :opt-un [::children ::props ::id ::table ::initial-state])))
+
+#?(:clj (s/def ::defsc-args (s/cat
+                              :sym symbol?
+                              :doc (s/? string?)
+                              :arglist (s/and vector? #(= 4 (count %)))
+                              :detail-map ::detail-map
+                              :body (s/+ (constantly true)))))
+
+#?(:clj
+   (defn defsc*
+     [args]
+     (let [{:keys [sym doc arglist detail-map body]} (s/conform ::defsc-args args)
+           [thissym propsym computedsym childrensym] arglist
+           {:keys [id table props children initial-state] :or {id :db/id props [] children {}}} detail-map
+           ident-forms  (build-ident id table props)
+           state-forms  (build-initial-state initial-state props children)
+           query-forms  (build-query propsym props children)
+           render-forms (build-render thissym propsym computedsym childrensym body)]
+       `(om.next/defui ~(with-meta sym {:once true})
+          ~@state-forms
+          ~@ident-forms
+          ~@query-forms
+          ~@render-forms))))
+
+#?(:clj
+   (defmacro ^{:doc      "Define a statful component. This macro emits a React UI component with a query,
+   optional ident (if :table is specified in options), optional initial state, and a render method.
+
+   The argument list can include destructuring to pull items from props or computed. `children` will be a
+   sequence (possibly nil) of child react components that were passed to the component's factory.
+
+   Following the argument list is an options map:
+
+   ```
+   (defsc Component [this props computed children]
+      { :props [:db/id :component/x]
+        :children {:component/child Child
+                   :component/other Other }
+        :table :COMPONENT/by-id
+        :id :db/id
+        :initial-state {:db/id 4 :component/Child {} :component/other [{}]} }
+      body)
+   ```
+
+   The options map supplies the necessary information to build the component's ident, query, initial state, and
+   render method. It is also used to error check your code. For example, you may destructure props:
+
+   ```
+   (defsc Component [this {:keys [db/id component/x] :as props} computed children]
+      { :props [:db/id :component/x]
+      ...)
+   ```
+
+   If the destructuring of props tries to pull data that the options map does not list as a prop or child, an error will
+   result at compile time, alerting you to your error. Many other things are also checked (that you query for the ID
+   field, that initial state only initializes things you query, etc.). This can prevent a lot of common errors when
+   building your UI.
+
+   NOTE: `defsc` automatically declares your component with `:once` metadata for hot code reload.
+   "
+               :arglists '([this dbprops computedprops children])}
+   defsc
+     [& args]
+     (let [location (str (:file (meta &form)) ":" (:line (meta &form)))]
+       (assert (s/valid? ::defsc-args args) (str "Syntax error in `defsc` at " location))
+       (try
+         (defsc* args)
+         (catch Exception e
+           (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
 
