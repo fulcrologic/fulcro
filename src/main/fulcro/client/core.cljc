@@ -591,11 +591,43 @@
           ~@render-forms))))
 
 #?(:clj
-   (defmacro defsc
-     "(defsc Component
-        docstring
-        [this props computed children]
-        body)"
+   (defmacro ^{:doc      "Define a statful component. This macro emits a React UI component with a query,
+   optional ident (if :table is specified in options), optional initial state, and a render method.
+
+   The argument list can include destructuring to pull items from props or computed. `children` will be a
+   sequence (possibly nil) of child react components that were passed to the component's factory.
+
+   Following the argument list is an options map:
+
+   ```
+   (defsc Component [this props computed children]
+      { :props [:db/id :component/x]
+        :children {:component/child Child
+                   :component/other Other }
+        :table :COMPONENT/by-id
+        :id :db/id
+        :initial-state {:db/id 4 :component/Child {} :component/other [{}]} }
+      body)
+   ```
+
+   The options map supplies the necessary information to build the component's ident, query, initial state, and
+   render method. It is also used to error check your code. For example, you may destructure props:
+
+   ```
+   (defsc Component [this {:keys [db/id component/x] :as props} computed children]
+      { :props [:db/id :component/x]
+      ...)
+   ```
+
+   If the destructuring of props tries to pull data that the options map does not list as a prop or child, an error will
+   result at compile time, alerting you to your error. Many other things are also checked (that you query for the ID
+   field, that initial state only initializes things you query, etc.). This can prevent a lot of common errors when
+   building your UI.
+
+   NOTE: `defsc` automatically declares your component with `:once` metadata for hot code reload.
+   "
+               :arglists '([this dbprops computedprops children])}
+   defsc
      [& args]
      (let [location (str (:file (meta &form)) ":" (:line (meta &form)))]
        (assert (s/valid? ::defsc-args args) (str "Syntax error in `defsc` at " location))
