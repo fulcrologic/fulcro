@@ -1,7 +1,7 @@
 1.0.0-beta10
 ------------
 - Fixed a bug in logging where the clj and cljs API didn't match
-- Added `defsc` macro to core namespace
+- Added `defsc` macro to core namespace and documented in devguide section M05
 - Added a cheat sheet to docs
 - Added mutation helper comments to routing section of devguide
 
