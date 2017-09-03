@@ -15,15 +15,19 @@
   (dom/div nil
     name))
 
-(defui GeneratedPerson
+(defui ^:once GeneratedPerson
+  ; a :param/name turns into (:name params)
   static fc/InitialAppState
   (initial-state [c params] {:db/id (:id params) :person/name (:name params)})
+  ; combo of :table and :id (defaults to db/id) options. Not generated if :table is missing
   static om/Ident
   (ident [this props] [:PERSON/by-id (:db/id props)])
+  ; combo of :props and :children (as joins)
   static om/IQuery
   (query [this] [:db/id :person/name])
   Object
   (render [this]
+    ; Argument list is morphed into a `let`
     (let [{:keys [db/id person/name]} (om/props this)
           computed (om/get-computed this)
           children (om/children this)]
@@ -40,7 +44,7 @@
   (dom/div #js {:key react-key}
     (mapv ui-person people)))
 
-(defui GeneratedRoot
+(defui ^:once GeneratedRoot
   static fc/InitialAppState
   (initial-state [c params] {:people [(fc/get-initial-state Person {:id 1 :name "Tony"})
                                       (fc/get-initial-state Person {:id 2 :name "Sam"})
@@ -59,6 +63,9 @@
   Fulcro includes a macro, `defsc`, that can build an syntax-checked component with the most common elements:
   ident (optional), query, render, and initial state (optional). The syntax checking prevents a lot of the most
   common errors when writing a component, and the concise syntax reduces boilerplate to the essential novelty.
+
+  The parameter list can by used to do full Clojure destructuring on the props, computed, and children without
+  having to write a separate `let`.
 
   For example, one could specify `Person` like so:"
   (dc/mkdn-pprint-source Person)
@@ -81,6 +88,5 @@
   See the docstring on the macro (or the source of this card file) for more details.")
 
 (defcard-fulcro demo-card
-
   Root)
 

@@ -591,14 +591,14 @@
                        [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
                        {:props         [:db/id]
                         :children      {:person/job Job}
-                        :initial-state {:person/job Job
+                        :initial-state {:person/job {:x 1}
                                         :db/id      42}
                         :id            :db/id
                         :table         :PERSON/by-id}
                        (dom/div nil "Boo")))
        => `(om.next/defui ~'Person
              ~'static fulcro.client.core/InitialAppState
-             (~'initial-state [~'c ~'params] {:db/id 42 :person/job (fulcro.client.core/get-initial-state ~'Job {})})
+             (~'initial-state [~'c ~'params] {:db/id 42 :person/job (fulcro.client.core/get-initial-state ~'Job {:x 1})})
              ~'static om.next/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
              ~'static om.next/IQuery
