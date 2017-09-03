@@ -558,7 +558,7 @@
     (into {} (keep value-of initial-state))))
 
 #?(:clj
-   (defn- build-initial-state [initial-state props children]
+   (defn- build-initial-state [sym initial-state props children is-a-form?]
      (when initial-state
        (let [join-keys     (set (keys children))
              legal-keys    (set (concat props join-keys))
@@ -592,8 +592,11 @@
              state-map     (into {} kv-pairs)]
          (when (seq illegal-keys)
            (throw (ex-info "Initial state includes keys that are not props or children" {:offending-keys illegal-keys})))
-         `(~'static fulcro.client.core/InitialAppState
-            (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children ~'params)))))))
+         (if is-a-form?
+           `(~'static fulcro.client.core/InitialAppState
+              (~'initial-state [~'c ~'params] (fulcro.ui.forms/build-form ~sym (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))
+           `(~'static fulcro.client.core/InitialAppState
+              (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))))))
 
 #?(:clj (s/def ::detail-map (s/keys :opt-un [::children ::props ::id ::table ::initial-state])))
 
@@ -605,19 +608,27 @@
                               :body (s/+ (constantly true)))))
 
 #?(:clj
+   (defn- build-form [form-fields]
+     (when form-fields
+       `(~'static ~'fulcro.ui.forms/IForm
+          (~'form-spec [~'this] ~form-fields)))))
+
+#?(:clj
    (defn defsc*
      [args]
      (let [{:keys [sym doc arglist detail-map body]} (s/conform ::defsc-args args)
            [thissym propsym computedsym childrensym] arglist
-           {:keys [id table props children initial-state] :or {id :db/id props [] children {}}} detail-map
+           {:keys [id table props children initial-state form-fields] :or {id :db/id props [] children {}}} detail-map
            ident-forms  (build-ident id table props)
-           state-forms  (build-initial-state initial-state props children)
+           state-forms  (build-initial-state sym initial-state props children (boolean (seq form-fields)))
            query-forms  (build-query propsym props children)
+           form-forms   (build-form form-fields)
            render-forms (build-render thissym propsym computedsym childrensym body)]
        `(om.next/defui ~(with-meta sym {:once true})
           ~@state-forms
           ~@ident-forms
           ~@query-forms
+          ~@form-forms
           ~@render-forms))))
 
 #?(:clj
@@ -634,14 +645,15 @@
       { :props [:db/id :component/x]
         :children {:component/child Child
                    :component/other Other }
+        :form-fields [(f/id-field :db/id) ...] ; See IForm in forms for description of form fields
         :table :COMPONENT/by-id
         :id :db/id
         :initial-state {:db/id 4 :component/Child {} :component/other [{}]} }
       body)
    ```
 
-   The options map supplies the necessary information to build the component's ident, query, initial state, and
-   render method. It is also used to error check your code. For example, you may destructure props:
+   The options map supplies the necessary information to build the component's ident, query, initial state,
+   render method, and form support. It is also used to error check your code. For example, you may destructure props:
 
    ```
    (defsc Component [this {:keys [db/id component/x] :as props} computed children]

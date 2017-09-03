@@ -4,7 +4,8 @@
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.core :as fc :refer [defsc]]
     [om.dom :as dom]
-    [om.next :as om :refer [defui]]))
+    [om.next :as om :refer [defui]]
+    [fulcro.ui.forms :as f]))
 
 (defsc Job
   "A job component"
@@ -35,7 +36,7 @@
       (when prior-jobs
         (dom/li nil "Prior Jobs: "
           (dom/ul nil
-            (map (fn [j] (dom/li nil (ui-job j))) prior-jobs)))))))
+            (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs)))))))
 
 (om.next/defui GeneratedPerson
   static fc/InitialAppState
