@@ -3,6 +3,7 @@
     [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.core :as fc :refer [defsc]]
+    [cljs.spec.alpha :as s]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
     [fulcro.ui.forms :as f]))
@@ -125,6 +126,28 @@
      (dom/div nil ...))
   ```
 
+  ## Additional Protocol Support
+
+  The main options map covers all of the common built-in protocols that you would include on `defui`. If you need
+  to include additional protocols (or lifecycle React methods) then you can use the `:protocols` option. It takes
+  a list of forms that have the same shape as the body of the normal defui. `Object` methods will be properly
+  combined with the generated `render`:
+
+  ```
+  (defsc MyComponent
+     [this props computed children]
+     {:protocols (Object
+                  (shouldComponentUpdate [this next-props next-state] true)
+                  static css/CSS
+                  (local-rules [_] [])
+                  (include-children [_] []))
+      ...}
+     (dom/div nil ...))
+  ```
+
+  This gives you the full features of `defui`, but you only need the extra protocol additions when you use
+  methods and protocols beyond the central ones.
+
   ## Sanity Checking
 
   Feel free to edit the components in this source file and try out the sanity checking. For example, try:
@@ -138,3 +161,4 @@
   See the docstring on the macro (or the source of this card file) for more details.")
 
 (defcard-fulcro demo-card Root {} {:inspect-data false})
+

@@ -607,6 +607,10 @@
                               :detail-map ::detail-map
                               :body (s/+ (constantly true)))))
 
+#?(:clj (s/def ::static #{'static}))
+#?(:clj (s/def ::protocol-method list?))
+#?(:clj (s/def ::protocols (s/* (s/cat :static (s/? ::static) :protocol symbol? :methods (s/+ ::protocol-method)))))
+
 #?(:clj
    (defn- build-form [form-fields]
      (when form-fields
@@ -618,18 +622,30 @@
      [args]
      (let [{:keys [sym doc arglist detail-map body]} (s/conform ::defsc-args args)
            [thissym propsym computedsym childrensym] arglist
-           {:keys [id table props children initial-state form-fields] :or {id :db/id props [] children {}}} detail-map
-           ident-forms  (build-ident id table props)
-           state-forms  (build-initial-state sym initial-state props children (boolean (seq form-fields)))
-           query-forms  (build-query propsym props children)
-           form-forms   (build-form form-fields)
-           render-forms (build-render thissym propsym computedsym childrensym body)]
+           {:keys [id table props children initial-state form-fields protocols] :or {id :db/id props [] children {}}} detail-map
+           parsed-protocols (when protocols (group-by :protocol (s/conform ::protocols protocols)))
+           object-methods   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
+           addl-protocols   (some->> (dissoc parsed-protocols 'Object)
+                              vals
+                              (map (fn [[v]]
+                                     (if (contains? v :static)
+                                       (concat ['static (:protocol v)] (:methods v))
+                                       (concat [(:protocol v)] (:methods v)))))
+                              (mapcat identity))
+           ident-forms      (build-ident id table props)
+           state-forms      (build-initial-state sym initial-state props children (boolean (seq form-fields)))
+           query-forms      (build-query propsym props children)
+           form-forms       (build-form form-fields)
+           render-forms     (build-render thissym propsym computedsym childrensym body)]
+       (assert (or (nil? protocols) (s/valid? ::protocols protocols)) "Protocols must be valid protocol declarations")
        `(om.next/defui ~(with-meta sym {:once true})
+          ~@addl-protocols
           ~@state-forms
           ~@ident-forms
           ~@query-forms
           ~@form-forms
-          ~@render-forms))))
+          ~@render-forms
+          ~@object-methods))))
 
 #?(:clj
    (defmacro ^{:doc      "Define a statful component. This macro emits a React UI component with a query,

@@ -655,7 +655,7 @@
              {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
-   (specification "defsc"
+   (specification "defsc" :focused
      (assertions
        "works with initial state"
        (#'fc/defsc* '(Person
@@ -704,6 +704,45 @@
                      {:keys [~'onSelect] :as ~'computed} (om.next/get-computed ~'this)
                      ~'children (om.next/children ~'this)]
                  (~'dom/div nil "Boo"))))
+       "allows Object protocol"
+       (fc/defsc* '(Person
+                     [this props computed children]
+                     {:props     [:db/id]
+                      :protocols (Object (shouldComponentUpdate [this p s] false))}
+                     (dom/div nil "Boo")))
+       => `(om.next/defui ~'Person
+             ~'static om.next/IQuery
+             (~'query [~'this] [:db/id])
+             ~'Object
+             (~'render [~'this]
+               (let [~'props (om.next/props ~'this)
+                     ~'computed (om.next/get-computed ~'this)
+                     ~'children (om.next/children ~'this)]
+                 (~'dom/div nil "Boo")))
+             (~'shouldComponentUpdate [~'this ~'p ~'s] false))
+       "allows other protocols"
+       (fc/defsc* '(Person
+                     [this props computed children]
+                     {:props     [:db/id]
+                      :protocols (static css/CSS
+                                   (local-rules [_] [])
+                                   (include-children [_] [])
+                                   Object
+                                   (shouldComponentUpdate [this p s] false))}
+                     (dom/div nil "Boo")))
+       => `(om.next/defui ~'Person
+             ~'static ~'css/CSS
+             (~'local-rules [~'_] [])
+             (~'include-children [~'_] [])
+             ~'static om.next/IQuery
+             (~'query [~'this] [:db/id])
+             ~'Object
+             (~'render [~'this]
+               (let [~'props (om.next/props ~'this)
+                     ~'computed (om.next/get-computed ~'this)
+                     ~'children (om.next/children ~'this)]
+                 (~'dom/div nil "Boo")))
+             (~'shouldComponentUpdate [~'this ~'p ~'s] false))
        "works without an ident"
        (fc/defsc* '(Person
                      [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
@@ -719,3 +758,17 @@
                      {:keys [~'onSelect] :as ~'computed} (om.next/get-computed ~'this)
                      ~'children (om.next/children ~'this)]
                  (~'dom/div nil "Boo")))))))
+
+(comment
+  (require 'fulcro.client.core :reload)
+  (macroexpand-1 '(fulcro.client.core/defsc Root
+                    [this {:keys [people ui/react-key]} _ _]
+                    {:props         [:ui/react-key]
+                     ; we know :people is a child of class Person, so initial values on the :people key will automatically get run
+                     ; through `(get-initial-state Person _)`. Person, in turn, will find the job and jobs parameter maps. See Person.
+                     :initial-state {:people [{:id 1 :name "Tony" :job {:id 1 :name "Consultant"}}
+                                              {:id 2 :name "Sam" :jobs [{:id 2 :name "boo"} {:id 4 :name "bah"}]}
+                                              {:id 3 :name "Sally"}]}
+                     :children      {:people Person}}
+                    (dom/div #js {:key react-key}
+                      (mapv ui-person people)))))
