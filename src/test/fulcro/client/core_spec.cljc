@@ -537,7 +537,7 @@
          => `(~'static om.next/IQuery (~'query [~'this] [:db/id :person/name {:person/job (~'om/get-query ~'Job)} {:person/settings (~'om/get-query ~'Settings)}]))
          "Verifies the propargs matches queries data when not a symbol"
          (#'fc/validate-query 'this '{:keys [db/id person/nme person/job]} '[:db/id :person/name {:person/job (om/get-query Job)}])
-         =throws=> (ExceptionInfo #"Destructured parameters" (fn [e]
+         =throws=> (ExceptionInfo #"One or more destructured parameters" (fn [e]
                                                                (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
      (component "build-ident"
        (assertions

@@ -25,7 +25,7 @@
   "A person component"
   [this {:keys [db/id person/name person/job person/prior-jobs]} computed children]
   {:ident         [:PERSON/by-id :db/id]
-   :css [[:.namecls {:font-weight :bold}]]
+   :css           [[:.namecls {:font-weight :bold}]]
    :query         [:db/id :person/name
                    {:person/job (om/get-query Job)}
                    {:person/prior-jobs (om/get-query Job)}]
@@ -37,14 +37,14 @@
                    :person/prior-jobs :param/jobs}}
   (let [{:keys [namecls]} (css/get-classnames Person)]
     (dom/div nil
-     (dom/span #js {:className namecls} name)
-     (dom/ul nil
-       (when job
-         (dom/li nil "Current Job: " (ui-job job)))
-       (when prior-jobs
-         (dom/li nil "Prior Jobs: "
-           (dom/ul nil
-             (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))
+      (dom/span #js {:className namecls} name)
+      (dom/ul nil
+        (when job
+          (dom/li nil "Current Job: " (ui-job job)))
+        (when prior-jobs
+          (dom/li nil "Prior Jobs: "
+            (dom/ul nil
+              (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))
 
 (om.next/defui GeneratedPerson
   static fc/InitialAppState
@@ -193,7 +193,7 @@
   Feel free to edit the components in this source file and try out the sanity checking. For example, try:
 
   - Mismatching the name of a prop in options with a destructured name in props.
-  - Destructuring a prop that isn't in props or children
+  - Destructuring a prop that isn't in the query
   - Including initial state for a field that is not listed as a prop or child in options.
   - Using a scalar value for the initial value of a child (instead of a map or vector of maps)
   - Forget to query for the ID field of a component that is stored at an ident

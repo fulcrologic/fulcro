@@ -533,7 +533,7 @@
            to-sym            (fn [k] (symbol (namespace k) (name k)))
            illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
        (when (seq illegal-syms)
-         (throw (ex-info "Syntax error in defsc. Destructured parameters do not name props or children." {:offending-symbols illegal-syms})))
+         (throw (ex-info "Syntax error in defsc. One or more destructured parameters do not appear in your query!" {:offending-symbols illegal-syms})))
        `(~'static om.next/IQuery (~'query [~thissym] ~query)))))
 
 #?(:clj
@@ -613,7 +613,7 @@
                                        (param-expr (get initial-state k)))]) init-keys)
              state-map     (into {} kv-pairs)]
          (when (seq illegal-keys)
-           (throw (ex-info "Initial state includes keys that are not props or children" {:offending-keys illegal-keys})))
+           (throw (ex-info "Initial state includes keys that are not in your query." {:offending-keys illegal-keys})))
          (if is-a-form?
            `(~'static fulcro.client.core/InitialAppState
               (~'initial-state [~'c ~'params] (fulcro.ui.forms/build-form ~sym (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))
@@ -701,7 +701,8 @@
 
 #?(:clj
    (defmacro ^{:doc      "Define a statful component. This macro emits a React UI component with a query,
-   optional ident (if :ident is specified in options), optional initial state, and a render method.
+   optional ident (if :ident is specified in options), optional initial state, optional css,
+   optional forms, and a render method. It can also emit additional protocols  that you specify.
 
    The argument list can include destructuring to pull items from props or computed. `children` will be a
    sequence (possibly nil) of child react components that were passed to the component's factory.
@@ -710,30 +711,35 @@
 
    ```
    (defsc Component [this props computed children]
-      { :props [:db/id :component/x]
-        :children {:component/child Child
-                   :component/other Other }
+      { :query [:db/id :component/x {:component/child (om/get-query Child)} {:component/other (om/get-query Other)}]
         :form-fields [(f/id-field :db/id) ...] ; See IForm in forms for description of form fields
+        :css [] ; fulcro-css local-rules
+        :css-include [] ; fulcro-css include-children
         :ident [:COMPONENT/by-id :db/id]
+        :protocols [Object
+                    (shouldComponentUpdate [this] true)]
         :initial-state {:db/id 4 :component/Child {} :component/other [{}]} }
       body)
    ```
 
    The options map supplies the necessary information to build the component's ident, query, initial state,
-   render method, and form support. It is also used to error check your code. For example, you may destructure props:
+   render method, form support, component-local CSS rules, and any additional arbitrary protocols.
+   It is also used to error check your code. For example, you may destructure props:
 
    ```
    (defsc Component [this {:keys [db/id component/x] :as props} computed children]
-      { :props [:db/id :component/x]
+      { :query [:db/id :component/x]
       ...)
    ```
 
-   If the destructuring of props tries to pull data that the options map does not list as a prop or child, an error will
+   If the destructuring of props tries to pull data that the options map does not have in `:query`, then an error will
    result at compile time, alerting you to your error. Many other things are also checked (that you query for the ID
    field, that initial state only initializes things you query, etc.). This can prevent a lot of common errors when
    building your UI.
 
-   NOTE: `defsc` automatically declares your component with `:once` metadata for hot code reload.
+   See section M05-More-Concise-UI of the Developer's Guide for more details.
+
+   NOTE: `defsc` automatically declares your component with `:once` metadata for correct operation with hot code reload.
    "
                :arglists '([this dbprops computedprops children])}
    defsc
