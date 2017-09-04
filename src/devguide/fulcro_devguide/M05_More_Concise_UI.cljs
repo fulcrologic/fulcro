@@ -110,6 +110,21 @@
   and to-many relations are implied by what you pass (a map is to-one, a vector is to-many). Nesting of param-namespaced
   keywords is supported, but realize that the params come from the declaring components initial state parameters.
 
+  ## Form Support
+
+  The form interface is also supported. Just add `:form-fields` as a vector to your options map. That will cause
+  it to emit the correct `IForm` implementation, and if initial state is present it will properly wrap it
+  in the `build-form` call behind the scenes!.
+
+  ```
+  (defsc MyForm
+     [this props computed children]
+     {:form-fields [(f/id-field :db/id) ...]
+      :initial-state {:db/id :param/id ...} ; will automatically get the extra form support initial data
+      ...}
+     (dom/div nil ...))
+  ```
+
   ## Sanity Checking
 
   Feel free to edit the components in this source file and try out the sanity checking. For example, try:
