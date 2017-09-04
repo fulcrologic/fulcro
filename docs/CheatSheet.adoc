@@ -53,9 +53,9 @@
 
 ==== Shortcut Macro for Stateful Components
 
-The `defsc` macro builds a `defui` with a query, ident, initial state, and destructured props,
-computed data, and react children, all in one very compact form. It also looks like a `defn` (for
-IDE integration) and checks for common errors:
+The `defsc` macro builds a `defui` with a query, ident (optional), initial state (optional), forms support (optional)
+and an argument list that gives you access to destructured props, computed data, and react children.
+All this in one very compact form. It also looks like a `defn` (for IDE integration) and checks for common errors:
 
 ```
 (defsc Person
@@ -63,6 +63,7 @@ IDE integration) and checks for common errors:
   [this {:keys [person/name] :as props} {:keys [onSelect] :as computed-props} children]
   { :props [:person/id :person/name]
     :id :person/id
+    :form-fields [(f/id-field :person/id) ...] ; See forms support
     :initial-state {:person/name :param/name
                     :person/job {:id 2 :name "Programmer"}
                     :person/id :param/id}
