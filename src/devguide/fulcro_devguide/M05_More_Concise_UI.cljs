@@ -46,30 +46,66 @@
             (dom/ul nil
               (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))
 
+(comment
+  (macroexpand-1 '(defsc Person
+                    "A person component"
+                    [this {:keys [db/id person/name person/job person/prior-jobs]} computed children]
+                    {:ident         [:PERSON/by-id :db/id]
+                     :css           [[:.namecls {:font-weight :bold}]]
+                     :query         [:db/id :person/name
+                                     {:person/job (om/get-query Job)}
+                                     {:person/prior-jobs (om/get-query Job)}]
+                     ; expects to be called as (get-initial-state Person {:id i :name n :job j :jobs [j1 j2]})
+                     :initial-state {:db/id             :param/id
+                                     :person/name       :param/name
+                                     ; job and jobs are known children. Will be resolved by calling (get-initial-state Job j), etc.
+                                     :person/job        :param/job
+                                     :person/prior-jobs :param/jobs}}
+                    (let [{:keys [namecls]} (css/get-classnames Person)]
+                      (dom/div nil
+                        (dom/span #js {:className namecls} name)
+                        (dom/ul nil
+                          (when job
+                            (dom/li nil "Current Job: " (ui-job job)))
+                          (when prior-jobs
+                            (dom/li nil "Prior Jobs: "
+                              (dom/ul nil
+                                (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))))
+
 (om.next/defui GeneratedPerson
-  static fc/InitialAppState
-  (initial-state
-    [c params]
-    (fc/make-state-map
+  static fulcro-css.css/CSS
+  (local-rules [_] [[:.namecls {:font-weight :bold}]])
+  (include-children [_] [])
+  static fulcro.client.core/InitialAppState
+  (initial-state [c params]
+    (fulcro.client.core/make-state-map
       {:db/id             :param/id,
        :person/name       :param/name,
        :person/job        :param/job,
        :person/prior-jobs :param/jobs}
-      {:person/job Job, :person/prior-jobs Job}
+      #:person{:job Job, :prior-jobs Job}
       params))
   static om.next/Ident
   (ident [this props] [:PERSON/by-id (:db/id props)])
   static om.next/IQuery
-  (query [this] [:db/id :person/name {:person/job (om.next/get-query Job)}
-                 {:person/prior-jobs (om.next/get-query Job)}])
+  (query [this] [:db/id :person/name #:person{:job (om/get-query Job)} #:person{:prior-jobs (om/get-query Job)}])
   Object
   (render
     [this]
     (clojure.core/let
-      [{:keys [db/id person/name person/job person/prior-jobs]} (om/props this)
-       computed (om/get-computed this)
-       children (om/children this)]
-      (dom/div nil name (when job (dom/span nil ", " (ui-job job)))))))
+      [{:keys [db/id person/name person/job person/prior-jobs]} (om.next/props this)
+       computed (om.next/get-computed this)
+       children (om.next/children this)]
+      (let [{:keys [namecls]} (css/get-classnames Person)]
+        (dom/div nil
+          (dom/span #js {:className namecls} name)
+          (dom/ul nil
+            (when job (dom/li nil "Current Job: " (ui-job job)))
+            (when prior-jobs
+              (dom/li nil "Prior Jobs: "
+                (dom/ul nil
+                  (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))))
+
 
 (def ui-person (om/factory Person {:keyfn :db/id}))
 
