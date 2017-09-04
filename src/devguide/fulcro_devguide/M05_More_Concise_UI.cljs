@@ -6,14 +6,16 @@
     [cljs.spec.alpha :as s]
     [om.dom :as dom]
     [om.next :as om :refer [defui]]
-    [fulcro.ui.forms :as f]))
+    [fulcro.ui.forms :as f]
+    [fulcro-css.css :as css]))
 
 (defsc Job
   "A job component"
   [this {:keys [db/id job/name]} computed children]
   {:ident         [:JOB/by-id :db/id]
-   :props         [:db/id :job/name]
-   :initial-state {:db/id    :param/id                      ; expects to be called as `(get-initial-state Job {:id i :name n})`
+   :query         [:db/id :job/name]
+   ; expects to be called as `(get-initial-state Job {:id i :name n})`
+   :initial-state {:db/id    :param/id
                    :job/name :param/name}}
   (dom/span nil name))
 
@@ -23,21 +25,26 @@
   "A person component"
   [this {:keys [db/id person/name person/job person/prior-jobs]} computed children]
   {:ident         [:PERSON/by-id :db/id]
-   :props         [:db/id :person/name]
-   :children      {:person/job Job :person/prior-jobs Job}
-   :initial-state {:db/id             :param/id             ; expects to be called as (get-initial-state Person {:id i :name n :job j :jobs [j1 j2]})
+   :css [[:.namecls {:font-weight :bold}]]
+   :query         [:db/id :person/name
+                   {:person/job (om/get-query Job)}
+                   {:person/prior-jobs (om/get-query Job)}]
+   ; expects to be called as (get-initial-state Person {:id i :name n :job j :jobs [j1 j2]})
+   :initial-state {:db/id             :param/id
                    :person/name       :param/name
-                   :person/job        :param/job            ; job and jobs are known children. Will be resolved by calling (get-initial-state Job j), etc.
+                   ; job and jobs are known children. Will be resolved by calling (get-initial-state Job j), etc.
+                   :person/job        :param/job
                    :person/prior-jobs :param/jobs}}
-  (dom/div nil
-    name
-    (dom/ul nil
-      (when job
-        (dom/li nil "Current Job: " (ui-job job)))
-      (when prior-jobs
-        (dom/li nil "Prior Jobs: "
-          (dom/ul nil
-            (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs)))))))
+  (let [{:keys [namecls]} (css/get-classnames Person)]
+    (dom/div nil
+     (dom/span #js {:className namecls} name)
+     (dom/ul nil
+       (when job
+         (dom/li nil "Current Job: " (ui-job job)))
+       (when prior-jobs
+         (dom/li nil "Prior Jobs: "
+           (dom/ul nil
+             (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))
 
 (om.next/defui GeneratedPerson
   static fc/InitialAppState
@@ -68,15 +75,22 @@
 
 (defsc Root
   [this {:keys [people ui/react-key]} _ _]
-  {:props         [:ui/react-key]
+  {:query         [:ui/react-key {:people (om/get-query Person)}]
+   :css           [[:.thing {:color "gray"}]]               ; define colocated CSS classes
+   :css-include   [Person]
+   ; protocols is for anything "extra" you need that you could normally list under defui
+   :protocols     [Object
+                   (componentDidMount [this]
+                     ; make sure the CSS is on the document.
+                     (css/upsert-css "the-css" Root))]
    ; we know :people is a child of class Person, so initial values on the :people key will automatically get run
    ; through `(get-initial-state Person _)`. Person, in turn, will find the job and jobs parameter maps. See Person.
    :initial-state {:people [{:id 1 :name "Tony" :job {:id 1 :name "Consultant"}}
-                            {:id 2 :name "Sam" :jobs [{:id 2 :name "boo"} {:id 4 :name "bah"}]}
-                            {:id 3 :name "Sally"}]}
-   :children      {:people Person}}
-  (dom/div #js {:key react-key}
-    (mapv ui-person people)))
+                            {:id 2 :name "Sam" :jobs [{:id 2 :name "Meat Packer"} {:id 4 :name "Butcher"}]}
+                            {:id 3 :name "Sally"}]}}
+  (let [{:keys [thing]} (css/get-classnames Root)]          ;localized classname
+    (dom/div #js {:key react-key :className thing}
+      (mapv ui-person people))))
 
 
 (dc/defcard-doc "# The defsc Macro
@@ -105,16 +119,10 @@
   For example, `:ident [:person/by-id :person/id]` will turn into `om/Ident (ident [this props] [:person/by-id (:person/id props)])`
   on the resulting component.
 
-  ## Query Generation
+  ## Query
 
-  `defsc` supports a subset of full query syntax, and has you split the common parts into two: `:props` and `:children`.
-
-  `:props` is a vector of the scalar values you want to query for. e.g `[:person/id :person/name]`
-  `:children` is a map whose keys are the keywords you want to use locally in props for the join, and whose values are
-  the component class of the children. E.g. `{:person/job Job}`
-
-  Currently more complex queries require that you use regular `defui`. This may change/evolve as we gain evolve the
-  `defsc` macro.
+  `defsc` uses any valid Om Next Query at the :query option. The query will be validated against the prop destructuring
+  to help you make fewer mistakes.
 
   ## Initial State
 
@@ -144,6 +152,19 @@
       ...}
      (dom/div nil ...))
   ```
+
+  ## CSS Support
+
+  Support for using `fulcro-css` is built-in, *but* you must include the `fulcr-css` library in your project
+  dependencies *and* require the `fulcro-css.css` namespace in any file
+  that uses this support. The keys in the options map are:
+
+  - `:css` - The items to put in protocol method `css/local-rules`
+  - `:css-include` - The items to put in protocol method `css/include-children`
+
+  Both are optional. If you use neither, then your code will not incur a dependency on the fulcro-css library.
+
+  See [Fulcro CSS](https://github.com/fulcrologic/fulcro-css) for more information.
 
   ## Additional Protocol Support
 

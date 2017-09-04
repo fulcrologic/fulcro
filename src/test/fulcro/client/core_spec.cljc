@@ -527,26 +527,27 @@
 
 #?(:clj
    (specification "defsc helpers" :focused
-     (component "build-query"
+     (component "validate-query"
        (assertions
+         "Honors the symbol for this that is defined by defsc"
+         (#'fc/validate-query 'that 'props '[:db/id])
+         => `(~'static om.next/IQuery (~'query [~'that] [:db/id]))
          "Composes properties and joins into a proper query expression as a list of defui forms"
-         (#'fc/build-query 'props '[:db/id :person/name] '{:person/job Job :person/settings Settings})
-         => `(~'static om.next/IQuery (~'query [~'this]
-                                        [:db/id :person/name {:person/job (om.next/get-query ~'Job)}
-                                         {:person/settings (om.next/get-query ~'Settings)}]))
+         (#'fc/validate-query 'this 'props '[:db/id :person/name {:person/job (om/get-query Job)} {:person/settings (om/get-query Settings)}])
+         => `(~'static om.next/IQuery (~'query [~'this] [:db/id :person/name {:person/job (~'om/get-query ~'Job)} {:person/settings (~'om/get-query ~'Settings)}]))
          "Verifies the propargs matches queries data when not a symbol"
-         (#'fc/build-query '{:keys [db/id person/nme person/job]} '[:db/id :person/name] '{:person/job Job})
+         (#'fc/validate-query 'this '{:keys [db/id person/nme person/job]} '[:db/id :person/name {:person/job (om/get-query Job)}])
          =throws=> (ExceptionInfo #"Destructured parameters" (fn [e]
                                                                (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
      (component "build-ident"
        (assertions
          "Generates nothing when there is no table"
-         (#'fc/build-ident :db/id nil []) => nil
-         (#'fc/build-ident :id nil [:boo]) => nil
+         (#'fc/build-ident :db/id nil #{}) => nil
+         (#'fc/build-ident :id nil #{:boo}) => nil
          "Requires the ID to be in the declared props"
-         (#'fc/build-ident :id :TABLE/by-id []) =throws=> (ExceptionInfo #"ID property must appear in props")
+         (#'fc/build-ident :id :TABLE/by-id #{}) =throws=> (ExceptionInfo #"ID property of :ident")
          "Generates a list of forms to emit as the ident function"
-         (#'fc/build-ident :id :TABLE/by-id [:id])
+         (#'fc/build-ident :id :TABLE/by-id #{:id})
          => `(~'static om.next/Ident (~'ident [~'this ~'props] [:TABLE/by-id (:id ~'props)]))))
      (component "build-render"
        (assertions
@@ -660,8 +661,7 @@
        "works with initial state"
        (#'fc/defsc* '(Person
                        [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                       {:props         [:db/id]
-                        :children      {:person/job Job}
+                       {:query         [:db/id {:person/job (om/get-query Job)}]
                         :initial-state {:person/job {:x 1}
                                         :db/id      42}
                         :ident         [:PERSON/by-id :db/id]}
@@ -677,7 +677,7 @@
              ~'static om.next/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
              ~'static om.next/IQuery
-             (~'query [~'this] [:db/id {:person/job (om.next/get-query ~'Job)}])
+             (~'query [~'this] [:db/id {:person/job (~'om/get-query ~'Job)}])
              ~'Object
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (om.next/props ~'this)
@@ -687,15 +687,14 @@
        "works without initial state"
        (fc/defsc* '(Person
                      [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                     {:props    [:db/id]
-                      :children {:person/job Job}
-                      :ident    [:PERSON/by-id :db/id]}
+                     {:query [:db/id {:person/job (om/get-query Job)}]
+                      :ident [:PERSON/by-id :db/id]}
                      (dom/div nil "Boo")))
        => `(om.next/defui ~'Person
              ~'static om.next/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
              ~'static om.next/IQuery
-             (~'query [~'this] [:db/id {:person/job (om.next/get-query ~'Job)}])
+             (~'query [~'this] [:db/id {:person/job (~'om/get-query ~'Job)}])
              ~'Object
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (om.next/props ~'this)
@@ -705,7 +704,7 @@
        "allows Object protocol"
        (fc/defsc* '(Person
                      [this props computed children]
-                     {:props     [:db/id]
+                     {:query     [:db/id]
                       :protocols (Object (shouldComponentUpdate [this p s] false))}
                      (dom/div nil "Boo")))
        => `(om.next/defui ~'Person
@@ -721,7 +720,7 @@
        "allows other protocols"
        (fc/defsc* '(Person
                      [this props computed children]
-                     {:props     [:db/id]
+                     {:query     [:db/id]
                       :protocols (static css/CSS
                                    (local-rules [_] [])
                                    (include-children [_] [])
@@ -744,12 +743,11 @@
        "works without an ident"
        (fc/defsc* '(Person
                      [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                     {:props    [:db/id]
-                      :children {:person/job Job}}
+                     {:query [:db/id {:person/job (om/get-query Job)}]}
                      (dom/div nil "Boo")))
        => `(om.next/defui ~'Person
              ~'static om.next/IQuery
-             (~'query [~'this] [:db/id {:person/job (om.next/get-query ~'Job)}])
+             (~'query [~'this] [:db/id {:person/job (~'om/get-query ~'Job)}])
              ~'Object
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (om.next/props ~'this)
@@ -757,17 +755,3 @@
                      ~'children (om.next/children ~'this)]
                  (~'dom/div nil "Boo")))))))
 
-(comment
-  (require 'fulcro.client.core :reload)
-  (macroexpand-1 '(fulcro.client.core/defsc Root
-                    [this {:keys [people ui/react-key]} _ _]
-                    {:props         [:person/id :ui/react-key]
-                     ; we know :people is a child of class Person, so initial values on the :people key will automatically get run
-                     ; through `(get-initial-state Person _)`. Person, in turn, will find the job and jobs parameter maps. See Person.
-                     :initial-state {:people [{:id 1 :name "Tony" :job {:id 1 :name "Consultant"}}
-                                              {:id 2 :name "Sam" :jobs [{:id 2 :name "boo"} {:id 4 :name "bah"}]}
-                                              {:id 3 :name "Sally"}]}
-                     :ident         :boo
-                     :children      {:people Person}}
-                    (dom/div #js {:key react-key}
-                      (mapv ui-person people)))))

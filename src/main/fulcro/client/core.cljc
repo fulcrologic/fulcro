@@ -493,31 +493,54 @@
     @state))
 
 #?(:clj
-   (defn- build-query
-     "Build a query for a defsc component based on the detail map. Also error checks the propargs."
-     [propargs props children]
+   (defn- is-link? [query-element] (and (vector? query-element)
+                                     (keyword? (first query-element))
+                                     (= '_ (second query-element)))))
+#?(:clj
+   (defn- legal-keys [query]
+     (set (keep #(cond
+                   (keyword? %) %
+                   (is-link? %) (first %)
+                   (and (map? %) (keyword? (ffirst %))) (ffirst %)
+                   (and (map? %) (is-link? (ffirst %))) (first (ffirst %))
+                   :else nil) query))))
+
+
+#?(:clj
+   (defn- children-by-prop [query]
+     (into {}
+       (keep #(if (and (map? %) (or (is-link? (ffirst %)) (keyword? (ffirst %))))
+                (let [k   (if (vector? (ffirst %))
+                            (first (ffirst %))
+                            (ffirst %))
+                      cls (-> % first second second)]
+                  [k cls])
+                nil) query))))
+
+#?(:clj
+   (defn- validate-query
+     "Validate that the property destructuring and query make sense with each other."
+     [thissym propargs query]
      (assert (or (symbol? propargs) (map? propargs)) "Property args must be a symbol or destructuring expression.")
-     (let [joins             (map (fn [[k v]] {k `(om.next/get-query ~v)}) children)
-           to-keyword        (fn [s] (cond
+     (let [to-keyword        (fn [s] (cond
                                        (nil? s) nil
                                        (keyword? s) s
                                        :otherwise (let [nspc (namespace s)
                                                         nm   (name s)]
                                                     (keyword nspc nm))))
-           destructured-syms (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
-           legal-syms        (set (concat props (keys children)))
-           query             (vec (concat props joins))
+           destructured-keys (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
+           queried-keywords  (legal-keys query)
            to-sym            (fn [k] (symbol (namespace k) (name k)))
-           illegal-syms      (mapv to-sym (set/difference destructured-syms legal-syms))]
+           illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
        (when (seq illegal-syms)
          (throw (ex-info "Syntax error in defsc. Destructured parameters do not name props or children." {:offending-symbols illegal-syms})))
-       `(~'static om.next/IQuery (~'query [~'this] ~query)))))
+       `(~'static om.next/IQuery (~'query [~thissym] ~query)))))
 
 #?(:clj
-   (defn- build-ident [id-prop table props]
+   (defn- build-ident [id-prop table legal-keys]
      (cond
        (nil? table) nil
-       (not (contains? (set props) id-prop)) (throw (ex-info "ID property must appear in props (defaults to :db/id)" {}))
+       (not (contains? legal-keys id-prop)) (throw (ex-info "ID property of :ident must appear in your :query" {}))
        :otherwise `(~'static om.next/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))
 
 #?(:clj
@@ -558,10 +581,9 @@
     (into {} (keep value-of initial-state))))
 
 #?(:clj
-   (defn- build-initial-state [sym initial-state props children is-a-form?]
+   (defn- build-initial-state [sym initial-state legal-keys children is-a-form?]
      (when initial-state
        (let [join-keys     (set (keys children))
-             legal-keys    (set (concat props join-keys))
              init-keys     (set (keys initial-state))
              illegal-keys  (set/difference init-keys legal-keys)
              is-child?     (fn [k] (contains? join-keys k))
@@ -599,10 +621,11 @@
               (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))))))
 
 #?(:clj (s/def ::ident vector?))
-#?(:clj (s/def ::children map?))
-#?(:clj (s/def ::props vector?))
+#?(:clj (s/def ::query vector?))
 #?(:clj (s/def ::initial-state map?))
-#?(:clj (s/def ::options (s/keys :opt-un [::children ::props ::ident ::initial-state])))
+#?(:clj (s/def ::css vector?))
+#?(:clj (s/def ::css-include (s/and vector? #(every? symbol? %))))
+#?(:clj (s/def ::options (s/keys :opt-un [::query ::ident ::initial-state ::css ::css-include])))
 
 #?(:clj (s/def ::defsc-args (s/cat
                               :sym symbol?
@@ -622,6 +645,19 @@
           (~'form-spec [~'this] ~form-fields)))))
 
 #?(:clj
+   (defn build-css [css includes]
+     (when (or css includes)
+       (let [css      (or css [])
+             includes (or includes [])]
+         (when-not (vector? css)
+           (throw (ex-info "css MUST be a vector of garden-syntax rules" {})))
+         (when-not (and (vector? includes) (every? symbol? includes))
+           (throw (ex-info "css-include must be a vector of component symbols" {})))
+         `(~'static fulcro-css.css/CSS
+            (~'local-rules [~'_] ~css)
+            (~'include-children [~'_] ~includes))))))
+
+#?(:clj
    (defn defsc*
      [args]
      (if-not (s/valid? ::defsc-args args)
@@ -632,7 +668,9 @@
                                 :path) " is invalid.")})))
      (let [{:keys [sym doc arglist options body]} (s/conform ::defsc-args args)
            [thissym propsym computedsym childrensym] arglist
-           {:keys [ident props children initial-state form-fields protocols] :or {props [] children {}}} options
+           {:keys [ident query initial-state protocols form-fields css css-include]} options
+           props            (or (legal-keys query) #{})
+           children         (or (children-by-prop query) {})
            table            (first ident)
            id               (or (second ident) :db/id)
            parsed-protocols (when protocols (group-by :protocol (s/conform ::protocols protocols)))
@@ -646,12 +684,14 @@
                               (mapcat identity))
            ident-forms      (build-ident id table props)
            state-forms      (build-initial-state sym initial-state props children (boolean (seq form-fields)))
-           query-forms      (build-query propsym props children)
+           query-forms      (validate-query thissym propsym query)
            form-forms       (build-form form-fields)
+           css-forms        (build-css css css-include)
            render-forms     (build-render thissym propsym computedsym childrensym body)]
        (assert (or (nil? protocols) (s/valid? ::protocols protocols)) "Protocols must be valid protocol declarations")
        `(om.next/defui ~(with-meta sym {:once true})
           ~@addl-protocols
+          ~@css-forms
           ~@state-forms
           ~@ident-forms
           ~@query-forms
