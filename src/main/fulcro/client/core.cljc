@@ -598,13 +598,17 @@
            `(~'static fulcro.client.core/InitialAppState
               (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))))))
 
-#?(:clj (s/def ::detail-map (s/keys :opt-un [::children ::props ::id ::table ::initial-state])))
+#?(:clj (s/def ::ident vector?))
+#?(:clj (s/def ::children map?))
+#?(:clj (s/def ::props vector?))
+#?(:clj (s/def ::initial-state map?))
+#?(:clj (s/def ::options (s/keys :opt-un [::children ::props ::ident ::initial-state])))
 
 #?(:clj (s/def ::defsc-args (s/cat
                               :sym symbol?
                               :doc (s/? string?)
                               :arglist (s/and vector? #(= 4 (count %)))
-                              :detail-map ::detail-map
+                              :options ::options
                               :body (s/+ (constantly true)))))
 
 #?(:clj (s/def ::static #{'static}))
@@ -620,9 +624,17 @@
 #?(:clj
    (defn defsc*
      [args]
-     (let [{:keys [sym doc arglist detail-map body]} (s/conform ::defsc-args args)
+     (if-not (s/valid? ::defsc-args args)
+       (throw (ex-info "Invalid arguments"
+                {:reason (str (-> (s/explain-data ::defsc-args args)
+                                ::s/problems
+                                first
+                                :path) " is invalid.")})))
+     (let [{:keys [sym doc arglist options body]} (s/conform ::defsc-args args)
            [thissym propsym computedsym childrensym] arglist
-           {:keys [id table props children initial-state form-fields protocols] :or {id :db/id props [] children {}}} detail-map
+           {:keys [ident props children initial-state form-fields protocols] :or {props [] children {}}} options
+           table            (first ident)
+           id               (or (second ident) :db/id)
            parsed-protocols (when protocols (group-by :protocol (s/conform ::protocols protocols)))
            object-methods   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
            addl-protocols   (some->> (dissoc parsed-protocols 'Object)
@@ -649,7 +661,7 @@
 
 #?(:clj
    (defmacro ^{:doc      "Define a statful component. This macro emits a React UI component with a query,
-   optional ident (if :table is specified in options), optional initial state, and a render method.
+   optional ident (if :ident is specified in options), optional initial state, and a render method.
 
    The argument list can include destructuring to pull items from props or computed. `children` will be a
    sequence (possibly nil) of child react components that were passed to the component's factory.
@@ -662,8 +674,7 @@
         :children {:component/child Child
                    :component/other Other }
         :form-fields [(f/id-field :db/id) ...] ; See IForm in forms for description of form fields
-        :table :COMPONENT/by-id
-        :id :db/id
+        :ident [:COMPONENT/by-id :db/id]
         :initial-state {:db/id 4 :component/Child {} :component/other [{}]} }
       body)
    ```
@@ -687,8 +698,7 @@
                :arglists '([this dbprops computedprops children])}
    defsc
      [& args]
-     (let [location (str (:file (meta &form)) ":" (:line (meta &form)))]
-       (assert (s/valid? ::defsc-args args) (str "Syntax error in `defsc` at " location))
+     (let [location (str *ns* ":" (:line (meta &form)))]
        (try
          (defsc* args)
          (catch Exception e

@@ -11,7 +11,7 @@
 (defsc Job
   "A job component"
   [this {:keys [db/id job/name]} computed children]
-  {:table         :JOB/by-id
+  {:ident         [:JOB/by-id :db/id]
    :props         [:db/id :job/name]
    :initial-state {:db/id    :param/id                      ; expects to be called as `(get-initial-state Job {:id i :name n})`
                    :job/name :param/name}}
@@ -22,7 +22,7 @@
 (defsc Person
   "A person component"
   [this {:keys [db/id person/name person/job person/prior-jobs]} computed children]
-  {:table         :PERSON/by-id
+  {:ident         [:PERSON/by-id :db/id]
    :props         [:db/id :person/name]
    :children      {:person/job Job :person/prior-jobs Job}
    :initial-state {:db/id             :param/id             ; expects to be called as (get-initial-state Person {:id i :name n :job j :jobs [j1 j2]})
@@ -81,7 +81,7 @@
 
 (dc/defcard-doc "# The defsc Macro
 
-  Fulcro includes a macro, `defsc`, that can build a sanity-checked component with the most common elements:
+  Fulcro includes a macro, `defsc`, that can build a `defui` that is sanity-checked for the most common elements:
   ident (optional), query, render, and initial state (optional). The sanity checking prevents a lot of the most
   common errors when writing a component, and the concise syntax reduces boilerplate to the essential novelty.
 
@@ -96,6 +96,25 @@
   "A root component (with no ident, but with query children) might look like this:"
   (dc/mkdn-pprint-source Root)
   "
+
+  ## Ident Generation
+
+  The (optional) `:ident` parameter should be a vector of two elements. The first is the literal table name, and the
+  second is the ID field that will exist in props.
+
+  For example, `:ident [:person/by-id :person/id]` will turn into `om/Ident (ident [this props] [:person/by-id (:person/id props)])`
+  on the resulting component.
+
+  ## Query Generation
+
+  `defsc` supports a subset of full query syntax, and has you split the common parts into two: `:props` and `:children`.
+
+  `:props` is a vector of the scalar values you want to query for. e.g `[:person/id :person/name]`
+  `:children` is a map whose keys are the keywords you want to use locally in props for the join, and whose values are
+  the component class of the children. E.g. `{:person/job Job}`
+
+  Currently more complex queries require that you use regular `defui`. This may change/evolve as we gain evolve the
+  `defsc` macro.
 
   ## Initial State
 
@@ -145,7 +164,7 @@
      (dom/div nil ...))
   ```
 
-  This gives you the full features of `defui`, but you only need the extra protocol additions when you use
+  This gives you the full protocol capabilities of `defui`, but you only need the extra protocol additions when you use
   methods and protocols beyond the central ones.
 
   ## Sanity Checking
@@ -156,9 +175,8 @@
   - Destructuring a prop that isn't in props or children
   - Including initial state for a field that is not listed as a prop or child in options.
   - Using a scalar value for the initial value of a child (instead of a map or vector of maps)
-  - Forget to query for the ID field of a component that is stored in a table (ident)
+  - Forget to query for the ID field of a component that is stored at an ident
 
   See the docstring on the macro (or the source of this card file) for more details.")
 
 (defcard-fulcro demo-card Root {} {:inspect-data false})
-

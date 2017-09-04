@@ -664,8 +664,7 @@
                         :children      {:person/job Job}
                         :initial-state {:person/job {:x 1}
                                         :db/id      42}
-                        :id            :db/id
-                        :table         :PERSON/by-id}
+                        :ident         [:PERSON/by-id :db/id]}
                        (dom/div nil "Boo")))
        => `(om.next/defui ~'Person
              ~'static fulcro.client.core/InitialAppState
@@ -690,8 +689,7 @@
                      [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
                      {:props    [:db/id]
                       :children {:person/job Job}
-                      :id       :db/id
-                      :table    :PERSON/by-id}
+                      :ident    [:PERSON/by-id :db/id]}
                      (dom/div nil "Boo")))
        => `(om.next/defui ~'Person
              ~'static om.next/Ident
@@ -763,12 +761,13 @@
   (require 'fulcro.client.core :reload)
   (macroexpand-1 '(fulcro.client.core/defsc Root
                     [this {:keys [people ui/react-key]} _ _]
-                    {:props         [:ui/react-key]
+                    {:props         [:person/id :ui/react-key]
                      ; we know :people is a child of class Person, so initial values on the :people key will automatically get run
                      ; through `(get-initial-state Person _)`. Person, in turn, will find the job and jobs parameter maps. See Person.
                      :initial-state {:people [{:id 1 :name "Tony" :job {:id 1 :name "Consultant"}}
                                               {:id 2 :name "Sam" :jobs [{:id 2 :name "boo"} {:id 4 :name "bah"}]}
                                               {:id 3 :name "Sally"}]}
+                     :ident         :boo
                      :children      {:people Person}}
                     (dom/div #js {:key react-key}
                       (mapv ui-person people)))))
