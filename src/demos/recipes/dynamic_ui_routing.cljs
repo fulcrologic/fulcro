@@ -40,15 +40,16 @@
                                   (r/make-route :new-user [(r/router-instruction :top-router [:new-user :singleton])]))
                                 {:top-router (fc/get-initial-state r/DynamicRouter {:id :top-router})}))
   static om/IQuery
-  (query [this] [:ui/react-key {:top-router (om/get-query r/DynamicRouter)}])
+  (query [this] [:ui/react-key {:top-router (om/get-query r/DynamicRouter)} :fulcro.client.routing/pending-route])
   Object
   (render [this]
-    (let [{:keys [ui/react-key top-router]} (om/props this)]
+    (let [{:keys [ui/react-key top-router :fulcro.client.routing/pending-route]} (om/props this)]
       (dom/div #js {:key react-key}
         ; Sample nav mutations
         (dom/a #js {:onClick #(om/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
         (dom/a #js {:onClick #(om/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
         (dom/a #js {:onClick #(om/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
+        (dom/div nil (if pending-route "Loading" "Done"))
         (r/ui-dynamic-router top-router)))))
 
 ; these would happen as a result of module loads:

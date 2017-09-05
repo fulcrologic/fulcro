@@ -155,7 +155,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                      om/get-query))]
     (when query
       (log/debug (str "Setting routing query for " router-id " to " query))
-      (om/set-query! router {:query [:id {:current-route query}]}))))
+      (om/set-query! router {:query [:id {:current-route query}]} [::pending-route]))))
 
 (defn update-routing-links
   "Given the app state map, returns a new map that has the routing graph links updated for the given route/params
@@ -241,8 +241,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (defn- process-pending-route!
   "Finish doing the routing after a module completes loading"
   [{:keys [state reconciler] :as env}]
-  (let [target (::pending-route @state)
-        ]
+  (let [target (::pending-route @state)]
     (log/debug (str "Attempting to route to " target))
     (swap! state
       (fn [s]
