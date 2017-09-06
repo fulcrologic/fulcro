@@ -122,13 +122,13 @@
             (om/reconciler? app-or-comp-or-reconciler)
             #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
                :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler)))]}
-   (let [config        (merge {:marker true :parallel false :refresh [] :without #{}} config)
-         reconciler    (if #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
-                              :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler))
-                         (get app-or-comp-or-reconciler :reconciler)
-                         app-or-comp-or-reconciler)
-         mutation-args (load-params* server-property-or-ident SubqueryClass config)]
-     (om/transact! reconciler (load-mutation mutation-args)))))
+   (let [config                  (merge {:marker true :parallel false :refresh [] :without #{}} config)
+         component-or-reconciler (if #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
+                                        :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler))
+                                   (get app-or-comp-or-reconciler :reconciler)
+                                   app-or-comp-or-reconciler)
+         mutation-args           (load-params* server-property-or-ident SubqueryClass config)]
+     (om/transact! component-or-reconciler (load-mutation mutation-args)))))
 
 #?(:cljs
    (defn load-action
@@ -149,12 +149,18 @@
        ; NOTE: :remote must be the keyword name of a legal remote in your system; however,
        ; You must still name the remote in the `load-action` if it is something other than default.
        :action (fn []
-          (load-action ...)
-          ; other optimistic updates/state changes)}"
-     ([state-atom server-property-or-ident SubqueryClass] (load-action state-atom server-property-or-ident SubqueryClass {}))
-     ([state-atom server-property-or-ident SubqueryClass config]
-      (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
-        (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :state state-atom))))))
+          (load-action env ...)
+          ; other optimistic updates/state changes)}
+
+     It is preferable that you use `env` instead of `app-state` for the first argument, as this allows more details to
+     be available for post mutations and fallbacks."
+     ([env-or-state-atom server-property-or-ident SubqueryClass] (load-action env-or-state-atom server-property-or-ident SubqueryClass {}))
+     ([env-or-state-atom server-property-or-ident SubqueryClass config]
+      (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)
+            env    (if (and (map? env-or-state-atom) (contains? env-or-state-atom :state))
+                     env-or-state-atom
+                     {:state env-or-state-atom})]
+        (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :env env))))))
 
 (defn load-field
   "Load a field of the current component. Runs `om/transact!`.
@@ -210,11 +216,16 @@
     ; You must still name the remote in the `load-action` if it is something other than default.
     :action (fn []
        (load-field-action ...)
-       ; other optimistic updates/state changes)}"
-  [app-state component-class ident field & {:keys [without remote params post-mutation post-mutation-params fallback parallel refresh marker]
-                                            :or   {remote :remote refresh [] marker true}}]
+       ; other optimistic updates/state changes)}
+
+  It is preferable that you use `env` instead of `app-state` for the first argument, as this allows more details to
+  be available for post mutations and fallbacks."
+  [env-or-app-state component-class ident field & {:keys [without remote params post-mutation post-mutation-params fallback parallel refresh marker]
+                                                   :or   {remote :remote refresh [] marker true}}]
   (impl/mark-ready
-    {:state                app-state
+    {:env                  (if (and (map? env-or-app-state) (contains? env-or-app-state :state))
+                             env-or-app-state
+                             {:state env-or-app-state})
      :field                field
      :ident                ident
      :query                (om/focus-query (om/get-query component-class) [field])
@@ -307,16 +318,16 @@
   (load component (om/get-ident component) (om/react-type component)))
 
 (defmethod mutate 'fulcro/load
-  [{:keys [state]} _ {:keys [post-mutation remote] :as config}]
+  [env _ {:keys [post-mutation remote] :as config}]
   (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
   {(if remote remote :remote) true
-   :action                    (fn [] (impl/mark-ready (assoc config :state state)))})
+   :action                    (fn [] (impl/mark-ready (assoc config :env env)))})
 
 (defmethod mutate `load
-  [{:keys [state]} _ {:keys [post-mutation remote] :as config}]
+  [env _ {:keys [post-mutation remote] :as config}]
   (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
   {(if remote remote :remote) true
-   :action                    (fn [] (impl/mark-ready (assoc config :state state)))})
+   :action                    (fn [] (impl/mark-ready (assoc config :env env)))})
 
 (defn- fallback-action*
   [env {:keys [action] :as params}]
