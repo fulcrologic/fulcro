@@ -4,6 +4,8 @@
 - Added `defsc` macro to core namespace and documented in devguide section M05
 - Added a cheat sheet to docs
 - Added mutation helper comments to routing section of devguide
+- Enhanced the `env` available in post mutations and fallbacks
+- Added some content to the reference guide
 
 1.0.0-beta9
 -----------
