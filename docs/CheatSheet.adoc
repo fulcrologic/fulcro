@@ -244,6 +244,25 @@ Other interesting options (placed in the 4th argument option map):
 - `:post-mutation-params {}` - Include some parameters for the post mutation when it runs
 - `:remote :remote-name` - Target a specific remote for handling the load (defaults to a remote name of `:remote`).
 
+=== Data Fetch within Mutations
+
+Within a mutation you can queue one or more loads by called `load-action` or `load-field-action`.
+Be sure to include `remote-load` in the remote to trigger network processing.
+
+```
+(defmutation my-mutation [params]
+  (action [env]
+    (df/load-action env :prop Component options))
+  (remote [env] (df/remote-load env)))
+```
+
+All arguments and `options` are identical to the options for regular `load`, except for the first one
+(mutation `env` instead of a component).
+
+NOTE: The `:remote` in `options` is the remote for the load. It doesn't matter which `remote` you trigger
+with `remote-load`, they'll all be checked for loads. Thus, you can trigger loads from multiple different
+remotes, but need only have one `remote` section of `defmutation`.
+
 == Server Query
 
 Process a query for a property (e.g. `(load this :prop Comp)`):

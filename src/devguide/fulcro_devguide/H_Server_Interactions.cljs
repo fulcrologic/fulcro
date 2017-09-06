@@ -474,7 +474,7 @@
                 (let [new-view-comp (cond
                                        (= new-view :main)  ui/Main
                                        (= new-view :settings) ui/Settings]
-                (df/load-action state new-view new-view-comp) ;; (1)
+                (df/load-action env new-view new-view-comp) ;; (1)
                 (swap! state update :app/current-view new-view))})
   ```
 
@@ -487,7 +487,7 @@
                 (let [new-view-comp (cond
                                        (= new-view :main)  ui/Main
                                        (= new-view :settings) ui/Settings]
-                  (df/load-action state new-view new-view-comp)
+                  (df/load-action env new-view new-view-comp)
                   (swap! state update :app/current-view new-view))}))
     (remote [env] (df/remote-load env)))
   ```
@@ -942,6 +942,10 @@
   to this newly-loaded thing. The `after-load-sym` is a symbol (e.g. dispatch key to the mutate multimethod). The multi-method
   is guaranteed to be called with the app state in the environment, but no other Om environment items are ensured at
   the moment.
+
+  IMPORTANT: post mutations look like regular mutations, but *only* the `action` is applied. Remotes are not processed
+  on post mutations (or fallbacks) because they are not meant to trigger further network interactions, just app state
+  adjustments.
 
   ### Writing Server Mutations
 

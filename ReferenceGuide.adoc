@@ -1800,8 +1800,8 @@ The basic pattern is:
 (defmutation next-page [params]
   (action [{:keys [state] :as env}]
     (swap! state ...) ; local optimistic db updates
-    (df/load-action state :prop Component {:remote :remote}) ; same basic args as `load`, except state atom instead of `this`
-    (df/load-action state :other Other) {:remote :other-remote}) ; as many as you need...
+    (df/load-action env :prop Component {:remote :remote}) ; same basic args as `load`, except state atom instead of `this`
+    (df/load-action env :other Other) {:remote :other-remote}) ; as many as you need...
   (remote [env]
     (df/remote-load env))) ; notifies back-end that there is some loading to do
 ```

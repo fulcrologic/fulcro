@@ -237,7 +237,7 @@
       {:remote (when should-be-loaded? (df/remote-load env))
        :action (fn []
                  (when is-missing? (swap! state add-report-placeholder report-id))
-                 (when should-be-loaded? (df/load-action state [:reports/by-id report-id] StatusReport)))}))
+                 (when should-be-loaded? (df/load-action env [:reports/by-id report-id] StatusReport)))}))
   ```
 
   Additional mutations might do things like garbage collect old data that is not in the view. You may also need to

@@ -71,18 +71,20 @@
 ;; this case. See api.clj.
 
 ;; When to consider the data missing? Check the state and find out.
-(defn missing-tab? [state tab] (not (vector? (-> @state :settings :tab :settings))))
+(defn missing-tab? [state tab]
+  (let [settings (-> @state :settings :tab :settings)]
+    (or (not (vector? settings))
+      (and (vector? settings) (empty? settings)))))
 
 (m/defmutation lazy-load-tab [{:keys [tab]}]
   (action [{:keys [state] :as env}]
     ; Specify what you want to load as one or more calls to load-action (each call adds an item to load):
     (when (missing-tab? state tab)
-      (df/load-action state :all-settings SomeSetting
+      (df/load-action env :all-settings SomeSetting
         {:target  [:settings :tab :settings]
          :refresh [:settings]})))
   (remote [{:keys [state] :as env}]
-    (js/console.log tab :m? (missing-tab? state tab))
-    (when (missing-tab? state tab) (df/remote-load env))))
+    (df/remote-load env)))
 
 (defui ^:once Root
   ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the
