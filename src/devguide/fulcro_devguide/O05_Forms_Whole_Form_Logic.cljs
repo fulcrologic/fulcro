@@ -62,11 +62,11 @@
 (defmutation check-username-available
   "Sample mutation that simulates legal username check"
   [{:keys [form-id kind field]}]
-  (action [{:keys [state]}]
+  (action [{:keys [state] :as env}]
     (when (and (= kind :blur) (= :person/name field))
       (let [value (get-in @state (conj form-id field))]
         (swap! state assoc-in (conj form-id :ui/name-status) :checking)
-        (df/load-action state :name-in-use nil {:target  (conj form-id :ui/name-status)
+        (df/load-action env :name-in-use nil {:target  (conj form-id :ui/name-status)
                                                 :refresh [f/form-root-key]
                                                 :marker  false
                                                 :params  {:name value}}))))
@@ -172,11 +172,11 @@
   ```
   (defmutation check-username-available
     [{:keys [form-id kind field]}]
-    (action [{:keys [state]}]
+    (action [{:keys [state] :as env}]
       (when (and (= kind :blur) (= :person/name field)) ; only do things on blur
         (let [value (get-in @state (conj form-id field))] ; get the value of the field
           (swap! state assoc-in (conj form-id :ui/name-status) :checking) ; set a UI state to show progress
-          (df/load-action state :name-in-use nil {:target  (conj form-id :ui/name-status) ; trigger a remote load
+          (df/load-action env :name-in-use nil {:target  (conj form-id :ui/name-status) ; trigger a remote load
                                                   :refresh [f/form-root-key] ; ensure the forms re-render
                                                   :marker  false ; don't overwrite our marker with a loading marker
                                                   :params  {:name value}})))) ; include params on the query

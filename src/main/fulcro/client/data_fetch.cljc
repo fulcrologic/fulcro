@@ -99,9 +99,9 @@
   reads in normal `transact!`
   - `parallel` - If true, indicates that this load does not have to go through the sequential network queue. Defaults to false.
   - `post-mutation` - A mutation (symbol) to run after the data is merged. Note, if target is supplied be sure your post mutation
-  should expect the data at the targeted location.
+  should expect the data at the targeted location. The `env` of that mutation will be the env of the load (if available), but will also include `:load-request`.
   - `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
-  - `fallback` - A mutation (symbol) to run if there is a server/network error.
+  - `fallback` - A mutation (symbol) to run if there is a server/network error. The `env` of the fallback will be the env of the load (if available), but will also include `:load-request`.
   - `without` - An optional set of keywords that should (recursively) be removed from the query.
 
   Notes on UI Refresh:
