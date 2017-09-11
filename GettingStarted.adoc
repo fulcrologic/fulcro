@@ -1736,7 +1736,7 @@ Fulcro's load method accomplishes this by loading the data into the root of the 
 
 The load looks very much like what we just did, but with one addition:
 
-source
+[source]
 ----
 (df/load app :my-friends Person {:target [:person-list/by-id :friends :person-list/people]})
 ----
