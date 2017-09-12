@@ -30,6 +30,13 @@ If you want to jump and code, read on!
 See link:/GettingStarted.adoc[GettingStarted.adoc] to get going. It covers all of the
 basics related to full-stack development in Fulcro.
 
+There is a `lein` template, which emits a bare-bones full-stack app with dev, testing, 
+uberjar, i18n, and devcards support.
+
+```
+lein new fulcro my-project
+```
+
 If you don't know Clojure, you should at least get comfortable with the basics.
 I recommend: http://www.braveclojure.com/[Clojure for the Brave and True], and doing at least the
 basic online exercises at http://www.4clojure.com/[4Clojure]. You should also have
