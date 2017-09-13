@@ -6,6 +6,7 @@
 - Added mutation helper comments to routing section of devguide
 - Enhanced the `env` available in post mutations and fallbacks
 - Added some content to the reference guide
+- Added auto-retries on dynamic route loading
 
 1.0.0-beta9
 -----------
