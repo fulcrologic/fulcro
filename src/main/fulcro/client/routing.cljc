@@ -288,10 +288,12 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                      (do
                        (log/debug (str "Issuing module load for " route-to-load))
                        ; if the load succeeds, finish will be called to finish the route instruction
-                       (let [deferred-result (loader/load route-to-load (finish route-to-load))
+                       (let [deferred-result (loader/load route-to-load)
                              ;; see if the route is no longer needed (pending has changed)
-                             next-delay      (min 10000 (2 * (max 1000 delay)))]
+                             next-delay      (min 10000 (* 2 (max 1000 delay)))]
                          ; if the load fails, retry
+                         (js/console.log :dr deferred-result)
+                         (.addCallback deferred-result finish)
                          (.addErrback deferred-result
                            (fn [_]
                              (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
@@ -315,7 +317,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                                     (process-pending-route! env))))]
             (doseq [r routes]
               (log/debug (str "No route was loaded for " r ". Attempting to load."))
-              (load-dynamic-route state pending-route r finish)))))
+              (load-dynamic-route state pending-route r (finish r))))))
 
 (defn route-to-impl!
   "Mutation implementation, for use as a composition into other mutations. This function can be used
