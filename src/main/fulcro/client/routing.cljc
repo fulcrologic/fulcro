@@ -248,11 +248,6 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
         (cond-> (dissoc s ::pending-route)
           (contains? target :handler) (update-routing-links target :reconciler reconciler))))))
 
-(defn- dynamic-route-load-failed!
-  "TODO: Figure out how to figure this out and call it! I don't see a way to detect cljs module load failures."
-  [state-atom]
-  (swap! state-atom ::pending-route :LOAD-FAILED))
-
 (defn- route-target-missing?
   "Returns true iff the given ident has no component loaded into the dynamic routing multimethod."
   [ident]
@@ -279,21 +274,48 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                     (conj routes (first target-screen))
                     routes))) [] routing-instructions))))
 
+(defn- load-dynamic-route
+  "Triggers the actual load of a route, and retries if the networking is down. If the pending route (in state) has changed
+  between retries, then no further retries will be attempted. Exponential backoff with a 10 second max is used as long
+  as retries are being done."
+  ([state-atom pending-route-handler route-to-load finish-fn]
+   (load-dynamic-route state-atom pending-route-handler route-to-load finish-fn 0 0))
+  ([state-atom pending-route-handler route-to-load finish attempt delay]
+    #?(:cljs (js/setTimeout
+               (fn []
+                 (let [current-pending-route (get @state-atom ::pending-route)]
+                   (if (and pending-route-handler (= current-pending-route pending-route-handler))
+                     (do
+                       (log/debug (str "Issuing module load for " route-to-load))
+                       ; if the load succeeds, finish will be called to finish the route instruction
+                       (let [deferred-result (loader/load route-to-load (finish route-to-load))
+                             ;; see if the route is no longer needed (pending has changed)
+                             next-delay      (min 10000 (2 * (max 1000 delay)))]
+                         ; if the load fails, retry
+                         (.addErrback deferred-result
+                           (fn [_]
+                             (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
+                             ; TODO: We're tracking attempts..but I don't see a reason to stop trying if the route is still pending...
+                             (load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))
+                     (log/info (str "Route changed or was nil. Stopped retry for route loading of " route-to-load)))))
+               delay))))
+
 (defn- load-routes [{:keys [state reconciler] :as env} routes]
   #?(:clj (log/info "Dynamic loading of routes is not done on the server itself.")
      :cljs
-          (let [loaded  (atom 0)
-                to-load (count routes)
-                finish  (fn [k]
-                          (fn []
-                            (swap! loaded inc)
-                            (when (= @loaded to-load)
-                              (log/debug "Loading succeeded for missing router with name " k)
-                              (swap! state add-route-state k (get-dynamic-router-target k))
-                              (process-pending-route! env))))]
+          (let [loaded        (atom 0)
+                pending-route (get @state ::pending-route)
+                to-load       (count routes)
+                finish        (fn [k]
+                                (fn []
+                                  (swap! loaded inc)
+                                  (when (= @loaded to-load)
+                                    (log/debug "Loading succeeded for missing router with name " k)
+                                    (swap! state add-route-state k (get-dynamic-router-target k))
+                                    (process-pending-route! env))))]
             (doseq [r routes]
               (log/debug (str "No route was loaded for " r ". Attempting to load."))
-              (loader/load r (finish r))))))
+              (load-dynamic-route state pending-route r finish)))))
 
 (defn route-to-impl!
   "Mutation implementation, for use as a composition into other mutations. This function can be used
