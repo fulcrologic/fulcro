@@ -230,7 +230,7 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [{:keys [ident field params remote without query post-mutation post-mutation-params fallback parallel refresh marker target]
+  [{:keys [ident field params remote without query post-mutation post-mutation-params fallback parallel refresh marker target env]
     :or   {remote :remote without #{} refresh [] marker true}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
@@ -255,16 +255,19 @@
      ::refresh              refresh
      ::marker               marker
      ::parallel             parallel
-     ::fallback             fallback}))
+     ::fallback             fallback
+     ; stored on metadata so it doesn't interfere with serializability (this marker ends up in state)
+     ::original-env         (with-meta {} env)}))
 
 (defn mark-ready
   "Place a ready-to-load marker into the application state. This should be done from
   a mutate function that is abstractly loading something. This is intended for internal use.
 
   See the `load` and `load-field` functions in `fulcro.client.data-fetch` for the public API."
-  [{:keys [state] :as config}]
-  (let [marker?      (not (identical? false (:marker config)))
-        load-request (ready-state (merge {:marker true :refresh [] :without #{}} config))]
+  [{:keys [env] :as config}]
+  (let [state        (get env :state)
+        marker?      (not (identical? false (:marker config)))
+        load-request (ready-state (merge {:marker true :refresh [] :without #{} :env env} config))]
     (swap! state (fn [s]
                    (cond-> (update s :fulcro/ready-to-load (fnil conj []) load-request)
                      marker? (place-load-marker load-request))))))
@@ -382,6 +385,20 @@
       (and (map? data) (contains? data :ui/fetch-state)) (update-in app-state path dissoc :ui/fetch-state)
       :else (assoc-in app-state path nil))))
 
+(defn callback-env
+  "Build a callback env for post mutations and fallbacks"
+  [reconciler load-request original-env]
+  (let [state (om/app-state reconciler)
+        {:keys [::target ::remote ::ident ::field ::query ::post-mutation ::post-mutation-params ::refresh ::marker ::parallel ::fallback]} load-request]
+    (merge original-env
+      {:state state
+       :load-request
+              (cond-> {:target target :remote remote :marker marker :server-query query :parallel (boolean parallel)}
+                post-mutation (assoc :post-mutation post-mutation)
+                post-mutation-params (assoc :post-mutation-params post-mutation-params)
+                refresh (assoc :refresh refresh)
+                fallback (assoc :fallback fallback))})))
+
 (defn- loaded-callback
   "Generates a callback that processes all of the post-processing steps once a remote load has completed. This includes:
 
@@ -410,9 +427,9 @@
           run-post-mutations (fn [] (doseq [item loading-items]
                                       (when-let [mutation-symbol (::post-mutation item)]
                                         (reset! ran-mutations true)
-                                        (let [params (or (::post-mutation-params item) {})]
-                                          (some->
-                                            (m/mutate {:state (om/app-state reconciler)} mutation-symbol params)
+                                        (let [params       (or (::post-mutation-params item) {})
+                                              original-env (-> item ::original-env meta)]
+                                          (some-> (m/mutate (callback-env reconciler item original-env) mutation-symbol params)
                                             :action
                                             (apply []))))))]
       (remove-markers)
@@ -450,11 +467,13 @@
                                                  :always (update :fulcro/loads-in-progress disj (data-uuid item)))))))
           run-fallbacks (fn [] (doseq [item loading-items]
                                  (when-let [fallback-symbol (::fallback item)]
-                                   (reset! ran-fallbacks true)
-                                   (some->
-                                     (m/mutate {:state app-state} fallback-symbol {:error error})
-                                     :action
-                                     (apply [])))))]
+                                   (let [original-env (-> item ::original-env meta)
+                                         env          (callback-env reconciler item original-env)]
+                                     (reset! ran-fallbacks true)
+                                     (some->
+                                       (m/mutate env fallback-symbol {:error error})
+                                       :action
+                                       (apply []))))))]
       (mark-errors)
       (run-fallbacks)
       (set-global-loading reconciler)

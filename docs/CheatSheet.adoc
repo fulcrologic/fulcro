@@ -1,0 +1,314 @@
+= Fulcro Cheat Sheet
+
+== Common Namespaces
+
+- `[fulcro.client.core :as fc]`: Primary Fulcro namespace
+- `[fulcro.client.data-fetch :as df]`: Fulcro functions for loading data from remotes.
+- `[fulcro.client.mutations :as m]`: Fulcro mutations and mutation definition macro.
+- `[fulcro.client.util :as fu]`: Some helper functions
+- `[om.next :as om]`: Primary Om Next namespace
+- `[om.dom :as dom]`: HTML5 React factories
+- `[fulcro.server :as server]`: Fulcro server primitives.
+- `[fulcro.easy-server :as easy]`: Fulcro's one-step web server.
+- `[com.stuartsierra.component :as component]`: Component control and dependency injection
+
+== Defining Components
+
+```
+(om/defui ComponentName
+  static om/IQuery
+  (query [this] [:prop {:child (om/get-query Child)}])
+  static om/Ident
+  (ident [this props] [:TABLE ID])
+  static fc/InitialAppState
+  (initial-state [class params] {:prop scalar-value :child (fc/get-initial-state Child {})})
+  Object
+  ; React component methods (optional, see React docs):
+  (initLocalState [this] ...)
+  (shouldComponentUpdate [this next-props next-state] ...)
+  (componentWillReceiveProps [this next-props] ...)
+  (componentWillUpdate [this next-props next-state] ...)
+  (componentDidUpdate [this prev-props prev-state] ...)
+  (componentWillMount [this] ...)
+  (componentDidMount [this] ...)
+  (componentWillUnmount [this] ...)
+  (render [this]
+    (let [{:keys [prop child]} (om/props this)
+          {:keys [onSelect]    (om/get-computed this)]
+      ; render prop and child
+      (dom/div nil
+        (dom/span nil prop)
+        (ui-child child)))))
+```
+
+```
+(def ui-component-name (om/factory ComponentName {:keyfn :id-prop}))
+```
+
+```
+(ui-component-name raw-props)
+;; or, if callbacks and such are needed:
+(ui-component-name (om/computed raw-props {:onSelect (fn [] ...)))
+```
+
+==== Shortcut Macro for Stateful Components
+
+The `defsc` macro builds a `defui` with a query, ident (optional), initial state (optional), forms support (optional),
+arbitrary additional protocols (optional), co-located css (optional),
+and an argument list that gives you access to destructured props, computed data, and react children.
+All this in one very compact form. It also looks like a `defn` (for IDE integration) and checks for common errors:
+
+```
+(defsc Person
+  "Docstring"
+  [this {:keys [person/name] :as props} {:keys [onSelect] :as computed-props} children]
+  { :query [:person/id :person/name {:person/job (om/get-query Job)}]
+    :ident [:PERSON/by-id :person/id]
+    :form-fields [(f/id-field :person/id) ...] ; See forms support
+    :css [] ; garden css
+    :css-include [] ;see fulcro-css
+    :protocols [Object  ; arbitrary additional protocols
+                (my-method [this] ...)]
+    :initial-state {:person/name :param/name
+                    :person/job {:id 2 :name "Programmer"}
+                    :person/id :param/id} }
+  (dom/div #js {:onClick onSelect} name))
+```
+
+==== Trick for helping with computed props:
+
+```
+(let [factory (om/factory ComponentName {:keyfn :id-prop})]
+  (defn ui-component-name [props & {:keys [onSelect] :as computed-props}]
+    (factory (om/computed props computed-props))))
+```
+
+allows more readable `(ui-component-name props :onDelete (fn [e] ...))`. Other variations are possible,
+especially if you intend to use children.
+
+==== React Children
+
+- `(om/children this)` - Returns a (possibly empty) sequence of child elements sent to the React factory.
+- `(fu/react-instance? Component child)` - Returns true if child is a react element of the given type.
+- `(fu/first-node Component children)` - Returns the first react child of class Component, or nil.
+
+```
+(defui Heading
+  ...)
+(def ui-heading (om/factory Heading))
+
+(defui Note ...)
+(def ui-note (om/factory Note))
+
+(defui NotePanel
+  Object
+  (render [this]
+    (let [children (om/children this)
+          heading (first-node Heading children)
+          notes (filter #(react-instance? Note %) children)]
+      (dom/div nil
+        (dom/h4 nil heading)
+        (map ui-note notes)
+        ...))))
+(def ui-note-panel ...)
+
+...
+(ui-note-panel note-panel-props ; parent
+  (ui-heading heading-props) ; children
+  (ui-note note-props)
+  (ui-note note-props-2)
+  ...)
+```
+
+== Sanity Checklist
+
+- `render` returns exactly *one* react element (which can have any number of direct children).
+- Every component that has state has it's *own* query. The following are errors:
+  - `(query [this] (om/get-query OtherComponent))`
+  - `(query [this] [(om/get-query OtherComponent)])`
+  - `(query [this] [{:some-join (concat (om/get-query OtherComponent) (om/get-query AnotherComponent))}]`
+- Every child's query is composed in using an "invented" join name in the parent:
+  - `(query [this] [{:invented-join-prop (om/get-query Child)}])`
+- Queries compose all the way to a single Root
+- Every child's props are pulled from `om/props` and passed to that child's factory for rendering:
++
+```
+(render [this]
+  (let [{:keys [invented-join-prop]} (om/props this)]
+    (ui-child invented-join-prop)))
+```
+- If using initial state, the `InitialAppState` mirrors the component's query and composition all
+the way to the root of your application state. That is to say that for each scalar property
+queried there will be a scalar value in the initial state map, and for every join in the query
+there will be a key in the initial state whose value is the `get-initial-state` of the child
+in the query join.
++
+```
+static fc/InitialAppState
+(initial-state [c p] {:scalar-prop 42 :child-props (fc/get-initial-state Child {})})
+static om/IQuery
+(query [this] [:scalar-prop {:child-props (om/get-query Child)}])
+```
+- Every component that has state (except your root) *should* have an `Ident`. Exceptions
+are possible but rare.
+- More than one component can use the same ident. This is common. PersonListView, PersonDetail,
+PersonSummary might all have the same `[:person/by-id id]` style ident.
+- If you need the same initial state in more than one place, put it there! All versions of the same
+(duplicated) tree in initial app state will merge and normalize into the same spot at startup.
+   - Ensure that duplicated initial state tree components share idents.
+
+== Queries
+
+Regular queries are held in a vector, which can contain:
+
+- `:prop`: Retrive a scalar value
+- `{:join-name (om/get-query Child)}`: Join in the query for some child.
+
+Union queries are a map of sub-queries. Union queries require you encapsulate them
+in a union component. They stand for alternation, and use the component ident's TABLE during
+query processing to determine which query to continue.
+
+`{:TABLE-1 (om/get-query Component-1) :TABLE-2 (om/get-query Component-2) ...}`
+
+== Advanced Queries
+
+- `{[CHILD-TABLE ID] (om/get-query Child)}`: Query for a specific `Child` from that child's state
+table. Not relative to a parent's graph edges.
+- `[ROOT-PROP '_]`: Query for a specific scalar property from the root of the database graph. The
+quoting is needed so `_` is not evaluated.
+- `(:prop {:x 1})`: Query for a given scala property, and include the given map as parameters. Fulcro
+client, by default, ignores such parameters, but a server can easily use them.
+- `({:join-prop (om/get-query Child)} {:x 1})`: Send parameters with a join query. Again, client
+ignores these by default, but server queries may find them useful.
+
+== Mutation
+
+Mutations receive the entire state map, and parameters passed from `om/transact!`. They
+must have at least one `action` and/or `remote`. If both `action` and `remote` are
+present, then `action` must be listed first.
+
+- `action` is an optimistic update that will run and complete before remote processing.
+- `remote` is an instruction to mirror the mutation to the stated remote(s). You may
+specify any number of remotes in a single mutation.
+- `true` for a remote means send the exact client mutation. Returning an AST allows you to
+alter the request to the server. See Om Next documentation on the AST and the functions
+`om/ast->query` and `query->ast` for ideas.
+
+
+```
+(m/defmutation sym
+  docstring?
+  [param-map]
+  (action [{:keys [state] :as env}]
+    (swap! state f))
+  (remote-name [{:keys [ast] :as env}] true-or-ast))
+```
+
+`sym` will default to the declaring namespace, but can be explicitly namespaced. The
+default and most common `remote-name` in Fulcro is `remote`. If you have defined others then those
+are what you use to trigger remote mutations to that remote.
+
+Underneath this is just a `defmethod`, so you may also declare mutations as:
+
+```
+(defmethod m/mutate `sym [env k params]
+   {:action (fn [] ...)
+    :remote-name true })
+```
+
+but this is discouraged as it is more error-prone, and IDE's cannot support it as well.
+
+== Data Fetch
+
+If everything has an ident, then every component is stored in a table and idents
+make up the edges of your graph. This enables a very small number of load primitives
+capable of doing any kind of remote interaction desired. The first three below allow
+you to load anything to anywhere. The remainder give you additional control and morphing
+abilities:
+
+- `(load comp-or-app :prop Component)` - Load the given `:prop` into the root node of the client graph database using graph query of `Component`.
+- `(load comp-or-app :prop Component {:target [TABLE ID FIELD]})` - Load the given Component subgraph into
+the targeted entity at the given field.
+- `(load comp-or-app [COMPONENT-TABLE ID] Component)` - Load a specific instance of a component.
+- `(load comp-or-app :prop Component {:post-mutation sym})` - Load the given Component subgraph into the root, but run
+the indicated mutation (`sym`) once load completes to reshape the db in arbitrary ways.
+- `(load comp-or-app :prop nil)` - Load the given root scalar property (not graph)
+- `(load comp-or-app :prop Component {:without #{:kw}})` - Load the given subgraph, but elide any subtree or scalar known as `:kw`. E.g. Load a blog without comments.
+- `(load-field comp :kw)` - MUST be run in the context of a component with an ident: Load the subgraph of the current
+component that appears in it's query as `:kw`. E.g. Load the comments of a blog.
+
+Other interesting options (placed in the 4th argument option map):
+
+- `:parallel true` - Skip the sequential queue and load as soon as possible
+- `:marker false` - Don't put a load marker into state
+- `:post-mutation-params {}` - Include some parameters for the post mutation when it runs
+- `:remote :remote-name` - Target a specific remote for handling the load (defaults to a remote name of `:remote`).
+
+=== Data Fetch within Mutations
+
+Within a mutation you can queue one or more loads by called `load-action` or `load-field-action`.
+Be sure to include `remote-load` in the remote to trigger network processing.
+
+```
+(defmutation my-mutation [params]
+  (action [env]
+    (df/load-action env :prop Component options))
+  (remote [env] (df/remote-load env)))
+```
+
+All arguments and `options` are identical to the options for regular `load`, except for the first one
+(mutation `env` instead of a component).
+
+NOTE: The `:remote` in `options` is the remote for the load. It doesn't matter which `remote` you trigger
+with `remote-load`, they'll all be checked for loads. Thus, you can trigger loads from multiple different
+remotes, but need only have one `remote` section of `defmutation`.
+
+== Server Query
+
+Process a query for a property (e.g. `(load this :prop Comp)`):
+
+```
+(server/defquery-root :prop
+  "docstring"
+  (value [env params] query-result))
+```
+
+Process a query for a specific entity (e.g. `(load [TABLE ID] Comp)`):
+
+```
+(server/defquery-entity TABLE
+  "docstring"
+  (value [env ID params] query-result))
+```
+
+== Server Mutation
+
+Server mutations take the same form as client mutations, though `env` will be
+a server environment with optional component injections.
+
+```
+(server/defmutation sym
+  "docstring"
+  [params]
+  (action [env] ...))
+```
+
+== Easy Server
+
+```
+(def my-server (atom (easy/make-fulcro-server
+                       :config-path "resource-or-disk-path-to-edn-file"
+                       ; Extra components (databases, etc.)
+                       :components {:component-key (map->Component {})
+                                    ...}
+                       ; components available in query/mutation env:
+                       :parser-injections #{:component-key :config})))
+```
+
+starting/stopping the server:
+
+```
+(swap! my-server component/start)
+(swap! my-server component/stop)
+```
+

@@ -37,7 +37,7 @@ This goes in `project.clj`:
   :dependencies [[org.clojure/clojure "1.9.0-alpha17"]
                  [org.clojure/clojurescript "1.9.671"]
                  [org.omcljs/om "1.0.0-beta1"]
-                 [fulcrologic/fulcro "1.0.0-beta2"]]
+                 [fulcrologic/fulcro "1.0.0-beta10"]]
 
   :source-paths ["src/main"]
   :resource-paths ["resources"]
@@ -584,7 +584,8 @@ There are several benefits of this so far:
 
 1. It generates the exact tree of data needed to feed the UI
 2. It restores local reasoning (and easy refactoring). Moving a component just means local reasoning about the
-component being moved and the component it is being moved from/to.
+component being moved and the component it is being moved from/to: You remove the the `get-initial-state` from one
+parent and add it to a different one.
 
 In fact, at the figwheel REPL you can see the tree by running:
 
@@ -681,6 +682,10 @@ dev:cljs.user=>  (om.next/db->tree [{:friends [:person-list/label]}] (fulcro.cli
 {:friends {:person-list/label "Friends"}}
 ----
 
+HINT: The mirror of initial state with query is a great way to error-check your work: For each scalar property in
+initial state, there should be an identical simple property in your query. For each join of initial state to a child via
+`get-initial-state` there should be a query join via `get-query` to that same child.
+
 #### Adding Queries Our Example
 
 So, we want our queries to have the same nice local-reasoning as our initial data tree. The `get-query` function
@@ -706,7 +711,8 @@ So, the `Person` component queries for just the properties it needs:
 
 Notice that the entire rest of the component *did not* change.
 
-Next up the chain, we compose the `Person` query into `PersonList`:
+Next up the chain, we compose the `Person` query into `PersonList` (notice how the composition of state and query
+are mirrored):
 
 [source]
 ----
@@ -740,7 +746,7 @@ Finally, we compose to `Root`:
 ----
 (defui ^:once Root
   static om/IQuery
-  (query [this] [:ui/react-key  ; IMPORTANT: have to ask for react-key from the database
+  (query [this] [:ui/react-key  ; IMPORTANT: have to ask for react-key from the database now
                  {:friends (om/get-query PersonList)}
                  {:enemies (om/get-query PersonList)}])
   static
@@ -779,11 +785,13 @@ a specific component, but the reasoning will remain the same.
 ## Passing Callbacks and Other Parent-computed Data
 
 The queries on component describe what data the component wants from the database; however, you're not allowed
-to put code in the database, and sometimes a parent might compute something it needs to pass to a child.
+to put code in the database, and sometimes a parent might compute something it needs to pass to a child like
+a callback function.
 
-Om can optimize away the refresh of components if their data has not changed, meaning that it can use
-a component's query to directly re-supply its render method for refresh. Doing so skips the rendering
-call from the parent, and would lead to losing these "extra" bits of data passed from the parent.
+It turns out that we can optimize away the refresh of components if their data has not changed, meaning
+that we can use a component's query to directly re-supply its render method for refresh. Doing so skips the rendering
+call from the parent, and would lead to losing these "extra" bits of computationally generated data passed
+from the parent, like callbacks.
 
 Let's say we want to render a delete button on our individual people in our UI. This button will mean
 "remove the person from this list"...but the person itself has no idea which list it is in. Thus,
@@ -832,8 +840,8 @@ the parent will need to pass in a function that the child can call to affect the
 <3> Pulling the onDelete from the passed props (WRONG)
 <4> Invoking the callback when delete is pressed.
 
-This method of passing a callback will work, but not consistently. The problem is that Om can optimize away a re-render
-of a parent when it can figure out how to pull just the data of the child on a refresh, and in that case the
+This method of passing a callback will work initially, but not consistently. The problem is that we can optimize away a
+re-render of a parent when it can figure out how to pull just the data of the child on a refresh, and in that case the
 callback will get lost because only the database data will get supplied to the child! Your delete button will work
 on the initial render (from root), but may stop working at a later time after a UI refresh.
 
@@ -1728,7 +1736,7 @@ Fulcro's load method accomplishes this by loading the data into the root of the 
 
 The load looks very much like what we just did, but with one addition:
 
-source
+[source]
 ----
 (df/load app :my-friends Person {:target [:person-list/by-id :friends :person-list/people]})
 ----

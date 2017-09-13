@@ -17,9 +17,8 @@
   "
   # UI, queries and state
 
-  Now that you understand the database format, how you get data out of that database via
-  the queries, and how you build parser code once you're ready to get some UI on the screen
-  via all of those things?
+  Now that you understand the database format and queries you're probably ready to join it all together and get
+  some things on the screen!
 
   ## Co-located queries on components
 

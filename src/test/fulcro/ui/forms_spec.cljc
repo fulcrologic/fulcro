@@ -1,5 +1,6 @@
 (ns fulcro.ui.forms-spec
   (:require
+    #?(:clj [taoensso.timbre :as timbre])
     [om.next :as om :refer [defui]]
     [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
     [fulcro.client.core :as fc]
@@ -8,6 +9,8 @@
     [fulcro.client.util :as uu]
     [fulcro.ui.forms :as f]
     [fulcro.client.data-fetch :as df]))
+
+#?(:clj (timbre/set-level! :error))
 
 (defui Stub
   static om/IQuery

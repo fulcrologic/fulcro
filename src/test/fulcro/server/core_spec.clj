@@ -4,7 +4,11 @@
     [com.stuartsierra.component :as component]
     [fulcro.server :as core]
     [fulcro.easy-server :as easy]
-    [fulcro-spec.core :refer [specification behavior provided component assertions]])
+    [fulcro-spec.core :refer [specification behavior provided component assertions]]
+    [clojure.spec.alpha :as s]
+    [om.next :as om]
+    [om.dom :as dom]
+    [clojure.set :as set])
   (:import (clojure.lang ExceptionInfo)))
 
 (specification "transitive join"
@@ -36,10 +40,10 @@
   (components [this]
     {:test-dep
      (or test-dep
-         (reify
-           component/Lifecycle
-           (start [this] {:value "test-dep"})
-           (stop [this] this)))})
+       (reify
+         component/Lifecycle
+         (start [this] {:value "test-dep"})
+         (stop [this] this)))})
   component/Lifecycle
   (start [this] (assoc this :value "DepTestModule"))
   (stop [this] this))
@@ -55,14 +59,14 @@
   core/APIHandler
   (api-read [this]
     (if-not reads (constantly {:value :read/ok})
-      (fn [env k ps]
-        (when-let [value (get reads k)]
-          {:value value}))))
+                  (fn [env k ps]
+                    (when-let [value (get reads k)]
+                      {:value value}))))
   (api-mutate [this]
     (if-not mutates (constantly {:action (constantly :mutate/ok)})
-      (fn [env k ps]
-        (when-let [value (get mutates k)]
-          {:action (constantly value)})))))
+                    (fn [env k ps]
+                      (when-let [value (get mutates k)]
+                        {:action (constantly value)})))))
 (defn make-test-api-module [& [opts]]
   (map->TestApiModule
     (select-keys opts
@@ -123,16 +127,16 @@
           =fn=> (fn [sys]
                   (t/is (= "DepTestModule" (get-in sys [::DepTestModule :value])))
                   (t/is (= (get-in sys [::DepTestModule :test-dep])
-                           (get-in sys [:test-dep])))
+                          (get-in sys [:test-dep])))
                   true)
           "they can have their own deps"
           (test-fulcro-system
-            {:modules [(make-dep-test-module
-                         {:test-dep (component/using {:test-dep "yeah"} [:dep2])})]
+            {:modules    [(make-dep-test-module
+                            {:test-dep (component/using {:test-dep "yeah"} [:dep2])})]
              :components {:dep2 {:value "dep2"}}})
           =fn=> (fn [sys]
                   (t/is (= (get-in sys [::DepTestModule :test-dep :dep2])
-                           (get-in sys [:dep2])))
+                          (get-in sys [:dep2])))
                   true))))
     (component "APIHandler (optional)"
       (behavior "is used to compose reads&mutates like (ring) middleware"
@@ -141,55 +145,56 @@
               (test-fulcro-system
                 {:modules [(make-test-api-module)]})
               [::core/api-handler :middleware])
-            (constantly {:status 404}))
-           {:uri "/api"
-            :transit-params '[(launch-rocket!) :rocket-status]})
-          => {:status 200
+             (constantly {:status 404}))
+            {:uri            "/api"
+             :transit-params '[(launch-rocket!) :rocket-status]})
+          => {:status  200
               :headers {"Content-Type" "application/transit+json"}
-              :body {'launch-rocket! :mutate/ok
-                     :rocket-status :read/ok}}
+              :body    {'launch-rocket! :mutate/ok
+                        :rocket-status  :read/ok}}
           "get executed in the order of :modules, you should return nil if you do not handle the dispatch-key"
           (((get-in
               (test-fulcro-system
                 {:modules [(make-test-api-module
                              {:sys-key :always-working
-                              :reads {:rocket-status :working
-                                      :working :working/true}})
+                              :reads   {:rocket-status :working
+                                        :working       :working/true}})
                            (make-test-api-module
                              {:sys-key :always-broken
-                              :reads {:rocket-status :broken
-                                      :broken :broken/true}})]})
+                              :reads   {:rocket-status :broken
+                                        :broken        :broken/true}})]})
               [::core/api-handler :middleware])
-            (constantly {:status 404}))
-           {:uri "/api"
-            :transit-params '[:rocket-status :working :broken]})
-          => {:status 200
+             (constantly {:status 404}))
+            {:uri            "/api"
+             :transit-params '[:rocket-status :working :broken]})
+          => {:status  200
               :headers {"Content-Type" "application/transit+json"}
-              :body {:rocket-status :working
-                     :working :working/true
-                     :broken :broken/true}}))))
+              :body    {:rocket-status :working
+                        :working       :working/true
+                        :broken        :broken/true}}))))
   (behavior "all system keys must be unique, (Module/system-key and Module/components keys)"
     (assertions
       (core/fulcro-system {:components {:foo {}}
-                              :modules [(make-test-api-module
+                           :modules    [(make-test-api-module
                                           {:sys-key :foo})]})
       =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*fulcro-system")
       (core/fulcro-system {:components {:foo {}}
-                              :modules [(make-test-api-module
+                           :modules    [(make-test-api-module
                                           {:cmps {:foo "test-api"}})]})
       =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*fulcro-system"
                   #(do (t/is
-                         (= (ex-data %)  {:key :foo :prev-value {} :new-value "test-api"}))
-                     true))
+                         (= (ex-data %) {:key :foo :prev-value {} :new-value "test-api"}))
+                       true))
       (core/fulcro-system {:modules [(make-test-api-module
-                                          {:sys-key :foo})
-                                        (make-test-api-module
-                                          {:sys-key :foo})]})
+                                       {:sys-key :foo})
+                                     (make-test-api-module
+                                       {:sys-key :foo})]})
       =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*Module/system-key")
       (core/fulcro-system {:modules [(make-test-api-module
-                                          {:sys-key :foo1
-                                           :cmps {:foo "foo1"}})
-                                        (make-test-api-module
-                                          {:sys-key :foo2
-                                           :cmps {:foo "foo2"}})]})
+                                       {:sys-key :foo1
+                                        :cmps    {:foo "foo1"}})
+                                     (make-test-api-module
+                                       {:sys-key :foo2
+                                        :cmps    {:foo "foo2"}})]})
       =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*Module/components"))))
+

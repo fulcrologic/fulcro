@@ -16,15 +16,16 @@
     fulcro-devguide.G-Mutation-Exercises
     fulcro-devguide.G-Mutation-Solutions
     fulcro-devguide.H-Server-Interactions
-    fulcro-devguide.M45-Advanced-Server-Query-Processing
     fulcro-devguide.I-Building-A-Server
     fulcro-devguide.J-Exercise-on-Putting-It-Together
     fulcro-devguide.K-Testing
     fulcro-devguide.L-Internationalization
+    fulcro-devguide.M05-More-Concise-UI
     fulcro-devguide.M10-Advanced-UI
     fulcro-devguide.M15-Routing-UI
     fulcro-devguide.M30-Advanced-Mutation
     fulcro-devguide.M40-Advanced-Server-Topics
+    fulcro-devguide.M45-Advanced-Server-Query-Processing
     fulcro-devguide.M50-Server-Side-Rendering
     fulcro-devguide.N10-Twitter-Bootstrap-CSS
     fulcro-devguide.N15-Twitter-Bootstrap-Components

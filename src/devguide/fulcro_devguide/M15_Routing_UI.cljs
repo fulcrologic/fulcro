@@ -237,7 +237,7 @@
       {:remote (when should-be-loaded? (df/remote-load env))
        :action (fn []
                  (when is-missing? (swap! state add-report-placeholder report-id))
-                 (when should-be-loaded? (df/load-action state [:reports/by-id report-id] StatusReport)))}))
+                 (when should-be-loaded? (df/load-action env [:reports/by-id report-id] StatusReport)))}))
   ```
 
   Additional mutations might do things like garbage collect old data that is not in the view. You may also need to
@@ -258,6 +258,20 @@
   ```
   (dom/a #js {:onClick #(show-report! this :a)} \"Report A\")
   ```
+
+  ## Mutations with Routing
+
+  In some cases you will find it most convenient to do your routing within a mutation itself. This will let you
+  check state, trigger loads, etc. If you trigger loads, then you can also easily defer the routing until the
+  load completes. Of course, in that case you may want to do something in the state to cause your UI to indicate
+  the routing is in progress.
+
+  There is nothing special about this technique. There are several functions in the `routing` namespace
+  that can be used easily within your own mutations:
+
+  - `update-routing-links` - For standard union-based `defrouter`: Takes the state map and a route match (i.e. handler/params) and returns a new state map with the routes updated.
+  - `route-to-impl!` - For all kinds of routers (including dynamic): Takes the mutation `env` and a bidi-style match. Works with dynamic routes. Does swaps against app state.
+  - `set-route` - Changes the current route on a specific `defrouter` instance. Takes a state map, router ID, and target ident. Used if not using routing trees or dynamic routers.
 
   # HTML5 Routing
 
