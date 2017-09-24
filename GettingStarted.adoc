@@ -23,7 +23,7 @@ Fulcro requires that you include a few things in your dependency list.
 
 * Om Next (1.0.0-beta1 or above)
 * Clojure (1.9.0-alpha16 or above)
-* Clojurescript (1.9.542 or above)
+* Clojurescript (1.9.908 or above)
 * Fulcro (this library)
 
 A typical project will also include figwheel, devtools, and
@@ -35,7 +35,7 @@ This goes in `project.clj`:
 (defproject my-project "0.0.1"
   :description "My Project"
   :dependencies [[org.clojure/clojure "1.9.0-alpha17"]
-                 [org.clojure/clojurescript "1.9.671"]
+                 [org.clojure/clojurescript "1.9.908"]
                  [org.omcljs/om "1.0.0-beta1"]
                  [fulcrologic/fulcro "1.0.0-beta10"]]
 
@@ -59,7 +59,7 @@ This goes in `project.clj`:
   :profiles {:dev {:source-paths ["src/dev" "src/main"]
                    :dependencies [[binaryage/devtools "0.9.4"]
                                   [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                  [figwheel-sidecar "0.5.10"]]}})
+                                  [figwheel-sidecar "0.5.13"]]}})
 ----
 
 ### Figwheel Startup Script
@@ -196,7 +196,7 @@ For Emacs + Cider:
                    :dependencies [[binaryage/devtools "0.9.4"]
                                   [com.cemerick/piggieback "0.2.1"]
                                   [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                  [figwheel-sidecar "0.5.11"]
+                                  [figwheel-sidecar "0.5.13"]
                                   [org.clojure/tools.nrepl "0.2.13"]]}})
 ----
 * With `src/dev/user.clj` open in a buffer, choose `M-x cider-jack-in-clojurescript` or `C-c M-J` (`M-J` with capital J).
