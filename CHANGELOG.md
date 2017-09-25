@@ -1,3 +1,7 @@
+1.0.0-beta11
+------------
+- Fixed regression in i18n change-locale
+
 1.0.0-beta10
 ------------
 - Fixed a bug in logging where the clj and cljs API didn't match

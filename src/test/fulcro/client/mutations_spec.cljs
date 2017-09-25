@@ -9,7 +9,8 @@
     [goog.log :as glog]
     [om.next :as om :refer [*logger*]]
     [clojure.test :refer [is]]
-    [fulcro.client.logging :as log]))
+    [fulcro.client.logging :as log]
+    [clojure.string :as str]))
 
 (defmutation sample
   "Doc string"
@@ -100,19 +101,74 @@
         parser     (partial (om/parser {:read (partial plumb/read-local (constantly false)) :mutate m/mutate}))
         reconciler (om/reconciler {:state  state
                                    :parser parser})]
-
-    (behavior "can change the current localization."
-      (when-mocking
-        (m/locale-present? l) => true
-
-        (reset! i18n/*current-locale* "en-US")
-        (om/transact! reconciler `[(fulcro.client.mutations/change-locale {:lang "es-MX"}) :ui/locale])
-        (is (= "es-MX" @i18n/*current-locale*))))
-
-    (behavior "reports an error if an undefined multi-method is called."
+    (behavior "report an error if an undefined multi-method is called."
       (when-mocking
         (log/error msg) => (is (re-find #"Unknown app state mutation." msg))
         (om/transact! reconciler `[(not-a-real-transaction!)])))))
+
+(specification "Change locale mutation" :focused
+  (behavior "accepts a string for locale"
+    (when-mocking
+      (m/locale-present? l) => true
+
+      (reset! i18n/*current-locale* "en-US")
+
+      (m/change-locale-impl {} "es-MX")
+
+      (assertions @i18n/*current-locale* => "es-MX")))
+  (behavior "accepts a keyword for locale"
+    (when-mocking
+      (m/locale-present? l) => true
+
+      (reset! i18n/*current-locale* "en-US")
+      (m/change-locale-impl {} :es-MX)
+      (assertions @i18n/*current-locale* => "es-MX")))
+  (provided "the locale is loaded"
+    (m/locale-present? l) => (do
+                               (assertions
+                                 "The locale check is passed a stringified version of the lang"
+                                 l => "es-MX"))
+    (reset! i18n/*current-locale* "en-US")
+
+    (let [new-state (m/change-locale-impl {} :es-MX)]
+      (assertions
+        "The locale is updated in app state as a string"
+        (:ui/locale new-state) => "es-MX"
+        "The react key is changed to force a DOM refresh"
+        (:ui/react-key new-state) => "es-MX"
+        "The global locale atom is updated"
+        @i18n/*current-locale* => "es-MX")))
+  (provided "the locale is not loaded, and is invalid"
+    (m/locale-present? l) => false
+    (m/locale-loadable? l) => (do
+                                (assertions
+                                  "the loadable check is passed a keyword version of the locale"
+                                  l => :ja)
+                                false)
+    (log/error error) => (assertions
+                           "Logs a console error"
+                           error =fn=> #(str/starts-with? % "Attempt to change locale to ja"))
+
+    (let [new-state (m/change-locale-impl {:x 1} "ja")]
+
+      (assertions
+        "Returns the original (unmodified) state"
+        new-state => {:x 1})))
+  (provided "the locale is not loaded, but is defined in a module"
+    (m/locale-present? l) => false
+    (m/locale-loadable? l) => true
+    (cljs.loader/load m) => (assertions
+                              "Triggers a module load with the locale's module keyword"
+                              m => :ja)
+
+    (let [new-state (m/change-locale-impl {} "ja")]
+      (assertions
+        "The locale is updated in app state as a string"
+        (:ui/locale new-state) => "ja"
+        "The react key is changed to force a DOM refresh"
+        (:ui/react-key new-state) => "ja"
+        "The global locale atom is updated"
+        @i18n/*current-locale* => "ja"))))
 
 (specification "Fallback mutations"
   (try

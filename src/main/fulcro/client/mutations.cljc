@@ -96,22 +96,20 @@
   "Given a state map and locale, returns a new state map with the locale properly changed. Also potentially triggers a module load.
   There is also the mutation `change-locale` that can be used from transact."
   [state-map lang]
-  (assert (string? lang) "New locale must be a string (e.g. \"en-US\".")
-  (let [locale-key    (keyword lang)
-        valid-locale? (or
-                        (locale-present? lang)
-                        (locale-loadable? locale-key))]
+  (let [lang          (name lang)
+        locale-key    (keyword lang)
+        present?      (locale-present? lang)
+        valid-locale? (or present? (locale-loadable? locale-key))]
     (if valid-locale?
       (do
-        #?(:cljs (when (and (-> lang locale-present? not)
-                         (locale-loadable? locale-key))
+        #?(:cljs (when (and (not present?) (locale-loadable? locale-key))
                    (loader/load locale-key (fn [] (log/debug "Finished loading locale " lang)))))
         (reset! i18n/*current-locale* lang)
         (-> state-map
           (assoc :ui/locale lang)
           (assoc :ui/react-key lang)))
       (do
-        (log/error "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module.")
+        (log/error (str "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module."))
         state-map))))
 
 #?(:cljs
