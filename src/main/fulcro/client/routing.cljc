@@ -70,7 +70,7 @@ in cljc files. The first screen listed will be the 'default' screen that the rou
 
 - All screens *must* implement InitialAppState
 - All screens *must* have a UI query
-- Add screens *must* have state that the ident-fn can use to determine which query to run. E.g. the left member
+- All screens *must* have state that the ident-fn can use to determine which query to run. E.g. the left member
 of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 "
                :arglists '([sym router-id ident-fn & kws-and-screens])} defrouter
