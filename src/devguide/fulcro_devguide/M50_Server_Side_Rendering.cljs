@@ -190,4 +190,83 @@
    - [Client Start-up](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/client.cljs) Note this example tolerates a failure of the server to send
    initial state, so it runs initial startup steps if it detects that.
 
+  ## True Isomorphic Support with Nashorn
+
+  If you use external Javascript libraries of React components, then you'll probably want to work just a little
+  bit harder. The techniques described above work perfectly if you're writing all of your own UI, but as soon as there
+  are some pure js components you have to stub them out with placeholders.
+
+  If you're willing to work just a little bit harder, then you can maintain a true isomorphic application using Java
+  8 and the Nashorn ECMA scripting engine.
+
+  Some notes:
+
+  1. Server-side use of the compiled Javascript works best with advanced-optimized builds. Figwheel and other development
+  builds of the javascript won't work right, and we've even seen problems with builds that don't use advanced optimizations.
+  2. (1) means that your SSR is going to be hard to work with if you're in dev (figwheel) mode. The recommendation is that
+  you test SSR as a separate step (where you can have an auto incremental build with advanced compilation). Figwheel hot loads
+  code updates anyhow, so not having SSR when working in development mode isn't really a big loss.
+
+  There is a `nashorn` branch on the github `fulcro-template` project that demonstrates the setup and rendering code.
+
+  The basics are:
+
+  - Start a Nashorn instance
+  - Run a polyfill that defines console and global
+  - Run the compiled script of your program to define everything
+  - Use a render to string call to get the initial HTML output
+
+  The polyfill is just:
+  ```
+  var global = this;
+
+  var console = {};
+  console.debug = print;
+  console.warn = print;
+  console.error = print;
+  console.log = print;
+  var usingNashorn = true;
+  ```
+
+  Client main (which does the mount) becomes:
+
+  ```
+  (when-not (exists? js/usingNashorn)
+    (reset! app (core/mount @app root/Root \"app\")))
+  ```
+
+  Server rendering (client-side cljs) is:
+
+  ```
+  (def ui-root (om/factory root/Root))
+
+  (defn ^:export server-render [props-str]
+    ; incoming data will come from JVM as transit-stringified EDN
+    (if-let [props (some-> props-str util/transit-str->clj)]
+      (js/ReactDOMServer.renderToString (ui-root props))
+      (js/ReactDOMServer.renderToString (ui-root (fc/get-initial-state root/Root nil)))))
+  ```
+
+  And the server-side code holds a script engine in an atom or something (a component would be best), and
+  accomplishes the rendering of a given tree of UI props via:
+
+  ```
+  (defn ^String nashorn-render
+  [props]
+  (try
+    (start-nashorn)
+    (let [string-props  (util/transit-clj->str props)
+          script-engine ^NashornScriptEngine @nashorn
+          ; look up the object that holds the defs of the server-render function (using js naming)
+          namespc       (.eval script-engine \"namespace.of.server_render\")
+          ; invoke the server-render function, and pass in a transit-stringified EDN version of props
+          ; invokeMethod is varargs, which is what the into-array is about
+          result        (.invokeMethod script-engine namespc \"server_render\" (into-array [string-props]))
+          html          (String/valueOf result)]
+      html)
+    (catch ScriptException e
+      (timbre/debug \"Server-side render failed. This is an expected error when not running from a production build with adv optimizations.\")
+      (timbre/trace \"Rendering exception:\" e))))
+  ```
+
   ")
