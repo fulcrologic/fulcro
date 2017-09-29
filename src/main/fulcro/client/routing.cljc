@@ -48,7 +48,7 @@
    (defn- emit-router [router-id sym union-sym]
      `(om.next/defui ~(vary-meta sym assoc :once true)
         ~'static fulcro.client.core/InitialAppState
-        (~'initial-state [~'clz ~'params] {:id ~router-id :current-route (fulcro.client.core/get-initial-state ~union-sym {})})
+        (~'initial-state [~'clz ~'params] {:id ~router-id :current-route (fulcro.client.core/get-initial-state ~union-sym ~'params)})
         ~'static om.next/Ident
         (~'ident [~'this ~'props] [:fulcro.client.routing.routers/by-id ~router-id])
         ~'static om.next/IQuery

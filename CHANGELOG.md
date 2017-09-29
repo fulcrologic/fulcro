@@ -1,6 +1,7 @@
 1.0.0-beta11
 ------------
 - Fixed regression in i18n change-locale
+- Fixed routers to allow initial state parameters to pass through to the default screen
 
 1.0.0-beta10
 ------------
