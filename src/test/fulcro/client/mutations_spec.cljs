@@ -106,7 +106,7 @@
         (log/error msg) => (is (re-find #"Unknown app state mutation." msg))
         (om/transact! reconciler `[(not-a-real-transaction!)])))))
 
-(specification "Change locale mutation" :focused
+(specification "Change locale mutation"
   (behavior "accepts a string for locale"
     (when-mocking
       (m/locale-present? l) => true

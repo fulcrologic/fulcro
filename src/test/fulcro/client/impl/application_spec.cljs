@@ -377,7 +377,7 @@
     (-> (app/sweep-one (with-meta [{:a 1 :b ::plumbing/not-found}] {:meta :data}))
       meta) => {:meta :data}))
 
-(specification "Sweep merge" :focused
+(specification "Sweep merge"
   (assertions
     "recursively merges maps"
     (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c 5}) => {:a 2 :c 5}

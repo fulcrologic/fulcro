@@ -305,7 +305,6 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                              ;; see if the route is no longer needed (pending has changed)
                              next-delay      (min 10000 (* 2 (max 1000 delay)))]
                          ; if the load fails, retry
-                         (js/console.log :dr deferred-result)
                          (.addCallback deferred-result finish)
                          (.addErrback deferred-result
                            (fn [_]

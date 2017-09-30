@@ -60,9 +60,15 @@
         "Switches the current routes with parameter substitutions"
         (r/current-route new-state-map :router-1) => [:screen1 :target-id]))))
 
+(specification "load-dynamic-route"
+  (behavior "retries on network failures (forever)" :manual-test)
+  (behavior "Stops retrying if the user changes to another route (pending route changes or disappears)" :manual-test))
+
 (specification "route-to mutation"
   (provided "There are no missing dynamically loaded routes: "
     (r/get-missing-routes r s p) => []
+    (r/update-routing-queries! r m) => nil
+
     (let [r         (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
           r2        (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
                                         (r/router-instruction :router-1 [:screen1 :other])])
@@ -77,7 +83,47 @@
 
       (assertions
         "Switches the current routes according to the route instructions"
-        (r/current-route @state :router-1) => [:screen1 :top]))))
+        (r/current-route @state :router-1) => [:screen1 :top])))
+  (provided "There are one or more missing dynamically loaded routes: "
+    (r/get-missing-routes r s p) => [:main]
+    (r/load-routes env routes) => (do
+                                    (assertions
+                                      "Triggers loading on the missing screen"
+                                      routes => [:main]))
+
+    (let [r         (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
+          r2        (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
+                                        (r/router-instruction :router-1 [:screen1 :other])])
+          tree      (r/routing-tree r r2)
+          state-map (merge tree
+                      {r/routers-table {:router-1 {:id :router-1 :current-route [:initial :top]}
+                                        :router-2 {:id :router-2 :current-route [:initial :top]}}})
+          state     (atom state-map)
+          action    (:action (m/mutate {:state state} `r/route-to {:handler :boo}))]
+
+      (action)
+
+      (assertions
+        "Defers moving the current routes"
+        (r/current-route @state :router-1) => [:initial :top]
+        "Sets the pending route to the target match"
+        (-> state deref ::r/pending-route) => {:handler :boo}))))
+
+(specification "Completion of a dynamic route load (process-pending-route!)"
+  (let [state-atom (atom {::r/pending-route {:handler :boo}})]
+    (when-mocking
+      (r/update-routing-queries! r m) =1x=> (assertions
+                                              "Updates the queries on dynamic routers"
+                                              m => {:handler :boo})
+      (r/update-routing-links s m) =1x=> (assertions
+                                           "Updates the routing links"
+                                           m => {:handler :boo})
+
+      (#'r/process-pending-route! {:state state-atom :reconciler :fake-reconciler})
+
+      (assertions
+        "Removes the pending route from the state"
+        (-> state-atom deref ::r/pending-route) => nil))))
 
 
 (specification "Route parameter substitution"
