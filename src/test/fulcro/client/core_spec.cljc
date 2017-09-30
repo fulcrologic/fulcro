@@ -526,7 +526,7 @@
       (get-in new-state [:graph 1]) => graph-1)))
 
 #?(:clj
-   (specification "defsc helpers" :focused
+   (specification "defsc helpers"
      (component "validate-query"
        (assertions
          "Honors the symbol for this that is defined by defsc"
@@ -656,7 +656,7 @@
              {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
-   (specification "defsc" :focused
+   (specification "defsc"
      (assertions
        "works with initial state"
        (#'fc/defsc* '(Person

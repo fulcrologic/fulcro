@@ -718,6 +718,7 @@
         :ident [:COMPONENT/by-id :db/id]
         :protocols [Object
                     (shouldComponentUpdate [this] true)]
+        ; Use :param/x to indicate a value that should come from the caller of get-initial-state on this component
         :initial-state {:db/id 4 :component/Child {} :component/other [{}]} }
       body)
    ```

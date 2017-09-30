@@ -1,3 +1,9 @@
+1.0.0-beta11
+------------
+- Fixed regression in i18n change-locale.
+- Fixed routers to allow initial state parameters to pass through to the default screen.
+- Fixed a bug in dynamic routers that caused updated route queries to not be properly saved in app state.
+
 1.0.0-beta10
 ------------
 - Fixed a bug in logging where the clj and cljs API didn't match

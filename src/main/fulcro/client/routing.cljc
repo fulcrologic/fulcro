@@ -48,7 +48,7 @@
    (defn- emit-router [router-id sym union-sym]
      `(om.next/defui ~(vary-meta sym assoc :once true)
         ~'static fulcro.client.core/InitialAppState
-        (~'initial-state [~'clz ~'params] {:id ~router-id :current-route (fulcro.client.core/get-initial-state ~union-sym {})})
+        (~'initial-state [~'clz ~'params] {:id ~router-id :current-route (fulcro.client.core/get-initial-state ~union-sym ~'params)})
         ~'static om.next/Ident
         (~'ident [~'this ~'props] [:fulcro.client.routing.routers/by-id ~router-id])
         ~'static om.next/IQuery
@@ -70,7 +70,7 @@ in cljc files. The first screen listed will be the 'default' screen that the rou
 
 - All screens *must* implement InitialAppState
 - All screens *must* have a UI query
-- Add screens *must* have state that the ident-fn can use to determine which query to run. E.g. the left member
+- All screens *must* have state that the ident-fn can use to determine which query to run. E.g. the left member
 of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 "
                :arglists '([sym router-id ident-fn & kws-and-screens])} defrouter
@@ -157,18 +157,30 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
       (log/debug (str "Setting routing query for " router-id " to " query))
       (om/set-query! router {:query [:id {:current-route query}]} [::pending-route]))))
 
+(defn- update-routing-queries!
+  "Given the reconciler and a routing tree route: finds and sets all of the dynamic queries needed to
+  accomplish that route."
+  [reconciler {:keys [handler route-params]}]
+  (let [state-map            (-> reconciler om/app-state deref)
+        routing-instructions (get-in state-map [routing-tree-key handler])]
+    (if-not (or (nil? routing-instructions) (vector? routing-instructions))
+      (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
+      (doseq [{:keys [target-router target-screen]} routing-instructions]
+        (set-routing-query! reconciler target-router target-screen)))))
+
 (defn update-routing-links
   "Given the app state map, returns a new map that has the routing graph links updated for the given route/params
-  as a bidi match. This function should only be used if you use static UI routing. If you use DynamicRouter,
-  then you should use `route-to-impl!` to ensure your routes are loaded."
-  [state-map {:keys [handler route-params]} & {:keys [reconciler]}]
+  as a bidi match.
+
+  ***This function should only be used if you only use static UI routing.***
+
+  If you use DynamicRouter then you must use `route-to-impl!` instead."
+  [state-map {:keys [handler route-params]}]
   (let [routing-instructions (get-in state-map [routing-tree-key handler])]
     (if-not (or (nil? routing-instructions) (vector? routing-instructions))
       (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
       (reduce (fn [m {:keys [target-router target-screen]}]
                 (let [parameterized-screen-ident (set-ident-route-params target-screen route-params)]
-                  (when reconciler
-                    (set-routing-query! reconciler target-router target-screen))
                   (set-route m target-router parameterized-screen-ident))) state-map routing-instructions))))
 
 (defmulti get-dynamic-router-target
@@ -243,10 +255,11 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   [{:keys [state reconciler] :as env}]
   (let [target (::pending-route @state)]
     (log/debug (str "Attempting to route to " target))
+    (update-routing-queries! reconciler target)
     (swap! state
       (fn [s]
         (cond-> (dissoc s ::pending-route)
-          (contains? target :handler) (update-routing-links target :reconciler reconciler))))))
+          (contains? target :handler) (update-routing-links target))))))
 
 (defn- route-target-missing?
   "Returns true iff the given ident has no component loaded into the dynamic routing multimethod."
@@ -292,7 +305,6 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                              ;; see if the route is no longer needed (pending has changed)
                              next-delay      (min 10000 (* 2 (max 1000 delay)))]
                          ; if the load fails, retry
-                         (js/console.log :dr deferred-result)
                          (.addCallback deferred-result finish)
                          (.addErrback deferred-result
                            (fn [_]
@@ -325,7 +337,9 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   code loading. Once the loading is complete (if any is needed), it will trigger the actual UI routing.
 
   If routes are being loaded, then the root property in your app state :fulcro.client.routing/pending-route
-  will be your `bidi-match`. You can use a link query to pull this into your UI to show some kind of indicator."
+  will be your `bidi-match`. You can use a link query to pull this into your UI to show some kind of indicator.
+
+  NOTE: this function updates application state and *must not* be used from within a swap on that state."
   [{:keys [state reconciler] :as env} bidi-match]
   (if-let [missing-routes (seq (get-missing-routes reconciler @state bidi-match))]
     (if (= bidi-match (get @state ::pending-route))
@@ -337,9 +351,10 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
         (load-routes env missing-routes)))
     (do
       (log/debug (str "Updating routing links " bidi-match))
+      (update-routing-queries! reconciler bidi-match)
       (swap! state #(-> %
                       (dissoc ::pending-route)
-                      (update-routing-links bidi-match :reconciler reconciler))))))
+                      (update-routing-links bidi-match))))))
 
 (m/defmutation route-to
   "Om Mutation (use in transact! only):

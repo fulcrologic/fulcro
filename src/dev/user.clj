@@ -32,9 +32,11 @@
      (start-figwheel (keys (select-keys props all-builds)))))
   ([build-ids]
    (let [figwheel-config   (fig/fetch-config)
+         port              (some-> (System/getProperty "figwheel.port") Integer/parseInt)
          default-build-ids (-> figwheel-config :data :build-ids)
          build-ids         (if (empty? build-ids) default-build-ids build-ids)
-         preferred-config  (assoc-in figwheel-config [:data :build-ids] build-ids)]
+         preferred-config  (cond-> (assoc-in figwheel-config [:data :build-ids] build-ids)
+                             (and port (pos? port)) (assoc-in [:data :figwheel-options :server-port] port))]
      (reset! figwheel (component/system-map
                         :figwheel-system (fig/figwheel-system preferred-config)
                         :css-watcher (fig/css-watcher {:watch-paths ["resources/public/css"]})))
