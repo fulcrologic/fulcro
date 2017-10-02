@@ -29,7 +29,7 @@ Be sure to watch the [whiteboard discussion video](https://youtu.be/mT4jJHf929Q?
 The primitives to support this are well-defined in `routing.cljc`. There are a few gotchas, and
 it is recommended that you carefully examine the new [Fulcro Template](https://github.com/fulcrologic/fulcro-template).
 
-Supported on both client and for SSR (100%).
+Supported on both client and for server-side rendering (100%). 
 
 ## Form Support
 
@@ -46,24 +46,18 @@ needs some CSS love or other instructions for how to make it look good.
 
 ## Developer's Guide
 
-The developer's guide is currently a little out-of-date. All of the
-things it describes still work, but there are better ways of doing
-some of them now.
+The developer's guide is constantly evolving, but is the most
+complete documentation on the overall platform.
 
 ## Internationalization
 
-The story is well defined, and the code is present. The lein plugin
-to do string extraction and module generation is outdated and possibly
-broken. There are mostly easy workarounds for this, but it needs work.
-
-Fortunately, this does not affect your ability to write programs with
-i18n support, it just affects the ease in which you can generate
-translations for other languages.
+The story is well defined, and the code is present. String extraction,
+code generation (as namespaces and/or loadable modules) works.
 
 - Core code (100%)
 - String extraction (100%)
 - Server-side rendering (100%)
-- Dynamic Loading (80%) (waiting on cljs release July 2017)
+- Dynamic Loading (100%)
 
 ## Websockets
 
@@ -81,11 +75,10 @@ middleware stack, and is therefore a bit easier to understand (though
 more work). The modular nature of the new server also enables 3rd party
 libraries that can hook into your server-side query/mutation logic.
 
-Both are in good shape. The modular server could use more examples and
-documentation.
+Both are in good shape, and well-documented.
 
 - Easy Server (100%)
-- Module-based Server (95%)
+- Module-based Server (100%)
 
 ## Twitter Bootstrap Support
 
@@ -101,22 +94,12 @@ bootstrap CSS and theme in your HTML page.
 
 ## Advanced Optimization (Closure)
 
-Advanced optimization should generally be something you test heavily
-if you use it. The dead code elimination is nice, but it is sometimes
-too aggressive. It is hard to test the advanced optimization feature
-on every build, and your choice of Om version can also affect it,
-so it is possible that this might break from time-to-time.
-
-If you want to use advanced optimizations, please understand that you
-should do more aggressive testing, and possibly follow version upgrades
-a bit more slowly.
-
-In general, "simple" optimizations will still get you a single file that is cacheable
-by browsers. It is highly unlikely that this level of optimization will break things,
-so as long as your web server does a good job with cache headers it really
-should not be that big of a deal for your deployment size to be a little larger.
-
-Om Next currently has an issue with Advanced (1.0.0-beta1)
+Advanced optimization works well, though there is a problem if your 
+clojure namespaces that are loaded during cljs compiles include 
+`tools.namespace` calls (which the default template dev environment 
+does). To work around this, make sure you use a lein profile that
+prevents such code from being on the classpath during advanced
+compilations.
 
 ## Elements
 
@@ -129,35 +112,22 @@ One of the most useful elements is `ui-iframe`, which can be used
 to drop content into an iframe. This is used, for example, to make
 sure the correct CSS and top-level rendering can work within a devcard.
 
-## Mix-ins (augmentation.clj)
-
-The `augmentation.clj` namespace includes an EXPERIMENTAL mechanism for defining and
-using reusable mix-ins. It sounded like a good idea at the time, but we've yet
-to find compelling evidence that this is a "Good Idea". Could be removed
-in future versions, but if you find a great use-case, let us know!
-
 ## Devcards
 
-The `cards.cljc` namespace includes an `fulcro-app` macro that lets you
-embed a full-stack Fulcro app within a card. It works, but has a few
-small issues (one is that hot code reload restarts the app). Combine this
-with `ui-iframe` from elements to get the CSS and rendering fully encapsulated
+The `cards.cljc` namespace includes `defcard-fulcro` macro that lets you
+embed a full-stack Fulcro app within a card. 
+Combine this with `ui-iframe` from elements to get the CSS and rendering fully encapsulated
 in a card. See the Bootstrap devcards in the Developer's Guide.
-
-Once this gets solidified, this needs to move to the `devcards` project as
-a contribution there.
 
 ## Server-Side Rendering
 
-This is a relatively new feature, and some of the bits have not been well-tested.
-
-We know that the general DOM rendering is fine, and rest-assured it is a first-class
-feature; however,
-also understand that you may run into an issue. Even though most everything has been
-written to support SSR, these areas in particular have not been well-tested and
-may need additional work:
-
-- Pre-rendering a page that uses the forms support
+Server-side rendering is demonstrated on the `fulcro-template`. There are two versions
+of this: a cljc-only rendering (which requires all components to be written in `cljc` files),
+and a true isomorphic version that renders things with Nashorn via the 
+advanced-optimized Javascript. The former is easier and more performant if
+you write all of your components, but the latter is necessary if you
+use external Javascript libraries. See the `nashorn` branch of the template
+for a demonstration of the latter.
 
 ## Random Bits
 
