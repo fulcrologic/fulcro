@@ -142,6 +142,25 @@
   allows you to easily generate a tree for rendering (as we'll see soon),
   and the flat structure makes mutation code easy to write and maintain.
 
+  ## Custom Types?
+
+  You may be wondering if you can use your own data types in the database. The answer is
+  a conditional 'yes'. Opaque values (those you don't intend to process with the query
+  engine) can be any type. In the next chapter on Queries you'll learn how to
+  query the database via property queries and joins. Anything that is meant to
+  act as a simple property and is *not* treated as an entity that can be
+  queried itself can be of any type.
+  Any *entity* (entry in the database that is meant to be a first-class citizen
+  of the graph database and processed with queries) can only be a plain map.
+
+  So, if you had some table named `:table` it would be keyed by the entity IDs, and
+  the entity *itself* will be a plain map; however, any of the properties (like
+  `:stats`) can be any type you care them to be:
+
+  ```
+  { :table { 3 { :id 3 :value 22 :stats some-object-of-any-type}}}
+  ```
+
   ## Bleh, manual graph building... Do I have to build that by hand?
 
   No. You do not need to build normalized graph databases. Fulcro can do that for you.
