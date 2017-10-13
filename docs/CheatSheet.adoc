@@ -122,22 +122,22 @@ especially if you intend to use children.
 
 == Sanity Checklist
 
-- `render` returns exactly *one* react element (which can have any number of direct children).
-- Every component that has state has it's *own* query. The following are errors:
-  - `(query [this] (om/get-query OtherComponent))`
-  - `(query [this] [(om/get-query OtherComponent)])`
-  - `(query [this] [{:some-join (concat (om/get-query OtherComponent) (om/get-query AnotherComponent))}]`
-- Every child's query is composed in using an "invented" join name in the parent:
-  - `(query [this] [{:invented-join-prop (om/get-query Child)}])`
-- Queries compose all the way to a single Root
-- Every child's props are pulled from `om/props` and passed to that child's factory for rendering:
+* `render` returns exactly *one* react element (which can have any number of direct children).
+* Every component that has state has it's *own* query. The following are errors:
+** `(query [this] (om/get-query OtherComponent))`
+** `(query [this] [(om/get-query OtherComponent)])`
+** `(query [this] [{:some-join (concat (om/get-query OtherComponent) (om/get-query AnotherComponent))}]`
+* Every child's query is composed in using an "invented" join name in the parent:
+** `(query [this] [{:invented-join-prop (om/get-query Child)}])`
+* Queries compose all the way to a single Root
+* Every child's props are pulled from `om/props` and passed to that child's factory for rendering:
 +
 ```
 (render [this]
   (let [{:keys [invented-join-prop]} (om/props this)]
     (ui-child invented-join-prop)))
 ```
-- If using initial state, the `InitialAppState` mirrors the component's query and composition all
+* If using initial state, the `InitialAppState` mirrors the component's query and composition all
 the way to the root of your application state. That is to say that for each scalar property
 queried there will be a scalar value in the initial state map, and for every join in the query
 there will be a key in the initial state whose value is the `get-initial-state` of the child
@@ -149,13 +149,13 @@ static fc/InitialAppState
 static om/IQuery
 (query [this] [:scalar-prop {:child-props (om/get-query Child)}])
 ```
-- Every component that has state (except your root) *should* have an `Ident`. Exceptions
+* Every component that has state (except your root) *should* have an `Ident`. Exceptions
 are possible but rare.
-- More than one component can use the same ident. This is common. PersonListView, PersonDetail,
+* More than one component can use the same ident. This is common. PersonListView, PersonDetail,
 PersonSummary might all have the same `[:person/by-id id]` style ident.
-- If you need the same initial state in more than one place, put it there! All versions of the same
+* If you need the same initial state in more than one place, put it there! All versions of the same
 (duplicated) tree in initial app state will merge and normalize into the same spot at startup.
-   - Ensure that duplicated initial state tree components share idents.
+** Ensure that duplicated initial state tree components share idents.
 
 == Queries
 
@@ -168,13 +168,15 @@ Union queries are a map of sub-queries. Union queries require you encapsulate th
 in a union component. They stand for alternation, and use the component ident's TABLE during
 query processing to determine which query to continue.
 
-`{:TABLE-1 (om/get-query Component-1) :TABLE-2 (om/get-query Component-2) ...}`
+```
+{:TABLE-1 (om/get-query Component-1) :TABLE-2 (om/get-query Component-2) ...}
+```
 
 == Advanced Queries
 
 - `{[CHILD-TABLE ID] (om/get-query Child)}`: Query for a specific `Child` from that child's state
 table. Not relative to a parent's graph edges.
-- `[ROOT-PROP '_]`: Query for a specific scalar property from the root of the database graph. The
+- `[ROOT-PROP '\_]`: Query for a specific scalar property from the root of the database graph. The
 quoting is needed so `_` is not evaluated.
 - `(:prop {:x 1})`: Query for a given scala property, and include the given map as parameters. Fulcro
 client, by default, ignores such parameters, but a server can easily use them.
