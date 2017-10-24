@@ -1,0 +1,106 @@
+---
+---
+
+$blue: #5577BB;
+$green: #66BB33;
+
+body {
+    font-family: 'Cambay', sans-serif;
+    margin: 0;
+}
+
+.page-container {
+  min-height: 100vh;
+}
+
+.green {
+    color: $green;
+}
+
+.blue {
+    color: $blue;
+}
+
+.grey {
+    color: #AAAAAA;
+}
+
+.menu {
+    background: #F9F9F9;
+}
+
+.content-container {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.md-container {
+  h1,h2,h3,h4,h5 {color: $green;}
+}
+
+a {
+  color: $blue;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+}
+
+.hero {
+    border-bottom: 5px solid #5577BB;
+    background: url('/assets/img/bg.png') no-repeat center top;
+    background-size: cover;
+}
+
+.hero h1 {
+    color: #66BB33;
+    text-transform: uppercase;
+}
+
+nav ul {
+    list-style: none;
+}
+
+nav ul li {
+    display: inline-block;
+}
+
+.btn-primary {
+    background: #5577BB;
+    color: #FFF;
+}
+
+.btn-secondary {
+    background: #66BB33;
+    color: #FFF;
+}
+
+.bg-grey {
+    background-color: #F9F9F9;
+}
+
+section {
+    overflow: hidden;
+}
+
+.section-border-green {
+    border-bottom: 5px solid #66BB33;
+}
+
+footer {
+    background: #F9F9F9;
+    min-height: 200px;
+    border-bottom: 4px solid #5577BB;
+}
+
+footer ul {
+    list-style-type: none;
+}
+
+.md-content {
+  h1, h2, h3, h4, h5 {
+    color: $green;
+  }
+}
