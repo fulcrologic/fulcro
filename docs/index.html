@@ -4,78 +4,148 @@ layout: home
 ---
 
 <div class="hero">
-  <div class="content-container center pb4">
-    <img class="my3" src="/assets/img/logo.svg" width="220" />
-    <h1 class="m0">Simplifying Om.Next</h1>
-    <p class="mb-4">{{ site.description | default: site.github.project_tagline }}</p>
-    <a class="btn btn-primary px3 py1" href="docs.html">Getting started</a> <a class="btn btn-secondary px3 py1" href="{{ site.github.repository_url }}">Go to Github</a>
-  </div>
+    <div class="content-container center pb4">
+        <img class="my3" src="/assets/img/logo.svg" width="220"/>
+        <p class="mb-4">{{ site.description | default: site.github.project_tagline }}</p>
+        <a class="btn btn-primary px3 py1" target="_blank"
+           href="https://github.com/fulcrologic/fulcro/blob/develop/GettingStarted.adoc">Getting started</a> <a
+            class="btn btn-secondary px3 py1" href="{{ site.github.repository_url }}">Go to Github</a>
+    </div>
 </div>
 
 <section class="bg-grey py4">
-  <div class="content-container center">
-    <div class="col col-12 sm-col-4 p2">
-      <img src="/assets/img/icon-complexity.svg" width="100" />
-      <h2 class="blue">Eliminate Complexity</h2>
-      <p>Eliminate complexity Allow the developer to solve the problem at hand without having to juggle arbitrary boilerplate code and patterns that are unrelated to the real problem.</p>
+    <div class="content-container center">
+        <div class="col col-12 sm-col-4 p2">
+            <img src="/assets/img/icon-complexity.svg" width="100"/>
+            <h2 class="blue">Less Incidental Complexity</h2>
+            <p>
+                Fulcro provides a strongly cohesive story that has many advantages over techniques, libraries, and
+                frameworks you might have used before.
+            </p>
+        </div>
+        <div class="col col-12 sm-col-4 p2">
+            <img src="/assets/img/icon-ff.svg" width="100"/>
+            <h2 class="blue">Full-featured</h2>
+            <p>
+                Fulcro is a full-stack library that is aimed at making data-driven applications for the web. The
+                built-in data model prevents many
+                common errors that are made when assembling your tools from invented or selected parts.
+            </p>
+        </div>
+        <div class="col col-12 sm-col-4 p2">
+            <img src="/assets/img/icon-arrow.svg" width="100"/>
+            <h2 class="blue">Solve problems</h2>
+            <p>Concentrate on solving your real application problems. Other systems weigh you down with asynchrony,
+                event systems,
+                callback hell, and REST APIs. Fulcro gives you much simpler constructs as a foundation.</p>
+        </div>
     </div>
-    <div class="col col-12 sm-col-4 p2">
-      <img src="/assets/img/icon-ff.svg" width="100" />
-      <h2 class="blue">Full featured package</h2>
-      <p>Fulcro is a full-stack, batteries-included library that is aimed at making data-driven applications for the web. It enables great local reasoning, easy production support, and rapid development.</p>
+</section>
+
+<section class="py4">
+    <div class="content-container">
+        <h2 class="center green">What Does it Look Like?</h2>
+        <p>
+            There is a <a href="https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE">YouTube
+            video
+            playlist</a> of relatively short videos that can help you get started quickly and often clarifies things
+            that people struggle with.
+        </p>
+
+        <p>
+            Those who prefer to read should <i>still</i> check out the videos at some point, but should then
+            proceed to a complete overview in the
+            <a href="https://github.com/fulcrologic/fulcro/blob/develop/GettingStarted.adoc"> Getting Started </a>
+            guide. Those that like videos are encouraged to also read this guide.
+        </p>
+        <p>
+            There is also a playlist of <a
+                href="https://www.youtube.com/playlist?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R">legacy videos</a>
+            from when the project was known as Untangled. These videos are still relevant, and may lead to insight
+            by exposing you to different angles of the same topic. For the most part just substitute "Fulcro" every
+            time you see or hear "Untangled".
+        </p>
     </div>
-    <div class="col col-12 sm-col-4 p2">
-      <img src="/assets/img/icon-arrow.svg" width="100" />
-      <h2 class="blue">Solve problems</h2>
-      <p>Allow the developer to solve the problem at hand without having to juggle arbitrary boilerplate code and patterns that are unrelated to the real problem.</p>
+</section>
+
+<section class="py4 section-border-green bg-grey">
+    <h2 class="center green">Is Fulcro For Me?</h2>
+    <div class="content-container">
+        <p>
+        Evaluating tools for web development can be a monumental task. Fulcro is a
+        full-stack, batteries-included library that is aimed at making data-driven
+        applications for the web. It enables great local reasoning, easy production
+        support, and rapid development. Of course, it is hard to make such a
+        big decision on a simple list of "features", nor should you!
+
+        </p>
+        <p>
+        Each set of tools have particular strengths that may or may not be a good fit.
+        To help you evaluate it, you might want to:
+        </p>
+
+        <ul>
+            <li> Read more about <a href="benefits.html">the benefits of Fulcro</a></li>
+            <li> Clone and play with the <a href="https://github.com/fulcrologic/fulcro-template">Fulcro Template</a>
+                project.
+            </li>
+            <li> Clone and play with our Fulcro <a href="https://github.com/fulcrologic/fulcro-todomvc">TODOMVC</a>
+                (full-stack with support DVR!).
+            </li>
+            <li> Understand <a href="vsom-next.html">how Fulcro improves on stock Om Next</a> (assumes you understand something
+                about Om Next).
+            </li>
+            Next)
+            <li>Use the <a href="evaluation.html">Fulcro Evaluation Spreadsheet</a></li>
+        </ul>
     </div>
-  </div>
 </section>
 
 <section class="py4 section-border-green">
-  <h2 class="center green">Projects built with Fulcro</h2>
-  <div class="content-container center">
-    <div class="col col-12 sm-col-4 p2">
-      <img src="/assets/img/atlascrm.png" width="83" />
-      <h2 class="blue">Atlas CRM</h2>
-      <p>Eliminate complexity Allow the developer to solve the problem at hand without having to juggle arbitrary boilerplate code and patterns that are unrelated to the real problem.</p>
-      <p class="green">Mitchel Kuijpers</p>
-    </div>
-    <div class="col col-12 sm-col-4 p2">
-      <img src="/assets/img/adstage.png" width="240" />
-      <h2 class="blue">ADSTAGE</h2>
-      <p>Fulcro is a full-stack, batteries-included library that is aimed at making data-driven applications for the web. It enables great local reasoning, easy production support, and rapid development.</p>
-      <p class="green">Karan Toor</p>
-    </div>
-    <div class="col col-12 sm-col-4 p2">
-      <img src="/assets/img/dave.png" width="240" />
-      <h2 class="blue">Dave Conservatoire</h2>
-      <p>Allow the developer to solve the problem at hand without having to juggle arbitrary boilerplate code and patterns that are unrelated to the real problem.</p>
-      <p class="green">Wilker Lucio</p>
+    <h2 class="center green">Who's Using It?</h2>
+    <div class="content-container center">
+        <div class="col col-12 sm-col-4 p2">
+            <img src="/assets/img/atlascrm.png" width="83"/>
+            <h2 class="blue">Atlas CRM</h2>
+        </div>
+        <div class="col col-12 sm-col-4 p2">
+            <img src="/assets/img/adstage.png" width="240"/>
+            <h2 class="blue">ADSTAGE</h2>
+        </div>
+        <div class="col col-12 sm-col-4 p2">
+            <img src="/assets/img/dave.png" width="240"/>
+            <h2 class="blue">Dave Conservatoire</h2>
+        </div>
+        <!--
+        <div class="col col-12 sm-col-4 p2">
+            <img style="background-color: black" src="/assets/img/pyroclast-w75-rt.svg" width="240"/>
+            <h2 class="blue">Pyroclast</h2>
+        </div>
+        -->
     </div>
 </section>
 
 <section class="bg-grey py4">
-  <div class="content-container center">
-    <h2 class="center green">Testimonials</h2>
-    <p class="p1">"I started asking some questions in the Fulcro Slack channel and started with only integrating some of the Fulcro client stuff. This resulted in deleting a lot of our own code and getting a lot of stuff for free!"</p>
-    <p class="green">Mitchel Kuijpers - Lead Developer at Atlas CRM</p>
-  </div>
+    <div class="content-container center">
+        <h2 class="center green">Testimonials</h2>
+        <p class="p1">
+            We started our product with re-frame, but as it grew the ease of re-frame turned
+            into complexity in our application, resulting in lot's of bugs and inefficiencies.
+            When we ported to Fulcro many of our bugs and inefficiencies were completely solved by
+            the solid data model and full-stack integration.
+        </p>
+        <p class="green">Mitchel Kuijpers</p>
+        <p class="p1">Fulcro is the best web framework for using Lisp in 2016. It's for building robust applications and
+            solving difficult problems, not building a mediocre blog in a weekend. At AdStage it was
+            our first full stack Clojure project and it took 3 developers 4 months to deliver the
+            smoothest launch in our company's history. </p>
+        <p class="green">Karan Toor</p>
+        <p class="p1">With Fulcro all the plumbing is built-in, and I'm impressed on how
+            often my assumptions match with their implementation. Because of this I can focus on the specifics of the
+            application.
+        </p>
+        <p class="green">Wilker Lucio</p>
+    </div>
 </section>
 
-<section class="py4">
-  <div class="content-container">
-    <h2 class="center green">Community</h2>
-    <p class="center p2">Fulcro is an open-source project that is supported by people like you. If you find it useful, please consider contributions in any of the following forms:</p>
-    <div class="col col-12 sm-col-6">
-      <ul class="left">
-        <li>Reporting issues, ideally with a reproducible case.</li>
-        <li>Look for things that need testing or additions and do that.</li>
-        <li>Proofreading the website/documentation.</li>
-        <li>A pull request fixing a bug (see CONTRIBUTING).</li>
-        <li>Expansions via a pull request (please check in on Slack first).</li>
-        <li>Donations: help to feed the code monkey!</li>
-      </ul>
-    </div>
-  </div>
-</section>
+

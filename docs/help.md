@@ -19,8 +19,7 @@ which will target your results just to our channel.
 
 ## Commercial Support and Consulting
 
-I'm available for consulting on an hourly basis at reasonable rates
-(price based on level of difficulty and can be discounted based on the
-number of hours needed). I
-have experience doing training as well, and would be glad to help you
-get your team up to speed!
+[Fulcrologic, LLC](http://www.fulcrologic.com) is a consulting company
+that specializes in consulting and training for Fulcro. They can provide
+you with services ranging from on-site skills training and collaborative design
+to code review and management education.

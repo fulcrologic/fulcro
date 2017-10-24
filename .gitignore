@@ -50,3 +50,4 @@ docs/js/*
 old-docs/.asciidoctor
 old-docs/plumbing.png
 DevelopersGuide.html
+docs/.jekyll-metadata

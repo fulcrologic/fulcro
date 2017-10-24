@@ -30,7 +30,7 @@ information:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R" frameborder="0" allowfullscreen></iframe>
 
-## Talks About Fulcro
+## Talks About Fulcro (a.k.a. "Untangled")
 
 I've given a few talks on Fulcro (when it was named Untangled). Again, use the playlist control at
 the top-left of the video to choose what you want to watch.

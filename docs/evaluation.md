@@ -7,12 +7,10 @@ I would encourage you not to just look at superficial criteria like "is
 it easy to get started?"
 Those concerns rarely affect your long-term success. Look more deeply.
 Try writing a simple full-stack application in each (or at least look for
-a full-stack example.
-
-Fulcro brings some great things to the table, but it also has some
-costs. When we first decided to develop Fulcro, there were a number
-of criteria that were important to us, and some we didn't really care
-about.
+a full-stack example). Many things that are easy to get started with devolve
+into code with constructs that are fragile, difficult to
+reason about, and are hard to navigate (such as chains of
+asynchrony that can be defined by delarations in any file).
 
 One thing that has been really helpful in evaluating tech is a spreadsheet listing out
 the various properties that are important. Assign each
