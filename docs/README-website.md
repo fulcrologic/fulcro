@@ -7,7 +7,7 @@ The website uses [the merlot template](https://github.com/pages-themes/merlot).
 You should be able to get a local rendering system going to preview your
 edits by following these instructions:
 
-1. Make you you have xcode installed with command line tools `xcodeselect --install`.
+1. Make sure you have xcode installed with command line tools `xcodeselect --install`.
 2. Use homebrew to install Ruby and gem support `brew install ruby`
 3. [Install Jekyll](https://jekyllrb.com/docs/installation/)
 
