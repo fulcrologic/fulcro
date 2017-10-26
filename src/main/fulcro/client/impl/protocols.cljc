@@ -1,4 +1,4 @@
-(ns om.next.protocols)
+(ns fulcro.client.impl.protocols)
 
 (defprotocol IIndexer
   (indexes [this])
@@ -39,3 +39,9 @@
      (componentDidMount [this])
      (componentWillUnmount [this])
      (render [this])))
+
+(defprotocol ITxIntercept
+  (tx-intercept [c tx]
+    "An optional protocol that component may implement to intercept child
+     transactions."))
+

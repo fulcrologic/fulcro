@@ -1,6 +1,6 @@
 (ns solutions.putting-together.soln-ex-3
-  (:require [om.next :as om :refer [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer [defui]]
+            [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]
             [fulcro.client.mutations :as m :refer [defmutation]]))

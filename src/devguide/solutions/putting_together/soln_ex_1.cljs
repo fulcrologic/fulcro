@@ -1,6 +1,6 @@
 (ns solutions.putting-together.soln-ex-1
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]))
 

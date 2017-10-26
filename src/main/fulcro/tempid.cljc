@@ -1,4 +1,4 @@
-(ns om.tempid
+(ns fulcro.tempid
   #?(:clj (:import [java.io Writer])))
 
 ;; =============================================================================
@@ -12,7 +12,7 @@
      IEquiv
      (-equiv [this other]
        (and (instance? TempId other)
-            (= (. this -id) (. other -id))))
+         (= (. this -id) (. other -id))))
      IHash
      (-hash [this]
        (when (nil? __hash)

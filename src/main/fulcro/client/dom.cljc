@@ -1,10 +1,137 @@
-(ns om.dom
+(ns fulcro.client.dom
   (:refer-clojure :exclude [map meta time])
   #?(:clj
      (:require [clojure.string :as str]
-               [om.next.protocols :as p]
+               [fulcro.client.impl.protocols :as p]
                [clojure.core.reducers :as r]
-               [om.checksums :as chk])))
+               [fulcro.checksums :as chk])))
+
+(declare a
+  abbr
+  address
+  area
+  article
+  aside
+  audio
+  b
+  base
+  bdi
+  bdo
+  big
+  blockquote
+  body
+  br
+  button
+  canvas
+  caption
+  cite
+  code
+  col
+  colgroup
+  data
+  datalist
+  dd
+  del
+  details
+  dfn
+  dialog
+  div
+  dl
+  dt
+  em
+  embed
+  fieldset
+  figcaption
+  figure
+  footer
+  form
+  h1
+  h2
+  h3
+  h4
+  h5
+  h6
+  head
+  header
+  hr
+  html
+  i
+  iframe
+  img
+  ins
+  kbd
+  keygen
+  label
+  legend
+  li
+  link
+  main
+  map
+  mark
+  menu
+  menuitem
+  meta
+  meter
+  nav
+  noscript
+  object
+  ol
+  optgroup
+  output
+  p
+  param
+  picture
+  pre
+  progress
+  q
+  rp
+  rt
+  ruby
+  s
+  samp
+  script
+  section
+  small
+  source
+  span
+  strong
+  style
+  sub
+  summary
+  sup
+  table
+  tbody
+  td
+  tfoot
+  th
+  thead
+  time
+  title
+  tr
+  track
+  u
+  ul
+  var
+  video
+  wbr
+  circle
+  clipPath
+  ellipse
+  g
+  line
+  mask
+  path
+  pattern
+  polyline
+  rect
+  svg
+  text
+  defs
+  linearGradient
+  polygon
+  radialGradient
+  stop
+  tspan)
 
 (def tags
   '[a
@@ -138,8 +265,8 @@
 
 (defn ^:private gen-react-dom-inline-fn [tag]
   `(defmacro ~tag [opts# & children#]
-     `(js/React.createElement ~(name tag) ~opts#
-        ~@(clojure.core/map (fn [x#] `(om.util/force-children ~x#)) children#))))
+     `(~'~(symbol "js" (str "React.DOM." (name tag))) ~opts#
+        ~@(clojure.core/map (fn [x#] `(fulcro.util/force-children ~x#)) children#))))
 
 (defmacro ^:private gen-react-dom-inline-fns []
   (when (boolean (:ns &env))
@@ -150,9 +277,9 @@
 
 (defn ^:private gen-react-dom-fn [tag]
   `(defn ~tag [opts# & children#]
-     (.apply ~(symbol "js" "React.createElement") nil
+     (.apply ~(symbol "js" (str "React.DOM." (name tag))) nil
        (cljs.core/into-array
-         (cons ~(name tag) (cons opts# (cljs.core/map om.util/force-children children#)))))))
+         (cons opts# (cljs.core/map fulcro.util/force-children children#))))))
 
 (defmacro ^:private gen-react-dom-fns []
   `(do
@@ -165,7 +292,7 @@
 ;; https://github.com/facebook/react/blob/57ae3b/src/renderers/dom/shared/HTMLDOMPropertyConfig.js
 #?(:clj
    (def supported-attrs
-     #{ ;; HTML
+     #{;; HTML
        "accept" "acceptCharset" "accessKey" "action" "allowFullScreen" "allowTransparency" "alt"
        "async" "autoComplete" "autoFocus" "autoPlay" "capture" "cellPadding" "cellSpacing" "challenge"
        "charSet" "checked" "cite" "classID" "className" "colSpan" "cols" "content" "contentEditable"
@@ -382,8 +509,8 @@
 #?(:clj
    (defn- render-component [c]
      (if (or (nil? c)
-             (instance? om.next.protocols.IReactDOMElement c)
-             (satisfies? p/IReactDOMElement c))
+           (instance? p/IReactDOMElement c)
+           (satisfies? p/IReactDOMElement c))
        c
        (recur (p/-render c)))))
 
@@ -393,43 +520,43 @@
      [{:keys [tag attrs react-key children] :as elem}]
      (assert (name tag))
      (assert (or (nil? attrs) (map? attrs)) (format "elem %s attrs invalid" elem))
-     (let [children (flatten children)
+     (let [children         (flatten children)
            child-node-count (count children)
-           reduce-fn (if (> child-node-count 1)
-                       r/reduce
-                       reduce)
-           children (reduce-fn
-                      (fn [res c]
-                        (let [c' (cond
-                                   (or (instance? om.next.protocols.IReactDOMElement c)
-                                       (satisfies? p/IReactDOMElement c))
-                                   c
+           reduce-fn        (if (> child-node-count 1)
+                              r/reduce
+                              reduce)
+           children         (reduce-fn
+                              (fn [res c]
+                                (let [c' (cond
+                                           (or (instance? p/IReactDOMElement c)
+                                             (satisfies? p/IReactDOMElement c))
+                                           c
 
-                                   (or (instance? om.next.protocols.IReactComponent c)
-                                       (satisfies? p/IReactComponent c))
-                                   (let [rendered (if-let [element (render-component c)]
-                                                    element
-                                                    (react-empty-node))]
-                                     (assoc rendered :react-key
-                                       (some-> (:props c) :omcljs$reactKey)))
+                                           (or (instance? p/IReactComponent c)
+                                             (satisfies? p/IReactComponent c))
+                                           (let [rendered (if-let [element (render-component c)]
+                                                            element
+                                                            (react-empty-node))]
+                                             (assoc rendered :react-key
+                                                             (some-> (:props c) :omcljs$reactKey)))
 
-                                   (or (string? c) (number? c))
-                                   (let [c (cond-> c (number? c) str)]
-                                     (if (> child-node-count 1)
-                                       (react-text-node c)
-                                       (text-node c)))
+                                           (or (string? c) (number? c))
+                                           (let [c (cond-> c (number? c) str)]
+                                             (if (> child-node-count 1)
+                                               (react-text-node c)
+                                               (text-node c)))
 
-                                   (nil? c) nil
+                                           (nil? c) nil
 
-                                   :else
-                                   (throw (IllegalArgumentException. (str "Invalid child element: ") c)))]
-                          (cond-> res
-                            (some? c') (conj c'))))
-                      [] children)]
-       (map->Element {:tag (name tag)
-                      :attrs attrs
+                                           :else
+                                           (throw (IllegalArgumentException. (str "Invalid child element: ") c)))]
+                                  (cond-> res
+                                    (some? c') (conj c'))))
+                              [] children)]
+       (map->Element {:tag       (name tag)
+                      :attrs     attrs
                       :react-key react-key
-                      :children children}))))
+                      :children  children}))))
 
 #?(:clj
    (defn camel->other-case [^String sep]
@@ -498,8 +625,8 @@
 
        ;; TODO: not sure if we want to limit values to strings/numbers - António
        (and (or (contains? supported-attrs (name key))
-                (.startsWith (name key) "data-"))
-            (or (true? value) (string? value) (number? value)))
+              (.startsWith (name key) "data-"))
+         (or (true? value) (string? value) (number? value)))
        (if (true? value)
          (append! sb " " (coerce-attr-key (name key)))
          (render-xml-attribute! sb key value))
@@ -518,14 +645,14 @@
                                 inc))))]
        (let [attrs (cond->> attrs
                      (= tag "input") (sort-by (sorter {:type 0 :step 1
-                                                       :min 2 :max 3}))
+                                                       :min  2 :max 3}))
                      (= tag "option") (sort-by (sorter {:selected 0})))]
          (run! (partial render-attribute! sb) attrs)))))
 
 #?(:clj
-   (def ^{:doc "A list of elements that must be rendered without a closing tag."
+   (def ^{:doc     "A list of elements that must be rendered without a closing tag."
           :private true}
-     void-tags
+   void-tags
      #{"area" "base" "br" "col" "command" "embed" "hr" "img" "input" "keygen" "link"
        "meta" "param" "source" "track" "wbr"}))
 
@@ -566,10 +693,10 @@
 #?(:clj
    (defn gen-tag-fn [tag]
      `(defn ~tag [~'attrs & ~'children]
-        (element {:tag (quote ~tag)
-                  :attrs (dissoc ~'attrs :ref :key)
+        (element {:tag       (quote ~tag)
+                  :attrs     (dissoc ~'attrs :ref :key)
                   :react-key (:key ~'attrs)
-                  :children ~'children}))))
+                  :children  ~'children}))))
 
 #?(:clj
    (defmacro gen-all-tags []
@@ -589,17 +716,17 @@
 ;; preserves testability without having to compute checksums
 #?(:clj
    (defn- render-to-str* ^StringBuilder [x]
-     {:pre [(or (instance? om.next.protocols.IReactComponent x)
-                (instance? om.next.protocols.IReactDOMElement x)
-                (satisfies? p/IReactComponent x)
-                (satisfies? p/IReactDOMElement x))]}
+     {:pre [(or (instance? p/IReactComponent x)
+              (instance? p/IReactDOMElement x)
+              (satisfies? p/IReactComponent x)
+              (satisfies? p/IReactDOMElement x))]}
      (let [element (if-let [element (cond-> x
-                                      (or (instance? om.next.protocols.IReactComponent x)
-                                          (satisfies? p/IReactComponent x))
+                                      (or (instance? p/IReactComponent x)
+                                        (satisfies? p/IReactComponent x))
                                       render-component)]
                      element
                      (react-empty-node))
-           sb (StringBuilder.)]
+           sb      (StringBuilder.)]
        (p/-render-to-string element (volatile! 1) sb)
        sb)))
 
@@ -613,12 +740,12 @@
    (defn node
      "Returns the dom node associated with a component's React ref."
      ([component]
-      {:pre [(or (instance? om.next.protocols.IReactComponent component)
-                 (satisfies? p/IReactComponent component))]}
+      {:pre [(or (instance? p/IReactComponent component)
+               (satisfies? p/IReactComponent component))]}
       (p/-render component))
      ([component name]
-      {:pre [(or (instance? om.next.protocols.IReactComponent component)
-                 (satisfies? p/IReactComponent component))]}
+      {:pre [(or (instance? p/IReactComponent component)
+               (satisfies? p/IReactComponent component))]}
       (some-> @(:refs component) (get name) p/-render))))
 
 #?(:clj
@@ -629,7 +756,7 @@
      ([tag]
       (create-element tag nil))
      ([tag opts & children]
-      (element {:tag tag
-                :attrs (dissoc opts :ref :key)
+      (element {:tag       tag
+                :attrs     (dissoc opts :ref :key)
                 :react-key (:key opts)
-                :children children}))))
+                :children  children}))))

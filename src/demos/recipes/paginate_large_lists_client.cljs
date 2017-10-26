@@ -3,8 +3,8 @@
     [fulcro.client.core :as fc]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]))
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as om :refer [defui]]))
 
 
 (defn page-exists? [state-map page-number]

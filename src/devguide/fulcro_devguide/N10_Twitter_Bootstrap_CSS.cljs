@@ -1,10 +1,10 @@
 (ns fulcro-devguide.N10-Twitter-Bootstrap-CSS
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
             [cljs.reader :as r]
-            [om.next.impl.parser :as p]
+            [fulcro.client.impl.parser :as p]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.elements :as ele]
             [fulcro.client.cards :refer [fulcro-app]]

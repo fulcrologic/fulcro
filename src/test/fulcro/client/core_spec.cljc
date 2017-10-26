@@ -1,35 +1,36 @@
 (ns fulcro.client.core-spec
   (:require
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.core :as fc]
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
-    [om.next.protocols :as omp]
+    [fulcro.client.impl.protocols :as omp]
     [clojure.core.async :as async]
     [fulcro.client.logging :as log]
-    [fulcro.client.impl.om-plumbing :as plumbing]
-    [fulcro.client.util :as util])
+    [fulcro.client.impl.plumbing :as plumbing]
+    [fulcro.client.util :as fcu]
+    [fulcro.util :as util])
   #?(:clj
      (:import (clojure.lang ExceptionInfo))))
 
 (defui ^:once Child
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:child/by-id (:id props)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :label]))
 
 (defui ^:once Parent
   static fc/InitialAppState
   (fc/initial-state [this params] {:ui/checked true})
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:parent/by-id (:id props)])
-  static om/IQuery
-  (query [this] [:ui/checked :id :title {:child (om/get-query Child)}]))
+  static prim/IQuery
+  (query [this] [:ui/checked :id :title {:child (prim/get-query Child)}]))
 
 #?(:cljs
    (specification "merge-state!"
      (assertions
        "merge-query is the component query joined on it's ident"
-       (#'fc/component-merge-query Parent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (om/get-query Child)}]}])
+       (#'fc/component-merge-query Parent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (prim/get-query Child)}]}])
      (component "preprocessing the object to merge"
        (let [no-state             (atom {:parent/by-id {}})
              no-state-merge-data  (:merge-data (#'fc/preprocess-merge no-state Parent {:id 42}))
@@ -42,15 +43,15 @@
            "Marks fields that were queried but are not present as plumbing/not-found"
            old-state-merge-data => {[:parent/by-id 42] {:id         42
                                                         :ui/checked true
-                                                        :title      :fulcro.client.impl.om-plumbing/not-found
-                                                        :child      :fulcro.client.impl.om-plumbing/not-found}}))
+                                                        :title      :fulcro.client.impl.plumbing/not-found
+                                                        :child      :fulcro.client.impl.plumbing/not-found}}))
        (let [union-query {:union-a [:b] :union-b [:c]}
              state       (atom {})]
          (when-mocking
-           (util/get-ident c d) => :ident
-           (om/get-query comp) => union-query
+           (prim/get-ident c d) => :ident
+           (prim/get-query comp) => union-query
            (fc/component-merge-query comp data) => :merge-query
-           (om/db->tree q d r) => {:ident :data}
+           (prim/db->tree q d r) => {:ident :data}
            (plumbing/mark-missing d q) => (do
                                             (assertions
                                               "wraps union queries in a vector"
@@ -65,9 +66,9 @@
        (when-mocking
          (fc/preprocess-merge s c d) => {:merge-data :the-data :merge-query :the-query}
          (fc/integrate-ident! s i op args op args) => :ignore
-         (util/get-ident c p) => [:table :id]
-         (om/merge! r d q) => :ignore
-         (om/app-state r) => state
+         (prim/get-ident c p) => [:table :id]
+         (prim/merge! r d q) => :ignore
+         (prim/app-state r) => state
          (omp/queue! r kw) => (assertions
                                 "schedules re-rendering of all affected paths"
                                 kw => [:children :items])
@@ -199,10 +200,10 @@
        (behavior "On a proper app root"
          (when-mocking
            (fc/clear-queue t) => (reset! cleared-network? true)
-           (om/app-state r) => state
+           (prim/app-state r) => state
            (fc/merge-alternate-union-elements! app r) => (reset! merged-unions? true)
            (fc/reset-history-impl a) => (reset! history-reset? true)
-           (util/force-render a) => (reset! re-rendered? true)
+           (fcu/force-render a) => (reset! re-rendered? true)
 
            (fc/reset-app! mock-app ResetAppRoot nil)
            (fc/reset-app! mock-app ResetAppRoot :original)
@@ -214,7 +215,7 @@
            "Resets Om's app history"
            @history-reset? => true
            "Sets the base state from component"
-           @state => {:x 1 :om.next/tables #{}}
+           @state => {:x 1 :fulcro.client.primitives/tables #{}}
            "Attempts to merge alternate union branches into state"
            @merged-unions? => true
            "Re-renders the app"
@@ -308,49 +309,49 @@
 (defui ^:once MergeX
   static fc/InitialAppState
   (initial-state [this params] {:type :x :n :x})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:n :type]))
 
 (defui ^:once MergeY
   static fc/InitialAppState
   (initial-state [this params] {:type :y :n :y})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:n :type]))
 
 
 (defui ^:once MergeAChild
   static fc/InitialAppState
   (initial-state [this params] {:child :merge-a})
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:mergea :child])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:child]))
 
 (defui ^:once MergeA
   static fc/InitialAppState
   (initial-state [this params] {:type :a :n :a :child (fc/get-initial-state MergeAChild nil)})
-  static om/IQuery
-  (query [this] [:type :n {:child (om/get-query MergeAChild)}]))
+  static prim/IQuery
+  (query [this] [:type :n {:child (prim/get-query MergeAChild)}]))
 
 (defui ^:once MergeB
   static fc/InitialAppState
   (initial-state [this params] {:type :b :n :b})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:n]))
 
 (defui ^:once MergeUnion
   static fc/InitialAppState
   (initial-state [this params] (fc/get-initial-state MergeA {}))
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:mergea-or-b :at-union])
-  static om/IQuery
-  (query [this] {:a (om/get-query MergeA) :b (om/get-query MergeB)}))
+  static prim/IQuery
+  (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
 
 (defui ^:once MergeRoot
   static fc/InitialAppState
   (initial-state [this params] {:a 1 :b (fc/get-initial-state MergeUnion {})})
-  static om/IQuery
-  (query [this] [:a {:b (om/get-query MergeUnion)}]))
+  static prim/IQuery
+  (query [this] [:a {:b (prim/get-query MergeUnion)}]))
 
 ;; Nested routing tree
 ;; NestedRoot
@@ -364,26 +365,26 @@
 (defui ^:once U2
   static fc/InitialAppState
   (initial-state [this params] (fc/get-initial-state MergeX {}))
-  static om/IQuery
-  (query [this] {:x (om/get-query MergeX) :y (om/get-query MergeY)}))
+  static prim/IQuery
+  (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
 
 (defui ^:once R2
   static fc/InitialAppState
   (initial-state [this params] {:id 1 :u2 (fc/get-initial-state U2 {})})
-  static om/IQuery
-  (query [this] [:id {:u2 (om/get-query U2)}]))
+  static prim/IQuery
+  (query [this] [:id {:u2 (prim/get-query U2)}]))
 
 (defui ^:once U1
   static fc/InitialAppState
   (initial-state [this params] (fc/get-initial-state MergeB {}))
-  static om/IQuery
-  (query [this] {:r2 (om/get-query R2) :b (om/get-query MergeB)}))
+  static prim/IQuery
+  (query [this] {:r2 (prim/get-query R2) :b (prim/get-query MergeB)}))
 
 (defui ^:once NestedRoot
   static fc/InitialAppState
   (initial-state [this params] {:u1 (fc/get-initial-state U1 {})})
-  static om/IQuery
-  (query [this] [{:u1 (om/get-query U1)}]))
+  static prim/IQuery
+  (query [this] [{:u1 (prim/get-query U1)}]))
 
 ;; Sibling routing tree
 ;; SiblingRoot
@@ -394,25 +395,25 @@
 (defui ^:once SU1
   static fc/InitialAppState
   (initial-state [this params] (fc/get-initial-state MergeB {}))
-  static om/Ident
+  static prim/Ident
   (ident [this props] [(:type props) 1])
-  static om/IQuery
-  (query [this] {:a (om/get-query MergeA) :b (om/get-query MergeB)}))
+  static prim/IQuery
+  (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
 
 (defui ^:once SU2
   static fc/InitialAppState
   (initial-state [this params] (fc/get-initial-state MergeX {}))
-  static om/Ident
+  static prim/Ident
   (ident [this props] [(:type props) 2])
-  static om/IQuery
-  (query [this] {:x (om/get-query MergeX) :y (om/get-query MergeY)}))
+  static prim/IQuery
+  (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
 
 
 (defui ^:once SiblingRoot
   static fc/InitialAppState
   (initial-state [this params] {:su1 (fc/get-initial-state SU1 {}) :su2 (fc/get-initial-state SU2 {})})
-  static om/IQuery
-  (query [this] [{:su1 (om/get-query SU1)} {:su2 (om/get-query SU2)}]))
+  static prim/IQuery
+  (query [this] [{:su1 (prim/get-query SU1)} {:su2 (prim/get-query SU2)}]))
 
 (specification "merge-alternate-union-elements!"
   (behavior "For applications with sibling unions"
@@ -458,15 +459,15 @@
 (defn person [id name numbers] {:id id :name name :numbers numbers})
 
 (defui MPhone
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :number])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:phone/by-id (:id props)]))
 
 (defui MPerson
-  static om/IQuery
-  (query [this] [:id :name {:numbers (om/get-query MPhone)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [:id :name {:numbers (prim/get-query MPhone)}])
+  static prim/Ident
   (ident [this props] [:person/by-id (:id props)]))
 
 (specification "merge-component"
@@ -495,33 +496,33 @@
 (defui Table
   static fc/InitialAppState
   (initial-state [c p] table-1)
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:type :id :rows]))
 
 (def graph-1 {:type :graph :id 1 :data [1 2 3]})
 (defui Graph
   static fc/InitialAppState
   (initial-state [c p] graph-1)
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:type :id :data]))
 
 (defui Reports
   static fc/InitialAppState
   (initial-state [c p] (fc/get-initial-state Graph nil))    ; initial state will already include Graph
-  static om/Ident
+  static prim/Ident
   (ident [this props] [(:type props) (:id props)])
-  static om/IQuery
-  (query [this] {:graph (om/get-query Graph) :table (om/get-query Table)}))
+  static prim/IQuery
+  (query [this] {:graph (prim/get-query Graph) :table (prim/get-query Table)}))
 
 (defui MRRoot
   static fc/InitialAppState
   (initial-state [c p] {:reports (fc/get-initial-state Reports nil)})
-  static om/IQuery
-  (query [this] [{:reports (om/get-query Reports)}]))
+  static prim/IQuery
+  (query [this] [{:reports (prim/get-query Reports)}]))
 
 (specification "merge-alternate-union-elements"
   (let [initial-state (merge (fc/get-initial-state MRRoot nil) {:a 1})
-        state-map     (om/tree->db MRRoot initial-state true)
+        state-map     (prim/tree->db MRRoot initial-state true)
         new-state     (fc/merge-alternate-union-elements state-map MRRoot)]
     (assertions
       "can be used to merge alternate union elements to raw state"
@@ -533,15 +534,37 @@
 
 #?(:clj
    (specification "defsc helpers"
+     (component "validate-query"
+       (assertions
+         "Honors the symbol for this that is defined by defsc"
+         (#'fc/validate-query 'that 'props '[:db/id])
+         => `(~'static fulcro.client.primitives/IQuery (~'query [~'that] [:db/id]))
+         "Composes properties and joins into a proper query expression as a list of defui forms"
+         (#'fc/validate-query 'this 'props '[:db/id :person/name {:person/job (prim/get-query Job)} {:person/settings (prim/get-query Settings)}])
+         => `(~'static fulcro.client.primitives/IQuery (~'query [~'this] [:db/id :person/name {:person/job (~'prim/get-query ~'Job)} {:person/settings (~'prim/get-query ~'Settings)}]))
+         "Verifies the propargs matches queries data when not a symbol"
+         (#'fc/validate-query 'this '{:keys [db/id person/nme person/job]} '[:db/id :person/name {:person/job (prim/get-query Job)}])
+         =throws=> (ExceptionInfo #"One or more destructured parameters" (fn [e]
+                                                               (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
+     (component "build-ident"
+       (assertions
+         "Generates nothing when there is no table"
+         (#'fc/build-ident :db/id nil #{}) => nil
+         (#'fc/build-ident :id nil #{:boo}) => nil
+         "Requires the ID to be in the declared props"
+         (#'fc/build-ident :id :TABLE/by-id #{}) =throws=> (ExceptionInfo #"ID property of :ident")
+         "Generates a list of forms to emit as the ident function"
+         (#'fc/build-ident :id :TABLE/by-id #{:id})
+         => `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [:TABLE/by-id (:id ~'props)]))))
      (component "build-render"
        (assertions
          "emits a list of forms for the render itself"
          (#'fc/build-render 'this {:keys ['a]} {:keys ['onSelect]} 'c '((dom/div nil "Hello")))
          => `(~'Object
                (~'render [~'this]
-                 (let [{:keys [~'a]} (om.next/props ~'this)
-                       {:keys [~'onSelect]} (om.next/get-computed ~'this)
-                       ~'c (om.next/children ~'this)]
+                 (let [{:keys [~'a]} (fulcro.client.primitives/props ~'this)
+                       {:keys [~'onSelect]} (fulcro.client.primitives/get-computed ~'this)
+                       ~'c (fulcro.client.primitives/children ~'this)]
                    (~'dom/div nil "Hello"))))))
      (component "make-state-map"
        (assertions
@@ -645,12 +668,12 @@
        "works with initial state"
        (#'fc/defsc* '(Person
                        [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                       {:query         [:db/id {:person/job (om/get-query Job)}]
+                       {:query         [:db/id {:person/job (prim/get-query Job)}]
                         :initial-state {:person/job {:x 1}
                                         :db/id      42}
                         :ident         [:PERSON/by-id :db/id]}
                        (dom/div nil "Boo")))
-       => `(om.next/defui ~'Person
+       => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.core/InitialAppState
              (~'initial-state [~'c ~'params]
                (fulcro.client.core/make-state-map
@@ -658,32 +681,32 @@
                   :db/id      42}
                  {:person/job ~'Job}
                  ~'params))
-             ~'static om.next/Ident
+             ~'static fulcro.client.primitives/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
-             ~'static om.next/IQuery
-             (~'query [~'this] [:db/id {:person/job (~'om/get-query ~'Job)}])
+             ~'static fulcro.client.primitives/IQuery
+             (~'query [~'this] [:db/id {:person/job (~'prim/get-query ~'Job)}])
              ~'Object
              (~'render [~'this]
-               (let [{:keys [~'person/job ~'db/id] :as ~'props} (om.next/props ~'this)
-                     {:keys [~'onSelect] :as ~'computed} (om.next/get-computed ~'this)
-                     ~'children (om.next/children ~'this)]
+               (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)
+                     ~'children (fulcro.client.primitives/children ~'this)]
                  (~'dom/div nil "Boo"))))
        "works without initial state"
        (fc/defsc* '(Person
                      [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                     {:query [:db/id {:person/job (om/get-query Job)}]
+                     {:query [:db/id {:person/job (prim/get-query Job)}]
                       :ident [:PERSON/by-id :db/id]}
                      (dom/div nil "Boo")))
-       => `(om.next/defui ~'Person
-             ~'static om.next/Ident
+       => `(fulcro.client.primitives/defui ~'Person
+             ~'static fulcro.client.primitives/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
-             ~'static om.next/IQuery
-             (~'query [~'this] [:db/id {:person/job (~'om/get-query ~'Job)}])
+             ~'static fulcro.client.primitives/IQuery
+             (~'query [~'this] [:db/id {:person/job (~'prim/get-query ~'Job)}])
              ~'Object
              (~'render [~'this]
-               (let [{:keys [~'person/job ~'db/id] :as ~'props} (om.next/props ~'this)
-                     {:keys [~'onSelect] :as ~'computed} (om.next/get-computed ~'this)
-                     ~'children (om.next/children ~'this)]
+               (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)
+                     ~'children (fulcro.client.primitives/children ~'this)]
                  (~'dom/div nil "Boo"))))
        "allows Object protocol"
        (fc/defsc* '(Person
@@ -691,14 +714,14 @@
                      {:query     [:db/id]
                       :protocols (Object (shouldComponentUpdate [this p s] false))}
                      (dom/div nil "Boo")))
-       => `(om.next/defui ~'Person
-             ~'static om.next/IQuery
+       => `(fulcro.client.primitives/defui ~'Person
+             ~'static fulcro.client.primitives/IQuery
              (~'query [~'this] [:db/id])
              ~'Object
              (~'render [~'this]
-               (let [~'props (om.next/props ~'this)
-                     ~'computed (om.next/get-computed ~'this)
-                     ~'children (om.next/children ~'this)]
+               (let [~'props (fulcro.client.primitives/props ~'this)
+                     ~'computed (fulcro.client.primitives/get-computed ~'this)
+                     ~'children (fulcro.client.primitives/children ~'this)]
                  (~'dom/div nil "Boo")))
              (~'shouldComponentUpdate [~'this ~'p ~'s] false))
        "allows other protocols"
@@ -711,31 +734,31 @@
                                    Object
                                    (shouldComponentUpdate [this p s] false))}
                      (dom/div nil "Boo")))
-       => `(om.next/defui ~'Person
+       => `(fulcro.client.primitives/defui ~'Person
              ~'static ~'css/CSS
              (~'local-rules [~'_] [])
              (~'include-children [~'_] [])
-             ~'static om.next/IQuery
+             ~'static fulcro.client.primitives/IQuery
              (~'query [~'this] [:db/id])
              ~'Object
              (~'render [~'this]
-               (let [~'props (om.next/props ~'this)
-                     ~'computed (om.next/get-computed ~'this)
-                     ~'children (om.next/children ~'this)]
+               (let [~'props (fulcro.client.primitives/props ~'this)
+                     ~'computed (fulcro.client.primitives/get-computed ~'this)
+                     ~'children (fulcro.client.primitives/children ~'this)]
                  (~'dom/div nil "Boo")))
              (~'shouldComponentUpdate [~'this ~'p ~'s] false))
        "works without an ident"
        (fc/defsc* '(Person
                      [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                     {:query [:db/id {:person/job (om/get-query Job)}]}
+                     {:query [:db/id {:person/job (prim/get-query Job)}]}
                      (dom/div nil "Boo")))
-       => `(om.next/defui ~'Person
-             ~'static om.next/IQuery
-             (~'query [~'this] [:db/id {:person/job (~'om/get-query ~'Job)}])
+       => `(fulcro.client.primitives/defui ~'Person
+             ~'static fulcro.client.primitives/IQuery
+             (~'query [~'this] [:db/id {:person/job (~'prim/get-query ~'Job)}])
              ~'Object
              (~'render [~'this]
-               (let [{:keys [~'person/job ~'db/id] :as ~'props} (om.next/props ~'this)
-                     {:keys [~'onSelect] :as ~'computed} (om.next/get-computed ~'this)
-                     ~'children (om.next/children ~'this)]
+               (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)
+                     ~'children (fulcro.client.primitives/children ~'this)]
                  (~'dom/div nil "Boo")))))))
 

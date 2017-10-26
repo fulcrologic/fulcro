@@ -2,9 +2,7 @@
   (:require
     [com.stuartsierra.component :as component]
     [clojure.set :as set]
-    [clojure.spec.alpha :as s]
     [clojure.java.io :as io]
-    [om.next.server :as om]
     [taoensso.timbre :as timbre]
     [fulcro.server :as server]
     [bidi.bidi :as bidi]

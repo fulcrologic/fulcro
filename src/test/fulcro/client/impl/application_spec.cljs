@@ -1,34 +1,34 @@
 (ns fulcro.client.impl.application-spec
   (:require
     [fulcro.client.core :as fc]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [fulcro.i18n :as i18n]
     [fulcro.client.impl.application :as app]
     [cljs.core.async :as async]
     [fulcro.client.impl.data-fetch :as f]
-    [fulcro.client.impl.om-plumbing :as plumbing]
+    [fulcro.client.impl.plumbing :as plumbing]
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]))
 
 (defui ^:once Thing
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:thing/by-id (:id props)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :name])
   Object
   (render [this] (dom/div nil "")))
 
 (defui ^:once Root
-  static om/IQuery
-  (query [this] [:ui/react-key :ui/locale {:things (om/get-query Thing)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key :ui/locale {:things (prim/get-query Thing)}])
   Object
   (render [this]
     (dom/div nil "")))
 
 (defn reconciler-with-config [config]
-  (-> (app/generate-reconciler {} {} (om/parser {:read identity}) config)
+  (-> (app/generate-reconciler {} {} (prim/parser {:read identity}) config)
     :config))
 
 (specification "generate-reconciler"
@@ -78,7 +78,7 @@
                             :initial-state state
                             :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
         app               (fc/mount unmounted-app Root "application-mount-point")
-        mounted-app-state (om/app-state (:reconciler app))]
+        mounted-app-state (prim/app-state (:reconciler app))]
 
     (assertions
       "is honored by the client"
@@ -95,7 +95,7 @@
                             :started-callback callback
                             :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
         app               (fc/mount unmounted-app Root "application-mount-point")
-        mounted-app-state (om/app-state (:reconciler app))
+        mounted-app-state (prim/app-state (:reconciler app))
         reconciler        (:reconciler app)
         reconciler-config (:config reconciler)
         migrate           (:migrate reconciler-config)]
@@ -107,8 +107,8 @@
           (-> app :send-queues :remote type) => cljs.core.async.impl.channels/ManyToManyChannel
           "a response queue"
           (-> app :response-channels :remote type) => cljs.core.async.impl.channels/ManyToManyChannel
-          "a reconciler"
-          (type reconciler) => om.next/Reconciler
+          ;"a reconciler"
+          ;(type reconciler) => fulcro.client.primitives/Reconciler
           "a parser"
           (type (:parser app)) => js/Function
           "a marker that the app was initialized"
@@ -159,7 +159,7 @@
 
         (let [react-key (:ui/react-key @mounted-app-state)]
           (reset! i18n/*current-locale* "en")
-          (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
+          (prim/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
           (assertions
             "Changes the i18n locale for translation lookups"
             (deref i18n/*current-locale*) => "es-MX"
@@ -175,7 +175,7 @@
                             :networking {:a (net/mock-network)
                                          :b (net/mock-network)})
         app               (fc/mount unmounted-app Root "application-mount-point")
-        mounted-app-state (om/app-state (:reconciler app))
+        mounted-app-state (prim/app-state (:reconciler app))
         reconciler        (:reconciler app)
         reconciler-config (:config reconciler)
         migrate           (:migrate reconciler-config)
@@ -403,7 +403,7 @@
       {:subpanel  [:dashboard :panel]
        :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
        :s         {
-                   1 {:db/id 1, :survey/launch-date :fulcro.client.impl.om-plumbing/not-found}
+                   1 {:db/id 1, :survey/launch-date :fulcro.client.impl.plumbing/not-found}
                    2 {:db/id 2, :survey/launch-date "2012-12-22"}
                    }}) => {:subpanel  [:dashboard :panel]
                            :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}

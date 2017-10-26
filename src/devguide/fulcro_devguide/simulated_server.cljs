@@ -1,6 +1,6 @@
 (ns fulcro-devguide.simulated-server
   (:require
-    [om.next :as om]
+    [fulcro.client.primitives :as om]
     [fulcro.client.network :as fcn]))
 
 (defrecord MockNetwork [server]

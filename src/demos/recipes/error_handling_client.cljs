@@ -5,8 +5,8 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]))
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as om :refer [defui]]))
 
 ;; Just send the mutation to the server, which will return an error
 (defmutation error-mutation [params]

@@ -6,8 +6,8 @@
     [fulcro.easy-server :as easy]
     [fulcro-spec.core :refer [specification behavior provided component assertions]]
     [clojure.spec.alpha :as s]
-    [om.next :as om]
-    [om.dom :as dom]
+    [fulcro.client.primitives :as prim]
+    [fulcro.client.dom :as dom]
     [clojure.set :as set])
   (:import (clojure.lang ExceptionInfo)))
 

@@ -1,12 +1,12 @@
 (ns recipes.websockets-client
   (:require
-    [om.next :as om]
+    [fulcro.client.primitives :as om]
     [fulcro.client.core :as fc]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [fulcro.websockets.networking :as wn]
-    [om.dom :as dom]
-    [om.next :as om :refer-macros [defui]] ))
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as om :refer-macros [defui]] ))
 
 (defui ^:once User
   static om/IQuery

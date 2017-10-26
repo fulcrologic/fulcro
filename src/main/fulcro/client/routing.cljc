@@ -2,15 +2,13 @@
   #?(:cljs (:require-macros fulcro.client.routing))
   (:require [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.core :as fc]
-            [om.next :as om :refer [defui]]
-            om.dom
+            [fulcro.client.primitives :as prim :refer [defui]]
+            fulcro.client.dom
     #?(:cljs [cljs.loader :as loader])
             [fulcro.client.logging :as log]
-            [fulcro.client.util :refer [conform!]]
+            [fulcro.util :as util]
             [clojure.spec.alpha :as s]
-            [fulcro.client.util :as util]
-            [fulcro.client.logging :as log]
-            [om.next :as om]))
+            [fulcro.client.logging :as log]))
 
 #?(:clj
    (s/def ::mutation-args
@@ -23,39 +21,39 @@
 #?(:clj
    (defn- emit-union-element [sym ident-fn kws-and-screens]
      (try
-       (let [query         (reduce (fn [q {:keys [kw sym]}] (assoc q kw `(om.next/get-query ~sym))) {} kws-and-screens)
+       (let [query         (reduce (fn [q {:keys [kw sym]}] (assoc q kw `(fulcro.client.primitives/get-query ~sym))) {} kws-and-screens)
              first-screen  (-> kws-and-screens first :sym)
-             screen-render (fn [cls] `((om.next/factory ~cls {:keyfn (fn [props#] ~(name cls))}) (om.next/props ~'this)))
+             screen-render (fn [cls] `((fulcro.client.primitives/factory ~cls {:keyfn (fn [props#] ~(name cls))}) (fulcro.client.primitives/props ~'this)))
              render-stmt   (reduce (fn [cases {:keys [kw sym]}]
                                      (-> cases
                                        (conj kw (screen-render sym)))) [] kws-and-screens)]
-         `(om.next/defui ~(vary-meta sym assoc :once true)
+         `(fulcro.client.primitives/defui ~(vary-meta sym assoc :once true)
             ~'static fulcro.client.core/InitialAppState
             (~'initial-state [~'clz ~'params] (fulcro.client.core/get-initial-state ~first-screen ~'params))
-            ~'static om.next/Ident
+            ~'static fulcro.client.primitives/Ident
             ~ident-fn
-            ~'static om.next/IQuery
+            ~'static fulcro.client.primitives/IQuery
             (~'query [~'this] ~query)
             ~'Object
             (~'render [~'this]
-              (let [page# (first (om.next/get-ident ~'this))]
+              (let [page# (first (fulcro.client.primitives/get-ident ~'this))]
                 (case page#
                   ~@render-stmt
-                  (om.dom/div nil (str "Cannot route: Unknown Screen " page#)))))))
+                  (fulcro.client.dom/div nil (str "Cannot route: Unknown Screen " page#)))))))
        (catch Exception e `(def ~sym (log/error "BROKEN ROUTER!"))))))
 
 #?(:clj
    (defn- emit-router [router-id sym union-sym]
-     `(om.next/defui ~(vary-meta sym assoc :once true)
+     `(fulcro.client.primitives/defui ~(vary-meta sym assoc :once true)
         ~'static fulcro.client.core/InitialAppState
         (~'initial-state [~'clz ~'params] {:id ~router-id :current-route (fulcro.client.core/get-initial-state ~union-sym ~'params)})
-        ~'static om.next/Ident
+        ~'static fulcro.client.primitives/Ident
         (~'ident [~'this ~'props] [:fulcro.client.routing.routers/by-id ~router-id])
-        ~'static om.next/IQuery
-        (~'query [~'this] [:id {:current-route (om.next/get-query ~union-sym)}])
+        ~'static fulcro.client.primitives/IQuery
+        (~'query [~'this] [:id {:current-route (fulcro.client.primitives/get-query ~union-sym)}])
         ~'Object
         (~'render [~'this]
-          ((om.next/factory ~union-sym) (:current-route (om.next/props ~'this)))))))
+          ((fulcro.client.primitives/factory ~union-sym) (:current-route (fulcro.client.primitives/props ~'this)))))))
 
 #?(:clj
    (s/def ::router-args (s/cat
@@ -75,7 +73,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 "
                :arglists '([sym router-id ident-fn & kws-and-screens])} defrouter
      [& args]
-     (let [{:keys [sym router-id ident-fn kws-and-screens]} (conform! ::router-args args)
+     (let [{:keys [sym router-id ident-fn kws-and-screens]} (util/conform! ::router-args args)
            union-sym (symbol (str (name sym) "-Union"))]
        `(do
           ~(emit-union-element union-sym ident-fn kws-and-screens)
@@ -147,21 +145,21 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (declare DynamicRouter get-dynamic-router-target)
 
 (defn- set-routing-query! [reconciler router-id [target-kw _]]
-  (let [router   (om/ref->any reconciler [routers-table router-id])
+  (let [router   (prim/ref->any reconciler [routers-table router-id])
         dynamic? (instance? DynamicRouter router)
         query    (when dynamic?
                    (some-> target-kw
                      get-dynamic-router-target
-                     om/get-query))]
+                     prim/get-query))]
     (when query
       (log/debug (str "Setting routing query for " router-id " to " query))
-      (om/set-query! router {:query [:id {:current-route query}]} [::pending-route]))))
+      (prim/set-query! router {:query [:id {:current-route query}]} [::pending-route]))))
 
 (defn- update-routing-queries!
   "Given the reconciler and a routing tree route: finds and sets all of the dynamic queries needed to
   accomplish that route."
   [reconciler {:keys [handler route-params]}]
-  (let [state-map            (-> reconciler om/app-state deref)
+  (let [state-map            (-> reconciler prim/app-state deref)
         routing-instructions (get-in state-map [routing-tree-key handler])]
     (if-not (or (nil? routing-instructions) (vector? routing-instructions))
       (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
@@ -194,8 +192,8 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 
 (defn add-route-state [state-map target-kw component]
   (let [tree-state       {:tmp/new-route (fc/get-initial-state component nil)}
-        query            [{:tmp/new-route (om/get-query component)}]
-        normalized-state (-> (om/tree->db query tree-state true)
+        query            [{:tmp/new-route (prim/get-query component)}]
+        normalized-state (-> (prim/tree->db query tree-state true)
                            (dissoc :tmp/new-route))]
     (util/deep-merge state-map normalized-state)))
 
@@ -234,21 +232,21 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (defui ^:once DynamicRouter
   static fc/InitialAppState
   (initial-state [clz {:keys [id]}] {:id id :current-route {}})
-  static om.next/Ident
+  static fulcro.client.primitives/Ident
   (ident [this props] [routers-table (:id props)])
-  static om.next/IQuery
+  static fulcro.client.primitives/IQuery
   (query [this] [:id :current-route])
   Object
   (render [this]
-    (let [{:keys [current-route]} (om/props this)
+    (let [{:keys [current-route]} (prim/props this)
           target-key (get current-route dynamic-route-key)
           c          (get-dynamic-router-target target-key)
-          factory    (when c (om/factory c {:keyfn dynamic-route-key}))]
+          factory    (when c (prim/factory c {:keyfn dynamic-route-key}))]
       (log/debug (str "Rendering dynamic route: " current-route))
       (when factory
         (factory current-route)))))
 
-(def ui-dynamic-router (om/factory DynamicRouter {:keyfn :id}))
+(def ui-dynamic-router (prim/factory DynamicRouter {:keyfn :id}))
 
 (defn- process-pending-route!
   "Finish doing the routing after a module completes loading"
@@ -282,7 +280,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
         (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
         [])
       (reduce (fn [routes {:keys [target-router target-screen]}]
-                (let [router (om/ref->any reconciler [routers-table target-router])]
+                (let [router (prim/ref->any reconciler [routers-table target-router])]
                   (if (and (is-dynamic-router? router) (route-target-missing? target-screen))
                     (conj routes (first target-screen))
                     routes))) [] routing-instructions))))

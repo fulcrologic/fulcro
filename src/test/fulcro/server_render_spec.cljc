@@ -1,6 +1,6 @@
 (ns fulcro.server-render-spec
-  (:require [om.next :as om :refer [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.dom :as dom]
             [fulcro-spec.core :refer [specification behavior assertions]]
             [fulcro.server-render :as ssr]
             [fulcro.client.util :as util]
@@ -9,31 +9,31 @@
 (defui Item
   static fc/InitialAppState
   (initial-state [cls {:keys [id label]}] {:id id :label label})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :label])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:items/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [label]} (om/props this)]
+    (let [{:keys [label]} (prim/props this)]
       (dom/div #js {:className "item"}
         (dom/span #js {:className "label"} label)))))
 
-(def ui-item (om/factory Item {:keyfn :id}))
+(def ui-item (prim/factory Item {:keyfn :id}))
 
 (defui Root
   static fc/InitialAppState
   (initial-state [cls params] {:items [(fc/get-initial-state Item {:id 1 :label "A"})
                                        (fc/get-initial-state Item {:id 2 :label "B"})]})
-  static om/IQuery
-  (query [this] [{:items (om/get-query Item)}])
+  static prim/IQuery
+  (query [this] [{:items (prim/get-query Item)}])
   Object
   (render [this]
-    (let [{:keys [items]} (om/props this)]
+    (let [{:keys [items]} (prim/props this)]
       (dom/div #js {:className "root"}
         (mapv ui-item items)))))
 
-(def ui-root (om/factory Root))
+(def ui-root (prim/factory Root))
 
 #?(:clj
    (specification "Server-side rendering"
@@ -59,29 +59,29 @@
 (defui Table
   static fc/InitialAppState
   (initial-state [c p] table-1)
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:type :id :rows]))
 
 (def graph-1 {:type :graph :id 1 :data [1 2 3]})
 (defui Graph
   static fc/InitialAppState
   (initial-state [c p] graph-1)
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:type :id :data]))
 
 (defui Reports
   static fc/InitialAppState
   (initial-state [c p] (fc/get-initial-state Graph nil))    ; initial state will already include Graph
-  static om/Ident
+  static prim/Ident
   (ident [this props] [(:type props) (:id props)])
-  static om/IQuery
-  (query [this] {:graph (om/get-query Graph) :table (om/get-query Table)}))
+  static prim/IQuery
+  (query [this] {:graph (prim/get-query Graph) :table (prim/get-query Table)}))
 
 (defui MRRoot
   static fc/InitialAppState
   (initial-state [c p] {:reports (fc/get-initial-state Reports nil)})
-  static om/IQuery
-  (query [this] [{:reports (om/get-query Reports)}]))
+  static prim/IQuery
+  (query [this] [{:reports (prim/get-query Reports)}]))
 
 (specification "Build Initial State"
   (let [state-tree (fc/get-initial-state MRRoot nil)

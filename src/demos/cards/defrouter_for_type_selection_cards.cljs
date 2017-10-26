@@ -1,5 +1,5 @@
 (ns cards.defrouter-for-type-selection-cards
-  (:require [om.dom :as dom]
+  (:require [fulcro.client.dom :as dom]
             [recipes.defrouter-for-type-selection :as dr]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]))

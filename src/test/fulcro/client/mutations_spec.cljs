@@ -3,11 +3,11 @@
     [fulcro-spec.core :refer [specification provided behavior assertions component when-mocking]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [goog.debug.Logger.Level :as level]
-    [fulcro.client.impl.om-plumbing :as plumb]
+    [fulcro.client.impl.plumbing :as plumb]
     [fulcro.i18n :as i18n]
     [fulcro.client.impl.data-fetch :as df]
     [goog.log :as glog]
-    [om.next :as om :refer [*logger*]]
+    [fulcro.client.primitives :as prim :refer [*logger*]]
     [clojure.test :refer [is]]
     [fulcro.client.logging :as log]
     [clojure.string :as str]))
@@ -44,8 +44,8 @@
     (component "set-value!"
       (behavior "can set a raw value"
         (when-mocking
-          (om/transact! _ tx) => (let [tx-key (ffirst tx)
-                                       params (second (first tx))]
+          (prim/transact! _ tx) => (let [tx-key (ffirst tx)
+                                       params   (second (first tx))]
                                    ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
 
           (let [get-data #(-> @state :baz :1 :2)]
@@ -86,8 +86,8 @@
 
     (component "toggle!"
       (when-mocking
-        (om/transact! _ tx) => (let [tx-key (ffirst tx)
-                                     params (second (first tx))]
+        (prim/transact! _ tx) => (let [tx-key (ffirst tx)
+                                     params   (second (first tx))]
                                  ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
 
         (behavior "can toggle a boolean value"
@@ -98,13 +98,13 @@
 
 (specification "Mutations via transact"
   (let [state      {}
-        parser     (partial (om/parser {:read (partial plumb/read-local (constantly false)) :mutate m/mutate}))
-        reconciler (om/reconciler {:state  state
-                                   :parser parser})]
+        parser     (partial (prim/parser {:read (partial plumb/read-local (constantly false)) :mutate m/mutate}))
+        reconciler (prim/reconciler {:state state
+                                   :parser  parser})]
     (behavior "report an error if an undefined multi-method is called."
       (when-mocking
         (log/error msg) => (is (re-find #"Unknown app state mutation." msg))
-        (om/transact! reconciler `[(not-a-real-transaction!)])))))
+        (prim/transact! reconciler `[(not-a-real-transaction!)])))))
 
 (specification "Change locale mutation"
   (behavior "accepts a string for locale"
@@ -173,7 +173,7 @@
 (specification "Fallback mutations"
   (try
     (let [called (atom false)
-          parser (om/parser {:read (fn [e k p] nil) :mutate m/mutate})]
+          parser (prim/parser {:read (fn [e k p] nil) :mutate m/mutate})]
       (defmethod m/mutate 'my-undo [e k p]
         (do
           (assertions

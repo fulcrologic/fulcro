@@ -1,7 +1,7 @@
-(ns fulcro.client.impl.om-plumbing-spec
+(ns fulcro.client.impl.plumbing-spec
   (:require
-    [om.next :as om]
-    [fulcro.client.impl.om-plumbing :as impl]
+    [fulcro.client.primitives :as prim]
+    [fulcro.client.impl.plumbing :as impl]
     [fulcro.i18n :as i18n]
     [cljs.core.async :as async]
     [fulcro-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
@@ -20,8 +20,8 @@
                                      :d {:x 5 :y 10}}
                       :panel        {:a {:x 1 :n 4}}})
         custom-read      (fn [env k params] (when (= k :custom) {:value 42}))
-        parser           (partial (om/parser {:read (partial impl/read-local (constantly false))}) {:state state})
-        augmented-parser (partial (om/parser {:read (partial impl/read-local custom-read)}) {:state state})]
+        parser           (partial (prim/parser {:read (partial impl/read-local (constantly false))}) {:state state})
+        augmented-parser (partial (prim/parser {:read (partial impl/read-local custom-read)}) {:state state})]
 
     (reset! i18n/*current-locale* "en-US")
 
@@ -64,7 +64,7 @@
                   :main           {:view {:curr-item [[:sub-item/by-id 2]]}}
                   :sub-item/by-id {2 {:foo :baz :sub-items [[:sub-item/by-id 4]]}
                                    4 {:foo :bar}}}
-          parser (partial (om/parser {:read (partial impl/read-local (constantly nil))}) {:state (atom state)})]
+          parser (partial (prim/parser {:read (partial impl/read-local (constantly nil))}) {:state (atom state)})]
 
       (assertions
         "read recursion nested in a join underneath a union"
@@ -94,9 +94,9 @@
 (specification "tempid handling"
   (behavior "rewrites all tempids used in pending requests in the request queue"
     (let [queue           (async/chan 10000)
-          tid1            (om/tempid)
-          tid2            (om/tempid)
-          tid3            (om/tempid)
+          tid1            (prim/tempid)
+          tid2            (prim/tempid)
+          tid3            (prim/tempid)
           rid1            4
           rid2            2
           rid3            42
@@ -120,8 +120,8 @@
       (is (nil? (async/poll! queue)))
       (is (= expected-result @results))))
 
-  (let [tid            (om/tempid)
-        tid2           (om/tempid)
+  (let [tid            (prim/tempid)
+        tid2           (prim/tempid)
         rid            1
         state          {:thing  {tid  {:id tid}
                                  tid2 {:id tid2}}           ; this one isn't in the remap, and should not be touched
@@ -129,7 +129,7 @@
         expected-state {:thing  {rid  {:id rid}
                                  tid2 {:id tid2}}
                         :things [[:thing rid]]}
-        reconciler     (om/reconciler {:state state :parser {:read (constantly nil)} :migrate impl/resolve-tempids})]
+        reconciler     (prim/reconciler {:state state :parser {:read (constantly nil)} :migrate impl/resolve-tempids})]
 
     (assertions
       "rewrites all tempids in the app state (leaving unmapped ones alone)"

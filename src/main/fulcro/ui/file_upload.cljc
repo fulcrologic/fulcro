@@ -4,9 +4,9 @@
     [com.stuartsierra.component :as component]
     [cognitect.transit :as ct]
     #?(:cljs [goog.events :as events])
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]
-    [om.transit :as t]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.transit :as t]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.ui.icons :as icons]
@@ -17,7 +17,7 @@
     [ring.util.response :as resp])
     #?(:clj
     [ring.util.request :as ru])
-    [om.next.protocols :as omp]
+    [fulcro.client.impl.protocols :as omp]
     [clojure.set :as set]
     [fulcro.client.util :as util])
   (:refer-clojure :exclude [send])
@@ -92,16 +92,16 @@
                      (f/text-input :file/name)
                      (assoc (f/radio-input :file/status #{:done :transfer-in-progress :failed})
                        :input/validator `upload-complete?)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [f/form-key :file/id :file/name :file/size :file/progress :file/status :ui/js-file])
-  static om/Ident
+  static prim/Ident
   (ident [this props] (file-ident (:file/id props)))
   Object
   (render [this]
-    (let [renderFile (om/get-computed this :renderFile)
+    (let [renderFile (prim/get-computed this :renderFile)
           onRetry    (fn [] (log/info "User asked to retry upload"))
-          onCancel   (om/get-computed this :onCancel)       ; TODO: Unhappy path
-          {:keys [file/id file/name file/size file/progress file/status] :as props} (om/props this)
+          onCancel   (prim/get-computed this :onCancel)       ; TODO: Unhappy path
+          {:keys [file/id file/name file/size file/progress file/status] :as props} (prim/props this)
           label      (cropped-name name 20)]
       (if renderFile
         (renderFile this)
@@ -121,7 +121,7 @@
 
 (def ui-file
   "Render a file that is to be (or is in the process of being) uploaded."
-  (om/factory File {:keyfn :file/id}))
+  (prim/factory File {:keyfn :file/id}))
 
 #?(:clj (def clj->js identity))
 
@@ -141,25 +141,25 @@
                      (f/subform-element :file-upload/files File :many)])
   static fc/InitialAppState
   (initial-state [cls {:keys [id]}] (f/build-form FileUploadInput {:file-upload/id id :file-upload/files []}))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [f/form-key f/form-root-key :file-upload/id
-                 {:file-upload/files (om/get-query File)}])
-  static om/Ident
+                 {:file-upload/files (prim/get-query File)}])
+  static prim/Ident
   (ident [this props] (file-upload-ident (:file-upload/id props)))
   Object
   (render [this]
-    (let [{:keys [file-upload/id file-upload/files] :as props} (om/props this)
-          {:keys [accept multiple? renderControl renderFile]} (om/get-computed this)
+    (let [{:keys [file-upload/id file-upload/files] :as props} (prim/props this)
+          {:keys [accept multiple? renderControl renderFile]} (prim/get-computed this)
           file-upload-id id
           control-id     (str "file-upload-" id)
-          onCancel       (fn [id] (om/transact! this `[(cancel-file-upload {:upload-id ~file-upload-id
-                                                                            :file-id   ~id})
+          onCancel       (fn [id] (prim/transact! this `[(cancel-file-upload {:upload-id ~file-upload-id
+                                                                            :file-id     ~id})
                                                        ~f/form-root-key]))
           onChange       (fn [evt]
                            (let [js-file-list (.. evt -target -files)]
-                             (om/transact! this
+                             (prim/transact! this
                                (conj (mapv (fn [file-idx]
-                                             (let [fid     (om/tempid)
+                                             (let [fid     (prim/tempid)
                                                    js-file (.item js-file-list file-idx)
                                                    tx-call `(add-file ~{:file-upload file-upload-id
                                                                         :file-id     fid
@@ -177,7 +177,7 @@
                            :always clj->js)]
       (dom/div nil
         (when (seq files)
-          (dom/ul #js {:className "file-upload-list"} (mapv #(ui-file (om/computed % {:onCancel onCancel :renderFile renderFile})) files)))
+          (dom/ul #js {:className "file-upload-list"} (mapv #(ui-file (prim/computed % {:onCancel onCancel :renderFile renderFile})) files)))
         (when can-add-more?
           (if renderControl
             (renderControl onChange accept multiple?)
@@ -203,12 +203,12 @@
   receives. If set, `accept` is the acceptable MIME types, and `multiple?` is if the control should allow more
   than one file to be selected. The upload input UI component will hide the control if it is not multiple and
   a file has been selected."
-  (om/factory FileUploadInput {:keyfn :file-upload/id}))
+  (prim/factory FileUploadInput {:keyfn :file-upload/id}))
 
 (defmethod f/form-field* ::f/file-upload [component form field & params]
   (let [{:keys [id name] :as upload-data} (f/current-value form field)
         {:keys [uri]} params]
-    (ui-file-upload (om/computed upload-data (or params {})))))
+    (ui-file-upload (prim/computed upload-data (or params {})))))
 
 (defn progress%
   "Given a XhrIo network progress event, returns a number between 0 and 100 to indicate progress."
@@ -224,7 +224,7 @@
        (try
          (when-not @reconciler
            (log/error "File upload networking does not have the reconciler. In your started-callback, please call `fulcro.ui.file-upload/install-reconciler!`."))
-         (let [state (om/app-state @reconciler)]
+         (let [state (prim/app-state @reconciler)]
            (doseq [call edn]
              (log/info "updating send called with " call)
              (let [action     (-> call first)
@@ -248,17 +248,17 @@
                                                     incoming-remap-id (->> edn :tempids keys first)]
                                                 ; force update of forms at completion of upload, so validation states can update
                                                 (omp/queue! @reconciler [f/form-root-key])
-                                                (ok {ident file `add-file edn} [{ident (om/get-query File)}])))
+                                                (ok {ident file `add-file edn} [{ident (prim/get-query File)}])))
                                progress-fn  (fn [evt]
                                               (let [ident    (file-ident id)
                                                     file-obj (get-in @state ident)
                                                     file     (assoc file-obj :file/progress (progress% evt))]
-                                                (update-fn {ident file} {ident (om/get-query File)})))
+                                                (update-fn {ident file} {ident (prim/get-query File)})))
                                error-fn     (fn [evt]
                                               (let [ident    (file-ident id)
                                                     file-obj (get-in @state ident)
                                                     file     (assoc file-obj :file/progress 0 :file/status :failed)]
-                                                (update-fn {ident file} {ident (om/get-query File)}))
+                                                (update-fn {ident file} {ident (prim/get-query File)}))
                                               (error evt))
                                with-dispose (fn [f] (fn [arg] (try
                                                                 (f arg)

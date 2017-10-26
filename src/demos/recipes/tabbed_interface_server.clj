@@ -1,6 +1,6 @@
 (ns recipes.tabbed-interface-server
-  (:require [om.next.server :as om]
-            [om.next.impl.parser :as op]
+  (:require [fulcro.server :as om]
+            [fulcro.client.impl.parser :as op]
             [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]))

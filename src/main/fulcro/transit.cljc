@@ -1,11 +1,11 @@
-(ns om.transit
+(ns fulcro.transit
   #?(:clj (:refer-clojure :exclude [ref]))
   (:require [cognitect.transit :as t]
-   #?(:cljs [com.cognitect.transit :as ct])
-            [om.tempid :as tempid #?@(:cljs [:refer [TempId]])])
+    #?(:cljs [com.cognitect.transit :as ct])
+            [fulcro.tempid :as tempid #?@(:cljs [:refer [TempId]])])
   #?(:clj (:import [com.cognitect.transit
                     TransitFactory WriteHandler ReadHandler]
-                   [om.tempid TempId])))
+                   [fulcro.tempid TempId])))
 
 #?(:cljs
    (deftype TempIdHandler []

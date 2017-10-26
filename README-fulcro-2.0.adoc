@@ -1,0 +1,50 @@
+== Fulcro 2.0
+
+Fulcro 2.0 maintains the majority of API compatibility with 1.0, but has forked from Om Next due to
+a number of things:
+
+* We wanted better control of our release cycle and bug fix schedule.
+* Om's support of pluggable databases causes a number of complications we didn't need.
+* Dynamic queries in Om Next use patterns that are at odds with some quite useful features:
+** True serializable support viewer history in the presence of dynamic queries
+** Reliable history navigation for error recovery
+* The rendering optimizations in stock Om Next were quite aggressive, but led to quite a bit
+of complication under the hood, which in turn showed up as bugs. Fulcro's choice of the built-in database format makes
+these optimizations easier and hopefully more reliable.
+
+=== Porting From Fulcro 1.0
+
+1. Remove Om Next from your dependencies, if present
+2. Update to Fulcro-spec 2.0+ (if using it)
+3. Update to Fulcro 2.0+
+4. Rename all of the Om namespaces to use the new ones in Fulcro, which are mostly API-compatible:
++
+In Linux and OSX (assuming your project is in git), this `rename-ns` script is useful:
++
+```
+#!/bin/bash
+
+oldns=$1
+newns=$2
+
+perl -pi.bak -e 's/\b\Q'$oldns'\E\b/'$newns'/g' $(git grep -l "$oldns")
+
+find . -name '*.bak' -print0 | xargs -0 -n100 rm
+```
++
+You'll want to rename things *in order* (assuming you're using the above script):
++
+```
+rename-ns om.next.impl.parser fulcro.client.impl.parser
+rename-ns om.next.protocols fulcro.client.impl.protocols
+rename-ns om.next.server fulcro.server
+rename-ns om.dom fulcro.client.dom
+rename-ns om.tempid fulcro.tempid
+rename-ns om.util fulcro.util
+rename-ns om.next fulcro.client.primitives
+```
++
+5. Fix your use of `util` namespaces. There are now two util namespaces. This is an unfortunate consequence of the
+forking process.
+** `get-ident` is now just part of the `primitives` namespace
+

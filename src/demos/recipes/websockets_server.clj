@@ -1,7 +1,7 @@
 (ns recipes.websockets-server
   (:require [com.stuartsierra.component :as component]
-            [om.next.server :as om]
-            [om.next.impl.parser :as op]
+            [fulcro.server :as om]
+            [fulcro.client.impl.parser :as op]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]
             [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]

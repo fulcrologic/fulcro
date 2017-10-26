@@ -1,7 +1,7 @@
 (ns fulcro-devguide.A-Quick-Tour
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.network :as fcn]
             [fulcro.client.cards :refer [defcard-fulcro]]

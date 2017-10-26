@@ -1,10 +1,10 @@
 (ns cards.autocomplete-cards
   (:require
     [devcards.core :as dc :include-macros true]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as om :refer [defui]]
     [fulcro.client.cards :refer [defcard-fulcro]]
     [goog.functions :as gf]
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.data-fetch :as df]

@@ -1,4 +1,4 @@
-(ns om.checksums
+(ns fulcro.checksums
   (:require [clojure.string :as str]))
 
 ;; ===================================================================

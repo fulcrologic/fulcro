@@ -3,7 +3,7 @@
     [devcards.core :as dc :include-macros true]
     [recipes.component-local-state-client :as client]
     [fulcro.client.cards :refer [fulcro-app]]
-    [om.dom :as dom]))
+    [fulcro.client.dom :as dom]))
 
 (dc/defcard-doc
   "# Component Local State

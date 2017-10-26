@@ -1,8 +1,8 @@
 (ns recipes.defrouter-for-type-selection
   (:require
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [fulcro.client.routing :as r :refer [defrouter]]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as om :refer [defui]]
     [fulcro.client.core :as fc]
     [fulcro.ui.bootstrap3 :as b]
     [fulcro.ui.elements :as ele]))

@@ -1,20 +1,20 @@
 (ns fulcro.client.core
   #?(:cljs (:require-macros [fulcro.client.core :refer [defsc]]))
   (:require
-    [om.next :as om]
+    [fulcro.client.primitives :as prim]
     [fulcro.client.impl.application :as app]
     #?(:cljs fulcro.client.mutations)                       ; DO NOT REMOVE. Ensures built-in mutations load on start
     [fulcro.client.network :as net]
     [fulcro.client.logging :as log]
     #?(:clj
     [clojure.core.async :as async] :cljs [cljs.core.async :as async])
-    [om.next.protocols :as omp]
-    [fulcro.client.util :as util]
-    [fulcro.client.impl.om-plumbing :as plumbing]
+    [fulcro.client.impl.protocols :as proto]
+    [fulcro.util :as util]
+    [fulcro.client.util :as cutil]
+    [fulcro.client.impl.plumbing :as plumbing]
     #?(:clj
     [clojure.future :refer :all])
     [clojure.set :as set]
-    #?(:cljs [om.next.cache :as omc])
     #?(:cljs [goog.dom :as gdom])
     [clojure.spec.alpha :as s])
   #?(:cljs (:import goog.Uri)))
@@ -68,7 +68,7 @@
   [x]
   #?(:clj  (if (fn? x)
              (some? (-> x meta :initial-state))
-             (let [class (cond-> x (om/component? x) class)]
+             (let [class (cond-> x (prim/component? x) class)]
                (extends? InitialAppState class)))
      :cljs (implements? InitialAppState x)))
 
@@ -78,9 +78,9 @@
   [x]
   #?(:clj  (if (fn? x)
              (some? (-> x meta :ident))
-             (let [class (cond-> x (om/component? x) class)]
-               (extends? om/Ident class)))
-     :cljs (implements? om/Ident x)))
+             (let [class (cond-> x (prim/component? x) class)]
+               (extends? prim/Ident class)))
+     :cljs (implements? prim/Ident x)))
 
 
 (defn new-fulcro-client
@@ -195,11 +195,11 @@
    and put it in the database, but the component instance has recursive normalized state. This is a basically a
    thin wrapper around `om/tree->db`."
   [state-map component component-data]
-  (if-let [top-ident (util/get-ident component component-data)]
-    (let [query          [{top-ident (om/get-query component)}]
+  (if-let [top-ident (prim/get-ident component component-data)]
+    (let [query          [{top-ident (prim/get-query component)}]
           state-to-merge {top-ident component-data}
-          table-entries  (-> (om/tree->db query state-to-merge true)
-                           (dissoc ::om/tables top-ident))]
+          table-entries  (-> (prim/tree->db query state-to-merge true)
+                           (dissoc ::prim/tables top-ident))]
       (util/deep-merge state-map table-entries))
     state-map))
 
@@ -228,7 +228,7 @@
               (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
                 (merge-fn parent-union component-initial-state))))]
     (walk-ast
-      (om/query->ast (om/get-query root-component))
+      (prim/query->ast (prim/get-query root-component))
       merge-union)))
 
 ;q: {:a (gq A) :b (gq B)
@@ -271,7 +271,7 @@
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels   (zipmap remotes (map #(async/chan) remotes))
-        parser              (om/parser {:read (partial plumbing/read-local read-local) :mutate plumbing/write-entry-point})
+        parser              (prim/parser {:elide-paths true :read (partial plumbing/read-local read-local) :mutate plumbing/write-entry-point})
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
                                        :parser parser :mounted? true)
         app-with-networking (assoc initial-app :networking (start-networking network-map))
@@ -285,7 +285,7 @@
     (app/initialize-global-error-callbacks completed-app)
     (app/start-network-sequential-processing completed-app)
     (merge-alternate-union-elements! completed-app root-component)
-    (om/add-root! rec root-component node)
+    (prim/add-root! rec root-component node)
     (when started-callback
       (started-callback completed-app))
     completed-app))
@@ -300,7 +300,8 @@
 (defn reset-history-impl
   "Needed for mocking in tests. Use FulcroApplication protocol methods instead."
   [app]
-  #?(:cljs (assoc app :reconciler (update-in (:reconciler app) [:config :history] #(omc/cache (.-size %))))))
+  ; FIXME: History
+  #?(:cljs (assoc app :reconciler (update-in (:reconciler app) [:config :history] nil))))
 
 (defn refresh* [{:keys [reconciler] :as app} root target]
   ; NOTE: from devcards, the mount target node could have changed. So, we re-call Om's add-root
@@ -309,10 +310,10 @@
                   :cljs (if (string? target) (gdom/getElement target) target))]
     (when (and old-target (not (identical? old-target target)))
       (log/info "Mounting on newly supplied target.")
-      (om/remove-root! reconciler old-target)
-      (om/add-root! reconciler root target)))
+      (prim/remove-root! reconciler old-target)
+      (prim/add-root! reconciler root target)))
   (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
-  (util/force-render reconciler))
+  (cutil/force-render reconciler))
 
 (defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
   (if mounted?
@@ -335,17 +336,17 @@
   FulcroApplication
   (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 
-  (reset-state! [this new-state] (reset! (om/app-state reconciler) new-state))
+  (reset-state! [this new-state] (reset! (prim/app-state reconciler) new-state))
 
   (reset-app! [this root-component callback]
     (if (not (iinitial-app-state? root-component))
       (log/error "The specified root component does not implement InitialAppState!")
-      (let [base-state (om/tree->db root-component (fulcro.client.core/initial-state root-component nil) true)]
+      (let [base-state (prim/tree->db root-component (fulcro.client.core/initial-state root-component nil) true)]
         (clear-pending-remote-requests! this nil)
-        (reset! (om/app-state reconciler) base-state)
+        (reset! (prim/app-state reconciler) base-state)
         (reset-history! this)
         (merge-alternate-union-elements! this root-component)
-        (log/info "updated app state to original " (om/app-state reconciler))
+        (log/info "updated app state to original " (prim/app-state reconciler))
         (cond
           (= callback :original) (started-callback this)
           callback (callback this))
@@ -371,7 +372,7 @@
 
   (refresh [this]
     (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
-    (util/force-render reconciler)))
+    (cutil/force-render reconciler)))
 
 (defn new-fulcro-test-client
   "Create a test client that has no networking. Useful for UI testing with a real Fulcro app container."
@@ -409,21 +410,21 @@
   to/from a normalized app database. Requires a tree of data that represents the instance of
   the component in question (e.g. ident will work on it)"
   [component object-data]
-  (let [ident        (om/ident component object-data)
-        object-query (om/get-query component)]
+  (let [ident        (prim/ident component object-data)
+        object-query (prim/get-query component)]
     [{ident object-query}]))
 
 (defn- preprocess-merge
   "Does the steps necessary to honor the data merge technique defined by Fulcro with respect
   to data overwrites in the app database."
   [state-atom component object-data]
-  (let [ident         (util/get-ident component object-data)
-        object-query  (om/get-query component)
+  (let [ident         (prim/get-ident component object-data)
+        object-query  (prim/get-query component)
         object-query  (if (map? object-query) [object-query] object-query)
         base-query    (component-merge-query component object-data)
         ;; :fulcro/merge is way to make unions merge properly when joined by idents
         merge-query   [{:fulcro/merge base-query}]
-        existing-data (get (om/db->tree base-query @state-atom @state-atom) ident {})
+        existing-data (get (prim/db->tree base-query @state-atom @state-atom) ident {})
         marked-data   (plumbing/mark-missing object-data object-query)
         merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]
     {:merge-query merge-query
@@ -526,18 +527,18 @@
   "
   [app-or-reconciler component object-data & named-parameters]
   (when-not (iident? component) (log/warn "merge-state!: component must implement Ident"))
-  (let [ident          (util/get-ident component object-data)
+  (let [ident          (prim/get-ident component object-data)
         reconciler     (if #?(:cljs (implements? FulcroApplication app-or-reconciler)
                               :clj  (satisfies? FulcroApplication app-or-reconciler))
                          (:reconciler app-or-reconciler)
                          app-or-reconciler)
-        state          (om/app-state reconciler)
+        state          (prim/app-state reconciler)
         data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
         {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
-    (om/merge! reconciler merge-data merge-query)
+    (prim/merge! reconciler merge-data merge-query)
     (swap! state dissoc :fulcro/merge)
     (apply integrate-ident! state ident named-parameters)
-    (omp/queue! reconciler data-path-keys)
+    (proto/queue! reconciler data-path-keys)
     @state))
 
 #?(:clj
@@ -593,7 +594,7 @@
                illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
            (when (seq illegal-syms)
              (throw (ex-info "Syntax error in defsc. One or more destructured parameters do not appear in your query!" {:offending-symbols illegal-syms})))
-           `(~'static om.next/IQuery (~'query [~thissym] ~template))))
+           `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
        method
        `(~'static om.next/IQuery ~(replace-and-validate-fn 'query 1 method)))))
 
@@ -610,15 +611,15 @@
                   (cond
                     (nil? table) (throw (ex-info "TABLE part of ident template was nil" {}))
                     (not (is-legal-key? id-prop)) (throw (ex-info "ID property of :ident does not appear in your :query" {:id-property id-prop}))
-                    :otherwise `(~'static om.next/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
+                    :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
 
 #?(:clj
    (defn- build-render [thissym propsym compsym childrensym body]
      `(~'Object
         (~'render [~thissym]
-          (let [~propsym (om.next/props ~thissym)
-                ~compsym (om.next/get-computed ~thissym)
-                ~childrensym (om.next/children ~thissym)]
+          (let [~propsym (fulcro.client.primitives/props ~thissym)
+                ~compsym (fulcro.client.primitives/get-computed ~thissym)
+                ~childrensym (fulcro.client.primitives/children ~thissym)]
             ~@body)))))
 
 (defn make-state-map
@@ -786,7 +787,7 @@
            css-forms                        (build-css css-template-or-method css-include-template-or-method)
            render-forms                     (build-render thissym propsym computedsym childrensym body)]
        (assert (or (nil? protocols) (s/valid? ::protocols protocols)) "Protocols must be valid protocol declarations")
-       `(om.next/defui ~(with-meta sym {:once true})
+       `(fulcro.client.primitives/defui ~(with-meta sym {:once true})
           ~@addl-protocols
           ~@css-forms
           ~@state-forms

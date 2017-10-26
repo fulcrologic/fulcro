@@ -1,6 +1,6 @@
 (ns fulcro.ui.elements
-  (:require [om.next :as om :refer [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.dom :as dom]
             #?(:cljs [goog.object :as gobj])))
 
 (defn react-instance?
@@ -9,7 +9,7 @@
   [react-class react-element]
   {:pre [react-class react-element]}
   ; TODO: this isn't quite right
-  (when (= (om/react-type react-element) react-class)
+  (when (= (prim/react-type react-element) react-class)
     react-element))
 
 (defn first-node-of-type
@@ -26,7 +26,7 @@
 #?(:cljs
    (defn start-frame [this]
      (let [frame-body (.-body (.-contentDocument (js/ReactDOM.findDOMNode this)))
-           {:keys [child]} (om/props this)
+           {:keys [child]} (prim/props this)
            e1         (.createElement js/document "div")]
        (when (= 0 (gobj/getValueByKeys frame-body #js ["children" "length"]))
          (.appendChild frame-body e1)
@@ -34,23 +34,23 @@
          (update-frame-content this child)))))
 
 #?(:cljs
-   (om/defui IFrame
+   (prim/defui IFrame
      Object
      (componentDidMount [this] (start-frame this))
 
      (componentDidUpdate [this _ _]
-       (let [child (:child (om/props this))]
+       (let [child (:child (prim/props this))]
          (update-frame-content this child)))
 
      (render [this]
        (dom/iframe
-         (-> (om/props this)
+         (-> (prim/props this)
              (dissoc :child)
              (assoc :onLoad #(start-frame this))
              clj->js)))))
 
 #?(:cljs
-   (let [factory (om/factory IFrame)]
+   (let [factory (prim/factory IFrame)]
      (defn ui-iframe [props child]
        (factory (assoc props :child child)))))
 

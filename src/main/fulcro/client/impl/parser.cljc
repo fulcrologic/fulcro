@@ -1,3 +1,4 @@
+
 (ns
   ^{:doc "
    Generic query expression parsing and AST manipulation.
@@ -26,7 +27,7 @@
 
    QUERY EXPRESSION AST FORMAT
 
-   Given a QueryExpr you can get the AST via om.next.impl.parser/expr->ast.
+   Given a QueryExpr you can get the AST via fulcro.client.impl.parser/expr->ast.
    The following keys can appear in the AST representation:
 
    {:type         (:prop | :join | :call | :root | :union | :union-entry)
@@ -41,9 +42,9 @@
 
    :query and :params may or may not appear. :type :call is only for
    mutations."}
-  om.next.impl.parser
+  fulcro.client.impl.parser
   (:require [clojure.set :as set]
-            [om.util :as util]))
+            [fulcro.util :as util]))
 
 (declare expr->ast)
 
@@ -92,10 +93,9 @@
   (let [query-root? (-> join meta :query-root)
         [k v] (first join)
         ast (expr->ast k)
-        type (if (= :call (:type ast)) :call :join)
         component (-> v meta :component)]
     (merge ast
-      {:type type :query v}
+      {:type :join :query v}
       (when-not (nil? component)
         {:component component})
       (when query-root?
@@ -133,44 +133,37 @@
       {:query-root true})
     expr))
 
-(defn parameterize [expr params]
-  (if-not (empty? params)
-    (list expr params)
-    (list expr)))
-
 (defn ast->expr
   "Given a query expression AST convert it back into a query expression."
   ([ast]
-    (ast->expr ast false))
+   (ast->expr ast false))
   ([{:keys [type component] :as ast} unparse?]
    (if (= :root type)
      (cond-> (into [] (map #(ast->expr % unparse?)) (:children ast))
        (not (nil? component)) (with-meta {:component component}))
      (let [{:keys [key query query-root params]} ast]
        (wrap-expr query-root
-         (if (and params (not= :call type))
+         (if-not (nil? params)
            (let [expr (ast->expr (dissoc ast :params) unparse?)]
-             (parameterize expr params))
-           (let [key (if (= :call type) (parameterize key params) key)]
-             (if (or (= :join type)
-                     (and (= :call type) (:children ast)))
-               (if (and (not= '... query) (not (number? query))
-                        (or (true? unparse?)
-                            (= :call type)))
-                 (let [{:keys [children]} ast]
-                   (if (and (== 1 (count children))
-                            (= :union (:type (first children)))) ;; UNION
-                     {key (into (cond-> {}
-                                  component (with-meta {:component component}))
-                                (map (fn [{:keys [union-key children component]}]
-                                       [union-key
-                                        (cond-> (into [] (map #(ast->expr % unparse?)) children)
-                                          (not (nil? component)) (with-meta {:component component}))]))
-                                (:children (first children)))}
-                     {key (cond-> (into [] (map #(ast->expr % unparse?)) children)
-                            (not (nil? component)) (with-meta {:component component}))}))
-                 {key query})
-               key))))))))
+             (if-not (empty? params)
+               (list expr params)
+               (list expr)))
+           (if (= :join type)
+             (if (and (not= '... query) (not (number? query)) (true? unparse?))
+               (let [{:keys [children]} ast]
+                 (if (and (== 1 (count children))
+                       (= :union (:type (first children)))) ;; UNION
+                   {key (into (cond-> {}
+                                component (with-meta {:component component}))
+                          (map (fn [{:keys [union-key children component]}]
+                                 [union-key
+                                  (cond-> (into [] (map #(ast->expr % unparse?)) children)
+                                    (not (nil? component)) (with-meta {:component component}))]))
+                          (:children (first children)))}
+                   {key (cond-> (into [] (map #(ast->expr % unparse?)) children)
+                          (not (nil? component)) (with-meta {:component component}))}))
+               {key query})
+             key)))))))
 
 (defn path-meta
   "Add path metadata to a data structure. data is the data to be worked on.
@@ -199,9 +192,9 @@
        (if-not (nil? joins)
          (let [join (first joins)]
            (if-not (or (util/join? join)
-                       (util/ident? join)
-                       (and (seq? join)
-                         (util/ident? (first join))))
+                     (util/ident? join)
+                     (and (seq? join)
+                       (util/ident? (first join))))
              (recur (next joins) ret)
              (let [join        (cond-> join (seq? join) first)
                    join        (cond-> join (util/ident? join) (hash-map '[*]))
@@ -218,7 +211,7 @@
                  (cond-> ret
                    (and (map? ret) (contains? ret key))
                    (assoc key
-                     (path-meta v (conj path key) sel union-entry)))))))
+                          (path-meta v (conj path key) sel union-entry)))))))
          (cond-> ret
            #?(:clj  (instance? clojure.lang.IObj ret)
               :cljs (satisfies? IWithMeta ret))
@@ -235,7 +228,7 @@
                                    props (set props)]
                                (cond
                                  (= (set props)
-                                    (set query-props)) (reduced q)
+                                   (set query-props)) (reduced q)
                                  (set/subset? props query-props) q
                                  :else ret)))
                      nil branches)]
@@ -244,10 +237,10 @@
 
 (defn rethrow? [x]
   (and (instance? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) x)
-       (= :om.next/abort (-> x ex-data :type))))
+    (= :fulcro.client.primitives/abort (-> x ex-data :type))))
 
 (defn parser
-  "Given a :read and/or :mutate function return a parser. Refer to om.next/parser
+  "Given a :read and/or :mutate function return a parser. Refer to fulcro.client.primitives/parser
    for top level documentation."
   [{:keys [read mutate] :as config}]
   (fn self
@@ -255,7 +248,7 @@
     ([env query target]
      (let [elide-paths? (or (:elide-paths config) (:query-root env))
            {:keys [path] :as env}
-           (cond-> (assoc env :parser self :target target :query-root :om.next/root)
+           (cond-> (assoc env :parser self :target target :query-root :fulcro.client.primitives/root)
              (not (contains? env :path)) (assoc :path []))]
        (letfn [(step [ret expr]
                  (let [{query' :query :keys [key dispatch-key params] :as ast} (expr->ast expr)
@@ -298,10 +291,11 @@
                              (not (nil? value)) (assoc (cond-> key
                                                          (util/unique-ident? key)
                                                          first)
-                                                  value)
+                                                       value)
                              @mut-ret (assoc-in [key :result] @mut-ret)
-                             @error (assoc key {:om.next/error @error}))))))))]
+                             @error (assoc key {:fulcro.client.primitives/error @error}))))))))]
          (cond-> (reduce step (if (nil? target) {} []) query)
-           (and (nil? target) (not elide-paths?)) (path-meta path query)))))))
+           ; for now, turn on path-meta
+           (and (nil? target) (not elide-paths?) false) (path-meta path query)))))))
 
 (defn dispatch [_ k _] k)

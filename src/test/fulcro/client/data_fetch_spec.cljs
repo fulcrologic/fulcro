@@ -4,13 +4,13 @@
     [fulcro.client.impl.data-fetch :as dfi]
     [fulcro.client.util :as util]
     [goog.log :as glog]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [cljs.test :refer-macros [is are]]
     [fulcro-spec.core :refer
      [specification behavior assertions provided component when-mocking]]
     [fulcro.client.mutations :as m]
     [fulcro.client.logging :as log]
-    [om.next.protocols :as omp]
+    [fulcro.client.impl.protocols :as omp]
     [fulcro.client.core :as fc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -18,24 +18,24 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defui ^:once Person
-  static om/IQuery (query [_] [:db/id :username :name])
-  static om/Ident (ident [_ props] [:person/id (:db/id props)]))
+  static prim/IQuery (query [_] [:db/id :username :name])
+  static prim/Ident (ident [_ props] [:person/id (:db/id props)]))
 
 (defui ^:once Comment
-  static om/IQuery (query [this] [:db/id :title {:author (om/get-query Person)}])
-  static om/Ident (ident [this props] [:comments/id (:db/id props)]))
+  static prim/IQuery (query [this] [:db/id :title {:author (prim/get-query Person)}])
+  static prim/Ident (ident [this props] [:comments/id (:db/id props)]))
 
 (defui ^:once Item
-  static om/IQuery (query [this] [:db/id :name {:comments (om/get-query Comment)}])
-  static om/Ident (ident [this props] [:items/id (:db/id props)]))
+  static prim/IQuery (query [this] [:db/id :name {:comments (prim/get-query Comment)}])
+  static prim/Ident (ident [this props] [:items/id (:db/id props)]))
 
 
 (defui ^:once Panel
-  static om/IQuery (query [this] [:db/id {:items (om/get-query Item)}])
-  static om/Ident (ident [this props] [:panel/id (:db/id props)]))
+  static prim/IQuery (query [this] [:db/id {:items (prim/get-query Item)}])
+  static prim/Ident (ident [this props] [:panel/id (:db/id props)]))
 
 (defui ^:once PanelRoot
-  static om/IQuery (query [this] [{:panel (om/get-query Panel)}]))
+  static prim/IQuery (query [this] [{:panel (prim/get-query Panel)}]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;  TESTS
@@ -62,7 +62,7 @@
                                {:ident   [:item/by-id 1]
                                 :field   :comments
                                 :without without-set
-                                :query   (om/focus-query (om/get-query Item) [:comments])}))
+                                :query   (prim/focus-query (prim/get-query Item) [:comments])}))
 
         without-join       (make-ready-marker #{:author})
         without-prop       (make-ready-marker #{:username})
@@ -80,18 +80,18 @@
       (dfi/data-query without-multi-prop) => [{[:item/by-id 1] [{:comments [:title {:author [:username :name]}]}]}]))
 
   (behavior "can elide top-level keys from the query"
-    (let [ready-state (dfi/ready-state {:query (om/get-query Item) :without #{:name}})]
+    (let [ready-state (dfi/ready-state {:query (prim/get-query Item) :without #{:name}})]
       (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
 
   (behavior "can include parameters when eliding top-level keys from the query"
-    (let [ready-state (dfi/ready-state {:query (om/get-query Item) :without #{:name} :params {:db/id {:x 1}}})]
+    (let [ready-state (dfi/ready-state {:query (prim/get-query Item) :without #{:name} :params {:db/id {:x 1}}})]
       (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
 
   (behavior "can elide keywords from a union query"
     (assertions
-      (om/ast->query
+      (prim/ast->query
         (dfi/elide-ast-nodes
-          (om/query->ast [{:current-tab {:panel [:data] :console [:data] :dashboard [:data]}}])
+          (prim/query->ast [{:current-tab {:panel [:data] :console [:data] :dashboard [:data]}}])
           #{:console}))
       => [{:current-tab {:panel [:data] :dashboard [:data]}}])))
 
@@ -108,13 +108,13 @@
       "Constructs query with parameters when subquery is nil"
       (:query (df/load-params* [:person/by-id 1] nil {:params {:x 1}})) => '[([:person/by-id 1] {:x 1})]
       "Constructs a JOIN query (without params)"
-      (:query (df/load-params* :prop Person {})) => [{:prop (om/get-query Person)}]
-      (:query (df/load-params* [:person/by-id 1] Person {})) => [{[:person/by-id 1] (om/get-query Person)}]
+      (:query (df/load-params* :prop Person {})) => [{:prop (prim/get-query Person)}]
+      (:query (df/load-params* [:person/by-id 1] Person {})) => [{[:person/by-id 1] (prim/get-query Person)}]
       "Honors target for property-based join"
       (:target (df/load-params* :prop Person {:target [:a :b]})) => [:a :b]
       "Constructs a JOIN query (with params)"
-      query-with-params =fn=> (fn [q] (= q `[({:prop ~(om/get-query Person)} {:n 1})]))
-      ident-query-with-params =fn=> (fn [q] (= q `[({[:person/by-id 1] ~(om/get-query Person)} {:n 1})])))
+      query-with-params =fn=> (fn [q] (= q `[({:prop ~(prim/get-query Person)} {:n 1})]))
+      ident-query-with-params =fn=> (fn [q] (= q `[({[:person/by-id 1] ~(prim/get-query Person)} {:n 1})])))
     (provided "uses computed-refresh to augment the refresh list"
       (df/computed-refresh explicit k t) =1x=> :computed-refresh
 
@@ -161,12 +161,12 @@
                                    "creates mutation arguments"
                                    args => :mutation-args)
                                  :mutation)
-    (om/transact! c tx) => (do (assertions
+    (prim/transact! c tx) => (do (assertions
                                  "uses the passed component/app in transact!"
                                  c => :component
                                  "uses the mutation created by load-mutation"
                                  tx => :mutation))
-    (om/component? c) => true
+    (prim/component? c) => true
 
     (df/load :component :x Person {})))
 
@@ -184,11 +184,11 @@
 
 (specification "Lazy loading"
   (component "Loading a field within a component"
-    (let [query (om/get-query Item)]
+    (let [query (prim/get-query Item)]
       (provided "properly calls transact"
-        (om/get-ident c) =2x=> [:item/by-id 10]
-        (om/get-query c) =1x=> query
-        (om/transact! c tx) =1x=> (let [params          (-> tx first second)
+        (prim/get-ident c) =2x=> [:item/by-id 10]
+        (prim/get-query c) =1x=> query
+        (prim/transact! c tx) =1x=> (let [params        (-> tx first second)
                                         follow-on-reads (set (-> tx rest))]
                                     (assertions
                                       "includes :ui/loading-data in the follow-on reads"
@@ -254,21 +254,21 @@
 (defmethod m/mutate 'mark-loading-test/fallback [_ _ _] {:action #(mark-loading-fallback)})
 
 (specification "The inject-query-params function"
-  (let [prop-ast                  (om/query->ast [:a :b :c])
+  (let [prop-ast                  (prim/query->ast [:a :b :c])
         prop-params               {:a {:x 1} :c {:y 2}}
-        join-ast                  (om/query->ast [:a {:things [:name]}])
+        join-ast                  (prim/query->ast [:a {:things [:name]}])
         join-params               {:things {:start 1}}
-        existing-params-ast       (om/query->ast '[(:a {:x 1})])
+        existing-params-ast       (prim/query->ast '[(:a {:x 1})])
         existing-params-overwrite {:a {:x 2}}]
     (assertions
       "can add parameters to a top-level query property"
-      (om/ast->query (dfi/inject-query-params prop-ast prop-params)) => '[(:a {:x 1}) :b (:c {:y 2})]
+      (prim/ast->query (dfi/inject-query-params prop-ast prop-params)) => '[(:a {:x 1}) :b (:c {:y 2})]
       "can add parameters to a top-level join property"
-      (om/ast->query (dfi/inject-query-params join-ast join-params)) => '[:a ({:things [:name]} {:start 1})]
+      (prim/ast->query (dfi/inject-query-params join-ast join-params)) => '[:a ({:things [:name]} {:start 1})]
       "merges new parameters over existing ones"
-      (om/ast->query (dfi/inject-query-params existing-params-ast existing-params-overwrite)) => '[(:a {:x 2})])
+      (prim/ast->query (dfi/inject-query-params existing-params-ast existing-params-overwrite)) => '[(:a {:x 2})])
     (behavior "Warns about parameters that cannot be joined to the query"
-      (let [ast    (om/query->ast [:a :b])
+      (let [ast    (prim/query->ast [:a :b])
             params {:c {:x 1}}]
         (when-mocking
           (glog/error obj msg) => (is (= "Error: You attempted to add parameters for #{:c} to top-level key(s) of [:a :b]" msg))
@@ -282,7 +282,7 @@
         not-loading-state (atom {:ui/loading-data             true
                                  :fulcro/loads-in-progress #{}})]
     (when-mocking
-      (om/app-state r) => not-loading-state
+      (prim/app-state r) => not-loading-state
 
       (dfi/set-global-loading :reconciler)
 
@@ -291,7 +291,7 @@
         (-> @not-loading-state :ui/loading-data) => false))
 
     (when-mocking
-      (om/app-state r) => loading-state
+      (prim/app-state r) => loading-state
 
       (dfi/set-global-loading :reconciler)
 
@@ -348,8 +348,8 @@
         loaded-cb       (dfi/loaded-callback :reconciler)
         response        {:id 2}]
     (when-mocking
-      (om/app-state r) => state
-      (om/merge! r resp query) => (reset! merged true)
+      (prim/app-state r) => state
+      (prim/merge! r resp query) => (reset! merged true)
       (util/force-render r ks) => (reset! rendered ks)
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
@@ -380,8 +380,8 @@
         loaded-cb       (dfi/loaded-callback :reconciler)
         response        {:id 2}]
     (when-mocking
-      (om/app-state r) => state
-      (om/merge! r resp query) => (reset! merged true)
+      (prim/app-state r) => state
+      (prim/merge! r resp query) => (reset! merged true)
       (util/force-render r items) => (reset! queued (set items))
       (dfi/set-global-loading r) => (reset! globally-marked true)
 
@@ -412,9 +412,9 @@
         error-cb        (dfi/error-callback :reconciler)
         response        {:id 2}]
     (when-mocking
-      (om/app-state r) => state
+      (prim/app-state r) => state
       (dfi/set-global-loading r) => (reset! globally-marked true)
-      (om/force-root-render! r) => (assertions
+      (prim/force-root-render! r) => (assertions
                                      "Triggers render at root"
                                      r => :reconciler)
 

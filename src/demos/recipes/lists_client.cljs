@@ -2,8 +2,8 @@
   (:require
     [fulcro.client.mutations :as m]
     [fulcro.client.core :as fc]
-    [om.dom :as dom]
-    [om.next :as om :refer-macros [defui]]))
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as om :refer-macros [defui]]))
 
 ; Not using an atom, so use a tree for app state (will auto-normalize via ident functions)
 (def initial-state {:ui/react-key "abc"

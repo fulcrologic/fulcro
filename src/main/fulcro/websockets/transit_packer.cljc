@@ -1,9 +1,9 @@
 (ns fulcro.websockets.transit-packer
-  (:require [om.transit :as ot]
+  (:require [fulcro.transit :as ot]
             [taoensso.sente.packers.transit :as st]
-            [om.tempid :as tempid #?@(:cljs [:refer [TempId]])])
+            [fulcro.tempid :as tempid #?@(:cljs [:refer [TempId]])])
   #?(:clj (:import [com.cognitect.transit ReadHandler]
-                   [om.tempid TempId])))
+                   [fulcro.tempid TempId])))
 
 
 (defn make-packer

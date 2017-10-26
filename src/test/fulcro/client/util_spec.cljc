@@ -1,13 +1,14 @@
 (ns fulcro.client.util-spec
   (:require
     [fulcro-spec.core :refer [specification when-mocking assertions behavior]]
+    [fulcro.util :as primutil]
     [fulcro.client.util :as util]
     [clojure.test.check :as tc]
     [clojure.test.check.generators :as gen]
     [clojure.test.check.properties :as prop]
     [clojure.test :refer [is]]
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]))
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defui]]))
 
 #?(:cljs
    (specification "Log app state"
@@ -22,7 +23,7 @@
                         [1 2 3]     :data})]
 
        (when-mocking
-         (om/app-state _) => state
+         (prim/app-state _) => state
          (cljs.pprint/pprint data) => data
 
          (assertions
@@ -79,7 +80,7 @@
       )))
 
 (defui A
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:a/by-id (:db/id props)])
   Object
   (render [this] (dom/div nil "")))
@@ -88,17 +89,17 @@
   Object
   (render [this] (dom/div nil "")))
 
-(def ui-a (om/factory A))
-(def ui-b (om/factory B))
+(def ui-a (prim/factory A))
+(def ui-b (prim/factory B))
 
 (specification "get-ident"
   (assertions
     "Can pull the ident from a class when given props"
-    (util/get-ident A {:db/id 1}) => [:a/by-id 1]))
+    (prim/get-ident A {:db/id 1}) => [:a/by-id 1]))
 
 (specification "unique-key"
-  (let [a (util/unique-key)
-        b (util/unique-key)]
+  (let [a (primutil/unique-key)
+        b (primutil/unique-key)]
     (assertions
       "Returns a different value every time"
       (= a b) => false)))
@@ -106,7 +107,7 @@
 (specification "atom?"
   (assertions
     "Detects the atom type"
-    (util/atom? (atom {})) => true))
+    (primutil/atom? (atom {})) => true))
 
 (specification "react-instance?"
   (let [instance (ui-a {})]

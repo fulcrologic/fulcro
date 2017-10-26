@@ -1,5 +1,12 @@
-(ns om.util
-  (:refer-clojure :exclude [ident?]))
+(ns fulcro.util
+  (:refer-clojure :exclude [ident?])
+  (:require
+    [clojure.spec.alpha :as s]
+    clojure.walk
+    #?(:clj
+    [clojure.spec.gen.alpha :as sg]))
+  #?(:clj
+     (:import (clojure.lang Atom))))
 
 (defn force-children [x]
   (cond->> x
@@ -12,9 +19,8 @@
     (and (map? expr)
       (map? (-> expr first second)))))
 
-(defn join?
+(defn join? [x]
   #?(:cljs {:tag boolean})
-  [x]
   (let [x (if (seq? x) (first x) x)]
     (map? x)))
 
@@ -35,7 +41,7 @@
   (cond
     (map? expr) (ffirst expr)
     (seq? expr) (join-key (first expr))
-    :else       expr))
+    :else expr))
 
 (defn join-value [join]
   (second (join-entry join)))
@@ -48,9 +54,9 @@
 (defn recursion?
   #?(:cljs {:tag boolean})
   [x]
-  (or #?(:clj (= '... x)
+  (or #?(:clj  (= '... x)
          :cljs (symbol-identical? '... x))
-      (number? x)))
+    (number? x)))
 
 (defn mutation?
   #?(:cljs {:tag boolean})
@@ -61,3 +67,29 @@
 (defn mutation-key [expr]
   {:pre [(symbol? (first expr))]}
   (first expr))
+
+(defn unique-key
+  "Get a unique string-based key. Never returns the same value."
+  []
+  (let [s #?(:clj (java.util.UUID/randomUUID)
+             :cljs (random-uuid))]
+    (str s)))
+
+(defn atom? [a] (instance? Atom a))
+
+(defn deep-merge [& xs]
+  "Merges nested maps without overwriting existing keys."
+  (if (every? map? xs)
+    (apply merge-with deep-merge xs)
+    (last xs)))
+
+(defn conform! [spec x]
+  (let [rt (s/conform spec x)]
+    (when (s/invalid? rt)
+      (throw (ex-info (s/explain-str spec x)
+               (s/explain-data spec x))))
+    rt))
+
+#?(:clj
+   (def TRUE (s/with-gen (constantly true) sg/int)))
+

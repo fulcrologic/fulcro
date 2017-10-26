@@ -2,8 +2,8 @@
   (:require
     [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro-css.css :as css]
-    [om.next :as om :refer [defui]]
-    [om.dom :as dom]))
+    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.dom :as dom]))
 
 (defonce theme-color (atom :blue))
 

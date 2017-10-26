@@ -6,16 +6,38 @@
     [clojure.java.io :as io]
     [clojure.edn :as edn]
     [clojure.walk :as walk]
-    [cognitect.transit :as transit]
-    [om.next.server :as om]
-    om.util
+    [cognitect.transit :as ct]
     [ring.util.response :as resp]
     [ring.util.request :as req]
     [taoensso.timbre :as log]
-    [fulcro.client.util :as util])
+    [fulcro.transit :as transit]
+    [fulcro.client.impl.parser :as parser]
+    [fulcro.util :as util])
   (:import (clojure.lang ExceptionInfo)
            [java.io ByteArrayOutputStream File]))
 
+(defn parser
+  "Create a parser. The argument is a map of two keys, :read and :mutate. Both
+   functions should have the signature (Env -> Key -> Params -> ParseResult)."
+  [opts]
+  (parser/parser (assoc opts :elide-paths true)))
+
+(defn dispatch
+  "Helper function for implementing :read and :mutate as multimethods. Use this
+   as the dispatch-fn."
+  [_ key _] key)
+
+(defn reader
+  "Create a Om Next transit reader. This reader can handler the tempid type.
+   Can pass transit reader customization opts map."
+  ([in] (transit/reader in))
+  ([in opts] (transit/reader in opts)))
+
+(defn writer
+  "Create a Om Next transit reader. This writer can handler the tempid type.
+   Can pass transit writer customization opts map."
+  ([out] (transit/writer out))
+  ([out opts] (transit/writer out opts)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CONFIG
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -103,8 +125,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- write [x t opts]
   (let [baos (ByteArrayOutputStream.)
-        w    (om/writer baos opts)
-        _    (transit/write w x)
+        w    (writer baos opts)
+        _    (ct/write w x)
         ret  (.toString baos)]
     (.reset baos)
     ret))
@@ -118,9 +140,9 @@
   (let [[res _] (transit-request? request)]
     (if res
       (if-let [body (:body request)]
-        (let [rdr (om/reader body opts)]
+        (let [rdr (reader body opts)]
           (try
-            [true (transit/read rdr)]
+            [true (ct/read rdr)]
             (catch Exception ex
               [false nil])))))))
 
@@ -259,9 +281,9 @@ default-malformed-response
 (defn parser-mutate-error->response
   [mutation-result]
   (let [raise-error-data (fn [item]
-                           (if (and (map? item) (contains? item :om.next/error))
-                             (let [exception-data (serialize-exception (get-in item [:om.next/error]))]
-                               (assoc item :om.next/error exception-data))
+                           (if (and (map? item) (contains? item :fulcro.client.primitives/error))
+                             (let [exception-data (serialize-exception (get-in item [:fulcro.client.primitives/error]))]
+                               (assoc item :fulcro.client.primitives/error exception-data))
                              item))
         mutation-errors  (clojure.walk/prewalk raise-error-data mutation-result)]
 
@@ -278,7 +300,7 @@ default-malformed-response
 (defn valid-response? [result]
   (and
     (not (instance? Exception result))
-    (not (some (fn [[_ {:keys [om.next/error]}]] (some? error)) result))))
+    (not (some (fn [[_ {:keys [fulcro.client.primitives/error]}]] (some? error)) result))))
 
 (defn raise-response
   "For om mutations, converts {'my/mutation {:result {...}}} to {'my/mutation {...}}"
@@ -362,7 +384,7 @@ default-malformed-response
   component/Lifecycle
   (start [this]
     (let [api-url     (cond->> "/api" app-name (str "/" app-name))
-          api-parser  (om/parser (comp-api-modules this))
+          api-parser  (parser (comp-api-modules this))
           api-handler (partial handle-api-request api-parser)]
       (assoc this
         :handler api-handler
@@ -434,7 +456,7 @@ default-malformed-response
 ;; Pre-built parser support
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmulti server-mutate om/dispatch)
+(defmulti server-mutate dispatch)
 
 
 (s/def ::mutation-args (s/cat
@@ -490,7 +512,7 @@ default-malformed-response
   "Builds and returns an Om parser that uses Fulcro's query and mutation handling. See `defquery-entity`, `defquery-root`,
   and `defmutation` in the `fulcro.server` namespace."
   []
-  (om/parser {:read server-read :mutate server-mutate}))
+  (parser {:read server-read :mutate server-mutate}))
 
 (s/def ::action (s/cat
                   :action-name (fn [sym] (= sym 'action))
@@ -570,7 +592,7 @@ The return value of `value` will be sent to the client.
   "A built-in read method for Fulcro's built-in server Om parser."
   [env k params]
   (let [k (-> env :ast :key)]
-    (if (om.util/ident? k)
+    (if (util/ident? k)
       (read-entity env (first k) (second k) params)
       (read-root env k params))))
 

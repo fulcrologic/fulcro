@@ -3,8 +3,8 @@
     [devcards.core :as dc :refer-macros [defcard]]
     [fulcro.client.core :as fc]
     [fulcro.client.cards :refer [fulcro-app]]
-    [om.next :as om :refer [defui]]
-    [om.dom :as dom]
+    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.dom :as dom]
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]
     [fulcro.client.data-fetch :as df]
@@ -71,7 +71,7 @@
                      (cond
                        (= [{:thing (om/get-query Thing)}] edn) (done-callback {:thing {:id 2 :label "UPDATED B"}})
                        :else (done-callback {[:thing/by-id 1] {:id 1 :label "UPDATED A"}}))) 500))
-  (start [this complete-app] this))
+  (start [this] this))
 
 (defcard ui-attribute-merge
   "# Merging

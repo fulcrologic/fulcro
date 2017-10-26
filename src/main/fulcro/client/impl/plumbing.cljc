@@ -1,6 +1,6 @@
-(ns fulcro.client.impl.om-plumbing
-  (:require [om.next :as om]
-            [om.util :as util]
+(ns fulcro.client.impl.plumbing
+  (:require [fulcro.client.primitives :as om]
+            [fulcro.util :as util]
             [fulcro.client.mutations :as m]
             [fulcro.client.logging :as log]
     #?(:cljs

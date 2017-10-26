@@ -3,31 +3,14 @@
     [clojure.pprint :refer [pprint]]
     [clojure.spec.alpha :as s]
     clojure.walk
-    [om.next :as om]
-    [om.dom :as dom]
-    [om.next.protocols :as omp]
-    om.transit
+    [fulcro.client.primitives :as prim]
+    [fulcro.client.impl.protocols :as proto]
+    fulcro.transit
+    [fulcro.util :as util :refer [unique-key]]
     [cognitect.transit :as t]
-    [om.next.impl.parser :as parser]
+    [fulcro.client.impl.parser :as parser]
     #?(:clj
-    [clojure.spec.gen.alpha :as sg]))
-  #?(:clj
-     (:import (clojure.lang Atom))))
-
-(defn get-ident
-  "Get the ident of an Om class with props. Works on client/server"
-  [class props]
-  #?(:clj  (when-let [ident (-> class meta :ident)]
-             (ident class props))
-     :cljs (when (implements? om/Ident class)
-             (om/ident class props))))
-
-(defn unique-key
-  "Get a unique string-based key. Never returns the same value."
-  []
-  (let [s #?(:clj (java.util.UUID/randomUUID)
-             :cljs (random-uuid))]
-    (str s)))
+    [clojure.spec.gen.alpha :as sg])))
 
 (defn force-render
   "Re-render components. If only a reconciler is supplied then it forces a full DOM re-render by updating the :ui/react-key
@@ -37,26 +20,13 @@
   If you supply an additional vector of keywords and idents then it will ask Om to rerender only those components that mention
   those things in their queries."
   ([reconciler keywords]
-   (omp/queue! reconciler keywords)
-   (omp/schedule-render! reconciler))
+   (proto/queue! reconciler keywords)
+   (proto/schedule-render! reconciler))
   ([reconciler]
-   (let [app-state (om/app-state reconciler)]
+   (let [app-state (prim/app-state reconciler)]
      (do
        (swap! app-state assoc :ui/react-key (unique-key))
-       (om/force-root-render! reconciler)))))
-
-(defn atom? [a] (instance? Atom a))
-
-(defn strip-parameters
-  "Removes parameters from the query, e.g. for PCI compliant logging."
-  [query]
-  (-> (clojure.walk/prewalk #(if (map? %) (dissoc % :params) %) (parser/query->ast query)) (parser/ast->expr true)))
-
-(defn deep-merge [& xs]
-  "Merges nested maps without overwriting existing keys."
-  (if (every? map? xs)
-    (apply merge-with deep-merge xs)
-    (last xs)))
+       (prim/force-root-render! reconciler)))))
 
 #?(:cljs
    (defn log-app-state
@@ -64,7 +34,7 @@
       (like get-in), or both."
      [app-atom & keys-and-paths]
      (try
-       (let [app-state (om/app-state (:reconciler @app-atom))]
+       (let [app-state (prim/app-state (:reconciler @app-atom))]
          (pprint
            (letfn [(make-path [location]
                      (if (sequential? location) location [location]))
@@ -79,22 +49,12 @@
        (catch #?(:cljs js/Error :clj Exception) e
          (throw (ex-info "fulcro.client.impl.util/log-app-state expects an atom with a Fulcro client" {}))))))
 
-(defn conform! [spec x]
-  (let [rt (s/conform spec x)]
-    (when (s/invalid? rt)
-      (throw (ex-info (s/explain-str spec x)
-               (s/explain-data spec x))))
-    rt))
-
-#?(:clj
-   (def TRUE (s/with-gen (constantly true) sg/int)))
-
 (defn react-instance?
   "Returns the react-instance (which is logically true) iff the given react instance is an instance of the given react class.
   Otherwise returns nil."
   [react-class react-instance]
   {:pre [react-class react-instance]}
-  (when (= (om/react-type react-instance) react-class)
+  (when (= (prim/react-type react-instance) react-class)
     react-instance))
 
 (defn first-node
@@ -106,14 +66,19 @@
 (defn transit-clj->str
   "Use transit to encode clj data as a string. Useful for encoding initial app state from server-side rendering."
   [coll]
-  #?(:cljs (t/write (om.transit/writer) coll)
+  #?(:cljs (t/write (fulcro.transit/writer) coll)
      :clj
            (with-open [out (java.io.ByteArrayOutputStream.)]
-             (t/write (om.transit/writer out) coll)
+             (t/write (fulcro.transit/writer out) coll)
              (.toString out "UTF-8"))))
 
 (defn transit-str->clj
   "Use transit to decode a string into a clj data structure. Useful for decoding initial app state when starting from a server-side rendering."
   [str]
-  #?(:cljs (t/read (om.next/reader) str)
-     :clj  (t/read (om.next/reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8"))))))
+  #?(:cljs (t/read (prim/reader) str)
+     :clj  (t/read (prim/reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8"))))))
+
+(defn strip-parameters
+  "Removes parameters from the query, e.g. for PCI compliant logging."
+  [query]
+  (-> (clojure.walk/prewalk #(if (map? %) (dissoc % :params) %) (parser/query->ast query)) (parser/ast->expr true)))

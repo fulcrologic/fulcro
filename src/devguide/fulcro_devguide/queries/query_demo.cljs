@@ -1,8 +1,8 @@
 (ns fulcro-devguide.queries.query-demo
   (:require
-    [om.next :as om :refer-macros [defui]]
+    [fulcro.client.primitives :as om :refer-macros [defui]]
     [cljs.pprint :refer [pprint]]
-    [om.dom :as dom]))
+    [fulcro.client.dom :as dom]))
 
 (defui Person
   static om/IQuery
