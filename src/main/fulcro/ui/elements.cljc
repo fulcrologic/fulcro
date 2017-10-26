@@ -43,11 +43,7 @@
          (update-frame-content this child)))
 
      (render [this]
-       (dom/iframe
-         (-> (prim/props this)
-             (dissoc :child)
-             (assoc :onLoad #(start-frame this))
-             clj->js)))))
+       (dom/iframe (-> (prim/props this) (dissoc :child)(assoc :onLoad #(start-frame this)) clj->js)))))
 
 #?(:cljs
    (let [factory (prim/factory IFrame)]
@@ -61,7 +57,7 @@
      (componentDidMount [this]
        (let [dom-node (dom/node this)
              {:keys [open-boundary? delegates-focus?] :or {open-boundary?   true
-                                                           delegates-focus? false}} (om/props this)
+                                                           delegates-focus? false}} (/props this)
              root     (when (exists? (.-attachShadow dom-node))
                         (.attachShadow dom-node #js {:mode           (if open-boundary? "open" "closed")
                                                      :delegatesFocus delegates-focus?}))]
