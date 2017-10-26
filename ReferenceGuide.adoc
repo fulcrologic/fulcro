@@ -684,7 +684,7 @@ the normalized database. Usable from within mutations.
 Includes ident integration options, and honors the Fulcro merge clobbering algorithm (if the query doesn't ask for it,
 then merge doesn't affect it). Also queues rendering for affected components (derived from integration of idents). Generally
 *not* used within mutations (use `merge-component` and `integrate-ident!` instead).
-- `om.next/tree->db` - General utility for normalizing data via a query and chunk of data.
+- `fulcro.client.primitives/tree->db` - General utility for normalizing data via a query and chunk of data.
 - `fulcro.core/integrate-ident!` - A utility for adding an ident into existing to-one and to-many relations in your database.
 Can be used within mutations.
 - `fulcro.client.util/deep-merge` - An implementation of merge that is recursive
@@ -693,7 +693,7 @@ Can be used within mutations.
 == Factories
 
 Factories are how you generate React elements (the virtual DOM nodes) from your React classes. You
-make a new factory using `om.next/factory`:
+make a new factory using `fulcro.client.primitives/factory`:
 
 ```
 (def ui-component (om/factory MyComponent {:keyfn f :validator v :instrument? true}))
@@ -717,7 +717,7 @@ collisions. Prefixing the factories with `ui-` makes it very clear what is data,
 == Render and Props
 
 Properties are always passed to a component factory as the first argument. The properties can be accessed
-from within `render` by calling `om.next/props` on the parameter passed to `render` (typically named `this`
+from within `render` by calling `fulcro.client.primitives/props` on the parameter passed to `render` (typically named `this`
 to remind you that it is a reference to the instance itself).
 
 In components with queries there is a strong correlation between the query (which must join the child's query),
@@ -791,7 +791,7 @@ the client database. Such a targeted refresh of a component cannot pass callback
 because the parent is where that is coded, but the parent may not be involved in the refresh!
 
 So, any value (function or otherwise) that is generated on-the-fly by the parent must be passed via
-`om.next/computed`. This tells the data feed system how to reconstruct the complete data should it do a targeted update.
+`fulcro.client.primitives/computed`. This tells the data feed system how to reconstruct the complete data should it do a targeted update.
 
 ```
 (defui Child
@@ -831,7 +831,7 @@ Fulcro includes a few functions that are helpful when designing React components
 children within a single render:
 
 [horizontal]
-`(om.next/children this)`:: Returns the React children of `this`
+`(fulcro.client.primitives/children this)`:: Returns the React children of `this`
 `(fulcro.client.util/react-instance? Component instance)`:: Returns true if the given element is an instance of the given component (`defui`) class. Otherwise `nil`.
 `(fulcro.client.util/first-node` Component child-seq):: Returns the first of a sequence of elements that has the given component class.
 
@@ -1340,7 +1340,7 @@ should be.
 
 Om Next can convert any expression in the query/mutation language into an AST (abstract syntax tree) and vice
 versa. This lends itself to doing complex parsing of the query (typically on the server). The functions
-of interest are `om.next/query->ast` and `ast->query`.
+of interest are `fulcro.client.primitives/query->ast` and `ast->query`.
 
 There are many uses for this. One such use might be to convert the graph expression into another form. For
 example, say you wanted to run an Om query against and SQL database. You could write an algorithm that translates
@@ -1502,7 +1502,7 @@ without needing to involve the UI itself!
 
 = Handling Mutations
 
-<<Mutations, Mutations>> are triggered using `om.next/transact!`. The meaning of this function is to
+<<Mutations, Mutations>> are triggered using `fulcro.client.primitives/transact!`. The meaning of this function is to
 "run a sequence of operations that can have both local and remote side-effects". The
 mutation expression itself is just data, and must be quoted since it uses plain
 lists.

@@ -1,5 +1,5 @@
 (ns fulcro-devguide.state-reads.parser-1
-  (:require [om.next :as om]))
+  (:require [fulcro.client.primitives :as om]))
 
 (def app-state (atom {
                       :window/size  [1920 1200]

@@ -1,7 +1,7 @@
 (ns recipes.tabbed-interface-client
   (:require
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as om :refer [defui]]
     [fulcro.client.routing :as r]
     [fulcro.client.mutations :as m]
     [fulcro.client.core :as fc :refer [InitialAppState initial-state]]

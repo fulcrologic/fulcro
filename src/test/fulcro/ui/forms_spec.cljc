@@ -1,7 +1,7 @@
 (ns fulcro.ui.forms-spec
   (:require
     #?(:clj [taoensso.timbre :as timbre])
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
     [fulcro.client.core :as fc]
     [fulcro.client.logging :as log]
@@ -13,10 +13,10 @@
 #?(:clj (timbre/set-level! :error))
 
 (defui Stub
-  static om/IQuery
+  static prim/IQuery
   (query [this]
     [:db/id])
-  static om/Ident
+  static prim/Ident
   (ident [this props]
     [:stub/by-id (:db/id props)])
   static f/IForm
@@ -28,9 +28,9 @@
     "Can detect query, ident, and form protocols on class"
     (fc/iident? Stub) => true
     (f/iform? Stub) => true
-    (om/iquery? Stub) => true
+    (prim/has-query? Stub) => true
     "Can pull the ident for a component class"
-    (uu/get-ident Stub {:db/id 3}) => [:stub/by-id 3]
+    (prim/get-ident Stub {:db/id 3}) => [:stub/by-id 3]
     "Can pull the form spec from a component class"
     (f/get-form-spec Stub) => [(f/id-field :db/id)]))
 
@@ -147,7 +147,7 @@
           "are marked as valid to start"
           (-> default-state :validation :db/id) => :valid
           "are given an Om tempid by default"
-          (-> default-state :state :db/id) =fn=> om/tempid?)))
+          (-> default-state :state :db/id) =fn=> prim/tempid?)))
     (component "non-id fields"
       (let [fields        [(f/text-input :name :default-value :ABC)]
             default-state (f/default-state fields)]
@@ -171,26 +171,26 @@
         (f/initialized-state default-state field-keys nil) => default-state))))
 
 (defui Phone
-  static om/IQuery
+  static prim/IQuery
   (query [this] [f/form-key :db/id :phone/number])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:phone/by-id (:db/id props)])
   static f/IForm
   (form-spec [this] [(f/text-input :phone/number)]))
 
 (defui Person
-  static om/IQuery
+  static prim/IQuery
   (query [this] [f/form-key :db/id :person/name
-                 {:person/number (om/get-query Phone)}
+                 {:person/number (prim/get-query Phone)}
                  :ui.person/client-only])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:people/by-id (:db/id props)])
   static f/IForm
   (form-spec [this] [(f/subform-element :person/number Phone :one)
                      (f/text-input :person/name :className "name-class")
                      (f/text-input :ui.person/client-only)]))
 
-(def new-person-id (om/tempid))
+(def new-person-id (prim/tempid))
 
 (def person-db {:phone/by-id  {1 {:db/id 1 :phone/number "555-1212"}
                                2 {:db/id 2 :phone/number "555-3345"}}
@@ -226,9 +226,9 @@
       (f/init-one app-state (get-in app-state [:people/by-id 4]) spec {}) =throws=> #?(:cljs (js/Error #"Initialize-one form did not") :clj (AssertionError #"Initialize-one form did not")))))
 
 (defui PolyPerson
-  static om/IQuery
-  (query [this] [f/form-key :db/id :person/name {:person/number (om/get-query Phone)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [f/form-key :db/id :person/name {:person/number (prim/get-query Phone)}])
+  static prim/Ident
   (ident [this props] [:people/by-id (:db/id props)])
   static f/IForm
   (form-spec [this] [(f/subform-element :person/number Phone :many)
@@ -319,17 +319,17 @@
 (defui LeafForm
   static fc/InitialAppState
   (initial-state [this {:keys [id]}] {:id id :value 1 :leaf true})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :leaf])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:leaf (:id props)])
   static f/IForm
   (form-spec [this] [(f/id-field :id)]))
 
 (defui NonForm
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :data])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:data (:id props)]))
 
 (defui ToManyForm
@@ -338,9 +338,9 @@
                                 :to-many true
                                 :value   1
                                 :leaves  [(fc/get-initial-state LeafForm {:id 3}) (fc/get-initial-state LeafForm {:id 4})]})
-  static om/IQuery
-  (query [this] [{:leaves (om/get-query LeafForm)} :value])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [{:leaves (prim/get-query LeafForm)} :value])
+  static prim/Ident
   (ident [this props] [:tomform (:id props)])
   static f/IForm
   (form-spec [this] [(f/subform-element :leaves LeafForm :many)]))
@@ -352,12 +352,12 @@
                                 :value  1
                                 :leaf1  (fc/get-initial-state LeafForm {:id 5})
                                 :leaf2  (fc/get-initial-state LeafForm {:id 6})})
-  static om/IQuery
-  (query [this] [{:leaf1 (om/get-query LeafForm)}
-                 {:non-form (om/get-query NonForm)}
-                 {:leaf2 (om/get-query LeafForm)}
-                 {:leaf3 (om/get-query LeafForm)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [{:leaf1 (prim/get-query LeafForm)}
+                 {:non-form (prim/get-query NonForm)}
+                 {:leaf2 (prim/get-query LeafForm)}
+                 {:leaf3 (prim/get-query LeafForm)}])
+  static prim/Ident
   (ident [this props] [:level2 (:id props)])
   static f/IForm
   (form-spec [this] [(f/subform-element :leaf1 LeafForm :one)
@@ -367,9 +367,9 @@
 (defui OtherRootForm
   static fc/InitialAppState
   (initial-state [this {:keys [id]}] {:id id :value 50 :other true})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :other])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:other (:id props)])
   static f/IForm
   (form-spec [this] []))
@@ -380,10 +380,10 @@
                                 :level3     true
                                 :other-root (fc/get-initial-state OtherRootForm {:id 100})
                                 :level2     (fc/get-initial-state Level2Form {})})
-  static om/IQuery
-  (query [this] [{:other-root (om/get-query OtherRootForm)}
-                 {:level2 (om/get-query Level2Form)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [{:other-root (prim/get-query OtherRootForm)}
+                 {:level2 (prim/get-query Level2Form)}])
+  static prim/Ident
   (ident [this props] [:level3 (:id props)])
   static f/IForm
   (form-spec [this] [(f/subform-element :level2 Level2Form :one)]))
@@ -400,10 +400,10 @@
     "supports to-many sub-forms"
     (#'f/subforms* ToManyForm) => [[[:leaves] LeafForm]]))
 
-(def nested-form-db (om/tree->db [{:root (om/get-query Level3Form)}]
+(def nested-form-db (prim/tree->db [{:root (prim/get-query Level3Form)}]
                       {:root (fc/get-initial-state Level3Form {})}, true))
 
-(def tomany-form-db (om/tree->db [{:root (om/get-query ToManyForm)}]
+(def tomany-form-db (prim/tree->db [{:root (prim/get-query ToManyForm)}]
                       {:root (fc/get-initial-state ToManyForm {})}, true))
 
 (specification "to-idents"
@@ -503,9 +503,9 @@
     [(f/id-field :db/id)
      (f/text-input :thing/name)
      (f/checkbox-input :thing/ok?)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :thing/name :thing/ok?])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:thing/by-id (:db/id props)]))
 
 #?(:cjls (specification "Form state mutations"
@@ -545,9 +545,9 @@
 (defmethod f/form-field-valid? 'is-named? [sym v {:keys [name]}] (= v name))
 
 (defui CPerson                                              ; only valid if name is 'C'
-  static om/IQuery
-  (query [this] [:db/id :person/name {:person/number (om/get-query Phone)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [:db/id :person/name {:person/number (prim/get-query Phone)}])
+  static prim/Ident
   (ident [this props] [:people/by-id (:db/id props)])
   static f/IForm
   (form-spec [this] [(f/text-input :person/name :className "name-class" :validator 'is-named? :validator-args {:name "C"})
@@ -594,7 +594,7 @@
       "Can find the validation trigger args for a field"
       (:name (f/validator-args invalid-person :person/name)) => "C")
     (component "dirty checking"
-      (let [clean-person (om/db->tree (om/get-query Person) c-person app-state)]
+      (let [clean-person (prim/db->tree (prim/get-query Person) c-person app-state)]
         (assertions
           "Can see if a field is clean on the form"
           (f/dirty? clean-person) => false
@@ -644,7 +644,7 @@
                                         (f/init-form Phone [:phone/by-id 2]))
                get-entity             (fn [class ident]
                                         (let [state (f/init-form app-state class ident)]
-                                          (om/db->tree (om/get-query class) (get-in state ident) state)))
+                                          (prim/db->tree (prim/get-query class) (get-in state ident) state)))
                basic-person           (get-entity Person [:people/by-id 3])
                one-number-person      (get-entity Person [:people/by-id 7])
                no-number-person       (get-entity PolyPerson [:people/by-id 5])
@@ -652,7 +652,7 @@
                one-many-number-person (get-entity PolyPerson [:people/by-id 6])
                new-person             (get-entity Person [:people/by-id new-person-id])
 
-               [t1] (repeatedly om/tempid)]
+               [t1] (repeatedly prim/tempid)]
            (specification "Form entity commit"
              (component "form-reduce"
                (assertions
@@ -821,7 +821,7 @@
                                     (assoc :ui.person/client-only "SHOULDNT_APPEAR" :person/name "NEW_NAME"))
                        form-id    (f/form-ident form)
                        app-state  (atom (assoc-in {} form-id form))
-                       ast        (-> (om/query->ast `[(f/commit-to-entity ~{:form form :remote true})])
+                       ast        (-> (prim/query->ast `[(f/commit-to-entity ~{:form form :remote true})])
                                     ;:children
                                     ;first
                                     ;:params
@@ -836,8 +836,8 @@
                      (-> commit-mut :remote :params :form/updates) => {form-id {:person/name "NEW_NAME"}})))
                (component "commit-to-entity! - api/public function"
                  (when-mocking
-                   (om/props :fake/component) => :fake/props
-                   (om/transact! :fake/component tx) => tx
+                   (prim/props :fake/component) => :fake/props
+                   (prim/transact! :fake/component tx) => tx
                    (f/validate-fields :fake/props) => :fake/props
                    (f/form-ident _) => :fake/form-ident
                    (behavior "only commits if form is valid after validating"
@@ -889,7 +889,7 @@
 
              (component "reset-from-entity! - api function"
                (when-mocking
-                 (om/transact! _ tx) => (let [[reset-mutation follow-on-read] tx]
+                 (prim/transact! _ tx) => (let [[reset-mutation follow-on-read] tx]
                                           (assertions
                                             "Issues an Om transaction to reset the entity via the composable Om mutation."
                                             reset-mutation =fn=> list?
@@ -911,10 +911,10 @@
                      (f/current-value :person/name)) => original-name))))))
 
 (defui Mutation
-  static om/IQuery
+  static prim/IQuery
   (query [this]
     [:db/id :mutation/name])
-  static om/Ident
+  static prim/Ident
   (ident [this props]
     [:mutation/by-id (:db/id props)])
   static f/IForm
@@ -923,10 +923,10 @@
      (f/text-input :mutation/name)]))
 
 (defui Mutant
-  static om/IQuery
+  static prim/IQuery
   (query [this]
-    [:db/id :mutant/name {:mutant/mutations (om/get-query Mutation)}])
-  static om/Ident
+    [:db/id :mutant/name {:mutant/mutations (prim/get-query Mutation)}])
+  static prim/Ident
   (ident [this props]
     [:mutant/by-id (:db/id props)])
   static f/IForm
@@ -1000,7 +1000,7 @@
                  db      (-> {:thing/by-id {1 {:db/id 1}}}
                            (f/init-form Thing thing-1))]
              (when-mocking
-               (om/transact! _ tx) => (fix-tx tx)
+               (prim/transact! _ tx) => (fix-tx tx)
                (assertions
                  (f/validate-entire-form! :fake/this (get-in db thing-1))
                  => `[f/validate-form {:form-id ~thing-1}

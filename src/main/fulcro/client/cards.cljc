@@ -2,7 +2,7 @@
   #?(:cljs (:require-macros fulcro.client.cards))           ; this enables implicit macro loading
   (:require
     fulcro.client.core
-    fulcro.client.util))
+    fulcro.util))
 
 ; At the time of this writing, devcards is not server-rendering compatible, and dom-node is a cljs-only thing.
 #?(:clj
@@ -17,12 +17,12 @@
               (let [use-untangled-initial-state?# (-> state-atom# deref empty?)]
                 (if (and use-untangled-initial-state?#
                       (fulcro.client.core/iinitial-app-state? ~root-ui))
-                  (reset! state-atom# (om.next/tree->db ~root-ui (fulcro.client.core/get-initial-state ~root-ui nil) true))
+                  (reset! state-atom# (fulcro.client.primitives/tree->db ~root-ui (fulcro.client.core/get-initial-state ~root-ui nil) true))
                   state-atom#)
                 (reset! ~app-sym (fulcro.client.core/mount (deref ~app-sym) ~root-ui node#)))
               (fulcro.client.core/mount (deref ~app-sym) ~root-ui node#))
             ; ensures shows app state immediately if you're using inspect data true...otherwise you don't see it until the first interaction.
-            (js/setTimeout (fn [] (swap! state-atom# assoc :ui/react-key (fulcro.client.util/unique-key))) 100))))))
+            (js/setTimeout (fn [] (swap! state-atom# assoc :ui/react-key (fulcro.util/unique-key))) 100))))))
 
 #?(:clj
    (defmacro fulcro-application
@@ -40,15 +40,15 @@
         (fn [state-atom# node#]
           (defonce ~app-sym (atom (fulcro.client.core/new-fulcro-client :initial-state state-atom# ~@args)))
           (if (-> ~app-sym deref :mounted? not)
-            (let [use-untangled-initial-state?# (-> state-atom# deref empty?)]
-              (if (and use-untangled-initial-state?#
+            (let [use-components-initial-state?# (-> state-atom# deref empty?)]
+              (if (and use-components-initial-state?#
                     (fulcro.client.core/iinitial-app-state? ~root-ui))
-                (reset! state-atom# (om.next/tree->db ~root-ui (fulcro.client.core/get-initial-state ~root-ui nil) true))
+                (reset! state-atom# (fulcro.client.primitives/tree->db ~root-ui (fulcro.client.core/get-initial-state ~root-ui nil) true))
                 state-atom#)
               (reset! ~app-sym (fulcro.client.core/mount (deref ~app-sym) ~root-ui node#)))
             (fulcro.client.core/mount (deref ~app-sym) ~root-ui node#))
           ; ensures shows app state immediately if you're using inspect data true...otherwise you don't see it until the first interaction.
-          (js/setTimeout (fn [] (swap! state-atom# assoc :ui/react-key (fulcro.client.util/unique-key))) 100)))))
+          (js/setTimeout (fn [] (swap! state-atom# assoc :ui/react-key (fulcro.util/unique-key))) 100)))))
 
 #?(:clj (in-ns 'devcards.util.utils))
 #?(:clj (clojure.core/declare devcards-active?))

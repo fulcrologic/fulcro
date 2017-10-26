@@ -1,5 +1,5 @@
 (ns fulcro-devguide.state-reads.parser-3
-  (:require [om.next :as om]))
+  (:require [fulcro.client.primitives :as om]))
 
 (def app-state (atom {
                       :load/start-time 40000.0              ;stored in ms

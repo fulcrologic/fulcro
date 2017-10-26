@@ -1,7 +1,7 @@
 (ns fulcro-devguide.J-Exercise-on-Putting-It-Together
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [solutions.putting-together.soln-ex-1 :as soln1]
             [solutions.putting-together.soln-ex-2 :as soln2]
             [solutions.putting-together.soln-ex-3 :as soln3]

@@ -3,7 +3,7 @@
     [devcards.core :as dc :include-macros true]
     [recipes.lazy-loading-visual-indicators-client :as client]
     [fulcro.client.cards :refer [fulcro-app]]
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]))
 

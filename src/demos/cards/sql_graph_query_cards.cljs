@@ -2,12 +2,12 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.core :as fc]
     [fulcro.ui.bootstrap3 :as b]
-    [om.next :as om :refer [defui]]))
+    [fulcro.client.primitives :as om :refer [defui]]))
 
 (defui ^:once Settings
   static om/IQuery

@@ -1,7 +1,7 @@
 (ns cards.server
-  (:require [om.next.server :as om]
+  (:require [fulcro.server :as om]
             [taoensso.timbre :as timbre]
-            [om.next.impl.parser :as op]
+            [fulcro.client.impl.parser :as op]
             [recipes.background-loads-server :as bg]
             recipes.error-handling-server
             recipes.lazy-loading-visual-indicators-server
@@ -15,7 +15,7 @@
             [recipes.websockets-server :as wsdemo]
             [fulcro.easy-server :as core]
             [fulcro.server :refer [server-read server-mutate]]
-            [fulcro-sql.core :as sql]
+            ;[fulcro-sql.core :as sql]
             [fulcro.websockets.components.channel-server :as cs]
             [com.stuartsierra.component :as component]))
 
@@ -57,7 +57,7 @@
                            ;; websocket components and route additions
                            :channel-server   (cs/make-channel-server)
                            :channel-listener (wsdemo/make-channel-listener)}
-                    include-postgres? (merge {:sqldb (component/using
+                    include-postgres? (merge {} #_{:sqldb (component/using
                                                        (sql/build-db-manager {})
                                                        [:config])})))))
 

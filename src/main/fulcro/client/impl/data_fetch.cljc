@@ -1,14 +1,14 @@
 (ns fulcro.client.impl.data-fetch
-  (:require [om.next.impl.parser :as op]
-            [om.next :as om]
-            [om.next.protocols :as omp]
-            [om.util :as util]
+  (:require [fulcro.client.impl.parser :as op]
+            [fulcro.client.primitives :as om]
+            [fulcro.client.impl.protocols :as omp]
+            [fulcro.util :as util]
+            [fulcro.client.util :refer [force-render]]
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
             [fulcro.client.logging :as log]
-            [fulcro.client.util :refer [force-render]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.impl.om-plumbing :as plumbing]))
+            [fulcro.client.impl.plumbing :as plumbing]))
 
 (declare data-remote data-target data-path data-uuid data-field data-query-key data-query set-loading! full-query loaded-callback error-callback data-marker?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

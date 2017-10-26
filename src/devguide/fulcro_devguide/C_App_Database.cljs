@@ -1,8 +1,8 @@
 (ns fulcro-devguide.C-App-Database
   (:require-macros
     [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [cljs.reader :as r]))
 
@@ -165,7 +165,7 @@
 
   No. You do not need to build normalized graph databases. Fulcro can do that for you.
   Fulcro also provides a protocol called `InitialAppState`. This can be attached to each component
-  in the same manner as `om.next/IQuery`.  The benefit is that you don't have to think as much about
+  in the same manner as `fulcro.client.primitives/IQuery`.  The benefit is that you don't have to think as much about
   normalization or building a map of initial app state.  You simply define it with regards to the
   component, and compose over child components. This greatly complements the query concepts and improves
   local reasonsing with regard to initial state and component composition.

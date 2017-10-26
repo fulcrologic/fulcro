@@ -1,8 +1,8 @@
 (ns recipes.dynamic-ui-routing
   (:require [fulcro.client.routing :as r]
-            [om.dom :as dom]
+            [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
-            [om.next :as om :refer [defui]]
+            [fulcro.client.primitives :as om :refer [defui]]
             [cljs.loader :as loader]))
 
 (om/defui ^:once Login

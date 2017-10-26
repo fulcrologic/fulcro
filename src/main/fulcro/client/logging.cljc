@@ -2,7 +2,7 @@
   #?(:clj
      (:require [taoensso.timbre :as timbre]))
   #?(:cljs (:require cljs.pprint
-             [om.next :refer [*logger*]]
+             [fulcro.client.primitives :refer [*logger*]]
              [goog.log :as glog]
              [goog.debug.Logger.Level :as level])))
 

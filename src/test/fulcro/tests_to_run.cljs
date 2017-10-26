@@ -1,12 +1,13 @@
 (ns fulcro.tests-to-run
   (:require
     fulcro.client.impl.application-spec
-    fulcro.client.impl.om-plumbing-spec
+    fulcro.client.impl.plumbing-spec
     fulcro.client.core-spec
     fulcro.client.data-fetch-spec
     fulcro.client.logging-spec
     fulcro.client.mutations-spec
     fulcro.client.network-spec
+    fulcro.client.primitives-spec
     fulcro.client.routing-spec
     fulcro.client.util-spec
     fulcro.ui.forms-spec

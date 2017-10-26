@@ -1,6 +1,6 @@
 (ns recipes.sql-server
-  (:require [om.next.server :as om]
-            [om.next.impl.parser :as op]
+  (:require [fulcro.server :as om]
+            [fulcro.client.impl.parser :as op]
             [hugsql.core :as hugsql]
             [taoensso.timbre :as timbre]
             [clojure.set :as set]

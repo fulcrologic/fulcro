@@ -1,5 +1,5 @@
 (ns fulcro-devguide.queries.query-editing
-  (:require [om.next :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
             [cljs.reader :as r]
             [devcards.util.edn-renderer :refer [html-edn]]
             [goog.dom :as gdom]
@@ -9,7 +9,7 @@
             [cljsjs.codemirror.mode.clojure]
             [cljsjs.codemirror.addons.matchbrackets]
             [cljsjs.codemirror.addons.closebrackets]
-            [om.dom :as dom]))
+            [fulcro.client.dom :as dom]))
 
 (defn run-query [db q]
   (try

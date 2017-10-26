@@ -3,11 +3,11 @@
     [devcards.core :as dc :include-macros true]
     [recipes.server-query-security-client :as client]
     [fulcro.client.cards :refer [fulcro-app]]
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.core :as fc]
-    [om.next :as om]))
+    [fulcro.client.primitives :as om]))
 
 (dc/defcard security-card
   "

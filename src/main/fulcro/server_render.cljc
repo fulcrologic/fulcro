@@ -1,7 +1,7 @@
 (ns fulcro.server-render
   (:require
     [fulcro.client.core :as fc]
-    [om.next :as om]
+    [fulcro.client.primitives :as prim]
     [fulcro.client.util :as util]))
 
 
@@ -32,6 +32,6 @@
 
    Returns a normalized client db with all union alternates initialized to their InitialAppState."
   [state-tree root-class]
-  (let [base-state (om/tree->db root-class state-tree true)
+  (let [base-state (prim/tree->db root-class state-tree true)
         base-state (fc/merge-alternate-union-elements base-state root-class)]
     base-state))

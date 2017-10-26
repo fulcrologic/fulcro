@@ -3,7 +3,7 @@
   (:require [fulcro.client.logging :as log]
             [cognitect.transit :as ct]
     #?(:cljs [goog.events :as events])
-            [om.transit :as t]
+            [fulcro.transit :as t]
             [clojure.string :as str])
   #?(:cljs (:import [goog.net XhrIo EventType])))
 

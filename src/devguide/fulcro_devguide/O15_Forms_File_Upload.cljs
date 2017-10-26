@@ -1,8 +1,8 @@
 (ns fulcro-devguide.O15-Forms-File-Upload
   (:require
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as om :refer [defui]]
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]

@@ -3,9 +3,9 @@
     [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
-    [om.next :as om]
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]))
+    [fulcro.client.primitives :as om]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as om :refer [defui]]))
 
 (defui ^:once Person
   static om/IQuery

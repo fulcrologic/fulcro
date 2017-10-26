@@ -1,15 +1,15 @@
 (ns fulcro.client.impl.application
   (:require [fulcro.client.logging :as log]
-            [om.next :as om]
-            om.util
+            [fulcro.client.primitives :as prim]
             [fulcro.i18n :as i18n]
             [fulcro.client.impl.data-fetch :as f]
+            [fulcro.util :as futil]
             [fulcro.client.util :as util]
     #?(:cljs [cljs.core.async :as async]
        :clj
             [clojure.core.async :as async :refer [go]])
             [fulcro.client.network :as net]
-            [fulcro.client.impl.om-plumbing :as plumbing])
+            [fulcro.client.impl.plumbing :as plumbing])
   #?(:cljs (:require-macros
              [cljs.core.async.macros :refer [go]])))
 
@@ -18,10 +18,10 @@
   appear in an incoming Om transaction, which is in turn used by the error-handling logic of the plumbing."
   [{:keys [reconciler]} query]
   (fn [error]
-    (swap! (om/app-state reconciler) assoc :fulcro/server-error error)
+    (swap! (prim/app-state reconciler) assoc :fulcro/server-error error)
     (if-let [q (plumbing/fallback-query query error)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
-          (om/transact! reconciler q))
+          (prim/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
 
 ;; this is here so we can do testing (can mock core async stuff out of the way)
@@ -115,7 +115,7 @@
           (recur (f/mark-loading remote reconciler)))))))
 
 (defn detect-errant-remotes [{:keys [reconciler send-queues] :as app}]
-  (let [state           (om/app-state reconciler)
+  (let [state           (prim/app-state reconciler)
         all-items       (get @state :fulcro/ready-to-load)
         item-remotes    (into #{} (map f/data-remote all-items))
         all-remotes     (set (keys send-queues))
@@ -182,7 +182,7 @@
   "Configure a re-render when the locale changes and also when the translations arrive from a module load.
    During startup this function will be called once for each reconciler that is running on a page."
   [reconciler]
-  (letfn [(re-render [k r o n] (when (om/mounted? (om/app-root reconciler))
+  (letfn [(re-render [k r o n] (when (prim/mounted? (prim/app-root reconciler))
                                  (log/debug "Forcing a UI refresh on locale change.")
                                  (util/force-render reconciler)))]
     (remove-watch i18n/*current-locale* :locale)
@@ -206,7 +206,7 @@
     (map? m) (reduce (fn [acc [k v]]
                        (cond
                          (or (= ::plumbing/not-found k) (= ::plumbing/not-found v)) acc
-                         (and (om.util/ident? v) (= ::plumbing/not-found (second v))) acc
+                         (and (futil/ident? v) (= ::plumbing/not-found (second v))) acc
                          :otherwise (assoc acc k (sweep v))))
                (with-meta {} (meta m))
                m)
@@ -225,7 +225,7 @@
               (cond
                 (= key ::plumbing/not-found) acc
                 (= new-value ::plumbing/not-found) (dissoc acc key)
-                (and (om.util/ident? new-value) (= ::plumbing/not-found (second new-value))) acc
+                (and (futil/ident? new-value) (= ::plumbing/not-found (second new-value))) acc
                 (plumbing/leaf? new-value) (assoc acc key (sweep-one new-value))
                 (and (map? existing-value) (map? new-value)) (update acc key sweep-merge new-value)
                 :else (assoc acc key (sweep new-value))))
@@ -253,7 +253,7 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [send-queues mutation-merge] :as app} initial-state parser {:keys [migrate] :as reconciler-options}]
+  [{:keys [send-queues mutation-merge] :as app} initial-state parser {:keys [migrate use-om+] :as reconciler-options}]
   (let [rec-atom                  (atom nil)
         remotes                   (keys send-queues)
         tempid-migrate            (fn [pure _ tempids _]
@@ -262,7 +262,7 @@
                                     (let [state-migrate (or migrate plumbing/resolve-tempids)]
                                       (state-migrate pure tempids)))
         initial-state-with-locale (let [set-default-locale (fn [s] (update s :ui/locale (fnil identity :en)))
-                                        is-atom?           (util/atom? initial-state)
+                                        is-atom?           (futil/atom? initial-state)
                                         incoming-locale    (get (if is-atom? @initial-state initial-state) :ui/locale)]
                                     (when incoming-locale
                                       (reset! i18n/*current-locale* incoming-locale))
@@ -285,7 +285,7 @@
                                      :merge-tree  (fn [target source]
                                                     (merge-handler mutation-merge target source))
                                      :parser      parser})
-        rec                       (om/reconciler config)]
+        rec                       (prim/reconciler config)]
     (reset! rec-atom rec)
     rec))
 
@@ -293,7 +293,7 @@
   [app]
   (doseq [remote (keys (:networking app))]
     (let [cb-atom (get-in app [:networking remote :global-error-callback])]
-      (when (util/atom? cb-atom)
+      (when (futil/atom? cb-atom)
         (swap! cb-atom #(if (fn? %)
-                          (partial % (om/app-state (:reconciler app)))
+                          (partial % (prim/app-state (:reconciler app)))
                           (throw (ex-info "Networking error callback must be a function." {}))))))))

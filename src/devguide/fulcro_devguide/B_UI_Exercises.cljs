@@ -1,7 +1,7 @@
 (ns fulcro-devguide.B-UI-Exercises
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (enable-console-print!)
@@ -17,8 +17,8 @@
   NOTE - Namespace aliases used in this document:
 
 ```clojure
-(require '[om.next :as om :refer-macros [defui]]
-         '[om.dom :as dom])
+(require '[fulcro.client.primitives :as om :refer-macros [defui]]
+         '[fulcro.client.dom :as dom])
 ```
 
   ")

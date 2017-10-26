@@ -1,10 +1,10 @@
 (ns fulcro-devguide.upload-server
   (:require [taoensso.timbre :as timbre]
-            [om.next.impl.parser :as op]
+            [fulcro.client.impl.parser :as op]
             [fulcro.server :as server :refer [defmutation defquery-root defquery-entity]]
             [fulcro.easy-server :as easy]
-            [om.next :as om]
-            om.next.server
+            [fulcro.client.primitives :as om]
+            fulcro.server
             [ring.util.io :as ring-io]
             [ring.util.request :as ru]
             [ring.middleware.content-type :refer [wrap-content-type]]

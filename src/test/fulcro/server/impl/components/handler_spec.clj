@@ -4,7 +4,6 @@
             [fulcro.server :as server :refer [augment-response]]
             [fulcro.easy-server :as easy]
             [com.stuartsierra.component :as component]
-            [om.next.server :as om]
             [taoensso.timbre :as timbre])
   (:import (clojure.lang ExceptionInfo)))
 
@@ -59,7 +58,7 @@
                                'bar' (fn [] (throw (ex-info "Oops'" {:status 402 :body "quite an error"})))
                                'baz (fn [] (throw (IllegalArgumentException.))))})
 
-        parser (om/parser {:read my-read :mutate my-mutate})
+        parser (server/parser {:read my-read :mutate my-mutate})
         parse-result (fn [query] (easy/api {:parser parser :transit-params query}))]
 
     (behavior "for Om reads"
@@ -115,7 +114,7 @@
             (doall (map #(t/is (= 400 (:status %))) [bar'-result bar-result baz-result])))
 
           (behavior "returns failing mutation result in the body."
-            (letfn [(get-error [result] (-> result :body vals first :om.next/error))]
+            (letfn [(get-error [result] (-> result :body vals first :fulcro.client.primitives/error))]
               (assertions
                 (get-error bar-result) => {:type    "class clojure.lang.ExceptionInfo",
                                            :message "Oops'",

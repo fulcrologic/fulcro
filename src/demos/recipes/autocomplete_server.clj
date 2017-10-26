@@ -1,12 +1,12 @@
 (ns recipes.autocomplete-server
-  (:require [om.next.server :as om]
-            [om.next.impl.parser :as op]
+  (:require [fulcro.server :as om]
+            [fulcro.client.impl.parser :as op]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [fulcro.server :refer [defquery-root defquery-entity defmutation]]
-            [om.next.impl.parser :as op]))
+            [fulcro.client.impl.parser :as op]))
 
 (def airports-txt
   (mapv str/trim

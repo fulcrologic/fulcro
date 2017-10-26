@@ -1,10 +1,10 @@
 (ns recipes.lazy-loading-visual-indicators-server
-  (:require [om.next.server :as om]
-            [om.next.impl.parser :as op]
+  (:require [fulcro.server :as om]
+            [fulcro.client.impl.parser :as op]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]
             [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
-            [om.next.impl.parser :as op]))
+            [fulcro.client.impl.parser :as op]))
 
 
 (defquery-entity :lazy-load/ui

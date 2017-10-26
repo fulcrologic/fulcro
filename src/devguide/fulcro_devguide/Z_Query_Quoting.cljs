@@ -1,10 +1,10 @@
 (ns fulcro-devguide.Z-Query-Quoting
   (:require-macros
     [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.next.impl.parser :as p]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.impl.parser :as p]
             [fulcro-devguide.queries.query-editing :as qe]
-            [om.dom :as dom]
+            [fulcro.client.dom :as dom]
             [cljs.reader :as r]
             [fulcro-devguide.queries.query-demo :as qd]
             [devcards.util.edn-renderer :refer [html-edn]]

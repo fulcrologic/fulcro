@@ -3,7 +3,7 @@
     [devcards.core :as dc :include-macros true]
     [recipes.colocated-css :as client]
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [om.dom :as dom]))
+    [fulcro.client.dom :as dom]))
 
 (dc/defcard-doc
   "# Colocated CSS

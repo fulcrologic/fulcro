@@ -1,7 +1,7 @@
 (ns fulcro.support-viewer
   (:require
-    [om.next :as om :refer-macros [defui]]
-    [om.dom :as dom]
+    [fulcro.client.primitives :as prim :refer-macros [defui]]
+    [fulcro.client.dom :as dom]
     [fulcro.client.data-fetch :refer [load]]
     [fulcro.client.core :as core]
     [fulcro.client.mutations :as m :refer [defmutation]]
@@ -90,18 +90,18 @@
   (action [{:keys [state]}] (swap! state assoc :playback-speed playback-speed)))
 
 (defui ^:once SupportViewerRoot
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key :playback-speed :current-position :client-time :frames :position :comments])
   Object
   (render [this]
-    (let [{:keys [ui/react-key playback-speed current-position client-time frames position comments] :or {ui/react-key "ROOT"}} (om/props this)]
+    (let [{:keys [ui/react-key playback-speed current-position client-time frames position comments] :or {ui/react-key "ROOT"}} (prim/props this)]
       (dom/div #js {:key react-key :className (str "history-controls " (name position))}
         (dom/button #js {:className "toggle-position"
-                         :onClick   #(om/transact! this `[(toggle-position {})])} (tr "<= Reposition =>"))
+                         :onClick   #(prim/transact! this `[(toggle-position {})])} (tr "<= Reposition =>"))
         (dom/button #js {:className "history-back"
-                         :onClick   #(om/transact! this `[(step-back {})])} (tr "Back"))
+                         :onClick   #(prim/transact! this `[(step-back {})])} (tr "Back"))
         (dom/button #js {:className "history-forward"
-                         :onClick   #(om/transact! this `[(step-forward {})])} (tr "Forward"))
+                         :onClick   #(prim/transact! this `[(step-forward {})])} (tr "Forward"))
         (dom/hr nil)
         (dom/span #js {:className "frame"} (trf "Frame {f,number} of {end,number} " :f (inc current-position) :end frames))
         (dom/span #js {:className "timestamp"} (trf "{ts,date,short} {ts,time,long}" :ts client-time))
@@ -110,18 +110,18 @@
         (dom/span #js {:className "playback-speed"} (trf "Playback speed {s,number}" :s playback-speed))
         (dom/div #js {}
           (dom/button #js {:className "speed-1"
-                           :onClick   #(om/transact! this `[(update-playback-speed {:playback-speed 1})])} (tr "1x"))
+                           :onClick   #(prim/transact! this `[(update-playback-speed {:playback-speed 1})])} (tr "1x"))
           (dom/button #js {:className "speed-10"
-                           :onClick   #(om/transact! this `[(update-playback-speed {:playback-speed 10})])} (tr "10x"))
+                           :onClick   #(prim/transact! this `[(update-playback-speed {:playback-speed 10})])} (tr "10x"))
           (dom/button #js {:className "speed-25"
-                           :onClick   #(om/transact! this `[(update-playback-speed {:playback-speed 25})])} (tr "25x")))
+                           :onClick   #(prim/transact! this `[(update-playback-speed {:playback-speed 25})])} (tr "25x")))
         (dom/hr nil)
         (dom/span #js {:className "history-jump-to"} "Jump to:")
         (dom/div #js {}
           (dom/button #js {:className "history-beg"
-                           :onClick   #(om/transact! this `[(go-to-beg {})])} (tr "Beginning"))
+                           :onClick   #(prim/transact! this `[(go-to-beg {})])} (tr "Beginning"))
           (dom/button #js {:className "history-end"
-                           :onClick   #(om/transact! this `[(go-to-end {})])} (tr "End")))))))
+                           :onClick   #(prim/transact! this `[(go-to-end {})])} (tr "End")))))))
 
 (defrecord SupportViewer [support dom-id app-root application history]
   core/FulcroApplication

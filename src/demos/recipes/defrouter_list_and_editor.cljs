@@ -1,8 +1,9 @@
 (ns recipes.defrouter-list-and-editor
   (:require
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [fulcro.client.routing :as r :refer [defrouter]]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as om+]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :refer [defmutation]]
     [fulcro.ui.bootstrap3 :as b]
@@ -73,8 +74,8 @@
                           :input-generator (fn [_]
                                              (dom/div nil
                                                ; the follow-on read of :root/router ensures re-render from the router level
-                                               (b/button {:onClick #(om/transact! this `[(cancel-edit {}) :root/router])} "Cancel")
-                                               (b/button {:onClick #(om/transact! this `[(submit-person {:form form-props}) :root/router])} "Save")))} "")))))
+                                               (b/button {:onClick #(om+/transact! this `[(cancel-edit {}) :root/router])} "Cancel")
+                                               (b/button {:onClick #(om+/transact! this `[(submit-person {:form form-props}) :root/router])} "Save")))} "")))))
 
 (defui ^:once PersonListItem
   static om/Ident
@@ -86,10 +87,10 @@
     (let [{:keys [db/id person/name] :as props} (om/props this)
           onSelect (om/get-computed this :onSelect)]
       ; the follow-on read of :root/router ensures re-render from the router level
-      (dom/li #js {:onClick #(om/transact! this `[(edit-person {:id ~id}) :root/router])}
+      (dom/li #js {:onClick #(om+/transact! this `[(edit-person {:id ~id}) :root/router])}
         (dom/a #js {:href "javascript:void(0)"} name)))))
 
-(def ui-person (om/factory PersonListItem {:keyfn :db/id}))
+(def ui-person (om+/factory PersonListItem {:keyfn :db/id}))
 
 (def person-list-ident [:person-list/table :singleton])
 
@@ -99,7 +100,7 @@
   static om/Ident
   (ident [this props] person-list-ident)
   static om/IQuery
-  (query [this] [{:people (om/get-query PersonListItem)}])
+  (query [this] [{:people (om+/get-query PersonListItem)}])
   Object
   (render [this]
     (let [{:keys [people]} (om/props this)
@@ -119,11 +120,11 @@
   ; if the router points to a person entity, render with PersonForm
   :person/by-id PersonForm)
 
-(def ui-person-list-or-form (om/factory PersonListOrForm))
+(def ui-person-list-or-form (om+/factory PersonListOrForm))
 
 (defui ^:once DemoRoot
   static om/IQuery
-  (query [this] [:ui/react-key {:root/router (om/get-query PersonListOrForm)}])
+  (query [this] [:ui/react-key {:root/router (om+/get-query PersonListOrForm)}])
   static fc/InitialAppState
   (initial-state [c p] (merge
                          (r/routing-tree

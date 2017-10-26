@@ -1,7 +1,7 @@
 (ns fulcro-devguide.E-UI-Queries-and-State-Exercises
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 ; TODO: These need to be a LOT better, but cannot rely on knowledge of

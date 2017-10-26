@@ -4,8 +4,8 @@
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.core :as fc :refer [defsc]]
     [cljs.spec.alpha :as s]
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as om :refer [defui]]
     [fulcro.ui.forms :as f]
     [fulcro-css.css :as css]))
 
@@ -72,7 +72,7 @@
                               (dom/ul nil
                                 (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))))
 
-(om.next/defui GeneratedPerson
+(fulcro.client.primitives/defui GeneratedPerson
   static fulcro-css.css/CSS
   (local-rules [_] [[:.namecls {:font-weight :bold}]])
   (include-children [_] [])
@@ -85,17 +85,17 @@
        :person/prior-jobs :param/jobs}
       #:person{:job Job, :prior-jobs Job}
       params))
-  static om.next/Ident
+  static fulcro.client.primitives/Ident
   (ident [this props] [:PERSON/by-id (:db/id props)])
-  static om.next/IQuery
+  static fulcro.client.primitives/IQuery
   (query [this] [:db/id :person/name #:person{:job (om/get-query Job)} #:person{:prior-jobs (om/get-query Job)}])
   Object
   (render
     [this]
     (clojure.core/let
-      [{:keys [db/id person/name person/job person/prior-jobs]} (om.next/props this)
-       computed (om.next/get-computed this)
-       children (om.next/children this)]
+      [{:keys [db/id person/name person/job person/prior-jobs]} (fulcro.client.primitives/props this)
+       computed (fulcro.client.primitives/get-computed this)
+       children (fulcro.client.primitives/children this)]
       (let [{:keys [namecls]} (css/get-classnames Person)]
         (dom/div nil
           (dom/span #js {:className namecls} name)

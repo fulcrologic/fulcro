@@ -1,11 +1,11 @@
 (ns fulcro-devguide.M15-Routing-UI
   (:require [fulcro.client.routing :as r :refer-macros [defrouter]]
-            [om.dom :as dom]
+            [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
             [fulcro.client.cards :refer-macros [fulcro-app]]
             [fulcro.client.data-fetch :as df]
-            [om.next :as om :refer [defui]]
+            [fulcro.client.primitives :as om :refer [defui]]
             [fulcro.client.mutations :as m]))
 
 (om/defui ^:once Main

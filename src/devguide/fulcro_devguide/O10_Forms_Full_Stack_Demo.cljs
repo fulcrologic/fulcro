@@ -2,8 +2,8 @@
   (:require
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [fulcro.client.cards :refer [fulcro-app]]
-    [om.next :as om :refer [defui]]
-    [om.dom :as dom]
+    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.dom :as dom]
     [fulcro.client.core :as fc]
     [fulcro.client.routing :as r :refer [defrouter]]
     [fulcro.client.mutations :as m :refer [defmutation]]

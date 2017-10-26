@@ -1,13 +1,13 @@
 (ns fulcro-devguide.G-Mutation-Exercises
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.mutations :as m]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :include-macros true :refer-macros [defcard defcard-doc dom-node]]
             [cljs.reader :as r]
-            [om.next.impl.parser :as p]))
+            [fulcro.client.impl.parser :as p]))
 
 (defcard-doc "# Mutation exercises ")
 

@@ -1,8 +1,8 @@
 (ns fulcro-devguide.O09-Forms-Predefined-Fields
   (:require
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as om :refer [defui]]
     [fulcro.client.cards :refer [fulcro-app]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
@@ -12,7 +12,7 @@
     [fulcro.ui.elements :as e]
     [cognitect.transit :as ct]
     [goog.events :as events]
-    [om.transit :as t]
+    [fulcro.transit :as t]
     [clojure.string :as str]
     [fulcro.ui.file-upload :refer [FileUploadInput file-upload-input file-upload-networking]]
     [fulcro.client.logging :as log]

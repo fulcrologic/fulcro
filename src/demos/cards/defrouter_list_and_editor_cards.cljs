@@ -1,7 +1,7 @@
 (ns cards.defrouter-list-and-editor-cards
-  (:require [om.dom :as dom]
-            [om.next :as om :refer [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.dom :as dom]
+            [fulcro.client.primitives :as om :refer [defui]]
+            [fulcro.client.dom :as dom]
             [recipes.defrouter-list-and-editor :as ex]
             [fulcro.client.mutations :as m]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
@@ -69,7 +69,7 @@
 (defcard-fulcro list-and-editor
   ex/DemoRoot
   {}
-  {:inspect-data true
+  {:inspect-data false
    :fulcro       {:started-callback
                   (fn [app]
                     ; simulate a load of people via a simple integration of some tree data

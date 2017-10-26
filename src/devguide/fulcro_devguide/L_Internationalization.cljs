@@ -6,9 +6,9 @@
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.core :as fc]
             [cljs.reader :as r]
-            [om.next.impl.parser :as p]
-            [om.dom :as dom]
-            [om.next :as om :refer [defui]]
+            [fulcro.client.impl.parser :as p]
+            [fulcro.client.dom :as dom]
+            [fulcro.client.primitives :as om :refer [defui]]
             [fulcro.client.mutations :as m]))
 
 (reset! ic/*loaded-translations* {"es" {"|This is a test" "Spanish for 'this is a test'"

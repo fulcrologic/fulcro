@@ -1,14 +1,14 @@
 (ns fulcro-devguide.M45-Advanced-Server-Query-Processing
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [fulcro-devguide.state-reads.parser-1 :as parser1]
             [fulcro-devguide.state-reads.parser-2 :as parser2]
             [fulcro-devguide.state-reads.parser-3 :as parser3]
             [devcards.util.edn-renderer :refer [html-edn]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
             [cljs.reader :as r]
-            [om.next.impl.parser :as p]
+            [fulcro.client.impl.parser :as p]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 ; TODO: make external refs (e.g. to ss component) links

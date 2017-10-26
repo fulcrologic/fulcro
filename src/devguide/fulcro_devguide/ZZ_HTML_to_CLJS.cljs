@@ -1,8 +1,8 @@
 (ns fulcro-devguide.ZZ-HTML-to-CLJS
   (:require
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [om.next :as om :refer [defui]]
+    [fulcro.client.primitives :as om :refer [defui]]
     [fulcro.client.cards :refer [fulcro-app]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]

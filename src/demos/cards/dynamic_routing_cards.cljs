@@ -1,5 +1,5 @@
 (ns cards.dynamic-routing-cards
-  (:require [om.dom :as dom]
+  (:require [fulcro.client.dom :as dom]
             [recipes.dynamic-ui-routing :as dur]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]))

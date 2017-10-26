@@ -4,8 +4,8 @@
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
-    [om.next :as om :refer [defui]]
-    [om.dom :as dom]
+    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.dom :as dom]
     yahoo.intl-messageformat-with-locales))
 
 (defn change-size

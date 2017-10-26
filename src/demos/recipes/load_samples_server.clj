@@ -1,10 +1,10 @@
 (ns recipes.load-samples-server
-  (:require [om.next.server :as om]
-            [om.next.impl.parser :as op]
+  (:require [fulcro.server :as om]
+            [fulcro.client.impl.parser :as op]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]
             [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
-            [om.next.impl.parser :as op]))
+            [fulcro.client.impl.parser :as op]))
 
 (def all-users [{:db/id 1 :person/name "A" :kind :friend}
                 {:db/id 2 :person/name "B" :kind :friend}
