@@ -1,5 +1,7 @@
 == Fulcro 2.0
 
+WORK IN PROGRESS -- NOT FOR PRODUCTION
+
 Fulcro 2.0 maintains the majority of API compatibility with 1.0, but has forked from Om Next due to
 a number of things:
 
@@ -26,10 +28,12 @@ In Linux and OSX (assuming your project is in git), this `rename-ns` script is u
 
 oldns=$1
 newns=$2
+files=$(git grep -l "$oldns")
 
-perl -pi.bak -e 's/\b\Q'$oldns'\E\b/'$newns'/g' $(git grep -l "$oldns")
-
-find . -name '*.bak' -print0 | xargs -0 -n100 rm
+if [ ! -z "$files" ]; then 
+  perl -pi.bak -e 's/\b\Q'$oldns'\E\b/'$newns'/g' $files
+  find . -name '*.bak' -print0 | xargs -0 -n100 rm
+fi
 ```
 +
 You'll want to rename things *in order* (assuming you're using the above script):
@@ -47,4 +51,106 @@ rename-ns om.next fulcro.client.primitives
 5. Fix your use of `util` namespaces. There are now two util namespaces. This is an unfortunate consequence of the
 forking process.
 ** `get-ident` is now just part of the `primitives` namespace
+** The following functions that were in `fulcro.client.util` were moved to `fulcro.util`:
+`unique-key`, `atom?`, `deep-merge`, and `conform!`
+
+=== Dynamic Queries
+
+If you don't use dynamic queries in Fulcro 1.0, then you're done!
+
+If you've been wanting to use them but had problems because of how Om Next did them, read on!
+
+Om Next supports setting queries at a component level (e.g. every instance on the screen). In reality, this doesn't
+work very well (and is difficult to code correctly). Component instances cannot be stored in app state unless you're
+willing to give up history serialization, and to-many relationships present real difficulties (imagine wanting to
+set the query of the 2nd item in a list). Spurious React mount/unmounts will also lose your queries. Imagine changine
+from one tab to another and back again only to have your dynamic queries clear in the original tab you just returned
+to (because of the mount/unmount).
+
+Fulcro 2.0 changes the appraoch. Instead of storing the queries in the indexer and state by React component, we
+instead allow you to define the query ID (which is serializable). However, dynamic queries of this kind don't hide
+the magic. The API for dynamic queries exposes the fact that getting a query is a function of the component's query ID
+AND application state (since that is where custom ones are stored).
+
+==== The trade-offs:
+
+There is no free lunch. Fulcro 2.0's dynamic queries have the following properties:
+
+* You *must* use/compose a different kind of query in your UI (`IDynamicQuery` instead of `IQuery`). The dynamic composition must
+reach root using `IDynamicRoot`.
+* You may target a new query to a specific React factory (with a qualifier). This allows you to dynamically set a query
+on a subset of on-screen components that share a class.
+* You may set a query class-wide. All instances on screen that share that class *and* use dynamic queries *and* do not have
+a query qualifier will have the new query.
+
+The down-side is that you cannot arbitrarily set a query on an arbitrary on-screen component. That would require
+indexing by component React instace, and just doesn't work well with other features (react re-mounts and serializable
+history). In practice dynamic queries are mainly needed for code splitting, and the fact that you can re-use a single
+class with as many different qualifiers as you want means that the vast majority of dynamic query
+desires can be easily met.
+
+==== Query IDs
+
+Query IDs are composed of two components: A component's class name, and an optional user-defined keyword qualifier. The
+class and qualifier are needed when asking Fulcro for a query, and React instances that need targeted refresh will also
+need to supply the underlying engine with the Query ID they were originally rendered with.
+
+This implies that the best way to "name" a query without having to repeat yourself is by using a factory
+(which has to know the class name and the qualifier in order to work). Thus,
+Fulcro dynamic queries can define a factory with a query qualifier like so:
+
+```
+(def ui-thing-a (fulcro.client.primitives/factory Thing {:qualifier :a}))
+(def ui-thing-b (fulcro.client.primitives/factory Thing {:qualifier :b}))
+```
+
+The example above gives you two separate kinds of `Thing` that can have their query set dynamically. If the qualifier is not
+set, then setting a query on the given class will affect all instances on the screen that have that class.
+
+==== The Dynamic Query API
+
+The new dynamic query protocol looks like this:
+
+```
+(ns ui
+  (:require [fulcro.client.primitives :as prim :refer [defui]]))
+
+(declare ui-thing-a)
+
+(defui Thing
+  static prim/IDynamicQuery
+  (dynamic-query [this state] [:prop {:join (prim/get-query ui-thing-a state)}])
+  ; nothing else changes...
+  )
+
+(def ui-thing-a (fulcro.client.primitives/factory Thing {:qualifier :a}))
+```
+
+Changing queries must now be done within a mutation, because you need access to the app state. The new `set-query*`
+function works on plain app-state, so it is easy to compose into a mutation:
+
+```
+(m/defmutation set-query [{:keys [factory args]}]
+  (action [{:keys [state]}]
+    (swap! state prim/set-query* factory args)))
+```
+
+The built-in mutations will probably include this basic mutation and a wrapper function around it for backwards API
+compatibility with Om Next's `set-query!`. At the moment, you must write the mutation.
+
+=== Status
+
+* Server-side rendering is broken (build initial state is broken in clj for some reason).
+* Advanced optimization is known to be broken. I have not yet put the externs and such in place.
+* Dynamic queries work, but are not heavily tested. See the section on that.
+** I need to test having non-dynamic subtrees. That probably doesn't yet work.
+** Query parameters (e.g. IQueryParams) is as-yet untested.
+** `set-query!` needs to be written
+* Other than the renames and a few minor function moves (from util), it should be API compatible with existing Fulcro apps
+* RENDERING REFRESH is known to have bugs. I have not finished writing the new refresh algorithm. The current version
+should mostly work, but may screw up, especially when working with component local state (e.g. children might appear to
+go back in time).
+** I'm hoping that the new version is significantly faster than stock Om Next.
+* New history support needed. I stripped out history for the moment, because 2.0 will include a much more powerful mechanism.
+
 

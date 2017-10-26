@@ -1079,7 +1079,9 @@
       (deep-merge {::queries {queryid {:query top-query :id queryid}}} new-state)
       new-state)))
 
-(defn set-query! [state-map class-or-ui-factory {:keys [query params]}]
+(defn set-query*
+  "Set a query in app state. This must be used from within a mutation via transact!"
+  [state-map class-or-ui-factory {:keys [query params]}]
   (if-let [queryid (if (contains? (meta class-or-ui-factory) :queryid)
                      (some-> class-or-ui-factory meta :queryid)
                      (query-id class-or-ui-factory nil))]
