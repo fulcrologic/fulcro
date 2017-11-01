@@ -195,17 +195,19 @@
            "_reactInternalInstance" "_renderedComponent")))
      ~'shouldComponentUpdate
      ([this# next-props# next-state#]
-       (let [next-children# (. next-props# -children)
-             next-props#    (goog.object/get next-props# "omcljs$value")
-             next-props#    (cond-> next-props#
-                              (instance? OmProps next-props#) unwrap)]
-         (or (not= (fulcro.client.primitives/props this#)
-               next-props#)
-           (and (.. this# ~'-state)
-             (not= (goog.object/get (. this# ~'-state) "omcljs$state")
-               (goog.object/get next-state# "omcljs$state")))
-           (not= (.. this# -props -children)
-             next-children#))))
+       (let [next-children#     (. next-props# -children)
+             next-props#        (goog.object/get next-props# "omcljs$value")
+             next-props#        (cond-> next-props#
+                                  (instance? OmProps next-props#) unwrap)
+             props-changed?#    (not= (fulcro.client.primitives/props this#)
+                                  next-props#)
+             state-changed?#    (and (.. this# ~'-state)
+                                  (not= (goog.object/get (. this# ~'-state) "omcljs$state")
+                                    (goog.object/get next-state# "omcljs$state")))
+             children-changed?# (not= (.. this# -props -children)
+                                  next-children#)]
+         (js/console.log :incoming-props next-props# :PC props-changed?# :SC state-changed?# :CC children-changed?#)
+         (or props-changed?# state-changed?# children-changed?#)))
      ~'componentWillUpdate
      ([this# next-props# next-state#]
        (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
@@ -948,6 +950,7 @@
                   t   (if-not (nil? *reconciler*)
                         (p/basis-t *reconciler*)
                         0)]
+              (js/console.log :FACTORY :t t :basis-t (p/basis-t *reconciler*) :meta (meta props) :depth *depth*)
               (create-element class
                 #js {:key               key
                      :ref               ref
@@ -1713,6 +1716,7 @@
   no ident (which prevents localized update). This eliminates the need for
   path data."
   [{:keys [parser state #?(:clj pathopt :cljs ^boolean pathopt)] :as env} c]
+  (log-info "Running query for " (.. c -constructor -displayName))
   (let [ui (when #?(:clj  (satisfies? Ident c)
                     :cljs (implements? Ident c))
              (let [id    (ident c (props c))
@@ -1919,10 +1923,12 @@
       (if (not (nil? remote))
         (swap! state assoc-in [:remote-queue remote] [])
         (swap! state assoc :queue []))
-      "NOTES: I currently have elide-paths set in the parser via fulcro, and the incremental rendering turned off via this true:"
+      (log-info (str :queue q))
       (if (empty? q)                                        ;3ms average keypress overhead with path-opt optimizations and incremental
         ;; TODO: need to move root re-render logic outside of batching logic
-        (render-root)
+        (do
+          (log-info :FORCE-ROOT-EMPTY-QUEUE)
+          (render-root))
         (let [cs   (transduce
                      (map #(p/key->components (:indexer config) %))
                      #(into %1 %2) #{} q)
@@ -1930,6 +1936,7 @@
               root (:root @state)]
           #?(:cljs
              (doseq [c ((:optimize config) cs)]             ; sort by depth
+               (js/console.log :reconciler-seq :basis (p/basis-t this) :ctime (t c))
                (let [props-change? (> (p/basis-t this) (t c))]
                  (when (mounted? c)
                    (let [computed       (get-computed (props c))
@@ -2175,9 +2182,9 @@
      (if (implements? ILocalState component)
        (-set-state! component new-state)
        (gobj/set (.-state component) "omcljs$pendingState" new-state))
-     (if-let [r (get-reconciler component)]
+     (if-let [r false #_(get-reconciler component)]
        (do
-         (p/queue! r [component])
+         (p/queue! r [component]); WHY WOULD WE EVER RECONCILE HERE???? Oh, perhaps it is to put the pending state into the stored state in the component instance?
          (schedule-render! r))
        (.forceUpdate component))))
 
