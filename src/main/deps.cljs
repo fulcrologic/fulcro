@@ -1,1 +1,6 @@
-{:externs ["fulcro/client/externs.js"]}
+{:externs ["fulcro/client/externs.js"]
+ :foreign-libs
+          [{:file     "yahoo/intl-messageformat-with-locales.js"
+            :file-min "yahoo/intl-messageformat-with-locales.min.js"
+            :provides ["yahoo.intl-messageformat-with-locales"]}]}
+
