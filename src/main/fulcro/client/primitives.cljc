@@ -191,8 +191,10 @@
    `{~'isMounted
      ([this#]
        (boolean
-         (goog.object/getValueByKeys this#
-           "_reactInternalInstance" "_renderedComponent")))
+         (or (some-> this# .-_reactInternalFiber .-stateNode)
+           ;; Pre React 16 support. Remove when we don't wish to support
+           ;; React < 16 anymore - Antonio
+           (some-> this# .-_reactInternalInstance .-_renderedComponent))))
      ~'shouldComponentUpdate
      ([this# next-props# next-state#]
        (let [next-children#     (. next-props# -children)
@@ -1510,9 +1512,11 @@
 
 (defn- merge-idents [tree config refs query]
   (let [{:keys [merge-ident indexer]} config
-        ident-joins (into {} (filter #(and (util/join? %)
-                                        (util/ident? (util/join-key %)))
-                               query))]
+        ident-joins (into {} (comp
+                               (map #(cond-> % (seq? %) first))
+                               (filter #(and (util/join? %)
+                                          (util/ident? (util/join-key %)))))
+                      query)]
     (letfn [(step [tree' [ident props]]
               (if (:normalize config)
                 (let [c-or-q (or (get ident-joins ident) (ref->any indexer ident))
@@ -2184,7 +2188,7 @@
        (gobj/set (.-state component) "omcljs$pendingState" new-state))
      (if-let [r false #_(get-reconciler component)]
        (do
-         (p/queue! r [component]); WHY WOULD WE EVER RECONCILE HERE???? Oh, perhaps it is to put the pending state into the stored state in the component instance?
+         (p/queue! r [component])                           ; WHY WOULD WE EVER RECONCILE HERE???? Oh, perhaps it is to put the pending state into the stored state in the component instance?
          (schedule-render! r))
        (.forceUpdate component))))
 
