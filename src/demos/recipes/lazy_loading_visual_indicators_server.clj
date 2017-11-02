@@ -18,5 +18,5 @@
 (defquery-entity :lazy-load.items/by-id
   (value [env id params]
     (timbre/info "Item query for " id)
-    (Thread/sleep 200)
+    (Thread/sleep 4000)
     {:db/id id :item/label (str "Refreshed Label " (rand-int 100))}))
