@@ -24,7 +24,6 @@
   Object
   (render [this]
     (let [{:keys [id x y]} (prim/props this)]
-      (js/console.log :LEAF-RENDER id)
       (dom/div nil
         (dom/button #js {:onClick (fn [] (prim/transact! this `[(set-query {:factory ~ui-leaf :args {:query [:id :x]}})]))} "Set query to :x")
         (dom/button #js {:onClick (fn [] (prim/transact! this `[(set-query {:factory ~ui-leaf :args {:query [:id :y]}})]))} "Set query to :y")
@@ -51,10 +50,9 @@
   (render [this]
     (let [{:keys [left right]} (prim/props this)
           {:keys [value]} (prim/get-state this)]
-      (js/console.log :PARENT_RENDER :left left :right right)
       (dom/div nil
         (dom/p nil value)
-        (dom/button #js {:onClick #(prim/set-state! this {:value (inc value)})} "Bump!")
+        (dom/button #js {:onClick #(prim/react-set-state! this {:value (inc value)})} "Bump!")
         (dom/h4 nil "Left")
         (ui-leaf left)
         (dom/h4 nil "Right")
@@ -72,6 +70,7 @@
   (render [this]
     (let [{:keys [ui/react-key parent] :as props} (prim/props this)]
       (dom/div #js {:key (or react-key)}
+        (dom/button #js {:onClick #(prim/transact! this `[:left])} "Bam!")
         (ui-parent parent)))))
 
 (defcard-fulcro parent-refresh-card
