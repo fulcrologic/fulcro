@@ -1732,13 +1732,15 @@
   no ident (which prevents localized update). This eliminates the need for
   path data."
   [{:keys [parser state] :as env} c]
-  (log-info "Running query for " (.. c -constructor -displayName))
   (let [ui (when #?(:clj  (satisfies? Ident c)
                     :cljs (implements? Ident c))
              (let [id    (ident c (props c))
                    query [{id (get-query c @state)}]]
                (get (parser env query) id)))]
-    (or ui ::no-ident)))
+    (or ui
+      (let [component-name (.. c -constructor -displayName)]
+        (log-debug (str "PERFORMANCE NOTE: " component-name " does not have an ident. This will cause from-root renders that may affect rendering performance."))
+        ::no-ident))))
 
 (defn computed
   "Add computed properties to props. Note will replace any pre-existing
@@ -1950,9 +1952,7 @@
       (log-info (str :queue q))
       (if (empty? q)                                        ;3ms average keypress overhead with path-opt optimizations and incremental
         ;; TODO: need to move root re-render logic outside of batching logic
-        (do
-          (log-info :FORCE-ROOT-EMPTY-QUEUE)
-          (render-root))
+        (render-root)
         (let [cs   (transduce
                      (map #(p/key->components (:indexer config) %))
                      #(into %1 %2) #{} q)
@@ -1968,36 +1968,23 @@
                          next-raw-props (add-basis-time (fulcro-ui->props env c) current-time)
                          force-root?    (= ::no-ident next-raw-props) ; screw focused query...
                          next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
-                     (when force-root?
-                       (log-info "Forcing root render")
-                       (render-root))
-                     ; TODO: The case where the props didn't change, there is no ident, but state changed
-                     (when (and (exists? (.-componentWillReceiveProps c))
-                             (has-query? root)
-                             props-change?)
-                       (let [next-props (if (nil? next-props)
-                                          (when-let [props (props c)]
-                                            props)
-                                          next-props)]
-                         ;; `componentWilReceiveProps` is always called before `shouldComponentUpdate`
-                         (.componentWillReceiveProps c
-                           #js {:omcljs$value (om-props next-props (p/basis-t this))})))
-                     (when (should-update? c next-props (get-state c))
-                       (if-not (nil? next-props)
-                         (update-component! c next-props)
-                         (.forceUpdate c))
-                       ;; Only applies if we're doing incremental rendering, not
-                       ;; the case in applications without queries
-                       #_(when (and (has-dynamic-query? root)
-                                 (not= c root)
+                     (if force-root?
+                       (render-root) ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
+                       (do
+                         (when (and (exists? (.-componentWillReceiveProps c))
+                                 (has-query? root)
                                  props-change?)
-                           (when-let [update-path (path c)]
-                             (loop [p (parent c)]
-                               (when (some? p)
-                                 (let [update-path' (subvec update-path (count (path p)))]
-                                   (update-props! p (assoc-in (props p) update-path' next-raw-props))
-                                   (merge-pending-props! p)
-                                   (recur (parent p)))))))))))))))))
+                           (let [next-props (if (nil? next-props)
+                                              (when-let [props (props c)]
+                                                props)
+                                              next-props)]
+                             ;; `componentWilReceiveProps` is always called before `shouldComponentUpdate`
+                             (.componentWillReceiveProps c
+                               #js {:omcljs$value (om-props next-props (p/basis-t this))})))
+                         (when (should-update? c next-props (get-state c))
+                           (if-not (nil? next-props)
+                             (update-component! c next-props)
+                             (.forceUpdate c))))))))))))))
 
   (send! [this]
     (let [sends (:queued-sends @state)]
@@ -2018,8 +2005,6 @@
                (p/queue! this (keys resp) remote))
              (merge! this resp query remote)
              (p/reconcile! this remote))))))))
-
-
 
 (defn reconciler
   "Construct a reconciler from a configuration map.
@@ -2207,11 +2192,21 @@
      (if (implements? ILocalState component)
        (-set-state! component new-state)
        (gobj/set (.-state component) "omcljs$pendingState" new-state))
-     (if-let [r false #_(get-reconciler component)]
+     (if-let [r (get-reconciler component)]
        (do
          (p/queue! r [component])                           ; WHY WOULD WE EVER RECONCILE HERE???? Oh, perhaps it is to put the pending state into the stored state in the component instance?
          (schedule-render! r))
        (.forceUpdate component))))
+
+(defn react-set-state!
+  ([component new-state]
+   (react-set-state! component new-state nil))
+  ([component new-state cb]
+   {:pre [(component? component)]}
+    #?(:clj  (do
+               (set-state! component new-state)
+               (cb))
+       :cljs (.setState component #js {:omcljs$state new-state} cb))))
 
 (defn update-state!
   "Update a component's local state. Similar to Clojure(Script)'s swap!"
