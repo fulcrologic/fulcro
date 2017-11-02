@@ -48,7 +48,7 @@
         (dom/p nil "Child Label: " label)
         (if (seq items)
           (map ui-item items)
-          (dom/button #js {:onClick #(df/load-field this :items)} "Load Items"))))))
+          (dom/button #js {:onClick #(df/load-field this :items :marker :child-marker)} "Load Items"))))))
 
 (def ui-child (om/factory Child {:keyfn :child/label}))
 
@@ -56,24 +56,22 @@
   static fc/InitialAppState
   (initial-state [c params] {:child nil})
   static om/IQuery
-  (query [this] [[df/marker-table '_] {:child (om/get-query Child)}])
+  (query [this] [[:ui/loading-data '_] [df/marker-table '_] {:child (om/get-query Child)}])
   static om/Ident
   (ident [this props] [:lazy-load/ui :panel])
   Object
   (render [this]
-    (js/console.log :PANEL_REFRESH)
-    (let [{:keys [child] :as props} (om/props this)
-          markers          (get props df/marker-table)
-          nothing-loading? (empty? markers)
-          marker           (get markers :child-marker)]
+    (let [{:keys [ui/loading-data child] :as props} (om/props this)
+          markers (get props df/marker-table)
+          marker  (get markers :child-marker)]
       (dom/div nil
-        (dom/div #js {:style #js {:float "right" :display (if nothing-loading? "none" "block")}} "GLOBAL LOADING")
+        (dom/div #js {:style #js {:float "right" :display (if loading-data "block" "none")}} "GLOBAL LOADING")
         (dom/div nil "This is the Panel")
-        (when marker
-          (dom/h4 nil "Loading child..."))
-        (if child
-          (ui-child child)
-          (dom/button #js {:onClick #(df/load-field this :child {:marker :child-marker})} "Load Child"))))))
+        (if marker
+          (dom/h4 nil "Loading child...")
+          (if child
+            (ui-child child)
+            (dom/button #js {:onClick #(df/load-field this :child :marker :child-marker)} "Load Child")))))))
 
 (def ui-panel (om/factory Panel))
 
