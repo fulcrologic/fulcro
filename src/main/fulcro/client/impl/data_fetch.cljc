@@ -85,7 +85,7 @@
         other-items-loading? (boolean (seq (get @state :fulcro/loads-in-progress)))
         items-to-load        (filter is-eligible? queued-items)
         remaining-items      (filter (comp not is-eligible?) queued-items)
-        loading?             (or (seq items-to-load) other-items-loading?)]
+        loading?             (or (boolean (seq items-to-load)) other-items-loading?)]
     (when-not (empty? items-to-load)
       (place-load-markers state items-to-load)
       (swap! state assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items)
@@ -166,7 +166,7 @@
         other-items-loading?    (boolean (seq (get @state :fulcro/loads-in-progress)))
         [items-to-load-now items-to-defer] (split-items-ready-to-load items-ready-to-load)
         remaining-items         (concat items-for-other-remotes items-to-defer)
-        loading?                (or (seq items-to-load-now) other-items-loading?)]
+        loading?                (or (boolean (seq items-to-load-now)) other-items-loading?)]
     (when-not (empty? items-to-load-now)
       (place-load-markers state items-to-load-now)
       (swap! state assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items)
