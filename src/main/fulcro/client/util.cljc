@@ -20,6 +20,7 @@
   If you supply an additional vector of keywords and idents then it will ask Om to rerender only those components that mention
   those things in their queries."
   ([reconciler keywords]
+   #?(:cljs (js/console.log "Queuing  " keywords " for refresh"))
    (proto/queue! reconciler keywords)
    (proto/schedule-render! reconciler))
   ([reconciler]

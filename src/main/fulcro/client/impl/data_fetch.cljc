@@ -8,9 +8,10 @@
             [clojure.set :as set]
             [fulcro.client.logging :as log]
             [fulcro.client.mutations :as m]
-            [fulcro.client.impl.plumbing :as plumbing]))
+            [fulcro.client.impl.plumbing :as plumbing]
+            [fulcro.client.impl.protocols :as p]))
 
-(declare data-remote data-target data-path data-uuid data-field data-query-key data-query set-loading! full-query loaded-callback error-callback data-marker?)
+(declare data-marker data-remote data-target data-path data-uuid data-field data-query-key data-query set-loading! full-query loaded-callback error-callback data-marker?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implementation for public api
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,13 +40,19 @@
     (not (data-field load-marker))
     (util/ident? (data-query-key load-marker))))
 
+(def marker-table
+  :ui.fulcro.client.data-fetch.load-markers/by-id)
 
 (defn- place-load-marker [state-map marker]
-  (update-in state-map (data-path marker)
-    (fn [current-val]
-      (if (is-direct-table-load? marker)
-        (when (map? current-val) (assoc current-val :ui/fetch-state marker))
-        {:ui/fetch-state marker}))))
+  (let [marker-id      (data-marker marker)
+        legacy-marker? (-> marker-id keyword? not)]
+    (if legacy-marker?
+      (update-in state-map (data-path marker)
+        (fn [current-val]
+          (if (is-direct-table-load? marker)
+            (when (map? current-val) (assoc current-val :ui/fetch-state marker))
+            {:ui/fetch-state marker})))
+      (assoc-in state-map [marker-table marker-id] marker))))
 
 (defn- place-load-markers
   "Place load markers in the app state at their data paths so that UI rendering can see them."
@@ -292,9 +299,13 @@
 (defn data-uuid
   "Get the UUID of the data fetch"
   [state] (::uuid state))
+(defn data-marker
+  "Returns the ID of the data marker, or nil/false if there isn't one. True means to use the old marker behavior of
+  replacing the data in app state with a marker (DEPRECATED)"
+  [state] (::marker state))
 (defn data-marker?
   "Test if the user desires a copy of the state marker to appear in the app state at the data path of the target data."
-  [state] (::marker state))
+  [state] (boolean (::marker state)))
 (defn data-refresh
   "Get the list of query keywords that should be refreshed (re-rendered) when this load completes."
   [state] (::refresh state))
@@ -366,7 +377,7 @@
                       explicit-target (or (data-target item) [])
                       relocate?       (and
                                         (nil? (data-field item))
-                                        (keyword? (data-query-key item))
+                                        (keyword? default-target)
                                         (not-empty explicit-target))]
                   (if relocate?
                     (let [value (get state default-target)]
@@ -378,12 +389,16 @@
 (defn- remove-marker
   "Returns app-state without the load marker for the given item."
   [app-state item]
-  (let [path (data-path item)
-        data (get-in app-state path)]
-    (cond
-      (and (map? data) (= #{:ui/fetch-state} (set (keys data)))) (assoc-in app-state path nil) ; to-many (will become a vector)
-      (and (map? data) (contains? data :ui/fetch-state)) (update-in app-state path dissoc :ui/fetch-state)
-      :else (assoc-in app-state path nil))))
+  (let [marker-id      (data-marker item)
+        legacy-marker? (-> marker-id keyword? not)]
+    (if legacy-marker?
+      (let [path (data-path item)
+            data (get-in app-state path)]
+        (cond
+          (and (map? data) (= #{:ui/fetch-state} (set (keys data)))) (assoc-in app-state path nil) ; to-many (will become a vector)
+          (and (map? data) (contains? data :ui/fetch-state)) (update-in app-state path dissoc :ui/fetch-state)
+          :else (assoc-in app-state path nil)))
+      (update app-state marker-table dissoc marker-id))))
 
 (defn callback-env
   "Build a callback env for post mutations and fallbacks"
@@ -414,7 +429,7 @@
   (fn [response items]
     (let [query              (full-query items)
           loading-items      (into #{} (map set-loading! items))
-          refresh-set        (into #{:ui/loading-data} (mapcat data-refresh items))
+          refresh-set        (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           to-refresh         (vec refresh-set)
           marked-response    (plumbing/mark-missing response query)
           app-state          (om/app-state reconciler)
@@ -455,7 +470,7 @@
   (fn [error items]
     (let [loading-items (into #{} (map set-loading! items))
           app-state     (om/app-state reconciler)
-          refresh-set   (into #{:ui/loading-data} (mapcat data-refresh items))
+          refresh-set   (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           to-refresh    (vec refresh-set)
           ran-fallbacks (atom false)
           mark-errors   (fn []
@@ -463,6 +478,7 @@
                           (doseq [item loading-items]
                             (swap! app-state (fn [s]
                                                (cond-> s
+                                                 (and (data-marker? item) (keyword? (data-marker item))) (update-in [marker-table (data-marker item)] set-failed! error)
                                                  (data-marker? item) (update-in (conj (data-path item) :ui/fetch-state) set-failed! error)
                                                  :always (update :fulcro/loads-in-progress disj (data-uuid item)))))))
           run-fallbacks (fn [] (doseq [item loading-items]
