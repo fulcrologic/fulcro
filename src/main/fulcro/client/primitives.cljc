@@ -1097,7 +1097,9 @@
       new-state)))
 
 (defn set-query*
-  "Set a query in app state. This must be used from within a mutation via transact!"
+  "Put a query in app state.
+  NOTE: Indexes must be rebuilt after setting a query, so this function should only be used to build
+  up an initial app state. Do not use it as part of a mutation."
   [state-map class-or-ui-factory {:keys [query params]}]
   (if-let [queryid (if (contains? (meta class-or-ui-factory) :queryid)
                      (some-> class-or-ui-factory meta :queryid)
@@ -1900,11 +1902,11 @@
       (remove)))
 
   (reindex! [this]
-    (let [root (get @state :root)]
+    (let [root       (get @state :root)
+          root-class (react-type root)]
       (when (has-dynamic-query? root)
-        (let [indexer (:indexer config)
-              c       (first (get-in @indexer [:class->components root]))]
-          (p/index-root (assoc indexer :state (-> config :state deref)) (or c root))))))
+        (let [indexer (:indexer config)]
+          (p/index-root (assoc indexer :state (-> config :state deref)) root-class)))))
 
   (queue! [this ks]
     (p/queue! this ks nil))
@@ -1933,7 +1935,6 @@
 
   (reconcile! [this]
     (p/reconcile! this nil))
-  ;; TODO: need to reindex roots after reconcilation
   (reconcile! [this remote]
     (let [st          @state
           q           (if-not (nil? remote)
@@ -1947,7 +1948,6 @@
       (if (not (nil? remote))
         (swap! state assoc-in [:remote-queue remote] [])
         (swap! state assoc :queue []))
-      (log-info (str :queue q))
       (if (empty? q)                                        ;3ms average keypress overhead with path-opt optimizations and incremental
         ;; TODO: need to move root re-render logic outside of batching logic
         (render-root)
@@ -2350,6 +2350,12 @@
   (let [indexer (if (reconciler? x) (get-indexer x) x)]
     (first (get-in @indexer [:class->components class]))))
 
+(defn class->all
+  "Get any component from the indexer that matches the component class."
+  [x class]
+  (let [indexer (if (reconciler? x) (get-indexer x) x)]
+    (get-in @indexer [:class->components class])))
+
 (defn ref->components
   "Return all components for a given ref."
   [x ref]
@@ -2397,3 +2403,90 @@
   [component name]
   #?(:clj  (some-> @(:refs component) (get name))
      :cljs (some-> (.-refs component) (gobj/get name))))
+
+(defn set-query!
+  "Set a dynamic query."
+  [component-or-reconciler ui-factory {:keys [query params follow-on-reads] :as opts}]
+  (let [reconciler            (if (reconciler? component-or-reconciler)
+                                component-or-reconciler
+                                (get-reconciler component-or-reconciler))
+        root                  (app-root reconciler)
+        cfg                   (:config reconciler)
+        component             (when (component? component-or-reconciler) component-or-reconciler)
+        component-class       (some-> component react-type)
+        components-to-refresh (if-not (nil? component-class)
+                                (class->all reconciler component-class)
+                                [])
+        state-atom            (app-state reconciler)]
+    (swap! state-atom set-query* ui-factory opts)
+    (when component
+      (p/queue! reconciler components-to-refresh))
+    (when-not (nil? follow-on-reads)
+      (p/queue! reconciler follow-on-reads))
+    (p/reindex! reconciler)
+    (let [rootq (get-query root @state-atom)
+          sends (gather-sends (to-env cfg) rootq (:remotes cfg))]
+      (when-not (empty? sends)
+        (doseq [[remote _] sends]
+          (p/queue! reconciler components-to-refresh remote))
+        (p/queue-sends! reconciler sends)
+        (schedule-sends! reconciler)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; DRAGONS BE HERE: The following code HACKS the cljs compiler to add an annotation so that
+; statics do not get removed from the defui components.
+; FIXME: It would be nice to figure out how to get this to work without the hack.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#?(:clj
+   (defn- add-proto-methods* [pprefix type type-sym [f & meths :as form]]
+     (let [pf (str pprefix (name f))
+           emit-static (when (-> type-sym meta :static)
+                         `(~'js* "/** @nocollapse */"))]
+       (if (vector? (first meths))
+         ;; single method case
+         (let [meth meths]
+           [`(do
+               ~emit-static
+               (set! ~(#'cljs.core/extend-prefix type-sym (str pf "$arity$" (count (first meth))))
+                 ~(with-meta `(fn ~@(#'cljs.core/adapt-proto-params type meth)) (meta form))))])
+         (map (fn [[sig & body :as meth]]
+                `(do
+                   ~emit-static
+                   (set! ~(#'cljs.core/extend-prefix type-sym (str pf "$arity$" (count sig)))
+                     ~(with-meta `(fn ~(#'cljs.core/adapt-proto-params type meth)) (meta form)))))
+           meths)))))
+
+#?(:clj (intern 'cljs.core 'add-proto-methods* add-proto-methods*))
+
+#?(:clj
+   (defn- proto-assign-impls [env resolve type-sym type [p sigs]]
+     (#'cljs.core/warn-and-update-protocol p type env)
+     (let [psym      (resolve p)
+           pprefix   (#'cljs.core/protocol-prefix psym)
+           skip-flag (set (-> type-sym meta :skip-protocol-flag))
+           static?   (-> p meta :static)
+           type-sym  (cond-> type-sym
+                       static? (vary-meta assoc :static true))
+           emit-static (when static?
+                         `(~'js* "/** @nocollapse */"))]
+       (if (= p 'Object)
+         (#'cljs.core/add-obj-methods type type-sym sigs)
+         (concat
+           (when-not (skip-flag psym)
+             (let [{:keys [major minor qualifier]} cljs.util/*clojurescript-version*]
+               (if (and (== major 1) (== minor 9) (>= qualifier 293))
+                 [`(do
+                     ~emit-static
+                     (set! ~(#'cljs.core/extend-prefix type-sym pprefix) cljs.core/PROTOCOL_SENTINEL))]
+                 [`(do
+                     ~emit-static
+                     (set! ~(#'cljs.core/extend-prefix type-sym pprefix) true))])))
+           (mapcat
+             (fn [sig]
+               (if (= psym 'cljs.core/IFn)
+                 (#'cljs.core/add-ifn-methods type type-sym sig)
+                 (#'cljs.core/add-proto-methods* pprefix type type-sym sig)))
+             sigs))))))
+
+#?(:clj (intern 'cljs.core 'proto-assign-impls proto-assign-impls))
+
