@@ -210,7 +210,7 @@
                                     :parallel             parallel
                                     :marker               marker
                                     :refresh              refresh
-                                    :fallback             fallback}) :ui/loading-data (prim/get-ident component)] refresh)))
+                                    :fallback             fallback}) :ui/loading-data :ui.fulcro.client.data-fetch.load-markers/by-id (prim/get-ident component)] refresh)))
 
 (defn load-field-action
   "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`

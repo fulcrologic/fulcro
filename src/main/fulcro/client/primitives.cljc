@@ -2118,6 +2118,7 @@
         xs         (cond-> []
                      (not (nil? c)) (conj c)
                      (not (nil? ref)) (conj ref))]
+    (log-info (pr-str "Transacted " tx))
     (p/queue! r (into xs (remove symbol?) (keys v)))
     (when-not (empty? snds)
       (doseq [[remote _] snds]

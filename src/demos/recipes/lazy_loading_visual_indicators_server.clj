@@ -9,7 +9,7 @@
 
 (defquery-entity :lazy-load/ui
   (value [env id params]
-    (Thread/sleep 1000)
+    (Thread/sleep 2000)
     (case id
       :panel {:child {:db/id 5 :child/label "Child"}}
       :child {:items [{:db/id 1 :item/label "A"} {:db/id 2 :item/label "B"}]}
@@ -18,5 +18,5 @@
 (defquery-entity :lazy-load.items/by-id
   (value [env id params]
     (timbre/info "Item query for " id)
-    (Thread/sleep 4000)
+    (Thread/sleep 200)
     {:db/id id :item/label (str "Refreshed Label " (rand-int 100))}))
