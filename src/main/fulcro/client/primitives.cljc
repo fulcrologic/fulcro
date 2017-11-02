@@ -1614,8 +1614,6 @@
              tempids (:id-key config)))
          next)))))
 
-
-
 (defrecord Indexer [indexes]
   #?(:clj  clojure.lang.IDeref
      :cljs IDeref)
@@ -2341,4 +2339,56 @@
            (gobj/set state "omcljs$previousState" previous)
            (gobj/set state "omcljs$state" pending))))))
 
+(defn class->any
+  "Get any component from the indexer that matches the component class."
+  [x class]
+  (let [indexer (if (reconciler? x) (get-indexer x) x)]
+    (first (get-in @indexer [:class->components class]))))
 
+(defn ref->components
+  "Return all components for a given ref."
+  [x ref]
+  (when-not (nil? ref)
+    (let [indexer (if (reconciler? x) (get-indexer x) x)]
+      (p/key->components indexer ref))))
+
+(defn from-history
+  "Given a reconciler and UUID return the application state snapshost
+   from history associated with the UUID. The size of the reconciler history
+   may be configured by the :history option when constructing the reconciler."
+  [reconciler uuid]
+  {:pre [(reconciler? reconciler)]}
+  ; FIXME
+  nil)
+
+; FIXME: API CHANGE
+(defn get-params
+  "Return the query params for a component."
+  [component]
+  nil
+  )
+
+(defn get-rendered-state
+  "Get the rendered state of component. om.next/get-state always returns the
+   up-to-date state."
+  ([component]
+   (get-rendered-state component []))
+  ([component k-or-ks]
+   {:pre [(component? component)]}
+   (let [cst (if #?(:clj  (satisfies? ILocalState component)
+                    :cljs (implements? ILocalState component))
+               (-get-rendered-state component)
+               #?(:clj  (get-state component)
+                  :cljs (some-> component .-state (gobj/get "omcljs$state"))))]
+     (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
+
+(defn nil-or-map?
+  #?(:cljs {:tag boolean})
+  [x]
+  (or (nil? x) (map? x)))
+
+(defn react-ref
+  "Returns the component associated with a component's React ref."
+  [component name]
+  #?(:clj  (some-> @(:refs component) (get name))
+     :cljs (some-> (.-refs component) (gobj/get name))))
