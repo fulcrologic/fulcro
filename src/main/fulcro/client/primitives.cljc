@@ -2184,7 +2184,12 @@
 #?(:cljs
    (defn set-state!
      "Set the component local state of the component. Analogous to React's
-   setState."
+   setState. WARNING: This version triggers a reconcile which *will* run the query
+   on the component. This is to avoid spurious overhead of multiple renders on the DOM by
+   pushing the refresh off to the next animation frame; however, rapid animation updates
+   will not work well with this. Use react-set-state! instead. This function may
+   evolve in the future to just be the same as react-set-state!. Your feedback is
+   welcome."
      [component new-state]
      {:pre [(component? component)]}
      (if (implements? ILocalState component)
