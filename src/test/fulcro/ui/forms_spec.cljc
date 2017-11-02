@@ -903,7 +903,7 @@
              (component "reset-entity (helper function)"
                (let [original-name (f/current-value basic-person :person/name)]
                  (assertions
-                   ; FIXME: test that this works for recursive forms!
+                   ; TODO: test that this works for recursive forms!
                    "Reverts fields to their original value"
                    (-> basic-person
                      (assoc :person/name "MCQ")
