@@ -937,7 +937,7 @@
 
 #?(:cljs
    (defn create-element [class props children]
-     (js/React.createElement class props children)))
+     (apply js/React.createElement class props children)))
 
 #?(:cljs
    (defn factory
@@ -977,7 +977,7 @@
                      :omcljs$shared     *shared*
                      :omcljs$instrument *instrument*
                      :omcljs$depth      *depth*}
-                (util/force-children children)))))
+                (or (util/force-children children) [])))))
         {:class     class
          :queryid   (query-id class qualifier)
          :qualifier qualifier}))))
@@ -1969,7 +1969,7 @@
                          force-root?    (= ::no-ident next-raw-props) ; screw focused query...
                          next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
                      (if force-root?
-                       (render-root) ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
+                       (render-root)                        ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
                        (do
                          (when (and (exists? (.-componentWillReceiveProps c))
                                  (has-query? root)
