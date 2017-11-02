@@ -292,7 +292,7 @@
 ;; https://github.com/facebook/react/blob/57ae3b/src/renderers/dom/shared/HTMLDOMPropertyConfig.js
 #?(:clj
    (def supported-attrs
-     #{ ;; HTML
+     #{;; HTML
        "accept" "acceptCharset" "accessKey" "action" "allowFullScreen" "allowTransparency" "alt"
        "async" "autoComplete" "autoFocus" "autoPlay" "capture" "cellPadding" "cellSpacing" "challenge"
        "charSet" "checked" "cite" "classID" "className" "colSpan" "cols" "content" "contentEditable"
@@ -509,8 +509,8 @@
 #?(:clj
    (defn- render-component [c]
      (if (or (nil? c)
-             (instance? fulcro.client.impl.protocols.IReactDOMElement c)
-             (satisfies? p/IReactDOMElement c))
+           (instance? fulcro.client.impl.protocols.IReactDOMElement c)
+           (satisfies? p/IReactDOMElement c))
        c
        (recur (p/-render c)))))
 
@@ -520,43 +520,43 @@
      [{:keys [tag attrs react-key children] :as elem}]
      (assert (name tag))
      (assert (or (nil? attrs) (map? attrs)) (format "elem %s attrs invalid" elem))
-     (let [children (flatten children)
+     (let [children         (flatten children)
            child-node-count (count children)
-           reduce-fn (if (> child-node-count 1)
-                       r/reduce
-                       reduce)
-           children (reduce-fn
-                      (fn [res c]
-                        (let [c' (cond
-                                   (or (instance? fulcro.client.impl.protocols.IReactDOMElement c)
-                                       (satisfies? p/IReactDOMElement c))
-                                   c
+           reduce-fn        (if (> child-node-count 1)
+                              r/reduce
+                              reduce)
+           children         (reduce-fn
+                              (fn [res c]
+                                (let [c' (cond
+                                           (or (instance? fulcro.client.impl.protocols.IReactDOMElement c)
+                                             (satisfies? p/IReactDOMElement c))
+                                           c
 
-                                   (or (instance? fulcro.client.impl.protocols.IReactComponent c)
-                                       (satisfies? p/IReactComponent c))
-                                   (let [rendered (if-let [element (render-component c)]
-                                                    element
-                                                    (react-empty-node))]
-                                     (assoc rendered :react-key
-                                       (some-> (:props c) :omcljs$reactKey)))
+                                           (or (instance? fulcro.client.impl.protocols.IReactComponent c)
+                                             (satisfies? p/IReactComponent c))
+                                           (let [rendered (if-let [element (render-component c)]
+                                                            element
+                                                            (react-empty-node))]
+                                             (assoc rendered :react-key
+                                                             (some-> (:props c) :omcljs$reactKey)))
 
-                                   (or (string? c) (number? c))
-                                   (let [c (cond-> c (number? c) str)]
-                                     (if (> child-node-count 1)
-                                       (react-text-node c)
-                                       (text-node c)))
+                                           (or (string? c) (number? c))
+                                           (let [c (cond-> c (number? c) str)]
+                                             (if (> child-node-count 1)
+                                               (react-text-node c)
+                                               (text-node c)))
 
-                                   (nil? c) nil
+                                           (nil? c) nil
 
-                                   :else
-                                   (throw (IllegalArgumentException. (str "Invalid child element: ") c)))]
-                          (cond-> res
-                            (some? c') (conj c'))))
-                      [] children)]
-       (map->Element {:tag (name tag)
-                      :attrs attrs
+                                           :else
+                                           (throw (IllegalArgumentException. (str "Invalid child element: ") c)))]
+                                  (cond-> res
+                                    (some? c') (conj c'))))
+                              [] children)]
+       (map->Element {:tag       (name tag)
+                      :attrs     attrs
                       :react-key react-key
-                      :children children}))))
+                      :children  children}))))
 
 #?(:clj
    (defn camel->other-case [^String sep]
@@ -625,8 +625,8 @@
 
        ;; TODO: not sure if we want to limit values to strings/numbers - António
        (and (or (contains? supported-attrs (name key))
-                (.startsWith (name key) "data-"))
-            (or (true? value) (string? value) (number? value)))
+              (.startsWith (name key) "data-"))
+         (or (true? value) (string? value) (number? value)))
        (if (true? value)
          (append! sb " " (coerce-attr-key (name key)))
          (render-xml-attribute! sb key value))
@@ -645,14 +645,14 @@
                                 inc))))]
        (let [attrs (cond->> attrs
                      (= tag "input") (sort-by (sorter {:type 0 :step 1
-                                                       :min 2 :max 3}))
+                                                       :min  2 :max 3}))
                      (= tag "option") (sort-by (sorter {:selected 0})))]
          (run! (partial render-attribute! sb) attrs)))))
 
 #?(:clj
-   (def ^{:doc "A list of elements that must be rendered without a closing tag."
+   (def ^{:doc     "A list of elements that must be rendered without a closing tag."
           :private true}
-     void-tags
+   void-tags
      #{"area" "base" "br" "col" "command" "embed" "hr" "img" "input" "keygen" "link"
        "meta" "param" "source" "track" "wbr"}))
 
@@ -693,10 +693,10 @@
 #?(:clj
    (defn gen-tag-fn [tag]
      `(defn ~tag [~'attrs & ~'children]
-        (element {:tag (quote ~tag)
-                  :attrs (dissoc ~'attrs :ref :key)
+        (element {:tag       (quote ~tag)
+                  :attrs     (dissoc ~'attrs :ref :key)
                   :react-key (:key ~'attrs)
-                  :children ~'children}))))
+                  :children  ~'children}))))
 
 #?(:clj
    (defmacro gen-all-tags []
@@ -717,16 +717,16 @@
 #?(:clj
    (defn- render-to-str* ^StringBuilder [x]
      {:pre [(or (instance? fulcro.client.impl.protocols.IReactComponent x)
-                (instance? fulcro.client.impl.protocols.IReactDOMElement x)
-                (satisfies? p/IReactComponent x)
-                (satisfies? p/IReactDOMElement x))]}
+              (instance? fulcro.client.impl.protocols.IReactDOMElement x)
+              (satisfies? p/IReactComponent x)
+              (satisfies? p/IReactDOMElement x))]}
      (let [element (if-let [element (cond-> x
                                       (or (instance? fulcro.client.impl.protocols.IReactComponent x)
-                                          (satisfies? p/IReactComponent x))
+                                        (satisfies? p/IReactComponent x))
                                       render-component)]
                      element
                      (react-empty-node))
-           sb (StringBuilder.)]
+           sb      (StringBuilder.)]
        (p/-render-to-string element (volatile! 1) sb)
        sb)))
 
@@ -741,11 +741,11 @@
      "Returns the dom node associated with a component's React ref."
      ([component]
       {:pre [(or (instance? fulcro.client.impl.protocols.IReactComponent component)
-                 (satisfies? p/IReactComponent component))]}
+               (satisfies? p/IReactComponent component))]}
       (p/-render component))
      ([component name]
       {:pre [(or (instance? fulcro.client.impl.protocols.IReactComponent component)
-                 (satisfies? p/IReactComponent component))]}
+               (satisfies? p/IReactComponent component))]}
       (some-> @(:refs component) (get name) p/-render))))
 
 #?(:clj
@@ -756,7 +756,7 @@
      ([tag]
       (create-element tag nil))
      ([tag opts & children]
-      (element {:tag tag
-                :attrs (dissoc opts :ref :key)
+      (element {:tag       tag
+                :attrs     (dissoc opts :ref :key)
                 :react-key (:key opts)
-                :children children}))))
+                :children  children}))))

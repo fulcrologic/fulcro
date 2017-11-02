@@ -11,7 +11,7 @@
 (defn- update-state
   "Updates the state of the wrapped input element."
   [component next-props value]
-  (let [on-change (gobj/getValueByKeys component "state" "onChange")
+  (let [on-change  (gobj/getValueByKeys component "state" "onChange")
         next-state #js {}]
     (gobj/extend next-state next-props #js {:onChange on-change})
     (gobj/set next-state "value" value)
@@ -38,7 +38,7 @@
             (gobj/getValueByKeys event "target" "value"))))
 
       (componentWillReceiveProps [this new-props]
-        (let [state-value (gobj/getValueByKeys this "state" "value")
+        (let [state-value   (gobj/getValueByKeys this "state" "value")
               element-value (gobj/get (js/ReactDOM.findDOMNode this) "value")]
           ;; On IE, onChange event might come after actual value of
           ;; an element have changed. We detect this and render

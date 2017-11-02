@@ -1,11 +1,13 @@
 (ns fulcro.transit
-  #?(:clj (:refer-clojure :exclude [ref]))
+  #?(:clj
+     (:refer-clojure :exclude [ref]))
   (:require [cognitect.transit :as t]
     #?(:cljs [com.cognitect.transit :as ct])
             [fulcro.tempid :as tempid #?@(:cljs [:refer [TempId]])])
-  #?(:clj (:import [com.cognitect.transit
-                    TransitFactory WriteHandler ReadHandler]
-                   [fulcro.tempid TempId])))
+  #?(:clj
+     (:import [com.cognitect.transit
+               TransitFactory WriteHandler ReadHandler]
+              [fulcro.tempid TempId])))
 
 #?(:cljs
    (deftype TempIdHandler []
