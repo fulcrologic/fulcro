@@ -1739,7 +1739,7 @@
                (get (parser env query) id)))]
     (or ui
       (let [component-name (.. c -constructor -displayName)]
-        (log-debug (str "PERFORMANCE NOTE: " component-name " does not have an ident. This will cause from-root renders that may affect rendering performance."))
+        (log-debug (str "PERFORMANCE NOTE: " component-name " does not have an ident (ignore this message if it is your root). This will cause full root-level renders that may affect rendering performance."))
         ::no-ident))))
 
 (defn computed
