@@ -509,7 +509,7 @@
 (defn log-debug [& args]
   (if-let [logger *logger*]
     #?(:clj  (apply logger args)
-       :cljs (goog.log/debug logger (str/join " " args)))))
+       :cljs (goog.log/fine logger (str/join " " args)))))
 
 (defn log-info [& args]
   (if-let [logger *logger*]
@@ -547,7 +547,7 @@
   #?(:cljs {:tag boolean})
   [x]
   (if-not (nil? x)
-    #?(:clj  (or (instance? p/IReactComponent x)
+    #?(:clj  (or (instance? fulcro.client.impl.protocols.IReactComponent x)
                (satisfies? p/IReactComponent x))
        :cljs (true? (. x -om$isComponent)))
     false))
@@ -901,7 +901,7 @@
           ([props & children]
            (when-not (nil? validator)
              (assert (validator props)))
-           (if (and (var-get *instrument*) instrument?)
+           (if (and *instrument* (var-get *instrument*) instrument?)
              (*instrument*
                {:props    props
                 :children children

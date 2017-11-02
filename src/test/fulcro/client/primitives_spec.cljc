@@ -11,15 +11,14 @@
     #?@(:cljs [[goog.object :as gobj]])
             [fulcro.client.impl.protocols :as p]))
 
-(comment
 (defui A)
 
 (specification "Query IDs" :focused
   (assertions
     "Start with the fully-qualifier class name"
-    (om+/query-id A nil) => "fulcro$client$om_upgrade_spec$A"
+    (om+/query-id A nil) => "fulcro$client$primitives_spec$A"
     "Include the optional qualifier"
-    (om+/query-id A :x) => "fulcro$client$om_upgrade_spec$A$:x"))
+    (om+/query-id A :x) => "fulcro$client$primitives_spec$A$:x"))
 
 (specification "UI Factory" :focused
   (assertions
@@ -123,8 +122,8 @@
     (assertions
       "Adds simple single-level queries into app state under a reserved key"
       (om+/normalize-query {} (om+/get-query ui-a {})) => {::om+/queries {union-child-a-id
-                                                                           {:id    union-child-a-id
-                                                                            :query [:L]}}}
+                                                                          {:id    union-child-a-id
+                                                                           :query [:L]}}}
       "Single-level queries are not added if a query is already set in state"
       (om+/normalize-query {::om+/queries {union-child-a-id existing-query}} (om+/get-query ui-a {})) => {::om+/queries {union-child-a-id existing-query}}
       "More complicated queries normalize correctly"
@@ -154,11 +153,11 @@
         union-right  (get union-target :u2)]
     (assertions
       "Places a query ID on the metadata of each component's portion of the query"
-      (-> top-level meta :queryid) => "fulcro$client$om_upgrade_spec$Root"
-      (-> join-target meta :queryid) => "fulcro$client$om_upgrade_spec$Child"
-      (-> union-target meta :queryid) => "fulcro$client$om_upgrade_spec$Union"
-      (-> union-left meta :queryid) => "fulcro$client$om_upgrade_spec$UnionChildA"
-      (-> union-right meta :queryid) => "fulcro$client$om_upgrade_spec$UnionChildB"))
+      (-> top-level meta :queryid) => "fulcro$client$primitives_spec$Root"
+      (-> join-target meta :queryid) => "fulcro$client$primitives_spec$Child"
+      (-> union-target meta :queryid) => "fulcro$client$primitives_spec$Union"
+      (-> union-left meta :queryid) => "fulcro$client$primitives_spec$UnionChildA"
+      (-> union-right meta :queryid) => "fulcro$client$primitives_spec$UnionChildB"))
   (let [app-state (om+/normalize-query {} (om+/get-query ui-root {}))
         app-state (assoc-in app-state [::om+/queries (om+/query-id UnionChildA nil) :query] [:UPDATED])]
     (behavior "Pulls a denormalized query from app state if one exists."
@@ -260,10 +259,7 @@
           (count class-elements) => 2)))))
 
 (specification "Static Queries" :focused
-  (behavior "Maintain their backward-compatible functionality"
-    (assertions
-      "TODO"
-      :TODO => :NOTDONE)))
+  (behavior "Maintain their backward-compatible functionality" :manual-test))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Om Next query spec, with generators for property-based tests
@@ -332,4 +328,4 @@
   (gen/sample (s/gen (s/or :n number? :s string?)))
 
   (s/valid? ::param-expr '({:x [:a]} {:f 1})))
-  )
+

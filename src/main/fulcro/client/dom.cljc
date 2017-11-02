@@ -509,7 +509,7 @@
 #?(:clj
    (defn- render-component [c]
      (if (or (nil? c)
-             (instance? p/IReactDOMElement c)
+             (instance? fulcro.client.impl.protocols.IReactDOMElement c)
              (satisfies? p/IReactDOMElement c))
        c
        (recur (p/-render c)))))
@@ -528,11 +528,11 @@
            children (reduce-fn
                       (fn [res c]
                         (let [c' (cond
-                                   (or (instance? p/IReactDOMElement c)
+                                   (or (instance? fulcro.client.impl.protocols.IReactDOMElement c)
                                        (satisfies? p/IReactDOMElement c))
                                    c
 
-                                   (or (instance? p/IReactComponent c)
+                                   (or (instance? fulcro.client.impl.protocols.IReactComponent c)
                                        (satisfies? p/IReactComponent c))
                                    (let [rendered (if-let [element (render-component c)]
                                                     element
@@ -716,12 +716,12 @@
 ;; preserves testability without having to compute checksums
 #?(:clj
    (defn- render-to-str* ^StringBuilder [x]
-     {:pre [(or (instance? p/IReactComponent x)
-                (instance? p/IReactDOMElement x)
+     {:pre [(or (instance? fulcro.client.impl.protocols.IReactComponent x)
+                (instance? fulcro.client.impl.protocols.IReactDOMElement x)
                 (satisfies? p/IReactComponent x)
                 (satisfies? p/IReactDOMElement x))]}
      (let [element (if-let [element (cond-> x
-                                      (or (instance? p/IReactComponent x)
+                                      (or (instance? fulcro.client.impl.protocols.IReactComponent x)
                                           (satisfies? p/IReactComponent x))
                                       render-component)]
                      element
@@ -740,11 +740,11 @@
    (defn node
      "Returns the dom node associated with a component's React ref."
      ([component]
-      {:pre [(or (instance? p/IReactComponent component)
+      {:pre [(or (instance? fulcro.client.impl.protocols.IReactComponent component)
                  (satisfies? p/IReactComponent component))]}
       (p/-render component))
      ([component name]
-      {:pre [(or (instance? p/IReactComponent component)
+      {:pre [(or (instance? fulcro.client.impl.protocols.IReactComponent component)
                  (satisfies? p/IReactComponent component))]}
       (some-> @(:refs component) (get name) p/-render))))
 
