@@ -15,45 +15,40 @@
 
 (defui ^:once Item
   static om/IQuery
-  ;; The :ui/fetch-state is queried so the parent (Child in this case) lazy load renderer knows what state the load is in
-  (query [this] [:db/id :item/label :ui/fetch-state])
+  (query [this] [:db/id :item/label [df/marker-table '_]])
   static om/Ident
   (ident [this props] [:lazy-load.items/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [db/id item/label ui/fetch-state] :as props} (om/props this)]
+    (let [{:keys [db/id item/label] :as props} (om/props this)
+          marker-id (keyword "item-marker" (str id))
+          marker    (get-in props [df/marker-table marker-id])]
       (dom/div nil label
         ; If an item is rendered, and the fetch state is present, you can use helper functions from df namespace
         ; to provide augmented rendering.
-        (if (df/loading? fetch-state)
+        (if (df/loading? marker)
           (dom/span nil " (reloading...)")
           ; the `refresh!` function is a helper that can send an ident-based join query for a component.
-          ; it is equivalent to `(load reconciler [:lazy-load.items/by-id ID] Item)`, but finds the params
+          ; it is equivalent to `(load reconciler [:lazy-load.items/by-id id] Item)`, but finds the params
           ; using the component itself.
-          (dom/button #js {:onClick #(df/refresh! this)} "Refresh"))))))
+          (dom/button #js {:onClick #(df/refresh! this {:marker marker-id})} "Refresh"))))))
 
 (def ui-item (om/factory Item {:keyfn :db/id}))
 
 (defui ^:once Child
   static om/IQuery
-  ;; The :ui/fetch-state is queried so the parent (Panel) lazy load renderer knows what state the load is in
-  (query [this] [:ui/fetch-state :child/label {:items (om/get-query Item)}])
+  (query [this] [:child/label {:items (om/get-query Item)}])
   static om/Ident
   (ident [this props] [:lazy-load/ui :child])
   Object
   (render [this]
     (let [{:keys [child/label items] :as props} (om/props this)
-          ; NOTE: Demostration of two ways of showing an item is refreshing...
-          render-item (fn [idx i] (if (= idx 0)
-                                    (ui-item i)             ; use the childs method of showing refresh
-                                    (dom/span #js {:key (str "ll-" idx)} ; the span is so we have a react key in the list
-                                      (df/lazily-loaded ui-item i)))) ; replace child with a load marker
-          render-list (fn [items] (map-indexed render-item items))]
+          render-list (fn [items] (map ui-item items))]
       (dom/div nil
         (dom/p nil "Child Label: " label)
-        ; Rendering for all of the states can be supplied to lazily-loaded as named parameters
-        (df/lazily-loaded render-list items
-          :not-present-render (fn [items] (dom/button #js {:onClick #(df/load-field this :items)} "Load Items")))))))
+        (if (seq items)
+          (map ui-item items)
+          (dom/button #js {:onClick #(df/load-field this :items)} "Load Items"))))))
 
 (def ui-child (om/factory Child {:keyfn :child/label}))
 
@@ -61,17 +56,24 @@
   static fc/InitialAppState
   (initial-state [c params] {:child nil})
   static om/IQuery
-  (query [this] [[:ui/loading-data '_] {:child (om/get-query Child)}])
+  (query [this] [[df/marker-table '_] {:child (om/get-query Child)}])
   static om/Ident
   (ident [this props] [:lazy-load/ui :panel])
   Object
   (render [this]
-    (let [{:keys [ui/loading-data child] :as props} (om/props this)]
+    (js/console.log :PANEL_REFRESH)
+    (let [{:keys [child] :as props} (om/props this)
+          markers          (get props df/marker-table)
+          nothing-loading? (empty? markers)
+          marker           (get markers :child-marker)]
       (dom/div nil
-        (dom/div #js {:style #js {:float "right" :display (if loading-data "block" "none")}} "GLOBAL LOADING")
+        (dom/div #js {:style #js {:float "right" :display (if nothing-loading? "none" "block")}} "GLOBAL LOADING")
         (dom/div nil "This is the Panel")
-        (df/lazily-loaded ui-child child
-          :not-present-render (fn [_] (dom/button #js {:onClick #(df/load-field this :child)} "Load Child")))))))
+        (when marker
+          (dom/h4 nil "Loading child..."))
+        (if child
+          (ui-child child)
+          (dom/button #js {:onClick #(df/load-field this :child {:marker :child-marker})} "Load Child"))))))
 
 (def ui-panel (om/factory Panel))
 
@@ -81,7 +83,7 @@
   static fc/InitialAppState
   (initial-state [c params] {:ui/react-key "A" :panel (fc/get-initial-state Panel nil)})
   static om/IQuery
-  (query [this] [:ui/loading-data :ui/react-key {:panel (om/get-query Panel)}])
+  (query [this] [:ui/react-key {:panel (om/get-query Panel)}])
   Object
   (render [this]
     (let [{:keys [ui/react-key panel] :or {ui/react-key "ROOT"} :as props} (om/props this)]

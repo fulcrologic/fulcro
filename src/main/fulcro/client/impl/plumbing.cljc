@@ -202,6 +202,7 @@
             (cond
               (contains? res k) res
               (recursive? k) res
+              (and (util/ident? k) (= '_ (second k))) res
               (util/ident? k) (assoc (if (map? res) res {}) k {:ui/fetch-state {:fulcro.client.impl.data-fetch/type :not-found}})
               :else (assoc (if (map? res) res {}) k nf)))
           (union->query [u] (->> u vals flatten set))

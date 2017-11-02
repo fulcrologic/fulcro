@@ -12,6 +12,14 @@
 
 (declare load load-action load-field load-field-action)
 
+(defn bool? [v]
+  #?(:clj (or (true? v) (false? v))
+     :cljs (boolean? v)))
+
+(def marker-table
+  "The name of the table in which fulcro load markers are stored"
+  impl/marker-table )
+
 (defn- computed-refresh
   "Computes the refresh for the load by ensuring the loaded data is on the Om
   list of things to re-render."
@@ -33,6 +41,7 @@
                                                   fallback remote without]
                                            :or   {remote :remote marker true parallel false refresh [] without #{}}}]
   {:pre [(or (nil? target) (vector? target))
+         (or (nil? marker) (bool? marker) (keyword? marker))
          (or (nil? post-mutation) (symbol? post-mutation))
          (or (nil? fallback) (symbol? fallback))
          (or (nil? post-mutation-params) (map? post-mutation-params))
@@ -187,6 +196,7 @@
   "
   [component field & {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
                       :or   {remote :remote refresh [] marker true}}]
+  {:pre [(or (nil? marker) (bool? marker) (keyword? marker))]}
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
   (prim/transact! component (into [(list 'fulcro/load
                                    {:ident                (prim/get-ident component)
@@ -222,6 +232,7 @@
   be available for post mutations and fallbacks."
   [env-or-app-state component-class ident field & {:keys [without remote params post-mutation post-mutation-params fallback parallel refresh marker]
                                                    :or   {remote :remote refresh [] marker true}}]
+  {:pre [(or (nil? marker) (bool? marker) (keyword? marker))]}
   (impl/mark-ready
     {:env                  (if (and (map? env-or-app-state) (contains? env-or-app-state :state))
                              env-or-app-state
@@ -314,8 +325,11 @@
       (and not-present-render (nil? props)) (not-present-render props)
       :else (data-render props))))
 
-(defn refresh! [component]
-  (load component (prim/get-ident component) (prim/react-type component)))
+(defn refresh!
+  ([component load-options]
+   (load component (prim/get-ident component) (prim/react-type component) load-options))
+  ([component]
+   (load component (prim/get-ident component) (prim/react-type component))))
 
 (defmethod mutate 'fulcro/load
   [env _ {:keys [post-mutation remote] :as config}]

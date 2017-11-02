@@ -2,10 +2,13 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.lazy-loading-visual-indicators-client :as client]
-    [fulcro.client.cards :refer [fulcro-app]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.dom :as dom]
+    [fulcro.client.impl.protocols :as p]
+    [fulcro.client.primitives :as prim]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]))
+    [fulcro.client.logging :as log]
+    [fulcro.client.primitives :as prim]))
 
 
 (dc/defcard-doc
@@ -21,7 +24,7 @@
   (dc/mkdn-pprint-source client/Child)
   (dc/mkdn-pprint-source client/Root))
 
-(dc/defcard lazy-loading-demo
+(defcard-fulcro lazy-loading-demo
   "
   # Demo
 
@@ -40,6 +43,11 @@
   Note that once you get this final items loaded (which have refresh buttons), the two items have different ways of
   showing refresh.
   "
-  (fulcro-app client/Root)
+  client/Root
   {}
   {:inspect-data true})
+
+(comment
+  (def idx (-> lazy-loading-demo-fulcro-app deref :reconciler prim/get-indexer))
+  (p/key->components idx :ui.fulcro.client.data-fetch.load-markers/by-id)
+  )

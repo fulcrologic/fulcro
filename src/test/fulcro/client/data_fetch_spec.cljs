@@ -11,7 +11,8 @@
     [fulcro.client.mutations :as m]
     [fulcro.client.logging :as log]
     [fulcro.client.impl.protocols :as omp]
-    [fulcro.client.core :as fc]))
+    [fulcro.client.core :as fc]
+    [fulcro.client.impl.data-fetch :as f]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -162,10 +163,10 @@
                                    args => :mutation-args)
                                  :mutation)
     (prim/transact! c tx) => (do (assertions
-                                 "uses the passed component/app in transact!"
-                                 c => :component
-                                 "uses the mutation created by load-mutation"
-                                 tx => :mutation))
+                                   "uses the passed component/app in transact!"
+                                   c => :component
+                                   "uses the mutation created by load-mutation"
+                                   tx => :mutation))
     (prim/component? c) => true
 
     (df/load :component :x Person {})))
@@ -179,7 +180,7 @@
 
       (let [query (-> @state-atom :fulcro/ready-to-load first ::dfi/query)]
         (assertions
-          "State atom ends up with a proper load marker"
+          "adds a proper load marker to the state"
           query => [:x])))))
 
 (specification "Lazy loading"
@@ -188,27 +189,27 @@
       (provided "properly calls transact"
         (prim/get-ident c) =2x=> [:item/by-id 10]
         (prim/get-query c) =1x=> query
-        (prim/transact! c tx) =1x=> (let [params        (-> tx first second)
-                                        follow-on-reads (set (-> tx rest))]
-                                    (assertions
-                                      "includes :ui/loading-data in the follow-on reads"
-                                      (contains? follow-on-reads :ui/loading-data) => true
-                                      "includes ident of component in the follow-on reads"
-                                      (contains? follow-on-reads [:item/by-id 10]) => true
-                                      "does the transact on the component"
-                                      c => 'component
-                                      "includes the component's ident in the marker."
-                                      (:ident params) => [:item/by-id 10]
-                                      "focuses the query to the specified field."
-                                      (:query params) => [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
-                                      "includes the parameters."
-                                      (:params params) => {:sort :by-name}
-                                      "includes the subquery exclusions."
-                                      (:without params) => #{:excluded-attr}
-                                      "includes the post-processing callback."
-                                      (:post-mutation params) => 'foo
-                                      "includes the error fallback"
-                                      (:fallback params) => 'bar))
+        (prim/transact! c tx) =1x=> (let [params          (-> tx first second)
+                                          follow-on-reads (set (-> tx rest))]
+                                      (assertions
+                                        "includes :ui/loading-data in the follow-on reads"
+                                        (contains? follow-on-reads :ui/loading-data) => true
+                                        "includes ident of component in the follow-on reads"
+                                        (contains? follow-on-reads [:item/by-id 10]) => true
+                                        "does the transact on the component"
+                                        c => 'component
+                                        "includes the component's ident in the marker."
+                                        (:ident params) => [:item/by-id 10]
+                                        "focuses the query to the specified field."
+                                        (:query params) => [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
+                                        "includes the parameters."
+                                        (:params params) => {:sort :by-name}
+                                        "includes the subquery exclusions."
+                                        (:without params) => #{:excluded-attr}
+                                        "includes the post-processing callback."
+                                        (:post-mutation params) => 'foo
+                                        "includes the error fallback"
+                                        (:fallback params) => 'bar))
 
         (df/load-field 'component :comments
           :without #{:excluded-attr}
@@ -277,9 +278,9 @@
           )))))
 
 (specification "set-global-loading"
-  (let [loading-state     (atom {:ui/loading-data             true
+  (let [loading-state     (atom {:ui/loading-data          true
                                  :fulcro/loads-in-progress #{1}})
-        not-loading-state (atom {:ui/loading-data             true
+        not-loading-state (atom {:ui/loading-data          true
                                  :fulcro/loads-in-progress #{}})]
     (when-mocking
       (prim/app-state r) => not-loading-state
@@ -339,7 +340,7 @@
                                                             :post-mutation        'qrp-loaded-callback
                                                             :post-mutation-params {:x 1}}))
         state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
-                               :item                        {2 {:id :original-data}}})
+                               :item                     {2 {:id :original-data}}})
         items           [item]
         queued          (atom [])
         rendered        (atom false)
@@ -362,7 +363,7 @@
         (:callback-done @state) => true
         (:callback-params @state) => {:x 1}
         "Triggers a render for :ui/loading-data and any addl keys requested by mutations"
-        @rendered => [:ui/loading-data :x :y]
+        (set @rendered) => #{dfi/marker-table :ui/loading-data :ui/fetch-state :x :y}
         "Removes loading markers for results that didn't materialize"
         (get-in @state (dfi/data-path item) :fail) => nil
         "Updates the global loading marker"
@@ -371,7 +372,7 @@
 (specification "Query response processing (loaded-callback with no post-mutations)"
   (let [item            (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :refresh [:a]}))
         state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
-                               :item                        {2 {:id :original-data}}})
+                               :item                     {2 {:id :original-data}}})
         items           [item]
         queued          (atom [])
         rendered        (atom false)
@@ -394,6 +395,10 @@
         @queued =fn=> #(contains? % :a)
         "Queues the global loading marker for refresh"
         @queued =fn=> #(contains? % :ui/loading-data)
+        "Queues the marker table for refresh"
+        @queued =fn=> #(contains? % :ui.fulcro.client.data-fetch.load-markers/by-id)
+        "Queues :ui/fetch-state for refresh"
+        @queued =fn=> #(contains? % :ui/fetch-state)
         "Removes loading markers for results that didn't materialize"
         (get-in @state (dfi/data-path item) :fail) => nil
         "Updates the global loading marker"
@@ -404,7 +409,7 @@
 (specification "Query response processing (error-callback)"
   (let [item            (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :fallback 'qrp-error-fallback :refresh [:x :y]}))
         state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
-                               :item                        {2 {:id :original-data}}})
+                               :item                     {2 {:id :original-data}}})
         items           [item]
         globally-marked (atom false)
         queued          (atom [])
@@ -412,11 +417,12 @@
         error-cb        (dfi/error-callback :reconciler)
         response        {:id 2}]
     (when-mocking
+      (dfi/callback-env r req orig) => {:state state}
       (prim/app-state r) => state
       (dfi/set-global-loading r) => (reset! globally-marked true)
       (prim/force-root-render! r) => (assertions
-                                     "Triggers render at root"
-                                     r => :reconciler)
+                                       "Triggers render at root"
+                                       r => :reconciler)
 
       (error-cb response items))
 
@@ -439,7 +445,7 @@
     "is the explicit target if supplied"
     (dfi/data-path {::dfi/target [:a :b]}) => [:a :b]))
 
-(specification "Load markers for field loading"
+(specification "Load markers for field loading (legacy)"
   (let [state  (atom {:t {1 {:id 1}
                           2 {:id 2}}})
         item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :target [:top]})
@@ -456,7 +462,23 @@
       "are tracked by UUID in :fulcro/loads-in-progress"
       (get @state :fulcro/loads-in-progress) =fn=> #(= 2 (count %)))))
 
-(specification "Load markers for regular (top-level) queries"
+(specification "Load markers for field loading (new, by-name)" :focused
+  (let [state  (atom {:t {1 {:id 1}
+                          2 {:id 2}}})
+        item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :marker :my-marker :target [:top]})
+        item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})]
+
+    (dfi/place-load-markers state [item-1 item-2])
+
+    (assertions
+      "ignore targeting"
+      (get-in @state [:top]) => nil
+      "are placed in the marker table when the fetch requests a marker"
+      (get-in @state [f/marker-table :my-marker]) =fn=> #(contains? % ::dfi/type)
+      "are tracked by UUID in :fulcro/loads-in-progress"
+      (get @state :fulcro/loads-in-progress) =fn=> #(= 2 (count %)))))
+
+(specification "Load markers for regular (top-level) queries (legacy)"
   (let [state  (atom {:users/by-id {4 {:name "Joe"}}
                       :t           {1 {:id 1}}})
         item-1 (dfi/ready-state {:query [{:users [:name]}]})
@@ -474,7 +496,36 @@
       (get-in @state [:t 1 :user]) =fn=> #(contains? % :ui/fetch-state)
       (get-in @state [:t 1 :value]) =fn=> #(contains? % :ui/fetch-state))))
 
-(specification "Load markers when loading with an ident"
+(specification "Load markers for regular (top-level) queries (new, by id)" :focused
+  (let [state  (atom {:users/by-id {4 {:name "Joe"}}
+                      :t           {1 {:id 1}}})
+        item-1 (dfi/ready-state {:marker :a :query [{:users [:name]}]})
+        item-2 (dfi/ready-state {:marker :b :query [:some-value]})
+        item-3 (dfi/ready-state {:marker :c :query [{:users [:name]}] :target [:t 1 :user]})
+        item-4 (dfi/ready-state {:marker :d :query [:some-value] :target [:t 1 :value]})]
+
+    (dfi/place-load-markers state [item-1 item-2 item-3 item-4])
+
+    (assertions
+      "Are placed in the markers table"
+      (get @state f/marker-table) =fn=> #(contains? % :a)
+      (get @state f/marker-table) =fn=> #(contains? % :b)
+      (get @state f/marker-table) =fn=> #(contains? % :c)
+      (get @state f/marker-table) =fn=> #(contains? % :d))))
+
+(specification "Load markers when loading with an ident (new, by id)" :focused
+  (let [state  (atom {:users/by-id {4 {:name "Joe"}}
+                      :t           {1 {:id 1}}})
+        item-2 (dfi/ready-state {:marker :a :query [{[:users/by-id 3] [:name]}] :target [:t 1 :user]})
+        item-3 (dfi/ready-state {:marker false :query [{[:users/by-id 4] [:name]}]})]
+
+    (dfi/place-load-markers state [item-2 item-3])
+
+    (assertions
+      "Place a marker by ID when asked for"
+      (-> @state (get f/marker-table) keys set) => #{:a})))
+
+(specification "Load markers when loading with an ident (legacy)"
   (let [state  (atom {:users/by-id {4 {:name "Joe"}}
                       :t           {1 {:id 1}}})
         item-2 (dfi/ready-state {:query [{[:users/by-id 3] [:name]}] :target [:t 1 :user]})

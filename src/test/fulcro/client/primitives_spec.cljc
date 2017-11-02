@@ -12,14 +12,14 @@
 
 (defui A)
 
-(specification "Query IDs" :focused
+(specification "Query IDs"
   (assertions
     "Start with the fully-qualifier class name"
     (prim/query-id A nil) => "fulcro$client$primitives_spec$A"
     "Include the optional qualifier"
     (prim/query-id A :x) => "fulcro$client$primitives_spec$A$:x"))
 
-(specification "UI Factory" :focused
+(specification "UI Factory"
   (assertions
     "Adds  react-class to the metadata of the generated factory"
     (some-> (prim/factory A) meta :class) => A
@@ -31,8 +31,8 @@
        (when-mocking
          (prim/query-id c q) => :ID
          (prim/create-element class props children) => (do
-                                                        (assertions
-                                                          (gobj/get props "omcljs$queryid") => :ID))
+                                                         (assertions
+                                                           (gobj/get props "omcljs$queryid") => :ID))
 
          ((prim/factory A) {}))
        :clj
@@ -105,12 +105,12 @@
 
 (def ui-rootp (prim/factory RootP))
 
-(specification "link-query" :focused
+(specification "link-query"
   (assertions
     "Replaces nested queries with their string ID"
     (prim/link-query (prim/get-query ui-root {})) => [:a {:join (prim/query-id Child nil)} {:union (prim/query-id Union nil)}]))
 
-(specification "normalize-query" :focused
+(specification "normalize-query"
   (let [union-child-a-id (prim/query-id UnionChildA nil)
         union-child-b-id (prim/query-id UnionChildB nil)
         child-id         (prim/query-id Child nil)
@@ -121,24 +121,24 @@
     (assertions
       "Adds simple single-level queries into app state under a reserved key"
       (prim/normalize-query {} (prim/get-query ui-a {})) => {::prim/queries {union-child-a-id
-                                                                          {:id    union-child-a-id
-                                                                           :query [:L]}}}
+                                                                             {:id    union-child-a-id
+                                                                              :query [:L]}}}
       "Single-level queries are not added if a query is already set in state"
       (prim/normalize-query {::prim/queries {union-child-a-id existing-query}} (prim/get-query ui-a {})) => {::prim/queries {union-child-a-id existing-query}}
       "More complicated queries normalize correctly"
       (prim/normalize-query {} (prim/get-query ui-root {}))
       => {::prim/queries {root-id          {:id    root-id
-                                           :query [:a {:join child-id} {:union union-id}]}
-                         union-id         {:id    union-id
-                                           :query {:u1 union-child-a-id :u2 union-child-b-id}}
-                         union-child-b-id {:id    union-child-b-id
-                                           :query [:M]}
-                         union-child-a-id {:id    union-child-a-id
-                                           :query [:L]}
-                         child-id         {:query [:x]
-                                           :id    child-id}}})))
+                                            :query [:a {:join child-id} {:union union-id}]}
+                          union-id         {:id    union-id
+                                            :query {:u1 union-child-a-id :u2 union-child-b-id}}
+                          union-child-b-id {:id    union-child-b-id
+                                            :query [:M]}
+                          union-child-a-id {:id    union-child-a-id
+                                            :query [:L]}
+                          child-id         {:query [:x]
+                                            :id    child-id}}})))
 
-(specification "get-query*" :focused
+(specification "get-query*"
   (assertions
     "Obtains the static query from a given class"
     (prim/get-query Q) => [:a :b]
@@ -169,7 +169,7 @@
         "without state (raw static query)"
         (prim/get-query Root) => [:a {:join [:x]} {:union {:u1 [:L] :u2 [:M]}}]))))
 
-(specification "Normalization preserves query" :focused
+(specification "Normalization preserves query"
   (let [query               (prim/get-query ui-root {})
         parameterized-query (prim/get-query ui-rootp {})
         state               (prim/normalize-query {} query)
@@ -182,15 +182,15 @@
 
 ; TODO: This would be a great property-based check  (marshalling/unmarshalling) if we had generators that would work...
 
-(specification "Setting a query" :focused
+(specification "Setting a query"
   (let [query               (prim/get-query ui-root {})
         parameterized-query (prim/get-query ui-rootp {})
         state               (prim/normalize-query {} query)
         state-modified      (prim/set-query* state ui-b {:query [:MODIFIED]})
         expected-query      (assoc-in query [2 :union :u2 0] :MODIFIED)
         state-modified-root (prim/set-query* state Root {:query [:b
-                                                                {:join (prim/get-query ui-child state)}
-                                                                {:union (prim/get-query ui-union state)}]})
+                                                                 {:join (prim/get-query ui-child state)}
+                                                                 {:union (prim/get-query ui-union state)}]})
         expected-root-query (assoc query 0 :b)
         state-parameterized (prim/normalize-query {} parameterized-query)]
     (assertions
@@ -199,7 +199,7 @@
       "Can update a node by class"
       (prim/get-query ui-root state-modified-root) => expected-root-query)))
 
-(specification "Indexing" :focused
+(specification "Indexing"
   (component "Gathering keys for a query"
     (assertions
       "finds the correct prop keys (without parameters)"
@@ -257,12 +257,42 @@
           "Adds the component to the index of :class->components"
           (count class-elements) => 2)))))
 
-(specification "Static Queries" :focused
-  (behavior "Maintain their backward-compatible functionality" :manual-test))
+(specification "gather-keys" :focused
+  (assertions
+    "Can gather the correct keys from simple props"
+    (prim/gather-keys [:a :b :c]) => #{:a :b :c}
+    "Gather keys for joins, but does not recurse."
+    (prim/gather-keys [:a {:b [:d]} :c]) => #{:a :b :c}
+    "Allow parameterized props"
+    (prim/gather-keys '[(:a {:x 1}) {:b [:d]} :c]) => #{:a :b :c}
+    "Includes keywords from link queries"
+    (prim/gather-keys [:a [:x '_]]) => #{:a :x}
+    (prim/gather-keys [:a {[:x '_] [:prop]}]) => #{:a :x}))
+
+(specification "building prop->classes index" :focused
+  (let [index-atom (atom {})]
+    (prim/build-prop->class-index! index-atom (prim/get-query Root))
+    (assertions
+      "Includes entries the correct keys"
+      (set (keys @index-atom)) => #{:a :join :union :x :u1 :u2 :L :M}
+      "The component class count is correct"
+      (count (get @index-atom :a)) => 1
+      (count (get @index-atom :join)) => 1
+      (count (get @index-atom :u1)) => 1
+      (count (get @index-atom :u2)) => 1
+      (count (get @index-atom :L)) => 1
+      (count (get @index-atom :M)) => 1
+      (count (get @index-atom :union)) => 1
+
+      )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Om Next query spec, with generators for property-based tests
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(specification "Static Queries"
+  (behavior "Maintain their backward-compatible functionality" :manual-test))
 
 
 (comment
@@ -310,7 +340,6 @@
         (catch #?(:cljs :default :clj StackOverflowError) e
           true)))))
 
-
 (comment
   (tc/quick-check 10 prop-marshall)
   (check/check (normalize-query {} (gen/generate (s/gen ::query-root))))
@@ -327,4 +356,3 @@
   (gen/sample (s/gen (s/or :n number? :s string?)))
 
   (s/valid? ::param-expr '({:x [:a]} {:f 1})))
-

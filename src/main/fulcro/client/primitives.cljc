@@ -1122,7 +1122,9 @@
     (vector? query) (reduce (fn gather-keys-reducer [rv e]
                               (cond
                                 (keyword? e) (conj rv e)
+                                (and (util/ident? e) (= '_ (second e))) (conj rv (first e))
                                 (and (list? e) (keyword? (first e))) (conj rv (first e))
+                                (and (util/join? e) (util/ident? (util/join-key e)) (= '_ (-> e util/join-key second))) (conj rv (first (util/join-key e)))
                                 (and (util/join? e) (keyword? (util/join-key e))) (conj rv (util/join-key e))
                                 :else rv))
                       #{} query)
@@ -1616,6 +1618,16 @@
              tempids (:id-key config)))
          next)))))
 
+(defn build-prop->class-index!
+  "Build an index from property to class using the (annotated) query."
+  [prop->classes query]
+  (prewalk (fn index-walk-helper [ele]
+             (when-let [component (some-> ele meta :component)]
+               (let [ks (gather-keys ele)]
+                 (doseq [k ks]
+                   (swap! prop->classes update k (fnil conj #{}) component))))
+             ele) query) )
+
 (defrecord Indexer [indexes]
   #?(:clj  clojure.lang.IDeref
      :cljs IDeref)
@@ -1628,12 +1640,7 @@
     (let [prop->classes (atom {})
           state-map     (get this :state)
           rootq         (get-query (factory root-class nil) state-map)]
-      (prewalk (fn index-walk-helper [ele]
-                 (when-let [component (some-> ele meta :component)]
-                   (let [ks (gather-keys ele)]
-                     (doseq [k ks]
-                       (swap! prop->classes update k (fnil conj #{}) component))))
-                 ele) rootq)
+      (build-prop->class-index! prop->classes rootq)
       (swap! indexes merge {:prop->classes @prop->classes})))
 
   (index-component! [_ c]
@@ -1820,7 +1827,7 @@
           rctor        (factory root-class)
           guid #?(:clj (java.util.UUID/randomUUID)
                   :cljs (random-uuid))]
-      (when (has-dynamic-query? root-class)
+      (when (has-query? root-class)
         (p/index-root (assoc (:indexer config) :state (-> config :state deref)) root-class))
       (when (and (:normalize config)
               (not (:normalized @state)))
@@ -2439,7 +2446,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 #?(:clj
    (defn- add-proto-methods* [pprefix type type-sym [f & meths :as form]]
-     (let [pf (str pprefix (name f))
+     (let [pf          (str pprefix (name f))
            emit-static (when (-> type-sym meta :static)
                          `(~'js* "/** @nocollapse */"))]
        (if (vector? (first meths))
@@ -2461,12 +2468,12 @@
 #?(:clj
    (defn- proto-assign-impls [env resolve type-sym type [p sigs]]
      (#'cljs.core/warn-and-update-protocol p type env)
-     (let [psym      (resolve p)
-           pprefix   (#'cljs.core/protocol-prefix psym)
-           skip-flag (set (-> type-sym meta :skip-protocol-flag))
-           static?   (-> p meta :static)
-           type-sym  (cond-> type-sym
-                       static? (vary-meta assoc :static true))
+     (let [psym        (resolve p)
+           pprefix     (#'cljs.core/protocol-prefix psym)
+           skip-flag   (set (-> type-sym meta :skip-protocol-flag))
+           static?     (-> p meta :static)
+           type-sym    (cond-> type-sym
+                         static? (vary-meta assoc :static true))
            emit-static (when static?
                          `(~'js* "/** @nocollapse */"))]
        (if (= p 'Object)
