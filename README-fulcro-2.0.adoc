@@ -126,31 +126,25 @@ The new dynamic query protocol looks like this:
 (def ui-thing-a (fulcro.client.primitives/factory Thing {:qualifier :a}))
 ```
 
-Changing queries must now be done within a mutation, because you need access to the app state. The new `set-query*`
-function works on plain app-state, so it is easy to compose into a mutation:
+Changing queries must now be done within a mutation, because you need access to the app state. The new `set-query!`
+has an API change to match:
 
 ```
-(m/defmutation set-query [{:keys [factory args]}]
-  (action [{:keys [state]}]
-    (swap! state prim/set-query* factory args)))
+(set-query! this ui-factory {:query [:x]})
 ```
 
-The built-in mutations will probably include this basic mutation and a wrapper function around it for backwards API
-compatibility with Om Next's `set-query!`. At the moment, you must write the mutation.
+There is a `set-query*` function for SSR initial app setup so you can pre-populate dynamic queries. The API will
+likely evolve, since setting up initial state for dynamic routers will probably need some kind of additional heleprs.
 
 === Status
 
-* Server-side rendering is broken (build initial state is broken in clj for some reason).
-* Advanced optimization is known to be broken. I have not yet put the externs and such in place.
-* Dynamic queries work, but are not heavily tested. See the section on that.
+* Advanced optimization should now work, but untested.
+* Dynamic queries work. A few things need more work.
 ** I need to test having non-dynamic subtrees. That probably doesn't yet work.
 ** Query parameters (e.g. IQueryParams) is as-yet untested.
-** `set-query!` needs to be written
 * Other than the renames and a few minor function moves (from util), it should be API compatible with existing Fulcro apps
-* RENDERING REFRESH is known to have bugs. I have not finished writing the new refresh algorithm. The current version
-should mostly work, but may screw up, especially when working with component local state (e.g. children might appear to
-go back in time).
-** I'm hoping that the new version is significantly faster than stock Om Next.
+* RENDERING REFRESH should work well, and should be faster than stock Om Next. There are several places where I know I
+can make it faster still.
 * New history support needed. I stripped out history for the moment, because 2.0 will include a much more powerful mechanism.
 
 

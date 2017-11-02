@@ -24,10 +24,6 @@
 
 (def ui-active-users-tab (prim/factory ActiveUsersTab))
 
-(m/defmutation set-query [{:keys [factory args]}]
-  (action [{:keys [state]}]
-    (swap! state prim/set-query* factory args)))
-
 (declare ui-leaf)
 
 (defui ^:once Leaf
@@ -41,8 +37,8 @@
   (render [this]
     (let [{:keys [x y]} (prim/props this)]
       (dom/div nil
-        (dom/button #js {:onClick (fn [] (prim/transact! this `[(set-query {:factory ~ui-leaf :args {:query [:x]}})]))} "Set query to :x")
-        (dom/button #js {:onClick (fn [] (prim/transact! this `[(set-query {:factory ~ui-leaf :args {:query [:y]}})]))} "Set query to :y")
+        (dom/button #js {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:x]}))} "Set query to :x")
+        (dom/button #js {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:y]}))} "Set query to :y")
         (dom/button #js {:onClick (fn [e] (if x
                                             (m/set-value! this :x (inc x))
                                             (m/set-value! this :y (inc y))))}
