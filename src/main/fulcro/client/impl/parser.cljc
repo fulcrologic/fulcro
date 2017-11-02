@@ -301,8 +301,6 @@
                                                        value)
                              @mut-ret (assoc-in [key :result] @mut-ret)
                              @error (assoc key {:fulcro.client.primitives/error @error}))))))))]
-         (cond-> (reduce step (if (nil? target) {} []) query)
-           ; TODO: This should no longer be needed! Yay, performance boost! However, adding time metadata might be necessary
-           (and (nil? target) (not elide-paths?) false) (path-meta path query)))))))
+         (reduce step (if (nil? target) {} []) query))))))
 
 (defn dispatch [_ k _] k)

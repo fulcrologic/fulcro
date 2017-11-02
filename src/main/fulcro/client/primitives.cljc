@@ -25,6 +25,16 @@
            (:import [java.io Writer])
      :cljs (:import [goog.debug Console])))
 
+(defn add-basis-time
+  "Recursively add the given basis time to all of the maps in the props."
+  [props time]
+  (prewalk (fn [ele]
+             (if (map? ele)
+               (vary-meta ele assoc ::time time)
+               ele)) props))
+
+(defn get-basis-time [props] (or (-> props meta ::time) :unset))
+
 (defn collect-statics [dt]
   (letfn [(split-on-static [forms]
             (split-with (complement '#{static}) forms))
@@ -201,14 +211,17 @@
              next-props#        (goog.object/get next-props# "omcljs$value")
              next-props#        (cond-> next-props#
                                   (instance? OmProps next-props#) unwrap)
-             props-changed?#    (not= (fulcro.client.primitives/props this#)
-                                  next-props#)
+             current-props#     (fulcro.client.primitives/props this#)
+             ; a parent could send in stale props due to a component-local state change..make sure we don't use them. (Props have a timestamp on metadata)
+             next-props-stale?# (> (get-basis-time current-props#) (get-basis-time next-props#))
+             props-changed?#    (and
+                                  (not next-props-stale?#)
+                                  (not= current-props# next-props#))
              state-changed?#    (and (.. this# ~'-state)
                                   (not= (goog.object/get (. this# ~'-state) "omcljs$state")
                                     (goog.object/get next-state# "omcljs$state")))
              children-changed?# (not= (.. this# -props -children)
                                   next-children#)]
-         (js/console.log :incoming-props next-props# :PC props-changed?# :SC state-changed?# :CC children-changed?#)
          (or props-changed?# state-changed?# children-changed?#)))
      ~'componentWillUpdate
      ([this# next-props# next-state#]
@@ -952,7 +965,6 @@
                   t   (if-not (nil? *reconciler*)
                         (p/basis-t *reconciler*)
                         0)]
-              (js/console.log :FACTORY :t t :basis-t (p/basis-t *reconciler*) :meta (meta props) :depth *depth*)
               (create-element class
                 #js {:key               key
                      :ref               ref
@@ -1719,16 +1731,14 @@
   "Finds props for a given component. Returns ::no-ident if the component has
   no ident (which prevents localized update). This eliminates the need for
   path data."
-  [{:keys [parser state #?(:clj pathopt :cljs ^boolean pathopt)] :as env} c]
+  [{:keys [parser state] :as env} c]
   (log-info "Running query for " (.. c -constructor -displayName))
   (let [ui (when #?(:clj  (satisfies? Ident c)
                     :cljs (implements? Ident c))
              (let [id    (ident c (props c))
                    query [{id (get-query c @state)}]]
                (get (parser env query) id)))]
-    (if ui
-      ui
-      ::no-ident)))
+    (or ui ::no-ident)))
 
 (defn computed
   "Add computed properties to props. Note will replace any pre-existing
@@ -1763,6 +1773,8 @@
 
 #?(:cljs
    (defn should-update?
+     "Invoke the lifecycle method on the component to see if it would recommend an update given the next-props or next-props
+     and next-state"
      ([c next-props]
       (should-update? c next-props nil))
      ([c next-props next-state]
@@ -1772,7 +1784,10 @@
         #js {:omcljs$state next-state}))))
 
 #?(:cljs
-   (defn- update-props! [c next-props]
+   (defn- update-props!
+     "Store the given props onto the component so that when the factory is called (via forceUpdate) they can be used as the new
+     props for the rendering of that component."
+     [c next-props]
      {:pre [(component? c)]}
      ;; We cannot write directly to props, React will complain
      (doto (.-state c)
@@ -1780,7 +1795,10 @@
          (om-props next-props (p/basis-t (get-reconciler c)))))))
 
 #?(:cljs
-   (defn- update-component! [c next-props]
+   (defn- update-component!
+     "Force an update of a component using the given new props, skipping the render from root. This will also update the
+     recorded reconciler basis time of the props."
+     [c next-props]
      {:pre [(component? c)]}
      (update-props! c next-props)
      (.forceUpdate c)))
@@ -1832,8 +1850,10 @@
                         (assert (or (nil? sel) (vector? sel))
                           "Application root query must be a vector")
                         (if-not (nil? sel)
-                          (let [env (to-env config)
-                                v   ((:parser config) env sel)]
+                          (let [env          (to-env config)
+                                raw-props    ((:parser config) env sel)
+                                current-time (p/basis-t this)
+                                v            (add-basis-time raw-props current-time)]
                             (when-not (empty? v)
                               (renderf v)))
                           (renderf @(:state config)))))]
@@ -1936,15 +1956,16 @@
         (let [cs   (transduce
                      (map #(p/key->components (:indexer config) %))
                      #(into %1 %2) #{} q)
-              env  (to-env config)
+              env  (assoc (to-env config) :reconciler this)
               root (:root @state)]
           #?(:cljs
              (doseq [c ((:optimize config) cs)]             ; sort by depth
-               (js/console.log :reconciler-seq :basis (p/basis-t this) :ctime (t c))
-               (let [props-change? (> (p/basis-t this) (t c))]
+               (let [current-time   (p/basis-t this)
+                     component-time (t c)
+                     props-change?  (> current-time component-time)]
                  (when (mounted? c)
                    (let [computed       (get-computed (props c))
-                         next-raw-props (fulcro-ui->props env c)
+                         next-raw-props (add-basis-time (fulcro-ui->props env c) current-time)
                          force-root?    (= ::no-ident next-raw-props) ; screw focused query...
                          next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
                      (when force-root?
