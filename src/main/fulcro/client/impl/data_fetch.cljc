@@ -3,7 +3,7 @@
             [fulcro.client.primitives :as om]
             [fulcro.client.impl.protocols :as omp]
             [fulcro.util :as util]
-            [fulcro.client.util :refer [force-render]]
+            [fulcro.client.util :refer [force-render integrate-ident]]
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
             [fulcro.client.logging :as log]
@@ -19,7 +19,7 @@
 ; Built-in mutation for adding a remote query to the network requests.
 (defn data-state?
   "Test if the given bit of state is a data fetch state-tracking marker"
-  [state] (contains? state ::type))
+  [state] (and (map? state) (contains? state ::type)))
 
 (letfn [(is-kind? [state type]
           (if (data-state? state)
@@ -361,13 +361,55 @@
   "Composes together the queries of a sequence of data states into a single query."
   [items] (vec (mapcat (fn [item] (data-query item)) items)))
 
-(defn- set-global-loading [reconciler]
+(defn- set-global-loading! [reconciler]
   "Sets the global :ui/loading-data to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
   (let [state-atom (om/app-state reconciler)
         loading?   (boolean (seq (get @state-atom :fulcro/loads-in-progress)))]
     (swap! state-atom assoc :ui/loading-data loading?)))
 
-(defn relocate-targeted-results
+(defn replacement-target? [t] (-> t meta ::replace boolean))
+(defn prepend-target? [t] (-> t meta ::prepend boolean))
+(defn append-target? [t] (-> t meta ::append boolean))
+(defn multiple-targets? [t] (-> t meta ::multiple-targets boolean))
+
+(defn special-target? [target]
+  (boolean (seq (set/intersection (-> target meta keys) #{::replace ::append ::prepend ::multiple-targets}))))
+
+(defn process-target
+  ([state source-path target] (process-target state source-path target true))
+  ([state source-path target remove-ok?]
+   {:pre [(vector? target)]}
+   (let [ident-to-place (cond (util/ident? source-path) source-path
+                              (keyword? source-path) (get state source-path)
+                              :else (get-in state source-path))
+         many-idents?   (every? util/ident? ident-to-place)]
+     (cond
+       (and (util/ident? source-path)
+         (not (special-target? target))) (-> state
+                                           (assoc-in target ident-to-place))
+       (not (special-target? target)) (cond->
+                                        (assoc-in state target ident-to-place)
+                                        remove-ok? (dissoc source-path))
+       (multiple-targets? target) (cond-> (reduce (fn [s t] (process-target s source-path t false)) state target)
+                                    (and (not (util/ident? source-path)) remove-ok?) (dissoc source-path))
+       (and many-idents? (special-target? target)) (let [state            (if remove-ok?
+                                                                            (dissoc state source-path)
+                                                                            state)
+                                                         target-has-many? (vector? (get-in state target))]
+                                                     (if target-has-many?
+                                                       (cond
+                                                         (prepend-target? target) (update-in state target (fn [v] (vec (concat ident-to-place v))))
+                                                         (append-target? target) (update-in state target (fn [v] (vec (concat v ident-to-place))))
+                                                         :else state)
+                                                       (assoc-in state target ident-to-place)))
+       (special-target? target) (cond-> (dissoc state source-path)
+                                  (prepend-target? target) (integrate-ident ident-to-place :prepend target)
+                                  (append-target? target) (integrate-ident ident-to-place :append target)
+                                  (replacement-target? target) (integrate-ident ident-to-place :replace target))
+       :else state))))
+
+
+(defn relocate-targeted-results!
   "For items that are manually targeted, move them in app state from their result location to their target location."
   [state-atom items]
   (swap! state-atom
@@ -377,13 +419,9 @@
                       explicit-target (or (data-target item) [])
                       relocate?       (and
                                         (nil? (data-field item))
-                                        (keyword? default-target)
                                         (not-empty explicit-target))]
                   (if relocate?
-                    (let [value (get state default-target)]
-                      (-> state
-                        (dissoc (data-query-key item))
-                        (assoc-in explicit-target value)))
+                    (process-target state default-target explicit-target)
                     state))) state-map items))))
 
 (defn- remove-marker
@@ -434,12 +472,12 @@
           marked-response    (plumbing/mark-missing response query)
           app-state          (om/app-state reconciler)
           ran-mutations      (atom false)
-          remove-markers     (fn [] (doseq [item loading-items]
+          remove-markers!    (fn [] (doseq [item loading-items]
                                       (swap! app-state (fn [s]
                                                          (cond-> s
                                                            :always (update :fulcro/loads-in-progress disj (data-uuid item))
                                                            (data-marker? item) (remove-marker item))))))
-          run-post-mutations (fn [] (doseq [item loading-items]
+          run-post-mutations! (fn [] (doseq [item loading-items]
                                       (when-let [mutation-symbol (::post-mutation item)]
                                         (reset! ran-mutations true)
                                         (let [params       (or (::post-mutation-params item) {})
@@ -447,11 +485,11 @@
                                           (some-> (m/mutate (callback-env reconciler item original-env) mutation-symbol params)
                                             :action
                                             (apply []))))))]
-      (remove-markers)
+      (remove-markers!)
       (om/merge! reconciler marked-response query)
-      (relocate-targeted-results app-state loading-items)
-      (run-post-mutations)
-      (set-global-loading reconciler)
+      (relocate-targeted-results! app-state loading-items)
+      (run-post-mutations!)
+      (set-global-loading! reconciler)
       (if (contains? refresh-set :fulcro/force-root)
         (om/force-root-render! reconciler)
         (force-render reconciler to-refresh)))))
@@ -492,5 +530,5 @@
                                        (apply []))))))]
       (mark-errors)
       (run-fallbacks)
-      (set-global-loading reconciler)
+      (set-global-loading! reconciler)
       (om/force-root-render! reconciler))))
