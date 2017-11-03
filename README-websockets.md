@@ -65,7 +65,7 @@ Hooking Fulcro websockets into the system is simple. We will add the `ChannelSer
 (defn make-system []
   (core/make-fulcro-server
     :config-path "config/app.edn"
-    :parser (om/parser {:read logging-query :mutate logging-mutate})
+    :parser (prim/parser {:read logging-query :mutate logging-mutate})
     :parser-injections #{}
     :components {:channel-server  (cs/make-channel-server)
                  :channel-wrapper (make-channel-listener)}
@@ -86,7 +86,7 @@ In your api you may add something like this:
                   (push ws-net id verb edn)) ;; Use the push protocol function on the ws-net to send to clients.
                 (disj clients cid)))))
 
-(defmulti apimutate om/dispatch)
+(defmulti apimutate prim/dispatch)
 
 (defmethod apimutate 'datum/add [{:keys [ws-net cid] :as env} _ params] ;; ws-net is the protocol defined in fulcro-websockets and it is added to the environment for use by mutations and components.
   {:action (fn []
@@ -117,7 +117,7 @@ We will also need to extend the `fulcro.websockets.networking/push-received` mul
 (require '[fulcro.websockets.networking :as fwn])
 
 (defmethod fwn/push-received :app/data-update [{:keys [reconciler] :as app} {:keys [topic msg] :as message}] ;; message => {:topic verb :msg edn}
-  (om/transact! reconciler `[(do.with/data {:data msg}) :data]))
+  (prim/transact! reconciler `[(do.with/data {:data msg}) :data]))
 ```
 
 Note that you have access to the reconciler (for that matter the entire app) here. You can call `(fulcro.client.primitives/merge! reconciler ...)` or `(fulcro.client.primitives/transact! reconciler ...)` alternatively. That part is up to you.

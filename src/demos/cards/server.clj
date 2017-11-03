@@ -1,5 +1,5 @@
 (ns cards.server
-  (:require [fulcro.server :as om]
+  (:require [fulcro.server :as prim]
             [taoensso.timbre :as timbre]
             [fulcro.client.impl.parser :as op]
             [recipes.background-loads-server :as bg]
@@ -41,7 +41,7 @@
     (core/make-fulcro-server
       :config-path "config/demos.edn"
       ;; This is fulcro.server/fulcro-parser, but we've added in logging
-      :parser (om/parser {:read logging-query :mutate logging-mutate})
+      :parser (prim/parser {:read logging-query :mutate logging-mutate})
       :parser-injections (cond-> #{:authorization}
                            include-postgres? (conj :sqldb))
       ;; extra routes (for websockets demo)

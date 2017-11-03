@@ -1,6 +1,6 @@
 (ns cards.defrouter-list-and-editor-cards
   (:require [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as om :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui]]
             [fulcro.client.dom :as dom]
             [recipes.defrouter-list-and-editor :as ex]
             [fulcro.client.mutations :as m]

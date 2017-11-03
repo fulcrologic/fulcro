@@ -1,6 +1,6 @@
 (ns fulcro-devguide.J-Exercise-on-Putting-It-Together
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [solutions.putting-together.soln-ex-1 :as soln1]
             [solutions.putting-together.soln-ex-2 :as soln2]
@@ -68,11 +68,11 @@
 (defui ^:once CheckSetupRoot
   static fc/InitialAppState
   (initial-state [this params] {})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key :something])
   Object
   (render [this]
-    (let [{:keys [ui/react-key something]} (om/props this)]
+    (let [{:keys [ui/react-key something]} (prim/props this)]
       (dom/div #js {:key react-key :style #js {:border "1px solid black"}}
         (dom/button #js {:onClick #(df/load this :something nil)} "Load")
         (if (pos? something)
@@ -154,7 +154,7 @@
   hooked to `:onChange` of the input.
 
   Once you've done that, hook up the input field and button to add items. The mutation should add a new item to the database
-  of items and append it (use `integrate-ident!`) to the list of items. Remember to use `om/tempid` (as a
+  of items and append it (use `integrate-ident!`) to the list of items. Remember to use `prim/tempid` (as a
   parameter of the UI transaction) to generate an ID for the new item.
 
   Next, hook up the delete button to remove items.

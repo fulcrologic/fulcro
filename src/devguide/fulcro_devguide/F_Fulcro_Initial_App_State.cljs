@@ -1,6 +1,6 @@
 (ns fulcro-devguide.F-Fulcro-Initial-App-State
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
@@ -11,25 +11,25 @@
 (defui Child
   static fc/InitialAppState
   (initial-state [this params] {:id 1 :x 1})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :x])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:child/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [x]} (om/props this)]
+    (let [{:keys [x]} (prim/props this)]
       (dom/p nil (str "Child x: " x)))))
 
-(def ui-child (om/factory Child))
+(def ui-child (prim/factory Child))
 
 (defui Root
   static fc/InitialAppState
   (initial-state [this params] {:root-prop 42 :child (fc/get-initial-state Child {})})
-  static om/IQuery
-  (query [this] [:ui/react-key :root-prop {:child (om/get-query Child)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key :root-prop {:child (prim/get-query Child)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key root-prop child]} (om/props this)]
+    (let [{:keys [ui/react-key root-prop child]} (prim/props this)]
       (dom/div #js {:style #js {:border "1px solid black"} :key react-key}
         (str "Root prop: " root-prop)
         (ui-child child)))))
@@ -120,9 +120,9 @@
 
   ```
   ; suggested query on Root component:
-  [{:tab-switcher (om/get-query TabSwitcher)}]
+  [{:tab-switcher (prim/get-query TabSwitcher)}]
   ; which expands to:
-  [{:tab-switcher { :main (om/get-query Main) :settings (om/get-query Settings) }}]
+  [{:tab-switcher { :main (prim/get-query Main) :settings (prim/get-query Settings) }}]
   ```
 
   and the `ident` function generates idents `[:main-tab :id]` and `[:settings-tab :id]` for the two possible tabs. What
@@ -197,34 +197,34 @@
 (defui ^:once AQueryRoot
   static fc/InitialAppState
   (initial-state [c p] {})                                  ; empty, but present initial state
-  static om/IQuery
+  static prim/IQuery
   (query [this] [[:root-prop '_]])                          ; A asks for something from root, but has no local props (empty map)
   Object
   (render [this]
-    (let [{:keys [root-prop]} (om/props this)]
+    (let [{:keys [root-prop]} (prim/props this)]
       (dom/p nil "A got " (if root-prop root-prop "Nothing!")))))
 
-(def ui-a (om/factory AQueryRoot))
+(def ui-a (prim/factory AQueryRoot))
 
 (defui ^:once BQueryRoot
   ; no initial state
-  static om/IQuery
+  static prim/IQuery
   (query [this] [[:root-prop '_]])                          ; B asks for something from root, no local props (nil for state)
   Object
   (render [this]
-    (let [{:keys [root-prop]} (om/props this)]
+    (let [{:keys [root-prop]} (prim/props this)]
       (dom/p nil "B got " (if root-prop root-prop "Nothing!")))))
 
-(def ui-b (om/factory BQueryRoot))
+(def ui-b (prim/factory BQueryRoot))
 
 (defui ^:once RootQueryRoot
   static fc/InitialAppState
   (initial-state [c p] {:root-prop 42 :a (fc/get-initial-state AQueryRoot {}) :b nil}) ; b has no state
-  static om/IQuery
-  (query [this] [{:a (om/get-query AQueryRoot) :b (om/get-query BQueryRoot)}])
+  static prim/IQuery
+  (query [this] [{:a (prim/get-query AQueryRoot) :b (prim/get-query BQueryRoot)}])
   Object
   (render [this]
-    (let [{:keys [a b]} (om/props this)]
+    (let [{:keys [a b]} (prim/props this)]
       (dom/div nil
         (ui-a a)
         (ui-b b)))))

@@ -7,7 +7,7 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.core :as fc]
-    [fulcro.client.primitives :as om]))
+    [fulcro.client.primitives :as prim]))
 
 (dc/defcard security-card
   "
@@ -81,7 +81,7 @@
   (defn make-system []
     (core/make-fulcro-server
       :config-path \"config/demos.edn\"
-      :parser (om/parser {:read logging-query :mutate logging-mutate})
+      :parser (prim/parser {:read logging-query :mutate logging-mutate})
       :parser-injections #{:authentication}
       :components {
                    ; Server security demo: This puts itself into the Ring pipeline to add user info to the request

@@ -2,7 +2,7 @@
   (:require
     [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro-css.css :as css]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.dom :as dom]))
 
 (defonce theme-color (atom :blue))
@@ -14,12 +14,12 @@
   (include-children [this] [])
   Object
   (render [this]
-    (let [{:keys [label]} (om/props this)
+    (let [{:keys [label]} (prim/props this)
           ; use destructuring against the name you invented to get the localized classname
           {:keys [thing]} (css/get-classnames Child)]
       (dom/div #js {:className thing} label))))
 
-(def ui-child (om/factory Child))
+(def ui-child (prim/factory Child))
 
 (declare change-color)
 (defui ^:once Root
@@ -27,11 +27,11 @@
   (local-rules [this] [])
   ; Compose children with local reasoning. Dedupe is automatic if two UI paths cause re-inclusion.
   (include-children [this] [Child])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key])
   Object
   (render [this]
-    (let [{:keys [ui/react-key child]} (om/props this)]
+    (let [{:keys [ui/react-key child]} (prim/props this)]
       (dom/div #js {:key react-key}
         (dom/button #js {:onClick (fn [e]
                                     ; change the atom, and re-upsert the CSS. Look at the elements in your dev console.

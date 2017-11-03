@@ -1,5 +1,5 @@
 (ns fulcro-devguide.state-reads.parser-3
-  (:require [fulcro.client.primitives :as om]))
+  (:require [fulcro.client.primitives :as prim]))
 
 (def app-state (atom {
                       :load/start-time 40000.0              ;stored in ms
@@ -16,7 +16,7 @@
     :load/start-time {:value (convert (get @state key) (or (:units params) :ms))}
     nil))
 
-(def parser (om/parser {:read read}))
+(def parser (prim/parser {:read read}))
 
 (def parse-result-secs (parser {:state app-state} '[(:load/start-time {:units :seconds})]))
 (def parse-result-mins (parser {:state app-state} '[(:load/start-time {:units :minutes})]))

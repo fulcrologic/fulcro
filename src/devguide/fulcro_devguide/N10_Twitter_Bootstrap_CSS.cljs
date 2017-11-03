@@ -1,5 +1,5 @@
 (ns fulcro-devguide.N10-Twitter-Bootstrap-CSS
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]

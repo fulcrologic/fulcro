@@ -1,6 +1,6 @@
 (ns fulcro-devguide.M40-Advanced-Server-Topics
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
             [devcards.core :as dc :refer-macros [defcard-doc deftest]]
@@ -190,7 +190,7 @@
   (initial-state [this params] {})
   Object
   (render [this]
-    (dom/button #js {:onClick #(om/transact! this '[(exercise5/trigger)])} "Click Me")))
+    (dom/button #js {:onClick #(prim/transact! this '[(exercise5/trigger)])} "Click Me")))
 
 (defcard-fulcro server-trigger
   "This card will trigger your server mutation.

@@ -11,7 +11,7 @@
     [clojure.tools.reader :as reader]
     [clojure.spec.alpha :as s]
     [fulcro.client.core :as fc]
-    [fulcro.client.primitives :as om+]
+    [fulcro.client.primitives :as prim+]
     [fulcro.util :as uu :refer [conform!]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
@@ -492,7 +492,7 @@
       (element-names form))))
 
 (defn form-reduce
-  "Reduces over a `form` acquired via `om/props` on a component,
+  "Reduces over a `form` acquired via `prim/props` on a component,
    at each step calls `F` with each form.
    `init` is the initial value for the reduce.
 
@@ -704,13 +704,13 @@
   Returns a valid symbolic data structure that can be used inside of transact:
 
   ```
-  (om/transact! `[~@(get-on-form-change-mutation form :f :blur)])
+  (prim/transact! `[~@(get-on-form-change-mutation form :f :blur)])
   ```
 
   will convert to something like:
 
   ```
-  (om/transact! `[(your-change-handler-symbol {:form-id [:form 1] :field :f :kind :blur})])
+  (prim/transact! `[(your-change-handler-symbol {:form-id [:form 1] :field :f :kind :blur})])
   ```
 
   This function returns a list of mutations expressions to run (which will contain zero or one).
@@ -858,7 +858,7 @@
     form (validatable-fields form)))
 
 (defn would-be-valid?
-  "Checks (recursively on this form and subforms from om/props) if the values on the given form would be
+  "Checks (recursively on this form and subforms from prim/props) if the values on the given form would be
   considered valid if full validation were to be run on the form. Returns true/false."
   [form-props]
   (letfn [(non-recursive-valid? [form]

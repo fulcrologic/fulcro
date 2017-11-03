@@ -2,7 +2,7 @@
   (:require
     [fulcro.client.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.cards :refer [fulcro-app]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
@@ -50,31 +50,31 @@
 (defui HTMLConverter
   static fc/InitialAppState
   (initial-state [clz params] {:html "<div></div>" :cljs (list)})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:cljs :html])
-  static om/Ident
+  static prim/Ident
   (ident [this p] [:top :conv])
   Object
   (render [this]
-    (let [{:keys [html cljs]} (om/props this)]
+    (let [{:keys [html cljs]} (prim/props this)]
       (dom/div #js {:className ""}
         (dom/textarea #js {:cols     80 :rows 10
                            :onChange (fn [evt] (m/set-string! this :html :event evt))
                            :value    html})
         (dom/div #js {} (edn/html-edn cljs))
         (dom/button #js {:className "c-button" :onClick (fn [evt]
-                                                          (om/transact! this `[(convert {})]))} "Convert")))))
+                                                          (prim/transact! this `[(convert {})]))} "Convert")))))
 
-(def ui-html-convert (om/factory HTMLConverter))
+(def ui-html-convert (prim/factory HTMLConverter))
 
 (defui HTMLConverterApp
   static fc/InitialAppState
   (initial-state [clz params] {:converter (fc/initial-state HTMLConverter {})})
-  static om/IQuery
-  (query [this] [{:converter (om/get-query HTMLConverter)} :react-key])
+  static prim/IQuery
+  (query [this] [{:converter (prim/get-query HTMLConverter)} :react-key])
   Object
   (render [this]
-    (let [{:keys [converter ui/react-key]} (om/props this)]
+    (let [{:keys [converter ui/react-key]} (prim/props this)]
       (dom/div
         #js {:key react-key} (ui-html-convert converter)))))
 

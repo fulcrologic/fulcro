@@ -1,7 +1,7 @@
 (ns fulcro-devguide.B-UI
   (:require-macros
     [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             cljsjs.d3
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
@@ -17,15 +17,15 @@
   (render [this]
     (dom/div nil "Hello world")))
 
-(def widget (om/factory Widget))
+(def widget (prim/factory Widget))
 
 (defui WidgetWithProperties
   Object
   (render [this]
-    (let [{:keys [name]} (om/props this)]
+    (let [{:keys [name]} (prim/props this)]
       (dom/div nil (str "Hello " name)))))
 
-(def prop-widget (om/factory WidgetWithProperties))
+(def prop-widget (prim/factory WidgetWithProperties))
 
 
 (defcard-doc
@@ -35,7 +35,7 @@
   NOTE - Namespace aliases used in this document:
 
 ```clojure
-(require '[fulcro.client.primitives :as om :refer-macros [defui]]
+(require '[fulcro.client.primitives :as prim :refer-macros [defui]]
          '[fulcro.client.dom :as dom])
 ```
 
@@ -91,7 +91,7 @@
   ## Element factory
 
   In order to render components on the screen you need an element factory.
-  You generate a factory with `om/factory`, which will then
+  You generate a factory with `prim/factory`, which will then
   act like a new 'tag' for your DOM:"
 
   (dc/mkdn-pprint-source widget)
@@ -114,7 +114,7 @@
   a declarative fashion.
 
   For now, understand that you can give data to a stateless component via a simple edn map, and pull them out of
-  `this` using `om/props`:"
+  `this` using `prim/props`:"
   (dc/mkdn-pprint-source WidgetWithProperties)
   (dc/mkdn-pprint-source prop-widget)
   "
@@ -128,28 +128,28 @@
 (defui Person
   Object
   (render [this]
-    (let [{:keys [name]} (om/props this)]
+    (let [{:keys [name]} (prim/props this)]
       (dom/li nil name))))
 
-(def person (om/factory Person {:keyfn :name}))
+(def person (prim/factory Person {:keyfn :name}))
 
 (defui PeopleList
   Object
   (render [this]
-    (let [people (om/props this)]
+    (let [people (prim/props this)]
       (dom/ul nil (map person people)))))
 
-(def people-list (om/factory PeopleList))
+(def people-list (prim/factory PeopleList))
 
 (defui Root
   Object
   (render [this]
-    (let [{:keys [people number]} (om/props this)]
+    (let [{:keys [people number]} (prim/props this)]
       (dom/div nil
                (dom/span nil (str "My lucky number is " number " and I have the following friends:"))
                (people-list people)))))
 
-(def root (om/factory Root))
+(def root (prim/factory Root))
 
 (defcard-doc
   "
@@ -171,12 +171,12 @@
 
   It is important to note that _this is exactly how the composition of UI components always happens_, independent of
   whether or not you use the rest of the features of Om. A root component calls the factory functions of subcomponents
-  with an edn map as the first argument. That map is accessed using `om/props` on `this` within the subcomponent. Data
+  with an edn map as the first argument. That map is accessed using `prim/props` on `this` within the subcomponent. Data
   is passed from component to component through `props`.
 
   ### Don't forget the React DOM key!
 
-  You might notice something new here: the `om/factory` function is supplied with an additional map `{:keyfn :name}`.
+  You might notice something new here: the `prim/factory` function is supplied with an additional map `{:keyfn :name}`.
   The factory function can be optionally supplied with two keywords: `:keyfn` and `:validator`. `:keyfn` produces the
   <a href=\"https://facebook.github.io/react/docs/multiple-components.html\" target=\"_blank\">React key property</a>
   from component props (here it's `:name`), while `:validator` takes a function that asserts the validity of the props received.
@@ -197,8 +197,8 @@
 (defui Root-computed
   Object
   (render [this]
-    (let [{:keys [people number b]} (om/props this)
-          {:keys [incHandler boolHandler]} (om/get-computed this)]
+    (let [{:keys [people number b]} (prim/props this)
+          {:keys [incHandler boolHandler]} (prim/get-computed this)]
       (dom/div nil
                (dom/button #js {:onClick #(boolHandler)} "Toggle Luck")
                (dom/button #js {:onClick #(incHandler)} "Increment Number")
@@ -206,7 +206,7 @@
                                   " and I have the following friends:"))
                (people-list people)))))
 
-(def root-computed (om/factory Root-computed))
+(def root-computed (prim/factory Root-computed))
 
 (defcard-doc
   "
@@ -224,7 +224,7 @@
   As such, Om has an additional mechanism for passing things that were not specifically asked for in a query: Computed
   properties.
 
-  For your Om UI to function properly you must attach computed properties to props via the helper function `om/computed`.
+  For your Om UI to function properly you must attach computed properties to props via the helper function `prim/computed`.
   The child can look for these computed properties using `get-computed`.
   "
 
@@ -244,7 +244,7 @@
                  sideband-data {:incHandler  (fn [] (swap! data-atom-from-devcards update-in [:number] inc))
                                 :boolHandler (fn [] (swap! data-atom-from-devcards update-in [:b] not))}
                  ]
-             (root-computed (om/computed prop-data sideband-data))))
+             (root-computed (prim/computed prop-data sideband-data))))
          {:number 42 :people [{:name "Sally"}] :b false}
          {:inspect-data true
           :history      true})
@@ -255,12 +255,12 @@
                   {:counter 0})
   (render [this]
      (dom/div nil
-              (dom/button #js {:onClick #(om/update-state! this update :counter inc)}
+              (dom/button #js {:onClick #(prim/update-state! this update :counter inc)}
                           "Increment me!")
               (dom/span nil
-                        (om/get-state this :counter)))))
+                        (prim/get-state this :counter)))))
 
-(def simple-counter (om/factory SimpleCounter))
+(def simple-counter (prim/factory SimpleCounter))
 
 (defn render-squares [component props]
   (let [svg (-> js/d3 (.select (dom/node component)))
@@ -288,7 +288,7 @@
 
 (defui D3Thing
   Object
-  (componentDidMount [this] (render-squares this (om/props this)))
+  (componentDidMount [this] (render-squares this (prim/props this)))
   (shouldComponentUpdate [this next-props next-state] false)
   (componentWillReceiveProps [this props] (render-squares this props))
   (render [this]
@@ -296,7 +296,7 @@
                   :width   200 :height 200
                   :viewBox "0 0 1000 1000"})))
 
-(def d3-thing (om/factory D3Thing))
+(def d3-thing (prim/factory D3Thing))
 
 (defcard-doc
   "
@@ -335,7 +335,7 @@
 
   ### Form inputs
 
-  Om already hooks local state to form elements (see [om.dom](https://github.com/omcljs/om/blob/master/src/main/om/dom.cljs))
+  Om already hooks local state to form elements (see [om.dom](https://github.com/omcljs/prim/blob/master/src/main/prim/dom.cljs))
   So, in fact, you have to override this to *not* use component local state. For text controls we'd
  recommend you leave it this way. For other controls like checkboxes it is probably best to override this.
 
@@ -344,7 +344,7 @@
   Using local state is useful in a few cases.  However, it should likely be your last option. If you should need
   to use it, it is rather simple, and om provides nice methods for accessing and setting the local state of a
   component. The `initLocalState` method should return a map, of values. You can access those values via
-  `om/get-state`, `om/set-state!`, and `om/update-state!`"
+  `prim/get-state`, `prim/set-state!`, and `prim/update-state!`"
 
   (dc/mkdn-pprint-source SimpleCounter)
   (dc/mkdn-pprint-source simple-counter))
@@ -415,9 +415,9 @@
 
   - Remember to use `#js` to transform attribute maps for passing to DOM elements.
   - Use *cljs* maps as input to your own Elements: `(my-ui-thing {:a 1})` and `(dom/div #js { :data-x 1 } ...)`.
-  - Extract properties with `om/props`. This is the same for stateful (with queries) or stateless components.
-  - Add parent-generated things (like callbacks) using `om/computed` and pull them from the component with
-    `(om/get-computed (om/props this)`.
+  - Extract properties with `prim/props`. This is the same for stateful (with queries) or stateless components.
+  - Add parent-generated things (like callbacks) using `prim/computed` and pull them from the component with
+    `(prim/get-computed (prim/props this)`.
 
 
   You may do additional [UI exercises](#!/fulcro_devguide.B_UI_Exercises), or continue on to the

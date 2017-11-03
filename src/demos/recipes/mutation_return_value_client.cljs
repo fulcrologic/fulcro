@@ -3,7 +3,7 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.core :as fc :refer [InitialAppState initial-state]]))
 
 (defmulti merge-return-value (fn [state sym return-value] sym))
@@ -18,26 +18,26 @@
 (defui ^:once Child
   static InitialAppState
   (initial-state [cls params] {:id 0 :volume 5})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :volume])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:child/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [id volume]} (om/props this)]
+    (let [{:keys [id volume]} (prim/props this)]
       (dom/div nil
         (dom/p nil "Current volume: " volume)
-        (dom/button #js {:onClick #(om/transact! this `[(rv/crank-it-up ~{:value volume})])} "+")))))
+        (dom/button #js {:onClick #(prim/transact! this `[(rv/crank-it-up ~{:value volume})])} "+")))))
 
-(def ui-child (om/factory Child))
+(def ui-child (prim/factory Child))
 
 (defui ^:once Root
   static InitialAppState
   (initial-state [cls params]
     {:child (initial-state Child {})})
-  static om/IQuery
-  (query [this] [:ui/react-key {:child (om/get-query Child)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:child (prim/get-query Child)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key child]} (om/props this)]
+    (let [{:keys [ui/react-key child]} (prim/props this)]
       (dom/div #js {:key react-key} (ui-child child)))))

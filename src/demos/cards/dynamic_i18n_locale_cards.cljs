@@ -1,22 +1,22 @@
 (ns cards.dynamic-i18n-locale-cards
   (:require [fulcro.client.dom :as dom]
             [fulcro.i18n :as i18n :refer [tr]]
-            [fulcro.client.primitives :as om :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui]]
             [fulcro.client.dom :as dom]
             [fulcro.client.mutations :as m]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]))
 
 (defui ^:once RootNode
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/locale :ui/react-key])
   Object
   (render [this]
-    (let [{:keys [ui/locale ui/react-key]} (om/props this)]
+    (let [{:keys [ui/locale ui/react-key]} (prim/props this)]
       (dom/div nil
         (dom/h4 nil (tr "Locale Tests. Current locale: ") (name locale))
         (dom/p nil (tr "This is a test."))
-        (mapv (fn [l] (dom/button #js {:key l :onClick #(om/transact! this `[(m/change-locale {:lang ~l})])} l))
+        (mapv (fn [l] (dom/button #js {:key l :onClick #(prim/transact! this `[(m/change-locale {:lang ~l})])} l))
           ["en" "es-MX" "de"])))))
 
 (defcard-doc

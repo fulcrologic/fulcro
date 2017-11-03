@@ -7,7 +7,7 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.core :as fc]
-    [fulcro.client.primitives :as om]
+    [fulcro.client.primitives :as prim]
     [fulcro.websockets.networking :as wn]))
 
 (defonce cs-net (wn/make-channel-client "/chsk" :global-error-callback (constantly nil)))

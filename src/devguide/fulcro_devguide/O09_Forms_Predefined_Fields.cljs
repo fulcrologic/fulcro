@@ -2,7 +2,7 @@
   (:require
     [fulcro.client.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.cards :refer [fulcro-app]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
@@ -40,14 +40,14 @@
                      (f/radio-input :rating #{1 2 3 4 5})
                      (f/textarea-input :essay)
                      (file-upload-input :short-story)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [f/form-root-key f/form-key :db/id :text :number :mood :done? :rating :essay
-                 {:short-story (om/get-query FileUploadInput)}])
-  static om/Ident
+                 {:short-story (prim/get-query FileUploadInput)}])
+  static prim/Ident
   (ident [this props] [:sink/by-id (:db/id props)])
   Object
   (render [this]
-    (let [props      (om/props this)
+    (let [props      (prim/props this)
           not-valid? (not (f/would-be-valid? props))]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this props :text "Text:")
@@ -67,17 +67,17 @@
         (b/button {:disabled not-valid?
                    :onClick  #(f/commit-to-entity! this :remote true)} "Submit")))))
 
-(def ui-sink (om/factory KitchenSink {:keyfn :db/id}))
+(def ui-sink (prim/factory KitchenSink {:keyfn :db/id}))
 
 (defui ^:once CommitRoot
   static fc/InitialAppState
   (initial-state [this _] {:sink (fc/initial-state KitchenSink {:db/id 1})})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key
-                 {:sink (om/get-query KitchenSink)}])
+                 {:sink (prim/get-query KitchenSink)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key sink]} (om/props this)]
+    (let [{:keys [ui/react-key sink]} (prim/props this)]
       (dom/div #js {:key react-key}
         (ui-sink sink)))))
 

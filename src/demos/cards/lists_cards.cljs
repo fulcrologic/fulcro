@@ -15,7 +15,7 @@
   of the UI will refer to the list items by ident.
 
   Manipulations of the list should be done from the parent, since in general you will want the parent to re-render
-  when the list changes. You use `om/computed` to pass along such locally generated data (the callback).
+  when the list changes. You use `prim/computed` to pass along such locally generated data (the callback).
 
   Removing an item from a list requires at least one change to the database, possibly two:
 

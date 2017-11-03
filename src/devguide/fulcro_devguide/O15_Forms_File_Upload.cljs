@@ -2,7 +2,7 @@
   (:require
     [fulcro.client.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
@@ -33,20 +33,20 @@
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
                      (file-upload-input :image-uploads)])
-  static om/IQuery
-  (query [this] [f/form-root-key f/form-key :db/id :text {:image-uploads (om/get-query FileUploadInput)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [f/form-root-key f/form-key :db/id :text {:image-uploads (prim/get-query FileUploadInput)}])
+  static prim/Ident
   (ident [this props] [:example/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [db/id] :as props} (om/props this)
-          onDone     (om/get-computed this :onDone)
+    (let [{:keys [db/id] :as props} (prim/props this)
+          onDone     (prim/get-computed this :onDone)
           not-valid? (not (f/would-be-valid? props))]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this props :image-uploads "Image Files:" :accept "image/*" :multiple? true
           :renderFile (fn [file-component]
-                        (let [onCancel (om/get-computed file-component :onCancel)
-                              {:keys [file/id file/name file/size file/progress file/status] :as props} (om/props file-component)
+                        (let [onCancel (prim/get-computed file-component :onCancel)
+                              {:keys [file/id file/name file/size file/progress file/status] :as props} (prim/props file-component)
                               label    (fu/cropped-name name 20)]
                           (dom/li #js {:style #js {:listStyleType "none"} :key (str "file-" id)}
                             (str label " (" size " bytes) ") (b/glyphicon {:size "14pt" :onClick #(onCancel id)} :remove-circle)
@@ -70,21 +70,21 @@
         (b/button {:disabled not-valid?
                    :onClick  #(when onDone (onDone))} "Done")))))
 
-(def ui-example (om/factory FileUploads {:keyfn :db/id}))
+(def ui-example (prim/factory FileUploads {:keyfn :db/id}))
 
 (defui ^:once Image
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:image/by-id (:db/id props)])
   ; each image has an ID and a URL. The upload-server can server images from that URL
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :image/url :ui/fetch-state])
   Object
   (render [this]
-    (let [{:keys [image/url]} (om/props this)]
+    (let [{:keys [image/url]} (prim/props this)]
       (b/col {:xs 4}
         (dom/img #js {:width "100%" :src url})))))
 
-(def ui-image (om/factory Image {:keyfn :db/id}))
+(def ui-image (prim/factory Image {:keyfn :db/id}))
 
 (defn- load-images
   "A helper function to trigger a load of a page of images from the server."
@@ -95,19 +95,19 @@
 (defui ^:once ImageLibrary
   static fc/InitialAppState
   (initial-state [c p] {:db/id (:id p) :ui/page 1 :library/images []})
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:image-library/by-id (:db/id props)])
-  static om/IQuery
-  (query [this] [:db/id :ui/page {:library/images (om/get-query Image)}])
+  static prim/IQuery
+  (query [this] [:db/id :ui/page {:library/images (prim/get-query Image)}])
   Object
   ; Ensure that we have a page of images loaded when we're shown.  Only trigger if the content is actually empty.
   (componentDidMount [this props]
-    (let [{:keys [library/images ui/page]} (om/props this)]
+    (let [{:keys [library/images ui/page]} (prim/props this)]
       (when (and (vector? images) (empty? images))
         (load-images this (or page 1)))))
   (render [this]
-    (let [{:keys [db/id library/images ui/page]} (om/props this)
-          onUpload (om/get-computed this :onUpload)]
+    (let [{:keys [db/id library/images ui/page]} (prim/props this)
+          onUpload (prim/get-computed this :onUpload)]
       (dom/div nil
         (b/button {:onClick #(when onUpload (onUpload))} "Upload")
         ; When things are loading, the images will be a load marker, which is a map. We could also use lazily-loaded here.
@@ -129,7 +129,7 @@
                              (b/row {}
                                (mapv ui-image row))) rows))))))))
 
-(def ui-image-library (om/factory ImageLibrary))
+(def ui-image-library (prim/factory ImageLibrary))
 
 (defmutation clear-upload-list
   "A mutation to clear the list of files that have been uploaded."
@@ -141,34 +141,34 @@
   static fc/InitialAppState
   (initial-state [this _] {:demo          (fc/get-initial-state FileUploads {:db/id 1})
                            :image-library (fc/get-initial-state ImageLibrary {:id 1})})
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:demo/by-id :images])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/show-library?
-                 {:image-library (om/get-query ImageLibrary)}
-                 {:demo (om/get-query FileUploads)}])
+                 {:image-library (prim/get-query ImageLibrary)}
+                 {:demo (prim/get-query FileUploads)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key ui/show-library? demo image-library]} (om/props this)]
+    (let [{:keys [ui/react-key ui/show-library? demo image-library]} (prim/props this)]
       ; simple DOM toggle between the two UIs. This will cause componentWillMount to trigger on the image library, which
       ; will load images if it hasn't already.
       (if show-library?
-        (ui-image-library (om/computed image-library {:onUpload #(m/toggle! this :ui/show-library?)}))
-        (ui-example (om/computed demo {:onDone (fn []
+        (ui-image-library (prim/computed image-library {:onUpload #(m/toggle! this :ui/show-library?)}))
+        (ui-example (prim/computed demo {:onDone (fn []
                                                  ; when moving away from the upload screen, clear the list so we don't see it again when we come back
-                                                 (om/transact! this `[(clear-upload-list {})])
+                                                 (prim/transact! this `[(clear-upload-list {})])
                                                  (m/toggle! this :ui/show-library?))}))))))
 
-(def ui-demo (om/factory ImageLibraryDemo))
+(def ui-demo (prim/factory ImageLibraryDemo))
 
 (defui ^:once DemoRoot
   static fc/InitialAppState
   (initial-state [this _] {:screen (fc/get-initial-state ImageLibraryDemo {})})
-  static om/IQuery
-  (query [this] [:ui/react-key {:screen (om/get-query ImageLibraryDemo)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:screen (prim/get-query ImageLibraryDemo)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key screen]} (om/props this)]
+    (let [{:keys [ui/react-key screen]} (prim/props this)]
       (render-example "100%" "500px"
         (dom/div #js {:key react-key}
           ; In an iframe, so embed list style via react

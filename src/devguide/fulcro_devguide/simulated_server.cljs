@@ -1,6 +1,6 @@
 (ns fulcro-devguide.simulated-server
   (:require
-    [fulcro.client.primitives :as om]
+    [fulcro.client.primitives :as prim]
     [fulcro.client.network :as fcn]))
 
 (defrecord MockNetwork [server]
@@ -12,5 +12,5 @@
 
 (defn make-mock-network [state read+mutate]
   (->MockNetwork
-    (let [parser (om/parser read+mutate)]
+    (let [parser (prim/parser read+mutate)]
       (fn [env tx] (parser (assoc env :state state) tx)))))

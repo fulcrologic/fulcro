@@ -6,7 +6,7 @@
     [fulcro.client.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as om :refer [defui]]))
+    [fulcro.client.primitives :as prim :refer [defui]]))
 
 ;; Just send the mutation to the server, which will return an error
 (defmutation error-mutation [params]
@@ -24,34 +24,34 @@
 (defui ^:once Child
   static fc/InitialAppState
   (initial-state [c params] {})
-  static om/IQuery
+  static prim/IQuery
   ;; you can query for the server-error using a link from any component that composes to root
   (query [_] [[:fulcro/server-error '_] :ui/button-disabled :fulcro/read-error])
-  static om/Ident
+  static prim/Ident
   (ident [_ _] [:error.child/by-id :singleton])
   Object
   (render [this]
-    (let [{:keys [fulcro/server-error ui/button-disabled]} (om/props this)]
+    (let [{:keys [fulcro/server-error ui/button-disabled]} (prim/props this)]
       (dom/div nil
         ;; declare a tx/fallback in the same transact call as the mutation
         ;; if the mutation fails, the fallback will be called
-        (dom/button #js {:onClick  #(om/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
+        (dom/button #js {:onClick  #(prim/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
                          :disabled button-disabled}
           "Click me for error!")
         (dom/button #js {:onClick #(df/load-field this :fulcro/read-error)}
           "Click me for other error!")
         (dom/div nil (str server-error))))))
 
-(def ui-child (om/factory Child))
+(def ui-child (prim/factory Child))
 
 (defui ^:once Root
   static fc/InitialAppState
   (initial-state [c params] {:child (fc/get-initial-state Child {})})
-  static om/IQuery
-  (query [_] [:ui/react-key {:child (om/get-query Child)}])
+  static prim/IQuery
+  (query [_] [:ui/react-key {:child (prim/get-query Child)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key child] :or {ui/react-key "ROOT"}} (om/props this)]
+    (let [{:keys [ui/react-key child] :or {ui/react-key "ROOT"}} (prim/props this)]
       (dom/div #js {:key react-key} (ui-child child)))))
 
 

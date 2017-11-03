@@ -1,5 +1,5 @@
 (ns fulcro-devguide.queries.query-editing
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [cljs.reader :as r]
             [devcards.util.edn-renderer :refer [html-edn]]
             [goog.dom :as gdom]
@@ -13,7 +13,7 @@
 
 (defn run-query [db q]
   (try
-    (om/db->tree (r/read-string q) db db)
+    (prim/db->tree (r/read-string q) db db)
     (catch js/Error e "Invalid Query")))
 
 (def cm-opts
@@ -46,14 +46,14 @@
 (defui ^:once QueryEditor
   Object
   (componentDidMount [this]
-    (let [{:keys [query id]} (om/props this)
+    (let [{:keys [query id]} (prim/props this)
           src (pprint-src query)
           cm (textarea->cm id src)]
-      (om/update-state! this assoc :cm cm)))
+      (prim/update-state! this assoc :cm cm)))
   (render [this]
-    (let [{:keys [id db query-result]} (om/props this)
-          local (om/get-state this)
-          state (om/get-computed this :atom)]
+    (let [{:keys [id db query-result]} (prim/props this)
+          local (prim/get-state this)
+          state (prim/get-computed this :atom)]
       (dom/div nil
         (dom/h4 nil "Database")
         (html-edn db)
@@ -69,7 +69,7 @@
           (dom/h4 nil "Query Result")
           (html-edn query-result))))))
 
-(def ui-query-editor (om/factory QueryEditor))
+(def ui-query-editor (prim/factory QueryEditor))
 
-(def query-editor (fn [state _] (ui-query-editor (om/computed @state {:atom state}))))
+(def query-editor (fn [state _] (ui-query-editor (prim/computed @state {:atom state}))))
 

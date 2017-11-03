@@ -1,7 +1,7 @@
 (ns fulcro-devguide.D-Queries
   (:require-macros
     [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.impl.parser :as p]
             [fulcro-devguide.queries.query-editing :as qe]
             [fulcro.client.dom :as dom]

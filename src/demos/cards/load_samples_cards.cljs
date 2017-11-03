@@ -81,7 +81,7 @@
   this time with an `ident`:
 
   ```
-  (df/load this (om/ident this props) Person)
+  (df/load this (prim/ident this props) Person)
   ```
 
   All of the parameters of this call can be easily derived when calling it from the component needing refreshed, so

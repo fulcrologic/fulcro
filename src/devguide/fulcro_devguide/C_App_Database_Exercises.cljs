@@ -1,6 +1,6 @@
 (ns fulcro-devguide.C-App-Database-Exercises
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
             [cljs.reader :as r]))
@@ -92,7 +92,7 @@
   (is (= {:main-panel
           {:toolbar {:tools [{:label "Cut"} {:label "Copy"}]},
            :canvas  {:data [{:x 1, :y 3}]}}}
-        (om/db->tree '[{:main-panel [{:toolbar [{:tools [:label]}]}
+        (prim/db->tree '[{:main-panel [{:toolbar [{:tools [:label]}]}
                                      {:canvas [{:data [:x :y]}]}]}] ex3-uidb ex3-uidb))))
 
 (defcard-doc

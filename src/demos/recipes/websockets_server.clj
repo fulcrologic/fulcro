@@ -1,6 +1,6 @@
 (ns recipes.websockets-server
   (:require [com.stuartsierra.component :as component]
-            [fulcro.server :as om]
+            [fulcro.server :as prim]
             [fulcro.client.impl.parser :as op]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]

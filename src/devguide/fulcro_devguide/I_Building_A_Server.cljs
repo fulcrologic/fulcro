@@ -31,7 +31,7 @@
     (:require
       [fulcro.easy-server :as server]
       [app.api :as api]
-      [fulcro.server :as om]))
+      [fulcro.server :as prim]))
 
   (defn make-system []
     (server/make-fulcro-server

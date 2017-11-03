@@ -3,7 +3,7 @@
             [fulcro.client.impl.parser :as op]
             [fulcro.server :as server :refer [defmutation defquery-root defquery-entity]]
             [fulcro.easy-server :as easy]
-            [fulcro.client.primitives :as om]
+            [fulcro.client.primitives :as prim]
             fulcro.server
             [ring.util.io :as ring-io]
             [ring.util.request :as ru]

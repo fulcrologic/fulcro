@@ -1,6 +1,6 @@
 (ns fulcro.client.impl.data-fetch
   (:require [fulcro.client.impl.parser :as op]
-            [fulcro.client.primitives :as om]
+            [fulcro.client.primitives :as prim]
             [fulcro.client.impl.protocols :as omp]
             [fulcro.util :as util]
             [fulcro.client.util :refer [force-render integrate-ident]]
@@ -79,7 +79,7 @@
   response-channel will have the response posted to it when the request is done.
   ."
   [remote-name reconciler]
-  (let [state                (om/app-state reconciler)
+  (let [state                (prim/app-state reconciler)
         queued-items         (get @state :fulcro/ready-to-load)
         is-eligible?         (fn [item] (and (::parallel item) (= remote-name (data-remote item))))
         other-items-loading? (boolean (seq (get @state :fulcro/loads-in-progress)))
@@ -158,7 +158,7 @@
   response-channel will have the response posted to it when the request is done.
   ."
   [remote reconciler]
-  (let [state                   (om/app-state reconciler)
+  (let [state                   (prim/app-state reconciler)
         is-eligible?            (fn [item] (= remote (data-remote item)))
         all-items               (get @state :fulcro/ready-to-load)
         items-ready-to-load     (filter is-eligible? all-items)
@@ -228,7 +228,7 @@
         param-keys     (set (keys params))
         unknown-keys   (set/difference param-keys top-level-keys)]
     (when (not (empty? unknown-keys))
-      (log/error (str "Error: You attempted to add parameters for " (pr-str unknown-keys) " to top-level key(s) of " (pr-str (om/ast->query ast)))))
+      (log/error (str "Error: You attempted to add parameters for " (pr-str unknown-keys) " to top-level key(s) of " (pr-str (prim/ast->query ast)))))
     (update-in ast [:children] #(map (fn [c] (if-let [new-params (get params (:dispatch-key c))]
                                                (update c :params merge new-params)
                                                c)) %))))
@@ -241,13 +241,13 @@
     :or   {remote :remote without #{} refresh [] marker true}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
-  (let [old-ast     (om/query->ast query)
+  (let [old-ast     (prim/query->ast query)
         ast         (cond-> old-ast
                       (not-empty without) (elide-ast-nodes without)
                       params (inject-query-params params))
         query-field (first query)
         key         (if (util/join? query-field) (util/join-key query-field) query-field)
-        query'      (om/ast->query ast)]
+        query'      (prim/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
     {::type                 :ready
      ::uuid                 #?(:cljs (str (cljs.core/random-uuid))
@@ -316,7 +316,7 @@
   "Get the 'primary' query key of the data fetch. This is defined as the first keyword of the overall query (which might
   be a simple prop or join key for example)"
   [state]
-  (let [ast  (om/query->ast (-> state ::query))
+  (let [ast  (prim/query->ast (-> state ::query))
         node (-> ast :children first)]
     (:key node)))
 
@@ -363,7 +363,7 @@
 
 (defn- set-global-loading! [reconciler]
   "Sets the global :ui/loading-data to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
-  (let [state-atom (om/app-state reconciler)
+  (let [state-atom (prim/app-state reconciler)
         loading?   (boolean (seq (get @state-atom :fulcro/loads-in-progress)))]
     (swap! state-atom assoc :ui/loading-data loading?)))
 
@@ -441,7 +441,7 @@
 (defn callback-env
   "Build a callback env for post mutations and fallbacks"
   [reconciler load-request original-env]
-  (let [state (om/app-state reconciler)
+  (let [state (prim/app-state reconciler)
         {:keys [::target ::remote ::ident ::field ::query ::post-mutation ::post-mutation-params ::refresh ::marker ::parallel ::fallback]} load-request]
     (merge original-env
       {:state state
@@ -470,7 +470,7 @@
           refresh-set        (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           to-refresh         (vec refresh-set)
           marked-response    (plumbing/mark-missing response query)
-          app-state          (om/app-state reconciler)
+          app-state          (prim/app-state reconciler)
           ran-mutations      (atom false)
           remove-markers!    (fn [] (doseq [item loading-items]
                                       (swap! app-state (fn [s]
@@ -486,12 +486,12 @@
                                             :action
                                             (apply []))))))]
       (remove-markers!)
-      (om/merge! reconciler marked-response query)
+      (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)
       (run-post-mutations!)
       (set-global-loading! reconciler)
       (if (contains? refresh-set :fulcro/force-root)
-        (om/force-root-render! reconciler)
+        (prim/force-root-render! reconciler)
         (force-render reconciler to-refresh)))))
 
 (defn- error-callback
@@ -507,7 +507,7 @@
   [reconciler]
   (fn [error items]
     (let [loading-items (into #{} (map set-loading! items))
-          app-state     (om/app-state reconciler)
+          app-state     (prim/app-state reconciler)
           refresh-set   (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           to-refresh    (vec refresh-set)
           ran-fallbacks (atom false)
@@ -531,4 +531,4 @@
       (mark-errors)
       (run-fallbacks)
       (set-global-loading! reconciler)
-      (om/force-root-render! reconciler))))
+      (prim/force-root-render! reconciler))))

@@ -8,7 +8,7 @@
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as om :refer-macros [defui]]
+            [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.util :as util]
             [fulcro.client.core :as fc]))
 
@@ -43,7 +43,7 @@
   (render [this]
     (let [{:keys [label
                   plot-data
-                  x-step]} (om/props this)
+                  x-step]} (prim/props this)
           start-year (apply min (map :year plot-data))
           end-year   (apply max (map :year plot-data))
           years      (range start-year (inc end-year) x-step)
@@ -74,7 +74,7 @@
                     :domain        #js [min-value max-value]})
         (vline #js {:data points})))))
 
-(def yearly-value-chart (om/factory YearlyValueChart))
+(def yearly-value-chart (prim/factory YearlyValueChart))
 
 (defcard-doc
   "
@@ -171,14 +171,14 @@
   static fc/InitialAppState
   (initial-state [c p] {:ctool (fc/get-initial-state ct/ClipTool {:id        :clipper :aspect-ratio 0.5
                                                                   :image-url minion-image})})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key :ctool])
   Object
   (render [this]
-    (let [{:keys [ui/react-key ctool]} (om/props this)]
+    (let [{:keys [ui/react-key ctool]} (prim/props this)]
       (dom/div #js {:key react-key}
-        (ct/ui-clip-tool (om/computed ctool {:onChange (fn [props] (om/set-state! this props))}))
-        (ct/ui-preview-clip (merge (om/get-state this) {:filename "minions.jpg"
+        (ct/ui-clip-tool (prim/computed ctool {:onChange (fn [props] (prim/set-state! this props))}))
+        (ct/ui-preview-clip (merge (prim/get-state this) {:filename "minions.jpg"
                                                         :width    100 :height 200}))))))
 
 (defcard-doc

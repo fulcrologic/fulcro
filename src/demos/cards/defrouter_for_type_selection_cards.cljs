@@ -55,7 +55,7 @@
     :place PlaceDetail
     :thing ThingDetail)
 
-  (def ui-item-detail (om/factory ItemDetail))
+  (def ui-item-detail (prim/factory ItemDetail))
   ```
   "
   (dc/mkdn-pprint-source dr/DemoRoot)

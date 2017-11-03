@@ -1,53 +1,53 @@
 (ns recipes.websockets-client
   (:require
-    [fulcro.client.primitives :as om]
+    [fulcro.client.primitives :as prim]
     [fulcro.client.core :as fc]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [fulcro.websockets.networking :as wn]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as om :refer-macros [defui]] ))
+    [fulcro.client.primitives :as prim :refer-macros [defui]] ))
 
 (defui ^:once User
-  static om/IQuery
+  static prim/IQuery
   (query [_] [:db/id :user/name])
 
-  static om/Ident
+  static prim/Ident
   (ident [_ {:keys [db/id]}] [:user/by-id id]))
 
-(def ui-user (om/factory User {:keyfn :db/id}))
+(def ui-user (prim/factory User {:keyfn :db/id}))
 
 (defui ^:once Message
-  static om/IQuery
+  static prim/IQuery
   (query [_] [:db/id
               :message/text
-              {:message/user (om/get-query User)}])
+              {:message/user (prim/get-query User)}])
 
-  static om/Ident
+  static prim/Ident
   (ident [_ {:keys [db/id]}] [:message/by-id id])
 
   Object
   (render [this]
     (let [{:keys [db/id
                   message/text
-                  message/user]} (om/props this)]
+                  message/user]} (prim/props this)]
       (dom/li #js {}
         (dom/div nil
           (dom/span nil
             (dom/strong nil (:user/name user))
             (dom/span nil (str " - " text))))))))
 
-(def ui-message (om/factory Message {:keyfn identity}))
+(def ui-message (prim/factory Message {:keyfn identity}))
 
 (defui ^:once Channel
-  static om/IQuery
+  static prim/IQuery
   (query [_] [:db/id
               :channel/title
-              {:channel/users (om/get-query User)}
-              {:channel/messages (om/get-query Message)}
-              {[:current-user '_] (om/get-query User)}])
+              {:channel/users (prim/get-query User)}
+              {:channel/messages (prim/get-query Message)}
+              {[:current-user '_] (prim/get-query User)}])
 
-  static om/Ident
+  static prim/Ident
   (ident [_ {:keys [db/id]}] [:channel/by-id id])
 
   Object
@@ -58,8 +58,8 @@
     (let [{:keys [channel/title
                   channel/users
                   channel/messages
-                  current-user]} (om/props this)
-          {:keys [new-message]} (om/get-state this)]
+                  current-user]} (prim/props this)
+          {:keys [new-message]} (prim/get-state this)]
       (dom/div nil
         (dom/h4 nil
           (str "Channel - " title))
@@ -70,30 +70,30 @@
         (dom/div nil
           (dom/input #js {:type     "text"
                           :value    new-message
-                          :onChange #(om/update-state! this assoc :new-message (.. % -target -value))})
+                          :onChange #(prim/update-state! this assoc :new-message (.. % -target -value))})
           (dom/button #js {:onClick (fn []
-                                      (om/update-state! this assoc :new-message "")
-                                      (om/transact! this `[(message/add ~{:db/id        (om/tempid)
+                                      (prim/update-state! this assoc :new-message "")
+                                      (prim/transact! this `[(message/add ~{:db/id        (prim/tempid)
                                                                           :message/text new-message
                                                                           :message/user current-user})]))}
             "Send"))))))
 
-(def ui-channel (om/factory Channel {:keyfn :db/id}))
+(def ui-channel (prim/factory Channel {:keyfn :db/id}))
 
 (defui ^:once Root
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key
-                 {:current-user (om/get-query User)}
-                 {:current-channel (om/get-query Channel)}
-                 {:app/users (om/get-query User)}
-                 {:app/channels (om/get-query Channel)}])
+                 {:current-user (prim/get-query User)}
+                 {:current-channel (prim/get-query Channel)}
+                 {:app/users (prim/get-query User)}
+                 {:app/channels (prim/get-query Channel)}])
 
   Object
   (initLocalState [this] {:new-user ""})
   (render [this]
     (let [{:keys [ui/react-key data app/channels app/users current-user current-channel]
-           :or   {ui/react-key "ROOT"}} (om/props this)
-          {:keys [new-user]} (om/get-state this)
+           :or   {ui/react-key "ROOT"}} (prim/props this)
+          {:keys [new-user]} (prim/get-state this)
           validUserName (some #(= new-user (:user/name %)) users)]
       (dom/div #js {:key react-key}
         (if (empty? current-user)
@@ -102,9 +102,9 @@
               "Get signed in: ")
             (dom/input #js {:type     "text"
                             :value    new-user
-                            :onChange #(om/update-state! this assoc :new-user (.. % -target -value))})
+                            :onChange #(prim/update-state! this assoc :new-user (.. % -target -value))})
             (dom/button #js {:disabled validUserName
-                             :onClick  #(om/transact! this `[(user/add ~{:db/id     (om/tempid)
+                             :onClick  #(prim/transact! this `[(user/add ~{:db/id     (prim/tempid)
                                                                          :user/name new-user})])}
               "Sign in"))
           (dom/div #js {}
@@ -174,10 +174,10 @@
   {:remote ast})
 
 (defmethod wn/push-received :user/left [{:keys [reconciler] :as app} {:keys [msg]}]
-  (om/transact! reconciler `[(push/user-left ~{:msg msg})]))
+  (prim/transact! reconciler `[(push/user-left ~{:msg msg})]))
 
 (defmethod wn/push-received :user/new [{:keys [reconciler] :as app} {:keys [msg]}]
-  (om/transact! reconciler `[(push/user-new ~{:msg msg})]))
+  (prim/transact! reconciler `[(push/user-new ~{:msg msg})]))
 
 (defmethod wn/push-received :message/new [{:keys [reconciler] :as app} {:keys [msg]}]
-  (om/transact! reconciler `[(push/message-new ~{:msg msg})]))
+  (prim/transact! reconciler `[(push/message-new ~{:msg msg})]))

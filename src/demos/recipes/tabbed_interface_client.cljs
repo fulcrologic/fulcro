@@ -1,61 +1,61 @@
 (ns recipes.tabbed-interface-client
   (:require
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.routing :as r]
     [fulcro.client.mutations :as m]
     [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]))
 
 (defui ^:once SomeSetting
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/fetch-state :id :value])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:setting/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [id value]} (om/props this)]
+    (let [{:keys [id value]} (prim/props this)]
       (dom/p nil "Setting " id " from server has value: " value))))
 
-(def ui-setting (om/factory SomeSetting {:keyfn :id}))
+(def ui-setting (prim/factory SomeSetting {:keyfn :id}))
 
 (defui ^:once SettingsTab
   static InitialAppState
   (initial-state [clz params] {:kind             :settings
                                :settings-content "Settings Tab"
                                :settings         []})
-  static om/IQuery
+  static prim/IQuery
   ; This query uses a "link"...a special ident with '_ as the ID. This indicates the item is at the database
   ; root, not inside of the "settings" database object. This is not needed as a matter of course...it is only used
   ; for convenience (since it is trivial to load something into the root of the database)
-  (query [this] [:kind :settings-content {:settings (om/get-query SomeSetting)}])
+  (query [this] [:kind :settings-content {:settings (prim/get-query SomeSetting)}])
   Object
   (render [this]
-    (let [{:keys [settings-content settings]} (om/props this)]
+    (let [{:keys [settings-content settings]} (prim/props this)]
       (dom/div nil
         settings-content
         (df/lazily-loaded (fn [] (map ui-setting settings)) settings)))))
 
-(def ui-settings-tab (om/factory SettingsTab))
+(def ui-settings-tab (prim/factory SettingsTab))
 
 (defui ^:once MainTab
   static InitialAppState
   (initial-state [clz params] {:kind :main :main-content "Main Tab"})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:kind :main-content])
   Object
   (render [this]
-    (let [{:keys [main-content]} (om/props this)]
+    (let [{:keys [main-content]} (prim/props this)]
       (dom/div nil main-content))))
 
-(def ui-main-tab (om/factory MainTab))
+(def ui-main-tab (prim/factory MainTab))
 
 (r/defrouter UITabs :ui-router
   (ident [this {:keys [kind]}] [kind :tab])
   :main MainTab
   :settings SettingsTab)
 
-(def ui-tabs (om/factory UITabs))
+(def ui-tabs (prim/factory UITabs))
 
 (m/defmutation choose-tab [{:keys [tab]}]
   (action [{:keys [state]}] (swap! state r/set-route :ui-router [tab :tab])))
@@ -91,16 +91,16 @@
   ; app state graph database.
   static InitialAppState
   (initial-state [clz params] {:ui/react-key "initial" :current-tab (initial-state UITabs nil)})
-  static om/IQuery
-  (query [this] [:ui/react-key {:current-tab (om/get-query UITabs)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:current-tab (prim/get-query UITabs)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key current-tab] :as props} (om/props this)]
+    (let [{:keys [ui/react-key current-tab] :as props} (prim/props this)]
       (dom/div #js {:key react-key}
         ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
-        ; ensure proper re-render of the tab body). See om/computed for passing callbacks.
-        (dom/button #js {:onClick #(om/transact! this `[(choose-tab {:tab :main})])} "Main")
-        (dom/button #js {:onClick #(om/transact! this `[(choose-tab {:tab :settings})
+        ; ensure proper re-render of the tab body). See prim/computed for passing callbacks.
+        (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
+        (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
                                                         ; extra mutation: sample of what you would do to lazy load the tab content
                                                         (lazy-load-tab {:tab :settings})])} "Settings")
         (ui-tabs current-tab)))))

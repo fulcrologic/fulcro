@@ -1,6 +1,6 @@
 (ns fulcro-devguide.G-Mutation
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.core :as fc]))
@@ -22,7 +22,7 @@
   call:
 
   ```
-  (om/transact! this-component '[(app/delete)])
+  (prim/transact! this-component '[(app/delete)])
   ```
 
   Fulcro reduces the amount of boilerplate you have to write since there is no need for a custom
@@ -61,7 +61,7 @@
   would be to invent a top-level transaction that is used like this:
 
   ```
-  (om/transact! this `[(app/set-name { :person 1 :name ~n })])
+  (prim/transact! this `[(app/set-name { :person 1 :name ~n })])
   ```
 
   note the careful use of syntax quoting and unquote (assuming n is a local binding to the desired new name string).
@@ -81,7 +81,7 @@
   after the update:
 
   ```
-  (om/transact! this `[(app/set-name { :person 1 :name ~n }) :person])
+  (prim/transact! this `[(app/set-name { :person 1 :name ~n }) :person])
   ```
 
   You should understand that all components that include that property name in their query will be
@@ -262,7 +262,7 @@
   `:widget` or has the Ident `[:db/id 4]` will re-render after the operation.
 
   ```
-     (om/transact! this '[(app/do-thing) :widget [:db/id 4]])
+     (prim/transact! this '[(app/do-thing) :widget [:db/id 4]])
   ```
 
   At first, this might seem like overkill (lots of different components could have mentioned `:widget`. This is
@@ -319,13 +319,13 @@
   For example, if you have required namespace `[x.y.z :as x]`, and `do-thing` is declared in that namespace
   then you can write
   ```
-  (om/transact! this `[(x/do-thing {:param1 1})])
+  (prim/transact! this `[(x/do-thing {:param1 1})])
   ```
 
   and the compiler will expand it to
 
   ```
-  (om/transact! this '[(x.y.z/do-thing {:param1 1})])
+  (prim/transact! this '[(x.y.z/do-thing {:param1 1})])
   ```
 
   Not only is this useful in keeping your mutations from colliding with each other, it saves you typing and also
