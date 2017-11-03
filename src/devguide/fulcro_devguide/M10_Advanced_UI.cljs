@@ -1,7 +1,7 @@
 (ns fulcro-devguide.M10-Advanced-UI
   (:require-macros [cljs.test :refer [is]])
   (:require [cljs.pprint :refer [cl-format]]
-            [cljsjs.victory]
+            cljsjs.victory
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.clip-tool :as ct]
             [fulcro.ui.elements :as ele]
