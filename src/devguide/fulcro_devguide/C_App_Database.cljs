@@ -10,18 +10,15 @@
   "
   # App database
 
-  In this section we'll discuss the database format used by Fulcro for client state. Fulcro
-  has chosen to not allow pluggable database formats. This allows the framework to do a lot of
-  heavy lifting for you, and so far has been very acceptable for the production applications
-  we've built with it.
-
-  First, we'll describe the problem, and then show how Om's approach to storing app state solves it.
+  In this section we'll discuss the database format used by Fulcro for client state.
+  First, we'll describe the problem, and then show how Fulcro's approach to storing app state solves it.
 
   ## The problem
 
   Any non-trivial UI needs data. Many non-trivial UIs need a lot of data. React UIs need data to
-  be in a tree-like form (parents pass properties down to children). When you combine these facts
-  with ClojureScript and immutable data structures you end up with some interesting challenges.
+  be in a tree-like form (parents pass properties down to children). When you combine this
+  with ClojureScript and immutable data structures you end up with some interesting challenges (and
+  lovely surprising benefits).
 
   The most important one is this: What do we do when we want to show the same information in
   two different UI components (e.g. a Table and a Chart of some performance statistics)?
@@ -37,8 +34,8 @@
   In a mutable world, you'd just update the data in-place, and the pointers would now point
   to that new state. If you're reading this you've already learned the perils and disadvantages of *that*.
 
-  So, now you have the lovely task of finding all of that data in the application state and updating
-  it to the new data set to produce your new (immutable) application state. This turns a localized
+  So, now you have the task of finding all of the instances of that data in the application state and updating
+  them to the new data set to produce your new (immutable) application state. This turns a localized
   concern (updating the data for a table) into a global one (what is using *this* bit of state in my
   global application state?).
 
@@ -48,20 +45,20 @@
   for quite a long time: normalization...de-dupe the data!
 
   In Fulcro's database format we do not place the *real* data in multiple places, but instead
-  use a special bit of data that acts like a database foreign key. Om calls these *idents*.
+  use a special bit of data that acts like a database foreign key. We call these *idents*.
 
   Here's how it works:
 
-  Create a map. This is your application state.
+  1. Create a map. This is your application state.
 
-  For any given piece of data that you wish to easily share (or access), invent an identifier for it
+  2. For any given piece of data that you wish to easily share (or access), invent an identifier for it
   of the form `[keyword id]`, where id can be anything (e.g. keyword, int, etc). The explicit
   requirements are:
 
   - The first item in the ident vector *must* be a keyword
   - The vector *must* have exactly two items.
 
-  Now place the real information into the map as follows:
+  3. Now place the real information into the map as follows:
 
   ```
   (def app-state { :keyword { id real-information }})
@@ -98,7 +95,9 @@
 
   The database table keyed at `:people/by-id` stores the real object, which cross-reference each
   other. Note that this particular graph (as you might expect) has a loop in it (Joe is married
-  to Sally who is married to Joe ...).
+  to Sally who is married to Joe). NOTE: Having loops in your graph is perfectly fine, though if you
+  query recursive data in your UI you will have to use computed state (depth) to prevent targeted refresh
+  from causing the displayed depth to creep.
 
   ## Everything in tables
 
@@ -119,28 +118,33 @@
 
   ## Some things not in tables?
 
-  In practice, some things in your application are really singletons (such as the details of
-  the current user). So, in practice it makes perfect sense to just store those things
-  in the top level of your overall application state.
-
-  One criteria you might consider before placing data into a tree is changing it over time (in
-  value or location). If you nest some bit of state way down in a tree and need to update
-  that state, you'll end up writing code that is tied to that tree structure. For example:
-  `(update-in state [:root :list :wrapper-widget :friends] conj new-friend)`. Not only
-  is this painful to write, it ties a local UI concern into your state management code
-  and starts to look like a controller from MVC. It also means that if you write a different
-  (e.g. mobile) UI, you won't easily re-use that bit of code.
-
-  Om has great support for true singletons in the database (and queries, see [Using Links](#!/fulcro_devguide.D_Queries)).
-  So if you have this kind of data just store it under a (namespaced) keyword at the top level:
+  If data has a reasonable identity, it should get an ident and go in a table. There are situations where you'll keep
+  data in a tree form: specifically, if the data is owned by something, but has no good identity of its own, then it
+  should just remain nested map data. For example, you might want address information to appear as a nested data
+  structure, but perhaps the persisted identity of it is that of its owner:
 
   ```
-  { :current/user {:user/name ...} }
+  { :people/by-id { 1 { :db/id 1 :person/address {:address/street ...}}}}
   ```
 
-  In general, keep your application state flat. The graph nature fixes duplication issues,
-  allows you to easily generate a tree for rendering (as we'll see soon),
-  and the flat structure makes mutation code easy to write and maintain.
+  If you were to read/write this data you'd always do it in the context of the person. This is a good example of where
+  there is no good reason to normalize nested state. As a side-note: if you nest the UI and build queries for address
+  (which you can still do, even if it isn't normalized), you should do your transactions from the parent that has an ident.
+  This allows the UI refresh to do a more efficient job (normalized components can be refreshed more quickly in isolation).
+
+  In general, keep your application state normalized. The graph nature fixes duplication issues,
+  allows you to easily generate a tree for rendering (as we'll see soon), allows for very flexible UI refactoring,
+  makes mutation code simple *and* easy, allows you to embed any part of your application in a devcard, and makes it easy
+  for you to easily find and examine the state of any entity in the database.
+
+  ## Top-level state
+
+  Fulcro also has great support for accessing data at the root of the graph (see [Using Links](#!/fulcro_devguide.D_Queries)).
+  So if you have data that you'd like to access from arbitrary locations just store it under a (namespaced) keyword at the top level:
+
+  ```
+  { :current/user [:person/by-id 2] }
+  ```
 
   ## Custom Types?
 
@@ -150,8 +154,14 @@
   query the database via property queries and joins. Anything that is meant to
   act as a simple property and is *not* treated as an entity that can be
   queried itself can be of any type.
+
+  NOTE: If you want the support viewer to work, the database must be serializable. The transit protocol uses EDN, and is
+  extensible, so you can very easily add custom marshalling to support your types. All of the built-in clojure types + timestamps
+  are already present.
+
   Any *entity* (entry in the database that is meant to be a first-class citizen
-  of the graph database and processed with queries) can only be a plain map.
+  of the graph database and processed with queries) can only be a plain map (technically they could also be records, but
+  normalization/denormalization will cause them to morph to maps and not maintain their type).
 
   So, if you had some table named `:table` it would be keyed by the entity IDs, and
   the entity *itself* will be a plain map; however, any of the properties (like
@@ -161,11 +171,11 @@
   { :table { 3 { :id 3 :value 22 :stats some-object-of-any-type}}}
   ```
 
-  ## Bleh, manual graph building... Do I have to build that by hand?
+  ## Manual graph building? Do I have to build that by hand?
 
   No. You do not need to build normalized graph databases. Fulcro can do that for you.
   Fulcro also provides a protocol called `InitialAppState`. This can be attached to each component
-  in the same manner as `fulcro.client.primitives/IQuery`.  The benefit is that you don't have to think as much about
+  in the same manner as `IQuery`.  The benefit is that you don't have to think as much about
   normalization or building a map of initial app state.  You simply define it with regards to the
   component, and compose over child components. This greatly complements the query concepts and improves
   local reasonsing with regard to initial state and component composition.

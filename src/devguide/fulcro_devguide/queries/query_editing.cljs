@@ -72,4 +72,3 @@
 (def ui-query-editor (prim/factory QueryEditor))
 
 (def query-editor (fn [state _] (ui-query-editor (prim/computed @state {:atom state}))))
-

@@ -16,7 +16,7 @@
 
   ## What is Fulcro?
 
-  Fulcro is a full-stack library based upon the concepts of Om Next. It allows you to build data-driven full-stack single-page
+  Fulcro is a full-stack library based upon the concepts of Om Next by David Nolen. It allows you to build data-driven full-stack single-page
   software using what we feel is a more well-rounded set of primitives that other competing libraries. Fulcro requires that
   you change how you think about developing your software, but the good news is that once you understand the model you'll
   be surprised at how uniform and simple most tasks become (all the way end-to-end, not just in the UI).
