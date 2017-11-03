@@ -132,7 +132,7 @@
   - Making other UI elements appear/disappear according to field changes
 
   We accomplish these things in the form support by allowing you to declare an entry in your
-  `IForm` list that names an Fulcro mutation to run as changes are detected in the form/subform
+  `IForm` list that names a Fulcro mutation to run as changes are detected in the form/subform
   set.
 
   The mutation given is just a normal mutation that can do anything you need done: remoting, global

@@ -60,7 +60,7 @@
 
 #?(:cljs
    (defn log-app-state
-     "Helper for logging the app-state. Pass in an fulcro application atom and either top-level keys, data-paths
+     "Helper for logging the app-state. Pass in a Fulcro application atom and either top-level keys, data-paths
       (like get-in), or both."
      [app-atom & keys-and-paths]
      (try
@@ -77,7 +77,7 @@
                1 (get-in @app-state (make-path (first keys-and-paths)))
                (reduce process-location {} keys-and-paths)))))
        (catch #?(:cljs js/Error :clj Exception) e
-         (throw (ex-info "fulcro.client.impl.util/log-app-state expects an atom with an fulcro client" {}))))))
+         (throw (ex-info "fulcro.client.impl.util/log-app-state expects an atom with a Fulcro client" {}))))))
 
 (defn conform! [spec x]
   (let [rt (s/conform spec x)]

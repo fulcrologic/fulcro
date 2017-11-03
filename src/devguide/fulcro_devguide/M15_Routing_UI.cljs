@@ -204,7 +204,7 @@
   "
   # Using the Routing Tree
 
-  The routing library includes an Fulcro mutation for placing a specific screen front-and-center. It is namespaced
+  The routing library includes a Fulcro mutation for placing a specific screen front-and-center. It is namespaced
   to the fulcro.client.routing namespace, and takes and :handler and optional :route-params argument:
 
   ```

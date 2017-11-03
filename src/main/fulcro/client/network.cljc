@@ -96,7 +96,7 @@
   (start [this] this))
 
 (defn make-fulcro-network
-  "Build an Fulcro Network object using the default implementation.
+  "Build a Fulcro Network object using the default implementation.
 
   Features:
 

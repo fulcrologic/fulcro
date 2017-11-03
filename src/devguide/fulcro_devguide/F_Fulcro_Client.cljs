@@ -10,7 +10,7 @@
 
 (defcard-doc
   "
-  # Building an Fulcro client
+  # Building a Fulcro client
 
   We're now prepared to write a standalone Fulcro Client! Once you've understood
   how to build the UI and do a few mutations it actually takes very little code:
@@ -19,7 +19,7 @@
 
   - Create the UI with queries, etc.
   - Give a DOM element in your HTML file an ID, and load your target compiled js
-  - Create an fulcro client
+  - Create a Fulcro client
   - Mount the client on that DOM element
 
   We've covered the first step already. The second step is trivial:

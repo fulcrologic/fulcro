@@ -415,7 +415,7 @@
 
   ### Starting up the App
 
-  Normally you create an Fulcro application and mount it on a DIV in your real HTML DOM. We'll cover that later in the
+  Normally you create a Fulcro application and mount it on a DIV in your real HTML DOM. We'll cover that later in the
   Guide. Here we're in devcards and we have a helper to do that. It accepts the same basic parameters as
   `make-fulcro-app`, but mounts the resulting application in a devcard:
 
