@@ -10,10 +10,6 @@
 
   "# UI exercises
 
-  In this guide we are going to build an app with just enough complexity to
-  exercise the most significant features of Om. That said, we want it to be
-  tractable.
-
   NOTE - Namespace aliases used in this document:
 
 ```clojure
@@ -51,20 +47,18 @@
 (defcard overall-goal
   "## Overall goal
 
-  In the following exercises we'll build a UI using Om `defui`.
+  In the following exercises we'll build a UI using `defui`.
   Once the UI is built, we'll add in a little component local state and callback handling.
 
-  The UI will show a list of people and their
-  partners. Additionally we're going to add a place to show error messages,
-  controls for adding a new person,
-  saving the list, and requesting a refresh from the server.
+  The UI will show a list of people and their partners.
 
-  The suggested solution is in the source at the beginning of the next
-  section's exercises (as it is used by them).
-
-  The overall UI
-  should look as shown below (which is build with plain React dom elements
+  The overall UI should look as shown below (which is build with plain React dom elements
   and function composition):
+
+  NOTE: We name our component factories with a `ui-` prefix. This makes it much easier for the reader to
+  visually distinguish our components from regular functions, and also prevents accidental name clases with
+  data. For example, you might have `:person/address` that turns into a local data item called `address`. If your
+  React renderer for that was also called `address` you'd have a problem.
 
   "
   (fn [state-atom _]
@@ -76,7 +70,7 @@
                 {:db/id 2 :person/name "Sally" :person/mate {:db/id 1 :person/name "Joe"}}]}
   {:inspect-data false})
 
-(declare om-person)
+(declare ui-person)
 
 (defui Person
   Object
@@ -84,7 +78,7 @@
 
   (render [this]
     ;; TODO: (ex 4) Obtain the 'computed' onDelete handler
-    (let [name "What's my :person/name?"                    ; TODO (ex 1): Get the Om properties from this for `name` and `mate`
+    (let [name "What's my :person/name?"                    ; TODO (ex 1): Get the Fulcro properties from this for `name` and `mate`
           mate nil
           checked false]                                    ; TODO (ex 3): Component local state
       (dom/li nil
@@ -94,14 +88,14 @@
                         })
         (dom/span nil name)                                 ; TODO (ex 3): Make name bold when checked
         (dom/button nil "X")                                ; TODO (ex 4): Call onDelete handler, if present
-        (when mate (dom/ul nil (om-person mate)))))))
+        (when mate (dom/ul nil (ui-person mate)))))))
 
-(def om-person (prim/factory Person))
+(def ui-person (prim/factory Person))
 
 (defcard exercise-1
   "## Exercise 1 - A UI component
 
-  Create an Om Person UI component. No need to add a query yet. The main
+  Create an Fulcro Person UI component. No need to add a query yet. The main
   task is to make sure you understand how to get the properties via
   `prim/props`.
 
@@ -110,7 +104,7 @@
   You've got it right when the following card renders a person and their mate:
   "
   (fn [state-atom _]
-    (om-person @state-atom))
+    (ui-person @state-atom))
   {:db/id 1 :person/name "Joe" :person/mate {:db/id 2 :person/name "Sally"}}
   {:inspect-data true})
 
@@ -126,9 +120,9 @@
             (dom/button #js {} "Save")
             (dom/button #js {} "Refresh List")
             ;; TODO (ex 4): Pass deletePerson as the onDelete handler to person element
-            (dom/ul nil (map #(om-person %) people))))))))
+            (dom/ul nil (map #(ui-person %) people))))))))
 
-(def people-widget (prim/factory PeopleWidget))
+(def ui-people (prim/factory PeopleWidget))
 
 (defui Root
   Object
@@ -139,11 +133,11 @@
       (dom/div nil
         (dom/div nil (when (not= "" last-error) (str "Error " last-error)))
         (dom/div nil
-          (people-widget widget)
+          (ui-people widget)
           (dom/input #js {:type "text"})
           (dom/button #js {} "Add Person"))))))
 
-(def om-root (prim/factory Root))
+(def ui-root (prim/factory Root))
 
 (defcard exercise-2
   "## Exercise 2 - A UI tree
@@ -156,7 +150,7 @@
   card should render properly. Be careful around the `:widget` nesting.
   "
   (fn [state-atom _]
-    (om-root @state-atom))
+    (ui-root @state-atom))
   {:last-error "Some error message"
    :new-person "something typed by the user"
    :widget     {:people [
@@ -168,17 +162,14 @@
   "
   ## Exercise 3 - Component local state
 
-  Components can store local information without using the global app state managed by Om.
-  This is useful in cases where you don't wish to combine component local
-  concerns with the overall app state. We'll see the disadvantages of this later, but you can
-  do this by adding:
+  Components can store local information without using the global app state managed by Fulcro. It is initialized with
+  this method in the `Object` section of your `defui`:
 
   ```
   (initLocalState [this] { map-of-data-to-store })
   ```
 
-  in the Object section of your UI. Then use `prim/get-state`, `prim/update-state!`, and `prim/set-state!` to
-  work with the state.
+  Then use `prim/get-state`, `prim/update-state!`, and `prim/set-state!` to work with the state.
 
   Add component local state to your Person class, and update the UI so that when
   the person is checked their name becomes bold.
@@ -188,7 +179,7 @@
   To ensure you got the initial state right make it the default that a person is checked.
   "
   (fn [state-atom _]
-    (om-person @state-atom))
+    (ui-person @state-atom))
   {:db/id 1 :person/name "Joe"}
   {:inspect-data true})
 
@@ -196,26 +187,19 @@
   "
   ## Exercise 4 - Computed properties
 
-  In Om, you should not try to pass callbacks directly through props. While this
-  would technically work, this combines the state management with computed
-  attributes (e.g. callbacks).
-
-  Instead, callbacks and other UI-generated data should be passed into an
-  Om component using `prim/computed`...
+  In Fulcro, you should not try to pass callbacks directly through props, but should *attach* them instead
+  using `prim/computed`.
 
   ```
-  (om-component (prim/computed props { :computed-thing 4 }))
+  (ui-component-factory (prim/computed props { :computed-thing 4 }))
   ```
 
-  ...and may be retrieved using `prim/get-computed` on either the `props` or `this`
+  They may be retrieved using `prim/get-computed` on either the `props` or `this`
   passed to render.
 
-  Internally, computed just places this data in a side-band area (e.g. metadata) so
-  that it doesn't interfere with other features of Om.
-
-  In Om, it turns out that you should manage the modification of lists from the owner
-  of the list; however, in our UI the delete button for a person is in the Person
-  component. Declare a placeholder function in PeopleWidget called `deletePerson`
+  In Fulcro you should manage the modification of lists from the owner
+  of the list (because the list is, after all, rendered by that component); however, in our UI the delete button for
+  a person is *rendered* in the Person component. Declare a placeholder function in PeopleWidget called `deletePerson`
   that just logs a message to the javascript console (e.g. `(js/console.log \"delete\" p)`,
   where p is the argument passed to the function).
 
@@ -224,7 +208,7 @@
   Verify it works by checking the console for the messages.
   "
   (fn [state-atom _]
-    (om-root @state-atom))
+    (ui-root @state-atom))
   {:last-error ""
    :new-person ""
    :widget     {:people [
