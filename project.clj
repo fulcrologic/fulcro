@@ -7,8 +7,8 @@
                  [org.clojure/clojurescript "1.9.946" :scope "provided"]
 
                  [org.clojure/data.json "0.2.6" :scope "provided" :classifier "aot"]
-                 [cljsjs/react "16.0.0-0"]
-                 [cljsjs/react-dom "16.0.0-0"]
+                 [cljsjs/react "15.6.2-0"]
+                 [cljsjs/react-dom "15.6.2-0"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.239"]
 
