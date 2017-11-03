@@ -20,7 +20,6 @@
   If you supply an additional vector of keywords and idents then it will ask Om to rerender only those components that mention
   those things in their queries."
   ([reconciler keywords]
-   #?(:cljs (js/console.log "Queuing  " keywords " for refresh"))
    (proto/queue! reconciler keywords)
    (proto/schedule-render! reconciler))
   ([reconciler]
@@ -83,3 +82,45 @@
   "Removes parameters from the query, e.g. for PCI compliant logging."
   [query]
   (-> (clojure.walk/prewalk #(if (map? %) (dissoc % :params) %) (parser/query->ast query)) (parser/ast->expr true)))
+
+(defn integrate-ident
+  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
+  implementations as a general helper function.
+
+  The named parameters can be specified any number of times. They are:
+
+  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
+  the ident if that ident is already in the list.
+  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
+  the ident if that ident is already in the list.
+  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
+   If the target is a vector element then that element must already exist in the vector."
+  [state ident & named-parameters]
+  {:pre [(map? state)]}
+  (let [actions (partition 2 named-parameters)]
+    (reduce (fn [state [command data-path]]
+              (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
+                (case command
+                  :prepend (if (already-has-ident-at-path? data-path)
+                             state
+                             (do
+                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
+                               (update-in state data-path #(into [ident] %))))
+                  :append (if (already-has-ident-at-path? data-path)
+                            state
+                            (do
+                              (assert (vector? (get-in state data-path)) (str "Path " data-path " for append must target an app-state vector."))
+                              (update-in state data-path conj ident)))
+                  :replace (let [path-to-vector (butlast data-path)
+                                 to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
+                                 index          (last data-path)
+                                 vector         (get-in state path-to-vector)]
+                             (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
+                             (when to-many?
+                               (do
+                                 (assert (vector? vector) "Path for replacement must be a vector")
+                                 (assert (number? index) "Path for replacement must end in a vector index")
+                                 (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
+                             (assoc-in state data-path ident))
+                  (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
+      state actions)))

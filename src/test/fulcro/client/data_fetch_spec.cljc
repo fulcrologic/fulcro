@@ -3,9 +3,10 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.impl.data-fetch :as dfi]
     [fulcro.client.util :as util]
-    [goog.log :as glog]
+    #?@(:cljs
+        [[goog.log :as glog]])
     [fulcro.client.primitives :as prim :refer [defui]]
-    [cljs.test :refer-macros [is are]]
+    [clojure.test :refer [is are]]
     [fulcro-spec.core :refer
      [specification behavior assertions provided component when-mocking]]
     [fulcro.client.mutations :as m]
@@ -46,8 +47,8 @@
   (behavior "are properly initialized."
     (is (df/data-state? (dfi/make-data-state :ready)))
     (try (dfi/make-data-state :invalid-key)
-         (catch :default e
-           (is (= (.-message e) "INVALID DATA STATE TYPE: :invalid-key")))))
+         (catch #?(:cljs :default :clj Throwable) e
+           (is (= #?(:cljs (.-message e) :clj (.getMessage e)) "INVALID DATA STATE TYPE: :invalid-key")))))
 
   (behavior "can by identified by type."
     (is (df/ready? (dfi/make-data-state :ready)))
@@ -97,47 +98,48 @@
       => [{:current-tab {:panel [:data] :dashboard [:data]}}])))
 
 
-(specification "Load parameters"
-  (let [query-with-params       (:query (df/load-params* :prop Person {:params {:n 1}}))
-        ident-query-with-params (:query (df/load-params* [:person/by-id 1] Person {:params {:n 1}}))]
-    (assertions
-      "Always include a vector for refresh"
-      (df/load-params* :prop Person {}) =fn=> #(vector? (:refresh %))
-      (df/load-params* [:person/by-id 1] Person {}) =fn=> #(vector? (:refresh %))
-      "Accepts nil for subquery and params"
-      (:query (df/load-params* [:person/by-id 1] nil {})) => [[:person/by-id 1]]
-      "Constructs query with parameters when subquery is nil"
-      (:query (df/load-params* [:person/by-id 1] nil {:params {:x 1}})) => '[([:person/by-id 1] {:x 1})]
-      "Constructs a JOIN query (without params)"
-      (:query (df/load-params* :prop Person {})) => [{:prop (prim/get-query Person)}]
-      (:query (df/load-params* [:person/by-id 1] Person {})) => [{[:person/by-id 1] (prim/get-query Person)}]
-      "Honors target for property-based join"
-      (:target (df/load-params* :prop Person {:target [:a :b]})) => [:a :b]
-      "Constructs a JOIN query (with params)"
-      query-with-params =fn=> (fn [q] (= q `[({:prop ~(prim/get-query Person)} {:n 1})]))
-      ident-query-with-params =fn=> (fn [q] (= q `[({[:person/by-id 1] ~(prim/get-query Person)} {:n 1})])))
-    (provided "uses computed-refresh to augment the refresh list"
-      (df/computed-refresh explicit k t) =1x=> :computed-refresh
+#?(:cljs
+   (specification "Load parameters"
+     (let [query-with-params       (:query (df/load-params* :prop Person {:params {:n 1}}))
+           ident-query-with-params (:query (df/load-params* [:person/by-id 1] Person {:params {:n 1}}))]
+       (assertions
+         "Always include a vector for refresh"
+         (df/load-params* :prop Person {}) =fn=> #(vector? (:refresh %))
+         (df/load-params* [:person/by-id 1] Person {}) =fn=> #(vector? (:refresh %))
+         "Accepts nil for subquery and params"
+         (:query (df/load-params* [:person/by-id 1] nil {})) => [[:person/by-id 1]]
+         "Constructs query with parameters when subquery is nil"
+         (:query (df/load-params* [:person/by-id 1] nil {:params {:x 1}})) => '[([:person/by-id 1] {:x 1})]
+         "Constructs a JOIN query (without params)"
+         (:query (df/load-params* :prop Person {})) => [{:prop (prim/get-query Person)}]
+         (:query (df/load-params* [:person/by-id 1] Person {})) => [{[:person/by-id 1] (prim/get-query Person)}]
+         "Honors target for property-based join"
+         (:target (df/load-params* :prop Person {:target [:a :b]})) => [:a :b]
+         "Constructs a JOIN query (with params)"
+         query-with-params =fn=> (fn [q] (= q `[({:prop ~(prim/get-query Person)} {:n 1})]))
+         ident-query-with-params =fn=> (fn [q] (= q `[({[:person/by-id 1] ~(prim/get-query Person)} {:n 1})])))
+       (provided "uses computed-refresh to augment the refresh list"
+         (df/computed-refresh explicit k t) =1x=> :computed-refresh
 
-      (let [params (df/load-params* :k Person {})]
-        (assertions
-          "includes the computed refresh list as refresh"
-          (:refresh params) => :computed-refresh)))))
+         (let [params (df/load-params* :k Person {})]
+           (assertions
+             "includes the computed refresh list as refresh"
+             (:refresh params) => :computed-refresh))))))
 
 (specification "Load auto-refresh"
   (component "computed-refresh"
     (assertions
       "Adds the load-key ident to refresh (as a non-duplicate)"
-      (#'df/computed-refresh [:a] [:table 1] nil) => [:a [:table 1]]
-      (#'df/computed-refresh [:a [:table 1]] [:table 1] nil) => [:a [:table 1]]
+      (set (#'df/computed-refresh [:a] [:table 1] nil)) => #{:a [:table 1]}
+      (set (#'df/computed-refresh [:a [:table 1]] [:table 1] nil)) => #{:a [:table 1]}
       "Adds the load-key keyword to refresh (non-duplicate, when there is no target)"
-      (#'df/computed-refresh [:a] :b nil) => [:a :b]
-      (#'df/computed-refresh [:a :b] :b nil) => [:a :b]
+      (set (#'df/computed-refresh [:a] :b nil)) => #{:a :b}
+      (set (#'df/computed-refresh [:a :b] :b nil)) => #{:a :b}
       "Adds the target's first two elements as an ident to refresh (when target has 2+ elements)"
-      (#'df/computed-refresh [:a] :b [:x 3 :boo]) => [:a [:x 3]]
-      (#'df/computed-refresh [:a] :b [:x 3]) => [:a [:x 3]]
+      (set (#'df/computed-refresh [:a] :b [:x 3 :boo])) => #{:a [:x 3]}
+      (set (#'df/computed-refresh [:a] :b [:x 3])) => #{:a [:x 3]}
       "Adds the target's first element as a kw to refresh (when target has 1 element)"
-      (#'df/computed-refresh [:a] :b [:x]) => [:a :x])))
+      (set (#'df/computed-refresh [:a] :b [:x])) => #{:a :x})))
 
 (specification "Load mutation expressions"
   (let [mutation-expr (df/load-mutation {:refresh [:a :b] :query [:my-query]})
@@ -171,17 +173,18 @@
 
     (df/load :component :x Person {})))
 
-(specification "The load-action function"
-  (let [state-atom (atom {})]
-    (when-mocking
-      (df/load-params* key query config) => {:refresh [] :query [:x]}
+#?(:cljs
+   (specification "The load-action function"
+     (let [state-atom (atom {})]
+       (when-mocking
+         (df/load-params* key query config) => {:refresh [] :query [:x]}
 
-      (df/load-action state-atom :x Person {})
+         (df/load-action state-atom :x Person {})
 
-      (let [query (-> @state-atom :fulcro/ready-to-load first ::dfi/query)]
-        (assertions
-          "adds a proper load marker to the state"
-          query => [:x])))))
+         (let [query (-> @state-atom :fulcro/ready-to-load first ::dfi/query)]
+           (assertions
+             "adds a proper load marker to the state"
+             query => [:x]))))))
 
 (specification "Lazy loading"
   (component "Loading a field within a component"
@@ -272,7 +275,7 @@
       (let [ast    (prim/query->ast [:a :b])
             params {:c {:x 1}}]
         (when-mocking
-          (glog/error obj msg) => (is (= "Error: You attempted to add parameters for #{:c} to top-level key(s) of [:a :b]" msg))
+          (log/error msg) => (is (= "Error: You attempted to add parameters for #{:c} to top-level key(s) of [:a :b]" msg))
 
           (dfi/inject-query-params ast params)
           )))))
@@ -285,7 +288,7 @@
     (when-mocking
       (prim/app-state r) => not-loading-state
 
-      (dfi/set-global-loading :reconciler)
+      (#'dfi/set-global-loading! :reconciler)
 
       (assertions
         "clears the marker if nothing is in the loading set"
@@ -294,7 +297,7 @@
     (when-mocking
       (prim/app-state r) => loading-state
 
-      (dfi/set-global-loading :reconciler)
+      (#'dfi/set-global-loading! :reconciler)
 
       (assertions
         "sets the marker if anything is in the loading set"
@@ -333,106 +336,109 @@
 
 (defmethod m/mutate 'qrp-loaded-callback [{:keys [state]} n p] (swap! state assoc :callback-done true :callback-params p))
 
-(specification "Query response processing (loaded-callback with post mutation)"
-  (let [item            (dfi/set-loading! (dfi/ready-state {:ident                [:item 2]
-                                                            :query                [:id :b]
-                                                            :refresh              [:x :y]
-                                                            :post-mutation        'qrp-loaded-callback
-                                                            :post-mutation-params {:x 1}}))
-        state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
-                               :item                     {2 {:id :original-data}}})
-        items           [item]
-        queued          (atom [])
-        rendered        (atom false)
-        merged          (atom false)
-        globally-marked (atom false)
-        loaded-cb       (dfi/loaded-callback :reconciler)
-        response        {:id 2}]
-    (when-mocking
-      (prim/app-state r) => state
-      (prim/merge! r resp query) => (reset! merged true)
-      (util/force-render r ks) => (reset! rendered ks)
-      (dfi/set-global-loading r) => (reset! globally-marked true)
+#?(:cljs
+   (specification "Query response processing (loaded-callback with post mutation)"
+     (let [item            (dfi/set-loading! (dfi/ready-state {:ident                [:item 2]
+                                                               :query                [:id :b]
+                                                               :refresh              [:x :y]
+                                                               :post-mutation        'qrp-loaded-callback
+                                                               :post-mutation-params {:x 1}}))
+           state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
+                                  :item                     {2 {:id :original-data}}})
+           items           [item]
+           queued          (atom [])
+           rendered        (atom false)
+           merged          (atom false)
+           globally-marked (atom false)
+           loaded-cb       (#'dfi/loaded-callback :reconciler)
+           response        {:id 2}]
+       (when-mocking
+         (prim/app-state r) => state
+         (prim/merge! r resp query) => (reset! merged true)
+         (util/force-render r ks) => (reset! rendered ks)
+         (dfi/set-global-loading! r) => (reset! globally-marked true)
 
-      (loaded-cb response items)
+         (loaded-cb response items)
 
-      (assertions
-        "Merges response with app state"
-        @merged => true
-        "Runs post-mutations"
-        (:callback-done @state) => true
-        (:callback-params @state) => {:x 1}
-        "Triggers a render for :ui/loading-data and any addl keys requested by mutations"
-        (set @rendered) => #{dfi/marker-table :ui/loading-data :ui/fetch-state :x :y}
-        "Removes loading markers for results that didn't materialize"
-        (get-in @state (dfi/data-path item) :fail) => nil
-        "Updates the global loading marker"
-        @globally-marked => true))))
+         (assertions
+           "Merges response with app state"
+           @merged => true
+           "Runs post-mutations"
+           (:callback-done @state) => true
+           (:callback-params @state) => {:x 1}
+           "Triggers a render for :ui/loading-data and any addl keys requested by mutations"
+           (set @rendered) => #{dfi/marker-table :ui/loading-data :ui/fetch-state :x :y}
+           "Removes loading markers for results that didn't materialize"
+           (get-in @state (dfi/data-path item) :fail) => nil
+           "Updates the global loading marker"
+           @globally-marked => true)))))
 
-(specification "Query response processing (loaded-callback with no post-mutations)"
-  (let [item            (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :refresh [:a]}))
-        state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
-                               :item                     {2 {:id :original-data}}})
-        items           [item]
-        queued          (atom [])
-        rendered        (atom false)
-        merged          (atom false)
-        globally-marked (atom false)
-        loaded-cb       (dfi/loaded-callback :reconciler)
-        response        {:id 2}]
-    (when-mocking
-      (prim/app-state r) => state
-      (prim/merge! r resp query) => (reset! merged true)
-      (util/force-render r items) => (reset! queued (set items))
-      (dfi/set-global-loading r) => (reset! globally-marked true)
+#?(:cljs
+   (specification "Query response processing (loaded-callback with no post-mutations)"
+     (let [item            (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :refresh [:a]}))
+           state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
+                                  :item                     {2 {:id :original-data}}})
+           items           [item]
+           queued          (atom [])
+           rendered        (atom false)
+           merged          (atom false)
+           globally-marked (atom false)
+           loaded-cb       (#'dfi/loaded-callback :reconciler)
+           response        {:id 2}]
+       (when-mocking
+         (prim/app-state r) => state
+         (prim/merge! r resp query) => (reset! merged true)
+         (util/force-render r items) => (reset! queued (set items))
+         (dfi/set-global-loading! r) => (reset! globally-marked true)
 
-      (loaded-cb response items)
+         (loaded-cb response items)
 
-      (assertions
-        "Merges response with app state"
-        @merged => true
-        "Queues the refresh items for refresh"
-        @queued =fn=> #(contains? % :a)
-        "Queues the global loading marker for refresh"
-        @queued =fn=> #(contains? % :ui/loading-data)
-        "Queues the marker table for refresh"
-        @queued =fn=> #(contains? % :ui.fulcro.client.data-fetch.load-markers/by-id)
-        "Queues :ui/fetch-state for refresh"
-        @queued =fn=> #(contains? % :ui/fetch-state)
-        "Removes loading markers for results that didn't materialize"
-        (get-in @state (dfi/data-path item) :fail) => nil
-        "Updates the global loading marker"
-        @globally-marked => true))))
+         (assertions
+           "Merges response with app state"
+           @merged => true
+           "Queues the refresh items for refresh"
+           @queued =fn=> #(contains? % :a)
+           "Queues the global loading marker for refresh"
+           @queued =fn=> #(contains? % :ui/loading-data)
+           "Queues the marker table for refresh"
+           @queued =fn=> #(contains? % :ui.fulcro.client.data-fetch.load-markers/by-id)
+           "Queues :ui/fetch-state for refresh"
+           @queued =fn=> #(contains? % :ui/fetch-state)
+           "Removes loading markers for results that didn't materialize"
+           (get-in @state (dfi/data-path item) :fail) => nil
+           "Updates the global loading marker"
+           @globally-marked => true)))))
 
 (defmethod m/mutate 'qrp-error-fallback [{:keys [state]} n p] (swap! state assoc :fallback-done true))
 
-(specification "Query response processing (error-callback)"
-  (let [item            (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :fallback 'qrp-error-fallback :refresh [:x :y]}))
-        state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
-                               :item                     {2 {:id :original-data}}})
-        items           [item]
-        globally-marked (atom false)
-        queued          (atom [])
-        rendered        (atom false)
-        error-cb        (dfi/error-callback :reconciler)
-        response        {:id 2}]
-    (when-mocking
-      (dfi/callback-env r req orig) => {:state state}
-      (prim/app-state r) => state
-      (dfi/set-global-loading r) => (reset! globally-marked true)
-      (prim/force-root-render! r) => (assertions
-                                       "Triggers render at root"
-                                       r => :reconciler)
+#?(:cljs
+   (specification "Query response processing (error-callback)"
+     (let [item            (dfi/set-loading! (dfi/ready-state {:ident [:item 2] :query [:id :b] :fallback 'qrp-error-fallback :refresh [:x :y]}))
+           state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
+                                  :item                     {2 {:id :original-data}}})
+           items           [item]
+           globally-marked (atom false)
+           queued          (atom [])
+           rendered        (atom false)
+           error-cb        (#'dfi/error-callback :reconciler)
+           response        {:id 2}]
+       (when-mocking
+         (dfi/callback-env r req orig) => {:state state}
+         (prim/app-state r) => state
+         (dfi/set-global-loading! r) => (reset! globally-marked true)
+         (prim/force-root-render! r) => (assertions
+                                          "Triggers render at root"
+                                          r => :reconciler)
 
-      (error-cb response items))
+         (error-cb response items))
 
-    (assertions
-      "Runs fallbacks"
-      (:fallback-done @state) => true
-      "Rewrites load markers as error markers"
-      (dfi/failed? (get-in @state (conj (dfi/data-path item) :ui/fetch-state) :fail)) => true
-      "Updates the global loading marker"
-      @globally-marked => true)))
+       (assertions
+         "Runs fallbacks"
+         (:fallback-done @state) => true
+         "Rewrites load markers as error markers"
+         (dfi/failed? (get-in @state (conj (dfi/data-path item) :ui/fetch-state) :fail)) => true
+         "Updates the global loading marker"
+         @globally-marked => true))))
 
 (specification "fetch marker data-path"
   (assertions
@@ -445,38 +451,40 @@
     "is the explicit target if supplied"
     (dfi/data-path {::dfi/target [:a :b]}) => [:a :b]))
 
-(specification "Load markers for field loading (legacy)"
-  (let [state  (atom {:t {1 {:id 1}
-                          2 {:id 2}}})
-        item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :target [:top]})
-        item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})]
+#?(:cljs
+   (specification "Load markers for field loading (legacy)"
+     (let [state  (atom {:t {1 {:id 1}
+                             2 {:id 2}}})
+           item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :target [:top]})
+           item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})]
 
-    (dfi/place-load-markers state [item-1 item-2])
+       (#'dfi/place-load-markers state [item-1 item-2])
 
-    (assertions
-      "ignore targeting"
-      (get-in @state [:top]) => nil
-      "are placed in app state only when the fetch requests a marker"
-      (get-in @state [:t 1 :comments]) =fn=> #(contains? % :ui/fetch-state)
-      (get-in @state [:t 2]) => {:id 2}
-      "are tracked by UUID in :fulcro/loads-in-progress"
-      (get @state :fulcro/loads-in-progress) =fn=> #(= 2 (count %)))))
+       (assertions
+         "ignore targeting"
+         (get-in @state [:top]) => nil
+         "are placed in app state only when the fetch requests a marker"
+         (get-in @state [:t 1 :comments]) =fn=> #(contains? % :ui/fetch-state)
+         (get-in @state [:t 2]) => {:id 2}
+         "are tracked by UUID in :fulcro/loads-in-progress"
+         (get @state :fulcro/loads-in-progress) =fn=> #(= 2 (count %))))))
 
-(specification "Load markers for field loading (new, by-name)" :focused
-  (let [state  (atom {:t {1 {:id 1}
-                          2 {:id 2}}})
-        item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :marker :my-marker :target [:top]})
-        item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})]
+#?(:cljs
+   (specification "Load markers for field loading (new, by-name)"
+     (let [state  (atom {:t {1 {:id 1}
+                             2 {:id 2}}})
+           item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :marker :my-marker :target [:top]})
+           item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})]
 
-    (dfi/place-load-markers state [item-1 item-2])
+       (#'dfi/place-load-markers state [item-1 item-2])
 
-    (assertions
-      "ignore targeting"
-      (get-in @state [:top]) => nil
-      "are placed in the marker table when the fetch requests a marker"
-      (get-in @state [f/marker-table :my-marker]) =fn=> #(contains? % ::dfi/type)
-      "are tracked by UUID in :fulcro/loads-in-progress"
-      (get @state :fulcro/loads-in-progress) =fn=> #(= 2 (count %)))))
+       (assertions
+         "ignore targeting"
+         (get-in @state [:top]) => nil
+         "are placed in the marker table when the fetch requests a marker"
+         (get-in @state [f/marker-table :my-marker]) =fn=> #(contains? % ::dfi/type)
+         "are tracked by UUID in :fulcro/loads-in-progress"
+         (get @state :fulcro/loads-in-progress) =fn=> #(= 2 (count %))))))
 
 (specification "Load markers for regular (top-level) queries (legacy)"
   (let [state  (atom {:users/by-id {4 {:name "Joe"}}
@@ -486,7 +494,7 @@
         item-3 (dfi/ready-state {:query [{:users [:name]}] :target [:t 1 :user]})
         item-4 (dfi/ready-state {:query [:some-value] :target [:t 1 :value]})]
 
-    (dfi/place-load-markers state [item-1 item-2 item-3 item-4])
+    (#'dfi/place-load-markers state [item-1 item-2 item-3 item-4])
 
     (assertions
       "Default to being placed in app root at the first key of the query"
@@ -496,7 +504,7 @@
       (get-in @state [:t 1 :user]) =fn=> #(contains? % :ui/fetch-state)
       (get-in @state [:t 1 :value]) =fn=> #(contains? % :ui/fetch-state))))
 
-(specification "Load markers for regular (top-level) queries (new, by id)" :focused
+(specification "Load markers for regular (top-level) queries (new, by id)"
   (let [state  (atom {:users/by-id {4 {:name "Joe"}}
                       :t           {1 {:id 1}}})
         item-1 (dfi/ready-state {:marker :a :query [{:users [:name]}]})
@@ -504,7 +512,7 @@
         item-3 (dfi/ready-state {:marker :c :query [{:users [:name]}] :target [:t 1 :user]})
         item-4 (dfi/ready-state {:marker :d :query [:some-value] :target [:t 1 :value]})]
 
-    (dfi/place-load-markers state [item-1 item-2 item-3 item-4])
+    (#'dfi/place-load-markers state [item-1 item-2 item-3 item-4])
 
     (assertions
       "Are placed in the markers table"
@@ -513,13 +521,13 @@
       (get @state f/marker-table) =fn=> #(contains? % :c)
       (get @state f/marker-table) =fn=> #(contains? % :d))))
 
-(specification "Load markers when loading with an ident (new, by id)" :focused
+(specification "Load markers when loading with an ident (new, by id)"
   (let [state  (atom {:users/by-id {4 {:name "Joe"}}
                       :t           {1 {:id 1}}})
         item-2 (dfi/ready-state {:marker :a :query [{[:users/by-id 3] [:name]}] :target [:t 1 :user]})
         item-3 (dfi/ready-state {:marker false :query [{[:users/by-id 4] [:name]}]})]
 
-    (dfi/place-load-markers state [item-2 item-3])
+    (#'dfi/place-load-markers state [item-2 item-3])
 
     (assertions
       "Place a marker by ID when asked for"
@@ -531,7 +539,7 @@
         item-2 (dfi/ready-state {:query [{[:users/by-id 3] [:name]}] :target [:t 1 :user]})
         item-3 (dfi/ready-state {:query [{[:users/by-id 4] [:name]}]})]
 
-    (dfi/place-load-markers state [item-2 item-3])
+    (#'dfi/place-load-markers state [item-2 item-3])
 
     (assertions
       "Ignore explicit targeting"
@@ -545,7 +553,7 @@
     (let [simple-state-atom (atom {:a [[:x 1]]})
           simple-items      #{(dfi/ready-state {:query [{:a [:x]}]})}]
 
-      (dfi/relocate-targeted-results simple-state-atom simple-items)
+      (dfi/relocate-targeted-results! simple-state-atom simple-items)
 
       (assertions
         @simple-state-atom => {:a [[:x 1]]})))
@@ -553,7 +561,7 @@
     (let [simple-state-atom (atom {:a [[:x 1]]})
           mistargeted-items #{(dfi/ready-state {:ident [:obj 1] :field :boo :query [:boo] :target [:obj 1 :boo]})}]
 
-      (dfi/relocate-targeted-results simple-state-atom mistargeted-items)
+      (dfi/relocate-targeted-results! simple-state-atom mistargeted-items)
 
       (assertions
         @simple-state-atom => {:a [[:x 1]]})))
@@ -565,9 +573,9 @@
                                       :obj {1 {:boo []}}})
           targeted-items       #{(dfi/ready-state {:query [{:a [:x]}] :target [:obj 1 :boo]})}]
 
-      (dfi/relocate-targeted-results simple-state-atom targeted-items)
-      (dfi/relocate-targeted-results maptarget-state-atom targeted-items)
-      (dfi/relocate-targeted-results vectarget-state-atom targeted-items)
+      (dfi/relocate-targeted-results! simple-state-atom targeted-items)
+      (dfi/relocate-targeted-results! maptarget-state-atom targeted-items)
+      (dfi/relocate-targeted-results! vectarget-state-atom targeted-items)
 
       (assertions
         @simple-state-atom => {:obj {1 {:boo [[:x 1]]}}}
@@ -616,3 +624,42 @@
       "defers loading when join keys partially conflict, preserving order where possible"
       (dfi/split-items-ready-to-load [q-ab-x q-bc-x q-cd-x q-de-x]) => [[q-ab-x q-cd-x] [q-bc-x q-de-x]]
       (dfi/split-items-ready-to-load [q-bc-x q-de-x]) => [[q-bc-x q-de-x] []])))
+
+(specification "Special targeting" :focused
+  (assertions
+    "Is detectable"
+    (dfi/special-target? (df/append-to [])) => true
+    (dfi/special-target? (df/prepend-to [])) => true
+    (dfi/special-target? (df/replace-at [])) => true
+    (dfi/special-target? (df/multiple-targets [:a] [:b])) => true)
+  (component "process-target"
+    (let [starting-state      {:root/thing [:y 2]
+                               :table      {1 {:id 1 :thing [:x 1]}}}
+          starting-state-many {:root/thing [[:y 2]]
+                               :table      {1 {:id 1 :things [[:x 1] [:x 2]]}}}]
+      (component "non-special targets"
+        (assertions
+          "moves an ident at some top-level key to an arbitrary path (non-special)"
+          (dfi/process-target starting-state :root/thing [:table 1 :thing]) => {:table {1 {:id 1 :thing [:y 2]}}}
+          "creates an ident for some location at a target location (non-special)"
+          (dfi/process-target starting-state [:table 1] [:root/thing]) => {:root/thing [:table 1]
+                                                                           :table      {1 {:id 1 :thing [:x 1]}}}
+          "replaces a to-many with a to-many (non-special)"
+          (dfi/process-target starting-state-many :root/thing [:table 1 :things]) => {:table {1 {:id 1 :things [[:y 2]]}}}))
+      (component "special targets"
+        (assertions
+          "can prepend into a to-many"
+          (dfi/process-target starting-state-many :root/thing (df/prepend-to [:table 1 :things])) => {:table {1 {:id 1 :things [[:y 2] [:x 1] [:x 2]]}}}
+          "can append into a to-many"
+          (dfi/process-target starting-state-many :root/thing (df/append-to [:table 1 :things])) => {:table {1 {:id 1 :things [[:x 1] [:x 2] [:y 2]]}}}
+          ; Unsupported:
+          ;"can replace an element in a to-many"
+          ;(df/process-target starting-state-many :root/thing (df/replace-at [:table 1 :things 0])) => {:table {1 {:id 1 :things [[:y 2] [:x 2]]}}}
+          "can affect multiple targets"
+          (dfi/process-target starting-state-many :root/thing (df/multiple-targets
+                                                                (df/prepend-to [:table 1 :stuff])
+                                                                [:root/spot]
+                                                                (df/append-to [:table 1 :things]))) => {:root/spot [[:y 2]]
+                                                                                                        :table     {1 {:id     1
+                                                                                                                       :stuff  [[:y 2]]
+                                                                                                                       :things [[:x 1] [:x 2] [:y 2]]}}})))))

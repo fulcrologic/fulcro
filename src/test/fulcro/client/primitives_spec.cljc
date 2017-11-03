@@ -257,7 +257,7 @@
           "Adds the component to the index of :class->components"
           (count class-elements) => 2)))))
 
-(specification "gather-keys" :focused
+(specification "gather-keys"
   (assertions
     "Can gather the correct keys from simple props"
     (prim/gather-keys [:a :b :c]) => #{:a :b :c}
@@ -269,7 +269,7 @@
     (prim/gather-keys [:a [:x '_]]) => #{:a :x}
     (prim/gather-keys [:a {[:x '_] [:prop]}]) => #{:a :x}))
 
-(specification "building prop->classes index" :focused
+(specification "building prop->classes index"
   (let [index-atom (atom {})]
     (prim/build-prop->class-index! index-atom (prim/get-query Root))
     (assertions

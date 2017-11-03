@@ -1626,7 +1626,7 @@
                (let [ks (gather-keys ele)]
                  (doseq [k ks]
                    (swap! prop->classes update k (fnil conj #{}) component))))
-             ele) query) )
+             ele) query))
 
 (defrecord Indexer [indexes]
   #?(:clj  clojure.lang.IDeref
@@ -1947,9 +1947,12 @@
           q           (if-not (nil? remote)
                         (get-in st [:remote-queue remote])
                         (:queue st))
+          rendered-root? (atom false)
           render-root (fn []
                         (if-let [do-render (:render st)]
-                          (do-render)
+                          (when-not @rendered-root?
+                            (reset! rendered-root? true)
+                            (do-render))
                           (log-error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
       (swap! state update-in [:queued] not)
       (if (not (nil? remote))
@@ -1974,7 +1977,9 @@
                          force-root?    (= ::no-ident next-raw-props) ; screw focused query...
                          next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
                      (if force-root?
-                       (render-root)                        ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
+                       (do
+                         (.forceUpdate c)                  ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
+                         (render-root))                     ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
                        (do
                          (when (and (exists? (.-componentWillReceiveProps c))
                                  (has-query? root)
@@ -2205,7 +2210,7 @@
        (gobj/set (.-state component) "omcljs$pendingState" new-state))
      (if-let [r (get-reconciler component)]
        (do
-         (p/queue! r [component])                           ; WHY WOULD WE EVER RECONCILE HERE???? Oh, perhaps it is to put the pending state into the stored state in the component instance?
+         (p/queue! r [component])
          (schedule-render! r))
        (.forceUpdate component))))
 

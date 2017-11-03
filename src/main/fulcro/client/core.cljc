@@ -429,7 +429,7 @@
   (instance? #?(:cljs cljs.core.Atom
                 :clj  clojure.lang.Atom) x))
 
-(defn integrate-ident
+(def integrate-ident
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
   implementations as a general helper function.
 
@@ -441,35 +441,7 @@
   the ident if that ident is already in the list.
   - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
    If the target is a vector element then that element must already exist in the vector."
-  [state ident & named-parameters]
-  {:pre [(map? state)]}
-  (let [actions (partition 2 named-parameters)]
-    (reduce (fn [state [command data-path]]
-              (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
-                (case command
-                  :prepend (if (already-has-ident-at-path? data-path)
-                             state
-                             (do
-                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
-                               (update-in state data-path #(into [ident] %))))
-                  :append (if (already-has-ident-at-path? data-path)
-                            state
-                            (do
-                              (assert (vector? (get-in state data-path)) (str "Path " data-path " for append must target an app-state vector."))
-                              (update-in state data-path conj ident)))
-                  :replace (let [path-to-vector (butlast data-path)
-                                 to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
-                                 index          (last data-path)
-                                 vector         (get-in state path-to-vector)]
-                             (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
-                             (when to-many?
-                               (do
-                                 (assert (vector? vector) "Path for replacement must be a vector")
-                                 (assert (number? index) "Path for replacement must end in a vector index")
-                                 (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
-                             (assoc-in state data-path ident))
-                  (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
-      state actions)))
+  cutil/integrate-ident)
 
 (defn integrate-ident!
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation

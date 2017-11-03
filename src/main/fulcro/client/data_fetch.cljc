@@ -8,17 +8,18 @@
     [fulcro.client.logging :as log]
     [fulcro.client.dom :as dom]
     [fulcro.client.core :as fc]
-    [fulcro.util :as util]))
+    [fulcro.util :as util]
+    [clojure.set :as set]))
 
 (declare load load-action load-field load-field-action)
 
 (defn bool? [v]
-  #?(:clj (or (true? v) (false? v))
+  #?(:clj  (or (true? v) (false? v))
      :cljs (boolean? v)))
 
 (def marker-table
   "The name of the table in which fulcro load markers are stored"
-  impl/marker-table )
+  impl/marker-table)
 
 (defn- computed-refresh
   "Computes the refresh for the load by ensuring the loaded data is on the Om
@@ -34,6 +35,18 @@
            target-ident (conj to-refresh target-ident)
            (= 1 (count truncated-target)) (conj to-refresh (first target))
            :else to-refresh))))
+
+(defn multiple-targets [& targets]
+  (with-meta (vec targets) {::impl/multiple-targets true}))
+
+(defn prepend-to [target]
+  (with-meta target {::impl/prepend true}))
+
+(defn append-to [target]
+  (with-meta target {::impl/append true}))
+
+(defn replace-at [target]
+  (with-meta target {::impl/replace true}))
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
@@ -199,18 +212,18 @@
   {:pre [(or (nil? marker) (bool? marker) (keyword? marker))]}
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
   (prim/transact! component (into [(list 'fulcro/load
-                                   {:ident                (prim/get-ident component)
-                                    :field                field
-                                    :query                (prim/focus-query (prim/get-query component) [field])
-                                    :params               params
-                                    :without              without
-                                    :remote               remote
-                                    :post-mutation        post-mutation
-                                    :post-mutation-params post-mutation-params
-                                    :parallel             parallel
-                                    :marker               marker
-                                    :refresh              refresh
-                                    :fallback             fallback}) :ui/loading-data :ui.fulcro.client.data-fetch.load-markers/by-id (prim/get-ident component)] refresh)))
+                                     {:ident                (prim/get-ident component)
+                                      :field                field
+                                      :query                (prim/focus-query (prim/get-query component) [field])
+                                      :params               params
+                                      :without              without
+                                      :remote               remote
+                                      :post-mutation        post-mutation
+                                      :post-mutation-params post-mutation-params
+                                      :parallel             parallel
+                                      :marker               marker
+                                      :refresh              refresh
+                                      :fallback             fallback}) :ui/loading-data :ui.fulcro.client.data-fetch.load-markers/by-id (prim/get-ident component)] refresh)))
 
 (defn load-field-action
   "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`
