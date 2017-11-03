@@ -32,8 +32,8 @@
   for those exercises will turn green.")
 
 (dc/deftest exercise-1
-  "In this exercise, you'll verify that you understand how to create a
-  database table in the default Om database format.
+  "In this exercise, you'll verify that you understand
+  the database format.
 
   Create a table named `:cars/by-id` with the following items:
 

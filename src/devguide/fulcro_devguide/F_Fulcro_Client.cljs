@@ -82,8 +82,8 @@
   The `:initial-state` option of `new-fulcro-client` can accept a map (which will be assumed to be a TREE of non-normalized data),
   or an `atom` (which will be assumed to be a pre-normalized database).
 
-  If you supply a map, it will be auto-normalized using your UI's query. If you supply an atom it will be used AS the
-  application database.
+  If you supply a map, it will be auto-normalized using your UI's query and ident, but if you supply an atom it will be used AS the
+  normalized application database.
 
   We do *not* recommend initializing your application in *either* of these ways except in extremely simple circumstances,
   instead Fulcro allows you to co-locate your initial app state locally on the components so that
