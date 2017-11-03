@@ -2,7 +2,7 @@
   (:require
     [fulcro.client.dom :as dom]
     [fulcro.client.routing :as r :refer [defrouter]]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.core :as fc]
     [fulcro.ui.bootstrap3 :as b]
     [fulcro.ui.elements :as ele]))
@@ -20,9 +20,9 @@
 (defn make-thing [id n] {:db/id id :kind :thing :thing/label n})
 
 (defui ^:once PersonDetail
-  static om/Ident
+  static prim/Ident
   (ident [this props] (item-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:kind :db/id :person/name])
   ; defrouter expects there to be an initial state for each possible target. We'll cause this to be a "no selection"
   ; state so that the detail screen that starts out will show "Nothing selected". We initialize all three in case
@@ -31,83 +31,83 @@
   (initial-state [c p] {:db/id :no-selection :kind :person})
   Object
   (render [this]
-    (let [{:keys [db/id person/name]} (om/props this)]
+    (let [{:keys [db/id person/name]} (prim/props this)]
       (dom/div nil
         (if (= id :no-selection)
           "Nothing selected"
           (str "Details about person " name))))))
 
 (defui ^:once PlaceDetail
-  static om/Ident
+  static prim/Ident
   (ident [this props] (item-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:kind :db/id :place/name])
   static fc/InitialAppState
   (initial-state [c p] {:db/id :no-selection :kind :place})
   Object
   (render [this]
-    (let [{:keys [db/id place/name]} (om/props this)]
+    (let [{:keys [db/id place/name]} (prim/props this)]
       (dom/div nil
         (if (= id :no-selection)
           "Nothing selected"
           (str "Details about place " name))))))
 
 (defui ^:once ThingDetail
-  static om/Ident
+  static prim/Ident
   (ident [this props] (item-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:kind :db/id :thing/label])
   static fc/InitialAppState
   (initial-state [c p] {:db/id :no-selection :kind :thing})
   Object
   (render [this]
-    (let [{:keys [db/id thing/label]} (om/props this)]
+    (let [{:keys [db/id thing/label]} (prim/props this)]
       (dom/div nil
         (if (= id :no-selection)
           "Nothing selected"
           (str "Details about thing " label))))))
 
 (defui ^:once PersonListItem
-  static om/Ident
+  static prim/Ident
   (ident [this props] (item-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:kind :db/id :person/name])
   Object
   (render [this]
-    (let [{:keys [db/id person/name] :as props} (om/props this)
-          onSelect (om/get-computed this :onSelect)]
+    (let [{:keys [db/id person/name] :as props} (prim/props this)
+          onSelect (prim/get-computed this :onSelect)]
       (dom/li #js {:onClick #(onSelect (item-ident props))}
         (dom/a #js {:href "javascript:void(0)"} (str "Person " id " " name))))))
 
-(def ui-person (om/factory PersonListItem {:keyfn item-key}))
+(def ui-person (prim/factory PersonListItem {:keyfn item-key}))
 
 (defui ^:once PlaceListItem
-  static om/Ident
+  static prim/Ident
   (ident [this props] (item-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:kind :db/id :place/name])
   Object
   (render [this]
-    (let [{:keys [db/id place/name] :as props} (om/props this)
-          onSelect (om/get-computed this :onSelect)]
+    (let [{:keys [db/id place/name] :as props} (prim/props this)
+          onSelect (prim/get-computed this :onSelect)]
       (dom/li #js {:onClick #(onSelect (item-ident props))}
         (dom/a #js {:href "javascript:void(0)"} (str "Place " id " : " name))))))
 
-(def ui-place (om/factory PlaceListItem {:keyfn item-key}))
+(def ui-place (prim/factory PlaceListItem {:keyfn item-key}))
 
 (defui ^:once ThingListItem
-  static om/Ident
+  static prim/Ident
   (ident [this props] (item-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:kind :db/id :thing/label])
   Object
   (render [this]
-    (let [{:keys [db/id thing/label] :as props} (om/props this)
-          onSelect (om/get-computed this :onSelect)]
+    (let [{:keys [db/id thing/label] :as props} (prim/props this)
+          onSelect (prim/get-computed this :onSelect)]
       (dom/li #js {:onClick #(onSelect (item-ident props))}
         (dom/a #js {:href "javascript:void(0)"} (str "Thing " id " : " label))))))
 
-(def ui-thing (om/factory ThingListItem item-key))
+(def ui-thing (prim/factory ThingListItem item-key))
 
 (defrouter ItemDetail :detail-router
   (ident [this props] (item-ident props))
@@ -115,24 +115,24 @@
   :place PlaceDetail
   :thing ThingDetail)
 
-(def ui-item-detail (om/factory ItemDetail))
+(def ui-item-detail (prim/factory ItemDetail))
 
 (defui ^:once ItemUnion
-  static om/Ident
+  static prim/Ident
   (ident [this props] (item-ident props))
-  static om/IQuery
-  (query [this] {:person (om/get-query PersonListItem)
-                 :place  (om/get-query PlaceListItem)
-                 :thing  (om/get-query ThingListItem)})
+  static prim/IQuery
+  (query [this] {:person (prim/get-query PersonListItem)
+                 :place  (prim/get-query PlaceListItem)
+                 :thing  (prim/get-query ThingListItem)})
   Object
   (render [this]
-    (let [{:keys [kind] :as props} (om/props this)]
+    (let [{:keys [kind] :as props} (prim/props this)]
       (case kind
         :person (ui-person props)
         :place (ui-place props)
         :thing (ui-thing props)))))
 
-(def ui-item-union (om/factory ItemUnion {:keyfn item-key}))
+(def ui-item-union (prim/factory ItemUnion {:keyfn item-key}))
 
 (defui ^:once ItemList
   static fc/InitialAppState
@@ -144,23 +144,23 @@
              (make-person 4 "Sally")
              (make-thing 5 "Pillow")
              (make-place 6 "Canada")]})
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:lists/by-id :singleton])
-  static om/IQuery
-  (query [this] [{:items (om/get-query ItemUnion)}])
+  static prim/IQuery
+  (query [this] [{:items (prim/get-query ItemUnion)}])
   Object
   (render [this]
-    (let [{:keys [items]} (om/props this)
-          onSelect (om/get-computed this :onSelect)]
+    (let [{:keys [items]} (prim/props this)
+          onSelect (prim/get-computed this :onSelect)]
       (dom/ul nil
-        (map (fn [i] (ui-item-union (om/computed i {:onSelect onSelect}))) items)))))
+        (map (fn [i] (ui-item-union (prim/computed i {:onSelect onSelect}))) items)))))
 
-(def ui-item-list (om/factory ItemList))
+(def ui-item-list (prim/factory ItemList))
 
 (defui ^:once DemoRoot
-  static om/IQuery
-  (query [this] [{:item-list (om/get-query ItemList)}
-                 {:item-detail (om/get-query ItemDetail)}])
+  static prim/IQuery
+  (query [this] [{:item-list (prim/get-query ItemList)}
+                 {:item-detail (prim/get-query ItemDetail)}])
   static fc/InitialAppState
   (initial-state [c p] (merge
                          (r/routing-tree
@@ -169,10 +169,10 @@
                           :item-detail (fc/get-initial-state ItemDetail nil)}))
   Object
   (render [this]
-    (let [{:keys [item-list item-detail]} (om/props this)
+    (let [{:keys [item-list item-detail]} (prim/props this)
           ; This is the only thing to do: Route the to the detail screen with the given route params!
           showDetail (fn [[kind id]]
-                       (om/transact! this `[(r/route-to {:handler :detail :route-params {:kind ~kind :id ~id}})]))]
+                       (prim/transact! this `[(r/route-to {:handler :detail :route-params {:kind ~kind :id ~id}})]))]
       ; devcards, embed in iframe so we can use bootstrap css easily
       (ele/ui-iframe {:frameBorder 0 :height "300px" :width "100%"}
         (dom/div #js {:key "example-frame-key"}
@@ -183,6 +183,6 @@
               (b/col {:xs 6} "Items")
               (b/col {:xs 6} "Detail"))
             (b/row {}
-              (b/col {:xs 6} (ui-item-list (om/computed item-list {:onSelect showDetail})))
+              (b/col {:xs 6} (ui-item-list (prim/computed item-list {:onSelect showDetail})))
               (b/col {:xs 6} (ui-item-detail item-detail)))))))))
 

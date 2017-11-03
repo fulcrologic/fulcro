@@ -5,59 +5,59 @@
             [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
             [fulcro.client.cards :refer-macros [fulcro-app]]
             [fulcro.client.data-fetch :as df]
-            [fulcro.client.primitives :as om :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui]]
             [fulcro.client.mutations :as m]))
 
-(om/defui ^:once Main
+(prim/defui ^:once Main
   static fc/InitialAppState
   (initial-state [clz params] {:page :main :label "MAIN"})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:page :label])
   Object
   (render [this]
-    (let [{:keys [label]} (om/props this)]
+    (let [{:keys [label]} (prim/props this)]
       (dom/div #js {:style #js {:backgroundColor "red"}}
         label))))
 
-(om/defui ^:once Login
+(prim/defui ^:once Login
   static fc/InitialAppState
   (initial-state [clz params] {:page :login :label "LOGIN"})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:page :label])
   Object
   (render [this]
-    (let [{:keys [label]} (om/props this)]
+    (let [{:keys [label]} (prim/props this)]
       (dom/div #js {:style #js {:backgroundColor "green"}}
         label))))
 
-(om/defui ^:once NewUser
+(prim/defui ^:once NewUser
   static fc/InitialAppState
   (initial-state [clz params] {:page :new-user :label "New User"})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:page :label])
   Object
   (render [this]
-    (let [{:keys [label]} (om/props this)]
+    (let [{:keys [label]} (prim/props this)]
       (dom/div #js {:style #js {:backgroundColor "skyblue"}}
         label))))
 
-(om/defui ^:once StatusReport
+(prim/defui ^:once StatusReport
   static fc/InitialAppState
   (initial-state [clz params] {:id :a :page :status-report})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :page :label])
   Object
-  (render [this] (let [{:keys [id]} (om/props this)]
+  (render [this] (let [{:keys [id]} (prim/props this)]
                    (dom/div #js {:style #js {:backgroundColor "yellow"}}
                      (dom/div nil (str "Status " id))))))
 
-(om/defui ^:once GraphingReport
+(prim/defui ^:once GraphingReport
   static fc/InitialAppState
   (initial-state [clz params] {:id :a :page :graphing-report})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :page :label])                         ; make sure you query for everything need by the router's ident function!
   Object
-  (render [this] (let [{:keys [id]} (om/props this)]
+  (render [this] (let [{:keys [id]} (prim/props this)]
                    (dom/div #js {:style #js {:backgroundColor "orange"}}
                      (dom/div nil (str "Graph " id))))))
 
@@ -70,22 +70,22 @@
   :status-report StatusReport
   :graphing-report GraphingReport)
 
-(def ui-report-router (om/factory ReportRouter))
+(def ui-report-router (prim/factory ReportRouter))
 
 ; BIG GOTCHA: Make sure you query for the prop (in this case :page) that the union needs in order to decide. It won't pull it itself!
-(om/defui ^:once ReportsMain
+(prim/defui ^:once ReportsMain
   static fc/InitialAppState
   ; nest the router under any arbitrary key, just be consistent in your query and props extraction.
   (initial-state [clz params] {:page :report :report-router (fc/get-initial-state ReportRouter {})})
-  static om/IQuery
-  (query [this] [:page {:report-router (om/get-query ReportRouter)}])
+  static prim/IQuery
+  (query [this] [:page {:report-router (prim/get-query ReportRouter)}])
   Object
   (render [this]
     (dom/div #js {:style #js {:backgroundColor "grey"}}
       ; Screen-specific content to be shown "around" or "above" the subscreen
       "REPORT MAIN SCREEN"
       ; Render the sub-router. You can also def a factory for the router (e.g. ui-report-router)
-      (ui-report-router (:report-router (om/props this))))))
+      (ui-report-router (:report-router (prim/props this))))))
 
 
 (defrouter TopRouter :top-router
@@ -95,7 +95,7 @@
   :new-user NewUser
   :report ReportsMain)
 
-(def ui-top (om/factory TopRouter))
+(def ui-top (prim/factory TopRouter))
 
 (def routing-tree
   "A map of route handling instructions. The top key is the handler name of the route which can be
@@ -115,23 +115,23 @@
     (r/make-route :status [(r/router-instruction :top-router [:report :top])
                            (r/router-instruction :report-router [:status-report :param/report-id])])))
 
-(om/defui ^:once Root
+(prim/defui ^:once Root
   static fc/InitialAppState
   ; r/routing-tree-key implies the alias of fulcro.client.routing as r.
   (initial-state [clz params] (merge routing-tree
                                 {:top-router (fc/get-initial-state TopRouter {})}))
-  static om/IQuery
-  (query [this] [:ui/react-key {:top-router (om/get-query TopRouter)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:top-router (prim/get-query TopRouter)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key top-router]} (om/props this)]
+    (let [{:keys [ui/react-key top-router]} (prim/props this)]
       (dom/div #js {:key react-key}
         ; Sample nav mutations
-        (dom/a #js {:onClick #(om/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
-        (dom/a #js {:onClick #(om/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
-        (dom/a #js {:onClick #(om/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
-        (dom/a #js {:onClick #(om/transact! this `[(r/route-to {:handler :status :route-params {:report-id :a}})])} "Status A") " | "
-        (dom/a #js {:onClick #(om/transact! this `[(r/route-to {:handler :graph :route-params {:report-id :a}})])} "Graph A")
+        (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
+        (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
+        (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
+        (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :status :route-params {:report-id :a}})])} "Status A") " | "
+        (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :graph :route-params {:report-id :a}})])} "Graph A")
         (ui-top top-router)))))
 
 (defcard router-demo
@@ -209,7 +209,7 @@
 
   ```
   ; assumes you've aliased fulcro.client.routing to r
-  (om/transact! `[(r/route-to {:handler :main})])
+  (prim/transact! `[(r/route-to {:handler :main})])
   ```
 
   ## Combining Routing with Data Management
@@ -218,7 +218,7 @@
   to switch to a screen whose data might not yet exist:
 
   ```
-  (om/transact! `[(app/ensure-report-loaded {:report-id :a}) (r/route-to {:graph :a})])
+  (prim/transact! `[(app/ensure-report-loaded {:report-id :a}) (r/route-to {:graph :a})])
   ```
 
   here we're assuming that `ensure-report-loaded` is a mutation that ensures that there is at least placeholder data in
@@ -247,7 +247,7 @@
   ```
   (defn show-report!
     [component report-id]
-    (om/transact! component `[(app/clear-old-reports)
+    (prim/transact! component `[(app/clear-old-reports)
                               (app/ensure-report-loaded {:report-id ~report-id})
                               (r/route-to {:graph ~report-id})
                               :top-level-key]))

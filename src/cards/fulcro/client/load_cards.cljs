@@ -3,7 +3,7 @@
     [devcards.core :as dc :refer-macros [defcard]]
     [fulcro.client.core :as fc]
     [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.dom :as dom]
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]
@@ -21,9 +21,9 @@
   (start [this] this))
 
 (defui Thing
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :label])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:thing/by-id (:id props)])
   Object
   (render [this] (dom/div nil "THING")))
@@ -58,8 +58,8 @@
   (fulcro-app Root
     :networking (MockNetwork.)
     :started-callback (fn [{:keys [reconciler]}]
-                        (let [id (om/tempid)]
-                          (om/transact! reconciler `[(add-thing {:id ~id :label "A"})])
+                        (let [id (prim/tempid)]
+                          (prim/transact! reconciler `[(add-thing {:id ~id :label "A"})])
                           (df/load reconciler [:thing/by-id id] Thing))))
   {}
   {:inspect-data true})
@@ -69,7 +69,7 @@
   (send [this edn done-callback error-callback]
     (js/setTimeout (fn []
                      (cond
-                       (= [{:thing (om/get-query Thing)}] edn) (done-callback {:thing {:id 2 :label "UPDATED B"}})
+                       (= [{:thing (prim/get-query Thing)}] edn) (done-callback {:thing {:id 2 :label "UPDATED B"}})
                        :else (done-callback {[:thing/by-id 1] {:id 1 :label "UPDATED A"}}))) 500))
   (start [this] this))
 

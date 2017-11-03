@@ -1,5 +1,5 @@
 (ns fulcro-devguide.M30-Advanced-Mutation
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
@@ -9,16 +9,16 @@
             [fulcro.client.data-fetch :as df]))
 
 (defui SubQuery
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:sub/by-id (:id props)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :data]))
 
 (defui TopQuery
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:top/by-id (:id props)])
-  static om/IQuery
-  (query [this] [:id {:subs (om/get-query SubQuery)}]))
+  static prim/IQuery
+  (query [this] [:id {:subs (prim/get-query SubQuery)}]))
 
 (defcard-doc
   "
@@ -26,22 +26,22 @@
 
   All of your local UI operations will go through the mechanisms described in the section on Mutations. This section
   covers a number of additional issues that arise in more advanced situations. Almost all of these circumstances arise
-  from needing to modify your application database *outside* of the normal `om/transact!` mechanism at the UI layer.
+  from needing to modify your application database *outside* of the normal `prim/transact!` mechanism at the UI layer.
 
-  The first note is that `om/transact!` can be used on the Om reconciler. If you've saved your Fulcro Application
+  The first note is that `prim/transact!` can be used on the Om reconciler. If you've saved your Fulcro Application
   in a top-level atom (as recommended in the templates), then you can run a transaction \"globally\" like this:
 
   ```
-  (om/transact! @app ...)
+  (prim/transact! @app ...)
   ```
 
   This should generally be used in cases where there is an abstract operation (e.g. you want `setTimeout` to update
-  a js/Date to the current time and have the screen refresh). Using `(om/transact! (:reconciler @app) '[(update-time) :current-time])` is
+  a js/Date to the current time and have the screen refresh). Using `(prim/transact! (:reconciler @app) '[(update-time) :current-time])` is
   much clearer and in the spirit of the framework than any other low-level data tweaking. That could also be done in
   the context of a component to prevent an overall root re-render, though you'd want to be careful to use both sides of
   the component lifecycle to install *and* remove a timer that triggers such an update.
 
-  ### Leveraging `om/tree->db`
+  ### Leveraging `prim/tree->db`
 
   In some cases you will have obtained some data (or perhaps invented it) and you need to integrate that data into the
   database. If the data matches your UI structure (as a tree) and you have proper `Ident` declarations on those components
@@ -100,13 +100,13 @@
   `:result`. The specific operation used here is:
 
   ```
-  (om/tree->db TopQuery (:from @state) true)
+  (prim/tree->db TopQuery (:from @state) true)
   ```
   "
   (fn [state _]
     (dom/div nil
       (dom/button #js {:onClick (fn []
-                                  (let [result (om/tree->db TopQuery (:from @state) true)]
+                                  (let [result (prim/tree->db TopQuery (:from @state) true)]
                                     (swap! state assoc :result result)))} "Run tree->db")
       (dom/button #js {:onClick (fn []
                                   (swap! state dissoc :result))} "Reset")))
@@ -123,13 +123,13 @@
   this work work right. The `ident` functions are used to determine the table locations and idents to place into
   the normalized database!
 
-  ### Using `om/merge!`
+  ### Using `prim/merge!`
 
   Om Next includes a function that takes care of the rest of these bits for you. It uses the Om Next reconciler (which
   as we mentioned earlier can be obtained from the Fulcro App). The arguments are similar to `tree->db`:
 
   ```
-  (om/merge! (:reconciler @app) ROOT-data ROOT-query)
+  (prim/merge! (:reconciler @app) ROOT-data ROOT-query)
   ```
 
   The same things apply as `tree->db` (idents especially), however, the result of the transform will make it's way into
@@ -147,11 +147,11 @@
     :append [:panels/by-kw :counter :counters]))
 
 (defui ^:once Root
-  static om/IQuery
-  (query [this] [{:panel (om/get-query tour/CounterPanel)}])
+  static prim/IQuery
+  (query [this] [{:panel (prim/get-query tour/CounterPanel)}])
   Object
   (render [this]
-    (let [{:keys [panel]} (om/props this)]
+    (let [{:keys [panel]} (prim/props this)]
       (dom/div #js {:style #js {:border "1px solid black"}}
         (dom/button #js {:onClick #(add-counter @sample-of-counter-app-with-merge-state-fulcro-app {:counter/id 4 :counter/n 22})} "Simulate Data Import")
         "Counters:"

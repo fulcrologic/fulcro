@@ -1,6 +1,6 @@
 (ns fulcro-devguide.B-UI-Exercises
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
@@ -17,7 +17,7 @@
   NOTE - Namespace aliases used in this document:
 
 ```clojure
-(require '[fulcro.client.primitives :as om :refer-macros [defui]]
+(require '[fulcro.client.primitives :as prim :refer-macros [defui]]
          '[fulcro.client.dom :as dom])
 ```
 
@@ -96,14 +96,14 @@
         (dom/button nil "X")                                ; TODO (ex 4): Call onDelete handler, if present
         (when mate (dom/ul nil (om-person mate)))))))
 
-(def om-person (om/factory Person))
+(def om-person (prim/factory Person))
 
 (defcard exercise-1
   "## Exercise 1 - A UI component
 
   Create an Om Person UI component. No need to add a query yet. The main
   task is to make sure you understand how to get the properties via
-  `om/props`.
+  `prim/props`.
 
   The template is in this guide file just above this card.
 
@@ -128,7 +128,7 @@
             ;; TODO (ex 4): Pass deletePerson as the onDelete handler to person element
             (dom/ul nil (map #(om-person %) people))))))))
 
-(def people-widget (om/factory PeopleWidget))
+(def people-widget (prim/factory PeopleWidget))
 
 (defui Root
   Object
@@ -143,7 +143,7 @@
           (dom/input #js {:type "text"})
           (dom/button #js {} "Add Person"))))))
 
-(def om-root (om/factory Root))
+(def om-root (prim/factory Root))
 
 (defcard exercise-2
   "## Exercise 2 - A UI tree
@@ -151,7 +151,7 @@
   Continue and build out two more components as seen in the source just above this card.
 
   NOTE: If you look in the
-  data below, you'll see our desired UI tree in data form. Use `om/props` to pull out the
+  data below, you'll see our desired UI tree in data form. Use `prim/props` to pull out the
   correct pieces at each level of the rendered UI. When you do this correctly, the
   card should render properly. Be careful around the `:widget` nesting.
   "
@@ -177,7 +177,7 @@
   (initLocalState [this] { map-of-data-to-store })
   ```
 
-  in the Object section of your UI. Then use `om/get-state`, `om/update-state!`, and `om/set-state!` to
+  in the Object section of your UI. Then use `prim/get-state`, `prim/update-state!`, and `prim/set-state!` to
   work with the state.
 
   Add component local state to your Person class, and update the UI so that when
@@ -201,13 +201,13 @@
   attributes (e.g. callbacks).
 
   Instead, callbacks and other UI-generated data should be passed into an
-  Om component using `om/computed`...
+  Om component using `prim/computed`...
 
   ```
-  (om-component (om/computed props { :computed-thing 4 }))
+  (om-component (prim/computed props { :computed-thing 4 }))
   ```
 
-  ...and may be retrieved using `om/get-computed` on either the `props` or `this`
+  ...and may be retrieved using `prim/get-computed` on either the `props` or `this`
   passed to render.
 
   Internally, computed just places this data in a side-band area (e.g. metadata) so

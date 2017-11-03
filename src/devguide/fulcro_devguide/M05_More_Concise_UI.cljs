@@ -5,7 +5,7 @@
     [fulcro.client.core :as fc :refer [defsc]]
     [cljs.spec.alpha :as s]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.ui.forms :as f]
     [fulcro-css.css :as css]))
 
@@ -19,7 +19,7 @@
                    :job/name :param/name}}
   (dom/span nil name))
 
-(def ui-job (om/factory Job {:keyfn :db/id}))
+(def ui-job (prim/factory Job {:keyfn :db/id}))
 
 (defsc Person
   "A person component"
@@ -27,8 +27,8 @@
   {:ident         [:PERSON/by-id :db/id]
    :css           [[:.namecls {:font-weight :bold}]]
    :query         [:db/id :person/name
-                   {:person/job (om/get-query Job)}
-                   {:person/prior-jobs (om/get-query Job)}]
+                   {:person/job (prim/get-query Job)}
+                   {:person/prior-jobs (prim/get-query Job)}]
    ; expects to be called as (get-initial-state Person {:id i :name n :job j :jobs [j1 j2]})
    :initial-state {:db/id             :param/id
                    :person/name       :param/name
@@ -53,8 +53,8 @@
                     {:ident         [:PERSON/by-id :db/id]
                      :css           [[:.namecls {:font-weight :bold}]]
                      :query         [:db/id :person/name
-                                     {:person/job (om/get-query Job)}
-                                     {:person/prior-jobs (om/get-query Job)}]
+                                     {:person/job (prim/get-query Job)}
+                                     {:person/prior-jobs (prim/get-query Job)}]
                      ; expects to be called as (get-initial-state Person {:id i :name n :job j :jobs [j1 j2]})
                      :initial-state {:db/id             :param/id
                                      :person/name       :param/name
@@ -88,7 +88,7 @@
   static fulcro.client.primitives/Ident
   (ident [this props] [:PERSON/by-id (:db/id props)])
   static fulcro.client.primitives/IQuery
-  (query [this] [:db/id :person/name #:person{:job (om/get-query Job)} #:person{:prior-jobs (om/get-query Job)}])
+  (query [this] [:db/id :person/name #:person{:job (prim/get-query Job)} #:person{:prior-jobs (prim/get-query Job)}])
   Object
   (render
     [this]
@@ -107,11 +107,11 @@
                   (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))))
 
 
-(def ui-person (om/factory Person {:keyfn :db/id}))
+(def ui-person (prim/factory Person {:keyfn :db/id}))
 
 (defsc Root
   [this {:keys [people ui/react-key]} _ _]
-  {:query         [:ui/react-key {:people (om/get-query Person)}]
+  {:query         [:ui/react-key {:people (prim/get-query Person)}]
    :css           [[:.thing {:color "gray"}]]               ; define colocated CSS classes
    :css-include   [Person]
    ; protocols is for anything "extra" you need that you could normally list under defui
@@ -152,7 +152,7 @@
   The (optional) `:ident` parameter should be a vector of two elements. The first is the literal table name, and the
   second is the ID field that will exist in props.
 
-  For example, `:ident [:person/by-id :person/id]` will turn into `om/Ident (ident [this props] [:person/by-id (:person/id props)])`
+  For example, `:ident [:person/by-id :person/id]` will turn into `prim/Ident (ident [this props] [:person/by-id (:person/id props)])`
   on the resulting component.
 
   ## Query

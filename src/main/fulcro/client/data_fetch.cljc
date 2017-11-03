@@ -97,7 +97,7 @@
   components that are waiting for data. The `:target` parameter can be used to place the data somewhere besides app
   state root (which is the default).
 
-  The server will receive an Om query of the form: [({server-property (om/get-query SubqueryClass)} params)], which
+  The server will receive an Om query of the form: [({server-property (prim/get-query SubqueryClass)} params)], which
   the Om parser will correctly parse as a Join on server-property with the given subquery and params. See Om AST and
   instructions on parsing Om queries.
 
@@ -185,7 +185,7 @@
         (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :env env))))))
 
 (defn load-field
-  "Load a field of the current component. Runs `om/transact!`.
+  "Load a field of the current component. Runs `prim/transact!`.
 
   Parameters
   - `component`: The component (**instance**, not class). This component MUST have an Ident.
@@ -306,24 +306,24 @@
 
   ```
   (defui Thing
-    static om/IQuery
-    (query [this] [{:thing2 (om/get-query Thing2)}])
+    static prim/IQuery
+    (query [this] [{:thing2 (prim/get-query Thing2)}])
     Object
     (componentDidMount [this]
        (load-field this :thing2))
 
     (render [this]
-      (let [thing2 (:thing2 (om/props this))]
+      (let [thing2 (:thing2 (prim/props this))]
         (lazily-loaded ui-thing2 thing2))))
 
   (defui Thing2
-    static om/IQuery
+    static prim/IQuery
     (query [this] [:ui/fetch-state])
     Object
     (render [this]
       (display-thing-2))
 
-  (def ui-thing2 (om/factory Thing2))
+  (def ui-thing2 (prim/factory Thing2))
   ```"
   [data-render props & {:keys [ready-render loading-render failed-render not-present-render]
                         :or   {loading-render (fn [_] (dom/div (clj->js {"className" "lazy-loading-load"}) "Loading..."))

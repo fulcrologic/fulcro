@@ -1,5 +1,5 @@
 (ns recipes.sql-server
-  (:require [fulcro.server :as om]
+  (:require [fulcro.server :as prim]
             [fulcro.client.impl.parser :as op]
             [hugsql.core :as hugsql]
             [taoensso.timbre :as timbre]
@@ -13,8 +13,8 @@
 
 (hugsql/def-db-fns "recipes/people.sql")
 
-(defmulti apimutate om/dispatch)
-(defmulti api-read om/dispatch)
+(defmulti apimutate prim/dispatch)
+(defmulti api-read prim/dispatch)
 
 (defmethod apimutate :default [e k p]
   (timbre/error "Unrecognized mutation " k))
@@ -65,6 +65,6 @@
 (defn make-system []
   (core/make-fulcro-server
     :config-path "config/recipe.edn"
-    :parser (om/parser {:read logging-query :mutate logging-mutate})
+    :parser (prim/parser {:read logging-query :mutate logging-mutate})
     :parser-injections #{:db}
     :components {:db (map->SQLDatabase {})}))

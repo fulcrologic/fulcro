@@ -123,8 +123,8 @@
    trivial:
 
    ```
-   (let [props                (om/db->tree (om/get-query app/Root normalized-db normalized-db)
-         root-factory         (om/factory app/Root)]
+   (let [props                (prim/db->tree (prim/get-query app/Root normalized-db normalized-db)
+         root-factory         (prim/factory app/Root)]
      (dom/render-to-str (root-factory props)))
    ```
 
@@ -238,7 +238,7 @@
   Server rendering (client-side cljs) is:
 
   ```
-  (def ui-root (om/factory root/Root))
+  (def ui-root (prim/factory root/Root))
 
   (defn ^:export server-render [props-str]
     ; incoming data will come from JVM as transit-stringified EDN

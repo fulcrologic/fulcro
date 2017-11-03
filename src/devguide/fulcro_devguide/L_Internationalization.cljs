@@ -8,7 +8,7 @@
             [cljs.reader :as r]
             [fulcro.client.impl.parser :as p]
             [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as om :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui]]
             [fulcro.client.mutations :as m]))
 
 (reset! ic/*loaded-translations* {"es" {"|This is a test" "Spanish for 'this is a test'"
@@ -16,15 +16,15 @@
 
 (defn locale-switcher [comp]
   (dom/div nil
-    (dom/button #js {:onClick #(om/transact! comp `[(m/change-locale {:lang "en"}) :ui/locale])} "en")
-    (dom/button #js {:onClick #(om/transact! comp `[(m/change-locale {:lang "es"}) :ui/locale])} "es")))
+    (dom/button #js {:onClick #(prim/transact! comp `[(m/change-locale {:lang "en"}) :ui/locale])} "en")
+    (dom/button #js {:onClick #(prim/transact! comp `[(m/change-locale {:lang "es"}) :ui/locale])} "es")))
 
 (defui Test
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key :ui/locale])
   Object
   (render [this]
-    (let [{:keys [ui/react-key ui/locale]} (om/props this)]
+    (let [{:keys [ui/react-key ui/locale]} (prim/props this)]
       (dom/div #js {:key react-key}
         (locale-switcher this)
         (dom/span nil (str "Locale: " locale))
@@ -77,9 +77,9 @@
   parameter (which can use the ISO standard two-letter language with an optional country code):
 
   ```
-  (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang :es})])
+  (prim/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang :es})])
   ; or if you've aliased mutations to m:
-  (om/transact! reconciler `[(m/change-locale {:lang :es})])
+  (prim/transact! reconciler `[(m/change-locale {:lang :es})])
   ```
 
   The rendering functions will search for a translation in that language and country, fall back to the language if
@@ -121,13 +121,13 @@
 (defui Format
   static fc/InitialAppState
   (initial-state [clz p] {:ui/label "Your Name"})
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:components :ui])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/label])
   Object
   (render [this]
-    (let [{:keys [ui/label]} (om/props this)]
+    (let [{:keys [ui/label]} (prim/props this)]
       (dom/div nil
         (locale-switcher this)
         (dom/input #js {:value label :onChange #(m/set-string! this :ui/label :event %)})
@@ -136,16 +136,16 @@
         (trf "N: {n, number} ({m, date, long})" :n 10229 :m (new js/Date))
         (dom/br nil)))))
 
-(def ui-format (om/factory Format))
+(def ui-format (prim/factory Format))
 
 (defui Root2
   static fc/InitialAppState
   (initial-state [clz p] {:format (fc/initial-state Format {})})
-  static om/IQuery
-  (query [this] [:ui/react-key :ui/locale {:format (om/get-query Format)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key :ui/locale {:format (prim/get-query Format)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key ui/locale format]} (om/props this)]
+    (let [{:keys [ui/react-key ui/locale format]} (prim/props this)]
       (dom/div #js {:key react-key}
         (dom/span nil (str "Locale: " locale))
         (dom/br nil)

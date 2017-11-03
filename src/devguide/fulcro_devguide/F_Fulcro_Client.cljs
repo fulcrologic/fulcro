@@ -1,5 +1,5 @@
 (ns fulcro-devguide.F-Fulcro-Client
-(:require [fulcro.client.primitives :as om :refer-macros [defui]]
+(:require [fulcro.client.primitives :as prim :refer-macros [defui]]
   [fulcro.client.dom :as dom]
   [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
@@ -40,7 +40,7 @@
       [fulcro.client.core :as fc]
       [app.ui :as ui]
       yahoo.intl-messageformat-with-locales ; if using i18n
-      [fulcro.client.primitives :as om]))
+      [fulcro.client.primitives :as prim]))
 
   (defonce app (atom (fc/new-fulcro-client :initial-state { :some-data 42 })))
   (reset! app (core/mount @app ui/Root \"app\"))

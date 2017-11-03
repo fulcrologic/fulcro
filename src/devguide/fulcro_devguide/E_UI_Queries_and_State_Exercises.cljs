@@ -1,6 +1,6 @@
 (ns fulcro-devguide.E-UI-Queries-and-State-Exercises
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
@@ -17,13 +17,13 @@
   Object
   (initLocalState [this] {:checked false})
   (render [this]
-    (let [{:keys [person/name person/mate]} (om/props this)
-          {:keys [onDelete]} (om/get-computed this)
-          checked (om/get-state this :checked)]
+    (let [{:keys [person/name person/mate]} (prim/props this)
+          {:keys [onDelete]} (prim/get-computed this)
+          checked (prim/get-state this :checked)]
       (dom/li nil
         (dom/input #js {:type    "checkbox"
-                        :onClick #(om/update-state! this update :checked not)
-                        :checked (om/get-state this :checked)})
+                        :onClick #(prim/update-state! this update :checked not)
+                        :checked (prim/get-state this :checked)})
         (if checked
           (dom/b nil name)
           (dom/span nil name))
@@ -31,12 +31,12 @@
           (dom/button #js {:onClick #(onDelete name)} "X"))
         (when mate (dom/ul nil (om-person mate)))))))
 
-(def om-person (om/factory Person {:keyfn :db/id}))
+(def om-person (prim/factory Person {:keyfn :db/id}))
 
 (defui PeopleWidget
   Object
   (render [this]
-    (let [people (-> (om/props this) :people)
+    (let [people (-> (prim/props this) :people)
           deletePerson (fn [p] (println "Delete" p))]
       (dom/div nil
         (if (= nil people)
@@ -44,15 +44,15 @@
           (dom/div nil
             (dom/button #js {} "Save")
             (dom/button #js {} "Refresh List")
-            (dom/ul nil (map #(om-person (om/computed % {:onDelete deletePerson})) people))))))))
+            (dom/ul nil (map #(om-person (prim/computed % {:onDelete deletePerson})) people))))))))
 
-(def people-widget (om/factory PeopleWidget))
+(def people-widget (prim/factory PeopleWidget))
 
 (defui Root
   ;; TODO: Add root query. Remember to include top-level properties and compose in PeopleWidget
   Object
   (render [this]
-    (let [{:keys [widget new-person last-error]} (om/props this)]
+    (let [{:keys [widget new-person last-error]} (prim/props this)]
       (dom/div nil
         (dom/div nil (when (not= "" last-error) (str "Error " last-error)))
         (dom/div nil
@@ -60,7 +60,7 @@
           (dom/input #js {:type "text"})
           (dom/button #js {} "Add Person"))))))
 
-(def om-root (om/factory Root))
+(def om-root (prim/factory Root))
 
 (defcard-doc
   "# Query exercises
@@ -95,14 +95,14 @@ TODO: Split this into smaller bits.
 
   Finish building out the suggested goal interface using Om components with co-located queries.
 
-  Remember that you will now have to obtain your properties from `this` using `om/props`.
+  Remember that you will now have to obtain your properties from `this` using `prim/props`.
 
   This file (just above this card's source) contains starter code. When correct, this card should render
   correctly. Note that this card does not detect the error of using another component's query as
   the full query.
   "
   (fn [state-atom _]
-    (om-root (om/db->tree (om/get-query Root) db db)))
+    (om-root (prim/db->tree (prim/get-query Root) db db)))
   {:new-person "", :last-error "",
    :widget     {:people [{:person/name "Joe" :db/id 1 :person/mate {:person/name "Sally" :db/id 2}}
                          {:person/name "Sally" :db/id 2 :person/mate {:person/name "Joe" :db/id 1}}]}}

@@ -1150,7 +1150,7 @@
                            (ident class data)))]
       (if-not (nil? ident)
         (vary-meta (normalize* (get query (first ident)) data refs union-seen)
-          assoc :om/tag (first ident))
+          assoc :prim/tag (first ident))
         (throw #?(:clj  (IllegalArgumentException. "Union components must implement Ident")
                   :cljs (js/Error. "Union components must implement Ident")))))
 

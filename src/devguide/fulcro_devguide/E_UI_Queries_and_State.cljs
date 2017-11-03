@@ -1,6 +1,6 @@
 (ns fulcro-devguide.E-UI-Queries-and-State
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.impl.parser :as p]
             [fulcro-devguide.queries.query-editing :as qe]
             [fulcro.client.dom :as dom]
@@ -87,19 +87,19 @@
   Get people that are my friends (e.g. relative to your login cookie):
 
   ```
-  [{:current-user/friends (om/get-query Person)}]
+  [{:current-user/friends (prim/get-query Person)}]
   ```
 
   Get people that work for the company (context of login):
 
   ```
-  [{:company/active-employees (om/get-query Person)}]
+  [{:company/active-employees (prim/get-query Person)}]
   ```
 
   Get a very specific user (using an ident):
 
   ```
-  [{[:user/by-id 42] (om/get-query Person)}]
+  [{[:user/by-id 42] (prim/get-query Person)}]
   ```
 
   `fulcro-devguide.queries.query-demo` contains these components:
@@ -180,8 +180,8 @@
 
   ```
   (defui Widget
-       static om/IQuery
-       (query [this] (om/get-query OtherWidget))
+       static prim/IQuery
+       (query [this] (prim/get-query OtherWidget))
        ...)
   ```
 
@@ -194,11 +194,11 @@
 
   ```
   (defui RootWidget
-       static om/IQuery
-       (query [this] [{:other (om/get-query OtherWidget)}])
+       static prim/IQuery
+       (query [this] [{:other (prim/get-query OtherWidget)}])
        Object
        (render [this]
-          (let [{:keys [other]} (om/props this)] (other-element other)))
+          (let [{:keys [other]} (prim/props this)] (other-element other)))
   ```
 
   ### Making a component when a function would do

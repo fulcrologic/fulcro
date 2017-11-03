@@ -20,7 +20,7 @@
        __hash)
      IPrintWithWriter
      (-pr-writer [_ writer _]
-       (write-all writer "#om/id[\"" id "\"]"))))
+       (write-all writer "#prim/id[\"" id "\"]"))))
 
 #?(:cljs
    (defn tempid
@@ -40,7 +40,7 @@
 
 #?(:clj
    (defmethod print-method TempId [^TempId x ^Writer writer]
-     (.write writer (str "#om/id[\"" (.id x) "\"]"))))
+     (.write writer (str "#prim/id[\"" (.id x) "\"]"))))
 
 #?(:clj
    (defn tempid

@@ -1,6 +1,6 @@
 (ns fulcro-devguide.Z-Glossary
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
@@ -11,7 +11,7 @@
   "# Glossary of terms
 
   - `Default database format`: A tree of data where all of the objects that have an ident are replaced by that ident, and
-    the actual data of those objects is moved to top-level Om-owned tables. See `om/tree->db`.
+    the actual data of those objects is moved to top-level Om-owned tables. See `prim/tree->db`.
   - `Ident`: A unique identity, represented as a 2-tuple `vector` with a first element keyword. An ident need only
     be client unique, but will often be based on real server-persisted data. Examples might be `[:people/by-id 3]`
     and `[:ui.button/by-id 42]`. Om can use these to find components that share state and should update together,

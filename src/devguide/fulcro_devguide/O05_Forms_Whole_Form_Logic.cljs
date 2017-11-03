@@ -4,7 +4,7 @@
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [com.stuartsierra.component :as component]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.ui.icons :as i]
@@ -28,7 +28,7 @@
   (log/info "SERVER mutation for " k " with params " p))
 
 ; Om Next query parser. Calls read/write handlers with keywords from the query
-(def server-parser (om/parser {:read read-handler :mutate write-handler}))
+(def server-parser (prim/parser {:read read-handler :mutate write-handler}))
 
 ; Simulated server. You'd never write this part
 (defn server [env tx]
@@ -56,7 +56,7 @@
        (dom/div #js {:className (str "col-sm-offset-2 col-sm-10 " name)} validation-message)))))
 
 (defui NameInUseQuery
-  static om/IQuery
+  static prim/IQuery
   (query [this] []))
 
 (defmutation check-username-available
@@ -80,14 +80,14 @@
                      (f/on-form-change `check-username-available)
                      (f/text-input :person/name)
                      (f/integer-input :person/age)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [f/form-root-key f/form-key
                  :db/id :person/name :person/age :ui/name-status])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:person/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [ui/name-status] :as props} (om/props this)]
+    (let [{:keys [ui/name-status] :as props} (prim/props this)]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this props :person/name "Username:"
           (case name-status
@@ -104,17 +104,17 @@
                            :onClick   #(f/commit-to-entity! this :remote true)}
             "Save!"))))))
 
-(def ui-person (om/factory Person {:keyfn :db/id}))
+(def ui-person (prim/factory Person {:keyfn :db/id}))
 
 (defui ^:once CommitRoot
   static fc/InitialAppState
   (initial-state [this _] {:person (fc/initial-state Person {:db/id 1})})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key
-                 {:person (om/get-query Person)}])
+                 {:person (prim/get-query Person)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key new-person person]} (om/props this)]
+    (let [{:keys [ui/react-key new-person person]} (prim/props this)]
       (dom/div #js {:key react-key}
         (ui-person person)))))
 

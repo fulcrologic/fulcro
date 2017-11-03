@@ -1,6 +1,6 @@
 (ns fulcro-devguide.H-Server-Interactions
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
@@ -10,15 +10,15 @@
 ; TODO: (advanced) cookies/headers/augmented response
 
 (defui ^:once CategoryQuery
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :category/name])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:categories/by-id (:db/id props)]))
 
 (defui ^:once ItemQuery
-  static om/IQuery
-  (query [this] [:db/id {:item/category (om/get-query CategoryQuery)} :item/name])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [:db/id {:item/category (prim/get-query CategoryQuery)} :item/name])
+  static prim/Ident
   (ident [this props] [:items/by-id (:db/id props)]))
 
 (def sample-server-response
@@ -27,59 +27,59 @@
                {:db/id 7 :item/name "item-32" :item/category {:db/id 1 :category/name "A"}}
                {:db/id 8 :item/name "item-52" :item/category {:db/id 2 :category/name "B"}}]})
 
-(def component-query [{:all-items (om/get-query ItemQuery)}])
+(def component-query [{:all-items (prim/get-query ItemQuery)}])
 
 (def hand-written-query [{:all-items [:db/id :item/name
                                       {:item/category [:db/id :category/name]}]}])
 
 (defui ^:once ToolbarItem
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :item/name])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:items/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [item/name]} (om/props this)]
+    (let [{:keys [item/name]} (prim/props this)]
       (dom/li nil name))))
 
-(def ui-toolbar-item (om/factory ToolbarItem {:keyfn :db/id}))
+(def ui-toolbar-item (prim/factory ToolbarItem {:keyfn :db/id}))
 
 (defui ^:once ToolbarCategory
-  static om/IQuery
-  (query [this] [:db/id :category/name {:category/items (om/get-query ToolbarItem)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [:db/id :category/name {:category/items (prim/get-query ToolbarItem)}])
+  static prim/Ident
   (ident [this props] [:categories/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [category/name category/items]} (om/props this)]
+    (let [{:keys [category/name category/items]} (prim/props this)]
       (dom/li nil
         name
         (dom/ul nil
           (map ui-toolbar-item items))))))
 
-(def ui-toolbar-category (om/factory ToolbarCategory {:keyfn :db/id}))
+(def ui-toolbar-category (prim/factory ToolbarCategory {:keyfn :db/id}))
 
 (defui ^:once Toolbar
-  static om/IQuery
-  (query [this] [{:toolbar/categories (om/get-query ToolbarCategory)}])
+  static prim/IQuery
+  (query [this] [{:toolbar/categories (prim/get-query ToolbarCategory)}])
   Object
   (render [this]
-    (let [{:keys [toolbar/categories]} (om/props this)]
+    (let [{:keys [toolbar/categories]} (prim/props this)]
       (dom/div nil
-        (dom/button #js {:onClick #(om/transact! this '[(server-interaction/group-items)])} "Trigger Post Mutation")
-        (dom/button #js {:onClick #(om/transact! this '[(server-interaction/group-items-reset)])} "Reset")
+        (dom/button #js {:onClick #(prim/transact! this '[(server-interaction/group-items)])} "Trigger Post Mutation")
+        (dom/button #js {:onClick #(prim/transact! this '[(server-interaction/group-items-reset)])} "Reset")
         (dom/ul nil
           (map ui-toolbar-category categories))))))
 
 (defmethod m/mutate 'server-interaction/group-items-reset [{:keys [state]} k p]
-  {:action (fn [] (reset! state (om/tree->db component-query sample-server-response true)))})
+  {:action (fn [] (reset! state (prim/tree->db component-query sample-server-response true)))})
 
 (defn add-to-category
   "Returns a new db with the given item added into that item's category."
   [db item]
   (let [category-ident (:item/category item)
         item-location  (conj category-ident :category/items)]
-    (update-in db item-location (fnil conj []) (om/ident ItemQuery item))))
+    (update-in db item-location (fnil conj []) (prim/ident ItemQuery item))))
 
 (defn group-items
   "Returns a new db with all of the items sorted by name and grouped into their categories."
@@ -89,7 +89,7 @@
         clear-items    (fn [db id] (assoc-in db [:categories/by-id id :category/items] []))
         db             (reduce clear-items db category-ids)
         db             (reduce add-to-category db sorted-items)
-        all-categories (->> db :categories/by-id vals (mapv #(om/ident CategoryQuery %)))]
+        all-categories (->> db :categories/by-id vals (mapv #(prim/ident CategoryQuery %)))]
     (assoc db :toolbar/categories all-categories)))
 
 
@@ -145,7 +145,7 @@
   a root-level keyword, `:all-friends`, and join it to the UI query for a `Person`:
 
   ```
-  [{:all-friends (om/get-query Person)}]
+  [{:all-friends (prim/get-query Person)}]
   ```
 
   What we'd like to see then from the server is a return value with the shape of the query:
@@ -237,7 +237,7 @@
   The `fulcro.data-fetch/load` function is your main workhorse. Here are the most commonly used cases:
 
   ```
-  ; Sends [{:server-keyword (om/get-query Component)}]. Data ends up in root node of client db at :server-keyword
+  ; Sends [{:server-keyword (prim/get-query Component)}]. Data ends up in root node of client db at :server-keyword
   (load comp-or-app :server-keyword Component)
 
   ; Same as above, but the resulting root edge :server-keyword will no longer appear in the client database.
@@ -306,10 +306,10 @@
 
   ```
   (defui Blog
-    static om/Ident
+    static prim/Ident
     (ident [this props] [:blog/by-id (:db/id props)])
-    static om/IQuery
-    (query [this] [:db/id :blog/title {:blog/content (om/get-query BlogContent)} {:blog/comments (om/get-query BlogComment)}])
+    static prim/IQuery
+    (query [this] [:db/id :blog/title {:blog/content (prim/get-query BlogContent)} {:blog/comments (prim/get-query BlogComment)}])
     ...
     Object
     (render [this]
@@ -326,7 +326,7 @@
   [{[:table ID] subquery}]
   ```
 
-  where the `[:table ID]` are the ident of the invoking component, and subquery is `(om/get-query invoking-component)`, but
+  where the `[:table ID]` are the ident of the invoking component, and subquery is `(prim/get-query invoking-component)`, but
   focused down to the one field. In the example above, this would end up something like this:
 
   ```
@@ -400,13 +400,13 @@
 
   ```
   (defui Comment
-     static om/IQuery
+     static prim/IQuery
      (query [this] [:author :text]))
 
   (defui Item
-     static om/IQuery
-     (query [this] [:id :value {:comments (om/get-query Comment)}])
-     static om/Ident
+     static prim/IQuery
+     (query [this] [:id :value {:comments (prim/get-query Comment)}])
+     static prim/Ident
      (ident [this props] [:item/by-id (:id props)])
      Object
      (render [this]
@@ -423,9 +423,9 @@
 
   ### Loads From Within Mutations
 
-  `load` and `load-field` will call `om/transact!` under the hood, targeting fulcro's built-in `fulcro/load`
+  `load` and `load-field` will call `prim/transact!` under the hood, targeting fulcro's built-in `fulcro/load`
   mutation, which is responsible for sending your request to the server. By contrast, `load-action` and `load-field-action`
-  **do not** call `om/transact!`, but can be used to initialize a load inside of one of your own
+  **do not** call `prim/transact!`, but can be used to initialize a load inside of one of your own
   client-side mutations.
 
   Let's look at an example of a standard load. Say you want to load a list of people from the server:
@@ -434,16 +434,16 @@
   (require [fulcro.client.data-fetch :as df])
 
   (defui Person
-    static om/IQuery (query [this] [:id :name :ui/fetch-state])
+    static prim/IQuery (query [this] [:id :name :ui/fetch-state])
     ... )
-  (def ui-person (om/factory Person))
+  (def ui-person (prim/factory Person))
 
   (defui PeopleList
-    static om/IQuery (query [this] [:db/id :list-title {:people (om/get-query Person}]
-    static om/Ident (ident [this props] [:people-list/by-id (:db/id props)])
+    static prim/IQuery (query [this] [:db/id :list-title {:people (prim/get-query Person}]
+    static prim/Ident (ident [this props] [:people-list/by-id (:db/id props)])
     Object
     (render [this]
-      (let [{:keys [people]} (om/props this)]
+      (let [{:keys [people]} (prim/props this)]
         ;; people starts out as nil
         (dom/div nil
           (df/lazily-loaded #(map ui-person %) people
@@ -452,7 +452,7 @@
   ```
 
   Since we are in the UI and not inside of a mutation's action thunk, we want to use `load-field` to initialize the
-  call to `om/transact!`. The use of `lazily-loaded` above will show a button to load people when `people` is `nil`
+  call to `prim/transact!`. The use of `lazily-loaded` above will show a button to load people when `people` is `nil`
   (for example, when the app initially loads), and will render each person in the list of people once the button is
   clicked and the data has been loaded. By including `:ui/fetch-state` in the subcomponent's query, `lazily-loaded`
   is able to render different UIs for ready, loading, and failure states as well. See the
@@ -540,7 +540,7 @@
   is a simple helper that is ultimately identical to:
 
   ```
-  (om/transact! reconciler '[(fulcro/load {:query [:prop]}) :ui/loading-data])
+  (prim/transact! reconciler '[(fulcro/load {:query [:prop]}) :ui/loading-data])
   ```
 
   (the follow-on read is to ensure load markers update).
@@ -555,7 +555,7 @@
   If what you want instead is `do-some-thing` and the read `:something` from the *server*, you instead want:
 
   ```
-  (om/transact! this '[(app/do-some-thing) (fulcro/load {:query [:something] :refresh [:something})])
+  (prim/transact! this '[(app/do-some-thing) (fulcro/load {:query [:something] :refresh [:something})])
   ```
 
   NOTE: If you use `transact!` and `load` in the same function (e.g. on a single thread of execution), then the mutations
@@ -667,7 +667,7 @@
   (dc/mkdn-pprint-source component-query)
   "
 
-  The resulting query, if you were to ask for it with `om/get-query` would look the same as this hand-written
+  The resulting query, if you were to ask for it with `prim/get-query` would look the same as this hand-written
   query:
 
   "
@@ -681,7 +681,7 @@
   (dc/mkdn-pprint-source sample-server-response))
 
 (defn merge-using-query [state-atom query data]
-  (let [db (om/tree->db query data true)]
+  (let [db (prim/tree->db query data true)]
     (swap! state-atom assoc :resulting-database db)))
 
 (defcard query-response-demo
@@ -753,7 +753,7 @@
   "This card allows you to simulate the post-mutation defined above, and see the resulting UI and database change. The
   Reset button will restore the db to the pre-mutation state, so you can A/B compare the before and after picture."
   Toolbar
-  (om/tree->db component-query sample-server-response true)
+  (prim/tree->db component-query sample-server-response true)
   {:inspect-data true})
 
 (defcard-doc "
@@ -763,8 +763,8 @@
 
   ```
   (defui Article
-    static om/IQuery (query [this] [:id :content {:comments (om/get-query Comments)}])
-    static om/Ident (ident [this props] [:article/by-id (:id props)])
+    static prim/IQuery (query [this] [:id :content {:comments (prim/get-query Comments)}])
+    static prim/Ident (ident [this props] [:article/by-id (:id props)])
     (render [this]
       ;; render article content
       ;; ...
@@ -860,7 +860,7 @@
   One of the advantages to using Fulcro is its support for error handling via what are called transaction fallbacks:
 
   ```
-  (om/transact! this `[(some/mutation) (fulcro.client.data-fetch/fallback {:action handle-failure})])
+  (prim/transact! this `[(some/mutation) (fulcro.client.data-fetch/fallback {:action handle-failure})])
   ```
 
   ```
@@ -918,14 +918,14 @@
   query in send (e.g. via process-roots), etc. It is more flexible, but the very common case can be made a lot more direct.
 
   ```
-  (om/transact! this '[(app/f) ':thing]) ; run mutation and re-read thing on the server...
+  (prim/transact! this '[(app/f) ':thing]) ; run mutation and re-read thing on the server...
   ; BUT YOU implement the logic to make sure it is understood that way!
   ```
 
   In Fulcro, follow-on keywords are always local re-render reads, and nothing more:
 
   ```
-  (om/transact! this '[(app/f) :thing])
+  (prim/transact! this '[(app/f) :thing])
   ; Om and Fulcro: Do mutation, and re-render anything that has :thing in a query
   ```
 
@@ -934,10 +934,10 @@
   ```
   ; Do mutation, then run a remote read of the given query, along with a post-mutation
   ; to alter app state when the load is complete.
-  (om/transact! this `[(app/f) (fulcro/load {:query ~(om/get-query Thing) :post-mutation after-load-sym}])
+  (prim/transact! this `[(app/f) (fulcro/load {:query ~(prim/get-query Thing) :post-mutation after-load-sym}])
   ```
 
-  Of course, you can (and *should*) use syntax quoting to embed a query from (om/get-query) so that normalization works,
+  Of course, you can (and *should*) use syntax quoting to embed a query from (prim/get-query) so that normalization works,
   and the post-mutation can be used to deal with the fact that other parts of the UI may want to, for example, point
   to this newly-loaded thing. The `after-load-sym` is a symbol (e.g. dispatch key to the mutate multimethod). The multi-method
   is guaranteed to be called with the app state in the environment, but no other Om environment items are ensured at
@@ -1048,13 +1048,13 @@
 
   ```
   (defui Item ... )
-  (def ui-item (om/factory Item {:keyfn :id}))
+  (def ui-item (prim/factory Item {:keyfn :id}))
 
   (defui List
-    static om/IQuery (query [this] [:id :title {:items (om/get-query Item)} [:ui/loading-data '_]]
+    static prim/IQuery (query [this] [:id :title {:items (prim/get-query Item)} [:ui/loading-data '_]]
     ...
     (render [this]
-      (let [{:keys [title items ui/loading-data]} (om/props this)]
+      (let [{:keys [title items ui/loading-data]} (prim/props this)]
         (if (and loading-data (empty? items))
           (dom/div nil \"Loading...\")
           (dom/div nil

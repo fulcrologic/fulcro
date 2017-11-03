@@ -1,6 +1,6 @@
 (ns fulcro-devguide.A-Quick-Tour
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.network :as fcn]
@@ -17,21 +17,21 @@
   (initial-state [this {:keys [id start]
                         :or   {id 1 start 1}
                         :as   params}] {:counter/id id :counter/n start})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:counter/id :counter/n])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:counter/by-id (:counter/id props)])
   Object
   (render [this]
-    (let [{:keys [counter/id counter/n]} (om/props this)
-          onClick (om/get-computed this :onClick)]
+    (let [{:keys [counter/id counter/n]} (prim/props this)
+          onClick (prim/get-computed this :onClick)]
       (dom/div #js {:className "counter"}
         (dom/span #js {:className "counter-label"}
           (str "Current count for counter " id ":  "))
         (dom/span #js {:className "counter-value"} n)
         (dom/button #js {:onClick #(onClick id)} "Increment")))))
 
-(def ui-counter (om/factory Counter {:keyfn :counter/id}))
+(def ui-counter (prim/factory Counter {:keyfn :counter/id}))
 
 (defmethod m/mutate 'counter/inc [{:keys [state] :as env} k {:keys [id] :as params}]
   {:remote true
@@ -41,48 +41,48 @@
   static fc/InitialAppState
   (initial-state [this params]
     {:counters [(fc/get-initial-state Counter {:id 1 :start 1})]})
-  static om/IQuery
-  (query [this] [{:counters (om/get-query Counter)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [{:counters (prim/get-query Counter)}])
+  static prim/Ident
   (ident [this props] [:panels/by-kw :counter])
   Object
   (render [this]
-    (let [{:keys [counters]} (om/props this)
-          click-callback (fn [id] (om/transact! this
+    (let [{:keys [counters]} (prim/props this)
+          click-callback (fn [id] (prim/transact! this
                                     `[(counter/inc {:id ~id}) :counter-sum]))]
       (dom/div nil
         ; embedded style: kind of silly in a real app, but doable
         (dom/style nil ".counter { width: 400px; padding-bottom: 20px; }
                         button { margin-left: 10px; }")
-        (map #(ui-counter (om/computed % {:onClick click-callback})) counters)))))
+        (map #(ui-counter (prim/computed % {:onClick click-callback})) counters)))))
 
-(def ui-counter-panel (om/factory CounterPanel))
+(def ui-counter-panel (prim/factory CounterPanel))
 
 (defui ^:once CounterSum
   static fc/InitialAppState
   (initial-state [this params] {})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [[:counter/by-id '_]])
   Object
   (render [this]
-    (let [{:keys [counter/by-id]} (om/props this)
+    (let [{:keys [counter/by-id]} (prim/props this)
           total (reduce (fn [total c] (+ total (:counter/n c))) 0 (vals by-id))]
       (dom/div nil
         (str "Grand total: " total)))))
 
-(def ui-counter-sum (om/factory CounterSum))
+(def ui-counter-sum (prim/factory CounterSum))
 
 (defui ^:once Root
   static fc/InitialAppState
   (initial-state [this params]
     {:panel (fc/get-initial-state CounterPanel {})})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/loading-data
-                 {:panel (om/get-query CounterPanel)}
-                 {:counter-sum (om/get-query CounterSum)}])
+                 {:panel (prim/get-query CounterPanel)}
+                 {:counter-sum (prim/get-query CounterSum)}])
   Object
   (render [this]
-    (let [{:keys [ui/loading-data counter-sum panel]} (om/props this)]
+    (let [{:keys [ui/loading-data counter-sum panel]} (prim/props this)]
       (dom/div nil
         (when loading-data
           (dom/span #js {:style #js {:float "right"}} "Loading..."))
@@ -119,7 +119,7 @@
     nil))
 
 ; Om Next query parser. Calls read/write handlers with keywords from the query
-(def server-parser (om/parser {:read read-handler :mutate write-handler}))
+(def server-parser (prim/parser {:read read-handler :mutate write-handler}))
 
 ; Simulated server. You'd never write this part
 (defn server [env tx]
@@ -249,7 +249,7 @@
   - The concept of an abstract mutation can isolate the UI from networking, server interactions, and async thinking.
   - Abstract mutations give nice auditing and comprehension on both client and server.
 
-  The main UI entry point for affecting a change is the `om/transact!` function. This function lets you submit
+  The main UI entry point for affecting a change is the `prim/transact!` function. This function lets you submit
   an abstract sequence of operations that you'd like to accomplish, and isolates the UI author from the details of
   implementing that behavior (and of even having to know things like 'will that happen locally or on the server?').
 
@@ -257,7 +257,7 @@
   of the operations listed in the transaction:
 
   ```
-  (om/transact! this `[(counter/inc {:id ~id})])
+  (prim/transact! this `[(counter/inc {:id ~id})])
   ```
 
   in the above transaction, we must use Clojure syntax quoting so that we can list an abstract mutation (which looks like
@@ -338,7 +338,7 @@
   same data.
   - Object/render : This is the (pure) function that outputs what a Counter should look like on the DOM
 
-  The incoming data from the database comes in via `om/props`, and things like callbacks come in via a mechanism known
+  The incoming data from the database comes in via `prim/props`, and things like callbacks come in via a mechanism known
   as the 'computed' data (e.g. stuff that isn't in the database, but is generated by the UI, such as callbacks).
 
   A `defui` generates a React Component (class). In order to render an instance of a Counter, we must make an element

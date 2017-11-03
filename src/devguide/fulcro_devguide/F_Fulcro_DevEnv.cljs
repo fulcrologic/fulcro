@@ -1,5 +1,5 @@
 (ns fulcro-devguide.F-Fulcro-DevEnv
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
@@ -53,11 +53,11 @@
 
   ```
   (defui ^:once Root
-     static om/IQuery
+     static prim/IQuery
      (query [this] [:ui/react-key ...])
      Object
      (render [this]
-        (let [{:keys [ui/react-key ...]} (om/props this)]
+        (let [{:keys [ui/react-key ...]} (prim/props this)]
           (dom/div #js { :key react-key } ...))))
   ```
 

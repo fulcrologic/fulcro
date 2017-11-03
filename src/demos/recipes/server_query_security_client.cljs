@@ -4,7 +4,7 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as om :refer [defui]]))
+    [fulcro.client.primitives :as prim :refer [defui]]))
 
 (def initial-state {:ui/react-key "abc"})
 
@@ -16,25 +16,25 @@
                        ))))
 
 (defui ^:once Person
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/fetch-state :name :address :cc-number])
   Object
   (render [this]
-    (let [{:keys [name address cc-number]} (om/props this)]
+    (let [{:keys [name address cc-number]} (prim/props this)]
       (dom/div nil
         (dom/ul nil
           (dom/li nil (str "name: " name))
           (dom/li nil (str "address: " address))
           (dom/li nil (str "cc-number: " cc-number)))))))
 
-(def ui-person (om/factory Person))
+(def ui-person (prim/factory Person))
 
 (defui ^:once Root
-  static om/IQuery
-  (query [this] [:ui/react-key {:person (om/get-query Person)} :fulcro/server-error])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:person (prim/get-query Person)} :fulcro/server-error])
   Object
   (render [this]
-    (let [{:keys [ui/react-key person server-error] :or {ui/react-key "ROOT"} :as props} (om/props this)]
+    (let [{:keys [ui/react-key person server-error] :or {ui/react-key "ROOT"} :as props} (prim/props this)]
       (dom/div #js {:key react-key}
         (when server-error
           (dom/p nil (pr-str "SERVER ERROR: " server-error)))

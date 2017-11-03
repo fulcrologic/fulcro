@@ -37,16 +37,16 @@
   The defui and defmethod needed for step 2 look like this:
 
   ```
-  (om/defui ^:once Main
+  (prim/defui ^:once Main
     static fc/InitialAppState
     (initial-state [clz params] {r/dynamic-route-key :main :label \"MAIN\"})
-    static om/Ident
+    static prim/Ident
     (ident [this props] [:main :singleton])
-    static om/IQuery
+    static prim/IQuery
     (query [this] [r/dynamic-route-key :label])
     Object
     (render [this]
-      (let [{:keys [label]} (om/props this)]
+      (let [{:keys [label]} (prim/props this)]
         (dom/div #js {:style #js {:backgroundColor \"red\"}}
           label))))
 

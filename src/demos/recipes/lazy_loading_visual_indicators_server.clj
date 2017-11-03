@@ -1,5 +1,5 @@
 (ns recipes.lazy-loading-visual-indicators-server
-  (:require [fulcro.server :as om]
+  (:require [fulcro.server :as prim]
             [fulcro.client.impl.parser :as op]
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]

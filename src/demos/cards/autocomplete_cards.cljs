@@ -1,7 +1,7 @@
 (ns cards.autocomplete-cards
   (:require
     [devcards.core :as dc :include-macros true]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.cards :refer [defcard-fulcro]]
     [goog.functions :as gf]
     [fulcro.client.dom :as dom]
@@ -20,13 +20,13 @@
 (defui ^:once CompletionList
   Object
   (render [this]
-    (let [{:keys [values onValueSelect]} (om/props this)]
+    (let [{:keys [values onValueSelect]} (prim/props this)]
       (dom/ul nil
         (map (fn [v]
                (dom/li #js {:key v}
                  (dom/a #js {:href "javascript:void(0)" :onClick #(onValueSelect v)} v))) values)))))
 
-(def ui-completion-list (om/factory CompletionList))
+(def ui-completion-list (prim/factory CompletionList))
 
 (defmutation populate-loaded-suggestions
   "Fulcro mutation: Autocomplete suggestions are loaded in a non-visible property to "
@@ -49,18 +49,18 @@
          :target               (conj (autocomplete-ident id) :autocomplete/loaded-suggestions)})) 500))
 
 (defui ^:once Autocomplete
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id                                     ; the component's ID
                  :autocomplete/loaded-suggestions           ; A place to do the loading, so we can prevent flicker in the UI
                  :autocomplete/suggestions                  ; the current completion suggestions
                  :autocomplete/value])                      ; the current user-entered value
-  static om/Ident
+  static prim/Ident
   (ident [this props] (autocomplete-ident props))
   static fc/InitialAppState
   (initial-state [c {:keys [id]}] {:db/id id :autocomplete/suggestions [] :autocomplete/value ""})
   Object
   (render [this]
-    (let [{:keys [db/id autocomplete/suggestions autocomplete/value]} (om/props this)
+    (let [{:keys [db/id autocomplete/suggestions autocomplete/value]} (prim/props this)
           field-id             (str "autocomplete-" id)     ; for html label/input association
           ;; server gives us a few, and as they type we need to filter it further for display as they type.
           filtered-suggestions (when (vector? suggestions)
@@ -86,16 +86,16 @@
         (when (and (vector? suggestions) (seq suggestions) (not exact-match?))
           (ui-completion-list {:values filtered-suggestions :onValueSelect onSelect}))))))
 
-(def ui-autocomplete (om/factory Autocomplete))
+(def ui-autocomplete (prim/factory Autocomplete))
 
 (defui ^:once AutocompleteRoot
   static fc/InitialAppState
   (initial-state [c p] {:airport-input (fc/get-initial-state Autocomplete {:id :airports})})
-  static om/IQuery
-  (query [this] [:ui/react-key {:airport-input (om/get-query Autocomplete)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:airport-input (prim/get-query Autocomplete)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key airport-input]} (om/props this)]
+    (let [{:keys [ui/react-key airport-input]} (prim/props this)]
       (dom/div #js {:key react-key}
         (dom/h4 nil "Airport Autocomplete")
         (ui-autocomplete airport-input)))))

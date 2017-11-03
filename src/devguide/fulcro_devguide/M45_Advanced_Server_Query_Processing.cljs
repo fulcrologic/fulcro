@@ -1,6 +1,6 @@
 (ns fulcro-devguide.M45-Advanced-Server-Query-Processing
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [fulcro-devguide.state-reads.parser-1 :as parser1]
             [fulcro-devguide.state-reads.parser-2 :as parser2]
@@ -63,7 +63,7 @@
   Essentially, it creates an Om parser that dispatches reads to `read-tracking`:
 
   ```
-   (om/parser {:read read-tracking})
+   (prim/parser {:read read-tracking})
   ```
 
   where the `read-tracking` simply stores details of each call in an atom and shows those calls
@@ -91,7 +91,7 @@
                           (swap! trace conj {:env          (assoc env :parser :function-elided)
                                              :dispatch-key k
                                              :params       params}))
-          parser (om/parser {:read read-tracking})]
+          parser (prim/parser {:read read-tracking})]
       (dom/div nil
         (when error
           (dom/div nil (str error)))
@@ -163,7 +163,7 @@
           trace (atom [])
           read-tracking (fn [env k params]
                           (swap! trace conj {:read-called-with-key k}))
-          parser (om/parser {:read read-tracking})]
+          parser (prim/parser {:read read-tracking})]
       (dom/div nil
         (when error
           (dom/div nil (str error)))
@@ -238,7 +238,7 @@
   ")
 
 (defn read-42 [env key params] {:value 42})
-(def parser-42 (om/parser {:read read-42}))
+(def parser-42 (prim/parser {:read read-42}))
 
 (defcard-doc
   "
@@ -309,7 +309,7 @@
   {:db {}})
 
 (defn property-read [{:keys [state]} key params] {:value (get @state key :not-found)})
-(def property-parser (om/parser {:read property-read}))
+(def property-parser (prim/parser {:read property-read}))
 
 (defcard-doc
   "
@@ -350,7 +350,7 @@
     {:value (parser env query)}                             ; recursive call. query is now [:user/name]
     {:value (get @state key)}))                             ; gets called for :user/name :a and :c
 
-(def my-parser (om/parser {:read flat-state-read}))
+(def my-parser (prim/parser {:read flat-state-read}))
 
 (defcard-doc
   "

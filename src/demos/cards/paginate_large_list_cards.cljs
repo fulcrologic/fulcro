@@ -7,7 +7,7 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.core :as fc]
-    [fulcro.client.primitives :as om]))
+    [fulcro.client.primitives :as prim]))
 
 (dc/defcard paginate-list-card
   "
@@ -26,7 +26,7 @@
   "
   (fulcro-app client/Root :started-callback
     (fn [{:keys [reconciler]}]
-      (om/transact! reconciler `[(client/goto-page {:page-number 1})])))
+      (prim/transact! reconciler `[(client/goto-page {:page-number 1})])))
   {}
   {:inspect-data false})
 

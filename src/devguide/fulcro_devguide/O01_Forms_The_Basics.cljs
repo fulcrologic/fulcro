@@ -4,7 +4,7 @@
     [com.stuartsierra.component :as component]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.cards :refer [fulcro-app]]
@@ -47,37 +47,37 @@
   (form-spec [this] [(f/id-field :db/id)                    ; Mark which thing is the ID of this entity
                      (f/text-input :phone/number :className "form-control")
                      (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :phone/type :phone/number f/form-key]) ; Don't forget f/form-key!
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:phone/by-id (:db/id props)])
   Object
   (render [this]
-    (let [form (om/props this)]
+    (let [form (prim/props this)]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this form :phone/type "Phone type:") ; Use your own helpers to render out the fields
         (field-with-label this form :phone/number "Number:")))))
 
-(def ui-phone-form (om/factory PhoneForm {:keyfn :db/id}))
+(def ui-phone-form (prim/factory PhoneForm {:keyfn :db/id}))
 
 (defmutation add-phone [{:keys [id person]}]
   (action [{:keys [state]}]
     (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number ""})
           person-ident [:people/by-id person]
-          phone-ident  (om/ident ValidatedPhoneForm new-phone)]
+          phone-ident  (prim/ident ValidatedPhoneForm new-phone)]
       (swap! state assoc-in phone-ident new-phone)
       (fc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
 
 (defui PhoneRoot
-  static om/IQuery
-  (query [this] [{:phone (om/get-query PhoneForm)}])
+  static prim/IQuery
+  (query [this] [{:phone (prim/get-query PhoneForm)}])
   static fc/InitialAppState
   (initial-state [this params]
     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
       {:phone (f/build-form PhoneForm phone-number)}))
   Object
   (render [this]
-    (let [{:keys [phone]} (om/props this)]
+    (let [{:keys [phone]} (prim/props this)]
       (dom/div nil
         (ui-phone-form phone)))))
 
@@ -104,7 +104,7 @@
       [clojure.string :as str]
       [com.stuartsierra.component :as component]
       [fulcro.client.dom :as dom]
-      [fulcro.client.primitives :as om :refer [defui]]
+      [fulcro.client.primitives :as prim :refer [defui]]
       [fulcro.client.core :as fc]
       [fulcro.client.mutations :as m]
       [fulcro.ui.forms :as f]
@@ -124,8 +124,8 @@
 
   - They must implement `f/IForm`
       - The fields method must return a list of fields that includes an `id-field`
-  - They must implement `om/Ident`
-  - They must implement `om/IQuery`, and include extra bits of form query (the key `f/form-key`)
+  - They must implement `prim/Ident`
+  - They must implement `prim/IQuery`, and include extra bits of form query (the key `f/form-key`)
   - The app state of the entity acting as a form must be augmented via `f/build-form` (e.g. using a mutation or app initialization)
   - They render the form fields using `f/form-field`.
 
@@ -146,7 +146,7 @@
   render the form.
 
   ```
-  (om/defui MyForm
+  (prim/defui MyForm
     static f/IForm
     (form-spec [this] [(f/id-field :db/id)
                        (f/text-input :person/name)
@@ -195,8 +195,8 @@
     ...
     Object
     (componentWillMount [this]
-      (when-not (f/is-form? (om/props this))
-        (om/transact! this `[(f/initialize-form {})])))
+      (when-not (f/is-form? (prim/props this))
+        (prim/transact! this `[(f/initialize-form {})])))
     ...
   ```
 
@@ -223,30 +223,30 @@
   (form-spec [this] [(f/id-field :db/id)
                      (f/text-input :phone/number :validator `us-phone?) ; Addition of validator
                      (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :phone/type :phone/number f/form-key])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:phone/by-id (:db/id props)])
   Object
   (render [this]
-    (let [form (om/props this)]
+    (let [form (prim/props this)]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this form :phone/type "Phone type:")
         ;; One more parameter to give the validation error message:
         (field-with-label this form :phone/number "Number:" "Please format as (###) ###-####")))))
 
-(def ui-vphone-form (om/factory ValidatedPhoneForm))
+(def ui-vphone-form (prim/factory ValidatedPhoneForm))
 
 (defui ValidatedPhoneRoot
-  static om/IQuery
-  (query [this] [f/form-key {:phone (om/get-query ValidatedPhoneForm)}])
+  static prim/IQuery
+  (query [this] [f/form-key {:phone (prim/get-query ValidatedPhoneForm)}])
   static fc/InitialAppState
   (initial-state [this params]
     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
       {:phone (f/build-form ValidatedPhoneForm phone-number)}))
   Object
   (render [this]
-    (let [{:keys [phone]} (om/props this)]
+    (let [{:keys [phone]} (prim/props this)]
       (dom/div nil
         (ui-vphone-form phone)))))
 
@@ -265,7 +265,7 @@
   and `:unchecked`.
 
   You can trigger full-form validation (which you should do as part of your interaction with the form) by calling
-TODO: remove the need to pass the component? The form is just om/props of the component.
+TODO: remove the need to pass the component? The form is just prim/props of the component.
   `(f/validate-entire-form! component form)`. This function invokes a transaction that will update the validation
   markings on all declared fields (which in turn will re-render your UI).
 
@@ -300,17 +300,17 @@ TODO: remove the need to pass the component? The form is just om/props of the co
                      (f/integer-input :person/age :validator `f/in-range?
                        :validator-args {:min 1 :max 110})
                      (f/checkbox-input :person/registered-to-vote?)])
-  static om/IQuery
+  static prim/IQuery
   ; NOTE: f/form-root-key so that sub-forms will trigger render here
   (query [this] [f/form-root-key f/form-key
                  :db/id :person/name :person/age
                  :person/registered-to-vote?
-                 {:person/phone-numbers (om/get-query ValidatedPhoneForm)}])
-  static om/Ident
+                 {:person/phone-numbers (prim/get-query ValidatedPhoneForm)}])
+  static prim/Ident
   (ident [this props] [:people/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [person/phone-numbers] :as props} (om/props this)]
+    (let [{:keys [person/phone-numbers] :as props} (prim/props this)]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this props :person/name "Full Name:" "Please enter your first and last name.")
         (field-with-label this props :person/age "Age:" "That isn't a real age!")
@@ -323,8 +323,8 @@ TODO: remove the need to pass the component? The form is just om/props of the co
           (dom/div nil "All fields have had been validated, and are valid"))
         (dom/div #js {:className "button-group"}
           (dom/button #js {:className "btn btn-primary"
-                           :onClick   #(om/transact! this
-                                         `[(add-phone ~{:id     (om/tempid)
+                           :onClick   #(prim/transact! this
+                                         `[(add-phone ~{:id     (prim/tempid)
                                                         :person (:db/id props)})])}
             "Add Phone")
           (dom/button #js {:className "btn btn-default" :disabled (f/valid? props)
@@ -337,7 +337,7 @@ TODO: remove the need to pass the component? The form is just om/props of the co
                            :onClick   #(f/commit-to-entity! this)}
             "Submit"))))))
 
-(def ui-person-form (om/factory PersonForm))
+(def ui-person-form (prim/factory PersonForm))
 
 (defui ^:once Root
   static fc/InitialAppState
@@ -356,11 +356,11 @@ TODO: remove the need to pass the component? The form is just om/props of the co
                                                      {:db/id        23
                                                       :phone/type   :home
                                                       :phone/number "(541) 555-1212"})]})})
-  static om/IQuery
-  (query [this] [:ui/person-id {:person (om/get-query PersonForm)}])
+  static prim/IQuery
+  (query [this] [:ui/person-id {:person (prim/get-query PersonForm)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key ui/person-id person]} (om/props this)]
+    (let [{:keys [ui/react-key ui/person-id person]} (prim/props this)]
       (dom/div #js {:key react-key}
         (when person
           (ui-person-form person))))))
@@ -432,7 +432,7 @@ TODO: remove the need to pass the component? The form is just om/props of the co
     (action [{:keys [state]}]
       (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number " "})
             person-ident [:people/by-id person]
-            phone-ident  (om/ident ValidatedPhoneForm new-phone)]
+            phone-ident  (prim/ident ValidatedPhoneForm new-phone)]
         (swap! state assoc-in phone-ident new-phone)
         (fc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
   ```
@@ -441,7 +441,7 @@ TODO: remove the need to pass the component? The form is just om/props of the co
   augmented with `f/build-form`) and integrate it's ident!
 
   If you look carefully at `PersonForm` you'll see the button to trigger adding a phone number, where we're using
-  `(om/tempid)` to generate a temporary ID for the new phone number.
+  `(prim/tempid)` to generate a temporary ID for the new phone number.
 
   ### Compositional Dirty-Checking, Validation, and Submission
 

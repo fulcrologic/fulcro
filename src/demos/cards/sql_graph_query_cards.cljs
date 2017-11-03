@@ -7,45 +7,45 @@
     [fulcro.client.logging :as log]
     [fulcro.client.core :as fc]
     [fulcro.ui.bootstrap3 :as b]
-    [fulcro.client.primitives :as om :refer [defui]]))
+    [fulcro.client.primitives :as prim :refer [defui]]))
 
 (defui ^:once Settings
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :settings/auto-open? :settings/keyboard-shortcuts?])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:settings/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]} (om/props this)]
+    (let [{:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]} (prim/props this)]
       (dom/ul nil
         (dom/li nil (str "Auto open? " auto-open?))
         (dom/li nil (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))))
 
-(def ui-settings (om/factory Settings {:keyfn :db/id}))
+(def ui-settings (prim/factory Settings {:keyfn :db/id}))
 
 (defui ^:once Member
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :member/name])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:member/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [db/id member/name]} (om/props this)]
+    (let [{:keys [db/id member/name]} (prim/props this)]
       (dom/div nil
         "Member: " name))))
 
-(def ui-member (om/factory Member {:keyfn :db/id}))
+(def ui-member (prim/factory Member {:keyfn :db/id}))
 
 (defui ^:once Account
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :account/name
-                 {:account/members (om/get-query Member)}
-                 {:account/settings (om/get-query Settings)}])
-  static om/Ident
+                 {:account/members (prim/get-query Member)}
+                 {:account/settings (prim/get-query Settings)}])
+  static prim/Ident
   (ident [this props] [:account/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [db/id account/name account/members account/settings]} (om/props this)]
+    (let [{:keys [db/id account/name account/members account/settings]} (prim/props this)]
       (dom/div nil
         (dom/h3 nil (str "Account for " name))
         (dom/ul nil
@@ -57,14 +57,14 @@
             (dom/h3 nil "Members in the account")
             (map ui-member members)))))))
 
-(def ui-account (om/factory Account {:keyfn :db/id}))
+(def ui-account (prim/factory Account {:keyfn :db/id}))
 
 (defui ^:once Root
-  static om/IQuery
-  (query [this] [:ui/react-key {:accounts (om/get-query Account)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:accounts (prim/get-query Account)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key db/id accounts]} (om/props this)]
+    (let [{:keys [ui/react-key db/id accounts]} (prim/props this)]
       (dom/div #js {:key react-key}
         (dom/h3 nil "Accounts with settings and users")
         (map ui-account accounts)))))

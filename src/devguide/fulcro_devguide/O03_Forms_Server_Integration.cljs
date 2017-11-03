@@ -4,7 +4,7 @@
     [com.stuartsierra.component :as component]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as om :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.cards :refer [fulcro-app]]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m]
@@ -124,10 +124,10 @@
   ```
   (ns amazing-server.mutations
   (:require
-  [fulcro.client.primitives :as om]
+  [fulcro.client.primitives :as prim]
   [fulcro.ui.forms :as f]))
 
-  (defmulti my-mutate om/dispatch)
+  (defmulti my-mutate prim/dispatch)
 
   ;; NOTE: the syntax quote will honor the `f` aliasing in the ns.
   (defmethod my-mutate `f/commit-to-entity [env k params]

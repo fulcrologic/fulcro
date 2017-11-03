@@ -229,7 +229,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   (defui Component
     static fc/InitialAppState
     (initial-state [c p] {fulcro.client.routing/dynamic-route-key target-kw})
-    static om/Ident
+    static prim/Ident
     (ident [this props] [target-kw :singleton])
     ...)
 

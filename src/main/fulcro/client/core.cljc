@@ -118,13 +118,13 @@
   and write side of transit to extend the supported data types. See `make-fulcro-network` in network.cljs. Only used
   when you default to the built-in networking.
 
-  `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (om/shared this)
+  `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (prim/shared this)
 
   `:read-local` (optional). An Om read function for the Om Parser. (fn [env k params] ...). If supplied,
   it will be called once for each root-level query key. If it returns `nil` or `false` for that key then the built-in Fulcro read will handle that
   branch of the root query. If it returns a map with the shape `{:value ...}`, then that will be used for the response. This is *not*
   recursive. If you begin handling a *branch* (e.g. a join), you must finish doing so (though if using recursion, you can technically handle just
-  the properties that need your custom handling). At any time you can use `om/db->tree` to get raw graph data from the database for a branch.
+  the properties that need your custom handling). At any time you can use `prim/db->tree` to get raw graph data from the database for a branch.
   NOTE: *it will be allowed* to trigger remote reads. This is not recommended, as you will probably have to augment the networking layer to
   get it to do what you mean. Use `load` instead. You have been warned. Triggering remote reads is allowed, but discouraged and unsupported.
 
@@ -193,7 +193,7 @@
    Therefore, this function is just for dropping normalized things into tables
    when they themselves have a recursive nature. This function is useful when you want to create a new component instance
    and put it in the database, but the component instance has recursive normalized state. This is a basically a
-   thin wrapper around `om/tree->db`."
+   thin wrapper around `prim/tree->db`."
   [state-map component component-data]
   (if-let [top-ident (prim/get-ident component component-data)]
     (let [query          [{top-ident (prim/get-query component)}]

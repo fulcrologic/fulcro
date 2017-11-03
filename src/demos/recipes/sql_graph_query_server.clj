@@ -1,5 +1,5 @@
 (ns recipes.sql-graph-query-server
-  (:require [fulcro.server :as om]
+  (:require [fulcro.server :as prim]
             [fulcro.client.impl.parser :as op]
             [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
             [taoensso.timbre :as timbre]

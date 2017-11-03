@@ -970,7 +970,7 @@
       (b/ui-modal-body nil
         (dom/p #js {:className b/text-danger} \"Stuff went sideways.\"))
       (b/ui-modal-footer nil
-        (b/button {:onClick #(om/transact! this `[(b/hide-modal {:id :warning-modal})])} \"Bummer!\"))))))
+        (b/button {:onClick #(prim/transact! this `[(b/hide-modal {:id :warning-modal})])} \"Bummer!\"))))))
     ````
 
     NOTE: The grid (`row` and `col`) can be used within the modal body *without* a `container`.

@@ -1,6 +1,6 @@
 (ns fulcro-devguide.G-Mutation-Exercises
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as om :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.mutations :as m]
@@ -16,15 +16,15 @@
   )
 
 (defui ^:once Ex1-Root
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key :n])
   Object
   (render [this]
-    (let [{:keys [ui/react-key n]} (om/props this)]
+    (let [{:keys [ui/react-key n]} (prim/props this)]
       (dom/div #js {:key react-key}
         (dom/hr nil)
         (dom/p nil "n: " n)
-        (dom/button #js {:onClick #(om/transact! this '[(exercise/g-ex1-inc)])} "Increment")))))
+        (dom/button #js {:onClick #(prim/transact! this '[(exercise/g-ex1-inc)])} "Increment")))))
 
 (defcard-fulcro mutation-exercise-1
   "
@@ -51,25 +51,25 @@
   {:n 1})
 
 (defui ^:once Ex2-Child
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :n])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:child/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [id n]} (om/props this)]
+    (let [{:keys [id n]} (prim/props this)]
       (dom/li nil
         (dom/span nil "n: " n)
-        (dom/button #js {:onClick #(om/transact! this `[(exercise/g-ex2-inc {:id ~id})])} "Increment")))))
+        (dom/button #js {:onClick #(prim/transact! this `[(exercise/g-ex2-inc {:id ~id})])} "Increment")))))
 
-(def ui-ex2-child (om/factory Ex2-Child {:keyfn :id}))
+(def ui-ex2-child (prim/factory Ex2-Child {:keyfn :id}))
 
 (defui ^:once Ex2-Root
-  static om/IQuery
-  (query [this] [:ui/react-key {:items (om/get-query Ex2-Child)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:items (prim/get-query Ex2-Child)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key items]} (om/props this)]
+    (let [{:keys [ui/react-key items]} (prim/props this)]
       (dom/div #js {:key react-key}
         (dom/ul nil (map ui-ex2-child items))))))
 
@@ -95,43 +95,43 @@
   {:action #(swap! state update-in [:child/by-id id :n] dec)})
 
 (defui ^:once Ex3-Item
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :n])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:child/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [id n]} (om/props this)]
+    (let [{:keys [id n]} (prim/props this)]
       (dom/li nil
         (dom/span nil "n: " n)
         ; TODO: Fix the rendering using transaction follow-on property reads
-        (dom/button #js {:onClick #(om/transact! this `[(exercise/g-ex2-inc {:id ~id})])} "Increment")
-        (dom/button #js {:onClick #(om/transact! this `[(exercise/g-ex3-dec {:id ~id})])} "Decrement")))))
+        (dom/button #js {:onClick #(prim/transact! this `[(exercise/g-ex2-inc {:id ~id})])} "Increment")
+        (dom/button #js {:onClick #(prim/transact! this `[(exercise/g-ex3-dec {:id ~id})])} "Decrement")))))
 
-(def ui-ex3-item (om/factory Ex3-Item {:keyfn :id}))
+(def ui-ex3-item (prim/factory Ex3-Item {:keyfn :id}))
 
 (defui ^:once Ex3-List
-  static om/IQuery
-  (query [this] [:id :title :max :min {[:items '_] (om/get-query Ex3-Item)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [:id :title :max :min {[:items '_] (prim/get-query Ex3-Item)}])
+  static prim/Ident
   (ident [this props] [:list/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [title min max items] :or {min 0 max 1000000}} (om/props this)]
+    (let [{:keys [title min max items] :or {min 0 max 1000000}} (prim/props this)]
       (dom/div #js {:style {:float "left" :width "300px"}}
         (dom/h4 nil (str title (when (= 0 min) (str " (n <= " max ")"))))
         (dom/ul nil (->> items
                       (filter (fn [{:keys [n]}] (<= min n max)))
                       (map ui-ex3-item)))))))
 
-(def ui-ex3-list (om/factory Ex3-List {:keyfn :id}))
+(def ui-ex3-list (prim/factory Ex3-List {:keyfn :id}))
 
 (defui ^:once Ex3-Root
-  static om/IQuery
-  (query [this] [:ui/react-key {:lists (om/get-query Ex3-List)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:lists (prim/get-query Ex3-List)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key lists]} (om/props this)]
+    (let [{:keys [ui/react-key lists]} (prim/props this)]
       (dom/div #js {:key react-key}
         (map ui-ex3-list lists)))))
 

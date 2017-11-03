@@ -1,5 +1,5 @@
 (ns fulcro.client.impl.plumbing
-  (:require [fulcro.client.primitives :as om]
+  (:require [fulcro.client.primitives :as prim]
             [fulcro.util :as util]
             [fulcro.client.mutations :as m]
             [fulcro.client.logging :as log]
@@ -33,9 +33,9 @@
               data           (if by-ident? (get-in @state key) (get @state key))]
           {:value
            (cond
-             union? (get (om/db->tree [{key query}] @state @state) key)
+             union? (get (prim/db->tree [{key query}] @state @state) key)
              top-level-prop data
-             :else (om/db->tree query data @state))})))))
+             :else (prim/db->tree query data @state))})))))
 
 (defn write-entry-point
   "This is the Om entry point for writes. In general this is simply a call to the multi-method
@@ -68,7 +68,7 @@
   [state tid->rid]
   (if (empty? tid->rid)
     state
-    (walk/prewalk #(if (om/tempid? %) (get tid->rid % %) %) state)))
+    (walk/prewalk #(if (prim/tempid? %) (get tid->rid % %) %) state)))
 
 (defn rewrite-tempids-in-request-queue
   "Rewrite any pending requests in the request queue to account for the fact that a response might have
@@ -84,23 +84,23 @@
   "Removes all fulcro/load and tx/fallback mutations from the query"
   [query]
   (let [symbols-to-filter #{'fulcro/load `fulcro.client.data-fetch/load 'tx/fallback `fulcro.client.data-fetch/fallback}
-        ast               (om/query->ast query)
+        ast               (prim/query->ast query)
         children          (:children ast)
         new-children      (filter (fn [child] (not (contains? symbols-to-filter (:dispatch-key child)))) children)
         new-ast           (assoc ast :children new-children)]
-    (om/ast->query new-ast)))
+    (prim/ast->query new-ast)))
 
 (defn fallback-query [query resp]
   "Filters out everything from the query that is not a fallback mutation.
   Returns nil if the resulting expression is empty."
   (let [symbols-to-find #{'tx/fallback 'fulcro.client.data-fetch/fallback}
-        ast             (om/query->ast query)
+        ast             (prim/query->ast query)
         children        (:children ast)
         new-children    (->> children
                           (filter (fn [child] (contains? symbols-to-find (:dispatch-key child))))
                           (map (fn [ast] (update ast :params assoc :execute true :error resp))))
         new-ast         (assoc ast :children new-children)
-        fallback-query  (om/ast->query new-ast)]
+        fallback-query  (prim/ast->query new-ast)]
     (when (not-empty fallback-query)
       fallback-query)))
 
@@ -113,7 +113,7 @@
 (defn strip-ui
   "Returns a new query with fragments that are in the `ui` namespace removed."
   [query]
-  (let [ast              (om/query->ast query)
+  (let [ast              (prim/query->ast query)
         drop-ui-children (fn drop-ui-children [ast-node]
                            (let [children (reduce (fn [acc n]
                                                     (if (is-ui-query-fragment? (:dispatch-key n))
@@ -124,7 +124,7 @@
                                (assoc ast-node :children children)
                                (dissoc ast-node :children))))]
 
-    (om/ast->query (drop-ui-children ast))))
+    (prim/ast->query (drop-ui-children ast))))
 
 (def nf ::not-found)
 
