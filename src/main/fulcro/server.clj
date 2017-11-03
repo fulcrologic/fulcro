@@ -322,11 +322,11 @@ default-malformed-response
 
 (defprotocol APIHandler
   (api-read [this]
-    "Returns an fulcro read emitter for parsing read queries, ie: `(fn [env k params] ...)`.
+    "Returns a Fulcro read emitter for parsing read queries, ie: `(fn [env k params] ...)`.
      The emitter can return an untruthy value (`nil` or `false`),
      which tells the fulcro api-handler to try the next `Module` in the `:modules` chain.")
   (api-mutate [this]
-    "Returns an fulcro mutate emitter for parsing mutations, ie: `(fn [env k params] ...)`.
+    "Returns a Fulcro mutate emitter for parsing mutations, ie: `(fn [env k params] ...)`.
      The emitter can return an untruthy value (`nil` or `false`),
      which tells the fulcro api-handler to try the next `Module` in the `:modules` chain."))
 

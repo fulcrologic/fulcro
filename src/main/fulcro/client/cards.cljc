@@ -26,7 +26,7 @@
 
 #?(:clj
    (defmacro fulcro-application
-     "Embed an fulcro client application in a devcard. The `args` can be any args you'd
+     "Embed a Fulcro client application in a devcard. The `args` can be any args you'd
      normally pass to `new-fulcro-client` except for `:initial-state` (which is taken from
      InitialAppState or the card's data). The card's data (which must be a normalized db) will override InitialAppState if it is *not* empty.
 

@@ -144,7 +144,7 @@
     (assertions
       "are vectors"
       mutation-expr =fn=> vector?
-      "include an fulcro/load with mutation arguments"
+      "include a Fulcro/load with mutation arguments"
       mutation =fn=> list?
       (first mutation) => 'fulcro/load
       "always do a follow-on read for :ui/loading-data"

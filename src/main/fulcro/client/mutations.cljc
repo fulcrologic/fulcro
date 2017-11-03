@@ -27,7 +27,7 @@
                                  :remote (s/* #(and (list? %) (not= 'action (first %)))))))
 
 #?(:clj
-   (defmacro ^{:doc      "Define an Fulcro mutation.
+   (defmacro ^{:doc      "Define a Fulcro mutation.
 
                        The given symbol will be prefixed with the namespace of the current namespace, as if
                        it were def'd into the namespace.

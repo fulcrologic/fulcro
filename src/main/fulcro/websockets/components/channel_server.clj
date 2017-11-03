@@ -35,7 +35,7 @@
     true))
 
 (defn route-handlers
-  "Route handler that is expected to be passed to `:extra-routes` when creating an fulcro app.
+  "Route handler that is expected to be passed to `:extra-routes` when creating a Fulcro app.
   Route handlers will look at optionally look at `:ws-origin-whitelist` in your config file, and
   validate origins trying to make a ws connection. If `:ws-origin-whitelist` is nil, origins will
   not be checked. The `:origin` key will also be treated as a valid origin if checking is enabled.

@@ -250,7 +250,7 @@
 
   Typically what you'll want to do when (re)reading an entity that is being actively used on a form is:
 
-  1. Issue an fulcro load for that entity. The incoming state will cause the UI of the form to update
+  1. Issue a Fulcro load for that entity. The incoming state will cause the UI of the form to update
   (since you're always editing/rendering active state of the entity). Unfortunately, the pristine state
   of the form now thinks the newly loaded entity is *dirty*!
   2. Include a post mutation, which should:
