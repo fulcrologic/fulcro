@@ -1,3 +1,28 @@
+2.0.0-alpha1
+------------
+- Removed dependency on Om Next. See README-fulcro-2.0.adoc for upgrade instructions.
+- Imported and refined the useful Om Next abstractions.
+- Dropped indexer support for data path, and class path.
+- Made post-processing path-meta obsolete (internal change)
+- Fixed factory to use `apply` to prevent React warnings when using children.
+- Revamped all of the documentation. Made many improvements to Dev Guide
+- Added code to support React 16 (optional, defaults to 15)
+- Rewrote how dynamic queries work. They are now 100% part of state and history.
+- Changed DynamicRouter to use new dynamic query support
+- Refined how UI refreshes work. Should be a bit faster that Om Next in general.
+- Added a new history system with the following improvements
+    - The history sequence is now a unidirectional list of nodes whose edges are annotated with the action
+    that affected the change, along with other metadata that is necessary to support real
+    history navigation (e.g. status of shared). This improves debugging abilities dramatically.
+    - Added a better API for accessing and navigating history
+- Added support for auto-recovery from network issues. This can dramatically reduce
+the amount of error handling code you need to write.
+- Added more examples in demos
+- Improved load marker implementation. You may now give markers a name and have them normalize instead of overwriting your data
+- Improved `:target` support in all variants of load. You can now target multiple locations, including append/prepend to existing
+to-many collections (see the doc string).
+- Improved start-up failure messages for server
+
 1.2.0
 -----
 - Added support for tools to be notified when a Fulcro app starts so they
