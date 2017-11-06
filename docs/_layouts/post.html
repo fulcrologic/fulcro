@@ -5,10 +5,11 @@
 
     <!-- CDN stuff -->
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/basscss/8.0.3/css/basscss.min.css">
+    <link rel="stylesheet" type="text/css" href="{{ '/assets/css/syntax.css' | relative_url }}">
     <link href="https://fonts.googleapis.com/css?family=Cambay" rel="stylesheet">
 
     <!-- Theme -->
-    <link rel="stylesheet" href="{{ '/fulcro/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}" media="screen">
+    <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}" media="screen">
 
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-107376541-2"></script>
@@ -24,12 +25,30 @@
   </head>
 
   <body>
+
+    <div class="page-container flex flex-column">
+
     {% include header.html %}
 
-    <section class="content-container">
+    <section class="bg-grey py2">
+      <div class="content-container center">
+        <h2 class="blue">
+          {{page.title}}
+        </h2>
+        <h4>
+          by {{page.author}}
+        </h4>
+      </div>
+    </section>
+
+    <section class="content-container md-content">
+      <div class="col col12 pl4 pr4 h3">
       {{ content }}
+      </div>
     </section>
 
     {% include footer.html %}
+
+    </div>
   </body>
 </html>

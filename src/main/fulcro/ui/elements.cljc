@@ -51,10 +51,9 @@
        (let [dom-node (dom/node this)
              {:keys [open-boundary? delegates-focus?] :or {open-boundary?   true
                                                            delegates-focus? false}} (om/props this)
-             root     (if (exists? (.-attachShadow dom-node))
+             root     (when (exists? (.-attachShadow dom-node))
                         (.attachShadow dom-node #js {:mode           (if open-boundary? "open" "closed")
-                                                     :delegatesFocus delegates-focus?})
-                        (.createShadowRoot dom-node))]
+                                                     :delegatesFocus delegates-focus?}))]
          (om/react-set-state! this {:root root})))
      (componentDidUpdate [this pp ps]
        (let [children    (om/children this)

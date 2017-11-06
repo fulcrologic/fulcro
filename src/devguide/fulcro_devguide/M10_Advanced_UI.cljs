@@ -235,7 +235,7 @@
   (action [{:keys [state]}]
     (swap! state update-in [:child/by-id id :n] dec)))
 
-(defui ^:once Ex3-Item
+(defui ^:once ListItem
   static fc/InitialAppState
   (initial-state [c {:keys [id n]}] {:id id :n n})
   static om/IQuery
@@ -250,15 +250,15 @@
         (dom/button #js {:onClick #(om/transact! this `[(bump-up {:id ~id})])} "Increment")
         (dom/button #js {:onClick #(om/transact! this `[(bump-down {:id ~id})])} "Decrement")))))
 
-(def ui-ex3-item (om/factory Ex3-Item {:keyfn :id}))
+(def ui-list-item (om/factory ListItem {:keyfn :id}))
 
-(defui ^:once Ex3-List
+(defui ^:once ItemList
   static fc/InitialAppState
-  (initial-state [c p] {:id 1 :title "My List" :min 1 :max 1000 :items [(fc/get-initial-state Ex3-Item {:id 1 :n 2})
-                                                                        (fc/get-initial-state Ex3-Item {:id 2 :n 5})
-                                                                        (fc/get-initial-state Ex3-Item {:id 3 :n 7})]})
+  (initial-state [c p] {:id 1 :title "My List" :min 1 :max 1000 :items [(fc/get-initial-state ListItem {:id 1 :n 2})
+                                                                        (fc/get-initial-state ListItem {:id 2 :n 5})
+                                                                        (fc/get-initial-state ListItem {:id 3 :n 7})]})
   static om/IQuery
-  (query [this] [:id :title :max :min {:items (om/get-query Ex3-Item)}])
+  (query [this] [:id :title :max :min {:items (om/get-query ListItem)}])
   static om/Ident
   (ident [this props] [:list/by-id (:id props)])
   Object
@@ -268,15 +268,15 @@
         (dom/h4 nil (str title (when (= 0 min) (str " (n <= " max ")"))))
         (dom/ul nil (->> items
                       (filter (fn [{:keys [n]}] (<= min n max)))
-                      (map ui-ex3-item)))))))
+                      (map ui-list-item)))))))
 
-(def ui-ex3-list (om/factory Ex3-List {:keyfn :id}))
+(def ui-list (om/factory ItemList {:keyfn :id}))
 
 (defui ^:once SDRoot
   static fc/InitialAppState
-  (initial-state [c p] {:lists [(fc/get-initial-state Ex3-List {})]})
+  (initial-state [c p] {:lists [(fc/get-initial-state ItemList {})]})
   static om/IQuery
-  (query [this] [:ui/react-key {:lists (om/get-query Ex3-List)}])
+  (query [this] [:ui/react-key {:lists (om/get-query ItemList)}])
   Object
   (render [this]
     (let [{:keys [ui/react-key lists]} (om/props this)]
@@ -285,7 +285,7 @@
         (ele/ui-shadow-dom {:open-boundary? false}
           (dom/div #js {:key react-key}
             (dom/style #js {} ".item {color: red}")
-            (map ui-ex3-list lists)))
+            (map ui-list lists)))
         (dom/div #js {:className "item"} "sibling")))))
 
 (defcard-fulcro shadow-dom
