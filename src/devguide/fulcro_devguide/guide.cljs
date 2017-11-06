@@ -8,7 +8,6 @@
     fulcro-devguide.C-App-Database-Exercises
     fulcro-devguide.D-Queries
     fulcro-devguide.E-UI-Queries-and-State
-    fulcro-devguide.E-UI-Queries-and-State-Exercises
     fulcro-devguide.F-Fulcro-Client
     fulcro-devguide.F-Fulcro-DevEnv
     fulcro-devguide.F-Fulcro-Initial-App-State

@@ -2262,27 +2262,122 @@ See the Developer's Guide and the Fulcro Template.
 
 == Generating Initial State
 
+When your application is starting you will need data in the app database for the UI to query. There are three ways
+to do this:
+
+1. Hand-code a normalized graph database
+2. Hand-code a tree of data that matches the initial UI query, and let it be auto-normalized on start
+3. (recommended) co-locate initial state with components.
+
+The first two are legal options when creating the client application. You can use the `:initial-state` option. If
+you pass a map in an atom, then it will be treated as an already-normalized database. If you pass a plain
+map it will be considered a UI tree of data and will be auto-normalized. The first two exist mainly for legacy
+reasons, although they are handy when using devcards (the devcard's atom is used to hold state so you can see it
+with data inspection).
+
+The third option is *definitely* the option you should use. It enable easy UI refactoring, and it by far the
+easiest and most reliable way to generate your application's initial state database.
+
+Simply statically implement the fulcro.client.core/InitialAppState protocol and compose that to the root
+component of your UI:
+
+```
+(defui Component
+  static fc/InitialAppState
+  (initial-state [cls params] {:x 1})
+  static prim/IQuery
+  (query [this] [:x])
+  Object
+  (render [this] ...))
+```
+
+Composing that into it's parent (repeated up until root) will result in the construction of the correct initial tree of data at root:
+
+```
+(defui Parent
+  static fc/InitialAppState
+  (initial-state [cls params] {:comp (fc/get-initial-state Component {}})
+  static prim/IQuery
+  (query [this] [{:comp (prim/get-query Component)}])
+  Object
+  (render [this] ...))
+```
+
 === Alternate Union Branches
 
-=== Forms
+If your Initial UI uses union queries on a to-one relation (e.g. for UI routing), then you may want initial
+state for all of the branches, but only one branch will be the *current* branch, meaning that the initial
+tree will only be able to list the default one in state.
 
-== Updating State for a Given Route
-
+Fulcro will auto-detect `InitialAppState` on the alternate branches and place those in the database. This ensures
+that your initial application state will be complete, even in the presence of this complication.
 
 = Networking [[Networking]]
 
 == Adding Additional Remotes
 
 Give a single FulcroNetworking object to `:networking` (which will be known as `:remote`), or a map of keyword
-remote names whose values are objects the implement FulcroNetworking.
+remote names whose values are objects the implement FulcroNetworking. Each remote that you add will be usable
+through the `:remote` parameter of loads, and that remote's name in mutations.
 
-== Creating Custom Network Handlers
+For example, if you add a remote named `:microservice-one`, then you could query it with:
+
+```
+(load this :thing Things {:remote :microservice-one})
+```
+
+and send it a mutation with:
+
+```
+(defmutation something [params]
+  (microservice-one [env] true))
+```
+
+Loads must be directed at a single remote, but mutations can technically be sent to as many as you'd like (though there
+is no built-in coordination of them).
+
+== Creating Custom Remote Handlers
+
+You can create custom "remote" handlers for Fulcro. Usually this is to talk to remote systems, but you can
+also leverage them to talk to side-effecting subsystems of the client app, simulate server interactions
+(for prototyping), and more.
+
+The basic task for doing this is to implement the `FulcroNetwork` protocol and pass an instance of that
+object as a `:remote` when creating your client.
+
+There are only two methods in the protocol: `send` and `start`. The latter is called when the application is starting
+on the client. The latter is called whenever there is work for the remote to do.
 
 === Optional Sequential Operation
 
+When you create a client component to provide networking you can optionally implement the `NetworkBehavior` protocol,
+which has a single method `(serialize-requests? [this])`. The default is to serialize them, but if you implement this
+protocol and return false, then Fulcro's plumbing will not manage request queuing, and will just call `send` any time
+there is anything in the queue.
+
 === Implementing Send
 
+The send method of the `FulcroNetwork` protocol is given `[this edn done-callback error-callback]`. `this` is just
+the instance of your implementation. The `edn` is the raw Fulcro query/mutation that was issued. The two callback
+functions are what you call when the request is complete. You must call one (and only one) of them exactly once
+with the response (or error).
+
+The error callback, if called, will trigger and fallbacks, will update the (optional) load markers for the
+request with an error state.
+
+The done callback, if called, expects to be given a response that matches the shape of the request. This is always
+a map that contains the top-level keys that were in the query/mutation. Mutations are keyed by the symbol of the mutation.
+
+So, a query like this `[:a]` should call done with a map like `{:a 1}`. A mutation like `[(f)]` should call
+the done callback with something like `{'f 42}`. The only automatically-handled return value from mutations
+are tempid remappings.
+
 === Merging State
+
+Fulcro remembers the query that was used when calling `send`. Therefore it can auto-normalize the server's tree-like
+response to a graph query. It is perfectly legal to alter this by passing a UI query to the `done-callback` as
+an additional argument. Doing so will cause the back-end to use the specified query for normalization instead of
+the original outgoing query.
 
 === Error Handling
 
@@ -2293,7 +2388,7 @@ and trigger a need for network error handling unless there is a real, non-recove
 
 If this is true, then a functioning server *does* need to do sanity checking for security reasons, but in general you
 don't need to give friendly errors when those checks fail: you should assume they are attempted hacks. Other serious
-problems are the similar: there is usually nothing you can do but throw an exception and let the user contact support.
+problems are similar: there is usually nothing you can do but throw an exception and let the user contact support.
 Exceptions to this rule certainly exist, but they are few and far between.
 
 There are some cases where the server has to be involved in a validation interaction non-optimistically. Login is a great
@@ -2351,16 +2446,17 @@ where the `PersonEditor` would need to query for `:temp/person` (the load target
 
 === Interfacing with REST Servers
 
+See the final sections of the GettingStarted guide in the Fulcro repository on Git Hub.
 
 = Websockets
+
+Fulcro comes with support for websockets.
 
 == Client-side Setup
 
 == Server-side Setup
 
 == Server Push
-
-
 
 
 = Internationalization
