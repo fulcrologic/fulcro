@@ -244,6 +244,7 @@
   (let [old-ast     (prim/query->ast query)
         ast         (cond-> old-ast
                       (not-empty without) (elide-ast-nodes without)
+                      (and field params (not (contains? params field))) (inject-query-params {field params})
                       params (inject-query-params params))
         query-field (first query)
         key         (if (util/join? query-field) (util/join-key query-field) query-field)
@@ -465,26 +466,26 @@
   "
   [reconciler]
   (fn [response items]
-    (let [query              (full-query items)
-          loading-items      (into #{} (map set-loading! items))
-          refresh-set        (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
-          to-refresh         (vec refresh-set)
-          marked-response    (plumbing/mark-missing response query)
-          app-state          (prim/app-state reconciler)
-          ran-mutations      (atom false)
-          remove-markers!    (fn [] (doseq [item loading-items]
-                                      (swap! app-state (fn [s]
-                                                         (cond-> s
-                                                           :always (update :fulcro/loads-in-progress disj (data-uuid item))
-                                                           (data-marker? item) (remove-marker item))))))
+    (let [query               (full-query items)
+          loading-items       (into #{} (map set-loading! items))
+          refresh-set         (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
+          to-refresh          (vec refresh-set)
+          marked-response     (plumbing/mark-missing response query)
+          app-state           (prim/app-state reconciler)
+          ran-mutations       (atom false)
+          remove-markers!     (fn [] (doseq [item loading-items]
+                                       (swap! app-state (fn [s]
+                                                          (cond-> s
+                                                            :always (update :fulcro/loads-in-progress disj (data-uuid item))
+                                                            (data-marker? item) (remove-marker item))))))
           run-post-mutations! (fn [] (doseq [item loading-items]
-                                      (when-let [mutation-symbol (::post-mutation item)]
-                                        (reset! ran-mutations true)
-                                        (let [params       (or (::post-mutation-params item) {})
-                                              original-env (-> item ::original-env meta)]
-                                          (some-> (m/mutate (callback-env reconciler item original-env) mutation-symbol params)
-                                            :action
-                                            (apply []))))))]
+                                       (when-let [mutation-symbol (::post-mutation item)]
+                                         (reset! ran-mutations true)
+                                         (let [params       (or (::post-mutation-params item) {})
+                                               original-env (-> item ::original-env meta)]
+                                           (some-> (m/mutate (callback-env reconciler item original-env) mutation-symbol params)
+                                             :action
+                                             (apply []))))))]
       (remove-markers!)
       (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)

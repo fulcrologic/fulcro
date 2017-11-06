@@ -124,7 +124,14 @@
          (let [params (df/load-params* :k Person {})]
            (assertions
              "includes the computed refresh list as refresh"
-             (:refresh params) => :computed-refresh))))))
+             (:refresh params) => :computed-refresh))))
+     (let [state-marker-legacy (dfi/ready-state {:query [{:x [:a]}] :field :x :ident [:thing/by-id 1] :params {:x {:p 2}}})
+           state-marker-new    (dfi/ready-state {:query [{:x [:a]}] :field :x :ident [:thing/by-id 1] :params {:p 2}})]
+       (assertions
+         "Honors legacy way of specifying parameters"
+         (-> state-marker-legacy ::dfi/query) => '[({:x [:a]} {:p 2})]
+         "Honors simpler way of specifying parameters"
+         (-> state-marker-new ::dfi/query) => '[({:x [:a]} {:p 2})]))))
 
 (specification "Load auto-refresh"
   (component "computed-refresh"
@@ -277,8 +284,7 @@
         (when-mocking
           (log/error msg) => (is (= "Error: You attempted to add parameters for #{:c} to top-level key(s) of [:a :b]" msg))
 
-          (dfi/inject-query-params ast params)
-          )))))
+          (dfi/inject-query-params ast params))))))
 
 (specification "set-global-loading"
   (let [loading-state     (atom {:ui/loading-data          true
