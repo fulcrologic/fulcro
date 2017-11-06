@@ -4,7 +4,9 @@
             [cljsjs.victory]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.clip-tool :as ct]
+            [fulcro.ui.elements :as ele]
             [fulcro.client.cards :refer [defcard-fulcro]]
+            [fulcro.client.mutations :as m :refer [defmutation]]
             [om.dom :as dom]
             [om.next :as om :refer-macros [defui]]
             [om.util :as util]
@@ -214,3 +216,87 @@
   ICRoot
   {}
   {:inspect-data true})
+
+(defcard-doc
+  "# Shadow DOM
+
+  Fulcro includes a helper for creating an isolated shadow DOM in which all or part of your DOM can live. This is useful
+  for embedding Fulcro applications within outer applications where you want the DOM and style rules to not collide.
+
+  NOTE: At the present time Shadow DOM is not supported by one or more browsers (notably Firefox). There are polyfills
+  available whose performance may be rather terrible.
+
+  ")
+
+(defmutation bump-up [{:keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state update-in [:child/by-id id :n] inc)))
+(defmutation bump-down [{:keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state update-in [:child/by-id id :n] dec)))
+
+(defui ^:once Ex3-Item
+  static fc/InitialAppState
+  (initial-state [c {:keys [id n]}] {:id id :n n})
+  static om/IQuery
+  (query [this] [:id :n])
+  static om/Ident
+  (ident [this props] [:child/by-id (:id props)])
+  Object
+  (render [this]
+    (let [{:keys [id n]} (om/props this)]
+      (dom/li #js {:className "item"}
+        (dom/span nil "n: " n)
+        (dom/button #js {:onClick #(om/transact! this `[(bump-up {:id ~id})])} "Increment")
+        (dom/button #js {:onClick #(om/transact! this `[(bump-down {:id ~id})])} "Decrement")))))
+
+(def ui-ex3-item (om/factory Ex3-Item {:keyfn :id}))
+
+(defui ^:once Ex3-List
+  static fc/InitialAppState
+  (initial-state [c p] {:id 1 :title "My List" :min 1 :max 1000 :items [(fc/get-initial-state Ex3-Item {:id 1 :n 2})
+                                                                        (fc/get-initial-state Ex3-Item {:id 2 :n 5})
+                                                                        (fc/get-initial-state Ex3-Item {:id 3 :n 7})]})
+  static om/IQuery
+  (query [this] [:id :title :max :min {:items (om/get-query Ex3-Item)}])
+  static om/Ident
+  (ident [this props] [:list/by-id (:id props)])
+  Object
+  (render [this]
+    (let [{:keys [title min max items] :or {min 0 max 1000000}} (om/props this)]
+      (dom/div #js {:style {:float "left" :width "300px"}}
+        (dom/h4 nil (str title (when (= 0 min) (str " (n <= " max ")"))))
+        (dom/ul nil (->> items
+                      (filter (fn [{:keys [n]}] (<= min n max)))
+                      (map ui-ex3-item)))))))
+
+(def ui-ex3-list (om/factory Ex3-List {:keyfn :id}))
+
+(defui ^:once SDRoot
+  static fc/InitialAppState
+  (initial-state [c p] {:lists [(fc/get-initial-state Ex3-List {})]})
+  static om/IQuery
+  (query [this] [:ui/react-key {:lists (om/get-query Ex3-List)}])
+  Object
+  (render [this]
+    (let [{:keys [ui/react-key lists]} (om/props this)]
+      (dom/div nil
+        (dom/style #js {} ".item {font-size: 40pt}")
+        (ele/ui-shadow-dom {:open-boundary? false}
+          (dom/div #js {:key react-key}
+            (dom/style #js {} ".item {color: red}")
+            (map ui-ex3-list lists)))
+        (dom/div #js {:className "item"} "sibling")))))
+
+(defcard-fulcro shadow-dom
+  "This card is running with shadow dom. There is a top-level CSS style to set the font size
+  of the 'item' class to 40 points. The list (which has things with the 'item' class) is embedded in a shadow dom, and
+  has it's own style section with a class 'item' that is drawn in red.
+
+  The 'sibling' is a div (with class 'item') next to
+  the shadow dom. On browsers with a working shadow dom you should see the font size
+  (but not color) apply to 'sibling', and you should see the color (but not font size)
+  apply to the items in list.
+
+  If your browser does not support shadow DOM, then you will only see the sibling."
+  SDRoot)

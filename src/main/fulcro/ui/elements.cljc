@@ -43,4 +43,42 @@
    (defn ui-iframe [props child]
      ((om/factory IFrame) (assoc props :child child))))
 
+#?(:cljs
+   (defui ShadowDOM
+     Object
+     (shouldComponentUpdate [this np ns] true)
+     (componentDidMount [this]
+       (let [dom-node (dom/node this)
+             children (om/children this)
+             {:keys [open-boundary? delegates-focus?] :or {open-boundary?   true
+                                                           delegates-focus? false}} (om/props this)
+             root     (if (exists? (.-attachShadow dom-node))
+                        (.attachShadow dom-node #js {:mode           (if open-boundary? "open" "closed")
+                                                     :delegatesFocus delegates-focus?})
+                        (.createShadowRoot dom-node))]
+         (om/react-set-state! this {:root root})))
+     (componentDidUpdate [this pp ps]
+       (let [children    (om/children this)
+             shadow-root (om/get-state this :root)
+             child       (first children)]
+         (if (and shadow-root child)
+           (dom/render child shadow-root))))
+     (render [this]
+       ; placeholder node to attach shadow DOM to
+       (dom/div #js {:style #js {:font-size "14pt" :color "red"}} "Your browser does not support shadow DOM. Please try Chrome or Safari."))))
 
+#?(:clj
+   (defn ui-shadow-dom [props children]
+     (apply dom/div props children))
+   :cljs
+   (def ui-shadow-dom
+     "Create a div with a shadow DOM, and render the given child (singular) within that root.
+
+     WARNING: Some browsers may require a polyfill to enable shadow DOM. See also `ui-iframe`.
+
+     Props:
+
+     :open-boundary? : Should the outer DOM have js access to the shadow one? (default true)
+     :delegates-focus? : Should focus be delegated? (default false)
+     "
+     (om/factory ShadowDOM)))
