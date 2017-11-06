@@ -49,7 +49,6 @@
      (shouldComponentUpdate [this np ns] true)
      (componentDidMount [this]
        (let [dom-node (dom/node this)
-             children (om/children this)
              {:keys [open-boundary? delegates-focus?] :or {open-boundary?   true
                                                            delegates-focus? false}} (om/props this)
              root     (if (exists? (.-attachShadow dom-node))

@@ -1,3 +1,11 @@
+1.1.0
+-----
+- Added support for shadow DOM (for browsers that support it)
+
+1.0.0
+-----
+- Stable release
+
 1.0.0-beta11
 ------------
 - Fixed regression in i18n change-locale.
