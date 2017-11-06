@@ -1,11 +1,11 @@
-(defproject fulcrologic/fulcro "1.0.0"
+(defproject fulcrologic/fulcro "1.1.0-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.908" :scope "provided"]
-                 [clojure-future-spec "1.9.0-alpha17"]
+                 [org.clojure/clojurescript "1.9.946" :scope "provided"]
+                 [clojure-future-spec "1.9.0-beta2"]
                  [org.omcljs/om "1.0.0-beta1"]
                  [http-kit "2.2.0"]
                  [ring/ring-core "1.6.2" :exclusions [commons-codec]]
@@ -18,7 +18,7 @@
                  [com.taoensso/sente "1.11.0"]
                  [garden "1.3.2"]
 
-                 [fulcrologic/fulcro-spec "1.0.0-beta9" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "1.0.0" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.7" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
