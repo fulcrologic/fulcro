@@ -10,6 +10,11 @@
 - Rewrote how dynamic queries work. They are now 100% part of state and history.
 - Changed DynamicRouter to use new dynamic query support
 - Refined how UI refreshes work. Should be a bit faster that Om Next in general.
+- Improved load marker implementation. You may now give markers a name and have them normalize instead of overwriting your data
+- Improved `:target` support in all variants of load. You can now target multiple locations, including append/prepend to existing
+to-many collections (see the doc string).
+- Improved start-up failure messages for server related to configuration files.
+
 - Added a new history system with the following improvements
     - The history sequence is now a unidirectional list of nodes whose edges are annotated with the action
     that affected the change, along with other metadata that is necessary to support real
@@ -18,10 +23,6 @@
 - Added support for auto-recovery from network issues. This can dramatically reduce
 the amount of error handling code you need to write.
 - Added more examples in demos
-- Improved load marker implementation. You may now give markers a name and have them normalize instead of overwriting your data
-- Improved `:target` support in all variants of load. You can now target multiple locations, including append/prepend to existing
-to-many collections (see the doc string).
-- Improved start-up failure messages for server
 
 1.2.2
 -----
