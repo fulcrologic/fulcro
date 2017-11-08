@@ -69,4 +69,5 @@
       (gc-history new-history)
       new-history)))
 
-;; TODO: READY FOR TESTING
+(defn new-history [size]
+  {::max-size size ::history-steps {} ::active-remotes {}})

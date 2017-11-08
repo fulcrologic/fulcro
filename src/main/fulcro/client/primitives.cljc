@@ -1105,10 +1105,11 @@
   "Put a query in app state.
   NOTE: Indexes must be rebuilt after setting a query, so this function should only be used to build
   up an initial app state. Do not use it as part of a mutation."
-  [state-map class-or-ui-factory {:keys [query params]}]
-  (if-let [queryid (if (contains? (meta class-or-ui-factory) :queryid)
-                     (some-> class-or-ui-factory meta :queryid)
-                     (query-id class-or-ui-factory nil))]
+  [state-map queryid-or-class-or-ui-factory {:keys [query params]}]
+  (if-let [queryid (cond
+                     (string? queryid-or-class-or-ui-factory) queryid-or-class-or-ui-factory
+                     (contains? (meta queryid-or-class-or-ui-factory) :queryid) (some-> queryid-or-class-or-ui-factory meta :queryid)
+                     :otherwise (query-id queryid-or-class-or-ui-factory nil))]
     (do
       ; we have to dissoc the old one, because normalize won't overwrite by default
       (let [new-state (normalize-query (update state-map ::queries dissoc queryid) (with-meta query {:queryid queryid}))
@@ -1703,8 +1704,8 @@
 (defn gather-sends
   "Given an environment, a query and a set of remotes return a hash map of remotes
    mapped to the query specific to that remote."
-  [{:keys [parser] :as env} q remotes]
-  (into {}
+  [{:keys [parser] :as env} q remotes tx-time]
+  (into {::hist/tx-time tx-time}
     (comp
       (map #(vector % (parser env q %)))
       (filter (fn [[_ v]] (pos? (count v)))))
@@ -1818,7 +1819,7 @@
      (.forceUpdate c)))
 
 
-(defrecord Reconciler [config state]
+(defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
      :cljs IDeref)
   #?(:clj  (deref [this] @(:state config))
@@ -1891,7 +1892,7 @@
         (parsef)
         (when-let [sel (get-query rctor (-> config :state deref))]
           (let [env  (to-env config)
-                snds (gather-sends env sel (:remotes config))]
+                snds (gather-sends env sel (:remotes config) 0)]
             (when-not (empty? snds)
               (when-let [send (:send config)]
                 (send snds
@@ -2044,6 +2045,7 @@
                      loading if desired. The callback should take the response as the
                      first argument and the the query that was sent as the second
                      argument.
+     :history      - A positive integer. The number of history steps to keep in memory.
      :normalize    - whether the state should be normalized. If true it is assumed
                      all novelty introduced into the system will also need
                      normalization.
@@ -2066,12 +2068,13 @@
            root-render root-unmount
            migrate id-key
            instrument tx-listen
-           easy-reads]
+           easy-reads history]
     :or   {merge-sends  #(merge-with into %1 %2)
            remotes      [:remote]
            merge        default-merge
            merge-tree   default-merge-tree
            merge-ident  default-merge-ident
+           history      100
            optimize     (fn depth-sorter [cs] (sort-by depth cs))
            root-render  #?(:clj  (fn clj-root-render [c target] c)
                            :cljs #(js/ReactDOM.render %1 %2))
@@ -2105,7 +2108,8 @@
                                :queued       false :queued-sends {}
                                :sends-queued false
                                :target       nil :root nil :render nil :remove nil
-                               :t            0 :normalized norm?}))]
+                               :t            0 :normalized norm?})
+                        (atom (hist/new-history history)))]
     ret))
 
 (defn transact* [reconciler c ref tx]
@@ -2122,16 +2126,18 @@
         old-state @(:state cfg)
         history   (get reconciler ::history)
         v         ((:parser cfg) env tx)
-        snds      (gather-sends env tx (:remotes cfg))
+        tx-time   (get-current-time reconciler)
+        snds      (gather-sends env tx (:remotes cfg) tx-time)
+        new-state @(:state cfg)
         xs        (cond-> []
                     (not (nil? c)) (conj c)
                     (not (nil? ref)) (conj ref))]
     ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
-    (swap! history hist/record-history-step {::hist/tx            tx
-                                             ::hist/tx-result     v
-                                             ::hist/network-sends snds
-                                             ::hist/db-before     old-state
-                                             ::hist/db-after      @(:state cfg)})
+    (swap! history hist/record-history-step tx-time {::hist/tx            tx
+                                                     ::hist/tx-result     v
+                                                     ::hist/network-sends snds
+                                                     ::hist/db-before     old-state
+                                                     ::hist/db-after      new-state})
     (log-info (pr-str "Transacted " tx))
     (p/queue! reconciler (into xs (remove symbol?) (keys v)))
     (when-not (empty? snds)
@@ -2142,7 +2148,7 @@
     (when-let [f (:tx-listen cfg)]
       (let [tx-data (merge env
                       {:old-state old-state
-                       :new-state @(:state cfg)})]
+                       :new-state new-state})]
         (f tx-data {:tx    tx
                     :ret   v
                     :sends snds})))
@@ -2449,20 +2455,29 @@
         components-to-refresh (if-not (nil? component-class)
                                 (class->all reconciler component-class)
                                 [])
-        state-atom            (app-state reconciler)]
-    (swap! state-atom set-query* ui-factory opts)
+        state-atom            (app-state reconciler)
+        queryid               (-> ui-factory meta :queryid)
+        rootq                 (get-query root @state-atom)
+        before-db             @state-atom
+        _                     (swap! state-atom set-query* queryid opts)
+        next-db               @state-atom
+        tx-time               (get-current-time reconciler)
+        sends                 (gather-sends (to-env cfg) rootq (:remotes cfg) tx-time)
+        history-step          {::hist/tx        (into `[(fulcro.client.mutations/set-query {:query-id ~queryid :query ~query :params ~params})] follow-on-reads)
+                               ::hist/db-before before-db
+                               ::hist/sends     sends
+                               ::hist/db-after  next-db}]
+    (swap! (:history reconciler) hist/record-history-step tx-time history-step)
     (when component
       (p/queue! reconciler components-to-refresh))
     (when-not (nil? follow-on-reads)
       (p/queue! reconciler follow-on-reads))
     (p/reindex! reconciler)
-    (let [rootq (get-query root @state-atom)
-          sends (gather-sends (to-env cfg) rootq (:remotes cfg))]
-      (when-not (empty? sends)
-        (doseq [[remote _] sends]
-          (p/queue! reconciler components-to-refresh remote))
-        (p/queue-sends! reconciler sends)
-        (schedule-sends! reconciler)))))
+    (when-not (empty? sends)
+      (doseq [[remote _] sends]
+        (p/queue! reconciler components-to-refresh remote))
+      (p/queue-sends! reconciler sends)
+      (schedule-sends! reconciler))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; DRAGONS BE HERE: The following code HACKS the cljs compiler to add an annotation so that
