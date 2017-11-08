@@ -63,15 +63,19 @@
   [{:keys [::active-remotes ::max-size ::history-steps] :as history} tx-time {:keys [::tx ::network-result ::network-sends ::db-before ::db-after] :as step}]
   ;(assert (s/valid? ::history-step step))
   ;(assert (s/valid? ::history history))
-  (let [last-time   (last-tx-time history)
-        gc?         (= 0 (mod tx-time 10))
-        last-tx     (get-in history-steps [last-time ::tx] [])
-        new-history (cond-> (assoc-in history [::history-steps tx-time] step)
-                      (and (compressible-tx? tx) (compressible-tx? last-tx)) (update ::history-steps dissoc last-time))]
+  (let [last-time     (last-tx-time history)
+        gc?           (= 0 (mod tx-time 10))
+        last-tx       (get-in history-steps [last-time ::tx] [])
+        compressible? (and (compressible-tx? tx) (compressible-tx? last-tx))
+        _             (when compressible? (log/debug "Compressing history!"))
+        new-history   (cond-> (assoc-in history [::history-steps tx-time] step)
+                        compressible? (update ::history-steps dissoc last-time))]
+    (log/debug (str "compress? " :a (compressible-tx? last-tx) :b (compressible-tx? tx)))
     (when-not (or (nil? last-tx) (> tx-time last-time))
       (log/error "Time did not move forward! History may have been lost."))
     ;(assert (or (nil? last-tx) (> tx-time last-time)) "Time moved forward.")
     (log/debug (str "History edge created at sequence step: " tx-time))
+    (log/debug (str "Current history size: " (count history-steps)))
     (if gc?
       (gc-history new-history)
       new-history)))
