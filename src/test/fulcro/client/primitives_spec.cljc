@@ -183,21 +183,27 @@
 ; TODO: This would be a great property-based check  (marshalling/unmarshalling) if we had generators that would work...
 
 (specification "Setting a query"
-  (let [query               (prim/get-query ui-root {})
-        parameterized-query (prim/get-query ui-rootp {})
-        state               (prim/normalize-query {} query)
-        state-modified      (prim/set-query* state ui-b {:query [:MODIFIED]})
-        expected-query      (assoc-in query [2 :union :u2 0] :MODIFIED)
-        state-modified-root (prim/set-query* state Root {:query [:b
-                                                                 {:join (prim/get-query ui-child state)}
-                                                                 {:union (prim/get-query ui-union state)}]})
-        expected-root-query (assoc query 0 :b)
-        state-parameterized (prim/normalize-query {} parameterized-query)]
+  (let [query                       (prim/get-query ui-root {})
+        parameterized-query         (prim/get-query ui-rootp {})
+        state                       (prim/normalize-query {} query)
+        state-modified              (prim/set-query* state ui-b {:query [:MODIFIED]})
+        expected-query              (assoc-in query [2 :union :u2 0] :MODIFIED)
+        state-modified-root         (prim/set-query* state Root {:query [:b
+                                                                         {:join (prim/get-query ui-child state)}
+                                                                         {:union (prim/get-query ui-union state)}]})
+        queryid                     (prim/query-id Root nil)
+        state-queryid-modified-root (prim/set-query* state queryid {:query [:b
+                                                                            {:join (prim/get-query ui-child state)}
+                                                                            {:union (prim/get-query ui-union state)}]})
+        expected-root-query         (assoc query 0 :b)
+        state-parameterized         (prim/normalize-query {} parameterized-query)]
     (assertions
       "Can update a node by factory"
       (prim/get-query ui-root state-modified) => expected-query
       "Can update a node by class"
-      (prim/get-query ui-root state-modified-root) => expected-root-query)))
+      (prim/get-query ui-root state-modified-root) => expected-root-query
+      "Can be done directly by ID"
+      (prim/get-query ui-root state-queryid-modified-root) => expected-root-query)))
 
 (specification "Indexing"
   (component "Gathering keys for a query"
