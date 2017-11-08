@@ -631,7 +631,7 @@
       (dfi/split-items-ready-to-load [q-ab-x q-bc-x q-cd-x q-de-x]) => [[q-ab-x q-cd-x] [q-bc-x q-de-x]]
       (dfi/split-items-ready-to-load [q-bc-x q-de-x]) => [[q-bc-x q-de-x] []])))
 
-(specification "Special targeting" :focused
+(specification "Special targeting"
   (assertions
     "Is detectable"
     (dfi/special-target? (df/append-to [])) => true
