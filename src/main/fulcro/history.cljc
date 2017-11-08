@@ -71,10 +71,15 @@
     (when-not (or (nil? last-tx) (> tx-time last-time))
       (log/error "Time did not move forward! History may have been lost."))
     ;(assert (or (nil? last-tx) (> tx-time last-time)) "Time moved forward.")
-    (log/info (str "History edge for " tx " created at sequence step: " tx-time))
+    (log/debug (str "History edge created at sequence step: " tx-time))
     (if gc?
       (gc-history new-history)
       new-history)))
 
 (defn new-history [size]
   {::max-size size ::history-steps {} ::active-remotes {}})
+
+(defn ordered-steps
+  "Returns the current valid sequence of step times in the given history as a sorted vector."
+  [history]
+  (-> history ::history-steps keys sort vec))

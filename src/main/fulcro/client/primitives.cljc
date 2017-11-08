@@ -1676,7 +1676,7 @@
 
 (defn- to-env [x]
   (let [config (if (reconciler? x) (:config x) x)]
-    (select-keys config [:state :shared :parser  :pathopt])))
+    (select-keys config [:state :shared :parser :pathopt])))
 
 (defn gather-sends
   "Given an environment, a query and a set of remotes return a hash map of remotes
@@ -1803,6 +1803,7 @@
      :cljs (-deref [_] @(:state config)))
 
   p/IReconciler
+  (tick [_] (swap! state update :t inc))
   (basis-t [_] (:t @state))
 
   (add-root! [this root-class target options]
@@ -1861,7 +1862,7 @@
                        ((:root-unmount config) target)))})
         (add-watch (:state config) (or target guid)
           (fn add-fn [_ _ _ _]
-            (swap! state update-in [:t] inc)
+            (p/tick this)
             #?(:cljs
                (if-not (has-query? root-class)
                  (queue-render! parsef)
@@ -2086,6 +2087,7 @@
     ret))
 
 (defn transact* [reconciler c ref tx]
+  (p/tick reconciler)                                       ; ensure time moves forward. A tx that doesn't swap would fail to do so
   (let [cfg       (:config reconciler)
         ref       (if (and c #?(:clj  (satisfies? Ident c)
                                 :cljs (implements? Ident c)) (not ref))
@@ -2422,6 +2424,7 @@
   (let [reconciler            (if (reconciler? component-or-reconciler)
                                 component-or-reconciler
                                 (get-reconciler component-or-reconciler))
+        _                     (p/tick reconciler)
         root                  (app-root reconciler)
         cfg                   (:config reconciler)
         component             (when (component? component-or-reconciler) component-or-reconciler)
