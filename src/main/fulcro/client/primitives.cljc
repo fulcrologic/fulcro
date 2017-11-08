@@ -2137,7 +2137,9 @@
   (letfn [(annotate [expr ident]
             (cond-> expr
               (util/mutation? expr) (vary-meta assoc :mutator ident)))]
-    (into [] (map #(annotate % ident)) tx)))
+    (with-meta
+      (into [] (map #(annotate % ident)) tx)
+      (meta tx))))
 
 (defn transact!
   "Given a reconciler or component run a transaction. tx is a parse expression

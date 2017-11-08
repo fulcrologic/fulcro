@@ -149,13 +149,14 @@
   "Toggle the given boolean `field` on the specified component. It is recommended you use this function only on
   UI-related data (e.g. form checkbox checked status) and write clear top-level transactions for anything more complicated."
   [comp field]
-  (prim/transact! comp `[(toggle {:field ~field})]))
+  (prim/compressible-transact! comp `[(toggle {:field ~field})]))
 
 (defn set-value!
   "Set a raw value on the given `field` of a `component`. It is recommended you use this function only on
-  UI-related data (e.g. form inputs that are used by the UI, and not persisted data)."
+  UI-related data (e.g. form inputs that are used by the UI, and not persisted data). Changes made via these
+  helpers are compressed in the history."
   [component field value]
-  (prim/transact! component `[(set-props ~{field value})]))
+  (prim/compressible-transact! component `[(set-props ~{field value})]))
 
 #?(:cljs
    (defn- ensure-integer
@@ -173,7 +174,7 @@
   "Set the given integer on the given `field` of a `component`. Allows same parameters as `set-string!`.
 
    It is recommended you use this function only on UI-related data (e.g. data that is used for display purposes)
-   and write clear top-level transactions for anything else."
+   and write clear top-level transactions for anything else. Calls to this are compressed in history."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (ensure-integer (if event (target-value event) value))]
@@ -191,7 +192,8 @@
   ```
 
   It is recommended you use this function only on UI-related
-  data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else."
+  data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else.
+  Calls to this are compressed in history."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (if event (target-value event) value)]
