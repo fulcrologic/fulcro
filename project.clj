@@ -73,7 +73,7 @@
                                :output-dir           "resources/public/js/cards"
                                :asset-path           "js/cards"
                                :preloads             [devtools.preload]
-                               :parallel-build       true
+                               ;:parallel-build       true
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "demos"
@@ -124,7 +124,7 @@
                                :output-to      "resources/public/js/devguide.js"
                                :output-dir     "resources/public/js/devguide"
                                :preloads       [devtools.preload]
-                               :parallel-build true
+                               ;:parallel-build true
                                :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
                                                  :requires ["cljsjs.codemirror"]
                                                  :file     "resources/public/codemirror/closebrackets-min.js"}
@@ -137,7 +137,7 @@
                                :main           fulcro.automated-test-main
                                :output-dir     "resources/private/js/i18n"
                                :asset-path     "js/i18n"
-                               :parallel-build true
+                               ;:parallel-build true
                                :optimizations  :whitespace}}
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
@@ -145,7 +145,7 @@
                                :main           fulcro.automated-test-main
                                :output-dir     "resources/private/js/unit-tests"
                                :asset-path     "js/unit-tests"
-                               :parallel-build true
+                               ;:parallel-build true
                                :optimizations  :none}}]}
 
   :profiles {:production {:source-paths ["src/main" "src/devguide"]

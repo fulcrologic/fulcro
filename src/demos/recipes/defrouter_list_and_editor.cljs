@@ -3,7 +3,6 @@
     [fulcro.client.dom :as dom]
     [fulcro.client.routing :as r :refer [defrouter]]
     [fulcro.client.primitives :as prim :refer [defui]]
-    [fulcro.client.primitives :as prim+]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :refer [defmutation]]
     [fulcro.ui.bootstrap3 :as b]
@@ -74,8 +73,8 @@
                           :input-generator (fn [_]
                                              (dom/div nil
                                                ; the follow-on read of :root/router ensures re-render from the router level
-                                               (b/button {:onClick #(om+/transact! this `[(cancel-edit {}) :root/router])} "Cancel")
-                                               (b/button {:onClick #(om+/transact! this `[(submit-person {:form form-props}) :root/router])} "Save")))} "")))))
+                                               (b/button {:onClick #(prim/transact! this `[(cancel-edit {}) :root/router])} "Cancel")
+                                               (b/button {:onClick #(prim/transact! this `[(submit-person {:form form-props}) :root/router])} "Save")))} "")))))
 
 (defui ^:once PersonListItem
   static prim/Ident
@@ -87,10 +86,10 @@
     (let [{:keys [db/id person/name] :as props} (prim/props this)
           onSelect (prim/get-computed this :onSelect)]
       ; the follow-on read of :root/router ensures re-render from the router level
-      (dom/li #js {:onClick #(om+/transact! this `[(edit-person {:id ~id}) :root/router])}
+      (dom/li #js {:onClick #(prim/transact! this `[(edit-person {:id ~id}) :root/router])}
         (dom/a #js {:href "javascript:void(0)"} name)))))
 
-(def ui-person (om+/factory PersonListItem {:keyfn :db/id}))
+(def ui-person (prim/factory PersonListItem {:keyfn :db/id}))
 
 (def person-list-ident [:person-list/table :singleton])
 
@@ -100,7 +99,7 @@
   static prim/Ident
   (ident [this props] person-list-ident)
   static prim/IQuery
-  (query [this] [{:people (om+/get-query PersonListItem)}])
+  (query [this] [{:people (prim/get-query PersonListItem)}])
   Object
   (render [this]
     (let [{:keys [people]} (prim/props this)
@@ -120,11 +119,11 @@
   ; if the router points to a person entity, render with PersonForm
   :person/by-id PersonForm)
 
-(def ui-person-list-or-form (om+/factory PersonListOrForm))
+(def ui-person-list-or-form (prim/factory PersonListOrForm))
 
 (defui ^:once DemoRoot
   static prim/IQuery
-  (query [this] [:ui/react-key {:root/router (om+/get-query PersonListOrForm)}])
+  (query [this] [:ui/react-key {:root/router (prim/get-query PersonListOrForm)}])
   static fc/InitialAppState
   (initial-state [c p] (merge
                          (r/routing-tree

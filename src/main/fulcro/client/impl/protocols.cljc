@@ -9,6 +9,7 @@
   (key->components [this k]))
 
 (defprotocol IReconciler
+  (tick [this] "Cause the current basis time to advance")
   (basis-t [this])
   (add-root! [reconciler root-class target options])
   (remove-root! [reconciler target])
