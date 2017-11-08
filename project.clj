@@ -10,7 +10,7 @@
                  [cljsjs/react "15.6.2-0"]
                  [cljsjs/react-dom "15.6.2-0"]
                  [com.cognitect/transit-clj "0.8.300"]
-                 [com.cognitect/transit-cljs "0.8.239"]
+                 [com.cognitect/transit-cljs "0.8.243"]
 
                  [clojure-future-spec "1.9.0-beta4"]
                  [http-kit "2.2.0"]
@@ -59,7 +59,9 @@
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
-                               :parallel-build       true
+                               ;:parallel-build       true
+                               ;:verbose              true
+                               ;:compiler-stats       true
                                :preloads             [devtools.preload]
                                :asset-path           "js/test"
                                :optimizations        :none}}

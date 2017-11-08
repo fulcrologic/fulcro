@@ -197,6 +197,7 @@
   (let [value (if event (target-value event) value)]
     (set-value! component field value)))
 
-(defmutation set-query [{:keys [queryid] :as params}]
-  (action [{:keys [state]}]
-    (swap! state prim/set-query* queryid params)))
+#?(:cljs
+   (fulcro.client.mutations/defmutation set-query [{:keys [queryid] :as params}]
+     (action [{:keys [state]}]
+       (swap! state prim/set-query* queryid params))))

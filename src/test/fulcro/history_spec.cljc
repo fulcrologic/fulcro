@@ -11,7 +11,7 @@
 (specification "Oldest active network request"
   (assertions
     "is the maximum long if there are none active"
-    (hist/oldest-active-network-request empty-history) => Long/MAX_VALUE
+    (hist/oldest-active-network-request empty-history) => hist/max-tx-time
     "is the smalled tx time from the active remotes"
     (hist/oldest-active-network-request (assoc empty-history ::hist/active-remotes {:a #{5 7} :b #{3 42}})) => 3))
 

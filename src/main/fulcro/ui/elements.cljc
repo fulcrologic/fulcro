@@ -57,14 +57,14 @@
      (componentDidMount [this]
        (let [dom-node (dom/node this)
              {:keys [open-boundary? delegates-focus?] :or {open-boundary?   true
-                                                           delegates-focus? false}} (/props this)
+                                                           delegates-focus? false}} (prim/props this)
              root     (when (exists? (.-attachShadow dom-node))
                         (.attachShadow dom-node #js {:mode           (if open-boundary? "open" "closed")
                                                      :delegatesFocus delegates-focus?}))]
-         (om/react-set-state! this {:root root})))
+         (prim/react-set-state! this {:root root})))
      (componentDidUpdate [this pp ps]
-       (let [children    (om/children this)
-             shadow-root (om/get-state this :root)
+       (let [children    (prim/children this)
+             shadow-root (prim/get-state this :root)
              child       (first children)]
          (if (and shadow-root child)
            (dom/render child shadow-root))))
@@ -86,4 +86,4 @@
      :open-boundary? : Should the outer DOM have js access to the shadow one? (default true)
      :delegates-focus? : Should focus be delegated? (default false)
      "
-     (om/factory ShadowDOM)))
+     (prim/factory ShadowDOM)))

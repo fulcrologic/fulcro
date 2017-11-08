@@ -3,8 +3,7 @@
     [fulcro-spec.core :refer-macros [specification behavior assertions when-mocking]]
     [goog.debug.Logger.Level :as level]
     [goog.log :as glog]
-    [fulcro.client.primitives :refer [*logger*]]
-    [fulcro.client.logging :as log]))
+    [fulcro.client.logging :as log :refer [*logger*]]))
 
 (specification "Logging Level"
   (behavior "can be set to"
