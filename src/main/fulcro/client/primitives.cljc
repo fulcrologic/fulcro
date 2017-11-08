@@ -9,6 +9,7 @@
         :cljs [[goog.string :as gstring]
                [goog.log :as glog]
                [goog.object :as gobj]])
+               [fulcro.history :as hist]
                [fulcro.tempid :as tempid]
                [fulcro.transit :as transit]
                [clojure.zip :as zip]
@@ -34,6 +35,10 @@
                ele)) props))
 
 (defn get-basis-time [props] (or (-> props meta ::time) :unset))
+
+(defn get-current-time
+  "get the current basis time from the reconciler. Used instead of the protocol to facilitate testing."
+  [reconciler] (p/basis-t reconciler))
 
 (defn collect-statics [dt]
   (letfn [(split-on-static [forms]
@@ -963,7 +968,7 @@
                   ref (:ref props)
                   ref (cond-> ref (keyword? ref) str)
                   t   (if-not (nil? *reconciler*)
-                        (p/basis-t *reconciler*)
+                        (get-current-time *reconciler*)
                         0)]
               (create-element class
                 #js {:key               key
@@ -1801,7 +1806,7 @@
      ;; We cannot write directly to props, React will complain
      (doto (.-state c)
        (gobj/set "omcljs$next$value"
-         (om-props next-props (p/basis-t (get-reconciler c)))))))
+         (om-props next-props (get-current-time (get-reconciler c)))))))
 
 #?(:cljs
    (defn- update-component!
@@ -1861,7 +1866,7 @@
                         (if-not (nil? sel)
                           (let [env          (to-env config)
                                 raw-props    ((:parser config) env sel)
-                                current-time (p/basis-t this)
+                                current-time (get-current-time this)
                                 v            (add-basis-time raw-props current-time)]
                             (when-not (empty? v)
                               (renderf v)))
@@ -1943,17 +1948,17 @@
   (reconcile! [this]
     (p/reconcile! this nil))
   (reconcile! [this remote]
-    (let [st          @state
-          q           (if-not (nil? remote)
-                        (get-in st [:remote-queue remote])
-                        (:queue st))
+    (let [st             @state
+          q              (if-not (nil? remote)
+                           (get-in st [:remote-queue remote])
+                           (:queue st))
           rendered-root? (atom false)
-          render-root (fn []
-                        (if-let [do-render (:render st)]
-                          (when-not @rendered-root?
-                            (reset! rendered-root? true)
-                            (do-render))
-                          (log-error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
+          render-root    (fn []
+                           (if-let [do-render (:render st)]
+                             (when-not @rendered-root?
+                               (reset! rendered-root? true)
+                               (do-render))
+                             (log-error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
       (swap! state update-in [:queued] not)
       (if (not (nil? remote))
         (swap! state assoc-in [:remote-queue remote] [])
@@ -1968,7 +1973,7 @@
               root (:root @state)]
           #?(:cljs
              (doseq [c ((:optimize config) cs)]             ; sort by depth
-               (let [current-time   (p/basis-t this)
+               (let [current-time   (get-current-time this)
                      component-time (t c)
                      props-change?  (> current-time component-time)]
                  (when (mounted? c)
@@ -1978,7 +1983,7 @@
                          next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
                      (if force-root?
                        (do
-                         (.forceUpdate c)                  ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
+                         (.forceUpdate c)                   ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
                          (render-root))                     ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
                        (do
                          (when (and (exists? (.-componentWillReceiveProps c))
@@ -1990,7 +1995,7 @@
                                               next-props)]
                              ;; `componentWilReceiveProps` is always called before `shouldComponentUpdate`
                              (.componentWillReceiveProps c
-                               #js {:omcljs$value (om-props next-props (p/basis-t this))})))
+                               #js {:omcljs$value (om-props next-props (get-current-time this))})))
                          (when (should-update? c next-props (get-state c))
                            (if-not (nil? next-props)
                              (update-component! c next-props)
@@ -2103,33 +2108,37 @@
                                :t            0 :normalized norm?}))]
     ret))
 
-(defn transact* [r c ref tx]
-  (let [cfg        (:config r)
-        ref        (if (and c #?(:clj  (satisfies? Ident c)
-                                 :cljs (implements? Ident c)) (not ref))
-                     (ident c (props c))
-                     ref)
-        env        (merge
-                     (to-env cfg)
-                     {:reconciler r :component c}
-                     (when ref
-                       {:ref ref}))
-        id #?(:clj (java.util.UUID/randomUUID)
-              :cljs (random-uuid))
-        ;#?@(:cljs [_ (.add (:history cfg) id @(:state cfg)) ]) ; FIXME: Re-add history, but in a better form
-        old-state  @(:state cfg)
-        v          ((:parser cfg) env tx)
-        snds       (gather-sends env tx (:remotes cfg))
-        xs         (cond-> []
-                     (not (nil? c)) (conj c)
-                     (not (nil? ref)) (conj ref))]
+(defn transact* [reconciler c ref tx]
+  (let [cfg       (:config reconciler)
+        ref       (if (and c #?(:clj  (satisfies? Ident c)
+                                :cljs (implements? Ident c)) (not ref))
+                    (ident c (props c))
+                    ref)
+        env       (merge
+                    (to-env cfg)
+                    {:reconciler reconciler :component c}
+                    (when ref
+                      {:ref ref}))
+        old-state @(:state cfg)
+        history   (get reconciler ::history)
+        v         ((:parser cfg) env tx)
+        snds      (gather-sends env tx (:remotes cfg))
+        xs        (cond-> []
+                    (not (nil? c)) (conj c)
+                    (not (nil? ref)) (conj ref))]
+    ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
+    (swap! history hist/record-history-step {::hist/tx            tx
+                                             ::hist/tx-result     v
+                                             ::hist/network-sends snds
+                                             ::hist/db-before     old-state
+                                             ::hist/db-after      @(:state cfg)})
     (log-info (pr-str "Transacted " tx))
-    (p/queue! r (into xs (remove symbol?) (keys v)))
+    (p/queue! reconciler (into xs (remove symbol?) (keys v)))
     (when-not (empty? snds)
       (doseq [[remote _] snds]
-        (p/queue! r xs remote))
-      (p/queue-sends! r snds)
-      (schedule-sends! r))
+        (p/queue! reconciler xs remote))
+      (p/queue-sends! reconciler snds)
+      (schedule-sends! reconciler))
     (when-let [f (:tx-listen cfg)]
       (let [tx-data (merge env
                       {:old-state old-state
@@ -2185,6 +2194,16 @@
                      (recur (parent p) x' tx))))))))
   ([r ref tx]
    (transact* r nil ref tx)))
+
+(defn compressible-transact!
+  "Identical to `transact!`, but marks the history edge as compressible. This means that if more than one
+  adjacent history transition edge is compressible, only the more recent of the sequence of them is kept. This
+  is useful for things like form input fields, where storing every keystoke in history is undesirable.
+
+  NOTE: history events that trigger remote interactions are not compressible, since they may be needed for
+  automatic network error recovery handling.."
+  [comp-or-reconciler tx]
+  (transact! comp-or-reconciler (hist/compressible-tx tx)))
 
 #?(:clj
    (defn set-state!

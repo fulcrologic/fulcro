@@ -10,6 +10,7 @@
     fulcro.client.primitives-spec
     fulcro.client.routing-spec
     fulcro.client.util-spec
+    fulcro.history-spec
     fulcro.ui.forms-spec
     fulcro.server-render-spec
     fulcro.i18n-spec))

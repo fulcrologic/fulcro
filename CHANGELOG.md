@@ -18,7 +18,8 @@ to-many collections (see the doc string).
 - Added a new history system with the following improvements
     - The history sequence is now a unidirectional list of nodes whose edges are annotated with the action
     that affected the change, along with other metadata that is necessary to support real
-    history navigation (e.g. status of shared). This improves debugging abilities dramatically.
+    history navigation. This improves debugging abilities dramatically.
+    - Added support for compressible history edges. This allows adjacent history entries to auto-compress into the most recent.
     - Added a better API for accessing and navigating history
 - Added support for auto-recovery from network issues. This can dramatically reduce
 the amount of error handling code you need to write.
