@@ -7,9 +7,9 @@
     [fulcro.i18n :as i18n]
     [fulcro.client.impl.data-fetch :as df]
     [goog.log :as glog]
-    [fulcro.client.primitives :as prim :refer [*logger*]]
+    [fulcro.client.primitives :as prim ]
     [clojure.test :refer [is]]
-    [fulcro.client.logging :as log]
+    [fulcro.client.logging :as log :refer [*logger*]]
     [clojure.string :as str]))
 
 (defmutation sample

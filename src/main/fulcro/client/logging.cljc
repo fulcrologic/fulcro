@@ -2,9 +2,16 @@
   #?(:clj
      (:require [taoensso.timbre :as timbre]))
   #?(:cljs (:require cljs.pprint
-             [fulcro.client.primitives :refer [*logger*]]
              [goog.log :as glog]
-             [goog.debug.Logger.Level :as level])))
+             [goog.debug.Logger.Level :as level]))
+  #?(:cljs (:import [goog.debug Console])))
+
+#?(:clj (def ^:dynamic *logger* (fn [this & args] (apply println args)))
+   :cljs
+        (defonce *logger*
+          (when ^boolean goog.DEBUG
+            (.setCapturing (Console.) true)
+            (glog/getLogger "fulcro.client"))))
 
 #?(:cljs
         (defn set-level [log-level]

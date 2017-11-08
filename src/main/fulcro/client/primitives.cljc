@@ -10,6 +10,7 @@
                [goog.log :as glog]
                [goog.object :as gobj]])
                [fulcro.history :as hist]
+               [fulcro.client.logging :as log]
                [fulcro.tempid :as tempid]
                [fulcro.transit :as transit]
                [clojure.zip :as zip]
@@ -485,13 +486,11 @@
         fn-scope (:fn-scope env)
         fn-name  (some-> fn-scope first :name str)]
     (when-not (:elide-asserts opts)
-      `(let [l# *logger*]
-         (when-not ~condition
-           (goog.log/error l#
-             (str "Invariant Violation"
-               (when-not (nil? ~fn-name)
-                 (str " (in function: `" ~fn-name "`)"))
-               ": " ~message)))))))
+      `(when-not ~condition
+         (log/error (str "Invariant Violation"
+                      (when-not (nil? ~fn-name)
+                        (str " (in function: `" ~fn-name "`)"))
+                      ": " ~message))))))
 
 ;; =============================================================================
 ;; Globals & Dynamics
@@ -503,28 +502,6 @@
 (def ^{:dynamic true :private true} *shared* nil)
 (def ^{:dynamic true :private true} *instrument* nil)
 (def ^{:dynamic true :private true} *depth* 0)
-
-#?(:clj (def ^:dynamic *logger* (fn [this & args] (apply println args)))
-   :cljs
-        (defonce *logger*
-          (when ^boolean goog.DEBUG
-            (.setCapturing (Console.) true)
-            (glog/getLogger "fulcro.client.primitives"))))
-
-(defn log-debug [& args]
-  (if-let [logger *logger*]
-    #?(:clj  (apply logger args)
-       :cljs (goog.log/fine logger (str/join " " args)))))
-
-(defn log-info [& args]
-  (if-let [logger *logger*]
-    #?(:clj  (apply logger args)
-       :cljs (goog.log/info logger (str/join " " args)))))
-
-(defn log-error [& args]
-  (if-let [logger *logger*]
-    #?(:clj  (apply logger args)
-       :cljs (goog.log/error logger (str/join " " args)))))
 
 #?(:clj
    (defn- munge-component-name [x]
@@ -1659,13 +1636,13 @@
                                :cljs (implements? Ident c))
                         (let [ident (ident c (props c))]
                           (when-not (util/ident? ident)
-                            (log-info
+                            (log/info
                               (str "malformed Ident. An ident must be a vector of "
                                 "two elements (a keyword and an EDN value). Check "
                                 "the Ident implementation of component `"
                                 (.. c -constructor -displayName) "`.")))
                           (when-not (some? (second ident))
-                            (log-info
+                            (log/info
                               (str "component " (.. c -constructor -displayName)
                                 "'s ident (" ident ") has a `nil` second element."
                                 " This warning can be safely ignored if that is intended.")))
@@ -1699,13 +1676,13 @@
 
 (defn- to-env [x]
   (let [config (if (reconciler? x) (:config x) x)]
-    (select-keys config [:state :shared :parser :logger :pathopt])))
+    (select-keys config [:state :shared :parser  :pathopt])))
 
 (defn gather-sends
   "Given an environment, a query and a set of remotes return a hash map of remotes
    mapped to the query specific to that remote."
   [{:keys [parser] :as env} q remotes tx-time]
-  (into {::hist/tx-time tx-time}
+  (into (with-meta {} {::hist/tx-time tx-time})
     (comp
       (map #(vector % (parser env q %)))
       (filter (fn [[_ v]] (pos? (count v)))))
@@ -1752,7 +1729,7 @@
                (get (parser env query) id)))]
     (or ui
       (let [component-name (.. c -constructor -displayName)]
-        (log-debug (str "PERFORMANCE NOTE: " component-name " does not have an ident (ignore this message if it is your root). This will cause full root-level renders that may affect rendering performance."))
+        (log/debug (str "PERFORMANCE NOTE: " component-name " does not have an ident (ignore this message if it is your root). This will cause full root-level renders that may affect rendering performance."))
         ::no-ident))))
 
 (defn computed
@@ -1959,7 +1936,7 @@
                              (when-not @rendered-root?
                                (reset! rendered-root? true)
                                (do-render))
-                             (log-error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
+                             (log/error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
       (swap! state update-in [:queued] not)
       (if (not (nil? remote))
         (swap! state assoc-in [:remote-queue remote] [])
@@ -2054,7 +2031,6 @@
      :root-render  - the root render function. Defaults to ReactDOM.render
      :root-unmount - the root unmount function. Defaults to
                      ReactDOM.unmountComponentAtNode
-     :logger       - supply a goog.log compatible logger
      :tx-listen    - a function of 2 arguments that will listen to transactions.
                      The first argument is the parser's env map also containing
                      the old and new state. The second argument is a map containing
@@ -2088,9 +2064,6 @@
         norm? #?(:clj (instance? clojure.lang.Atom state)
                  :cljs (satisfies? IAtom state))
         state'        (if norm? state (atom state))
-        logger        (if (contains? config :logger)
-                        (:logger config)
-                        #?(:cljs *logger*))
         ret           (Reconciler.
                         {:state       state' :shared shared :shared-fn shared-fn
                          :parser      parser :indexer idxr
@@ -2099,7 +2072,7 @@
                          :optimize    optimize
                          :normalize   (or (not norm?) normalize)
                          :root-render root-render :root-unmount root-unmount
-                         :logger      logger :pathopt true
+                         :pathopt     true
                          :migrate     migrate :id-key id-key
                          :instrument  instrument :tx-listen tx-listen
                          :easy-reads  easy-reads}
@@ -2124,7 +2097,7 @@
                     (when ref
                       {:ref ref}))
         old-state @(:state cfg)
-        history   (get reconciler ::history)
+        history   (get reconciler :history)
         v         ((:parser cfg) env tx)
         tx-time   (get-current-time reconciler)
         snds      (gather-sends env tx (:remotes cfg) tx-time)
@@ -2133,12 +2106,13 @@
                     (not (nil? c)) (conj c)
                     (not (nil? ref)) (conj ref))]
     ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
-    (swap! history hist/record-history-step tx-time {::hist/tx            tx
-                                                     ::hist/tx-result     v
-                                                     ::hist/network-sends snds
-                                                     ::hist/db-before     old-state
-                                                     ::hist/db-after      new-state})
-    (log-info (pr-str "Transacted " tx))
+    (when history
+      (swap! history hist/record-history-step tx-time {::hist/tx            tx
+                                                       ::hist/tx-result     v
+                                                       ::hist/network-sends snds
+                                                       ::hist/db-before     old-state
+                                                       ::hist/db-after      new-state}))
+    (log/info (pr-str "Transacted " tx))
     (p/queue! reconciler (into xs (remove symbol?) (keys v)))
     (when-not (empty? snds)
       (doseq [[remote _] snds]
@@ -2183,7 +2157,7 @@
      (cond
        (reconciler? x) (transact* x nil nil tx)
        (not (has-query? x)) (do
-                              (when (some-hasquery? x) (log-error
+                              (when (some-hasquery? x) (log/error
                                                          (str "transact! should be called on a component"
                                                            "that implements IDynamicQuery or has a parent that"
                                                            "implements IDynamicQuery")))
@@ -2466,8 +2440,10 @@
         history-step          {::hist/tx        (into `[(fulcro.client.mutations/set-query {:query-id ~queryid :query ~query :params ~params})] follow-on-reads)
                                ::hist/db-before before-db
                                ::hist/sends     sends
-                               ::hist/db-after  next-db}]
-    (swap! (:history reconciler) hist/record-history-step tx-time history-step)
+                               ::hist/db-after  next-db}
+        history               (get reconciler :history)]
+    (when history
+      (swap! history hist/record-history-step tx-time history-step))
     (when component
       (p/queue! reconciler components-to-refresh))
     (when-not (nil? follow-on-reads)
