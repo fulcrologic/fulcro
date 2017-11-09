@@ -233,8 +233,7 @@ default-malformed-response
 
 (defn serialize-exception
   "Convert exception data to string form for network transit."
-  [ex]
-  {:pre [(instance? Exception ex)]}
+  [^Throwable ex]
   (let [message         (.getMessage ex)
         type            (str (type ex))
         serialized-data {:type type :message message}]
