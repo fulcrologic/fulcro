@@ -1,25 +1,25 @@
 (ns fulcro.client.impl.protocols)
 
 (defprotocol IIndexer
-  (indexes [this])
-  (index-root [this x])
-  (index-component! [this component])
-  (drop-component! [this component])
-  (ref-for [this component])
-  (key->components [this k]))
+  (indexes [this] "Get the indexes out of the indexer")
+  (index-root [this x] "Index the entire root query")
+  (index-component! [this component] "Add the given active UI component to the index")
+  (drop-component! [this component] "Drop the given UI component from the index")
+  (ref-for [this component] "Get the ident for the given component (UNIMPLEMENTED AT PRESENT)")
+  (key->components [this k] "Find all components that query for the given keyword or ident."))
 
 (defprotocol IReconciler
-  (tick [this] "Cause the current basis time to advance")
+  (tick! [this] "Cause the current basis time to advance")
   (basis-t [this])
   (add-root! [reconciler root-class target options])
   (remove-root! [reconciler target])
-  (schedule-render! [reconciler])
-  (schedule-sends! [reconciler])
-  (queue! [reconciler ks] [reconciler ks remote])
-  (queue-sends! [reconciler sends])
-  (reindex! [reconciler])
-  (reconcile! [reconciler] [reconciler remote])
-  (send! [reconciler]))
+  (schedule-render! [reconciler] "Schedule a render if one is not already scheduled.")
+  (schedule-sends! [reconciler] "Schedule a network interaction.")
+  (queue! [reconciler ks] [reconciler ks remote] "Add the given ks to the given remote queue of things to be re-rendered. If remote is nil, add to the local UI queue")
+  (queue-sends! [reconciler sends] "Add the given map of remote->query sends to the queue of things to be sent")
+  (reindex! [reconciler] "Reindex the active UI")
+  (reconcile! [reconciler] [reconciler remote] "Bring the UI up-to-date with respect to data changes in the given queue. If remote is nil, use local UI queue.")
+  (send! [reconciler] "Send the actual queued network traffic to remotes"))
 
 #?(:clj
    (defprotocol IReactDOMElement

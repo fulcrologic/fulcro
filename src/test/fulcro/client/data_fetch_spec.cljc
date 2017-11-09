@@ -186,7 +186,7 @@
        (when-mocking
          (df/load-params* key query config) => {:refresh [] :query [:x]}
 
-         (df/load-action state-atom :x Person {})
+         (df/load-action {:state state-atom} :x Person {})
 
          (let [query (-> @state-atom :fulcro/ready-to-load first ::dfi/query)]
            (assertions

@@ -6,7 +6,8 @@
     [fulcro.client.logging :as log]
     [fulcro.client.primitives :as prim]
     [fulcro.i18n :as i18n]
-    #?(:cljs [cljs.loader :as loader])))
+    #?(:cljs [cljs.loader :as loader])
+    [fulcro.client.impl.protocols :as p]))
 
 
 #?(:clj (s/def ::action (s/cat
@@ -200,6 +201,25 @@
     (set-value! component field value)))
 
 #?(:cljs
-   (fulcro.client.mutations/defmutation set-query [{:keys [queryid] :as params}]
-     (action [{:keys [state]}]
-       (swap! state prim/set-query* queryid params))))
+   (fulcro.client.mutations/defmutation set-query!
+     "The mutation version of `prim/set-query!`."
+     [{:keys [queryid] :as params}]
+     (action [{:keys [reconciler state]}]
+       (swap! state prim/set-query* queryid params)
+       (p/reindex! reconciler))))
+
+#?(:cljs
+   (fulcro.client.mutations/defmutation merge!
+     "The mutation version of prim/merge!"
+     [{:keys [query data-tree] :as params}]
+     (action [{:keys [reconciler state]}]
+       (let [config (:config reconciler)
+             merge* (:merge config)
+             {:keys [next tempids]} (merge* reconciler @state data-tree query)]
+         (reset! state
+           (if-let [migrate (:migrate config)]
+             (merge (select-keys next [:fulcro.client.primitives/queries])
+               (migrate next
+                 (or query (get-query (:root @(:state reconciler)) @(:state reconciler)))
+                 tempids (:id-key config)))
+             next))))))

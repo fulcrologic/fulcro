@@ -14,6 +14,7 @@
 - Improved `:target` support in all variants of load. You can now target multiple locations, including append/prepend to existing
 to-many collections (see the doc string).
 - Improved start-up failure messages for server related to configuration files.
+- BREAKING CHANGE: load-action and load-field-action require the env (they used to allow env or just the state atom).
 
 - Added a new history system with the following improvements
     - The history sequence is now a unidirectional list of nodes whose edges are annotated with the action
