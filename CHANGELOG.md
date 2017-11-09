@@ -1,6 +1,7 @@
 1.1.0
 -----
 - Added support for shadow DOM (for browsers that support it)
+- Fixed typo in forms on maxLength
 
 1.0.0
 -----
