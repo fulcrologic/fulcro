@@ -220,6 +220,6 @@
            (if-let [migrate (:migrate config)]
              (merge (select-keys next [:fulcro.client.primitives/queries])
                (migrate next
-                 (or query (get-query (:root @(:state reconciler)) @(:state reconciler)))
+                 (or query (prim/get-query (:root @(:state reconciler)) @(:state reconciler)))
                  tempids (:id-key config)))
              next))))))
