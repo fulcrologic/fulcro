@@ -253,7 +253,7 @@
   To resolve the issue, we def an atom pointing to the reconciler that the send method will deref each time it is
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
-  [{:keys [send-queues mutation-merge] :as app} initial-state parser {:keys [migrate use-om+] :as reconciler-options}]
+  [{:keys [send-queues mutation-merge] :as app} initial-state parser {:keys [migrate] :as reconciler-options}]
   (let [rec-atom                  (atom nil)
         remotes                   (keys send-queues)
         tempid-migrate            (fn [pure _ tempids _]

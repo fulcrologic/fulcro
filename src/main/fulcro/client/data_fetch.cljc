@@ -22,7 +22,7 @@
   impl/marker-table)
 
 (defn- computed-refresh
-  "Computes the refresh for the load by ensuring the loaded data is on the Om
+  "Computes the refresh for the load by ensuring the loaded data is on the
   list of things to re-render."
   [explicit-refresh load-key target]
   (let [to-refresh       (set explicit-refresh)
@@ -81,8 +81,8 @@
      :fallback             fallback}))
 
 (defn load-mutation
-  "Generates an Om transaction expression for a load mutation. It includes a follow-on read for :ui/loading-data. The args
-  must be a map of the parameters usable from `load`. Returns a complete Om expression (vector), not just the mutation
+  "Generates a transaction expression for a load mutation. It includes a follow-on read for :ui/loading-data. The args
+  must be a map of the parameters usable from `load`. Returns a complete tx (as a vector), not just the mutation
   since follow-on reads are part of the mutation. You may use `concat` to join this with additional expressions."
   [load-args]
   {:pre [(or (nil? (:refresh load-args)) (vector? (:refresh load-args)))]}
@@ -97,12 +97,12 @@
   components that are waiting for data. The `:target` parameter can be used to place the data somewhere besides app
   state root (which is the default).
 
-  The server will receive an Om query of the form: [({server-property (prim/get-query SubqueryClass)} params)], which
-  the Om parser will correctly parse as a Join on server-property with the given subquery and params. See Om AST and
-  instructions on parsing Om queries.
+  The server will receive a query of the form: [({server-property (prim/get-query SubqueryClass)} params)], which
+  a Fulcro parser will correctly parse as a join on server-property with the given subquery and params. See the AST and
+  instructions on parsing queries in the developer's guide.
 
   Parameters:
-  - `app-or-comp-or-reconciler` : An Om component instance, Fulcro application, or Om reconciler
+  - `app-or-comp-or-reconciler` : A component instance, Fulcro application, or reconciler
   - `server-property-or-ident` : A keyword or ident that represents the root of the query to send to the server. If this is an ident
   you are loading a specific entity from the database into a local app db table. A custom target will be ignored.
   - `SubqueryClass` : An Om component that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
@@ -174,14 +174,11 @@
           (load-action env ...)
           ; other optimistic updates/state changes)}
 
-     It is preferable that you use `env` instead of `app-state` for the first argument, as this allows more details to
-     be available for post mutations and fallbacks."
-     ([env-or-state-atom server-property-or-ident SubqueryClass] (load-action env-or-state-atom server-property-or-ident SubqueryClass {}))
-     ([env-or-state-atom server-property-or-ident SubqueryClass config]
-      (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)
-            env    (if (and (map? env-or-state-atom) (contains? env-or-state-atom :state))
-                     env-or-state-atom
-                     {:state env-or-state-atom})]
+     `env` is the mutation's environment parameter."
+     ([env server-property-or-ident SubqueryClass] (load-action env server-property-or-ident SubqueryClass {}))
+     ([env server-property-or-ident SubqueryClass config]
+      {:pre [(and (map? env) (contains? env :state))]}
+      (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
         (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :env env))))))
 
 (defn load-field
@@ -204,8 +201,8 @@
 
   NOTE: The :ui/loading-data attribute is always included in refresh. This means you probably don't want to
   query for that attribute near the root of your UI. Instead, create some leaf component with an ident that queries for :ui/loading-data
-  using an Om link (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
-  improve your frame rate because Om will not have to run a full root query.
+  using a link  query (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
+  improve your frame rate because we will not have to run a full root query.
   "
   [component field & {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
                       :or   {remote :remote refresh [] marker true}}]
@@ -285,7 +282,7 @@
   load-collection and load-field.
 
   `data-render` : the render method to call once the data has been successfully loaded from
-  the server. Can be an Om factory method or a React rendering function.
+  the server. Can be a factory method or a React rendering function.
 
   `props` : the React properties for the element to be loaded.
 

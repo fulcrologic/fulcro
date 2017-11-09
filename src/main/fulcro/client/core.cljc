@@ -524,6 +524,8 @@
   - named-parameter: Post-processing ident integration steps. see integrate-ident!
 
   Any keywords that appear in ident integration steps will be added to the re-render queue.
+
+  See also `fulcro.client.primitives/merge!`.
   "
   [app-or-reconciler component object-data & named-parameters]
   (when-not (iident? component) (log/warn "merge-state!: component must implement Ident"))

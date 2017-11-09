@@ -457,7 +457,7 @@
           (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
           (set! (.. ~name -prototype -constructor) ~name)
           (set! (.. ~name -prototype -constructor -displayName) ~display-name)
-          (set! (.. ~name -prototype -om$isComponent) true)
+          (set! (.. ~name -prototype -fulcro$isComponent) true)
           ~@(map #(field-set! name %) (:fields statics))
           (specify! ~name
             ~@(mapv #(cond-> %
@@ -531,7 +531,7 @@
   (if-not (nil? x)
     #?(:clj  (or (instance? fulcro.client.impl.protocols.IReactComponent x)
                (satisfies? p/IReactComponent x))
-       :cljs (true? (. x -om$isComponent)))
+       :cljs (true? (. x -fulcro$isComponent)))
     false))
 
 #?(:clj
@@ -1546,60 +1546,21 @@
               (map (comp :tempids second))
               (reduce merge {}))})
 
-(defn default-merge-ident
-  [_ tree ref props]
-  (update-in tree ref merge props))
-
-(defn default-merge-tree
-  [a b]
-  (if (map? a)
-    (merge a b)
-    b))
-
-(defn default-migrate
-  "Given app-state-pure (the application state as an immutable value), a query,
-   tempids (a hash map from tempid to stable id), and an optional id-key
-   keyword, return a new application state value with the tempids replaced by
-   the stable ids."
-  ([app-state-pure query tempids]
-   (default-migrate app-state-pure query tempids nil))
-  ([app-state-pure query tempids id-key]
-   (letfn [(dissoc-in [pure [table id]]
-             (assoc pure table (dissoc (get pure table) id)))
-           (step [pure [old [_ id :as new]]]
-             (-> pure
-               (dissoc-in old)
-               (assoc-in new
-                 (cond-> (merge (get-in pure old) (get-in pure new))
-                   (not (nil? id-key)) (assoc id-key id)))))]
-     (if-not (empty? tempids)
-       (let [pure' (reduce step app-state-pure tempids)]
-         (tree->db query
-           (db->tree query pure' pure'
-             (fn [ident] (get tempids ident ident))) true))
-       app-state-pure))))
+(declare transact!)
 
 (defn merge!
-  "Merge a state delta into the application state. Affected components managed
-   by the reconciler will re-render."
-  ([reconciler delta]
-   (merge! reconciler delta nil))
-  ([reconciler delta query]
-   (merge! reconciler delta query nil))
-  ([reconciler delta query remote]
-   (let [config (:config reconciler)
-         state  (:state config)
-         merge* (:merge config)
-         {:keys [keys next tempids]} (merge* reconciler @state delta query)]
-     (when (nil? remote)
-       (p/queue! reconciler keys))
-     (reset! state
-       (if-let [migrate (:migrate config)]
-         (merge (select-keys next [:fulcro.client.primitives/queries])
-           (migrate next
-             (or query (get-query (:root @(:state reconciler)) @(:state reconciler)))
-             tempids (:id-key config)))
-         next)))))
+  "Merge an arbitrary data-tree that conforms to the shape of the given query.
+
+  query - A query, derived from defui components, that can be used to normalized a tree of data.
+  data-tree - A tree of data that matches the nested shape of query
+  remote - No longer used. May be passed, but is ignored."
+  ([reconciler data-tree]
+   (merge! reconciler data-tree nil))
+  ([reconciler data-tree query]
+   (merge! reconciler data-tree query nil))
+  ([reconciler data-tree query remote]
+   (let [tx `[(fulcro.client.mutations/merge! ~{:data-tree data-tree :query query})]]
+     (transact! reconciler tx))))
 
 (defn build-prop->class-index!
   "Build an index from property to class using the (annotated) query."
@@ -1618,6 +1579,7 @@
      :cljs (-deref [_] @indexes))
 
   p/IIndexer
+  (indexes [this] (:indexes this))
   (index-root [this root-class]
     (assert (:state this) "State map is in `this` for indexing root")
     (let [prop->classes (atom {})
@@ -1803,7 +1765,7 @@
      :cljs (-deref [_] @(:state config)))
 
   p/IReconciler
-  (tick [_] (swap! state update :t inc))
+  (tick! [_] (swap! state update :t inc))
   (basis-t [_] (:t @state))
 
   (add-root! [this root-class target options]
@@ -1862,7 +1824,7 @@
                        ((:root-unmount config) target)))})
         (add-watch (:state config) (or target guid)
           (fn add-fn [_ _ _ _]
-            (p/tick this)
+            (p/tick! this)
             #?(:cljs
                (if-not (has-query? root-class)
                  (queue-render! parsef)
@@ -2034,9 +1996,8 @@
                      ReactDOM.unmountComponentAtNode
      :tx-listen    - a function of 2 arguments that will listen to transactions.
                      The first argument is the parser's env map also containing
-                     the old and new state. The second argument is a map containing
-                     the transaction, its result and the remote sends that the
-                     transaction originated."
+                     the old and new state. The second argument is a history-step (see history). It also contains
+                     a couple of legacy fields for bw compatibility with 1.0."
   [{:keys [state shared shared-fn
            parser normalize
            send merge-sends remotes
@@ -2045,20 +2006,17 @@
            root-render root-unmount
            migrate id-key
            instrument tx-listen
-           easy-reads history]
+           history]
     :or   {merge-sends  #(merge-with into %1 %2)
            remotes      [:remote]
            merge        default-merge
-           merge-tree   default-merge-tree
-           merge-ident  default-merge-ident
            history      100
            optimize     (fn depth-sorter [cs] (sort-by depth cs))
            root-render  #?(:clj  (fn clj-root-render [c target] c)
                            :cljs #(js/ReactDOM.render %1 %2))
            root-unmount #?(:clj  (fn clj-unmount [x])
                            :cljs #(js/ReactDOM.unmountComponentAtNode %))
-           migrate      default-migrate
-           easy-reads   true}
+           }
     :as   config}]
   {:pre [(map? config)]}
   (let [idxr          (map->Indexer {:indexes (atom {})})
@@ -2075,8 +2033,7 @@
                          :root-render root-render :root-unmount root-unmount
                          :pathopt     true
                          :migrate     migrate :id-key id-key
-                         :instrument  instrument :tx-listen tx-listen
-                         :easy-reads  easy-reads}
+                         :instrument  instrument :tx-listen tx-listen}
                         (atom {:queue        []
                                :remote-queue {}
                                :queued       false :queued-sends {}
@@ -2087,33 +2044,33 @@
     ret))
 
 (defn transact* [reconciler c ref tx]
-  (p/tick reconciler)                                       ; ensure time moves forward. A tx that doesn't swap would fail to do so
-  (let [cfg       (:config reconciler)
-        ref       (if (and c #?(:clj  (satisfies? Ident c)
-                                :cljs (implements? Ident c)) (not ref))
-                    (ident c (props c))
-                    ref)
-        env       (merge
-                    (to-env cfg)
-                    {:reconciler reconciler :component c}
-                    (when ref
-                      {:ref ref}))
-        old-state @(:state cfg)
-        history   (get reconciler :history)
-        v         ((:parser cfg) env tx)
-        tx-time   (get-current-time reconciler)
-        snds      (gather-sends env tx (:remotes cfg) tx-time)
-        new-state @(:state cfg)
-        xs        (cond-> []
-                    (not (nil? c)) (conj c)
-                    (not (nil? ref)) (conj ref))]
+  (p/tick! reconciler)                                      ; ensure time moves forward. A tx that doesn't swap would fail to do so
+  (let [cfg          (:config reconciler)
+        ref          (if (and c #?(:clj  (satisfies? Ident c)
+                                   :cljs (implements? Ident c)) (not ref))
+                       (ident c (props c))
+                       ref)
+        env          (merge
+                       (to-env cfg)
+                       {:reconciler reconciler :component c}
+                       (when ref
+                         {:ref ref}))
+        old-state    @(:state cfg)
+        history      (get reconciler :history)
+        v            ((:parser cfg) env tx)
+        tx-time      (get-current-time reconciler)
+        snds         (gather-sends env tx (:remotes cfg) tx-time)
+        new-state    @(:state cfg)
+        xs           (cond-> []
+                       (not (nil? c)) (conj c)
+                       (not (nil? ref)) (conj ref))
+        history-step {::hist/tx        tx
+                      ::hist/tx-result v
+                      ::hist/db-before old-state
+                      ::hist/db-after  new-state}]
     ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
     (when history
-      (swap! history hist/record-history-step tx-time {::hist/tx            tx
-                                                       ::hist/tx-result     v
-                                                       ::hist/network-sends snds
-                                                       ::hist/db-before     old-state
-                                                       ::hist/db-after      new-state}))
+      (swap! history hist/record-history-step tx-time history-step))
     (log/info (pr-str "Transacted " tx))
     (p/queue! reconciler (into xs (remove symbol?) (keys v)))
     (when-not (empty? snds)
@@ -2125,9 +2082,7 @@
       (let [tx-data (merge env
                       {:old-state old-state
                        :new-state new-state})]
-        (f tx-data {:tx    tx
-                    :ret   v
-                    :sends snds})))
+        (f tx-data (assoc history-step :tx tx :ret v))))
     v))
 
 (defn annotate-mutations
@@ -2421,44 +2376,17 @@
      :cljs (some-> (.-refs component) (gobj/get name))))
 
 (defn set-query!
-  "Set a dynamic query."
-  [component-or-reconciler ui-factory {:keys [query params follow-on-reads] :as opts}]
-  (let [reconciler            (if (reconciler? component-or-reconciler)
-                                component-or-reconciler
-                                (get-reconciler component-or-reconciler))
-        _                     (p/tick reconciler)
-        root                  (app-root reconciler)
-        cfg                   (:config reconciler)
-        component             (when (component? component-or-reconciler) component-or-reconciler)
-        component-class       (some-> component react-type)
-        components-to-refresh (if-not (nil? component-class)
-                                (class->all reconciler component-class)
-                                [])
-        state-atom            (app-state reconciler)
-        queryid               (-> ui-factory meta :queryid)
-        rootq                 (get-query root @state-atom)
-        before-db             @state-atom
-        _                     (swap! state-atom set-query* queryid opts)
-        next-db               @state-atom
-        tx-time               (get-current-time reconciler)
-        sends                 (gather-sends (to-env cfg) rootq (:remotes cfg) tx-time)
-        history-step          {::hist/tx        (into `[(fulcro.client.mutations/set-query {:query-id ~queryid :query ~query :params ~params})] follow-on-reads)
-                               ::hist/db-before before-db
-                               ::hist/sends     sends
-                               ::hist/db-after  next-db}
-        history               (get reconciler :history)]
-    (when history
-      (swap! history hist/record-history-step tx-time history-step))
-    (when component
-      (p/queue! reconciler components-to-refresh))
-    (when-not (nil? follow-on-reads)
-      (p/queue! reconciler follow-on-reads))
-    (p/reindex! reconciler)
-    (when-not (empty? sends)
-      (doseq [[remote _] sends]
-        (p/queue! reconciler components-to-refresh remote))
-      (p/queue-sends! reconciler sends)
-      (schedule-sends! reconciler))))
+  "Set a dynamic query. ALters the query, and then rebuilds internal indexes."
+  [component-or-reconciler ui-factory-or-queryid {:keys [query params follow-on-reads] :as opts}]
+  (let [reconciler (if (reconciler? component-or-reconciler)
+                     component-or-reconciler
+                     (get-reconciler component-or-reconciler))
+        queryid    (if (string? ui-factory-or-queryid)
+                     ui-factory-or-queryid
+                     (-> ui-factory-or-queryid meta :queryid))
+        tx         (into `[(fulcro.client.mutations/set-query {:query-id ~queryid :query ~query :params ~params})] follow-on-reads)]
+    (transact! component-or-reconciler tx)
+    (p/reindex! reconciler)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; DRAGONS BE HERE: The following code HACKS the cljs compiler to add an annotation so that

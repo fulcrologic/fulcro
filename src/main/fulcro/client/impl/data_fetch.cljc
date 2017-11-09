@@ -7,6 +7,7 @@
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
             [fulcro.client.logging :as log]
+            [fulcro.history :as hist]
             [fulcro.client.mutations :as m]
             [fulcro.client.impl.plumbing :as plumbing]
             [fulcro.client.impl.protocols :as p]))
@@ -265,7 +266,12 @@
      ::parallel             parallel
      ::fallback             fallback
      ; stored on metadata so it doesn't interfere with serializability (this marker ends up in state)
-     ::original-env         (with-meta {} env)}))
+     ::original-env         (with-meta {} env)
+     ::hist/tx-time         (if (some-> env :reconciler)
+                              (prim/get-current-time (:reconciler env))
+                              (do
+                                (log/warn "Data fetch request created without a reconciler. No history time available. This could affect auto-error recovery operation.")
+                                hist/max-tx-time))}))
 
 (defn mark-ready
   "Place a ready-to-load marker into the application state. This should be done from

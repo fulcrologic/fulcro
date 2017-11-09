@@ -53,6 +53,8 @@ forking process.
 ** `get-ident` is now just part of the `primitives` namespace
 ** The following functions that were in `fulcro.client.util` were moved to `fulcro.util`:
 `unique-key`, `atom?`, `deep-merge`, and `conform!`
+6. Fix any uses of `load-action` or `load-field-action` to pass the `env` instead of just the state atom. In 1.0 either
+was OK. In 2.0 it has to be the full mutation `env`.
 
 === Dynamic Queries
 
