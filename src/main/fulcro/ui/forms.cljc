@@ -963,7 +963,7 @@
     (dom/input attrs)))
 
 (def allowed-input-dom-props #{:id :className :onKeyDown :onKeyPress :onKeyUp :ref :alt :accept :align :autocomplete
-                               :autofocus :dirname :disabled :height  :max :min :maxlength :pattern
+                               :autofocus :dirname :disabled :height  :max :min :maxLength :pattern
                                :name :size :step :width})
 
 (defmethod form-field* ::text [component form field-name & {:keys [id className] :as params}]
