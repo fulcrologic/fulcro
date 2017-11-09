@@ -2,6 +2,8 @@
 -----
 - Added support for shadow DOM (for browsers that support it)
 - Fixed typo in forms on maxLength
+- Added support for FormatJS custom formats (trf). No SSR support for now.
+- Upgraded IntlMessageFormat to version 2.2.0
 
 1.0.0
 -----
