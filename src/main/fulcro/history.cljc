@@ -20,16 +20,26 @@
 
 (def max-tx-time #?(:clj Long/MAX_VALUE :cljs 9200000000000000000))
 
+(defn remote-activity-started
+  "Record that remote activity started for the given remote at the given tx-time. Returns a new history."
+  [history remote tx-time]
+  (update-in history [::active-remotes remote] (fnil conj #{}) tx-time))
+
+(defn remote-activity-finished
+  "Record that remote activity finished for the given remote at the given tx-time. Returns a new history."
+  [history remote tx-time]
+  (update-in history [::active-remotes remote] disj tx-time))
+
 (defn oldest-active-network-request
   "Returns the tx time for the oldest in-flight send that is active. Returns Long/MAX_VALUE if none are active."
   [{:keys [::active-remotes] :as history}]
-  ;(assert (s/valid? ::history history))
+  (assert (s/valid? ::history history))
   (reduce min max-tx-time (apply concat (vals active-remotes))))
 
 (defn gc-history
   "Returns a new history that has been reduced in size to target levels."
   [{:keys [::active-remotes ::max-size ::history-steps] :as history}]
-  ;(assert (s/valid? ::history history))
+  (assert (s/valid? ::history history))
   (if (> (count history-steps) max-size)
     (let [oldest-required-history-step (oldest-active-network-request history)
           current-size                 (count history-steps)
@@ -61,8 +71,8 @@
 (defn record-history-step
   "Record a history step in the reconciler. "
   [{:keys [::active-remotes ::max-size ::history-steps] :as history} tx-time {:keys [::tx ::network-result ::network-sends ::db-before ::db-after] :as step}]
-  ;(assert (s/valid? ::history-step step))
-  ;(assert (s/valid? ::history history))
+  (assert (s/valid? ::history-step step))
+  (assert (s/valid? ::history history))
   (let [last-time     (last-tx-time history)
         gc?           (= 0 (mod tx-time 10))
         last-tx       (get-in history-steps [last-time ::tx] [])
@@ -71,7 +81,7 @@
                         compressible? (update ::history-steps dissoc last-time))]
     (when-not (or (nil? last-tx) (> tx-time last-time))
       (log/error "Time did not move forward! History may have been lost."))
-    ;(assert (or (nil? last-tx) (> tx-time last-time)) "Time moved forward.")
+    (assert (or (nil? last-tx) (> tx-time last-time)) "Time moved forward.")
     (log/debug "History edge created at sequence step: " tx-time)
     (if gc?
       (gc-history new-history)
@@ -83,4 +93,49 @@
 (defn ordered-steps
   "Returns the current valid sequence of step times in the given history as a sorted vector."
   [history]
-  (-> history ::history-steps keys sort vec))
+  (some-> history ::history-steps keys sort vec))
+
+(defn get-step
+  "Returns a step from the given history that has the given tx-time. If tx-time specifies a spot where there is a gap in the history
+  (there are steps before and after), then it will return the earlier step, unless the latter was compressible, in which case
+  it will return the step into which the desired spot was compressed. "
+  [{:keys [::history-steps] :as history} tx-time]
+  (if-let [exact-step (get history-steps tx-time)]
+    exact-step
+    (let [timeline    (ordered-steps history)
+          [before after] (split-with #(> tx-time %) timeline)
+          step-before (get history-steps (last before))
+          step-after  (get history-steps (first after))]
+      (cond
+        (and step-before step-after (-> step-after ::tx compressible-tx?)) step-after
+        (and step-before step-after) step-before
+        :otherwise nil))))
+
+(defn history-navigator
+  "Returns a navigator of history. Use focus-next, focus-previous, and current-step."
+  [history]
+  (let [steps (ordered-steps history)]
+    {:legal-steps steps
+     :history     history
+     :index       (dec (count steps))}))
+
+(defn focus-next
+  "Returns a new history navigation with the focus on the next step (or the last if already there). See history-navigator"
+  [history-nav]
+  (let [{:keys [index history legal-steps]} history-nav
+        last-legal-idx (dec (count legal-steps))]
+    (update history-nav :index (fn [i] (if (< i last-legal-idx) (inc i) i)))))
+
+(defn focus-previous
+  "Returns a new history navigation with the focus on the prior step (or the first if already there). See history-navigator"
+  [history-nav]
+  (let [{:keys [index history legal-steps]} history-nav]
+    (update history-nav :index (fn [i] (if (zero? i) 0 (dec i))))))
+
+(defn current-step
+  "Get the current history step from the history-nav. See history-navigator."
+  [history-nav]
+  (let [{:keys [index history legal-steps]} history-nav
+        history-step-tx-time (get legal-steps index)
+        history-step         (get-step history history-step-tx-time)]
+    history-step))

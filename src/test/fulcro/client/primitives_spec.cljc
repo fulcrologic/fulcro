@@ -1,6 +1,7 @@
 (ns fulcro.client.primitives-spec
   (:require [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.history :as hist]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             [clojure.spec.test.alpha :as check]
@@ -263,6 +264,28 @@
           "Adds the component to the index of :class->components"
           (count class-elements) => 2)))))
 
+(specification "gather-sends"
+  (behavior "Runs the parser against the given remotes and:"
+    (let [q           [:some-query]
+          saw-remotes (atom [])
+          parser      (fn [env query remote]
+                        (swap! saw-remotes conj remote)
+                        (assertions
+                          "passes the environment to the parser"
+                          (contains? env :parser) => true
+                          "passes the query to the parser"
+                          query => q)
+                        (get {:a '[(do-a-thing)] :b '[(do-b-thing)]} remote))
+          env         {:parser parser}
+          result      (prim/gather-sends env q [:a :b] 1000)]
+
+      (assertions
+        "Returns a map with keys for each remote's actions"
+        result => {:a '[(do-a-thing)] :b '[(do-b-thing)]}
+        "Includes the history timestamp on each entry"
+        (-> result :a meta ::hist/tx-time) => 1000
+        (-> result :b meta ::hist/tx-time) => 1000))))
+
 (specification "gather-keys"
   (assertions
     "Can gather the correct keys from simple props"
@@ -362,3 +385,4 @@
   (gen/sample (s/gen (s/or :n number? :s string?)))
 
   (s/valid? ::param-expr '({:x [:a]} {:f 1})))
+

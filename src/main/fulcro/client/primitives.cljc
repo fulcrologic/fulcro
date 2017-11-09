@@ -1644,9 +1644,9 @@
   "Given an environment, a query and a set of remotes return a hash map of remotes
    mapped to the query specific to that remote."
   [{:keys [parser] :as env} q remotes tx-time]
-  (into (with-meta {} {::hist/tx-time tx-time})
+  (into {}
     (comp
-      (map #(vector % (parser env q %)))
+      (map #(vector % (some-> (parser env q %) (with-meta {::hist/tx-time tx-time}))))
       (filter (fn [[_ v]] (pos? (count v)))))
     remotes))
 

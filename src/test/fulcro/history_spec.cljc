@@ -27,7 +27,7 @@
       "does not trim history steps that are still needed by active remotes"
       (-> new-history-with-active-remotes ::hist/history-steps keys set) => #{3 4 5 6})))
 
-(specification "Compressible transactions" :focused
+(specification "Compressible transactions"
   (assertions
     "can be marked with compressible-tx"
     (hist/compressible-tx? (hist/compressible-tx [])) => true
@@ -65,3 +65,67 @@
       (-> history ::hist/history-steps (get time)) => mock-step
       "causes the removal of the most recent entry if both it and the new step are compressible"
       (-> history-4 ::hist/history-steps keys set) => #{time time-2 time-4})))
+
+(specification "Remote activity tracking" :focused
+  (let [h1 (hist/remote-activity-started empty-history :a 4)
+        h2 (hist/remote-activity-started h1 :b 6)
+        h3 (hist/remote-activity-started h2 :a 9)
+        h4 (hist/remote-activity-started h3 :b 44)
+        h5 (hist/remote-activity-finished h4 :a 4)
+        h6 (hist/remote-activity-finished h5 :a 9)
+        h7 (hist/remote-activity-finished h6 :b 44)
+        h8 (hist/remote-activity-finished h7 :b 6)]
+    (assertions
+      "records data such that the oldest active request is available"
+      (hist/oldest-active-network-request h1) => 4
+      (hist/oldest-active-network-request h2) => 4
+      (hist/oldest-active-network-request h3) => 4
+      (hist/oldest-active-network-request h4) => 4
+      (hist/oldest-active-network-request h5) => 6
+      (hist/oldest-active-network-request h6) => 6
+      (hist/oldest-active-network-request h7) => 6
+      "once all activity is finished, reflects that as max-tx-time"
+      (hist/oldest-active-network-request h8) => hist/max-tx-time)))
+
+(specification "History lookup (get-step)" :focused
+  (let [time         14
+        history-1    (hist/record-history-step (assoc empty-history ::hist/max-size 100) time (with-meta mock-step {:step 1}))
+        time-missing (inc time)
+        time-2       (+ 4 time)
+        history-2    (hist/record-history-step history-1 time-2 (with-meta mock-step {:step 2}))
+        time-3       (inc time-2)
+        history-3    (hist/record-history-step history-2 time-3 (with-meta compressible-step {:step 3}))
+        time-4       (inc time-3)
+        history-4    (hist/record-history-step history-3 time-4 (with-meta compressible-step {:step 4}))
+        step         (fn [s] (some-> s meta :step))]
+    (assertions
+      "finds history items by their tx-time"
+      (step (hist/get-step history-4 time-2)) => 2
+      "when steps are compressed away, returns the step that it was compressed into"
+      (step (hist/get-step history-4 time-3)) => 4
+      "returns nil when the time is outside of current history"
+      (step (hist/get-step history-4 7)) => nil
+      "returns the step just before the given time if no step exists for that exact time"
+      (step (hist/get-step history-4 time-missing)) => 1)))
+
+(specification "History Navigator" :focused
+  (let [time         14
+        history-1    (hist/record-history-step (assoc empty-history ::hist/max-size 100) time (with-meta mock-step {:step 1}))
+        time-missing (inc time)
+        time-2       (+ 4 time)
+        history-2    (hist/record-history-step history-1 time-2 (with-meta mock-step {:step 2}))
+        time-3       (inc time-2)
+        history-3    (hist/record-history-step history-2 time-3 (with-meta compressible-step {:step 3}))
+        time-4       (inc time-3)
+        history-4    (hist/record-history-step history-3 time-4 (with-meta compressible-step {:step 4}))
+        step         (fn [s] (some-> s meta :step))
+        nav          (hist/history-navigator history-4)]
+    (assertions
+      "Starts out on the last step"
+      (step (hist/current-step nav)) => 4
+      "can walk backwards to the beginning"
+      (step (-> nav (hist/focus-previous) (hist/current-step))) => 2
+      (step (-> nav (hist/focus-previous) (hist/focus-previous) (hist/current-step))) => 1
+      "will not walk off of the end of history"
+      (step (-> nav (hist/focus-previous) (hist/focus-previous) (hist/focus-previous) (hist/current-step))) => 1
+      (step (-> nav hist/focus-next hist/current-step)) => 4)))

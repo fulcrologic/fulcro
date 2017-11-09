@@ -2,6 +2,7 @@
   (:require [fulcro.client.logging :as log]
             [fulcro.client.primitives :as prim]
             [fulcro.i18n :as i18n]
+            [fulcro.history :as hist]
             [fulcro.client.impl.data-fetch :as f]
             [fulcro.util :as futil]
             [fulcro.client.util :as util]
@@ -72,22 +73,30 @@
 
    NOTE: If the mutation in the tx has duplicates, then the same fallback will be used for the
    resulting split tx. See `split-mutations` (which is used by this function to split dupes out of txes)."
-  [{:keys [send-queues] :as app} remote-tx-map cb]
-  (doseq [remote (keys remote-tx-map)]
-    (let [queue                    (get send-queues remote)
-          full-remote-transaction  (get remote-tx-map remote)
-          fallback                 (fallback-handler app full-remote-transaction)
-          desired-remote-mutations (plumbing/remove-loads-and-fallbacks full-remote-transaction)
-          tx-list                  (split-mutations desired-remote-mutations)
-          ; todo: split remote mutations
-          has-mutations?           (fn [tx] (> (count tx) 0))
-          payload                  (fn [tx]
-                                     {:query    tx
-                                      :on-load  cb
-                                      :on-error #(fallback %)})]
-      (doseq [tx tx-list]
-        (when (has-mutations? tx)
-          (enqueue queue (payload tx)))))))
+  [{:keys [reconciler send-queues] :as app} remote-tx-map cb]
+  ; NOTE: for history navigation we need to track the time at which the mutation was submitted. If we roll back, we want the db-before of that tx-time.
+  (let [history (get reconciler :history)]
+    (doseq [remote (keys remote-tx-map)]
+      (let [queue                    (get send-queues remote)
+            full-remote-transaction  (get remote-tx-map remote)
+            tx-time                  (some-> full-remote-transaction meta ::hist/tx-time)
+            fallback                 (fallback-handler app full-remote-transaction)
+            desired-remote-mutations (plumbing/remove-loads-and-fallbacks full-remote-transaction)
+            tx-list                  (split-mutations desired-remote-mutations)
+            ; todo: split remote mutations
+            has-mutations?           (fn [tx] (> (count tx) 0))
+            payload                  (fn [tx]
+                                       {:query         tx
+                                        ::hist/tx-time tx-time
+                                        :history-atom  history
+                                        :remote        remote
+                                        :on-load       cb
+                                        :on-error      #(fallback %)})]
+        (log/debug (str "Started remote (mutation) activity for " remote " for tx-time " tx-time))
+        (swap! history hist/remote-activity-started remote tx-time)
+        (doseq [tx tx-list]
+          (when (has-mutations? tx)
+            (enqueue queue (payload tx))))))))
 
 (defn enqueue-reads
   "Finds any loads marked `parallel` and triggers real network requests immediately. Remaining loads
@@ -173,10 +182,14 @@
                              identity)]
       (go
         (loop [payload (async/<! queue)]
-          (send-payload network payload send-complete)      ; async call. Calls send-complete when done
-          (when sequential?
-            (async/<! response-channel))                    ; block until send-complete
-          (recur (async/<! queue)))))))
+          (let [{:keys [::hist/tx-time history-atom remote]} payload]
+            (send-payload network payload send-complete)    ; async call. Calls send-complete when done
+            (when sequential?
+              (async/<! response-channel))                  ; block until send-complete
+            (when  (and history-atom tx-time)
+              (log/debug (str "Finished remote (mutation) activity for " remote " for tx-time " tx-time))
+              (swap! history-atom hist/remote-activity-finished remote tx-time))
+            (recur (async/<! queue))))))))
 
 (defn initialize-internationalization
   "Configure a re-render when the locale changes and also when the translations arrive from a module load.
