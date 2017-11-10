@@ -16,7 +16,9 @@
     [clojure.future :refer :all])
     [clojure.set :as set]
     #?(:cljs [goog.dom :as gdom])
-    [clojure.spec.alpha :as s])
+    [clojure.spec.alpha :as s]
+    [fulcro.history :as hist]
+    [fulcro.client.impl.protocols :as p])
   #?(:cljs (:import goog.Uri)))
 
 (declare map->Application merge-alternate-union-elements! merge-state! new-fulcro-client new-fulcro-test-client InitialAppState)
@@ -182,7 +184,7 @@
   (reset-app! [this root-component callback] "Replace the entire app state with the initial app state defined on the root component (includes auto-merging of unions). callback can be nil, a function, or :original (to call original started-callback).")
   (clear-pending-remote-requests! [this remotes] "Remove all pending network requests on the given remote(s). Useful on failures to eliminate cascading failures. Remote can be a keyword, set, or nil. `nil` means all remotes.")
   (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work.")
-  (history [this] "Return a serialized version of the current history of the application, suitable for network transfer")
+  (history [this] "Return the current UI history of the application, suitable for network transfer")
   (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
 (defn merge-component
@@ -299,9 +301,8 @@
 
 (defn reset-history-impl
   "Needed for mocking in tests. Use FulcroApplication protocol methods instead."
-  [app]
-  ; FIXME: History
-  #?(:cljs (assoc app :reconciler (update-in (:reconciler app) [:config :history] nil))))
+  [{:keys [reconciler]}]
+  #?(:cljs (swap! (p/get-history reconciler) (fn [{:keys [::hist/max-size]}] (hist/new-history max-size)))))
 
 (defn refresh* [{:keys [reconciler] :as app} root target]
   ; NOTE: from devcards, the mount target node could have changed. So, we re-call Om's add-root
@@ -360,13 +361,7 @@
       (doseq [r remotes]
         (clear-queue (get send-queues r)))))
 
-  (history [this]
-    #?(:cljs
-       (let [history-steps (-> reconciler :config :history .-arr)
-             history-map   (-> reconciler :config :history .-index deref)]
-         {:steps   history-steps
-          :history (into {} (map (fn [[k v]]
-                                   [k (assoc v :fulcro/meta (meta v))]) history-map))})))
+  (history [this] (p/get-history reconciler))
   (reset-history! [this]
     (reset-history-impl this))
 

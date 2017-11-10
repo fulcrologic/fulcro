@@ -10,7 +10,29 @@
             [fulcro.history :as hist]
             [fulcro.client.mutations :as m]
             [fulcro.client.impl.plumbing :as plumbing]
-            [fulcro.client.impl.protocols :as p]))
+            [fulcro.client.impl.protocols :as p]
+    #?(:clj
+            [clojure.future :refer :all])
+            [clojure.spec.alpha :as s]))
+
+(s/def ::type keyword?)
+(s/def ::uuid string?)
+(s/def ::target vector?)
+(s/def ::field keyword?)
+(s/def ::post-mutation symbol?)
+(s/def ::post-mutation-params map?)
+(s/def ::refresh vector?)
+(s/def ::marker (s/or :kw keyword? :bool boolean?))
+(s/def ::parallel boolean?)
+(s/def ::fallback symbol?)
+(s/def ::original-env map?)
+(s/def ::load-marker (s/keys :req [::type ::uuid ::prim/query ::original-env ::hist/tx-time]
+                       :opt [::target ::prim/remote ::prim/ident ::field ::post-mutation-params ::post-mutation ::refresh ::marker ::parallel ::fallback]))
+
+(s/def ::on-load fn?)
+(s/def ::on-error fn?)
+(s/def ::load-descriptors (s/coll-of ::load-marker))
+(s/def ::payload (s/keys :req [::prim/query ::on-load ::on-error ::hist/history-atom ::hist/tx-time] :opt [::load-descriptors]))
 
 (declare data-marker data-remote data-target data-path data-uuid data-field data-query-key data-query set-loading! full-query loaded-callback error-callback data-marker?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -66,6 +88,12 @@
                     (data-marker? i) (place-load-marker i))))
         state-map items-to-load))))
 
+(defn earliest-load-time
+  "Given a sequence of load markers, returns the history tx-time of the earliest one. Returns hist/max-tx-time if there
+  are no markers or none have a time."
+  [load-markers]
+  (reduce min hist/max-tx-time (map ::hist/tx-time load-markers)))
+
 (defn mark-parallel-loading
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
   in the app state, and return maps with the keys:
@@ -86,15 +114,18 @@
         other-items-loading? (boolean (seq (get @state :fulcro/loads-in-progress)))
         items-to-load        (filter is-eligible? queued-items)
         remaining-items      (filter (comp not is-eligible?) queued-items)
-        loading?             (or (boolean (seq items-to-load)) other-items-loading?)]
+        loading?             (or (boolean (seq items-to-load)) other-items-loading?)
+        tx-time              (earliest-load-time items-to-load)]
     (when-not (empty? items-to-load)
       (place-load-markers state items-to-load)
       (swap! state assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items)
       (for [item items-to-load]
-        {:query            (full-query [item])
-         :on-load          (loaded-callback reconciler)
-         :on-error         (error-callback reconciler)
-         :load-descriptors [item]}))))
+        {::prim/query        (full-query [item])
+         ::hist/tx-time      tx-time
+         ::hist/history-atom (p/get-history reconciler)
+         ::on-load           (loaded-callback reconciler)
+         ::on-error          (error-callback reconciler)
+         ::load-descriptors  [item]}))))
 
 (defn dedupe-by
   "Returns a lazy sequence of the elements of coll with dupes removed.
@@ -167,14 +198,20 @@
         other-items-loading?    (boolean (seq (get @state :fulcro/loads-in-progress)))
         [items-to-load-now items-to-defer] (split-items-ready-to-load items-ready-to-load)
         remaining-items         (concat items-for-other-remotes items-to-defer)
-        loading?                (or (boolean (seq items-to-load-now)) other-items-loading?)]
+        loading?                (or (boolean (seq items-to-load-now)) other-items-loading?)
+        ; CAUTION: We use the earliest time of all items, so that we don't accidentally clear history for something we have not even sent.
+        tx-time                 (earliest-load-time all-items)]
     (when-not (empty? items-to-load-now)
-      (place-load-markers state items-to-load-now)
-      (swap! state assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items)
-      {:query            (full-query items-to-load-now)
-       :on-load          (loaded-callback reconciler)
-       :on-error         (error-callback reconciler)
-       :load-descriptors items-to-load-now})))
+      (let [history-atom (p/get-history reconciler)]
+        (swap! history-atom hist/remote-activity-started remote tx-time)
+        (place-load-markers state items-to-load-now)
+        (swap! state assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items)
+        {::prim/query        (full-query items-to-load-now)
+         ::hist/history-atom (p/get-history reconciler)
+         ::hist/tx-time      tx-time
+         ::on-load           (loaded-callback reconciler)
+         ::on-error          (error-callback reconciler)
+         ::load-descriptors  items-to-load-now}))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API, used to write tests against specific data states
@@ -255,10 +292,10 @@
      ::uuid                 #?(:cljs (str (cljs.core/random-uuid))
                                :clj  (str (System/currentTimeMillis)))
      ::target               target
-     ::remote               remote
-     ::ident                ident                           ; only for component-targeted loads
+     ::prim/remote          remote
+     ::prim/ident           ident                           ; only for component-targeted loads
      ::field                field                           ; for component-targeted load
-     ::query                query'                          ; query, relative to root of db OR component
+     ::prim/query           query'                          ; query, relative to root of db OR component
      ::post-mutation        post-mutation
      ::post-mutation-params post-mutation-params
      ::refresh              refresh
@@ -293,13 +330,13 @@
 (defn data-ident
   "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
   to be present if the marker is targeting a field."
-  [state] (::ident state))
+  [state] (::prim/ident state))
 (defn data-query
   "Get the query that will be sent to the server as a result of the given data state marker"
   [state]
   (if (data-ident state)
-    [{(data-ident state) (::query state)}]
-    (::query state)))
+    [{(data-ident state) (::prim/query state)}]
+    (::prim/query state)))
 (defn data-field
   "Get the target field (if any) from the data state marker"
   [state] (::field state))
@@ -318,12 +355,12 @@
   [state] (::refresh state))
 (defn data-remote
   "Get the remote that this marker is meant to talk to"
-  [state] (::remote state))
+  [state] (::prim/remote state))
 (defn data-query-key
   "Get the 'primary' query key of the data fetch. This is defined as the first keyword of the overall query (which might
   be a simple prop or join key for example)"
   [state]
-  (let [ast  (prim/query->ast (-> state ::query))
+  (let [ast  (prim/query->ast (-> state ::prim/query))
         node (-> ast :children first)]
     (:key node)))
 
@@ -340,10 +377,6 @@
 (defn data-params
   "Get the parameters that the user wants to add to the first join/keyword of the data fetch query."
   [state] (::params state))
-
-(defn data-exclusions
-  "Get the keywords that should be (recursively) removed from the query that will be sent to the server."
-  [state] (::without state))
 
 ;; Setters
 (letfn [(set-type [state type params]
@@ -374,13 +407,13 @@
         loading?   (boolean (seq (get @state-atom :fulcro/loads-in-progress)))]
     (swap! state-atom assoc :ui/loading-data loading?)))
 
-(defn replacement-target? [t] (-> t meta ::replace boolean))
-(defn prepend-target? [t] (-> t meta ::prepend boolean))
-(defn append-target? [t] (-> t meta ::append boolean))
+(defn replacement-target? [t] (-> t meta ::replace-target boolean))
+(defn prepend-target? [t] (-> t meta ::prepend-target boolean))
+(defn append-target? [t] (-> t meta ::append-target boolean))
 (defn multiple-targets? [t] (-> t meta ::multiple-targets boolean))
 
 (defn special-target? [target]
-  (boolean (seq (set/intersection (-> target meta keys) #{::replace ::append ::prepend ::multiple-targets}))))
+  (boolean (seq (set/intersection (-> target meta keys) #{::replace-target ::append-target ::prepend-target ::multiple-targets}))))
 
 (defn process-target
   ([state source-path target] (process-target state source-path target true))
@@ -449,7 +482,7 @@
   "Build a callback env for post mutations and fallbacks"
   [reconciler load-request original-env]
   (let [state (prim/app-state reconciler)
-        {:keys [::target ::remote ::ident ::field ::query ::post-mutation ::post-mutation-params ::refresh ::marker ::parallel ::fallback]} load-request]
+        {:keys [::target ::prim/remote ::prim/ident ::field ::prim/query ::post-mutation ::post-mutation-params ::refresh ::marker ::parallel ::fallback]} load-request]
     (merge original-env
       {:state state
        :load-request
@@ -458,6 +491,15 @@
                 post-mutation-params (assoc :post-mutation-params post-mutation-params)
                 refresh (assoc :refresh refresh)
                 fallback (assoc :fallback fallback))})))
+
+(defn clear-history-activity!
+  "Update the history atom with a new history that does not include activity for the given load markers"
+  [history-atom load-markers]
+  (when history-atom
+    (swap! history-atom (fn [h]
+                          (reduce (fn [hist {:keys [::prim/remote ::hist/tx-time]}]
+                                    (log/debug (str "Clearing remote load activity on " remote " for tx-time " tx-time))
+                                    (hist/remote-activity-finished hist (or remote :remote) tx-time)) load-markers)))))
 
 (defn- loaded-callback
   "Generates a callback that processes all of the post-processing steps once a remote load has completed. This includes:
@@ -469,6 +511,7 @@
   - Running post-mutations for any fetches that completed
   - Updating the global loading marker
   - Triggering re-render for all data item refresh lists
+  - Removing the activity from history tracking
   "
   [reconciler]
   (fn [response items]
@@ -484,6 +527,7 @@
                                                           (cond-> s
                                                             :always (update :fulcro/loads-in-progress disj (data-uuid item))
                                                             (data-marker? item) (remove-marker item))))))
+          history             (p/get-history reconciler)
           run-post-mutations! (fn [] (doseq [item loading-items]
                                        (when-let [mutation-symbol (::post-mutation item)]
                                          (reset! ran-mutations true)
@@ -493,6 +537,7 @@
                                              :action
                                              (apply []))))))]
       (remove-markers!)
+      (clear-history-activity! history loading-items)
       (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)
       (run-post-mutations!)
@@ -518,6 +563,7 @@
           refresh-set   (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           to-refresh    (vec refresh-set)
           ran-fallbacks (atom false)
+          history       (p/get-history reconciler)
           mark-errors   (fn []
                           (swap! app-state assoc :fulcro/server-error error)
                           (doseq [item loading-items]
@@ -538,4 +584,5 @@
       (mark-errors)
       (run-fallbacks)
       (set-global-loading! reconciler)
+      (clear-history-activity! history loading-items)
       (prim/force-root-render! reconciler))))

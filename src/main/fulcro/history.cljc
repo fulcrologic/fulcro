@@ -1,6 +1,7 @@
 (ns fulcro.history
   (:require #?(:clj [clojure.future :refer :all])
                     [fulcro.client.logging :as log]
+                    [fulcro.util :as util]
                     [clojure.spec.alpha :as s]))
 
 
@@ -17,6 +18,7 @@
 (s/def ::history-steps (s/map-of int? ::history-step))
 (s/def ::active-remotes (s/map-of keyword? set?))           ; map of remote to the tx-time of any send(s) that are still active
 (s/def ::history (s/keys :opt [::active-remotes] :req [::max-size ::history-steps]))
+(s/def ::history-atom (s/and #(util/atom? %) #(s/valid? ::history (deref %))))
 
 (def max-tx-time #?(:clj Long/MAX_VALUE :cljs 9200000000000000000))
 
