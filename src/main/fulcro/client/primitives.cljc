@@ -22,10 +22,15 @@
                [cljs.analyzer.api :as ana-api]
                [clojure.walk :refer [prewalk]]
                [clojure.string :as str]
+               [clojure.spec.alpha :as s]
                [cognitect.transit :as t])
   #?(:clj
            (:import [java.io Writer])
      :cljs (:import [goog.debug Console])))
+
+(s/def ::remote keyword?)
+(s/def ::ident util/ident?)
+(s/def ::query vector?)
 
 (defn add-basis-time
   "Recursively add the given basis time to all of the maps in the props."
@@ -1767,6 +1772,7 @@
   p/IReconciler
   (tick! [_] (swap! state update :t inc))
   (basis-t [_] (:t @state))
+  (get-history [_] history)
 
   (add-root! [this root-class target options]
     (let [ret          (atom nil)
@@ -2056,7 +2062,7 @@
                        (when ref
                          {:ref ref}))
         old-state    @(:state cfg)
-        history      (get reconciler :history)
+        history      (p/get-history reconciler)
         v            ((:parser cfg) env tx)
         tx-time      (get-current-time reconciler)
         snds         (gather-sends env tx (:remotes cfg) tx-time)
@@ -2333,22 +2339,6 @@
   (when-not (nil? ref)
     (let [indexer (if (reconciler? x) (get-indexer x) x)]
       (p/key->components indexer ref))))
-
-(defn from-history
-  "Given a reconciler and UUID return the application state snapshost
-   from history associated with the UUID. The size of the reconciler history
-   may be configured by the :history option when constructing the reconciler."
-  [reconciler uuid]
-  {:pre [(reconciler? reconciler)]}
-  ; FIXME
-  nil)
-
-; FIXME: API CHANGE
-(defn get-params
-  "Return the query params for a component."
-  [component]
-  nil
-  )
 
 (defn get-rendered-state
   "Get the rendered state of component. om.next/get-state always returns the

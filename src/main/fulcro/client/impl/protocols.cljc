@@ -10,6 +10,7 @@
 
 (defprotocol IReconciler
   (tick! [this] "Cause the current basis time to advance")
+  (get-history [this] "Returns the current history atom")
   (basis-t [this])
   (add-root! [reconciler root-class target options])
   (remove-root! [reconciler target])

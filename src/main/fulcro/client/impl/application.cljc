@@ -6,11 +6,13 @@
             [fulcro.client.impl.data-fetch :as f]
             [fulcro.util :as futil]
             [fulcro.client.util :as util]
+            [clojure.spec.alpha :as s]
     #?(:cljs [cljs.core.async :as async]
        :clj
             [clojure.core.async :as async :refer [go]])
             [fulcro.client.network :as net]
-            [fulcro.client.impl.plumbing :as plumbing])
+            [fulcro.client.impl.plumbing :as plumbing]
+            [fulcro.client.impl.protocols :as p])
   #?(:cljs (:require-macros
              [cljs.core.async.macros :refer [go]])))
 
@@ -29,6 +31,7 @@
 (defn- enqueue
   "Enqueue a send to the network queue. This is a standalone function because we cannot mock core async functions."
   [q v]
+  (assert (s/valid? ::f/payload v) "Enqueued a proper payload")
   (go (async/>! q v)))
 
 (defn real-send
@@ -75,7 +78,7 @@
    resulting split tx. See `split-mutations` (which is used by this function to split dupes out of txes)."
   [{:keys [reconciler send-queues] :as app} remote-tx-map cb]
   ; NOTE: for history navigation we need to track the time at which the mutation was submitted. If we roll back, we want the db-before of that tx-time.
-  (let [history (get reconciler :history)]
+  (let [history (p/get-history reconciler)]
     (doseq [remote (keys remote-tx-map)]
       (let [queue                    (get send-queues remote)
             full-remote-transaction  (get remote-tx-map remote)
@@ -86,14 +89,15 @@
             ; todo: split remote mutations
             has-mutations?           (fn [tx] (> (count tx) 0))
             payload                  (fn [tx]
-                                       {:query         tx
-                                        ::hist/tx-time tx-time
-                                        :history-atom  history
-                                        :remote        remote
-                                        :on-load       cb
-                                        :on-error      #(fallback %)})]
+                                       {::prim/query        tx
+                                        ::hist/tx-time      tx-time
+                                        ::hist/history-atom history
+                                        ::prim/remote       remote
+                                        ::f/on-load         cb
+                                        ::f/on-error        #(fallback %)})]
         (log/debug (str "Started remote (mutation) activity for " remote " for tx-time " tx-time))
-        (swap! history hist/remote-activity-started remote tx-time)
+        (when history
+          (swap! history hist/remote-activity-started remote tx-time))
         (doseq [tx tx-list]
           (when (has-mutations? tx)
             (enqueue queue (payload tx))))))))
@@ -113,10 +117,12 @@
     (let [queue            (get send-queues remote)
           network          (get networking remote)
           parallel-payload (f/mark-parallel-loading remote reconciler)]
-      (doseq [{:keys [query on-load on-error load-descriptors]} parallel-payload]
+      (doseq [{:keys [::prim/query ::hist/tx-time ::hist/history-atom ::on-load ::on-error ::load-descriptors] :as payload} parallel-payload]
+        (assert (s/valid? ::f/payload payload) "Parallel payload is valid")
         (let [on-load'  #(on-load % load-descriptors)
               on-error' #(on-error % load-descriptors)]
           ; TODO: queries cannot report progress, yet. Could update the payload marker in app state.
+          ; FIXME: History activity tracking!
           (real-send network query on-load' on-error' nil)))
       (loop [fetch-payload (f/mark-loading remote reconciler)]
         (when fetch-payload
@@ -143,7 +149,7 @@
   "Sends a network payload. There are two kinds of payloads in Fulcro. The first is
   for reads, which are tracked by load descriptors in the app state. These load descriptors
   tell the plumbing how to handle the response, and expect to only be merged in once. Mutations
-  do not have a payload, and can technically received progress updates from the network. The built-in
+  do not have a payload, and can technically receive progress updates from the network. The built-in
   networking does not (currently) give progress events, but plugin networking can. It is currently not
   supported to give an update on a load, so this function is careful to detect that a payload is a send
   and turns all but the last update into a no-op. The send-complete function comes from the
@@ -153,7 +159,7 @@
   [network payload send-complete]
   ; Note, only data-fetch reads will have load-descriptors,
   ; in which case the payload on-load is data-fetch/loaded-callback, and cannot handle updates.
-  (let [{:keys [query on-load on-error load-descriptors]} payload
+  (let [{:keys [::prim/query ::f/on-load ::f/on-error ::f/load-descriptors]} payload
         merge-data (if load-descriptors #(on-load % load-descriptors) on-load)
         on-update  (if load-descriptors identity merge-data) ; TODO: queries cannot handle progress
         on-error   (if load-descriptors #(on-error % load-descriptors) on-error)
@@ -182,11 +188,11 @@
                              identity)]
       (go
         (loop [payload (async/<! queue)]
-          (let [{:keys [::hist/tx-time history-atom remote]} payload]
+          (let [{:keys [::hist/tx-time ::hist/history-atom ::prim/remote]} payload]
             (send-payload network payload send-complete)    ; async call. Calls send-complete when done
             (when sequential?
               (async/<! response-channel))                  ; block until send-complete
-            (when  (and history-atom tx-time)
+            (when (and history-atom tx-time)
               (log/debug (str "Finished remote (mutation) activity for " remote " for tx-time " tx-time))
               (swap! history-atom hist/remote-activity-finished remote tx-time))
             (recur (async/<! queue))))))))

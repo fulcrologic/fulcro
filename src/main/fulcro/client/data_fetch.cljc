@@ -40,13 +40,13 @@
   (with-meta (vec targets) {::impl/multiple-targets true}))
 
 (defn prepend-to [target]
-  (with-meta target {::impl/prepend true}))
+  (with-meta target {::impl/prepend-target true}))
 
 (defn append-to [target]
-  (with-meta target {::impl/append true}))
+  (with-meta target {::impl/append-target true}))
 
 (defn replace-at [target]
-  (with-meta target {::impl/replace true}))
+  (with-meta target {::impl/replace-target true}))
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."

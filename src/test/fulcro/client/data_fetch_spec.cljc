@@ -83,11 +83,11 @@
 
   (behavior "can elide top-level keys from the query"
     (let [ready-state (dfi/ready-state {:query (prim/get-query Item) :without #{:name}})]
-      (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
+      (is (= [:db/id {:comments [:db/id :title {:author [:db/id :username]}]}] (::prim/query ready-state)))))
 
   (behavior "can include parameters when eliding top-level keys from the query"
     (let [ready-state (dfi/ready-state {:query (prim/get-query Item) :without #{:name} :params {:db/id {:x 1}}})]
-      (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::dfi/query ready-state)))))
+      (is (= '[(:db/id {:x 1}) {:comments [:db/id :title {:author [:db/id :username]}]}] (::prim/query ready-state)))))
 
   (behavior "can elide keywords from a union query"
     (assertions
@@ -129,9 +129,9 @@
            state-marker-new    (dfi/ready-state {:query [{:x [:a]}] :field :x :ident [:thing/by-id 1] :params {:p 2}})]
        (assertions
          "Honors legacy way of specifying parameters"
-         (-> state-marker-legacy ::dfi/query) => '[({:x [:a]} {:p 2})]
+         (-> state-marker-legacy ::prim/query) => '[({:x [:a]} {:p 2})]
          "Honors simpler way of specifying parameters"
-         (-> state-marker-new ::dfi/query) => '[({:x [:a]} {:p 2})]))))
+         (-> state-marker-new ::prim/query) => '[({:x [:a]} {:p 2})]))))
 
 (specification "Load auto-refresh"
   (component "computed-refresh"
@@ -188,7 +188,7 @@
 
          (df/load-action {:state state-atom} :x Person {})
 
-         (let [query (-> @state-atom :fulcro/ready-to-load first ::dfi/query)]
+         (let [query (-> @state-atom :fulcro/ready-to-load first ::prim/query)]
            (assertions
              "adds a proper load marker to the state"
              query => [:x]))))))
@@ -251,12 +251,12 @@
 (specification "data-query-key of a fetch marker's query"
   (assertions
     "is the first keyword of simple props"
-    (dfi/data-query-key {::dfi/query [:a :b :c]}) => :a
+    (dfi/data-query-key {::prim/query [:a :b :c]}) => :a
     "is the first keyword the first join"
-    (dfi/data-query-key {::dfi/query [{:a [:x :y]} :b {:c [:z]}]}) => :a
+    (dfi/data-query-key {::prim/query [{:a [:x :y]} :b {:c [:z]}]}) => :a
     "tolerates parameters"
-    (dfi/data-query-key {::dfi/query '[({:a [:x :y]} {:n 1}) :b {:c [:z]}]}) => :a
-    (dfi/data-query-key {::dfi/query '[(:a {:n 1}) :b {:c [:z]}]}) => :a))
+    (dfi/data-query-key {::prim/query '[({:a [:x :y]} {:n 1}) :b {:c [:z]}]}) => :a
+    (dfi/data-query-key {::prim/query '[(:a {:n 1}) :b {:c [:z]}]}) => :a))
 
 (defn mark-loading-mutate [])
 (defn mark-loading-fallback [])
@@ -449,11 +449,11 @@
 (specification "fetch marker data-path"
   (assertions
     "is the field path for a load-field marker"
-    (dfi/data-path {::dfi/ident [:obj 1] ::dfi/field :f}) => [:obj 1 :f]
+    (dfi/data-path {::prim/ident [:obj 1] ::dfi/field :f}) => [:obj 1 :f]
     "is an ident if the query key is an ident"
-    (dfi/data-path {::dfi/query [{[:a 1] [:prop]}]}) => [:a 1]
+    (dfi/data-path {::prim/query [{[:a 1] [:prop]}]}) => [:a 1]
     "is the data-query-key by default"
-    (dfi/data-path {::dfi/query [:obj]}) => [:obj]
+    (dfi/data-path {::prim/query [:obj]}) => [:obj]
     "is the explicit target if supplied"
     (dfi/data-path {::dfi/target [:a :b]}) => [:a :b]))
 
@@ -589,19 +589,19 @@
         @vectarget-state-atom => {:obj {1 {:boo [[:x 1]]}}}))))
 
 (specification "Splits items to load by join key / ident kind."
-  (let [q-a-x  {::dfi/query [{:a [:x]}]}
-        q-a-y  {::dfi/query [{:a [:y]}]}
-        q-a-z  {::dfi/query [{:a [:z]}]}
-        q-a-w  {::dfi/query [{:a [:w]}]}
-        q-b-x  {::dfi/query [{:b [:x]}]}
-        q-c-x  {::dfi/query [{[:c 999] [:x]}]}
-        q-c-y  {::dfi/query [{[:c 999] [:y]}]}
-        q-c-z  {::dfi/query [{[:c 998] [:z]}]}
-        q-c-w  {::dfi/query [{[:c 998] [:w]}]}
-        q-ab-x {::dfi/query [{:a [:x]} {:b [:x]}]}
-        q-bc-x {::dfi/query [{:b [:x]} {:c [:x]}]}
-        q-cd-x {::dfi/query [{:c [:x]} {:d [:x]}]}
-        q-de-x {::dfi/query [{:d [:x]} {:e [:x]}]}]
+  (let [q-a-x  {::prim/query [{:a [:x]}]}
+        q-a-y  {::prim/query [{:a [:y]}]}
+        q-a-z  {::prim/query [{:a [:z]}]}
+        q-a-w  {::prim/query [{:a [:w]}]}
+        q-b-x  {::prim/query [{:b [:x]}]}
+        q-c-x  {::prim/query [{[:c 999] [:x]}]}
+        q-c-y  {::prim/query [{[:c 999] [:y]}]}
+        q-c-z  {::prim/query [{[:c 998] [:z]}]}
+        q-c-w  {::prim/query [{[:c 998] [:w]}]}
+        q-ab-x {::prim/query [{:a [:x]} {:b [:x]}]}
+        q-bc-x {::prim/query [{:b [:x]} {:c [:x]}]}
+        q-cd-x {::prim/query [{:c [:x]} {:d [:x]}]}
+        q-de-x {::prim/query [{:d [:x]} {:e [:x]}]}]
     (assertions
       "loads all items immediately when no join key conflicts, preserving order"
       (dfi/split-items-ready-to-load [q-a-x]) => [[q-a-x] []]
