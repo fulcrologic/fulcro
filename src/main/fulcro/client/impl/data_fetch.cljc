@@ -536,8 +536,8 @@
     (let [query               (full-query items)
           loading-items       (into #{} (map set-loading! items))
           refresh-set         (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
-          to-refresh          (vec refresh-set)
           marked-response     (plumbing/mark-missing response query)
+          to-refresh          (into (vec refresh-set) (remove symbol?) (keys marked-response))
           app-state           (prim/app-state reconciler)
           ran-mutations       (atom false)
           remove-markers!     (fn [] (doseq [item loading-items]
@@ -546,7 +546,7 @@
                                                             :always (update :fulcro/loads-in-progress disj (data-uuid item))
                                                             (data-marker? item) (remove-marker item))))))
           history             (prim/get-history reconciler)
-          ks                  (into [] (remove symbol?) (keys marked-response))
+
           run-post-mutations! (fn [] (doseq [item loading-items]
                                        (when-let [mutation-symbol (::post-mutation item)]
                                          (reset! ran-mutations true)
@@ -556,7 +556,6 @@
                                              :action
                                              (apply []))))))]
       (remove-markers!)
-      (p/queue! reconciler ks)
       (clear-history-activity! history loading-items)
       (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)
