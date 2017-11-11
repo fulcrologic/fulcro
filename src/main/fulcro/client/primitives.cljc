@@ -2443,11 +2443,4 @@
 
 #?(:clj (intern 'cljs.core 'proto-assign-impls proto-assign-impls))
 
-(defn record-network-error!
-  "Record a network error"
-  [reconciler items error]
-  (when-let [history (get-history reconciler)]
-    (p/tick! reconciler)
-    (swap! history hist/record-history-step (get-current-time reconciler) {::hist/db-before      @(app-state reconciler)
-                                                                           ::hist/network-result error
-                                                                           ::hist/db-after       @(app-state reconciler)})))
+

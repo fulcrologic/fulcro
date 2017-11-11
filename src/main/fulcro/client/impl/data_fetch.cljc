@@ -34,6 +34,8 @@
 (s/def ::on-error fn?)
 (s/def ::load-descriptors (s/coll-of ::load-marker))
 (s/def ::payload (s/keys :req [::prim/query ::on-load ::on-error ::hist/history-atom ::hist/tx-time] :opt [::load-descriptors]))
+(s/def ::network-error any?)
+(s/def ::network-result (s/keys :opt [::load-descriptors ::network-error]))
 
 (declare data-marker data-remote data-target data-path data-uuid data-field data-query-key data-query set-loading! full-query loaded-callback error-callback data-marker?)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -565,6 +567,15 @@
         (prim/force-root-render! reconciler)
         (force-render reconciler to-refresh)))))
 
+(defn record-network-error!
+  "Record a network error in history"
+  [reconciler items error]
+  (when-let [history (prim/get-history reconciler)]
+    (p/tick! reconciler)
+    (swap! history hist/record-history-step (p/basis-t reconciler) {::hist/db-before      @(prim/app-state reconciler)
+                                                                    ::hist/network-result {::load-descriptors items
+                                                                                           ::network-error    error}
+                                                                    ::hist/db-after       @(prim/app-state reconciler)})))
 (defn- error-callback
   "Generates a callback that is used whenever a hard server error occurs (status code 400+ or network error).
 
@@ -577,7 +588,7 @@
   "
   [reconciler]
   (fn [error items]
-    (prim/record-network-error! reconciler items error)
+    (record-network-error! reconciler items error)
     (let [loading-items (into #{} (map set-loading! items))
           app-state     (prim/app-state reconciler)
           refresh-set   (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
