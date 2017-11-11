@@ -40,7 +40,7 @@
         label
         (dom/button #js {:onClick #(on-delete id)} "X")))))
 
-(def ui-list-item (prim/factory Item :item/id))
+(def ui-list-item (prim/factory Item {:keyfn :item/id}))
 
 (defui ^:once ItemList
   static fc/InitialAppState
