@@ -122,7 +122,7 @@
       (for [item items-to-load]
         {::prim/query        (full-query [item])
          ::hist/tx-time      tx-time
-         ::hist/history-atom (p/get-history reconciler)
+         ::hist/history-atom (prim/get-history reconciler)
          ::on-load           (loaded-callback reconciler)
          ::on-error          (error-callback reconciler)
          ::load-descriptors  [item]}))))
@@ -202,12 +202,12 @@
         ; CAUTION: We use the earliest time of all items, so that we don't accidentally clear history for something we have not even sent.
         tx-time                 (earliest-load-time all-items)]
     (when-not (empty? items-to-load-now)
-      (let [history-atom (p/get-history reconciler)]
+      (let [history-atom (prim/get-history reconciler)]
         (swap! history-atom hist/remote-activity-started remote tx-time)
         (place-load-markers state items-to-load-now)
         (swap! state assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items)
         {::prim/query        (full-query items-to-load-now)
-         ::hist/history-atom (p/get-history reconciler)
+         ::hist/history-atom (prim/get-history reconciler)
          ::hist/tx-time      tx-time
          ::on-load           (loaded-callback reconciler)
          ::on-error          (error-callback reconciler)
@@ -527,7 +527,7 @@
                                                           (cond-> s
                                                             :always (update :fulcro/loads-in-progress disj (data-uuid item))
                                                             (data-marker? item) (remove-marker item))))))
-          history             (p/get-history reconciler)
+          history             (prim/get-history reconciler)
           run-post-mutations! (fn [] (doseq [item loading-items]
                                        (when-let [mutation-symbol (::post-mutation item)]
                                          (reset! ran-mutations true)
@@ -563,7 +563,7 @@
           refresh-set   (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           to-refresh    (vec refresh-set)
           ran-fallbacks (atom false)
-          history       (p/get-history reconciler)
+          history       (prim/get-history reconciler)
           mark-errors   (fn []
                           (swap! app-state assoc :fulcro/server-error error)
                           (doseq [item loading-items]

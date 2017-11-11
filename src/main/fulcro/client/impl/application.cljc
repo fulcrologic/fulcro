@@ -31,7 +31,8 @@
 (defn- enqueue
   "Enqueue a send to the network queue. This is a standalone function because we cannot mock core async functions."
   [q v]
-  (assert (s/valid? ::f/payload v) "Enqueued a proper payload")
+  (when-not (s/valid? ::f/payload v)
+    (log/error "An improper payload was enqueued" (s/explain ::f/payload v)))
   (go (async/>! q v)))
 
 (defn real-send
@@ -78,7 +79,7 @@
    resulting split tx. See `split-mutations` (which is used by this function to split dupes out of txes)."
   [{:keys [reconciler send-queues] :as app} remote-tx-map cb]
   ; NOTE: for history navigation we need to track the time at which the mutation was submitted. If we roll back, we want the db-before of that tx-time.
-  (let [history (p/get-history reconciler)]
+  (let [history (prim/get-history reconciler)]
     (doseq [remote (keys remote-tx-map)]
       (let [queue                    (get send-queues remote)
             full-remote-transaction  (get remote-tx-map remote)
@@ -118,7 +119,8 @@
           network          (get networking remote)
           parallel-payload (f/mark-parallel-loading remote reconciler)]
       (doseq [{:keys [::prim/query ::hist/tx-time ::hist/history-atom ::on-load ::on-error ::load-descriptors] :as payload} parallel-payload]
-        (assert (s/valid? ::f/payload payload) "Parallel payload is valid")
+        (when-not (s/valid? ::f/payload payload)
+          (log/error "An improper payload was enqueued" (s/explain ::f/payload payload)))
         (let [on-load'  #(on-load % load-descriptors)
               on-error' #(on-error % load-descriptors)]
           ; TODO: queries cannot report progress, yet. Could update the payload marker in app state.

@@ -35,13 +35,13 @@
 (defn oldest-active-network-request
   "Returns the tx time for the oldest in-flight send that is active. Returns Long/MAX_VALUE if none are active."
   [{:keys [::active-remotes] :as history}]
-  (assert (s/valid? ::history history))
+  (util/assume-valid ::history history "oldest-active-network-request is given a valid history")
   (reduce min max-tx-time (apply concat (vals active-remotes))))
 
 (defn gc-history
   "Returns a new history that has been reduced in size to target levels."
   [{:keys [::active-remotes ::max-size ::history-steps] :as history}]
-  (assert (s/valid? ::history history))
+  (util/assume-valid ::history history "gc-history is given a valid history object")
   (if (> (count history-steps) max-size)
     (let [oldest-required-history-step (oldest-active-network-request history)
           current-size                 (count history-steps)
@@ -73,8 +73,8 @@
 (defn record-history-step
   "Record a history step in the reconciler. "
   [{:keys [::active-remotes ::max-size ::history-steps] :as history} tx-time {:keys [::tx ::network-result ::network-sends ::db-before ::db-after] :as step}]
-  (assert (s/valid? ::history-step step))
-  (assert (s/valid? ::history history))
+  (util/assume-valid ::history-step step "recording history step is given a valid step")
+  (util/assume-valid ::history history "recording history step is given a valid history")
   (let [last-time     (last-tx-time history)
         gc?           (= 0 (mod tx-time 10))
         last-tx       (get-in history-steps [last-time ::tx] [])
@@ -83,7 +83,7 @@
                         compressible? (update ::history-steps dissoc last-time))]
     (when-not (or (nil? last-tx) (> tx-time last-time))
       (log/error "Time did not move forward! History may have been lost."))
-    (assert (or (nil? last-tx) (> tx-time last-time)) "Time moved forward.")
+    (util/soft-invariant (or (nil? last-tx) (> tx-time last-time)) "Time moved forward.")
     (log/debug "History edge created at sequence step: " tx-time)
     (if gc?
       (gc-history new-history)
