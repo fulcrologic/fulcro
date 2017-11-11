@@ -376,8 +376,8 @@
            "Runs post-mutations"
            (:callback-done @state) => true
            (:callback-params @state) => {:x 1}
-           "Triggers a render for :ui/loading-data and any addl keys requested by mutations"
-           (set @rendered) => #{dfi/marker-table :ui/loading-data :ui/fetch-state :x :y}
+           "Triggers a render for :ui/loading-data and any addl keys requested by mutations (in addition to any top-level keys of the query)"
+           (set @rendered) => #{dfi/marker-table :ui/loading-data :ui/fetch-state :x :y :id [:item 2]}
            "Removes loading markers for results that didn't materialize"
            (get-in @state (dfi/data-path item) :fail) => nil
            "Updates the global loading marker"
