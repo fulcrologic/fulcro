@@ -117,6 +117,9 @@
         items-to-load        (filter is-eligible? queued-items)
         remaining-items      (filter (comp not is-eligible?) queued-items)
         loading?             (or (boolean (seq items-to-load)) other-items-loading?)
+        history-atom         (prim/get-history reconciler)
+        ok                   (loaded-callback reconciler)
+        error                (error-callback reconciler)
         tx-time              (earliest-load-time items-to-load)]
     (when-not (empty? items-to-load)
       (swap! state (fn [s] (-> s
@@ -125,9 +128,9 @@
       (for [item items-to-load]
         {::prim/query        (full-query [item])
          ::hist/tx-time      tx-time
-         ::hist/history-atom (prim/get-history reconciler)
-         ::on-load           (loaded-callback reconciler)
-         ::on-error          (error-callback reconciler)
+         ::hist/history-atom history-atom
+         ::on-load           ok
+         ::on-error          error
          ::load-descriptors  [item]}))))
 
 (s/fdef mark-parallel-loading!
@@ -256,7 +259,7 @@
   (let [union-elision? (contains? elision-set union-key)]
     (when-not (or union-elision? (contains? elision-set key))
       (when (and union-elision? (<= (count children) 2))
-        (log/warn "Om unions are not designed to be used with fewer than two children. Check your calls to Fulcro
+        (log/warn "Unions are not designed to be used with fewer than two children. Check your calls to Fulcro
         load functions where the :without set contains " (pr-str union-key)))
       (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-set) c)))))))
 

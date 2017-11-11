@@ -120,9 +120,7 @@
     (let [queue            (get send-queues remote)
           network          (get networking remote)
           parallel-payload (f/mark-parallel-loading! remote reconciler)]
-      (doseq [{:keys [::prim/query ::hist/tx-time ::hist/history-atom ::on-load ::on-error ::load-descriptors] :as payload} parallel-payload]
-        (when-not (s/valid? ::f/payload payload)
-          (log/error "An improper payload was enqueued" (s/explain ::f/payload payload)))
+      (doseq [{:keys [::prim/query ::hist/tx-time ::hist/history-atom ::f/on-load ::f/on-error ::f/load-descriptors] :as payload} parallel-payload]
         (let [on-load'  #(on-load % load-descriptors)
               on-error' #(on-error % load-descriptors)]
           ; TODO: queries cannot report progress, yet. Could update the payload marker in app state.

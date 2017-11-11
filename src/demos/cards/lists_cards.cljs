@@ -2,7 +2,7 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.lists-client :as client]
-    [fulcro.client.cards :refer [fulcro-app]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]))
@@ -46,7 +46,7 @@
   (dc/mkdn-pprint-source client/ItemList)
   (dc/mkdn-pprint-source client/Root))
 
-(dc/defcard lazy-loading-demo
+(defcard-fulcro modify-list-card
   "
   # Demo
 
@@ -54,6 +54,6 @@
   from the screen, since that is the data for the component displaying the list. Also note how the map of attributes
   at path `[:items ID]` is also removed.
   "
-  (fulcro-app client/Root)
+  client/Root
   {}
   {:inspect-data true})
