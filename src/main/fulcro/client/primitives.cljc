@@ -32,6 +32,12 @@
 (s/def ::ident util/ident?)
 (s/def ::query vector?)
 
+(defn get-history
+  "pass-through function for getting history, that enables testing (cannot mock protocols easily)"
+  [reconciler]
+  (when reconciler
+    (p/get-history reconciler)))
+
 (defn add-basis-time
   "Recursively add the given basis time to all of the maps in the props."
   [props time]
@@ -2062,7 +2068,7 @@
                        (when ref
                          {:ref ref}))
         old-state    @(:state cfg)
-        history      (p/get-history reconciler)
+        history      (get-history reconciler)
         v            ((:parser cfg) env tx)
         tx-time      (get-current-time reconciler)
         snds         (gather-sends env tx (:remotes cfg) tx-time)
@@ -2435,4 +2441,5 @@
              sigs))))))
 
 #?(:clj (intern 'cljs.core 'proto-assign-impls proto-assign-impls))
+
 

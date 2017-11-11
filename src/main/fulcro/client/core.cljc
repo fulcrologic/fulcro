@@ -302,7 +302,8 @@
 (defn reset-history-impl
   "Needed for mocking in tests. Use FulcroApplication protocol methods instead."
   [{:keys [reconciler]}]
-  #?(:cljs (swap! (p/get-history reconciler) (fn [{:keys [::hist/max-size]}] (hist/new-history max-size)))))
+  #?(:cljs (when-let [hist-atom (prim/get-history reconciler)]
+             (swap! hist-atom (fn [{:keys [::hist/max-size]}] (hist/new-history max-size))))))
 
 (defn refresh* [{:keys [reconciler] :as app} root target]
   ; NOTE: from devcards, the mount target node could have changed. So, we re-call Om's add-root
@@ -361,7 +362,7 @@
       (doseq [r remotes]
         (clear-queue (get send-queues r)))))
 
-  (history [this] (p/get-history reconciler))
+  (history [this] (prim/get-history reconciler))
   (reset-history! [this]
     (reset-history-impl this))
 

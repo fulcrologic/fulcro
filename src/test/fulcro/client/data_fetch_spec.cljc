@@ -13,7 +13,8 @@
     [fulcro.client.logging :as log]
     [fulcro.client.impl.protocols :as omp]
     [fulcro.client.core :as fc]
-    [fulcro.client.impl.data-fetch :as f]))
+    [fulcro.client.impl.data-fetch :as f]
+    [fulcro.history :as hist]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -342,6 +343,8 @@
 
 (defmethod m/mutate 'qrp-loaded-callback [{:keys [state]} n p] (swap! state assoc :callback-done true :callback-params p))
 
+(def empty-history (hist/new-history 100))
+
 #?(:cljs
    (specification "Query response processing (loaded-callback with post mutation)"
      (let [item            (dfi/set-loading! (dfi/ready-state {:ident                [:item 2]
@@ -360,6 +363,7 @@
            response        {:id 2}]
        (when-mocking
          (prim/app-state r) => state
+         (prim/get-history r) => (atom empty-history)
          (prim/merge! r resp query) => (reset! merged true)
          (util/force-render r ks) => (reset! rendered ks)
          (dfi/set-global-loading! r) => (reset! globally-marked true)
@@ -394,6 +398,7 @@
        (when-mocking
          (prim/app-state r) => state
          (prim/merge! r resp query) => (reset! merged true)
+         (prim/get-history r) => (atom empty-history)
          (util/force-render r items) => (reset! queued (set items))
          (dfi/set-global-loading! r) => (reset! globally-marked true)
 
@@ -430,6 +435,7 @@
            response        {:id 2}]
        (when-mocking
          (dfi/callback-env r req orig) => {:state state}
+         (prim/get-history r) => (atom empty-history)
          (prim/app-state r) => state
          (dfi/set-global-loading! r) => (reset! globally-marked true)
          (prim/force-root-render! r) => (assertions

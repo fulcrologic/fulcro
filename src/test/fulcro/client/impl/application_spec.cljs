@@ -10,7 +10,8 @@
     [fulcro.client.impl.data-fetch :as f]
     [fulcro.client.impl.plumbing :as plumbing]
     [fulcro.client.network :as net]
-    [fulcro.client.mutations :as m]))
+    [fulcro.client.mutations :as m]
+    [fulcro.history :as hist]))
 
 (defui ^:once Thing
   static prim/Ident
@@ -209,6 +210,8 @@
           "Remaps ids in all queues"
           @queues-remapped => #{a-queue b-queue})))))
 
+(def empty-history (hist/new-history 100))
+
 (specification "Network payload processing (sequential networking)"
   (component "send-payload"
     (let [error          (atom 0)
@@ -219,8 +222,8 @@
           send-complete  (fn [] (swap! done inc))
           on-update      (fn [] (swap! update inc))
           reset-test     (fn [] (reset! error 0) (reset! update 0) (reset! done 0))
-          load-payload   {:query query :on-load on-update :on-error on-error :load-descriptors []}
-          mutate-payload {:query query :on-load on-update :on-error on-error}]
+          load-payload   {::prim/query query ::f/on-load on-update ::f/on-error on-error ::f/load-descriptors []}
+          mutate-payload {::prim/query query ::f/on-load on-update ::f/on-error on-error}]
       (behavior "On queries (with load-descriptor payloads)"
         (provided "When real send completes without updates or errors"
           (app/real-send net tx send-done send-error send-update) => (do
@@ -442,7 +445,7 @@
           (meta actual) => mutation-response-without-tempids)))))
 
 (specification "split-mutations"
-  (behavior "Takes an Om tx and splits it into a vector of one or more txes that have no duplicate mutation names"
+  (behavior "Takes a tx and splits it into a vector of one or more txes that have no duplicate mutation names"
     (assertions
       "Refuses to split transactions that contain non-mutation entries (with console error)."
       (app/split-mutations '[:a (f) :b (f)]) => ['[:a (f) :b (f)]]
@@ -462,9 +465,8 @@
       (when-mocking
         (app/fallback-handler app tx) => identity
         (plumbing/remove-loads-and-fallbacks tx) => tx
-        (app/enqueue q p) => (let [{:keys [query]} p]
+        (app/enqueue q p) => (let [{:keys [::prim/query]} p]
                                (assertions
-                                 ""
                                  query => '[(f)]))
 
         (app/enqueue-mutations {:send-queues send-queues} remote-txs identity))))
@@ -474,13 +476,11 @@
       (when-mocking
         (app/fallback-handler app tx) => identity
         (plumbing/remove-loads-and-fallbacks tx) => tx
-        (app/enqueue q p) =1x=> (let [{:keys [query]} p]
+        (app/enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
                                   (assertions
-                                    ""
                                     query => '[(f) (g)]))
-        (app/enqueue q p) =1x=> (let [{:keys [query]} p]
+        (app/enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
                                   (assertions
-                                    ""
                                     query => '[(f)]))
 
         (app/enqueue-mutations {:send-queues send-queues} remote-txs identity)))))
