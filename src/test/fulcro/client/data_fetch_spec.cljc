@@ -437,6 +437,7 @@
          (dfi/callback-env r req orig) => {:state state}
          (prim/get-history r) => (atom empty-history)
          (prim/app-state r) => state
+         (dfi/record-network-error! r i e) => nil
          (dfi/set-global-loading! r) => (reset! globally-marked true)
          (prim/force-root-render! r) => (assertions
                                           "Triggers render at root"

@@ -12,9 +12,8 @@
 (s/def ::db-after map?)
 (s/def ::tx vector?)
 (s/def ::tx-result (s/or :nil nil? :map map?))
-(s/def ::network-result map?)
 (s/def ::network-sends (s/map-of keyword? vector?))         ; map of sends that became active due to this tx
-(s/def ::history-step (s/keys :req [::db-after ::db-before] :opt [::tx ::tx-result ::network-result ::network-sends]))
+(s/def ::history-step (s/keys :req [::db-after ::db-before] :opt [::tx ::tx-result :fulcro.client.impl.data-fetch/network-result ::network-sends]))
 (s/def ::history-steps (s/map-of int? ::history-step))
 (s/def ::active-remotes (s/map-of keyword? set?))           ; map of remote to the tx-time of any send(s) that are still active
 (s/def ::history (s/keys :opt [::active-remotes] :req [::max-size ::history-steps]))
@@ -171,3 +170,5 @@
         history-step-tx-time (get legal-steps index)
         history-step         (get-step history history-step-tx-time)]
     history-step))
+
+
