@@ -753,6 +753,7 @@
 (defprotocol IDynamicQuery
   (dynamic-query [this state] "Return the component's unbound dynamic query"))
 
+;; DEPRECATED: Unless someone can give me a compelling case to keep this, I'm dropping it:
 (defprotocol ILocalState
   (-set-state! [this new-state] "Set the component's local state")
   (-get-state [this] "Get the component's local state")
@@ -2442,4 +2443,11 @@
 
 #?(:clj (intern 'cljs.core 'proto-assign-impls proto-assign-impls))
 
-
+(defn record-network-error!
+  "Record a network error"
+  [reconciler items error]
+  (when-let [history (get-history reconciler)]
+    (p/tick! reconciler)
+    (swap! history hist/record-history-step (get-current-time reconciler) {::hist/db-before      @(app-state reconciler)
+                                                                           ::hist/network-result error
+                                                                           ::hist/db-after       @(app-state reconciler)})))
