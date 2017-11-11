@@ -106,6 +106,7 @@
   :args (s/cat :hist ::history :time ::tx-time :step ::history-step)
   :ret ::history)
 
+
 (defn new-history [size]
   {::max-size size ::history-steps {} ::active-remotes {}})
 

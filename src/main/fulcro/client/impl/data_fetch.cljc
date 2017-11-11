@@ -577,6 +577,7 @@
   "
   [reconciler]
   (fn [error items]
+    (prim/record-network-error! reconciler items error)
     (let [loading-items (into #{} (map set-loading! items))
           app-state     (prim/app-state reconciler)
           refresh-set   (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
