@@ -2,7 +2,7 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.background-loads-client :as bg]
-    [fulcro.client.cards :refer [fulcro-app]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.dom :as dom]))
 
 (dc/defcard-doc
@@ -25,7 +25,7 @@
   "
   and you can see how they trigger the same load. The load has a built-in delay of 5 seconds.")
 
-(dc/defcard background-loads
+(defcard-fulcro background-loads
   "# Background Loads
 
    The server has a built-in delay of 5 seconds. Pressing the sequential buttons on the three (in any order) will take
@@ -33,4 +33,4 @@
    If you rapidly click the parallel buttons, then the loads will not be sequenced, and you will see them complete in roughly
    5 seconds overall (from the time you click the last one).
   "
-  (fulcro-app bg/Root))
+  bg/Root)

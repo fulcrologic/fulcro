@@ -2085,6 +2085,7 @@
       (swap! history hist/record-history-step tx-time history-step))
     (p/queue! reconciler (into xs (remove symbol?) (keys v)))
     (when-not (empty? snds)
+      (log/info "Scheduling sends" snds)
       (doseq [[remote _] snds]
         (p/queue! reconciler xs remote))
       (p/queue-sends! reconciler snds)

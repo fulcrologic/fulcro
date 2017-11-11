@@ -15,16 +15,17 @@
             [clojure.future :refer :all])
             [clojure.spec.alpha :as s]))
 
+(defn optional [pred] (s/or :nothing nil? :value pred))
 (s/def ::type keyword?)
 (s/def ::uuid string?)
-(s/def ::target vector?)
-(s/def ::field keyword?)
-(s/def ::post-mutation symbol?)
-(s/def ::post-mutation-params map?)
-(s/def ::refresh vector?)
-(s/def ::marker (s/or :kw keyword? :bool boolean?))
-(s/def ::parallel boolean?)
-(s/def ::fallback symbol?)
+(s/def ::target (optional vector?))
+(s/def ::field (optional keyword?))
+(s/def ::post-mutation (optional symbol?))
+(s/def ::post-mutation-params (optional map?))
+(s/def ::refresh (optional vector?))
+(s/def ::marker (s/or :kw keyword? :bool boolean? :nothing nil?))
+(s/def ::parallel (optional boolean?))
+(s/def ::fallback (optional symbol?))
 (s/def ::original-env map?)
 (s/def ::load-marker (s/keys :req [::type ::uuid ::prim/query ::original-env ::hist/tx-time]
                        :opt [::target ::prim/remote ::prim/ident ::field ::post-mutation-params ::post-mutation ::refresh ::marker ::parallel ::fallback]))
@@ -545,6 +546,7 @@
                                                             :always (update :fulcro/loads-in-progress disj (data-uuid item))
                                                             (data-marker? item) (remove-marker item))))))
           history             (prim/get-history reconciler)
+          ks                  (into [] (remove symbol?) (keys marked-response))
           run-post-mutations! (fn [] (doseq [item loading-items]
                                        (when-let [mutation-symbol (::post-mutation item)]
                                          (reset! ran-mutations true)
@@ -554,6 +556,7 @@
                                              :action
                                              (apply []))))))]
       (remove-markers!)
+      (p/queue! reconciler ks)
       (clear-history-activity! history loading-items)
       (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)
