@@ -465,100 +465,100 @@
 
 #?(:cljs
    (specification "Load markers for field loading (legacy)"
-     (let [state  (atom {:t {1 {:id 1}
-                             2 {:id 2}}})
+     (let [state  {:t {1 {:id 1}
+                       2 {:id 2}}}
            item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :target [:top]})
-           item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})]
+           item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})
 
-       (#'dfi/place-load-markers state [item-1 item-2])
+           state  (#'dfi/place-load-markers state [item-1 item-2])]
 
        (assertions
          "ignore targeting"
-         (get-in @state [:top]) => nil
+         (get-in state [:top]) => nil
          "are placed in app state only when the fetch requests a marker"
-         (get-in @state [:t 1 :comments]) =fn=> #(contains? % :ui/fetch-state)
-         (get-in @state [:t 2]) => {:id 2}
+         (get-in state [:t 1 :comments]) =fn=> #(contains? % :ui/fetch-state)
+         (get-in state [:t 2]) => {:id 2}
          "are tracked by UUID in :fulcro/loads-in-progress"
-         (get @state :fulcro/loads-in-progress) =fn=> #(= 2 (count %))))))
+         (get state :fulcro/loads-in-progress) =fn=> #(= 2 (count %))))))
 
 #?(:cljs
    (specification "Load markers for field loading (new, by-name)"
-     (let [state  (atom {:t {1 {:id 1}
-                             2 {:id 2}}})
+     (let [state  {:t {1 {:id 1}
+                       2 {:id 2}}}
            item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :marker :my-marker :target [:top]})
-           item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})]
+           item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})
 
-       (#'dfi/place-load-markers state [item-1 item-2])
+           state  (#'dfi/place-load-markers state [item-1 item-2])]
 
        (assertions
          "ignore targeting"
-         (get-in @state [:top]) => nil
+         (get-in state [:top]) => nil
          "are placed in the marker table when the fetch requests a marker"
-         (get-in @state [f/marker-table :my-marker]) =fn=> #(contains? % ::dfi/type)
+         (get-in state [f/marker-table :my-marker]) =fn=> #(contains? % ::dfi/type)
          "are tracked by UUID in :fulcro/loads-in-progress"
-         (get @state :fulcro/loads-in-progress) =fn=> #(= 2 (count %))))))
+         (get state :fulcro/loads-in-progress) =fn=> #(= 2 (count %))))))
 
 (specification "Load markers for regular (top-level) queries (legacy)"
-  (let [state  (atom {:users/by-id {4 {:name "Joe"}}
-                      :t           {1 {:id 1}}})
+  (let [state  {:users/by-id {4 {:name "Joe"}}
+                :t           {1 {:id 1}}}
         item-1 (dfi/ready-state {:query [{:users [:name]}]})
         item-2 (dfi/ready-state {:query [:some-value]})
         item-3 (dfi/ready-state {:query [{:users [:name]}] :target [:t 1 :user]})
-        item-4 (dfi/ready-state {:query [:some-value] :target [:t 1 :value]})]
+        item-4 (dfi/ready-state {:query [:some-value] :target [:t 1 :value]})
 
-    (#'dfi/place-load-markers state [item-1 item-2 item-3 item-4])
+        state  (#'dfi/place-load-markers state [item-1 item-2 item-3 item-4])]
 
     (assertions
       "Default to being placed in app root at the first key of the query"
-      (get @state :users) =fn=> #(contains? % :ui/fetch-state)
-      (get @state :some-value) =fn=> #(contains? % :ui/fetch-state)
+      (get state :users) =fn=> #(contains? % :ui/fetch-state)
+      (get state :some-value) =fn=> #(contains? % :ui/fetch-state)
       "Will appear at alternate target locations"
-      (get-in @state [:t 1 :user]) =fn=> #(contains? % :ui/fetch-state)
-      (get-in @state [:t 1 :value]) =fn=> #(contains? % :ui/fetch-state))))
+      (get-in state [:t 1 :user]) =fn=> #(contains? % :ui/fetch-state)
+      (get-in state [:t 1 :value]) =fn=> #(contains? % :ui/fetch-state))))
 
 (specification "Load markers for regular (top-level) queries (new, by id)"
-  (let [state  (atom {:users/by-id {4 {:name "Joe"}}
-                      :t           {1 {:id 1}}})
+  (let [state  {:users/by-id {4 {:name "Joe"}}
+                :t           {1 {:id 1}}}
         item-1 (dfi/ready-state {:marker :a :query [{:users [:name]}]})
         item-2 (dfi/ready-state {:marker :b :query [:some-value]})
         item-3 (dfi/ready-state {:marker :c :query [{:users [:name]}] :target [:t 1 :user]})
-        item-4 (dfi/ready-state {:marker :d :query [:some-value] :target [:t 1 :value]})]
+        item-4 (dfi/ready-state {:marker :d :query [:some-value] :target [:t 1 :value]})
 
-    (#'dfi/place-load-markers state [item-1 item-2 item-3 item-4])
+        state  (#'dfi/place-load-markers state [item-1 item-2 item-3 item-4])]
 
     (assertions
       "Are placed in the markers table"
-      (get @state f/marker-table) =fn=> #(contains? % :a)
-      (get @state f/marker-table) =fn=> #(contains? % :b)
-      (get @state f/marker-table) =fn=> #(contains? % :c)
-      (get @state f/marker-table) =fn=> #(contains? % :d))))
+      (get state f/marker-table) =fn=> #(contains? % :a)
+      (get state f/marker-table) =fn=> #(contains? % :b)
+      (get state f/marker-table) =fn=> #(contains? % :c)
+      (get state f/marker-table) =fn=> #(contains? % :d))))
 
 (specification "Load markers when loading with an ident (new, by id)"
-  (let [state  (atom {:users/by-id {4 {:name "Joe"}}
-                      :t           {1 {:id 1}}})
+  (let [state  {:users/by-id {4 {:name "Joe"}}
+                :t           {1 {:id 1}}}
         item-2 (dfi/ready-state {:marker :a :query [{[:users/by-id 3] [:name]}] :target [:t 1 :user]})
-        item-3 (dfi/ready-state {:marker false :query [{[:users/by-id 4] [:name]}]})]
+        item-3 (dfi/ready-state {:marker false :query [{[:users/by-id 4] [:name]}]})
 
-    (#'dfi/place-load-markers state [item-2 item-3])
+        state  (#'dfi/place-load-markers state [item-2 item-3])]
 
     (assertions
       "Place a marker by ID when asked for"
-      (-> @state (get f/marker-table) keys set) => #{:a})))
+      (-> state (get f/marker-table) keys set) => #{:a})))
 
 (specification "Load markers when loading with an ident (legacy)"
-  (let [state  (atom {:users/by-id {4 {:name "Joe"}}
-                      :t           {1 {:id 1}}})
+  (let [state  {:users/by-id {4 {:name "Joe"}}
+                :t           {1 {:id 1}}}
         item-2 (dfi/ready-state {:query [{[:users/by-id 3] [:name]}] :target [:t 1 :user]})
-        item-3 (dfi/ready-state {:query [{[:users/by-id 4] [:name]}]})]
+        item-3 (dfi/ready-state {:query [{[:users/by-id 4] [:name]}]})
 
-    (#'dfi/place-load-markers state [item-2 item-3])
+        state  (#'dfi/place-load-markers state [item-2 item-3])]
 
     (assertions
       "Ignore explicit targeting"
-      (get-in @state [:t 1 :user :ui/fetch-state]) => nil
+      (get-in state [:t 1 :user :ui/fetch-state]) => nil
       "Only place a marker if there is already an object in the table"
-      (get-in @state [:users/by-id 3 :ui/fetch-state]) => nil
-      (get-in @state [:users/by-id 4 :ui/fetch-state]) =fn=> map?)))
+      (get-in state [:users/by-id 3 :ui/fetch-state]) => nil
+      (get-in state [:users/by-id 4 :ui/fetch-state]) =fn=> map?)))
 
 (specification "relocating server results"
   (behavior "Does nothing if the item is based on a simple query with no targeting"

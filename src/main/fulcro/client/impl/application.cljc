@@ -6,6 +6,7 @@
             [fulcro.client.impl.data-fetch :as f]
             [fulcro.util :as futil]
             [fulcro.client.util :as util]
+            #?(:clj [clojure.future :refer :all])
             [clojure.spec.alpha :as s]
     #?(:cljs [cljs.core.async :as async]
        :clj
@@ -31,9 +32,10 @@
 (defn- enqueue
   "Enqueue a send to the network queue. This is a standalone function because we cannot mock core async functions."
   [q v]
-  (when-not (s/valid? ::f/payload v)
-    (log/error "An improper payload was enqueued" (s/explain ::f/payload v)))
   (go (async/>! q v)))
+
+(s/fdef enqueue
+  :args (s/cat :queue any? :payload ::f/payload))
 
 (defn real-send
   "Do a properly-plumbed network send. This function recursively strips ui attributes from the tx and pushes the tx over
@@ -117,7 +119,7 @@
   (doseq [remote (keys send-queues)]
     (let [queue            (get send-queues remote)
           network          (get networking remote)
-          parallel-payload (f/mark-parallel-loading remote reconciler)]
+          parallel-payload (f/mark-parallel-loading! remote reconciler)]
       (doseq [{:keys [::prim/query ::hist/tx-time ::hist/history-atom ::on-load ::on-error ::load-descriptors] :as payload} parallel-payload]
         (when-not (s/valid? ::f/payload payload)
           (log/error "An improper payload was enqueued" (s/explain ::f/payload payload)))
