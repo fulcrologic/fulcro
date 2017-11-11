@@ -57,7 +57,7 @@ There are two protocols on the server side:
     [:channel-server]))
 ```
 
-Hooking untanlged websockets into the system is simple. We will add the `ChannelServer` component and the `ChannelListener` component from above, and then define the route:
+Hooking Fulcro websockets into the system is simple. We will add the `ChannelServer` component and the `ChannelListener` component from above, and then define the route:
 
 ```clojure
 (require '[fulcro.websockets.components.channel-server :as cs])
