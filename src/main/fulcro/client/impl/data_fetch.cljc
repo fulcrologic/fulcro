@@ -79,14 +79,16 @@
 
 (defn- place-load-markers
   "Place load markers in the app state at their data paths so that UI rendering can see them."
-  [state-atom items-to-load]
-  (swap! state-atom
-    (fn [state-map]
-      (reduce (fn [s item]
-                (let [i (set-loading! item)]
-                  (cond-> (update s :fulcro/loads-in-progress (fnil conj #{}) (data-uuid i))
-                    (data-marker? i) (place-load-marker i))))
-        state-map items-to-load))))
+  [state-map items-to-load]
+  (reduce (fn [s item]
+            (let [i (set-loading! item)]
+              (cond-> (update s :fulcro/loads-in-progress (fnil conj #{}) (data-uuid i))
+                (data-marker? i) (place-load-marker i))))
+    state-map items-to-load))
+
+(s/fdef place-load-markers
+  :args (s/cat :state map? :items ::load-descriptors)
+  :ret map?)
 
 (defn earliest-load-time
   "Given a sequence of load markers, returns the history tx-time of the earliest one. Returns hist/max-tx-time if there
@@ -94,7 +96,7 @@
   [load-markers]
   (reduce min hist/max-tx-time (map ::hist/tx-time load-markers)))
 
-(defn mark-parallel-loading
+(defn mark-parallel-loading!
   "Marks all of the items in the ready-to-load state as loading, places the loading markers in the appropriate locations
   in the app state, and return maps with the keys:
 
@@ -117,8 +119,9 @@
         loading?             (or (boolean (seq items-to-load)) other-items-loading?)
         tx-time              (earliest-load-time items-to-load)]
     (when-not (empty? items-to-load)
-      (place-load-markers state items-to-load)
-      (swap! state assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items)
+      (swap! state (fn [s] (-> s
+                             (place-load-markers items-to-load)
+                             (assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items))))
       (for [item items-to-load]
         {::prim/query        (full-query [item])
          ::hist/tx-time      tx-time
@@ -126,6 +129,10 @@
          ::on-load           (loaded-callback reconciler)
          ::on-error          (error-callback reconciler)
          ::load-descriptors  [item]}))))
+
+(s/fdef mark-parallel-loading!
+  :args (s/cat :remote keyword? :reconciler prim/reconciler?)
+  :ret ::load-descriptors)
 
 (defn dedupe-by
   "Returns a lazy sequence of the elements of coll with dupes removed.
@@ -203,15 +210,22 @@
         tx-time                 (earliest-load-time all-items)]
     (when-not (empty? items-to-load-now)
       (let [history-atom (prim/get-history reconciler)]
-        (swap! history-atom hist/remote-activity-started remote tx-time)
-        (place-load-markers state items-to-load-now)
-        (swap! state assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items)
+        (when history-atom
+          (swap! history-atom hist/remote-activity-started remote tx-time))
+        (swap! state (fn [s]
+                       (-> s
+                         (place-load-markers items-to-load-now)
+                         (assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items))))
         {::prim/query        (full-query items-to-load-now)
          ::hist/history-atom (prim/get-history reconciler)
          ::hist/tx-time      tx-time
          ::on-load           (loaded-callback reconciler)
          ::on-error          (error-callback reconciler)
          ::load-descriptors  items-to-load-now}))))
+
+(s/fdef mark-loading
+  :args (s/cat :remote keyword? :reconciler prim/reconciler?)
+  :ret ::payload)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API, used to write tests against specific data states

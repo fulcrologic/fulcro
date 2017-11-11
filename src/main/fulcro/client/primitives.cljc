@@ -2083,7 +2083,6 @@
     ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
     (when history
       (swap! history hist/record-history-step tx-time history-step))
-    (log/info (pr-str "Transacted " tx))
     (p/queue! reconciler (into xs (remove symbol?) (keys v)))
     (when-not (empty? snds)
       (doseq [[remote _] snds]

@@ -91,14 +91,6 @@
                (s/explain-data spec x))))
     rt))
 
-(defn assume-valid
-  "Soft assertion about a spec. Validate the given spec against form, and log an error with details if validation fails"
-  [spec form msg]
-  (let [ok? (s/valid? spec form)]
-    (when-not ok?
-      (log/error msg "is not true." (s/explain-str spec form) (s/explain-data spec form)))
-    ok?))
-
 (defn soft-invariant
   "Logs the given message if v is false."
   [v msg]

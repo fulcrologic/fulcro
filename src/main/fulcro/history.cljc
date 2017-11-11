@@ -35,13 +35,15 @@
 (defn oldest-active-network-request
   "Returns the tx time for the oldest in-flight send that is active. Returns Long/MAX_VALUE if none are active."
   [{:keys [::active-remotes] :as history}]
-  (util/assume-valid ::history history "oldest-active-network-request is given a valid history")
   (reduce min max-tx-time (apply concat (vals active-remotes))))
+
+(s/fdef oldest-active-network-request
+  :args (s/cat :hist ::history)
+  :ref int?)
 
 (defn gc-history
   "Returns a new history that has been reduced in size to target levels."
   [{:keys [::active-remotes ::max-size ::history-steps] :as history}]
-  (util/assume-valid ::history history "gc-history is given a valid history object")
   (if (> (count history-steps) max-size)
     (let [oldest-required-history-step (oldest-active-network-request history)
           current-size                 (count history-steps)
@@ -58,12 +60,25 @@
       (update history ::history-steps select-keys real-keepers))
     history))
 
+(s/fdef gc-history
+  :args (s/cat :hist ::history)
+  :ref ::history)
+
 (defn compressible-tx [tx] (vary-meta tx assoc ::compressible? true))
+
+(s/fdef compressible-tx
+  :args (s/cat :tx vector?)
+  :ret vector?
+  :fn #(= (-> % :args :tx) (:ret %)))
 
 (defn compressible-tx?
   "Returns true if the given transaction is marked as compressible."
   [tx]
   (boolean (some-> tx meta ::compressible?)))
+
+(s/fdef compressible-tx?
+  :args (s/cat :tx vector?)
+  :ret boolean?)
 
 (defn last-tx-time
   "Returns the most recent transition edge time recorded in the given history."
@@ -73,8 +88,6 @@
 (defn record-history-step
   "Record a history step in the reconciler. "
   [{:keys [::active-remotes ::max-size ::history-steps] :as history} tx-time {:keys [::tx ::network-result ::network-sends ::db-before ::db-after] :as step}]
-  (util/assume-valid ::history-step step "recording history step is given a valid step")
-  (util/assume-valid ::history history "recording history step is given a valid history")
   (let [last-time     (last-tx-time history)
         gc?           (= 0 (mod tx-time 10))
         last-tx       (get-in history-steps [last-time ::tx] [])
@@ -89,13 +102,25 @@
       (gc-history new-history)
       new-history)))
 
+(s/fdef record-history-step
+  :args (s/cat :hist ::history :time ::tx-time :step ::history-step)
+  :ret ::history)
+
 (defn new-history [size]
   {::max-size size ::history-steps {} ::active-remotes {}})
+
+(s/fdef record-history-step
+  :args (s/cat :size pos-int?)
+  :ret ::history)
 
 (defn ordered-steps
   "Returns the current valid sequence of step times in the given history as a sorted vector."
   [history]
   (some-> history ::history-steps keys sort vec))
+
+(s/fdef ordered-steps
+  :args (s/cat :hist ::history)
+  :ret (s/or :v vector? :nothing nil?))
 
 (defn get-step
   "Returns a step from the given history that has the given tx-time. If tx-time specifies a spot where there is a gap in the history
@@ -112,6 +137,10 @@
         (and step-before step-after (-> step-after ::tx compressible-tx?)) step-after
         (and step-before step-after) step-before
         :otherwise nil))))
+
+(s/fdef get-step
+  :args (s/cat :hist ::history :time ::tx-time)
+  :ret (s/or :nothing nil? :step ::history-step))
 
 (defn history-navigator
   "Returns a navigator of history. Use focus-next, focus-previous, and current-step."
