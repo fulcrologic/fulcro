@@ -211,15 +211,18 @@
 #?(:cljs
    (fulcro.client.mutations/defmutation merge!
      "The mutation version of prim/merge!"
-     [{:keys [query data-tree] :as params}]
+     [{:keys [query data-tree remote] :as params}]
      (action [{:keys [reconciler state]}]
        (let [config (:config reconciler)
              merge* (:merge config)
-             {:keys [next tempids]} (merge* reconciler @state data-tree query)]
+             {:keys [keys next tempids]} (merge* reconciler @state data-tree query)]
+         (p/queue! reconciler keys remote)
          (reset! state
            (if-let [migrate (:migrate config)]
              (merge (select-keys next [:fulcro.client.primitives/queries])
                (migrate next
                  (or query (prim/get-query (:root @(:state reconciler)) @(:state reconciler)))
                  tempids (:id-key config)))
-             next))))))
+             next))
+         (when-not (nil? remote)
+           (p/reconcile! reconciler remote))))))
