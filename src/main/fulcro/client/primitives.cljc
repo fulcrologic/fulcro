@@ -1571,7 +1571,7 @@
   ([reconciler data-tree query]
    (merge! reconciler data-tree query nil))
   ([reconciler data-tree query remote]
-   (let [tx `[(fulcro.client.mutations/merge! ~{:data-tree data-tree :query query})]]
+   (let [tx `[(fulcro.client.mutations/merge! ~{:data-tree data-tree :query query :remote remote})]]
      (transact! reconciler tx))))
 
 (defn build-prop->class-index!
