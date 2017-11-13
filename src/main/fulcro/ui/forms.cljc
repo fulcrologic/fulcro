@@ -656,8 +656,12 @@
 
 (defn on-form-change
   "Declare a Fulcro mutation (as a properly namespaced symbol) that will be triggered on
-  each form change. Only one such mutation can be defined for a form. The mutation can do
-  anything, but it is intended to do extended kinds of dynamic form updates/validations.
+  each form change. Only one such mutation can be defined for a form.
+
+  You may also supply mutation parameters and a refresh list of data that will change and should be refreshed in the
+  UI.
+
+  The mutation can do anything, but it is intended to do extended kinds of dynamic form updates/validations.
 
   Add this to your IForm declarations:
 
@@ -679,10 +683,18 @@
   `:kind` The kind of change:
      `:blur` The user finished with the given field and moved away from it.
      `:edit` The user changed the value. Text fields edits will trigger one of these per keystroke."
-  [mut-sym]
-  {:input/type                     form-key
-   :input/name                     :on-form-change
-   :on-form-change/mutation-symbol mut-sym})
+  ([mut-sym]
+   (on-form-change mut-sym {} []))
+  ([mut-sym refresh]
+   (on-form-change mut-sym {} refresh))
+  ([mut-sym params refresh]
+   {:pre [(map? params)
+          (vector? refresh)]}
+   {:input/type                     form-key
+    :input/name                     :on-form-change
+    :on-form-change/mutation-symbol mut-sym
+    :on-form-change/params          params
+    :on-form-change/refresh         refresh}))
 
 (defn get-on-form-change-mutation
   "Get the mutation symbol to invoke when the form changes. This is typically used in the implementation
@@ -704,8 +716,10 @@
   Use list unquote to patch it into place."
   [form field-name kind]
   {:pre [(contains? #{:blur :edit} kind)]}
-  (when-let [mutation-symbol (get-in form [form-key :on-form-change :on-form-change/mutation-symbol])]
-    [(list mutation-symbol {:form-id (form-ident form) :kind kind :field field-name})]))
+  (let [{:keys [on-form-change/mutation-symbol on-form-change/params on-form-change/refresh]} (get-in form [form-key :on-form-change])
+        parameters (merge params {:form-id (form-ident form) :kind kind :field field-name})]
+    (when mutation-symbol
+      (into [(list mutation-symbol parameters)] refresh))))
 
 (defn current-validity
   "Returns the current validity from a form's props for the given field. One of :valid, :invalid, or :unchecked"
@@ -963,7 +977,7 @@
     (dom/input attrs)))
 
 (def allowed-input-dom-props #{:id :className :onKeyDown :onKeyPress :onKeyUp :ref :alt :accept :align :autocomplete
-                               :autofocus :dirname :disabled :height  :max :min :maxLength :pattern
+                               :autofocus :dirname :disabled :height :max :min :maxLength :pattern
                                :name :size :step :width})
 
 (defmethod form-field* ::text [component form field-name & {:keys [id className] :as params}]

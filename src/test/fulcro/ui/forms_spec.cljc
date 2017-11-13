@@ -931,7 +931,7 @@
     [:mutant/by-id (:db/id props)])
   static f/IForm
   (form-spec [this]
-    [(f/on-form-change 'mutant/changed)
+    [(f/on-form-change 'mutant/changed {:a 1} [:thing-to-refresh])
      (f/id-field :db/id)
      (f/text-input :mutant/name)
      (f/subform-element :mutant/mutations Mutation :many)]))
@@ -952,7 +952,7 @@
 
 #?(:cljs
    (specification "get-on-form-change-mutation"
-     (let [mutation-list               '[(mutant/changed {:form-id [:mutant/by-id 1] :field :mutant/name :kind :edit})]
+     (let [mutation-list               '[(mutant/changed {:a 1 :form-id [:mutant/by-id 1] :field :mutant/name :kind :edit}) :thing-to-refresh]
            form-with-change-handler    (-> mutant-db
                                          (f/init-form Mutant [:mutant/by-id 1])
                                          (get-in [:mutant/by-id 1]))
@@ -963,7 +963,8 @@
          (f/get-on-form-change-mutation form-with-change-handler :mutant/name :edit) => mutation-list
          "which can be patched into a mutation expression"
          `[(other/f) ~@mutation-list (other/g)] => '[(other/f)
-                                                     (mutant/changed {:form-id [:mutant/by-id 1] :field :mutant/name :kind :edit})
+                                                     (mutant/changed {:a 1 :form-id [:mutant/by-id 1] :field :mutant/name :kind :edit})
+                                                     :thing-to-refresh
                                                      (other/g)]
          "When no mutation symbol is defined, it generates a value that can be safely patched into a mutation expression."
          (f/get-on-form-change-mutation form-without-change-handler :mutant/name :edit) => no-mutations

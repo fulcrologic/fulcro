@@ -4,6 +4,7 @@
 - Fixed typo in forms on maxLength
 - Added support for FormatJS custom formats (trf). No SSR support for now.
 - Upgraded IntlMessageFormat to version 2.2.0
+- Added support for params and refresh list in on-form-change
 
 1.0.0
 -----
