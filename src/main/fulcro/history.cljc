@@ -150,6 +150,11 @@
      :history     history
      :index       (dec (count steps))}))
 
+(defn nav-position
+  "Gives back navigation position as a paid [n m]"
+  [history-nav]
+  [(:index history-nav) (count (:legal-steps history-nav))])
+
 (defn focus-next
   "Returns a new history navigation with the focus on the next step (or the last if already there). See history-navigator"
   [history-nav]
@@ -162,6 +167,18 @@
   [history-nav]
   (let [{:keys [index history legal-steps]} history-nav]
     (update history-nav :index (fn [i] (if (zero? i) 0 (dec i))))))
+
+(defn focus-start
+  "Returns a new history navigation with the focus on the prior step (or the first if already there). See history-navigator"
+  [history-nav]
+  (let [{:keys [index history legal-steps]} history-nav]
+    (assoc history-nav :index 0)))
+
+(defn focus-end
+  "Returns a new history navigation with the focus on the prior step (or the first if already there). See history-navigator"
+  [history-nav]
+  (let [{:keys [index history legal-steps]} history-nav]
+    (assoc history-nav :index (-> legal-steps count dec))))
 
 (defn current-step
   "Get the current history step from the history-nav. See history-navigator."
