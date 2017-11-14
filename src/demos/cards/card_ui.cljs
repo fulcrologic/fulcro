@@ -16,6 +16,7 @@
     cards.lists-cards
     cards.load-samples-cards
     cards.mutation-return-value-cards
+    cards.mutation-join-cards
     cards.paginate-large-list-cards
     cards.server-query-security-cards
     cards.sql-graph-query-cards

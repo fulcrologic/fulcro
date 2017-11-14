@@ -40,7 +40,10 @@
 
 (defn join-key [expr]
   (cond
-    (map? expr) (ffirst expr)
+    (map? expr) (let [k (ffirst expr)]
+                  (if (list? k)
+                    (first k)
+                    (ffirst expr)))
     (seq? expr) (join-key (first expr))
     :else expr))
 

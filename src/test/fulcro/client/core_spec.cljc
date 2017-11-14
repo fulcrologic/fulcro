@@ -209,7 +209,7 @@
            "Resets Om's app history"
            @history-reset? => true
            "Sets the base state from component"
-           @state => {:x 1 :fulcro.client.primitives/tables #{}}
+           @state => {:x 1}
            "Attempts to merge alternate union branches into state"
            @merged-unions? => true
            "Re-renders the app"
@@ -539,7 +539,7 @@
          "Verifies the propargs matches queries data when not a symbol"
          (#'fc/validate-query 'this '{:keys [db/id person/nme person/job]} '[:db/id :person/name {:person/job (prim/get-query Job)}])
          =throws=> (ExceptionInfo #"One or more destructured parameters" (fn [e]
-                                                               (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
+                                                                           (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
      (component "build-ident"
        (assertions
          "Generates nothing when there is no table"

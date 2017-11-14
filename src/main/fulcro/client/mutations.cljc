@@ -2,7 +2,7 @@
   #?(:cljs (:require-macros fulcro.client.mutations))
   (:require
     [clojure.spec.alpha :as s]
-    [fulcro.util :refer [conform!]]
+    [fulcro.util :refer [conform! join-key join-value join?]]
     [fulcro.client.logging :as log]
     [fulcro.client.primitives :as prim]
     [fulcro.i18n :as i18n]
@@ -216,6 +216,9 @@
        (let [config (:config reconciler)
              merge* (:merge config)
              {:keys [keys next tempids]} (merge* reconciler @state data-tree query)]
+         ;(log/info "query: " query)
+         ;(log/info "data-tree: " data-tree)
+         ;(log/info "component: " (-> query first vals first meta :component))
          (p/queue! reconciler keys remote)
          (reset! state
            (if-let [migrate (:migrate config)]

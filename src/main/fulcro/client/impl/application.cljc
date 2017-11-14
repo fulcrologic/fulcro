@@ -96,7 +96,7 @@
                                         ::hist/tx-time      tx-time
                                         ::hist/history-atom history
                                         ::prim/remote       remote
-                                        ::f/on-load         cb
+                                        ::f/on-load         #(cb % tx remote)
                                         ::f/on-error        #(fallback %)})]
         (log/debug (str "Started remote (mutation) activity for " remote " for tx-time " tx-time))
         (when history

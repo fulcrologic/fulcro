@@ -761,3 +761,49 @@
          (catch Exception e
            (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
 
+(defn mutation-join? [expr]
+  (and (util/join? expr) (symbol? (util/join-key expr))))
+
+(defn merge-mutation-joins
+  "Merge all of the mutations that were joined with a query"
+  [state query data-tree]
+  (reduce (fn [s query-element]
+            (let [k       (and (mutation-join? query-element) (util/join-key query-element))
+                  subtree (get data-tree k)]
+              (if (and k subtree)
+                (let [subquery         (util/join-value query-element)
+                      component        (some-> subquery meta :component)
+                      idnt             ::temporary-key
+                      norm-query       [{idnt subquery}]
+                      norm-tree        {idnt subtree}
+                      _                (println :q norm-query :nt norm-tree)
+                      norm-tree-marked (plumbing/mark-missing norm-tree norm-query)
+                      db-fragment      (dissoc (prim/tree->db norm-query norm-tree-marked true) idnt)]
+                  (app/sweep-merge s db-fragment))
+                s))) state query))
+
+(comment
+  (defsc Item [this {:keys [db/id item/value]} _ _]
+    {:query [:db/id :item/value]
+     :ident [:item/by-id :db/id]}
+    nil)
+
+  (plumbing/mark-missing {:fulcro.client.core/temporary-key {:db/id 1, :list/title "A", :list/items [{:db/id 1, :item/value "1"}]}}
+    [{:fulcro.client.core/temporary-key [:db/id :list/title {:list/items [:db/id :item/value]}]}])
+
+  (defsc ItemList [this {:keys [db/id list/title list/items] :as props} _ _]
+    {:query [:db/id :list/title {:list/items (prim/get-query Item)}]
+     :ident [:list/by-id :db/id]}
+    nil)
+
+  (let [q      [{'(f {:p 1}) (prim/get-query ItemList)}]
+        d      {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1 :item/value "1"}]}}
+        result (merge-mutation-joins {:top-key 1} q d)]
+    (println result)
+    )
+
+  (require 'fulcro.client.impl.plumbing :reload-all)
+  (.getCause *e)
+  (clojure.repl/pst)
+  )
+
