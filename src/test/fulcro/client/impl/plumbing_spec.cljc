@@ -3,22 +3,22 @@
     [fulcro.client.primitives :as prim]
     [fulcro.client.impl.plumbing :as impl]
     [fulcro.i18n :as i18n]
-    [cljs.core.async :as async]
-    [fulcro-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
-    [cljs.test :refer-macros [is are]]))
+    [clojure.core.async :as async]
+    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
+    [clojure.test :refer [is are]]))
 
 (specification "Local read can"
-  (let [state  (atom {:top-level    :top-level-value
-                      :union-join   [:panel :a]
-                      :union-join-2 [:dashboard :b]
-                      :join         {:sub-key-1 [:item/by-id 1]
-                                     :sub-key-2 :sub-value-2}
-                      :item/by-id   {1 {:survey/title "Howdy!" :survey/description "More stuff"}}
-                      :settings     {:tags nil}
-                      :dashboard    {:b {:x 2 :y 1 :z [:dashboard :c]}
-                                     :c {:x 3 :y 7 :z [[:dashboard :d]]}
-                                     :d {:x 5 :y 10}}
-                      :panel        {:a {:x 1 :n 4}}})
+  (let [state            (atom {:top-level    :top-level-value
+                                :union-join   [:panel :a]
+                                :union-join-2 [:dashboard :b]
+                                :join         {:sub-key-1 [:item/by-id 1]
+                                               :sub-key-2 :sub-value-2}
+                                :item/by-id   {1 {:survey/title "Howdy!" :survey/description "More stuff"}}
+                                :settings     {:tags nil}
+                                :dashboard    {:b {:x 2 :y 1 :z [:dashboard :c]}
+                                               :c {:x 3 :y 7 :z [[:dashboard :d]]}
+                                               :d {:x 5 :y 10}}
+                                :panel        {:a {:x 1 :n 4}}})
         custom-read      (fn [env k params] (when (= k :custom) {:value 42}))
         parser           (partial (prim/parser {:read (partial impl/read-local (constantly false))}) {:state state})
         augmented-parser (partial (prim/parser {:read (partial impl/read-local custom-read)}) {:state state})]
@@ -251,42 +251,21 @@
       {:b {:c impl/nf}}))
 
   (behavior "unions"
-    (are [query ?missing-result exp]
-      (= exp (impl/mark-missing ?missing-result query))
+    (assertions
+      "singletons"
+      (impl/mark-missing {:j {:c {}}} [{:j {:a [:c] :b [:d]}}]) => {:j {:c {} :d impl/nf}}
 
-      ;singleton
-      [{:j {:a [:c]
-            :b [:d]}}]
-      {:j {:c {}}}
-      {:j {:c {}
-           :d impl/nf}}
+      "singleton with no result"
+      (impl/mark-missing {} [{:j {:a [:c] :b [:d]}}]) => {:j impl/nf}
 
-      ;singleton with no result
-      [{:j {:a [:c]
-            :b [:d]}}]
-      {}
-      {:j impl/nf}
+      "list 1"
+      (impl/mark-missing {:j [{:c "c"}]} [{:j {:a [:c] :b [:d]}}]) => {:j [{:c "c" :d impl/nf}]}
 
-      ;list
-      [{:j {:a [:c]
-            :b [:d]}}]
-      {:j [{:c "c"}]}
-      {:j [{:c "c" :d impl/nf}]}
+      "list 2"
+      (impl/mark-missing {:items [{:id 0 :image "img1"} {:id 1 :text "text1"}]} [{:items {:photo [:id :image] :text [:id :text]}}]) => {:items [{:id 0 :image "img1" :text impl/nf} {:id 1 :image impl/nf :text "text1"}]}
 
-      [{:items
-        {:photo [:id :image]
-         :text  [:id :text]}}]
-      {:items
-       [{:id 0 :image "img1"}
-        {:id 1 :text "text1"}]}
-      {:items [{:id 0 :image "img1" :text impl/nf}
-               {:id 1 :image impl/nf :text "text1"}]}
-
-      ;list with no results
-      [{:j {:a [:c]
-            :b [:d]}}]
-      {:j []}
-      {:j []}))
+      "list with no results"
+      (impl/mark-missing {:j []} [{:j {:a [:c] :b [:d]}}]) => {:j []}))
 
   (behavior "if the query has a ui.*/ attribute, it should not be marked as missing"
     (are [query ?missing-result exp]

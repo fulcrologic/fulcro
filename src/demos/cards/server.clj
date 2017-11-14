@@ -4,6 +4,7 @@
             [fulcro.client.impl.parser :as op]
             [recipes.background-loads-server :as bg]
             recipes.error-handling-server
+            recipes.mutation-join-server
             recipes.lazy-loading-visual-indicators-server
             recipes.load-samples-server
             recipes.mutation-return-value-server

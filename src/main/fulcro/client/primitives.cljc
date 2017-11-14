@@ -1230,9 +1230,7 @@
          x    (if (vector? x) x (get-query x data))
          ret  (normalize* x data refs nil)]
      (if merge-idents
-       (let [refs' @refs]
-         (assoc (merge ret refs')
-           ::tables (into #{} (keys refs'))))
+       (let [refs' @refs] (merge ret refs'))
        (with-meta ret @refs)))))
 
 (declare focus-query*)
@@ -1540,6 +1538,7 @@
 
 (defn- merge-novelty!
   [reconciler state res query]
+  (log/info "RES:" res query)
   (let [config (:config reconciler)
         [idts res'] (sift-idents res)
         res'   (if (:normalize config)
@@ -2028,8 +2027,7 @@
            root-render  #?(:clj  (fn clj-root-render [c target] c)
                            :cljs #(js/ReactDOM.render %1 %2))
            root-unmount #?(:clj  (fn clj-unmount [x])
-                           :cljs #(js/ReactDOM.unmountComponentAtNode %))
-           }
+                           :cljs #(js/ReactDOM.unmountComponentAtNode %))}
     :as   config}]
   {:pre [(map? config)]}
   (let [idxr          (map->Indexer {:indexes (atom {})})

@@ -2,6 +2,8 @@
   (:require [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro.client.primitives :as prim :refer [defui]]
             [fulcro.history :as hist]
+            [fulcro.client.core :refer [defsc merge-mutation-joins]]
+            [fulcro.client.dom :as dom]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             [clojure.spec.test.alpha :as check]
@@ -9,7 +11,8 @@
             [clojure.test.check :as tc]
             [clojure.spec.test.alpha :as check]
     #?@(:cljs [[goog.object :as gobj]])
-            [fulcro.client.impl.protocols :as p]))
+            [fulcro.client.impl.protocols :as p]
+            [fulcro.util :as util]))
 
 (defui A)
 
@@ -323,6 +326,44 @@
 (specification "Static Queries"
   (behavior "Maintain their backward-compatible functionality" :manual-test))
 
+(defsc Item [this {:keys [db/id item/value]} _ _]
+  {:query [:db/id :item/value]
+   :ident [:item/by-id :db/id]}
+  (dom/li nil value))
+
+(defsc ItemList [this {:keys [db/id list/title list/items] :as props} _ _]
+  {:query [:db/id :list/title {:list/items (prim/get-query Item)}]
+   :ident [:list/by-id :db/id]}
+  (dom/div nil (dom/h3 nil title)))
+
+
+(specification "Mutation joins" :focused
+  (let [q [{'(f {:p 1}) (prim/get-query ItemList)}]
+        d {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1 :item/value "1"}]}}
+        result (merge-mutation-joins {:top-key 1} q d)]
+    (assertions
+      "mutation responses have mark-missing applied"
+      result => {:top-key    1
+                 :list/by-id {1 {:db/id 1 :list/title "A" :list/items [[:item/by-id 1]]}}
+                 :item/by-id {1 {:db/id 1 :item/value "1"}}}
+      "sweep-merge works with mutation joins"
+      true => false
+      "merge-mutation-joins properly normalizes and merges the response from the mutation"
+      true => false
+      "test"
+      (prim/tree->db q d true) => {[:list/by-id 1] [:list/by-id 1]
+                                   :item/by-id     {1 {:db/id 1 :item/value "1"}}
+                                   :list/by-id     {1 {:db/id 1 :list/title "A" :list/items [[:item/by-id 1]]}}}
+      ))
+  (let [mj {'(f {:p 1}) [:a]}]
+    (assertions
+      "Detects mutation joins as joins"
+      (util/join? mj) => true
+      "give the correct join key for mutation joins"
+      (util/join-key mj) => 'f
+      "give the correct join value for mutation joins"
+      (util/join-value mj) => [:a])))
+
 
 (comment
   (defn anything? [x] true)
@@ -385,4 +426,5 @@
   (gen/sample (s/gen (s/or :n number? :s string?)))
 
   (s/valid? ::param-expr '({:x [:a]} {:f 1})))
+
 

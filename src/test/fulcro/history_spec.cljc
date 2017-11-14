@@ -66,7 +66,7 @@
       "causes the removal of the most recent entry if both it and the new step are compressible"
       (-> history-4 ::hist/history-steps keys set) => #{time time-2 time-4})))
 
-(specification "Remote activity tracking" :focused
+(specification "Remote activity tracking"
   (let [h1 (hist/remote-activity-started empty-history :a 4)
         h2 (hist/remote-activity-started h1 :b 6)
         h3 (hist/remote-activity-started h2 :a 9)
@@ -87,7 +87,7 @@
       "once all activity is finished, reflects that as max-tx-time"
       (hist/oldest-active-network-request h8) => hist/max-tx-time)))
 
-(specification "History lookup (get-step)" :focused
+(specification "History lookup (get-step)"
   (let [time         14
         history-1    (hist/record-history-step (assoc empty-history ::hist/max-size 100) time (with-meta mock-step {:step 1}))
         time-missing (inc time)
@@ -108,7 +108,7 @@
       "returns the step just before the given time if no step exists for that exact time"
       (step (hist/get-step history-4 time-missing)) => 1)))
 
-(specification "History Navigator" :focused
+(specification "History Navigator"
   (let [time         14
         history-1    (hist/record-history-step (assoc empty-history ::hist/max-size 100) time (with-meta mock-step {:step 1}))
         time-missing (inc time)

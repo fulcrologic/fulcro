@@ -128,47 +128,6 @@
 
 (def nf ::not-found)
 
-(defn walk [inner outer form]
-  (cond
-    (map? form) (outer (into (empty form) (map #(inner (with-meta % {:map-entry? true})) form)))
-    (list? form) (outer (apply list (map inner form)))
-    (seq? form) (outer (doall (map inner form)))
-    (record? form) (outer (reduce (fn [r x] (conj r (inner x))) form form))
-    (coll? form) (outer (into (empty form) (map inner form)))
-    :else (outer form)))
-
-(defn prewalk [f form]
-  (walk (partial prewalk f) identity (f form)))
-
-(defn postwalk [f form]
-  (walk (partial postwalk f) f form))
-
-(defn recursive? [qf]
-  (or                                                       ;(number? qf)
-    (= '... qf)))
-(defn add-meta-to-recursive-queries [q]
-  (let [a (atom q)]
-    (->> q
-      (prewalk
-        #(cond
-           (and (vector? %)
-             (-> % meta :map-entry? false?))
-           (do (reset! a %) %)
-
-           (number? %) (with-meta '... {:... @a :depth %})
-
-           (recursive? %) (with-meta % {:... @a})
-           :else %))
-      (postwalk
-        #(cond
-           (and (vector? %)
-             (not (some-> % meta :map-entry?))
-             (= (count %) 2)
-             (some-> % second meta :depth number?))
-           [(first %) (-> % second meta :depth)]
-
-           :else %)))))
-
 (defn as-leaf
   "Returns data with meta-data marking it as a leaf in the result."
   [data]
@@ -185,6 +144,11 @@
     (and (coll? data)
       (-> data meta :fulcro/leaf boolean))))
 
+(defn union->query
+  "Turn a union query into a query that attempts to encompass all possible things that might be queried"
+  [union-query]
+  (->> union-query vals flatten set vec))
+
 (defn mark-missing
   "Recursively walk the query and response marking anything that was *asked for* in the query but is *not* in the response as missing.
   The merge process (which happens later in the plumbing) looks for these markers as indicators to remove any existing
@@ -194,71 +158,73 @@
 
   Returns the result with missing markers in place (which are then used/removed in a later stage)."
   [result query]
-  (letfn [(paramterized? [q]
-            (and (list? q)
-              (or (symbol? (first q))
-                (= 2 (count q)))))
-          (ok*not-found [res k]
-            (cond
-              (contains? res k) res
-              (recursive? k) res
-              (and (util/ident? k) (= '_ (second k))) res
-              (util/ident? k) (assoc (if (map? res) res {}) k {:ui/fetch-state {:fulcro.client.impl.data-fetch/type :not-found}})
-              :else (assoc (if (map? res) res {}) k nf)))
-          (union->query [u] (->> u vals flatten set))
-          (union? [q]
-            (let [expr (cond-> q (seq? q) first)]
-              (and (map? expr)
-                (< 1 (count (seq expr))))))
-          (step [res q]
-            (let [q                   (if (paramterized? q) (first q) q)
-                  [query-key ?sub-query] (cond
-                                           (util/join? q)
-                                           [(util/join-key q) (util/join-value q)]
-                                           :else [q nil])
-                  result-or-not-found (ok*not-found res query-key)
-                  result-or-not-found (if (and (keyword? q) (map? result-or-not-found)) (update result-or-not-found q as-leaf) result-or-not-found)
-                  sub-result          (get result-or-not-found query-key)]
-              (cond
-                ;; singleton union result
-                (and (union? ?sub-query) (map? sub-result))
-                (assoc result-or-not-found query-key
-                                           (mark-missing sub-result
-                                             (union->query (get q query-key))))
+  (let [missing-entity {:ui/fetch-state {:fulcro.client.impl.data-fetch/type :not-found}}]
+    (reduce (fn [result element]
+              (let [element      (cond
+                                   (list? element) (first element)
+                                   :else element)
+                    result-key   (cond
+                                   (keyword? element) element
+                                   (util/join? element) (util/join-key element)
+                                   :else nil)
+                    result-value (get result result-key)]
+                (cond
+                  (is-ui-query-fragment? result-key)
+                  result
 
-                ;; list union result
-                (and (union? ?sub-query) (coll? sub-result))
-                (as-> sub-result <>
-                  (mapv #(mark-missing % (union->query (get q query-key))) <>)
-                  (assoc result-or-not-found query-key <>))
+                  ; plain missing prop
+                  (and (keyword? element) (nil? (get result element)))
+                  (assoc result element ::not-found)
 
-                ;; ui.*/ fragment's are ignored
-                (is-ui-query-fragment? q) (as-leaf res)
+                  ; recursion
+                  (and (util/join? element) (or (number? (util/join-value element)) (= '... (util/join-value element))))
+                  (let [k       (util/join-key element)
+                        result' (get result k)]
+                    (cond
+                      (nil? result') (assoc result k ::not-found)
+                      (vector? result') (assoc result k (mapv (fn [item] (mark-missing item query)) result'))
+                      :otherwise (assoc result k (mark-missing result' query))))
 
-                ;; recur
-                (and ?sub-query
-                  (not= nf sub-result)
-                  (not (recursive? ?sub-query)))
-                (as-> sub-result <>
-                  (if (vector? <>)
-                    (mapv #(mark-missing % ?sub-query) <>)
-                    (mark-missing <> ?sub-query))
-                  (assoc result-or-not-found query-key <>))
+                  ; pure ident query
+                  (and (util/ident? element) (nil? (get result element)))
+                  (assoc result element missing-entity)
 
-                ;; recursive?
-                (recursive? ?sub-query)
-                (if-let [res- (get res query-key)]
-                  (as-> res- <>
-                    (if (vector? <>)
-                      (mapv #(mark-missing % ?sub-query) <>)
-                      (mark-missing <> ?sub-query))
-                    (assoc res query-key <>))
-                  result-or-not-found)
+                  ; union (a join with a map as a target query)
+                  (util/union? element)
+                  (let [v          (get result result-key ::not-found)
+                        to-one?    (map? v)
+                        to-many?   (vector? v)
+                        wide-query (union->query (util/join-value element))]
+                    (cond
+                      to-one? (assoc result result-key (mark-missing v wide-query))
+                      to-many? (assoc result result-key (mapv (fn [i] (mark-missing i wide-query)) v))
+                      (= ::not-found v) (assoc result result-key ::not-found)
+                      :else result))
 
-                ;; nf so next step
-                :else result-or-not-found)))]
-    (reduce step result
-      (if (recursive? query)
-        (-> query meta :... add-meta-to-recursive-queries)
-        (add-meta-to-recursive-queries query)))))
+                  ; ident-based join to nothing (removing table entries)
+                  (and (util/join? element) (util/ident? (util/join-key element)) (nil? (get result (util/join-key element))))
+                  (let [mock-missing-object (mark-missing {} (util/join-value element))]
+                    (assoc result (util/join-key element) (merge mock-missing-object missing-entity)))
+
+                  ; join to nothing
+                  (and (util/join? element) (= ::not-found (get result (util/join-key element) ::not-found)))
+                  (assoc result (util/join-key element) ::not-found)
+
+                  ; to-many join
+                  (and (util/join? element) (vector? (get result (util/join-key element))))
+                  (assoc result (util/join-key element) (mapv (fn [item] (mark-missing item (util/join-value element))) (get result (util/join-key element))))
+
+                  ; to-one join
+                  (and (util/join? element) (map? (get result (util/join-key element))))
+                  (assoc result (util/join-key element) (mark-missing (get result (util/join-key element)) (util/join-value element)))
+
+                  ; join, but with a broken result (scalar instead of a map or vector)
+                  (and (util/join? element) (vector? (util/join-value element)) (not (or (map? result-value) (vector? result-value))))
+                  (assoc result result-key (mark-missing {} (util/join-value element)))
+
+                  ; prop we found, but not a further join...mark it as a leaf so sweep can stop early on it
+                  result-key
+                  (update result result-key as-leaf)
+
+                  :else result))) result query)))
 
