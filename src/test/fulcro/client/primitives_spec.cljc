@@ -338,23 +338,21 @@
 
 
 (specification "Mutation joins" :focused
-  (let [q [{'(f {:p 1}) (prim/get-query ItemList)}]
-        d {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1 :item/value "1"}]}}
-        result (merge-mutation-joins {:top-key 1} q d)]
+  (let [q            [{'(f {:p 1}) (prim/get-query ItemList)}]
+        d            {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1 :item/value "1"}]}}
+        result       (merge-mutation-joins {:top-key 1} q d)
+
+        existing-db  {:item/by-id {1 {:db/id 1 :item/value "1"}}}
+        missing-data {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1}]}}
+        result-2     (merge-mutation-joins existing-db q missing-data)]
     (assertions
-      "mutation responses have mark-missing applied"
+      "mutation responses are merged"
       result => {:top-key    1
                  :list/by-id {1 {:db/id 1 :list/title "A" :list/items [[:item/by-id 1]]}}
                  :item/by-id {1 {:db/id 1 :item/value "1"}}}
-      "sweep-merge works with mutation joins"
-      true => false
-      "merge-mutation-joins properly normalizes and merges the response from the mutation"
-      true => false
-      "test"
-      (prim/tree->db q d true) => {[:list/by-id 1] [:list/by-id 1]
-                                   :item/by-id     {1 {:db/id 1 :item/value "1"}}
-                                   :list/by-id     {1 {:db/id 1 :list/title "A" :list/items [[:item/by-id 1]]}}}
-      ))
+      "mutation responses do proper sweep merge"
+      result-2 => {:list/by-id {1 {:db/id 1 :list/title "A" :list/items [[:item/by-id 1]]}}
+                   :item/by-id {1 {:db/id 1}}}))
   (let [mj {'(f {:p 1}) [:a]}]
     (assertions
       "Detects mutation joins as joins"
