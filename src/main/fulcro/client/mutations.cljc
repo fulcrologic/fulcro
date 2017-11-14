@@ -226,3 +226,15 @@
              next))
          (when-not (nil? remote)
            (p/reconcile! reconciler remote))))))
+
+#?(:cljs
+   (fulcro.client.mutations/defmutation send-history
+     "Send the current app history to the server. The params can include anything and will be merged with a `:history` entry.
+     Your server implementation of `fulcro.client.mutations/send-history` should record the data of history for
+     retrieval by a root query for :support-request, which should at least include the stored :history and optionally a
+     :comment from the user. You should add whatever identity makes sense for tracking."
+     [params]
+     (remote [{:keys [reconciler state ast]}]
+       (let [history (prim/get-history reconciler)
+             params  (assoc params :history history)]
+         (assoc ast :params params)))))
