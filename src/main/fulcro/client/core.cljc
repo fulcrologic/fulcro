@@ -772,11 +772,9 @@
                   subtree (get data-tree k)]
               (if (and k subtree)
                 (let [subquery         (util/join-value query-element)
-                      component        (some-> subquery meta :component)
                       idnt             ::temporary-key
                       norm-query       [{idnt subquery}]
                       norm-tree        {idnt subtree}
-                      _                (println :q norm-query :nt norm-tree)
                       norm-tree-marked (plumbing/mark-missing norm-tree norm-query)
                       db-fragment      (dissoc (prim/tree->db norm-query norm-tree-marked true) idnt)]
                   (app/sweep-merge s db-fragment))
