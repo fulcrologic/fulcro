@@ -258,13 +258,13 @@
       "singleton with no result"
       (impl/mark-missing {} [{:j {:a [:c] :b [:d]}}]) => {:j impl/nf}
 
-      "list 1"
+      "list to-many with 1"
       (impl/mark-missing {:j [{:c "c"}]} [{:j {:a [:c] :b [:d]}}]) => {:j [{:c "c" :d impl/nf}]}
 
-      "list 2"
+      "list to-many with 2"
       (impl/mark-missing {:items [{:id 0 :image "img1"} {:id 1 :text "text1"}]} [{:items {:photo [:id :image] :text [:id :text]}}]) => {:items [{:id 0 :image "img1" :text impl/nf} {:id 1 :image impl/nf :text "text1"}]}
 
-      "list with no results"
+      "list to-many with no results"
       (impl/mark-missing {:j []} [{:j {:a [:c] :b [:d]}}]) => {:j []}))
 
   (behavior "if the query has a ui.*/ attribute, it should not be marked as missing"
