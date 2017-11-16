@@ -141,12 +141,13 @@ likely evolve, since setting up initial state for dynamic routers will probably 
 === Status
 
 * Advanced optimization should now work, but untested.
-* Dynamic queries work. A few things need more work.
+* Dynamic queries work. A few things need more testing
 ** I need to test having non-dynamic subtrees. That probably doesn't yet work.
 ** Query parameters (e.g. IQueryParams) is as-yet untested.
 * Other than the renames and a few minor function moves (from util), it should be API compatible with existing Fulcro apps
 * RENDERING REFRESH should work well, and should be faster than stock Om Next. There are several places where I know I
 can make it faster still.
-* New history support needed. I stripped out history for the moment, because 2.0 will include a much more powerful mechanism.
+* New history recording in place, but not yet integration tested with viewer
+* A number of new cool features like mutation joins, and auto-mergable return values from server mutations
 
 
