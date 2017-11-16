@@ -6,7 +6,6 @@
     [fulcro.client.impl.protocols :as omp]
     [clojure.core.async :as async]
     [fulcro.client.logging :as log]
-    [fulcro.client.impl.plumbing :as plumbing]
     [fulcro.client.util :as fcu]
     [fulcro.util :as util])
   #?(:clj
@@ -40,11 +39,11 @@
          (assertions
            "Uses the existing object in app state as base for merge when present"
            (get-in old-state-merge-data [id :ui/checked]) => true
-           "Marks fields that were queried but are not present as plumbing/not-found"
+           "Marks fields that were queried but are not present as prim/not-found"
            old-state-merge-data => {[:parent/by-id 42] {:id         42
                                                         :ui/checked true
-                                                        :title      :fulcro.client.impl.plumbing/not-found
-                                                        :child      :fulcro.client.impl.plumbing/not-found}}))
+                                                        :title      ::prim/not-found
+                                                        :child      ::prim/not-found}}))
        (let [union-query {:union-a [:b] :union-b [:c]}
              state       (atom {})]
          (when-mocking
@@ -52,7 +51,7 @@
            (prim/get-query comp) => union-query
            (fc/component-merge-query comp data) => :merge-query
            (prim/db->tree q d r) => {:ident :data}
-           (plumbing/mark-missing d q) => (do
+           (prim/mark-missing d q) => (do
                                             (assertions
                                               "wraps union queries in a vector"
                                               q => [union-query])

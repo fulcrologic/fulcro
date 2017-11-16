@@ -3,14 +3,14 @@
     [fulcro-spec.core :refer [specification provided behavior assertions component when-mocking]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [goog.debug.Logger.Level :as level]
-    [fulcro.client.impl.plumbing :as plumb]
     [fulcro.i18n :as i18n]
     [fulcro.client.impl.data-fetch :as df]
     [goog.log :as glog]
-    [fulcro.client.primitives :as prim ]
+    [fulcro.client.primitives :as prim]
     [clojure.test :refer [is]]
     [fulcro.client.logging :as log :refer [*logger*]]
-    [clojure.string :as str]))
+    [clojure.string :as str]
+    [fulcro.client.impl.application :as app]))
 
 (defmutation sample
   "Doc string"
@@ -98,7 +98,7 @@
 
 (specification "Mutations via transact"
   (let [state      {}
-        parser     (partial (prim/parser {:read (partial plumb/read-local (constantly false)) :mutate m/mutate}))
+        parser     (partial (prim/parser {:read (partial app/read-local (constantly false)) :mutate m/mutate}))
         reconciler (prim/reconciler {:state state
                                    :parser  parser})]
     (behavior "report an error if an undefined multi-method is called."

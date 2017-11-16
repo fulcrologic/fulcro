@@ -2,6 +2,7 @@
   (:require [fulcro.client.logging :as log]
             [fulcro.client.primitives :as prim]
             [fulcro.i18n :as i18n]
+            [fulcro.client.mutations :as m]
             [fulcro.history :as hist]
             [fulcro.client.impl.data-fetch :as f]
             [fulcro.util :as futil]
@@ -13,7 +14,6 @@
        :clj
             [clojure.core.async :as async :refer [go]])
             [fulcro.client.network :as net]
-            [fulcro.client.impl.plumbing :as plumbing]
             [fulcro.client.impl.protocols :as p])
   #?(:cljs (:require-macros
              [cljs.core.async.macros :refer [go]])))
@@ -24,7 +24,7 @@
   [{:keys [reconciler]} query]
   (fn [error]
     (swap! (prim/app-state reconciler) assoc :fulcro/server-error error)
-    (if-let [q (plumbing/fallback-query query error)]
+    (if-let [q (prim/fallback-query query error)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
           (prim/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
@@ -45,8 +45,8 @@
   ; server-side rendering doesn't do networking. Don't care.
   (if #?(:clj  false
          :cljs (implements? net/ProgressiveTransfer net))
-    (net/updating-send net (plumbing/strip-ui tx) on-done on-error on-load)
-    (net/send net (plumbing/strip-ui tx) on-done on-error)))
+    (net/updating-send net (prim/strip-ui tx) on-done on-error on-load)
+    (net/send net (prim/strip-ui tx) on-done on-error)))
 
 (defn split-mutations
   "Split a tx that contains mutations. Returns a vector that contains at least one tx (the original).
@@ -92,7 +92,7 @@
             full-remote-transaction  (get remote-tx-map remote)
             tx-time                  (some-> full-remote-transaction meta ::hist/tx-time)
             fallback                 (fallback-handler app full-remote-transaction)
-            desired-remote-mutations (plumbing/remove-loads-and-fallbacks full-remote-transaction)
+            desired-remote-mutations (prim/remove-loads-and-fallbacks full-remote-transaction)
             tx-list                  (split-mutations desired-remote-mutations)
             ; todo: split remote mutations
             has-mutations?           (fn [tx] (> (count tx) 0))
@@ -228,8 +228,8 @@
         remotes                   (keys send-queues)
         tempid-migrate            (fn [pure _ tempids _]
                                     (doseq [queue (vals send-queues)]
-                                      (plumbing/rewrite-tempids-in-request-queue queue tempids))
-                                    (let [state-migrate (or migrate plumbing/resolve-tempids)]
+                                      (prim/rewrite-tempids-in-request-queue queue tempids))
+                                    (let [state-migrate (or migrate prim/resolve-tempids)]
                                       (state-migrate pure tempids)))
         initial-state-with-locale (let [set-default-locale (fn [s] (update s :ui/locale (fnil identity :en)))
                                         is-atom?           (futil/atom? initial-state)
@@ -251,9 +251,9 @@
                                      :normalize   true
                                      :remotes     remotes
                                      :merge-ident (fn [reconciler app-state ident props]
-                                                    (update-in app-state ident (comp plumbing/sweep-one merge) props))
+                                                    (update-in app-state ident (comp prim/sweep-one merge) props))
                                      :merge-tree  (fn [target source]
-                                                    (plumbing/merge-handler mutation-merge target source))
+                                                    (prim/merge-handler mutation-merge target source))
                                      :parser      parser})
         rec                       (prim/reconciler config)]
     (reset! rec-atom rec)
@@ -267,3 +267,58 @@
         (swap! cb-atom #(if (fn? %)
                           (partial % (prim/app-state (:reconciler app)))
                           (throw (ex-info "Networking error callback must be a function." {}))))))))
+
+(defn read-local
+  "Read function for the built-in parser.
+
+  *** NOTE: This function only runs when it is called without a target -- it is not triggered for remote reads. To
+  trigger a remote read, use the `fulcro/data-fetch` namespace. ***
+
+  If a user-read is supplied, *it will be allowed* to trigger remote reads. This is not recommended, as you
+  will probably have to augment the networking layer to get it to do what you mean. Use `load` instead. You have
+  been warned. Triggering remote reads is allowed, but discouraged and unsupported.
+
+  Returns the current locale when reading the :ui/locale keyword. Otherwise pulls data out of the app-state.
+  "
+  [user-read {:keys [query target state ast] :as env} dkey params]
+  (if-let [custom-result (user-read env dkey params)]
+    custom-result
+    (when (not target)
+      (case dkey
+        (let [top-level-prop (nil? query)
+              key            (or (:key ast) dkey)
+              by-ident?      (futil/ident? key)
+              union?         (map? query)
+              data           (if by-ident? (get-in @state key) (get @state key))]
+          {:value
+           (cond
+             union? (get (prim/db->tree [{key query}] @state @state) key)
+             top-level-prop data
+             :else (prim/db->tree query data @state))})))))
+
+(defn write-entry-point
+  "This is the entry point for writes. In general this is simply a call to the multi-method
+  defined by Fulcro (mutate); however, Fulcro supports the concept of a global `post-mutate`
+  function that will be called anytime the general mutate has an action that is desired. This
+  can be useful, for example, in cases where you have some post-processing that needs
+  to happen for a given (sub)set of mutations (that perhaps you did not define)."
+  [env k params]
+  (let [rv     (try
+                 (m/mutate env k params)
+                 (catch #?(:cljs :default :clj Exception) e
+                   (log/error (str "Mutation " k " failed with exception") e)
+                   nil))
+        action (:action rv)]
+    (if action
+      (assoc rv :action (fn []
+                          (try
+                            (let [action-result (action env k params)]
+                              (try
+                                (m/post-mutate env k params)
+                                (catch #?(:cljs :default :clj Exception) e (log/error (str "Post mutate failed on dispatch to " k))))
+                              action-result)
+                            (catch #?(:cljs :default :clj Exception) e
+                              (log/error (str "Mutation " k " failed with exception") e)
+                              (throw e)))))
+      rv)))
+

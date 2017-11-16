@@ -9,7 +9,6 @@
             [fulcro.client.logging :as log]
             [fulcro.history :as hist]
             [fulcro.client.mutations :as m]
-            [fulcro.client.impl.plumbing :as plumbing]
             [fulcro.client.impl.protocols :as p]
     #?(:clj
             [clojure.future :refer :all])
@@ -538,7 +537,7 @@
     (let [query               (full-query items)
           loading-items       (into #{} (map set-loading! items))
           refresh-set         (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
-          marked-response     (plumbing/mark-missing response query)
+          marked-response     (prim/mark-missing response query)
           to-refresh          (into (vec refresh-set) (remove symbol?) (keys marked-response))
           app-state           (prim/app-state reconciler)
           ran-mutations       (atom false)

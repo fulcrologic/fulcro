@@ -8,7 +8,6 @@
     [fulcro.client.impl.application :as app]
     [cljs.core.async :as async]
     [fulcro.client.impl.data-fetch :as f]
-    [fulcro.client.impl.plumbing :as plumbing]
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]
     [fulcro.history :as hist]))
@@ -128,10 +127,10 @@
 
     (component "tempid migration"
       (when-mocking
-        (plumbing/rewrite-tempids-in-request-queue queue remaps) =1x=> (assertions
+        (prim/rewrite-tempids-in-request-queue queue remaps) =1x=> (assertions
                                                                          "Remaps tempids in the requests queue(s)"
                                                                          remaps => :tempids)
-        (plumbing/resolve-tempids state remaps) =1x=> (assertions
+        (prim/resolve-tempids state remaps) =1x=> (assertions
                                                         "Remaps tempids in the app state"
                                                         state => :app-state
                                                         remaps => :tempids)
@@ -198,8 +197,8 @@
 
     (component "tempid migration with multiple queues"
       (when-mocking
-        (plumbing/rewrite-tempids-in-request-queue queue remaps) => (swap! queues-remapped conj queue)
-        (plumbing/resolve-tempids state remaps) =1x=> (assertions
+        (prim/rewrite-tempids-in-request-queue queue remaps) => (swap! queues-remapped conj queue)
+        (prim/resolve-tempids state remaps) =1x=> (assertions
                                                         "remaps tempids in state"
                                                         state => :state
                                                         remaps => :tempids)
@@ -387,7 +386,7 @@
           remote-txs  {:remote '[(f)]}]
       (when-mocking
         (app/fallback-handler app tx) => identity
-        (plumbing/remove-loads-and-fallbacks tx) => tx
+        (prim/remove-loads-and-fallbacks tx) => tx
         (app/enqueue q p) => (let [{:keys [::prim/query]} p]
                                (assertions
                                  query => '[(f)]))
@@ -398,7 +397,7 @@
           remote-txs  {:remote '[(f) (g) (f)]}]
       (when-mocking
         (app/fallback-handler app tx) => identity
-        (plumbing/remove-loads-and-fallbacks tx) => tx
+        (prim/remove-loads-and-fallbacks tx) => tx
         (app/enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
                                   (assertions
                                     query => '[(f) (g)]))
@@ -407,3 +406,67 @@
                                     query => '[(f)]))
 
         (app/enqueue-mutations {:send-queues send-queues} remote-txs identity)))))
+
+(specification "Local read can"
+  (let [state            (atom {:top-level    :top-level-value
+                                :union-join   [:panel :a]
+                                :union-join-2 [:dashboard :b]
+                                :join         {:sub-key-1 [:item/by-id 1]
+                                               :sub-key-2 :sub-value-2}
+                                :item/by-id   {1 {:survey/title "Howdy!" :survey/description "More stuff"}}
+                                :settings     {:tags nil}
+                                :dashboard    {:b {:x 2 :y 1 :z [:dashboard :c]}
+                                               :c {:x 3 :y 7 :z [[:dashboard :d]]}
+                                               :d {:x 5 :y 10}}
+                                :panel        {:a {:x 1 :n 4}}})
+        custom-read      (fn [env k params] (when (= k :custom) {:value 42}))
+        parser           (partial (prim/parser {:read (partial app/read-local (constantly false))}) {:state state})
+        augmented-parser (partial (prim/parser {:read (partial app/read-local custom-read)}) {:state state})]
+
+    (reset! i18n/*current-locale* "en-US")
+
+    (assertions
+      "read top-level properties"
+      (parser [:top-level]) => {:top-level :top-level-value}
+
+      "read nested queries"
+      (parser [{:join [:sub-key-2]}]) => {:join {:sub-key-2 :sub-value-2}}
+
+      "read union queries"
+      (parser [{:union-join {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join {:x 1 :n 4}}
+      (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join-2 {:x 2 :y 1}}
+      (parser [{[:panel :a] {:panel [:x :n] :dashboard [:x :y]}}]) => {[:panel :a] {:x 1 :n 4}}
+
+      "read queries with references"
+      (parser [{:join [{:sub-key-1 [:survey/title :survey/description]}]}]) =>
+      {:join {:sub-key-1 {:survey/title "Howdy!" :survey/description "More stuff"}}}
+
+      "read with recursion"
+      (parser [{:dashboard [{:b [:x :y {:z '...}]}]}]) => {:dashboard {:b {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}}
+
+      "read recursion nested in a union query"
+      (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y {:z '...}]}}]) => {:union-join-2 {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}
+
+      "still exhibits normal behavior when augmenting with a custom root-level reader function"
+      (augmented-parser [:top-level]) => {:top-level :top-level-value}
+      (augmented-parser [{:join [:sub-key-2]}]) => {:join {:sub-key-2 :sub-value-2}}
+      (augmented-parser [{:union-join {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join {:x 1 :n 4}}
+      (augmented-parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join-2 {:x 2 :y 1}}
+      (augmented-parser [{[:panel :a] {:panel [:x :n] :dashboard [:x :y]}}]) => {[:panel :a] {:x 1 :n 4}}
+      (augmented-parser [{:join [{:sub-key-1 [:survey/title :survey/description]}]}]) => {:join {:sub-key-1 {:survey/title "Howdy!" :survey/description "More stuff"}}}
+      (augmented-parser [{:dashboard [{:b [:x :y {:z '...}]}]}]) => {:dashboard {:b {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}}
+      (augmented-parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y {:z '...}]}}]) => {:union-join-2 {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}
+
+      "supports augmentation from a user-supplied read function"
+      (augmented-parser [:top-level :custom]) => {:top-level :top-level-value :custom 42})
+
+    (let [state  {:curr-view      [:main :view]
+                  :main           {:view {:curr-item [[:sub-item/by-id 2]]}}
+                  :sub-item/by-id {2 {:foo :baz :sub-items [[:sub-item/by-id 4]]}
+                                   4 {:foo :bar}}}
+          parser (partial (prim/parser {:read (partial app/read-local (constantly nil))}) {:state (atom state)})]
+
+      (assertions
+        "read recursion nested in a join underneath a union"
+        (parser '[{:curr-view {:settings [*] :main [{:curr-item [:foo {:sub-items ...}]}]}}]) =>
+        {:curr-view {:curr-item [{:foo :baz :sub-items [{:foo :bar}]}]}}))))
