@@ -214,8 +214,7 @@
      [{:keys [query data-tree remote] :as params}]
      (action [{:keys [reconciler state]}]
        (let [config (:config reconciler)
-             merge* (:merge config)
-             {:keys [keys next tempids]} (merge* reconciler @state data-tree query)]
+             {:keys [keys next tempids]} (prim/merge* reconciler @state data-tree query)]
          (p/queue! reconciler keys remote)
          (reset! state
            (if-let [migrate (:migrate config)]

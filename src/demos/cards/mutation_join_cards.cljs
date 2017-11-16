@@ -8,6 +8,8 @@
             [fulcro.client.core :as fc :refer [defsc]]
             [fulcro.client.data-fetch :as df]))
 
+(declare Item)
+
 (defmutation change-label [{:keys [db/id]}]
   (remote [{:keys [ast state]}]
     (-> ast

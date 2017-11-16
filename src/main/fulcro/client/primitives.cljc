@@ -1146,7 +1146,7 @@
                            (ident class data)))]
       (if-not (nil? ident)
         (vary-meta (normalize* (get query (first ident)) data refs union-seen)
-          assoc ::tag (first ident)) ; FIXME: What is tag for?
+          assoc ::tag (first ident))                        ; FIXME: What is tag for?
         (throw #?(:clj  (IllegalArgumentException. "Union components must implement Ident")
                   :cljs (js/Error. "Union components must implement Ident")))))
 
@@ -1783,7 +1783,6 @@
 
 (defn- merge-novelty!
   [reconciler state res query]
-  (log/info "RES:" res query)
   (let [config (:config reconciler)
         [idts res'] (sift-idents res)
         res'   (if (:normalize config)
@@ -1796,7 +1795,13 @@
       (merge-idents config idts query)
       ((:merge-tree config) res'))))
 
-(defn default-merge [reconciler state res query]
+(defn merge*
+  "Internal implementation of merge. Given a reconciler, state, result, and query returns a map of the:
+
+  `:keys` to refresh
+  `:next` state
+  and `:tempids` that need to be migrated"
+  [reconciler state res query]
   {:keys    (into [] (remove symbol?) (keys res))
    :next    (merge-novelty! reconciler state res query)
    :tempids (->> (filter (comp symbol? first) res)
@@ -1903,7 +1908,7 @@
   [{:keys [parser] :as env} q remotes tx-time]
   (into {}
     (comp
-      (map #(vector % (some-> (parser env q %) (with-meta {::hist/tx-time tx-time}))))
+      (map #(vector % (some-> (parser env q %) (vary-meta assoc ::hist/tx-time tx-time))))
       (filter (fn [[_ v]] (pos? (count v)))))
     remotes))
 
@@ -2259,7 +2264,7 @@
   [{:keys [state shared shared-fn
            parser normalize
            send merge-sends remotes
-           merge merge-tree merge-ident
+           merge-tree merge-ident
            optimize
            root-render root-unmount
            migrate id-key
@@ -2267,7 +2272,6 @@
            history]
     :or   {merge-sends  #(merge-with into %1 %2)
            remotes      [:remote]
-           merge        default-merge
            history      100
            optimize     (fn depth-sorter [cs] (sort-by depth cs))
            root-render  #?(:clj  (fn clj-root-render [c target] c)
@@ -2284,7 +2288,7 @@
                         {:state       state' :shared shared :shared-fn shared-fn
                          :parser      parser :indexer idxr
                          :send        send :merge-sends merge-sends :remotes remotes
-                         :merge       merge :merge-tree merge-tree :merge-ident merge-ident
+                         :merge-tree  merge-tree :merge-ident merge-ident
                          :optimize    optimize
                          :normalize   (or (not norm?) normalize)
                          :root-render root-render :root-unmount root-unmount
@@ -2300,37 +2304,39 @@
                         (atom (hist/new-history history)))]
     ret))
 
-(defn transact* [reconciler c ref tx]
+(defn transact*
+  "Internal implementation detail of transact!. Call that function instead."
+  [reconciler c ref tx]
   (p/tick! reconciler)                                      ; ensure time moves forward. A tx that doesn't swap would fail to do so
-  (let [cfg          (:config reconciler)
-        ref          (if (and c #?(:clj  (satisfies? Ident c)
-                                   :cljs (implements? Ident c)) (not ref))
-                       (ident c (props c))
-                       ref)
-        env          (merge
-                       (to-env cfg)
-                       {:reconciler reconciler :component c}
-                       (when ref
-                         {:ref ref}))
-        old-state    @(:state cfg)
-        history      (get-history reconciler)
-        v            ((:parser cfg) env tx)
-        tx-time      (get-current-time reconciler)
-        snds         (gather-sends env tx (:remotes cfg) tx-time)
-        new-state    @(:state cfg)
-        xs           (cond-> []
-                       (not (nil? c)) (conj c)
-                       (not (nil? ref)) (conj ref))
-        history-step {::hist/tx        tx
-                      ::hist/tx-result v
-                      ::hist/db-before old-state
-                      ::hist/db-after  new-state}]
+  (let [cfg                (:config reconciler)
+        ref                (if (and c #?(:clj  (satisfies? Ident c)
+                                         :cljs (implements? Ident c)) (not ref))
+                             (ident c (props c))
+                             ref)
+        env                (merge
+                             (to-env cfg)
+                             {:reconciler reconciler :component c}
+                             (when ref
+                               {:ref ref}))
+        old-state          @(:state cfg)
+        history            (get-history reconciler)
+        v                  ((:parser cfg) env tx)
+        declared-refreshes (or (some-> v meta ::refresh vec) [])
+        tx-time            (get-current-time reconciler)
+        snds               (gather-sends env tx (:remotes cfg) tx-time)
+        new-state          @(:state cfg)
+        xs                 (cond-> declared-refreshes
+                             (not (nil? c)) (conj c)
+                             (not (nil? ref)) (conj ref))
+        history-step       {::hist/tx        tx
+                            ::hist/tx-result v
+                            ::hist/db-before old-state
+                            ::hist/db-after  new-state}]
     ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
     (when history
       (swap! history hist/record-history-step tx-time history-step))
     (p/queue! reconciler (into xs (remove symbol?) (keys v)))
     (when-not (empty? snds)
-      (log/info "Scheduling sends" snds)
       (doseq [[remote _] snds]
         (p/queue! reconciler xs remote))
       (p/queue-sends! reconciler snds)
@@ -2514,7 +2520,16 @@
 
 (defn parser
   "Create a parser. The argument is a map of two keys, :read and :mutate. Both
-   functions should have the signature (Env -> Key -> Params -> ParseResult)."
+   functions should have the signature (Env -> Key -> Params -> ParseResult).
+
+   The mutation functions return a map keyed by:
+
+   `:action` - The lambda to run to do the local optimistic version of that mutation
+   any-keyword-matching-a-remote - A boolean true or AST expression of the thing to run on the named remote.
+   :refresh - A vector of namespaced keywords of data that was/will be changed by this mutation
+
+   When the parser runs on mutations it collects the `:refresh` list into the metadata of the results
+   under the :fulcro.client.primitives/refresh key."
   [{:keys [read mutate] :as opts}]
   {:pre [(map? opts)]}
   (parser/parser opts))

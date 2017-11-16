@@ -90,6 +90,7 @@
     (doseq [remote (keys remote-tx-map)]
       (let [queue                    (get send-queues remote)
             full-remote-transaction  (get remote-tx-map remote)
+            refresh-set              (or (some-> full-remote-transaction meta ::prim/refresh vec) [])
             tx-time                  (some-> full-remote-transaction meta ::hist/tx-time)
             fallback                 (fallback-handler app full-remote-transaction)
             desired-remote-mutations (prim/remove-loads-and-fallbacks full-remote-transaction)
@@ -101,9 +102,12 @@
                                         ::hist/tx-time      tx-time
                                         ::hist/history-atom history
                                         ::prim/remote       remote
-                                        ::f/on-load         #(cb % tx remote)
-                                        ::f/on-error        #(fallback %)})]
-        (log/debug (str "Started remote (mutation) activity for " remote " for tx-time " tx-time))
+                                        ::f/on-load         (fn [result]
+                                                              ; NOTE: We could queue refreshes that we got back
+                                                              ; from the server, if we can send metadata, or something.
+                                                              ; (p/queue! reconciler refresh-set remote)
+                                                              (cb result tx remote))
+                                        ::f/on-error        (fn [result] (fallback result))})]
         (when history
           (swap! history hist/remote-activity-started remote tx-time))
         (doseq [tx tx-list]
@@ -147,9 +151,9 @@
 (defn server-send
   "Puts queries/mutations (and their corresponding callbacks) onto the send queue. The networking code will pull these
   off one at a time and send them through the real networking layer. Reads are guaranteed to *follow* writes."
-  [app remote-tx-map cb]
+  [app remote-tx-map merge-result-callback]
   (detect-errant-remotes app)
-  (enqueue-mutations app remote-tx-map cb)
+  (enqueue-mutations app remote-tx-map merge-result-callback)
   (enqueue-reads app))
 
 (defn- send-payload
@@ -200,7 +204,6 @@
             (when sequential?
               (async/<! response-channel))                  ; block until send-complete
             (when (and history-atom tx-time)
-              (log/debug (str "Finished remote (mutation) activity for " remote " for tx-time " tx-time))
               (swap! history-atom hist/remote-activity-finished remote tx-time))
             (recur (async/<! queue))))))))
 
@@ -246,8 +249,8 @@
                                     reconciler-options
                                     {:migrate     tempid-migrate
                                      :state       initial-state-with-locale
-                                     :send        (fn [tx cb]
-                                                    (server-send (assoc app :reconciler @rec-atom) tx cb))
+                                     :send        (fn [sends-keyed-by-remote result-merge-callback]
+                                                    (server-send (assoc app :reconciler @rec-atom) sends-keyed-by-remote result-merge-callback))
                                      :normalize   true
                                      :remotes     remotes
                                      :merge-ident (fn [reconciler app-state ident props]

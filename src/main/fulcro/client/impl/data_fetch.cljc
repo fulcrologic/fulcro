@@ -521,7 +521,7 @@
                                     (hist/remote-activity-finished hist (or remote :remote) tx-time)) load-markers)))))
 
 (defn- loaded-callback
-  "Generates a callback that processes all of the post-processing steps once a remote load has completed. This includes:
+  "Generates a callback that processes all of the post-processing steps once a remote ***load*** has completed. This includes:
 
   - Marking the items that were queries for but not returned as 'missing' (see documentation on mark and sweep of db)
   - Refreshing elements of the UI that were included in the data fetch :refresh option

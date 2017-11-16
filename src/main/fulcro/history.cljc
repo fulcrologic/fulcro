@@ -96,7 +96,6 @@
     (when-not (or (nil? last-tx) (> tx-time last-time))
       (log/error "Time did not move forward! History may have been lost."))
     (util/soft-invariant (or (nil? last-tx) (> tx-time last-time)) "Time moved forward.")
-    (log/debug "History edge created at sequence step: " tx-time)
     (if gc?
       (gc-history new-history)
       new-history)))
