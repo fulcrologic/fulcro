@@ -12,8 +12,6 @@
     [fulcro.util :as util]
     [fulcro.client.util :as cutil]
     [fulcro.client.impl.plumbing :as plumbing]
-    #?(:clj
-    [clojure.future :refer :all])
     [clojure.set :as set]
     #?(:cljs [goog.dom :as gdom])
     [clojure.spec.alpha :as s]
@@ -273,7 +271,7 @@
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels   (zipmap remotes (map #(async/chan) remotes))
-        parser              (prim/parser {:elide-paths true :read (partial plumbing/read-local read-local) :mutate plumbing/write-entry-point})
+        parser              (prim/parser {:elide-paths true :read (partial app/read-local read-local) :mutate app/write-entry-point})
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
                                        :parser parser :mounted? true)
         app-with-networking (assoc initial-app :networking (start-networking network-map))
@@ -421,7 +419,7 @@
         ;; :fulcro/merge is way to make unions merge properly when joined by idents
         merge-query   [{:fulcro/merge base-query}]
         existing-data (get (prim/db->tree base-query @state-atom @state-atom) ident {})
-        marked-data   (plumbing/mark-missing object-data object-query)
+        marked-data   (prim/mark-missing object-data object-query)
         merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]
     {:merge-query merge-query
      :merge-data  merge-data}))
