@@ -364,86 +364,6 @@
     (app/is-sequential? (MockNetwork-Parallel.)) => false
     (app/is-sequential? (MockNetwork-ExplicitSequential.)) => true))
 
-(specification "Sweep one"
-  (assertions
-    "removes not-found values from maps"
-    (app/sweep-one {:a 1 :b ::plumbing/not-found}) => {:a 1}
-    "is not recursive"
-    (app/sweep-one {:a 1 :b {:c ::plumbing/not-found}}) => {:a 1 :b {:c ::plumbing/not-found}}
-    "maps over vectors not recursive"
-    (app/sweep-one [{:a 1 :b ::plumbing/not-found}]) => [{:a 1}]
-    "retains metadata"
-    (-> (app/sweep-one (with-meta {:a 1 :b ::plumbing/not-found} {:meta :data}))
-      meta) => {:meta :data}
-    (-> (app/sweep-one [(with-meta {:a 1 :b ::plumbing/not-found} {:meta :data})])
-      first meta) => {:meta :data}
-    (-> (app/sweep-one (with-meta [{:a 1 :b ::plumbing/not-found}] {:meta :data}))
-      meta) => {:meta :data}))
-
-(specification "Sweep merge"
-  (assertions
-    "recursively merges maps"
-    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c 5}) => {:a 2 :c 5}
-    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:x 1}}) => {:a 2 :c {:b 2 :x 1}}
-    "stops recursive merging if the source element is marked as a leaf"
-    (app/sweep-merge {:a 1 :c {:d {:x 2} :e 4}} {:a 2 :c (plumbing/as-leaf {:d {:x 1}})}) => {:a 2 :c {:d {:x 1}}}
-    "sweeps values that are marked as not found"
-    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:b ::plumbing/not-found}}) => {:a 2 :c {}}
-    (app/sweep-merge {:a 1 :c 2} {:a 2 :c {:b ::plumbing/not-found}}) => {:a 2 :c {}}
-    (app/sweep-merge {:a 1 :c 2} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
-    (app/sweep-merge {:a 1 :c {:data-fetch :loading}} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
-    (app/sweep-merge {:a 1 :c nil} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
-    (app/sweep-merge {:a 1 :b {:c {:ui/fetch-state {:post-mutation 's}}}} {:a 2 :b {:c [{:x 1 :b ::plumbing/not-found}]}}) => {:a 2 :b {:c [{:x 1}]}}
-    "clears normalized table entries that has an id of not found"
-    (app/sweep-merge {:table {1 {:a 2}}} {:table {::plumbing/not-found {:db/id ::plumbing/not-found}}}) => {:table {1 {:a 2}}}
-    "clears idents whose ids were not found"
-    (app/sweep-merge {} {:table {1 {:db/id 1 :the-thing [:table-1 ::plumbing/not-found]}}
-                         :thing [:table-2 ::plumbing/not-found]}) => {:table {1 {:db/id 1}}}
-    "sweeps not-found values from normalized table merges"
-    (app/sweep-merge {:subpanel  [:dashboard :panel]
-                      :dashboard {:panel {:view-mode :detail :surveys {:ui/fetch-state {:post-mutation 's}}}}
-                      }
-      {:subpanel  [:dashboard :panel]
-       :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
-       :s         {
-                   1 {:db/id 1, :survey/launch-date :fulcro.client.impl.plumbing/not-found}
-                   2 {:db/id 2, :survey/launch-date "2012-12-22"}
-                   }}) => {:subpanel  [:dashboard :panel]
-                           :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
-                           :s         {
-                                       1 {:db/id 1}
-                                       2 {:db/id 2 :survey/launch-date "2012-12-22"}
-                                       }}
-    "overwrites target (non-map) value if incoming value is a map"
-    (app/sweep-merge {:a 1 :c 2} {:a 2 :c {:b 1}}) => {:a 2 :c {:b 1}}))
-
-(specification "Merge handler"
-  (let [swept-state                       {:state 1}
-        data-response                     {:v 1}
-        mutation-response                 {'f {:x 1 :tempids {1 2}} 'g {:y 2}}
-        mutation-response-without-tempids (update mutation-response 'f dissoc :tempids)
-        response                          (merge data-response mutation-response)
-        rh                                (fn [state k v]
-                                            (assertions
-                                              "return handler is passed the swept state as a map"
-                                              state => swept-state
-                                              "tempids are stripped from return value before calling handler"
-                                              (:tempids v) => nil)
-                                            (vary-meta state assoc k v))]
-    (when-mocking
-      (app/sweep-merge t s) => (do
-                                 (assertions
-                                   "Passes source, cleaned of symbols, to sweep-merge"
-                                   s => {:v 1})
-                                 swept-state)
-
-      (let [actual (app/merge-handler rh {} response)]
-        (assertions
-          "Returns the swept state reduced over the return handlers"
-          ;; Function under test:
-          actual => swept-state
-          (meta actual) => mutation-response-without-tempids)))))
-
 (specification "split-mutations"
   (behavior "Takes a tx and splits it into a vector of one or more txes that have no duplicate mutation names"
     (assertions
@@ -456,7 +376,10 @@
       "Splits at duplicate mutation"
       (app/split-mutations '[(f) (g) (f) (k)]) => '[[(f) (g)] [(f) (k)]]
       "Resets 'seen mutations' at each split, so prior mutations do not cause extra splitting"
-      (app/split-mutations '[(f) (g) (f) (k) (g)]) => '[[(f) (g)] [(f) (k) (g)]])))
+      (app/split-mutations '[(f) (g) (f) (k) (g)]) => '[[(f) (g)] [(f) (k) (g)]]
+      "Can split mutation joins"
+      (app/split-mutations '[{(f) [:x]} (g) (f) (k) (g)]) => '[[{(f) [:x]} (g)] [(f) (k) (g)]]
+      )))
 
 (specification "enqueue-mutations"
   (behavior "enqueues a payload with query, load, and error callbacks"

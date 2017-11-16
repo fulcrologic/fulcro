@@ -6,7 +6,8 @@
             [fulcro.client.impl.data-fetch :as f]
             [fulcro.util :as futil]
             [fulcro.client.util :as util]
-            #?(:clj [clojure.future :refer :all])
+    #?(:clj
+            [clojure.future :refer :all])
             [clojure.spec.alpha :as s]
     #?(:cljs [cljs.core.async :as async]
        :clj
@@ -56,13 +57,17 @@
    [(f) (g) (f) (k) (g)] => [[(f) (g)] [(f) (k) (g)]]
    "
   [tx]
-  (if-not (and (vector? tx) (every? (fn [t] (and (list? t) (symbol? (first t)))) tx))
+  (if-not (and (vector? tx) (every? (fn [t] (or (futil/mutation-join? t) (and (list? t) (symbol? (first t))))) tx))
     (do
       (log/error "INTERNAL ERROR: split-mutations was asked to split a tx that contained things other than mutations." tx)
       [tx])
     (if (empty? tx)
       []
-      (let [mutation-name (fn [m] (first m))
+      (let [mutation-name (fn [m]
+                            (cond
+                              (list? m) (first m)
+                              (futil/mutation-join? m) (-> m keys ffirst)
+                              :otherwise 'unrecongnized-mutation))
             {:keys [accumulator current-tx]}
             (reduce (fn [{:keys [seen accumulator current-tx]} mutation]
                       (if (contains? seen (mutation-name mutation))
@@ -210,62 +215,6 @@
     (add-watch i18n/*loaded-translations* :locale re-render) ; when a module load completes, it stores the translations here
     (add-watch i18n/*current-locale* :locale re-render)))   ; when the local itself changes
 
-(defn sweep-one "Remove not-found keys from m (non-recursive)" [m]
-  (cond
-    (map? m) (reduce (fn [acc [k v]]
-                       (if (or (= ::plumbing/not-found k) (= ::plumbing/not-found v))
-                         acc
-                         (assoc acc k v)))
-               (with-meta {} (meta m)) m)
-    (vector? m) (with-meta (mapv sweep-one m) (meta m))
-    :else m))
-
-(defn sweep "Remove all of the not-found keys (recursively) from v, stopping at marked leaves (if present)"
-  [m]
-  (cond
-    (plumbing/leaf? m) (sweep-one m)
-    (map? m) (reduce (fn [acc [k v]]
-                       (cond
-                         (or (= ::plumbing/not-found k) (= ::plumbing/not-found v)) acc
-                         (and (futil/ident? v) (= ::plumbing/not-found (second v))) acc
-                         :otherwise (assoc acc k (sweep v))))
-               (with-meta {} (meta m))
-               m)
-    (vector? m) (with-meta (mapv sweep m) (meta m))
-    :else m))
-
-(defn sweep-merge
-  "Do a recursive merge of source into target, but remove any target data that is marked as missing in the response. The
-  missing marker is generated in the source when something has been asked for in the query, but had no value in the
-  response. This allows us to correctly remove 'empty' data from the database without accidentally removing something
-  that may still exist on the server (in truth we don't know its status, since it wasn't asked for, but we leave
-  it as our 'best guess')"
-  [target source]
-  (reduce (fn [acc [key new-value]]
-            (let [existing-value (get acc key)]
-              (cond
-                (= key ::plumbing/not-found) acc
-                (= new-value ::plumbing/not-found) (dissoc acc key)
-                (and (futil/ident? new-value) (= ::plumbing/not-found (second new-value))) acc
-                (plumbing/leaf? new-value) (assoc acc key (sweep-one new-value))
-                (and (map? existing-value) (map? new-value)) (update acc key sweep-merge new-value)
-                :else (assoc acc key (sweep new-value))))
-            ) target source))
-
-(defn merge-handler [mutation-merge target source]
-  (let [source-to-merge (->> source
-                          (filter (fn [[k _]] (not (symbol? k))))
-                          (into {}))
-        merged-state    (sweep-merge target source-to-merge)]
-    (reduce (fn [acc [k v]]
-              (if (and mutation-merge (symbol? k))
-                (if-let [updated-state (mutation-merge acc k (dissoc v :tempids))]
-                  updated-state
-                  (do
-                    (log/info "Return value handler for" k "returned nil. Ignored.")
-                    acc))
-                acc)) merged-state source)))
-
 (defn generate-reconciler
   "The reconciler's send method calls FulcroApplication/server-send, which itself requires a reconciler with a
   send method already defined. This creates a catch-22 / circular dependency on the reconciler and :send field within
@@ -302,9 +251,9 @@
                                      :normalize   true
                                      :remotes     remotes
                                      :merge-ident (fn [reconciler app-state ident props]
-                                                    (update-in app-state ident (comp sweep-one merge) props))
+                                                    (update-in app-state ident (comp plumbing/sweep-one merge) props))
                                      :merge-tree  (fn [target source]
-                                                    (merge-handler mutation-merge target source))
+                                                    (plumbing/merge-handler mutation-merge target source))
                                      :parser      parser})
         rec                       (prim/reconciler config)]
     (reset! rec-atom rec)
