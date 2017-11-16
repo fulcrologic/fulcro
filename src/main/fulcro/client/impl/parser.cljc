@@ -205,7 +205,7 @@
              (recur (next joins) ret)
              (let [join        (cond-> join (seq? join) first)
                    join        (cond-> join (util/ident? join) (hash-map '[*]))
-                   [key sel]   (util/join-entry join)
+                   [key sel] (util/join-entry join)
                    union-entry (if (util/union? join) sel union-expr)
                    sel         (if (util/recursion? sel)
                                  (if-not (nil? union-expr)
@@ -229,16 +229,16 @@
      (if (map? data)
        (let [dispatch-key (comp :dispatch-key expr->ast)
              branches     (vals query)
-             props (map dispatch-key (keys data))
-             query (reduce (fn [ret q]
-                             (let [query-props (into #{} (map dispatch-key) q)
-                                   props (set props)]
-                               (cond
-                                 (= (set props)
-                                   (set query-props)) (reduced q)
-                                 (set/subset? props query-props) q
-                                 :else ret)))
-                     nil branches)]
+             props        (map dispatch-key (keys data))
+             query        (reduce (fn [ret q]
+                                    (let [query-props (into #{} (map dispatch-key) q)
+                                          props       (set props)]
+                                      (cond
+                                        (= (set props)
+                                          (set query-props)) (reduced q)
+                                        (set/subset? props query-props) q
+                                        :else ret)))
+                            nil branches)]
          (path-meta data path query union-expr))
        data))))
 
@@ -260,9 +260,9 @@
        (letfn [(step [ret expr]
                  (let [{query' :query :keys [key dispatch-key params] :as ast} (expr->ast expr)
                        env   (cond-> (merge env {:ast ast :query query'})
-                               (nil? query')   (dissoc :query)
+                               (nil? query') (dissoc :query)
                                (= '... query') (assoc :query query)
-                               (vector? key)   (assoc :query-root key))
+                               (vector? key) (assoc :query-root key))
                        type  (:type ast)
                        call? (= :call type)
                        res   (case type
@@ -278,7 +278,8 @@
                      (let [ast' (get res target)]
                        (cond-> ret
                          (true? ast') (conj expr)
-                         (map? ast') (conj (ast->expr ast'))))
+                         (map? ast') (conj (ast->expr ast'))
+                         (seq (:refresh res)) (vary-meta update :fulcro.client.primitives/refresh #(into (or %1 #{}) %2) (:refresh res))))
                      (if-not (or call? (nil? (:target ast)) (contains? res :value))
                        ret
                        (let [error   (atom nil)
@@ -293,13 +294,15 @@
                          (let [value (:value res)]
                            (when call?
                              (assert (or (nil? value) (map? value))
-                               (str dispatch-key " mutation :value must be nil or a map with structure {:keys [...]}")))
+                               ; FIXME: This no longer applies, but should be editing in a testing context.
+                               (str dispatch-key " mutation :value must be nil or a map with structure {:refresh [...]}")))
                            (cond-> ret
                              (not (nil? value)) (assoc (cond-> key
                                                          (util/unique-ident? key)
                                                          first)
                                                        value)
                              @mut-ret (assoc-in [key :result] @mut-ret)
+                             (seq (:refresh res)) (vary-meta update :fulcro.client.primitives/refresh #(into (or %1 #{}) %2) (:refresh res))
                              @error (assoc key {:fulcro.client.primitives/error @error}))))))))]
          (reduce step (if (nil? target) {} []) query))))))
 

@@ -547,20 +547,26 @@
 
   #### Getting a Remote Value after a Mutation
 
-  The most common direct use of `fulcro/load` is doing remote follow-on reads after a mutation (which itself may
-  be remote).
+  There are two multiple techniques for getting values from a remote. The biggest thing to understand is that
+  the mutation itself doesn't include enough information for the system to know how to merge a return value with
+  the application database. Therefore, the return values of mutations, by default, are just discarded.
 
-  Note the difference. The following follow-on read is *always* just a local re-render in Fulcro.
+  One way to fix this uses primitives you already know: `load`.  Fulcro guarantees that mutations and loads that
+  are called in the same sequence (sequential calls while you own the UI thread) are sequenced on the network so
+  that mutations go first.
 
-  If what you want instead is `do-some-thing` and the read `:something` from the *server*, you instead want:
+  This means that you can issue a load after a mutation to specifically read something from the server that you suspect
+  has changed:
 
   ```
-  (prim/transact! this '[(app/do-some-thing) (fulcro/load {:query [:something] :refresh [:something})])
+  (transact! this ...)
+  (df/load this ...)  ; as long as you don't use `:parallel true`, this will be delayed until after the remote mutation
   ```
 
-  NOTE: If you use `transact!` and `load` in the same function (e.g. on a single thread of execution), then the mutations
-  that are remote will always be queued first to the server. This means you never really need to hand-code the load
-  into the `transact!`.
+  There are two other ways to handle this kind of case, discussed elsewhere:
+
+  - Declare the return type of a remote mutation so that the result can be merged.
+  - Install a mutation-merge handler on the client to handle the return values of mutations.
 
   #### More About How it Works
 
@@ -1079,7 +1085,7 @@ TODO: CONTINUE REWRITE HERE...
   Because the global loading marker is at the top level of the application state, do not use the keyword as a follow-on
   read to mutations because it may unnecessarily trigger a re-render of the entire application.
 
-  ## Differences from stock Om (Next)
+  ## Differences from Om Next
 
   For those that are used to Om Next you may be interested in the differences and rationale behind the way Fulcro
   handles server interactions, particularly remote reads. There is no Om parser to do remote reads on the client side.
@@ -1105,6 +1111,7 @@ TODO: CONTINUE REWRITE HERE...
       - The marker essentially needed to be a state machine kind of state marker (ready to load, loading in progress,
         loading failed, data present). This was a complication that would be repeated over and over.
   - We often wanted a *global* marker to indicate when network activity was going on
+  - We wanted a better way to deal with UI refresh due to abstract data changes.
 
   By eliminating the need for an Om parser to process all of this and centralizing the logic to a core set of functions
   that handle all of these concerns you gain a lot of simplicity.

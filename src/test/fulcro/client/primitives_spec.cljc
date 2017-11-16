@@ -681,7 +681,7 @@
   (dom/div nil (dom/h3 nil title)))
 
 
-(specification "Mutation joins" :focused
+(specification "Mutation joins"
   (let [q            [{'(f {:p 1}) (prim/get-query ItemList)}]
         d            {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1 :item/value "1"}]}}
         result       (prim/merge-mutation-joins {:top-key 1} q d)

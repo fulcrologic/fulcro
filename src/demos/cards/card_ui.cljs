@@ -7,6 +7,7 @@
     cards.component-local-state-cards
     cards.colocated-css-cards
     cards.dynamic-i18n-locale-cards
+    cards.declarative-mutation-refresh
     cards.dynamic-routing-cards
     cards.defrouter-for-type-selection-cards
     cards.defrouter-list-and-editor-cards

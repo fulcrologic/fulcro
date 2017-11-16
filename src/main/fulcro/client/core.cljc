@@ -322,8 +322,6 @@
                                     explicit-state? (if initial-state initial-state {})
                                     ui-declared-state ui-declared-state
                                     :otherwise {})]
-      (when init-conflict?
-        (log/debug "NOTE: You supplied an initial state AND a root component with initial state. Using explicit state over InitialAppState!"))
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
 (defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues response-channels reconciler read-local parser mounted? reconciler-options]
