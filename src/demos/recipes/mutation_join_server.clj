@@ -4,7 +4,8 @@
             [taoensso.timbre :as timbre]
             [fulcro.easy-server :as core]
             [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
-            [fulcro.client.impl.parser :as op]))
+            [fulcro.client.impl.parser :as op]
+            [fulcro.util :as util]))
 
 (defquery-root :mutation-join-list
   (value [env {:keys [kind]}]
@@ -17,4 +18,4 @@
 
 (defmutation cards.mutation-join-cards/change-label [{:keys [db/id item/value]}]
   (action [env]
-    {:db/id id :item/value value}))
+    {:db/id id :item/value (str (util/unique-key))}))
