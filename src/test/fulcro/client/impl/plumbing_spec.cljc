@@ -4,6 +4,9 @@
     [fulcro.client.impl.plumbing :as impl]
     [fulcro.i18n :as i18n]
     [clojure.core.async :as async]
+    [fulcro.client.core :refer [defsc]]
+    [fulcro.client.dom :as dom]
+    [fulcro.util :as util]
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [clojure.test :refer [is are]]))
 
@@ -340,3 +343,121 @@
         (impl/mark-missing {:a [{:x {:data 1}} {:y {:data 2}}]} [{:a {:b [:x] :c [:y]}}]) =fn=> (has-leaves [[:a 0 :x] [:a 1 :y]])
         "unions leaves data in place when the result is empty"
         (impl/mark-missing {:a 1} [:a {:z {:b [:x] :c [:y]}}]) =fn=> (has-leaves [[:a]])))))
+
+(specification "Sweep one"
+  (assertions
+    "removes not-found values from maps"
+    (impl/sweep-one {:a 1 :b ::impl/not-found}) => {:a 1}
+    "is not recursive"
+    (impl/sweep-one {:a 1 :b {:c ::impl/not-found}}) => {:a 1 :b {:c ::impl/not-found}}
+    "maps over vectors not recursive"
+    (impl/sweep-one [{:a 1 :b ::impl/not-found}]) => [{:a 1}]
+    "retains metadata"
+    (-> (impl/sweep-one (with-meta {:a 1 :b ::impl/not-found} {:meta :data}))
+      meta) => {:meta :data}
+    (-> (impl/sweep-one [(with-meta {:a 1 :b ::impl/not-found} {:meta :data})])
+      first meta) => {:meta :data}
+    (-> (impl/sweep-one (with-meta [{:a 1 :b ::impl/not-found}] {:meta :data}))
+      meta) => {:meta :data}))
+
+(specification "Sweep merge"
+  (assertions
+    "recursively merges maps"
+    (impl/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c 5}) => {:a 2 :c 5}
+    (impl/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:x 1}}) => {:a 2 :c {:b 2 :x 1}}
+    "stops recursive merging if the source element is marked as a leaf"
+    (impl/sweep-merge {:a 1 :c {:d {:x 2} :e 4}} {:a 2 :c (impl/as-leaf {:d {:x 1}})}) => {:a 2 :c {:d {:x 1}}}
+    "sweeps values that are marked as not found"
+    (impl/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:b ::impl/not-found}}) => {:a 2 :c {}}
+    (impl/sweep-merge {:a 1 :c 2} {:a 2 :c {:b ::impl/not-found}}) => {:a 2 :c {}}
+    (impl/sweep-merge {:a 1 :c 2} {:a 2 :c [{:x 1 :b ::impl/not-found}]}) => {:a 2 :c [{:x 1}]}
+    (impl/sweep-merge {:a 1 :c {:data-fetch :loading}} {:a 2 :c [{:x 1 :b ::impl/not-found}]}) => {:a 2 :c [{:x 1}]}
+    (impl/sweep-merge {:a 1 :c nil} {:a 2 :c [{:x 1 :b ::impl/not-found}]}) => {:a 2 :c [{:x 1}]}
+    (impl/sweep-merge {:a 1 :b {:c {:ui/fetch-state {:post-mutation 's}}}} {:a 2 :b {:c [{:x 1 :b ::impl/not-found}]}}) => {:a 2 :b {:c [{:x 1}]}}
+    "clears normalized table entries that has an id of not found"
+    (impl/sweep-merge {:table {1 {:a 2}}} {:table {::impl/not-found {:db/id ::impl/not-found}}}) => {:table {1 {:a 2}}}
+    "clears idents whose ids were not found"
+    (impl/sweep-merge {} {:table {1 {:db/id 1 :the-thing [:table-1 ::impl/not-found]}}
+                         :thing [:table-2 ::impl/not-found]}) => {:table {1 {:db/id 1}}}
+    "sweeps not-found values from normalized table merges"
+    (impl/sweep-merge {:subpanel  [:dashboard :panel]
+                      :dashboard {:panel {:view-mode :detail :surveys {:ui/fetch-state {:post-mutation 's}}}}
+                      }
+      {:subpanel  [:dashboard :panel]
+       :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
+       :s         {
+                   1 {:db/id 1, :survey/launch-date ::impl/not-found}
+                   2 {:db/id 2, :survey/launch-date "2012-12-22"}
+                   }}) => {:subpanel  [:dashboard :panel]
+                           :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
+                           :s         {
+                                       1 {:db/id 1}
+                                       2 {:db/id 2 :survey/launch-date "2012-12-22"}
+                                       }}
+    "overwrites target (non-map) value if incoming value is a map"
+    (impl/sweep-merge {:a 1 :c 2} {:a 2 :c {:b 1}}) => {:a 2 :c {:b 1}}))
+
+(specification "Merge handler"
+  (let [swept-state                       {:state 1}
+        data-response                     {:v 1}
+        mutation-response                 {'f {:x 1 :tempids {1 2}} 'g {:y 2}}
+        mutation-response-without-tempids (update mutation-response 'f dissoc :tempids)
+        response                          (merge data-response mutation-response)
+        rh                                (fn [state k v]
+                                            (assertions
+                                              "return handler is passed the swept state as a map"
+                                              state => swept-state
+                                              "tempids are stripped from return value before calling handler"
+                                              (:tempids v) => nil)
+                                            (vary-meta state assoc k v))]
+    (when-mocking
+      (impl/sweep-merge t s) => (do
+                                 (assertions
+                                   "Passes source, cleaned of symbols, to sweep-merge"
+                                   s => {:v 1})
+                                 swept-state)
+
+      (let [actual (impl/merge-handler rh {} response)]
+        (assertions
+          "Returns the swept state reduced over the return handlers"
+          ;; Function under test:
+          actual => swept-state
+          (meta actual) => mutation-response-without-tempids)))))
+
+(defsc Item [this {:keys [db/id item/value]} _ _]
+  {:query [:db/id :item/value]
+   :ident [:item/by-id :db/id]}
+  (dom/li nil value))
+
+(defsc ItemList [this {:keys [db/id list/title list/items] :as props} _ _]
+  {:query [:db/id :list/title {:list/items (prim/get-query Item)}]
+   :ident [:list/by-id :db/id]}
+  (dom/div nil (dom/h3 nil title)))
+
+
+(specification "Mutation joins" :focused
+  (let [q            [{'(f {:p 1}) (prim/get-query ItemList)}]
+        d            {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1 :item/value "1"}]}}
+        result       (impl/merge-mutation-joins {:top-key 1} q d)
+
+        existing-db  {:item/by-id {1 {:db/id 1 :item/value "1"}}}
+        missing-data {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1}]}}
+        result-2     (impl/merge-mutation-joins existing-db q missing-data)]
+    (assertions
+      "mutation responses are merged"
+      result => {:top-key    1
+                 :list/by-id {1 {:db/id 1 :list/title "A" :list/items [[:item/by-id 1]]}}
+                 :item/by-id {1 {:db/id 1 :item/value "1"}}}
+      "mutation responses do proper sweep merge"
+      result-2 => {:list/by-id {1 {:db/id 1 :list/title "A" :list/items [[:item/by-id 1]]}}
+                   :item/by-id {1 {:db/id 1}}}))
+  (let [mj {'(f {:p 1}) [:a]}]
+    (assertions
+      "Detects mutation joins as joins"
+      (util/join? mj) => true
+      "give the correct join key for mutation joins"
+      (util/join-key mj) => 'f
+      "give the correct join value for mutation joins"
+      (util/join-value mj) => [:a])))
+
+

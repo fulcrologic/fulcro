@@ -216,9 +216,6 @@
        (let [config (:config reconciler)
              merge* (:merge config)
              {:keys [keys next tempids]} (merge* reconciler @state data-tree query)]
-         ;(log/info "query: " query)
-         ;(log/info "data-tree: " data-tree)
-         ;(log/info "component: " (-> query first vals first meta :component))
          (p/queue! reconciler keys remote)
          (reset! state
            (if-let [migrate (:migrate config)]

@@ -181,7 +181,7 @@
                   (let [k       (util/join-key element)
                         result' (get result k)]
                     (cond
-                      (nil? result') (assoc result k ::not-found)
+                      (nil? result') (assoc result k ::not-found) ; TODO: Is this right? Or, should it just be `result`?
                       (vector? result') (assoc result k (mapv (fn [item] (mark-missing item query)) result'))
                       :otherwise (assoc result k (mark-missing result' query))))
 
@@ -228,3 +228,78 @@
 
                   :else result))) result query)))
 
+(defn sweep-one "Remove not-found keys from m (non-recursive)" [m]
+  (cond
+    (map? m) (reduce (fn [acc [k v]]
+                       (if (or (= ::not-found k) (= ::not-found v))
+                         acc
+                         (assoc acc k v)))
+               (with-meta {} (meta m)) m)
+    (vector? m) (with-meta (mapv sweep-one m) (meta m))
+    :else m))
+
+(defn sweep "Remove all of the not-found keys (recursively) from v, stopping at marked leaves (if present)"
+  [m]
+  (cond
+    (leaf? m) (sweep-one m)
+    (map? m) (reduce (fn [acc [k v]]
+                       (cond
+                         (or (= ::not-found k) (= ::not-found v)) acc
+                         (and (util/ident? v) (= ::not-found (second v))) acc
+                         :otherwise (assoc acc k (sweep v))))
+               (with-meta {} (meta m))
+               m)
+    (vector? m) (with-meta (mapv sweep m) (meta m))
+    :else m))
+
+(defn sweep-merge
+  "Do a recursive merge of source into target, but remove any target data that is marked as missing in the response. The
+  missing marker is generated in the source when something has been asked for in the query, but had no value in the
+  response. This allows us to correctly remove 'empty' data from the database without accidentally removing something
+  that may still exist on the server (in truth we don't know its status, since it wasn't asked for, but we leave
+  it as our 'best guess')"
+  [target source]
+  (reduce (fn [acc [key new-value]]
+            (let [existing-value (get acc key)]
+              (cond
+                (= key ::not-found) acc
+                (= new-value ::not-found) (dissoc acc key)
+                (and (util/ident? new-value) (= ::not-found (second new-value))) acc
+                (leaf? new-value) (assoc acc key (sweep-one new-value))
+                (and (map? existing-value) (map? new-value)) (update acc key sweep-merge new-value)
+                :else (assoc acc key (sweep new-value))))
+            ) target source))
+
+(defn merge-handler
+  "Handle merging incoming data, but be sure to sweep it of values that are marked missing. Also triggers the given mutation-merge
+  if available."
+  [mutation-merge target source]
+  (let [source-to-merge (->> source
+                          (filter (fn [[k _]] (not (symbol? k))))
+                          (into {}))
+        merged-state    (sweep-merge target source-to-merge)]
+    (reduce (fn [acc [k v]]
+              (if (and mutation-merge (symbol? k))
+                (if-let [updated-state (mutation-merge acc k (dissoc v :tempids))]
+                  updated-state
+                  (do
+                    (log/info "Return value handler for" k "returned nil. Ignored.")
+                    acc))
+                acc)) merged-state source)))
+
+
+(defn merge-mutation-joins
+  "Merge all of the mutations that were joined with a query"
+  [state query data-tree]
+  (reduce (fn [s query-element]
+            (let [k       (and (util/mutation-join? query-element) (util/join-key query-element))
+                  subtree (get data-tree k)]
+              (if (and k subtree)
+                (let [subquery         (util/join-value query-element)
+                      idnt             ::temporary-key
+                      norm-query       [{idnt subquery}]
+                      norm-tree        {idnt subtree}
+                      norm-tree-marked (mark-missing norm-tree norm-query)
+                      db-fragment      (dissoc (prim/tree->db norm-query norm-tree-marked true) idnt)]
+                  (sweep-merge s db-fragment))
+                s))) state query))

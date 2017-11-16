@@ -50,6 +50,9 @@
 (defn join-value [join]
   (second (join-entry join)))
 
+(defn mutation-join? [expr]
+  (and (join? expr) (symbol? (join-key expr))))
+
 (defn unique-ident?
   #?(:cljs {:tag boolean})
   [x]
