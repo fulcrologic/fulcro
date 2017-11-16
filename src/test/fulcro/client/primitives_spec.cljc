@@ -5,6 +5,7 @@
             [fulcro.client.dom :as dom]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
+            [fulcro.client.core :refer [defsc]]
             [clojure.spec.gen.alpha :as gen]
             [clojure.spec.test.alpha :as check]
             [clojure.test.check.properties :as prop]
