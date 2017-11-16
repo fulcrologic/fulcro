@@ -15,16 +15,18 @@
 to-many collections (see the doc string).
 - Improved start-up failure messages for server related to configuration files.
 - BREAKING CHANGE: load-action and load-field-action require the env (they used to allow env or just the state atom).
-
 - Added a new history system with the following improvements
-    - The history sequence is now a unidirectional list of nodes whose edges are annotated with the action
-    that affected the change, along with other metadata that is necessary to support real
-    history navigation. This improves debugging abilities dramatically.
+    - The history sequence is now a unidirectional list of nodes that are annotated with the action
+    that affected the change, db-before, db-after, and also with live tracking of network activity relating
+    to state changes. This improves debugging abilities dramatically, and also enables better internal
+    automated error recovery.
     - Added support for compressible history edges. This allows adjacent history entries to auto-compress into the most recent.
     - Added a better API for accessing and navigating history
+- Added support for client mutations to declare a refresh set so that UI follow-on reads are no longer necessary.
+- Added more examples in demos
+
 - Added support for auto-recovery from network issues. This can dramatically reduce
 the amount of error handling code you need to write.
-- Added more examples in demos
 
 1.2.0
 -----
