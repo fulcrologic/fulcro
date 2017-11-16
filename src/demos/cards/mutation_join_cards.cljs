@@ -8,15 +8,17 @@
             [fulcro.client.core :as fc :refer [defsc]]
             [fulcro.client.data-fetch :as df]))
 
-(defmutation change-label [{:keys [label]}]
-  (remote [env] true))
+(defmutation change-label [{:keys [db/id]}]
+  (remote [{:keys [ast state]}]
+    (-> ast
+      (m/returning state Item)
+      (m/with-params {:db/id id}))))
 
 (defsc Item [this {:keys [db/id item/value]} _ _]
   {:query [:db/id :item/value]
    :ident [:item/by-id :db/id]}
   (dom/li #js {:onClick (fn [evt]
-                          (prim/transact! this `[{(change-label {:db/id ~id :item/value "X"})
-                                                  ~(prim/get-query Item)}]))} value))
+                          (prim/transact! this `[(change-label {:db/id ~id})]))} value))
 
 (def ui-item (prim/factory Item {:keyfn :db/id}))
 

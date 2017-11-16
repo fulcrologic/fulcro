@@ -229,7 +229,6 @@
   (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
     (assertions
       "Returns an AST with the corresponding query for the type"
-      ;; FIXME: Is this right? Not sure what a mutation gets...
       (m/returning ast {} Item) => {:dispatch-key 'f
                                     :key          'f
                                     :params       {:x 1}
@@ -247,8 +246,7 @@
   (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
     (assertions
       "Returns an AST with the parameters updated"
-      ;; FIXME: Is this right? Not sure what a mutation gets...
       (m/with-params ast {:y 2}) => {:dispatch-key 'f
-                              :key          'f
-                              :params       {:y 2}
-                              :type         :call})))
+                                     :key          'f
+                                     :params       {:y 2}
+                                     :type         :call})))
