@@ -238,3 +238,20 @@
        (let [history (prim/get-history reconciler)
              params  (assoc params :history history)]
          (assoc ast :params params)))))
+
+(defn returning
+  "Indicate the the remote operation will return a value of the given component type. The server-side mutation need
+  simply return a tree matching that component's query and it will auto-merge into state. The ast param MUST be a query ast
+  containing exactly one mutation that is *not* already a mutation join. The state is required for looking up dynamic queries, and
+  may be nil if you use only static queries."
+  [ast state class]
+  {:pre [(symbol? (-> ast :key))]}
+  (let [{:keys [key params]} ast]
+    (-> (prim/query->ast `[{(~key ~params) ~(prim/get-query class state)}])
+      :children
+      first)))
+
+(defn with-params
+  "Modify an AST containing a single mutation, changing it's parameters to those given as an argument."
+  [ast params]
+  (assoc ast :params params))

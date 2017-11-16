@@ -5,6 +5,8 @@
     [goog.debug.Logger.Level :as level]
     [fulcro.i18n :as i18n]
     [fulcro.client.impl.data-fetch :as df]
+    [fulcro.client.core :refer [defsc]]
+    [fulcro.client.dom :as dom]
     [goog.log :as glog]
     [fulcro.client.primitives :as prim]
     [clojure.test :refer [is]]
@@ -45,8 +47,8 @@
       (behavior "can set a raw value"
         (when-mocking
           (prim/transact! _ tx) => (let [tx-key (ffirst tx)
-                                       params   (second (first tx))]
-                                   ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
+                                         params (second (first tx))]
+                                     ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
 
           (let [get-data #(-> @state :baz :1 :2)]
             (is (= 3 (get-data)))
@@ -87,8 +89,8 @@
     (component "toggle!"
       (when-mocking
         (prim/transact! _ tx) => (let [tx-key (ffirst tx)
-                                     params   (second (first tx))]
-                                 ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
+                                       params (second (first tx))]
+                                   ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
 
         (behavior "can toggle a boolean value"
           (m/toggle! '[:baz :1] :4)
@@ -99,8 +101,8 @@
 (specification "Mutations via transact"
   (let [state      {}
         parser     (partial (prim/parser {:read (partial app/read-local (constantly false)) :mutate m/mutate}))
-        reconciler (prim/reconciler {:state state
-                                   :parser  parser})]
+        reconciler (prim/reconciler {:state  state
+                                     :parser parser})]
     (behavior "report an error if an undefined multi-method is called."
       (when-mocking
         (log/error msg) => (is (re-find #"Unknown app state mutation." msg))
@@ -217,3 +219,36 @@
       (assertions
         "is remote"
         (:remote result) => true))))
+
+(defsc Item [this props _ _]
+  {:query [:db/id :x]
+   :ident [:table/id :db/id]}
+  (dom/div nil ""))
+
+(specification "Remote returning (declaring return value for a remote operation)" :focused
+  (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
+    (assertions
+      "Returns an AST with the corresponding query for the type"
+      ;; FIXME: Is this right? Not sure what a mutation gets...
+      (m/returning ast {} Item) => {:dispatch-key 'f
+                                    :key          'f
+                                    :params       {:x 1}
+                                    :type         :call
+                                    :query        [:db/id :x]
+                                    :component    fulcro.client.mutations-spec/Item
+                                    :children     [{:type         :prop
+                                                    :dispatch-key :db/id
+                                                    :key          :db/id}
+                                                   {:type         :prop
+                                                    :dispatch-key :x
+                                                    :key          :x}]})))
+
+(specification "Remote with-params (modify remote params)" :focused
+  (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
+    (assertions
+      "Returns an AST with the parameters updated"
+      ;; FIXME: Is this right? Not sure what a mutation gets...
+      (m/with-params ast {:y 2}) => {:dispatch-key 'f
+                              :key          'f
+                              :params       {:y 2}
+                              :type         :call})))
