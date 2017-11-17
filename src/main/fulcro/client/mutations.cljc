@@ -234,7 +234,7 @@
      :comment from the user. You should add whatever identity makes sense for tracking."
      [params]
      (remote [{:keys [reconciler state ast]}]
-       (let [history (prim/get-history reconciler)
+       (let [history (-> reconciler (prim/get-history) deref)
              params  (assoc params :history history)]
          (assoc ast :params params)))))
 
