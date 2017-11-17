@@ -1,3 +1,7 @@
+1.1.1
+-----
+- Fixed assert/async bug
+
 1.1.0
 -----
 - Added support for shadow DOM (for browsers that support it)

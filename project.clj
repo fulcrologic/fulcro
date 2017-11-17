@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "1.1.0"
+(defproject fulcrologic/fulcro "1.1.1"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -98,7 +98,6 @@
                 :compiler     {:main          fulcro-devguide.guide
                                :asset-path    "js"
                                :optimizations :advanced
-                               :elide-asserts false ; IMPORTANT: core.async 0.3.443 seems to have a bug when you elide asserts
                                :devcards      true
                                :output-to     "docs/js/guide.js"
                                :output-dir    "docs/js"
