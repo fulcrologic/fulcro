@@ -12,12 +12,12 @@
   #?(:clj (st/->TransitPacker :json
                               {:handlers (cond-> {TempId (ot/->TempIdHandler)}
                                            write (merge write))}
-                              {:handlers (cond-> {"prim/id" (reify
+                              {:handlers (cond-> {"fulcro/tempid" (reify
                                                             ReadHandler
                                                             (fromRep [_ id] (TempId. id)))}
                                            read (merge read))})
      :cljs (st/->TransitPacker :json
                                {:handlers (cond-> {TempId (ot/->TempIdHandler)}
                                             write (merge write))}
-                               {:handlers (cond-> {"prim/id" (fn [id] (tempid/tempid id))}
+                               {:handlers (cond-> {"fulcro/tempid" (fn [id] (tempid/tempid id))}
                                             read (merge read))})))
