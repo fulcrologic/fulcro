@@ -78,7 +78,7 @@
   (loop [entry (async/poll! queue) entries []]
     (cond
       entry (recur (async/poll! queue) (conj entries (resolve-tempids entry tempid-map)))
-      (seq entries) (doseq [e entries] (assert (async/offer! queue e) "Queue should not block.")))))
+      (seq entries) (doseq [e entries] (when-not (async/offer! queue e) (log/error "Offer failed to enqueue a value."))))))
 
 (defn remove-loads-and-fallbacks
   "Removes all fulcro/load and tx/fallback mutations from the query"
