@@ -6,7 +6,6 @@
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
                  [org.clojure/clojurescript "1.9.946" :scope "provided"]
 
-                 [org.clojure/data.json "0.2.6" :scope "provided" :classifier "aot"]
                  [cljsjs/react "15.6.2-0"]
                  [cljsjs/react-dom "15.6.2-0"]
                  [com.cognitect/transit-clj "0.8.300"]
@@ -118,35 +117,35 @@
                {:id           "devguide"
                 :figwheel     {:devcards true}
                 :source-paths ["src/main" "src/devguide"]
-                :compiler     {:main           fulcro-devguide.guide
-                               :asset-path     "js/devguide"
-                               :devcards       true
-                               :output-to      "resources/public/js/devguide.js"
-                               :output-dir     "resources/public/js/devguide"
-                               :preloads       [devtools.preload]
+                :compiler     {:main         fulcro-devguide.guide
+                               :asset-path   "js/devguide"
+                               :devcards     true
+                               :output-to    "resources/public/js/devguide.js"
+                               :output-dir   "resources/public/js/devguide"
+                               :preloads     [devtools.preload]
                                ;:parallel-build true
-                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
-                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
+                               :foreign-libs [{:provides ["cljsjs.codemirror.addons.closebrackets"]
+                                               :requires ["cljsjs.codemirror"]
+                                               :file     "resources/public/codemirror/closebrackets-min.js"}
+                                              {:provides ["cljsjs.codemirror.addons.matchbrackets"]
+                                               :requires ["cljsjs.codemirror"]
+                                               :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "i18n-extraction"
                 :source-paths ["src/main" "src/test"]
-                :compiler     {:output-to      "i18n/i18n.js"
-                               :main           fulcro.automated-test-main
-                               :output-dir     "resources/private/js/i18n"
-                               :asset-path     "js/i18n"
+                :compiler     {:output-to     "i18n/i18n.js"
+                               :main          fulcro.automated-test-main
+                               :output-dir    "resources/private/js/i18n"
+                               :asset-path    "js/i18n"
                                ;:parallel-build true
-                               :optimizations  :whitespace}}
+                               :optimizations :whitespace}}
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
-                :compiler     {:output-to      "resources/private/js/unit-tests.js"
-                               :main           fulcro.automated-test-main
-                               :output-dir     "resources/private/js/unit-tests"
-                               :asset-path     "js/unit-tests"
+                :compiler     {:output-to     "resources/private/js/unit-tests.js"
+                               :main          fulcro.automated-test-main
+                               :output-dir    "resources/private/js/unit-tests"
+                               :asset-path    "js/unit-tests"
                                ;:parallel-build true
-                               :optimizations  :none}}]}
+                               :optimizations :none}}]}
 
   :profiles {:production {:source-paths ["src/main" "src/devguide"]
                           :dependencies [[devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
