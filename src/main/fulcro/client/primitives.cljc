@@ -2329,10 +2329,11 @@
         xs                 (cond-> declared-refreshes
                              (not (nil? c)) (conj c)
                              (not (nil? ref)) (conj ref))
-        history-step       {::hist/tx        tx
-                            ::hist/tx-result v
-                            ::hist/db-before old-state
-                            ::hist/db-after  new-state}]
+        history-step       {::hist/tx          (if (transit/serializable? tx) tx :NOT-SERIALIZABLE)
+                            ::hist/tx-result   (if (transit/serializable? v) v :NOT-SERIALIZABLE)
+                            ::hist/client-time #?(:cljs (js/Date.) :clj (java.util.Date.))
+                            ::hist/db-before   old-state
+                            ::hist/db-after    new-state}]
     ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
     (when history
       (swap! history hist/record-history-step tx-time history-step))

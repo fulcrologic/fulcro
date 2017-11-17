@@ -62,6 +62,18 @@
             ReadHandler
             (fromRep [_ id] (TempId. id))))))))
 
+(defn serializable?
+  "Checks to see that the value in question can be serialized by the default fulcro writer."
+  [v]
+  #?(:clj  (try
+             (.write (writer (java.io.ByteArrayOutputStream.)) v)
+             true
+             (catch Exception e false))
+     :cljs (try
+             (.write (writer) v)
+             true
+             (catch :default e false))))
+
 (comment
   ;; cljs
   (t/read (reader) (t/write (writer) (tempid/tempid)))

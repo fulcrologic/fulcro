@@ -7,13 +7,18 @@
 
 ;; FIXME: Logging should be a leaf, so we can refer to it...but the import of Om kind of breaks things...
 
+(defn is-timestamp? [t]
+  #?(:clj  (instance? java.util.Date t)
+     :cljs (instance? js/Date t)))
+
 (s/def ::max-size pos-int?)
 (s/def ::db-before map?)
 (s/def ::db-after map?)
+(s/def ::client-time is-timestamp?)
 (s/def ::tx vector?)
 (s/def ::tx-result (s/or :nil nil? :map map?))
 (s/def ::network-sends (s/map-of keyword? vector?))         ; map of sends that became active due to this tx
-(s/def ::history-step (s/keys :req [::db-after ::db-before] :opt [::tx ::tx-result :fulcro.client.impl.data-fetch/network-result ::network-sends]))
+(s/def ::history-step (s/keys :req [::db-after ::db-before] :opt [::tx ::tx-result :fulcro.client.impl.data-fetch/network-result ::network-sends ::client-time]))
 (s/def ::history-steps (s/map-of int? ::history-step))
 (s/def ::active-remotes (s/map-of keyword? set?))           ; map of remote to the tx-time of any send(s) that are still active
 (s/def ::history (s/keys :opt [::active-remotes] :req [::max-size ::history-steps]))
@@ -86,7 +91,8 @@
 
 (defn record-history-step
   "Record a history step in the reconciler. "
-  [{:keys [::active-remotes ::max-size ::history-steps] :as history} tx-time {:keys [::tx ::network-result ::network-sends ::db-before ::db-after] :as step}]
+  [{:keys [::active-remotes ::max-size ::history-steps] :as history} tx-time
+   {:keys [::tx ::network-result ::network-sends ::db-before ::db-after] :as step}]
   (let [last-time     (last-tx-time history)
         gc?           (= 0 (mod tx-time 10))
         last-tx       (get-in history-steps [last-time ::tx] [])
@@ -149,10 +155,14 @@
      :history     history
      :index       (dec (count steps))}))
 
+(declare current-step)
+
 (defn nav-position
-  "Gives back navigation position as a paid [n m]"
+  "Gives back navigation position as a pair [current-index count-of-steps]"
   [history-nav]
-  [(:index history-nav) (count (:legal-steps history-nav))])
+  (zipmap [:index :client-time :frames] [(:index history-nav)
+                                         (some-> (current-step history-nav) ::client-time)
+                                         (count (:legal-steps history-nav))]))
 
 (defn focus-next
   "Returns a new history navigation with the focus on the next step (or the last if already there). See history-navigator"
