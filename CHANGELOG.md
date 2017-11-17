@@ -1,6 +1,11 @@
 1.1.0
 -----
 - Added support for shadow DOM (for browsers that support it)
+- Fixed typo in forms on maxLength
+- Added support for FormatJS custom formats (trf). No SSR support for now.
+- Upgraded IntlMessageFormat to version 2.2.0
+- Added support for params and refresh list in on-form-change
+- Added explicit elide-asserts false to project because of core-async bug
 
 1.0.0
 -----

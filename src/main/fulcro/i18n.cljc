@@ -1,15 +1,32 @@
 (ns fulcro.i18n
   ;; IMPORTANT: DO NOT REQUIRE A BUNCH OF STUFF HERE!!! It can adversely affect code splitting, since translations have to pull this NS in in order to complete loads
   #?(:cljs (:require-macros fulcro.i18n))
-  #?(:cljs (:require yahoo.intl-messageformat-with-locales))
+  (:require
+    [fulcro.client.logging :as log]
+    #?(:cljs yahoo.intl-messageformat-with-locales))
   #?(:clj
      (:import (com.ibm.icu.text MessageFormat)
               (java.util Locale))))
 
 (def ^:dynamic *current-locale* (atom "en-US"))
 (def ^:dynamic *loaded-translations* (atom {}))
+(def ^:dynamic *custom-formats* (atom nil))
 (defn current-locale [] @*current-locale*)
 (defn translations-for-locale [] (get @*loaded-translations* (current-locale)))
+
+#?(:clj
+   (defn merge-custom-formats [formats]
+     (log/warn "I18N: Custom formats not supported on the server!"))
+   :cljs
+   (defn merge-custom-formats
+     "Merges the given formats into the supported custom formats. See https://formatjs.io/guides/message-syntax/#custom-formats
+     for more information on the structure of custom formats.
+
+     IMPORTANT: `formats` must be a clj/cljs map. It will be converted to the proper JS object behind the scenes during
+     translation."
+     [formats]
+     {:pre [(map? formats)]}
+     (swap! *custom-formats* merge formats)))
 
 ;; This set of constructions probably looks pretty screwy. In order for xgettext to work right, it
 ;; must see `tr("hello")` in the output JS, but by default the compiler outputs a call(tr, args)
@@ -49,9 +66,12 @@
 
 #?(:clj
    (defn trf-ssr
-     [fmt & {:keys [] :as args}]
+     [fmt & rawargs]
      (try
-       (let [argmap       (into {} (map (fn [[k v]] [(name k) v]) args))
+       (let [args         (if (and (map? (first rawargs)) (= 1 (count rawargs)))
+                            (first rawargs)
+                            (into {} (mapv vec (partition 2 rawargs))))
+             argmap       (into {} (map (fn [[k v]] [(name k) v]) args))
              msg-key      (str "|" fmt)
              translations (translations-for-locale)
              translation  (get translations msg-key fmt)
@@ -60,12 +80,20 @@
        (catch Exception e "???")))
    :cljs
    (set! js/trf
-     (fn trf [fmt & {:keys [] :as argmap}]
+     (fn trf [fmt & args]
        (try
-         (let [msg-key      (str "|" fmt)
-               translations (translations-for-locale)
-               translation  (get translations msg-key fmt)
-               formatter    (js/IntlMessageFormat. translation (current-locale))]
+         (js/console.log args)
+         (let [argmap         (if (and (map? (first args)) (= 1 (count args)))
+                                (first args)
+                                (into {} (mapv vec (partition 2 args))))
+               msg-key        (str "|" fmt)
+               translations   (translations-for-locale)
+               translation    (get translations msg-key fmt)
+               custom-formats (when @*custom-formats* (clj->js @*custom-formats*))
+               _              (js/console.log custom-formats)
+               formatter      (if custom-formats
+                                (js/IntlMessageFormat. translation (current-locale) custom-formats)
+                                (js/IntlMessageFormat. translation (current-locale)))]
            (.format formatter (clj->js argmap)))
          (catch :default e "???")))))
 

@@ -70,7 +70,9 @@
       (trf s) =fn=> (fn [s] (re-matches #".*on line [1-9][0-9]* in fulcro.i18n-spec" s))))
   (assertions
     "accepts a sequence of k/v pairs as arguments to the format"
-    (trf "A {a} B {name}" :a 1 :name "Sam") => "A 1 B Sam")
+    (trf "A {a} B {name}" :a 1 :name "Sam") => "A 1 B Sam"
+    "accepts a single map as arguments to the format"
+    (trf "A {a} B {name}" {:a 1 :name "Sam"}) => "A 1 B Sam")
   (assertions "formats numbers - US"
     (trf "{a, number}" :a 18349) => "18,349")
   (assertions
@@ -106,3 +108,10 @@
       (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n 2) => "2"
       (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n 146) => "146")))
 
+#?(:cljs
+   (specification "Formatted Message Customization" :focused
+     (i18n/merge-custom-formats {:number {:USD {:style "currency", :currency "USD"}}})
+
+     (assertions
+       "works for cljs trf"
+       (trf "Test: {amount,number,USD}" :amount 44.55543) => "Test: $44.56")))
