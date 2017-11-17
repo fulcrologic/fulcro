@@ -1,11 +1,11 @@
-(defproject fulcrologic/fulcro "1.1.0-SNAPSHOT"
+(defproject fulcrologic/fulcro "1.1.0"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
                  [org.clojure/clojurescript "1.9.946" :scope "provided"]
-                 [clojure-future-spec "1.9.0-beta2"]
+                 [clojure-future-spec "1.9.0-beta4"]
                  [org.omcljs/om "1.0.0-beta1"]
                  [http-kit "2.2.0"]
                  [ring/ring-core "1.6.2" :exclusions [commons-codec]]
@@ -13,10 +13,10 @@
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.10.0"]
                  [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
-                 [com.ibm.icu/icu4j "58.2"]                 ; needed for i18n on server-side rendering
+                 [com.ibm.icu/icu4j "59.1"]                 ; needed for i18n on server-side rendering
                  [bidi "2.1.2"]
                  [com.taoensso/sente "1.11.0"]
-                 [garden "1.3.2"]
+                 [garden "1.3.3"]
 
                  [fulcrologic/fulcro-spec "1.0.0" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.7" :scope "test"]
@@ -31,8 +31,8 @@
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target"]
 
   :plugins [[lein-cljsbuild "1.1.7"]
-            [lein-doo "0.1.7"]
-            [com.jakemccrary/lein-test-refresh "0.19.0"]]
+            [lein-doo "0.1.8"]
+            [com.jakemccrary/lein-test-refresh "0.21.1"]]
 
   :test-refresh {:report       fulcro-spec.reporters.terminal/fulcro-report
                  :changes-only false
@@ -149,25 +149,26 @@
                                          [fulcrologic/fulcro-css "1.0.0"] ; demos
                                          [com.rpl/specter "1.0.2"] ; only used in demos
                                          [org.flywaydb/flyway-core "4.2.0"]
-                                         [com.layerware/hugsql "0.4.7"]
+                                         [com.layerware/hugsql "0.4.8"]
                                          [org.clojure/tools.namespace "0.3.0-alpha4"]
                                          [cljsjs/codemirror "5.8.0-0"]
                                          [org.clojure/tools.nrepl "0.2.13"]]}
              :dev        {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
                           :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                          :dependencies [[binaryage/devtools "0.9.4"]
+                          :dependencies [[binaryage/devtools "0.9.7"]
                                          [devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
                                          [fulcrologic/fulcro-css "1.0.0"] ; demos
-                                         [fulcrologic/fulcro-sql "0.0.1"] ; demos
+                                         [fulcrologic/fulcro-sql "0.2.0"] ; demos
+                                         [org.clojure/java.jdbc "0.7.3"] ; pinned dependency
                                          [org.postgresql/postgresql "42.1.4"] ; demos
-                                         [com.cemerick/piggieback "0.2.1"]
-                                         [figwheel-sidecar "0.5.13"]
+                                         [com.cemerick/piggieback "0.2.2"]
+                                         [figwheel-sidecar "0.5.14"]
                                          [cljsjs/d3 "3.5.7-1"]
                                          [cljsjs/victory "0.9.0-0"]
                                          [hickory "0.7.1"]
                                          [com.rpl/specter "1.0.2"] ; only used in demos
                                          [org.flywaydb/flyway-core "4.2.0"]
-                                         [com.layerware/hugsql "0.4.7"]
+                                         [com.layerware/hugsql "0.4.8"]
                                          [org.clojure/tools.namespace "0.3.0-alpha4"]
                                          [cljsjs/codemirror "5.8.0-0"]
                                          [org.clojure/tools.nrepl "0.2.13"]]}})
