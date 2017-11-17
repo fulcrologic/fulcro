@@ -1537,7 +1537,8 @@
   (loop [entry (async/poll! queue) entries []]
     (cond
       entry (recur (async/poll! queue) (conj entries (resolve-tempids entry tempid-map)))
-      (seq entries) (doseq [e entries] (assert (async/offer! queue e) "Queue should not block.")))))
+      (seq entries) (doseq [e entries] (when-not (async/offer! queue e)
+                                         (log/error "Unable to put request back on network queue during tempid rewrite!"))))))
 
 (declare query->ast ast->query)
 
