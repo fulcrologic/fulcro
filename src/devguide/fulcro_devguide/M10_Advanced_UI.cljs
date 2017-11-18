@@ -238,48 +238,48 @@
 (defui ^:once ListItem
   static fc/InitialAppState
   (initial-state [c {:keys [id n]}] {:id id :n n})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :n])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:child/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [id n]} (om/props this)]
+    (let [{:keys [id n]} (prim/props this)]
       (dom/li #js {:className "item"}
         (dom/span nil "n: " n)
-        (dom/button #js {:onClick #(om/transact! this `[(bump-up {:id ~id})])} "Increment")
-        (dom/button #js {:onClick #(om/transact! this `[(bump-down {:id ~id})])} "Decrement")))))
+        (dom/button #js {:onClick #(prim/transact! this `[(bump-up {:id ~id})])} "Increment")
+        (dom/button #js {:onClick #(prim/transact! this `[(bump-down {:id ~id})])} "Decrement")))))
 
-(def ui-list-item (om/factory ListItem {:keyfn :id}))
+(def ui-list-item (prim/factory ListItem {:keyfn :id}))
 
 (defui ^:once ItemList
   static fc/InitialAppState
   (initial-state [c p] {:id 1 :title "My List" :min 1 :max 1000 :items [(fc/get-initial-state ListItem {:id 1 :n 2})
                                                                         (fc/get-initial-state ListItem {:id 2 :n 5})
                                                                         (fc/get-initial-state ListItem {:id 3 :n 7})]})
-  static om/IQuery
-  (query [this] [:id :title :max :min {:items (om/get-query ListItem)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [:id :title :max :min {:items (prim/get-query ListItem)}])
+  static prim/Ident
   (ident [this props] [:list/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [title min max items] :or {min 0 max 1000000}} (om/props this)]
+    (let [{:keys [title min max items] :or {min 0 max 1000000}} (prim/props this)]
       (dom/div #js {:style {:float "left" :width "300px"}}
         (dom/h4 nil (str title (when (= 0 min) (str " (n <= " max ")"))))
         (dom/ul nil (->> items
                       (filter (fn [{:keys [n]}] (<= min n max)))
                       (map ui-list-item)))))))
 
-(def ui-list (om/factory ItemList {:keyfn :id}))
+(def ui-list (prim/factory ItemList {:keyfn :id}))
 
 (defui ^:once SDRoot
   static fc/InitialAppState
   (initial-state [c p] {:lists [(fc/get-initial-state ItemList {})]})
-  static om/IQuery
-  (query [this] [:ui/react-key {:lists (om/get-query ItemList)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:lists (prim/get-query ItemList)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key lists]} (om/props this)]
+    (let [{:keys [ui/react-key lists]} (prim/props this)]
       (dom/div nil
         (dom/style #js {} ".item {font-size: 40pt}")
         (ele/ui-shadow-dom {:open-boundary? false}

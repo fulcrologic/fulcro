@@ -1985,8 +1985,9 @@
 (defn children
   "Returns the component's children."
   [component]
-  #?(:clj  (:children component)
-     :cljs (.. component -props -children)))
+  (let [cs #?(:clj (:children component)
+              :cljs (.. component -props -children))]
+    (if (coll? cs) cs [cs])))
 
 #?(:cljs
    (defn should-update?
@@ -2323,10 +2324,12 @@
         history            (get-history reconciler)
         v                  ((:parser cfg) env tx)
         declared-refreshes (or (some-> v meta ::refresh vec) [])
+        follow-on-reads    (filter keyword? tx)
         tx-time            (get-current-time reconciler)
         snds               (gather-sends env tx (:remotes cfg) tx-time)
         new-state          @(:state cfg)
         xs                 (cond-> declared-refreshes
+                             (seq follow-on-reads) (concat follow-on-reads)
                              (not (nil? c)) (conj c)
                              (not (nil? ref)) (conj ref))
         history-step       {::hist/tx          (if (transit/serializable? tx) tx :NOT-SERIALIZABLE)
