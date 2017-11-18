@@ -149,11 +149,9 @@
         time-2       (+ 4 time)
         history-2    (hist/record-history-step history-1 time-2 (with-meta mock-step {:step 2}))
         nav          (hist/history-navigator history-2)
-        {:keys [index client-time frames]} (hist/nav-position nav)]
+        [index frames] (hist/nav-position nav)]
     (assertions
       "includes the index offset"
       index => 1
-      "includes a timestamp from the client"
-      client-time =fn=> hist/is-timestamp?
       "includes the number of frames in the history"
       frames => 2)))

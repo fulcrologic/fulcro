@@ -160,9 +160,7 @@
 (defn nav-position
   "Gives back navigation position as a pair [current-index count-of-steps]"
   [history-nav]
-  (zipmap [:index :client-time :frames] [(:index history-nav)
-                                         (some-> (current-step history-nav) ::client-time)
-                                         (count (:legal-steps history-nav))]))
+  [(:index history-nav) (count (:legal-steps history-nav))])
 
 (defn focus-next
   "Returns a new history navigation with the focus on the next step (or the last if already there). See history-navigator"
