@@ -5,10 +5,12 @@
     [fulcro.history :as hist]
     [fulcro.client.data-fetch :refer [load]]
     [fulcro.client.core :as core]
+    [clojure.pprint :refer [pprint]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     yahoo.intl-messageformat-with-locales
     [fulcro.i18n :refer [tr trf]]
-    [fulcro.client.network :as net]))
+    [fulcro.client.network :as net]
+    [fulcro.client.core :as fc]))
 
 (defonce support-viewer (atom nil))
 
@@ -45,19 +47,22 @@
   [params]
   (action [{:keys [state]}]
     (let [{:keys [position]} @state
-          new-position (cond
-                         (= :controls-left position) :controls-right
-                         :else :controls-left)]
+          new-position (if (= :controls-left position) :controls-right :controls-left)]
       (swap! state assoc :position new-position))))
 
 (defui ^:once SupportViewerRoot
+  static fc/InitialAppState
+  (initial-state [t p] {:history {} :position :controls-left :client-time (js/Date.) :comments ""})
   static prim/IQuery
-  (query [this] [:ui/react-key :history-nav :client-time :comments])
+  (query [this] [:ui/react-key :history-nav :comments :position])
   Object
   (render [this]
-    (let [{:keys [ui/react-key history-nav client-time position comments] :or {ui/react-key "ROOT"}} (prim/props this)
-          [current-position frames] (hist/nav-position history-nav)]
-      (dom/div #js {:key react-key :className (str "history-controls " (name position))}
+    (let [{:keys [ui/react-key history-nav position comments] :or {ui/react-key "ROOT"}} (prim/props this)
+          [index frames] (hist/nav-position history-nav)
+          {:keys [::hist/client-time ::hist/network-result ::hist/tx ::hist/tx-result] :as step} (hist/current-step history-nav)]
+      (dom/div (clj->js {:key       react-key
+                         :style     {:max-width "300px"}
+                         :className (str "history-controls " (or (some-> position name) "controls-left"))})
         (dom/button #js {:className "toggle-position"
                          :onClick   #(prim/transact! this `[(toggle-position {})])} (tr "<= Reposition =>"))
         (dom/button #js {:className "history-back"
@@ -65,9 +70,13 @@
         (dom/button #js {:className "history-forward"
                          :onClick   #(prim/transact! this `[(step-forward {})])} (tr "Forward"))
         (dom/hr nil)
-        (dom/span #js {:className "frame"} (trf "History offset {f,number} of {end,number} " :f current-position :end frames))
-        (dom/span #js {:className "timestamp"} (trf "{ts,date,short} {ts,time,long}" :ts client-time))
+        (dom/span #js {:className "frame"} (trf "History offset {f,number} of {end,number} " :f (inc index) :end frames))
         (dom/div #js {:className "user-comments"} comments)
+        (dom/hr nil)
+        (dom/span #js {:className "timestamp"} (trf "Client Time: {ts,date,short} {ts,time,long}" :ts client-time))
+        (dom/hr nil)
+        (dom/h4 nil "Transaction")
+        (dom/p nil (with-out-str (pprint tx)))
         (dom/hr nil)
         (dom/span #js {:className "history-jump-to"} "Jump to:")
         (dom/div #js {}
@@ -98,14 +107,12 @@
                   :dom-id      app-dom-id
                   :application (atom (core/new-fulcro-client :networking (net/mock-network)))
                   :support     (atom (core/new-fulcro-client
-                                       :initial-state {:history     {}
-                                                       :position    :controls-left
-                                                       :client-time (js/Date.)}
                                        :started-callback
                                        (fn [app]
                                          (load app :support-request nil
                                            {:params        {:id (core/get-url-param "id")}
-                                            :refresh       [:frames]
+                                            :refresh       [:history-nav]
                                             :post-mutation `initialize-history}))))})]
     (reset! support-viewer viewer)
     (core/mount viewer SupportViewerRoot support-dom-id)))
+
