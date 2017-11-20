@@ -30,6 +30,7 @@
 (defn register-tool
   "Register a debug tool. When an app starts, the debug tool can have several hooks that are notified:
 
+  ::tool-id some identifier to place the tool into the tool map
   ::tx-listen is a (fn [tx info] ...) that will be called on every `transact!` of the app. Return value is ignored.
   ::network-wrapper is (fn [network-map] network-map') that will be given the networking config BEFORE it is initialized. You can wrap
   them, but you MUST return a compatible map out or you'll disable networking.
@@ -38,18 +39,22 @@
   ;(util/conform! ::tool-registry tool-registry)
   (swap! fulcro-tools assoc tool-id tool-registry))
 
+(defn- normalize-network [networking]
+  #?(:cljs (if (implements? net/FulcroNetwork networking) {:remote networking} networking)
+     :clj {}))
+
 (defn- add-tools [original-start original-net original-tx-listen]
-  (let [net     (if (map? original-net) original-net {:remote original-net})
-        listen  (if original-tx-listen original-tx-listen (constantly nil))
-        started (if original-start original-start (constantly nil))]
+  (let [net     (normalize-network original-net)
+        listen  (or original-tx-listen (constantly nil))
+        started (or original-start (constantly nil))]
     (reduce
-      (fn [[start net listen] {:keys [::tool-id ::tx-listen ::network-wrapper ::app-started]}]
+      (fn [[start net listen] {::keys [tool-id tx-listen network-wrapper app-started]}]
         (let [start  (if app-started (fn [app] (app-started app) (start app)) start)
               net    (if network-wrapper (network-wrapper net) net)
               listen (if tx-listen (fn [env info] (tx-listen env info)) listen)]
           [start net listen]))
-      [started net listen] (vals @fulcro-tools)))
-  [original-start original-net original-tx-listen])
+      [started net listen]
+      (vals @fulcro-tools))))
 
 (defn iinitial-app-state?
   "Returns true if the class has the static InitialAppState protocol."
@@ -255,8 +260,7 @@
   "Initialize the fulcro Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
   [{:keys [networking read-local started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
-  (let [network-map #?(:cljs (if (implements? net/FulcroNetwork networking) {:remote networking} networking)
-                       :clj {})
+  (let [network-map         (normalize-network networking)
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels   (zipmap remotes (map #(async/chan) remotes))
