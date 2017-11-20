@@ -19,6 +19,38 @@
 
 (declare map->Application merge-alternate-union-elements! merge-state! new-fulcro-client new-fulcro-test-client InitialAppState)
 
+(defonce fulcro-tools (atom {}))
+
+(s/def ::tool-id (s/and keyword? namespace))
+(s/def ::tx-listen (s/fspec :args (s/cat :env map? :tx-info map?) :ret any?))
+(s/def ::network-wrapper (s/fspec :args (s/cat :networks map?) :ret map?))
+(s/def ::app-started (s/fspec :args (s/cat :fulcro-app map?) :ret any?))
+(s/def ::tool-registry (s/keys :req [::tool-id] :opt [::tx-listen ::network-wrapper ::app-started]))
+
+(defn register-tool
+  "Register a debug tool. When an app starts, the debug tool can have several hooks that are notified:
+
+  ::tx-listen is a (fn [tx info] ...) that will be called on every `transact!` of the app. Return value is ignored.
+  ::network-wrapper is (fn [network-map] network-map') that will be given the networking config BEFORE it is initialized. You can wrap
+  them, but you MUST return a compatible map out or you'll disable networking.
+  ::app-started (fn [app] ...) that will be called once the app is mounted, just like started-callback. Return value ignored."
+  [{:keys [::tool-id] :as tool-registry}]
+  ;(util/conform! ::tool-registry tool-registry)
+  (swap! fulcro-tools assoc tool-id tool-registry))
+
+(defn- add-tools [original-start original-net original-tx-listen]
+  (let [net     (if (map? original-net) original-net {:remote original-net})
+        listen  (if original-tx-listen original-tx-listen (constantly nil))
+        started (if original-start original-start (constantly nil))]
+    (reduce
+      (fn [[start net listen] {:keys [::tool-id ::tx-listen ::network-wrapper ::app-started]}]
+        (let [start  (if app-started (fn [app] (app-started app) (start app)) start)
+              net    (if network-wrapper (network-wrapper net) net)
+              listen (if tx-listen (fn [env info] (tx-listen env info)) listen)]
+          [start net listen]))
+      [started net listen] (vals @fulcro-tools)))
+  [original-start original-net original-tx-listen])
+
 (defn iinitial-app-state?
   "Returns true if the class has the static InitialAppState protocol."
   #?(:cljs {:tag boolean})
@@ -105,18 +137,21 @@
              read-local request-transform network-error-callback migrate transit-handlers shared]
       :or   {initial-state {} read-local (constantly false) started-callback (constantly nil) network-error-callback (constantly nil)
              migrate       nil shared nil}}]
-  (map->Application {:initial-state      initial-state
-                     :read-local         read-local
-                     :mutation-merge     mutation-merge
-                     :started-callback   started-callback
-                     :reconciler-options (merge (cond-> {}
-                                                  migrate (assoc :migrate migrate)
-                                                  shared (assoc :shared shared))
-                                           reconciler-options)
-                     :networking         (or networking #?(:clj nil :cljs (net/make-fulcro-network "/api"
-                                                                            :request-transform request-transform
-                                                                            :transit-handlers transit-handlers
-                                                                            :global-error-callback network-error-callback)))}))
+  (let [networking (or networking #?(:clj nil :cljs (net/make-fulcro-network "/api"
+                                                      :request-transform request-transform
+                                                      :transit-handlers transit-handlers
+                                                      :global-error-callback network-error-callback)))
+        [started-callback networking tx-listen] (add-tools started-callback networking (:tx-listen reconciler-options))]
+    (map->Application {:initial-state      initial-state
+                       :read-local         read-local
+                       :mutation-merge     mutation-merge
+                       :started-callback   started-callback
+                       :reconciler-options (merge (cond-> {}
+                                                    tx-listen (assoc :tx-listen tx-listen)
+                                                    migrate (assoc :migrate migrate)
+                                                    shared (assoc :shared shared))
+                                             reconciler-options)
+                       :networking         networking})))
 
 (defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
