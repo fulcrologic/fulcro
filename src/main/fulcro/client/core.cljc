@@ -11,6 +11,7 @@
     [om.next.protocols :as omp]
     [fulcro.client.util :as util]
     [fulcro.client.impl.om-plumbing :as plumbing]
+    #?(:clj [clojure.future :refer :all])
     [clojure.set :as set]
     #?(:cljs [om.next.cache :as omc])
     #?(:cljs [goog.dom :as gdom])
@@ -48,7 +49,7 @@
         listen  (or original-tx-listen (constantly nil))
         started (or original-start (constantly nil))]
     (reduce
-      (fn [[start net listen] {::keys [tool-id tx-listen network-wrapper app-started]}]
+      (fn [[start net listen] {:keys [::tool-id ::tx-listen ::network-wrapper ::app-started]}]
         (let [start  (if app-started (fn [app] (app-started app) (start app)) start)
               net    (if network-wrapper (network-wrapper net) net)
               listen (if tx-listen (fn [env info] (tx-listen env info)) listen)]
