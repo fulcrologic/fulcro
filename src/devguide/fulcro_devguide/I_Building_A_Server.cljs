@@ -3,7 +3,7 @@
 
 (defcard-doc
   "
-  # Building a Server
+  # Building a Server - More Details
 
   Fulcro comes with pre-built server components. These allow you to very quickly get the server side of your
   application up and running. There are two main ways to do this:

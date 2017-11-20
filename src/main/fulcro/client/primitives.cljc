@@ -2329,7 +2329,7 @@
         snds               (gather-sends env tx (:remotes cfg) tx-time)
         new-state          @(:state cfg)
         xs                 (cond-> declared-refreshes
-                             (seq follow-on-reads) (concat follow-on-reads)
+
                              (not (nil? c)) (conj c)
                              (not (nil? ref)) (conj ref))
         history-step       {::hist/tx          (if (transit/serializable? tx) tx :NOT-SERIALIZABLE)

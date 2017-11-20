@@ -257,14 +257,14 @@
   In general it is not useful to return a value from a mutation. There is nothing you can do with the value. A mutation
   is already an action on state. So, you just act on state.
 
-  In the case of a remote mutation we also mostly recommend avoiding it, but it is possible to hook into the network
-  processing and handle return value from mutations. We'll talk about that when we talk about server interactions.
+  Server-side mutations can return a value, and there are a number of ways of dealing with that which will be discussed
+  in the chapters on server interation.
 
   ## Follow-on Reads (non-local UI Refresh)
 
-  After doing a mutation Fulcro will refresh the component subtree from whereever the transaction was run.
-  To indicate that a transaction affects *other components*, you simply tack simple property names onto
-  the end of transaction to indicate what data changes. Fulcro will find all components that query for those and re-render
+  Fulcro will refresh the component subtree after doing a mutation from wherever the transaction was run.
+  You may indicate that a transaction affects *other components* by simply adding simple property names onto
+  the end of transaction to indicate what data has changed. Fulcro will find all components that query for those and re-render
   them after the update:
 
   ```
@@ -275,8 +275,9 @@
 
   Fulcro maintains some internal indexes. One of them, `prop->classes`, is created at application startup and is an
   index of all of the properties that exist in your query, to the set of classes that have a query for them. Another
-  index is a live updating index `class->components` that is updated on component mount/unmount. Running a given
-  property through the pair of indexes can quickly derive the full list of live components that need a refresh.
+  index is a live-updating index known as `class->components` that is updated as components mount/unmount. Running a given
+  property through the pair of indexes can quickly derive the full list of live components that use a particular bit of
+  data.
 
   The beautiful thing about this is that it is data-model centric: you indicate to Fulcro what data *might* have changed,
   and it figures out what specific things to refresh in the UI. You may also list idents in the follow-on reads to force refreshes of
@@ -288,6 +289,19 @@
 
   This facility is also why you should namespace your keywords. Indicating that `:name` changed will probably try to refresh
   a lot of stuff (panel name, person name, employee name) that didn't change.
+
+  ## Relocating Follow-On Reads to the Mutation Itself
+
+  In Fulcro 2.0 support was added to allow the list of things that have changed to go on the mutation itself. This moves the
+  data model closer to the source of the changes, and out of the UI.
+
+  Follow-on reads are still fully-supported, but co-locating the list of data that changed with the operation that changed
+  it is much easier to follow/maintain, and it doesn't pollute the UI with refresh concerns.
+
+  To use the new support, simply include a `refresh` section in your mutation, like so:
+
+  ```
+  ```
 
   ## Fulcro built-in mutations
 

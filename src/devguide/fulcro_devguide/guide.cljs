@@ -14,7 +14,15 @@
     fulcro-devguide.G-Mutation
     fulcro-devguide.G-Mutation-Exercises
     fulcro-devguide.G-Mutation-Solutions
-    fulcro-devguide.H-Server-Interactions
+    fulcro-devguide.H01-Server-Interactions-General-Operation
+    fulcro-devguide.H05-Server-Interactions-Basic-Loading
+    fulcro-devguide.H10-Server-Interactions-Full-Stack-Mutations
+    fulcro-devguide.H15-Server-Interactions-Triggering-Loads-from-Mutations
+    fulcro-devguide.H20-Server-Interactions-Incremental-Loading
+    fulcro-devguide.H08-Server-Interactions-Morphing-Loaded-Data
+    fulcro-devguide.H12-Server-Interactions-Mutation-Return-Values
+    fulcro-devguide.H11-Server-Interactions-Network-Activity-Indicators
+    fulcro-devguide.H40-Server-Interactions-As-An-Abstraction
     fulcro-devguide.I-Building-A-Server
     fulcro-devguide.J-Exercise-on-Putting-It-Together
     fulcro-devguide.K-Testing
