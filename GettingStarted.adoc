@@ -1132,7 +1132,7 @@ do it for you, other than the actual value of the `Ident`. So, we'll add one mor
     (let [{:keys [db/id person-list/label person-list/people]} (om/props this)
           delete-person (fn [person-id]
                           (js/console.log label "asked to delete" name)
-                          (om/transact! this `[(ops/delete-person {:list-id ~id :person-id ~person-id})]))] <4>
+                          (om/transact! this `[(ops/delete-person {:list-id ~id :person-id ~person-id})]))] ; <4>
       (dom/div nil
         (dom/h4 nil label)
         (dom/ul nil
