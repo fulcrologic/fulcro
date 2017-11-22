@@ -11,6 +11,7 @@
     [fulcro.client.impl.protocols :as proto]
     [fulcro.util :as util]
     [fulcro.client.util :as cutil]
+    #?(:clj [clojure.future :refer :all])
     [clojure.set :as set]
     #?(:cljs [goog.dom :as gdom])
     [clojure.spec.alpha :as s]
@@ -49,7 +50,7 @@
         listen  (or original-tx-listen (constantly nil))
         started (or original-start (constantly nil))]
     (reduce
-      (fn [[start net listen] {::keys [tool-id tx-listen network-wrapper app-started]}]
+      (fn [[start net listen] {:keys [::tool-id ::tx-listen ::network-wrapper ::app-started]}]
         (let [start  (if app-started (fn [app] (app-started app) (start app)) start)
               net    (if network-wrapper (network-wrapper net) net)
               listen (if tx-listen (fn [env info] (tx-listen env info)) listen)]

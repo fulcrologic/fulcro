@@ -9,7 +9,7 @@
     [clojure.test :refer [is are]]
     [fulcro-spec.core :refer
      [specification behavior assertions provided component when-mocking]]
-    [fulcro.client.mutations :as m]
+    [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.logging :as log]
     [fulcro.client.impl.protocols :as omp]
     [fulcro.client.core :as fc]
@@ -676,3 +676,46 @@
                                                                                                         :table     {1 {:id     1
                                                                                                                        :stuff  [[:y 2]]
                                                                                                                        :things [[:x 1] [:x 2] [:y 2]]}}})))))
+
+(defmutation f [params]
+  (action [env] true)
+  (remote [env] true))
+(defmutation g [params]
+  (action [env] true)
+  (rest-remote [env] true))
+(defmutation h [params]
+  (action [env] true))
+(defmethod m/mutate `unhappy-mutation [env _ params]
+  (throw (ex-info "Boo!" {})))
+
+(specification "is-deferred-query?" :focused
+  (assertions
+    "Returns false for invalid or nil queries"
+    (dfi/is-deferred-transaction? nil) => false
+    (dfi/is-deferred-transaction? []) => false
+    (dfi/is-deferred-transaction? :boo) => false
+    "Returns true if the query has a first element that is the namespaced keyword to indicate deferral"
+    (dfi/is-deferred-transaction? [::dfi/deferred-transaction]) => true))
+
+(specification "get-remote" :focused
+  (assertions
+    "Returns the correct remote for a given mutation"
+    (df/get-remote `f) => :remote
+    (df/get-remote `g) => :rest-remote
+    "Returns :remote if the mutation throws an exception"
+    (df/get-remote `unhappy-mutation) => nil
+    "Returns nil if the mutation is not remote"
+    (df/get-remote `h) => nil))
+
+(specification "pessimistic-transaction->transaction" :focused
+  (assertions
+    "Returns the transaction if it only contains a single call"
+    (df/pessimistic-transaction->transaction `[(f {:x 1})]) => `[(f {:x 1})]
+    "Includes the follow-on reads in a single-call"
+    (df/pessimistic-transaction->transaction `[(f {:y 2}) :read]) => `[(f {:y 2}) :read]
+    "Converts a sequence of calls to the proper nested structure, deferring against the correct remotes"
+    (df/pessimistic-transaction->transaction `[(f) (g) (h)]) => `[(f)
+                                                                  (df/deferred-transaction {:remote :remote
+                                                                                            :tx     [(g) (df/deferred-transaction
+                                                                                                           {:remote :rest-remote
+                                                                                                            :tx     [(h)]})]})]))

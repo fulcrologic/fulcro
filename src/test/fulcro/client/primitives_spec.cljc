@@ -323,22 +323,22 @@
 (specification "remove-loads-and-fallbacks"
   (behavior "Removes top-level mutations that use the fulcro/load or tx/fallback symbols"
     (are [q q2] (= (prim/remove-loads-and-fallbacks q) q2)
-      '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[:a {:j [:a]} (f) (app/l)]
-      '[(fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[(app/l)]
-      '[(fulcro/load {:x 1}) (tx/fallback {:a 3})] '[]
-      '[(boo {:x 1}) (fulcro.client.data-fetch/fallback {:a 3})] '[(boo {:x 1})]
-      '[:a {:j [:a]}] '[:a {:j [:a]}])))
+                '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[:a {:j [:a]} (f) (app/l)]
+                '[(fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[(app/l)]
+                '[(fulcro/load {:x 1}) (tx/fallback {:a 3})] '[]
+                '[(boo {:x 1}) (fulcro.client.data-fetch/fallback {:a 3})] '[(boo {:x 1})]
+                '[:a {:j [:a]}] '[:a {:j [:a]}])))
 
 (specification "fallback-query"
   (behavior "extracts the fallback expressions of a query, adds execute flags, and includes errors in params"
     (are [q q2] (= (prim/fallback-query q {:error 42}) q2)
-      '[:a :b] nil
+                '[:a :b] nil
 
-      '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})]
-      '[(tx/fallback {:a 3 :execute true :error {:error 42}})]
+                '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})]
+                '[(tx/fallback {:a 3 :execute true :error {:error 42}})]
 
-      '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (fulcro/load {:x 1}) (app/l) (fulcro.client.data-fetch/fallback {:a 3})]
-      '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (fulcro.client.data-fetch/fallback {:a 3 :execute true :error {:error 42}})])))
+                '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (fulcro/load {:x 1}) (app/l) (fulcro.client.data-fetch/fallback {:a 3})]
+                '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (fulcro.client.data-fetch/fallback {:a 3 :execute true :error {:error 42}})])))
 
 (specification "tempid handling"
   (behavior "rewrites all tempids used in pending requests in the request queue"
@@ -705,6 +705,7 @@
       (util/join-key mj) => 'f
       "give the correct join value for mutation joins"
       (util/join-value mj) => [:a])))
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

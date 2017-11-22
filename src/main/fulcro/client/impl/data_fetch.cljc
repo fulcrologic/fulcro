@@ -616,3 +616,8 @@
       (set-global-loading! reconciler)
       (clear-history-activity! history loading-items)
       (prim/force-root-render! reconciler))))
+
+(defn is-deferred-transaction?
+  "Returns true if the outgoing query is just an indicator that a deferred transaction is in the load queue"
+  [query]
+  (boolean (and query (vector? query) (= ::deferred-transaction (first query)))))
