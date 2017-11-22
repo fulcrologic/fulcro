@@ -113,6 +113,12 @@
                :d    [:table 6]
                :many {:path [[:table 99] [:table 88] [:table 77]]}}]
     (assertions
+      "Can set to a given path"
+      (-> state
+          (fc/integrate-ident [:table 3] :set [:d])
+          (get-in [:d]))
+      => [:table 3]
+
       "Can append to an existing vector"
       (-> state
         (fc/integrate-ident [:table 3] :append [:a :path])
