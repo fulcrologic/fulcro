@@ -3,6 +3,7 @@
     devcards.core
     cards.A-Introduction
     cards.autocomplete-cards
+    cards.cascading-dropdown-cards
     cards.background-load-cards
     cards.component-local-state-cards
     cards.colocated-css-cards

@@ -1,3 +1,11 @@
+1.2.0
+-----
+- Added support for tools to be notified when a Fulcro app starts so they
+can hook in.
+- Added a cascading dropdown demo
+- Minor fixes
+- Added `:set` support to `integrate-ident`
+
 1.1.1
 -----
 - Fixed assert/async bug
