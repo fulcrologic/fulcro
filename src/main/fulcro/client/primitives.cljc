@@ -10,6 +10,7 @@
                [goog.log :as glog]
                [goog.object :as gobj]])
                [clojure.core.async :as async]
+               [clojure.set :as set]
                [fulcro.history :as hist]
                [fulcro.client.logging :as log]
                [fulcro.tempid :as tempid]
@@ -2709,4 +2710,39 @@
 
 #?(:clj (intern 'cljs.core 'proto-assign-impls proto-assign-impls))
 
+(comment
+  "ptransact! transactions are converted as follows:"
+  [(f) (g) (h)] -> [(f) (deferred-transaction {:remote remote-of-f
+                                               :tx     [(g) (deferred-transaction {:remote  remote-of-g
+                                                                                   :post-tx [(h)]})]})]
+  "And the deffered transaction triggers a mock load that runs the given tx through the post-mutatio mechanism. There
+  is a short-circuit bit of logic in the actual send to networking to keep it uninvolved (no net traffic).")
 
+(defn pessimistic-transaction->transaction
+  "Converts a sequence of calls as if each call should run in sequence (deferring even the optimistic side until
+  the prior calls have completed in a full-stack manner), and returns a tx that can be submitted via the normal
+  `transact!`."
+  [tx]
+  (let [ast-nodes     (:children (query->ast tx))
+        {calls true reads false} (group-by #(= :call (:type %)) ast-nodes)
+        first-call    (first calls)
+        dispatch-key  (:dispatch-key first-call)
+        get-remote    (or (some-> (resolve 'fulcro.client.data-fetch/get-remote) deref) (fn [sym]
+                                                                                          (log/error "FAILED TO FIND MUTATE. CANNOT DERIVE REMOTES FOR ptransact!")
+                                                                                          :remote))
+        remote        (get-remote dispatch-key)
+        tx-to-run-now (into [(ast->query first-call)] (ast->query {:type :root :children reads}))]
+    (if (seq (rest calls))
+      (let [remaining-tx (ast->query {:type :root :children (into (vec (rest calls)) reads)})]
+        (into tx-to-run-now `[(fulcro.client.data-fetch/deferred-transaction {:remote ~remote
+                                                                              :tx     ~(pessimistic-transaction->transaction remaining-tx)})]))
+      tx-to-run-now)))
+
+(defn ptransact!
+  "Like `transact!`, but ensures each call completes (in a full-stack, pessimistic manner) before the next call starts
+  in any way. Note that two calls of this function have no guaranteed relationship to each other. They could be
+  intermingled. The only guarantee is that for a single call to `ptransact!`, the calls in the given tx will run in
+  pessimistically, in the order given. Follow-on reads in the given transaction will be repeated after each remote
+  interaction."
+  [comp-or-reconciler tx]
+  (transact! comp-or-reconciler (pessimistic-transaction->transaction tx)))

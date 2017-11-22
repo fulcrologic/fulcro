@@ -349,48 +349,6 @@
 (defmethod mutate 'fulcro/load [env _ params] (load* env params))
 (defmethod mutate `load [env _ params] (load* env params))
 
-
-
-(comment
-  "ptransact! transactions are converted as follows:"
-  [(f) (g) (h)] -> [(f) (deferred-transaction {:remote remote-of-f
-                                               :tx     [(g) (deferred-transaction {:remote  remote-of-g
-                                                                                   :post-tx [(h)]})]})]
-  "And the deffered transaction triggers a mock load that runs the given tx through the post-mutatio mechanism. There
-  is a short-circuit bit of logic in the actual send to networking to keep it uninvolved (no net traffic).")
-
-(defn get-remote
-  "Returns the remote against which the given mutation will try to execute. Returns nil if it is not a remote mutation"
-  [dispatch-symbol]
-  (try
-    (let [mutation-map (mutate {:state (atom {})} dispatch-symbol {})
-          ks           (set (keys mutation-map))
-          remotes      (set/difference ks #{:action :refresh :keys :value})
-          remote       (first remotes)]
-      (if (and remote (get mutation-map remote false))
-        remote
-        nil))
-    (catch #?(:clj Throwable :cljs :default) e
-      (log/error (str "Attempting to get the declared remote for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!"))
-      nil)))
-
-(defn pessimistic-transaction->transaction
-  "Converts a sequence of calls as if each call should run in sequence (deferring even the optimistic side until
-  the prior calls have completed in a full-stack manner), and returns a tx that can be submitted via the normal
-  `transact!`."
-  [tx]
-  (let [ast-nodes     (:children (prim/query->ast tx))
-        {calls true reads false} (group-by #(= :call (:type %)) ast-nodes)
-        first-call    (first calls)
-        dispatch-key  (:dispatch-key first-call)
-        remote        (get-remote dispatch-key)
-        tx-to-run-now (into [(prim/ast->query first-call)] (prim/ast->query {:type :root :children reads}))]
-    (if (seq (rest calls))
-      (let [remaining-tx (prim/ast->query {:type :root :children (into (vec (rest calls)) reads)})]
-        (into tx-to-run-now `[(deferred-transaction {:remote ~remote
-                                                     :tx     ~(pessimistic-transaction->transaction remaining-tx)})]))
-      tx-to-run-now)))
-
 (defmutation run-deferred-transaction [{:keys [tx reconciler]}]
   (action [env]
     (let [reconciler (-> reconciler meta :reconciler)]
@@ -434,3 +392,18 @@
   [{:keys [action] :as params}]
   (action [env] (when (:execute params) (fallback-action* env params)))
   (remote [env] (not (:execute params))))
+
+(defn get-remote
+  "Returns the remote against which the given mutation will try to execute. Returns nil if it is not a remote mutation"
+  [dispatch-symbol]
+  (try
+    (let [mutation-map (mutate {:state (atom {})} dispatch-symbol {})
+          ks           (set (keys mutation-map))
+          remotes      (set/difference ks #{:action :refresh :keys :value})
+          remote       (first remotes)]
+      (if (and remote (get mutation-map remote false))
+        remote
+        nil))
+    (catch #?(:clj Throwable :cljs :default) e
+      (log/error (str "Attempting to get the declared remote for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!"))
+      nil)))
