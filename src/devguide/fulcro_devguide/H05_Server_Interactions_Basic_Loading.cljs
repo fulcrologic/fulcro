@@ -9,7 +9,7 @@
 
 (defcard-doc
   "
-  ## The Data Fetch API: `load`
+  # The Data Fetch API: `load`
 
   Let's say we want to load all of our friends from the server. A query has to be rooted somewhere, so we'll invent
   a root-level keyword, `:all-friends`, and join it to the UI query for a `Person`:
@@ -51,7 +51,7 @@
   This is sometimes what you want, but more often you really want data loaded at some other spot in your graph. We'll
   talk about this more in a moment, first, let's see how to handle that on the server.
 
-  ### Handling a Root Query
+  ## Handling a Root Query
 
   If you're using the standard server support of Fulcro, then the API hooks are already predefined for you, and you
   can use helper macros to generate handlers for queries. If your `load` specified a keyword, then this is seen by
@@ -71,7 +71,7 @@
   in the `env`, and you can use libraries like `pathom`, `Datomic`, and `fulcro-sql` to parse those queries into the proper tree
   result from various data sources.
 
-  ### Entity Queries
+  ## Entity Queries
 
   You can also ask to load a specific entity. You do this simply by telling load the ident of the thing you'd like to
   load:
@@ -93,7 +93,7 @@
   Note that this call gets an `id` in addition to parameters (in the above call, `id` would be 22). Again, the full query
   is in `env` so you can process the data driven response properly.
 
-  ### Targeting Loads
+  ## Targeting Loads
 
   A short while ago we noted that loads are targeted at the root of your graph, and that this wasn't always what you
   wanted. After all, your graph database will always have other UI stuff. For example there might be a current screen, which
@@ -127,7 +127,7 @@
   graph. NOTE: Technically data is always loaded into the root, then relocated. So, be careful not to name your top-level
   edge after something that already exists there!
 
-  #### Simple Targeting
+  ### Simple Targeting
 
   The simplest targeting is to just relocate an edge from the root to somewhere else. The `load` function can do
   that with a simple additional parameter:
@@ -139,7 +139,7 @@
   So, the server will still see the well-known query for `:all-friends`, but your local UI graph will end up seeing the
   results in the list on the friends screen.
 
-  #### Advanced Targets
+  ### Advanced Targets
 
   You can also ask the target parameter to modify to-many edges instead of replacing them. For example, say you
   were loading one new person, and wanted to append it to the current list of friends:
@@ -166,7 +166,4 @@
   ```
 
   Note that `multiple-targets` can use plain target vectors (replacement) or any of the special wrappers.
-
-  ###
-
   ")

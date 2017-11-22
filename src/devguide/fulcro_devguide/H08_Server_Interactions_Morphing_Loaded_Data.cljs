@@ -148,7 +148,9 @@
   (df/load this :items Item {:post-mutation 'server-interaction/group-items})
   ```
 
-  The Fulcro post-mutation is defined as you might expect:
+  and you can include parameters with `:post-mutation-params`.
+
+  The post-mutation is defined as you might expect:
 
   ```clojure
   (defmutation server-interaction/group-items [p]
