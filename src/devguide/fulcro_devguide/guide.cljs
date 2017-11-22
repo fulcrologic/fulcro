@@ -27,6 +27,7 @@
     fulcro-devguide.I-Building-A-Server
     fulcro-devguide.J-Exercise-on-Putting-It-Together
     fulcro-devguide.K-Testing
+    fulcro-devguide.K-Support-Viewer
     fulcro-devguide.L-Internationalization
     fulcro-devguide.M05-More-Concise-UI
     fulcro-devguide.M10-Advanced-UI

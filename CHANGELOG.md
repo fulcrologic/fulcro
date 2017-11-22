@@ -24,6 +24,7 @@ to-many collections (see the doc string).
     - Added a better API for accessing and navigating history
 - Added support for client mutations to declare a refresh set so that UI follow-on reads are no longer necessary.
 - Added more examples in demos
+- Added compressible? and pessimistic? options to `transact!`, instead of making them extra new API calls.
 
 - Added support for auto-recovery from network issues. This can dramatically reduce
 the amount of error handling code you need to write.
