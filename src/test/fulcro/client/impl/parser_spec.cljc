@@ -20,7 +20,7 @@
 
 (def parser (prim/parser {:read (partial app/read-local (constantly nil)) :mutate m/mutate}))
 
-(specification "Parser reads" :focused
+(specification "Parser reads"
   (let [state-db   {:top   [:table 1]
                     :table {1 {:id 1 :value :v}}}
         state-atom (atom state-db)
@@ -29,7 +29,7 @@
       "can produce query results"
       (parser env [{:top [:value]}]) => {:top {:value :v}})))
 
-(specification "Mutations" :focused
+(specification "Mutations"
   (let [state  (atom {})
         env    {:state state}
         result (parser env `[(sample-mutation-1 {}) (sample-mutation-2 {})])]

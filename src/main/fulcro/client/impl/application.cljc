@@ -176,7 +176,11 @@
         on-error   (if load-descriptors #(on-error % load-descriptors) on-error)
         on-error   (comp send-complete on-error)
         on-done    (comp send-complete merge-data)]
-    (real-send network query on-done on-error on-update)))
+    (if (f/is-deferred-transaction? query)
+      (do
+        (log/info "Skipping send of load due to deferred transaction")
+        (send-complete))
+      (real-send network query on-done on-error on-update))))
 
 (defn is-sequential? [network]
   (if (and #?(:clj false :cljs (implements? net/NetworkBehavior network)))

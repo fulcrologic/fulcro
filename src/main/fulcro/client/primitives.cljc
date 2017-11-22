@@ -2306,6 +2306,8 @@
                         (atom (hist/new-history history)))]
     ret))
 
+
+
 (defn transact*
   "Internal implementation detail of transact!. Call that function instead."
   [reconciler c ref tx]

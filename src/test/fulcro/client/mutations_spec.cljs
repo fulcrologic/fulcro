@@ -225,7 +225,7 @@
    :ident [:table/id :db/id]}
   (dom/div nil ""))
 
-(specification "Remote returning (declaring return value for a remote operation)" :focused
+(specification "Remote returning (declaring return value for a remote operation)"
   (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
     (assertions
       "Returns an AST with the corresponding query for the type"
@@ -242,7 +242,7 @@
                                                     :dispatch-key :x
                                                     :key          :x}]})))
 
-(specification "Remote with-params (modify remote params)" :focused
+(specification "Remote with-params (modify remote params)"
   (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
     (assertions
       "Returns an AST with the parameters updated"
