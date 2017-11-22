@@ -435,6 +435,7 @@
 
   The named parameters can be specified any number of times. They are:
 
+  - set: A vector (path) to a list in your app state where this new object's ident should be set.
   - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
   the ident if that ident is already in the list.
   - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
@@ -447,6 +448,7 @@
     (reduce (fn [state [command data-path]]
               (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
                 (case command
+                  :set (assoc-in state data-path ident)
                   :prepend (if (already-has-ident-at-path? data-path)
                              state
                              (do
