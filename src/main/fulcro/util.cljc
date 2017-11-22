@@ -68,8 +68,7 @@
 (defn mutation?
   #?(:cljs {:tag boolean})
   [expr]
-  (let [expr (cond-> expr (seq? expr) first)]
-    (symbol? expr)))
+  (or (mutation-join? expr) (symbol? (cond-> expr (seq? expr) first))))
 
 (defn mutation-key [expr]
   {:pre [(symbol? (first expr))]}

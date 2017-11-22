@@ -25,6 +25,7 @@
                [clojure.walk :as walk :refer [prewalk]]
                [clojure.string :as str]
                [clojure.spec.alpha :as s]
+               #?(:clj [clojure.future :refer :all])
                [cognitect.transit :as t])
   #?(:clj
            (:import [java.io Writer])
@@ -33,6 +34,10 @@
 (s/def ::remote keyword?)
 (s/def ::ident util/ident?)
 (s/def ::query vector?)
+(s/def ::transaction (s/every #(or (keyword? %) (util/mutation? %))
+                       :kind vector?))
+(s/def ::component-or-reconciler vector?)
+(s/def ::pessimistic? boolean?)
 
 (defn get-history
   "pass-through function for getting history, that enables testing (cannot mock protocols easily)"
@@ -2367,21 +2372,43 @@
       (into [] (map #(annotate % ident)) tx)
       (meta tx))))
 
+(declare pessimistic-transaction->transaction)
+
 (defn transact!
-  "Given a reconciler or component run a transaction. tx is a parse expression
-   that should include mutations followed by any necessary read. The reads will
-   be used to trigger component re-rendering.
+  "
+  Given a reconciler or component run a transaction. tx is a parse expression
+  that should include mutations followed by any necessary read. The reads will
+  be used to trigger component re-rendering.
 
-   Example:
+  Example:
 
+  ```
      (transact! widget
        '[(do/this!) (do/that!)
          :read/this :read/that])
+  ```
 
-    NOTE: transact! is not safe to call from within mutations unless you defer it inside of a setTimeout. This is
-    because otherwise you could potentially nest calls of swap! that will cause unexpected results. In general it
-    the model of Fulcro is such that a call transact! within a mutation is technically just bad design. If you
-    need pessimistic UI control, see ptransact! instead."
+  NOTE: transact! is *not safe to call from within mutations* unless you defer it inside of a `setTimeout` or
+  are using the `pessimistic? true` option. This is because otherwise you could potentially nest calls of swap! that
+  will cause unexpected results. In general it the model of Fulcro is such that a call transact! within a mutation is
+  technically just bad design unless you need pessimistic UI control.
+
+  Options is a map that can contain two different flags:
+
+  `:compressible?` - A boolean that marks the history edge of the transaction as compressible. This means that if more than one
+                     adjacent history transition edge is compressible, only the more recent of the sequence of them is kept. This
+                     is useful for things like form input fields, where storing every keystoke in history is undesirable.
+                     NOTE: history events that trigger remote interactions are not compressible, since they may be needed for
+                     automatic network error recovery handling, so this option is typically not useful with pessimistic
+                     transaction mode.
+  `:pessimistic?` - A boolean that ensures each call in the tx completes (in a full-stack, pessimistic manner) before the next call starts
+                    in any way. Note that two calls of `transact!` have no guaranteed relationship to each other. They could end up
+                    intermingled at runtime. The only guarantee is that for *a single call* to `transact!` in pessimistic mode the calls in the given tx will run
+                    one at a time in the order given. Follow-on reads in the given transaction will be repeated after each remote
+                    interaction. Multiple remotes are supported (e.g. if two calls hit different remotes, it will still work
+                    properly).
+                    NOTE: Pessimistic mode transactions *are* safe to submit from within mutations (e.g. for retry behavior).
+  "
   ([x tx]
    {:pre [(or (component? x)
             (reconciler? x))
@@ -2407,18 +2434,20 @@
                                    [p (p/tx-intercept p tx)]
                                    [x tx])]
                      (recur (parent p) x' tx))))))))
-  ([r ref tx]
-   (transact* r nil ref tx)))
+  ([r tx {:keys [compressible? pessimistic?] :as options}]
+   (let [tx (cond-> tx
+              pessimistic? (pessimistic-transaction->transaction)
+              compressible? (hist/compressible-tx))]
+     (if pessimistic?
+       #?(:clj  (transact! r tx)
+          :cljs (js/setTimeout (fn [] (transact! r tx)) 0))
+       (transact! r tx)))))
 
-(defn compressible-transact!
-  "Identical to `transact!`, but marks the history edge as compressible. This means that if more than one
-  adjacent history transition edge is compressible, only the more recent of the sequence of them is kept. This
-  is useful for things like form input fields, where storing every keystoke in history is undesirable.
-
-  NOTE: history events that trigger remote interactions are not compressible, since they may be needed for
-  automatic network error recovery handling.."
-  [comp-or-reconciler tx]
-  (transact! comp-or-reconciler (hist/compressible-tx tx)))
+(s/fdef transact!
+  :args (s/or
+          :no-options (s/cat :actor ::component-or-reconciler :tx ::query)
+          :with-options (s/cat :actor ::component-or-reconciler :tx ::query :options (s/keys :opt-un [::hist/compressible? ::pessimistic?])))
+  :ret any?)
 
 #?(:clj
    (defn set-state!
@@ -2743,14 +2772,4 @@
                                                                               :tx     ~(pessimistic-transaction->transaction remaining-tx)})]))
       tx-to-run-now)))
 
-(defn ptransact!
-  "Like `transact!`, but ensures each call completes (in a full-stack, pessimistic manner) before the next call starts
-  in any way. Note that two calls of this function have no guaranteed relationship to each other. They could end up
-  intermingled at runtime. The only guarantee is that for *a single call* to `ptransact!`, the calls in the given tx will run
-  pessimistically (one at a time) in the order given. Follow-on reads in the given transaction will be repeated after each remote
-  interaction.
 
-  NOTE: `ptransact!` *is* safe to use from within mutations (e.g. for retry behavior)."
-  [comp-or-reconciler tx]
-  #?(:clj  (transact! comp-or-reconciler (pessimistic-transaction->transaction tx))
-     :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler (pessimistic-transaction->transaction tx))) 0)))

@@ -87,7 +87,7 @@
                        (set-overlay-visible* false))))
       (do
         (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) " (Retrying...)"))
-        (prim/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})])))))
+        (prim/transact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})] {:pessimistic? true})))))
 
 (defsc Root [this {:keys [ui/name ui/react-key overlay]} _ _]
   {:query         [:ui/react-key :ui/name {:overlay (prim/get-query BlockingOverlay)}]
@@ -95,7 +95,7 @@
   (dom/div #js {:key react-key :style (clj->js {:width "400px" :height "100px"})}
     (ui-overlay overlay)
     (dom/p nil "Name: " (dom/input #js {:value name}))
-    (dom/button #js {:onClick #(prim/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
+    (dom/button #js {:onClick #(prim/transact! this `[(submit-form) (retry-or-hide-overlay)] {:pessimistic? true})}
       "Submit")))
 
 
@@ -141,15 +141,16 @@
 
   This technique uses the following pattern:
 
-  1. We use the `prim/ptransact!` to submit a transaction, which will run each mutation in pessimistic mode (each element
+  1. We use the `prim/transact!` with `pessimistic? true` to submit a transaction, which will run each mutation in pessimistic mode (each element
   runs only after the prior element has completed a round-trip to the server).
   2. The first call in the tx will block the UI, and do the remote operation. We'll also leverage mutation return values
   so the server can indicate success to us.
   3. Once the first call finishes, the second call in the tx can choose to unblock the UI, or handle any problem it
   sees. The mutation return value is merged (and visible) in app state.
 
-  Unlike `transact!`, `ptransact!` expects that you might have to nest it within a mutation in order to retry a
-  prior call. This is a supported use, and you should find the reconciler in the mutations `env` parameter.
+  Unlike normal mode, pessimistic transactions expect that you might have to nest another one within a mutation in order to retry a
+  prior call. This is a supported use, and you will find the reconciler in the mutation's `env` parameter to facilitate it as
+  shown in the example below.
 
   To show how this all works we'll use an in-browser server emulation and show you a working example.
 
@@ -164,7 +165,7 @@
   (dc/mkdn-pprint-source set-overlay-message*)
   (dc/mkdn-pprint-source BlockingOverlay)
   "The main UI is just a simple one-field form and submission button. Note, however, that it submits the form
-  with `ptransact!` which will force each call to complete before the next one can start. Thus the second call can
+  with `transact!` in pessimistic more, which will force each call to complete before the next one can start. Thus the second call can
   check the result and run whatever in response to it.
   "
   (dc/mkdn-pprint-source Root)
@@ -212,7 +213,7 @@
                          (set-overlay-visible* false))))
         (do
           (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) \" (Retrying...)\"))
-          (prim/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})])))))
+          (prim/transact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})] {:pessimistic? true})))))
   ```
 
   It's the real work-horse. The optimistic side can assume the result is updated, so it looks for the result code via
@@ -221,7 +222,7 @@
   If the submission had an error, then it
 
   - Adds \"retrying\" to the server message and puts that on the overlay
-  - Does a new call to `ptransact!`.
+  - Does a new call to `transact!` in pessimistic mode.
 
   You can try out the finished product in the card below. Try it a few times so you can see the error-handling in action.
   ")
