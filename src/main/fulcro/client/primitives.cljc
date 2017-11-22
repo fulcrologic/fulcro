@@ -2376,7 +2376,12 @@
 
      (transact! widget
        '[(do/this!) (do/that!)
-         :read/this :read/that])"
+         :read/this :read/that])
+
+    NOTE: transact! is not safe to call from within mutations unless you defer it inside of a setTimeout. This is
+    because otherwise you could potentially nest calls of swap! that will cause unexpected results. In general it
+    the model of Fulcro is such that a call transact! within a mutation is technically just bad design. If you
+    need pessimistic UI control, see ptransact! instead."
   ([x tx]
    {:pre [(or (component? x)
             (reconciler? x))
@@ -2740,9 +2745,12 @@
 
 (defn ptransact!
   "Like `transact!`, but ensures each call completes (in a full-stack, pessimistic manner) before the next call starts
-  in any way. Note that two calls of this function have no guaranteed relationship to each other. They could be
-  intermingled. The only guarantee is that for a single call to `ptransact!`, the calls in the given tx will run in
-  pessimistically, in the order given. Follow-on reads in the given transaction will be repeated after each remote
-  interaction."
+  in any way. Note that two calls of this function have no guaranteed relationship to each other. They could end up
+  intermingled at runtime. The only guarantee is that for *a single call* to `ptransact!`, the calls in the given tx will run
+  pessimistically (one at a time) in the order given. Follow-on reads in the given transaction will be repeated after each remote
+  interaction.
+
+  NOTE: `ptransact!` *is* safe to use from within mutations (e.g. for retry behavior)."
   [comp-or-reconciler tx]
-  (transact! comp-or-reconciler (pessimistic-transaction->transaction tx)))
+  #?(:clj  (transact! comp-or-reconciler (pessimistic-transaction->transaction tx))
+     :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler (pessimistic-transaction->transaction tx))) 0)))

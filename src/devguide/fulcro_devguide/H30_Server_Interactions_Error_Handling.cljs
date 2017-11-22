@@ -5,7 +5,100 @@
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.core :as fc]))
+            [fulcro-devguide.A-Quick-Tour :as qt]
+            [fulcro.client.core :as fc :refer [defsc]]
+            [fulcro.client.mutations :as m :refer [defmutation]]
+            [fulcro.client.data-fetch :as df]
+            [fulcro.client.network :as fcn]
+            [fulcro.client.logging :as log]))
+
+(defmulti server-read prim/dispatch)
+(defmulti server-mutate prim/dispatch)
+(def parser (prim/parser {:read server-read :mutate server-mutate}))
+(defmethod server-read :default [env k p] (log/info "Unknown server read of " k))
+(defmethod server-mutate :default [env k p] (log/info "Unknown server mutate of " k))
+
+(defmethod server-mutate `submit-form [env k params]
+  {:action (fn []
+             (if (> 0.5 (rand))
+               {:message "Everything went swell!"
+                :result  0}
+               {:message "There was an error!"
+                :result  1}))})
+
+;; from fulcro.server namespace...this is how a real fulcro server behaves, it raises the results for you from mutations
+(defn raise-response
+  "For om mutations, converts {'my/mutation {:result {...}}} to {'my/mutation {...}}"
+  [resp]
+  (reduce (fn [acc [k v]]
+            (if (and (symbol? k) (not (nil? (:result v))))
+              (assoc acc k (:result v))
+              (assoc acc k v)))
+    {} resp))
+
+(defrecord MockNetwork []
+  fcn/FulcroNetwork
+  (send [this edn ok err]
+    (let [resp (raise-response (parser {} edn))]
+      ; simulates a network delay:
+      (js/setTimeout (fn []
+                       (log/info "Sending response to client")
+                       (ok resp)) 2000)))
+  (start [this] this))
+
+(defsc BlockingOverlay [this {:keys [ui/active? ui/message]} _ _]
+  {:query         [:ui/active? :ui/message]
+   :initial-state {:ui/active? false :ui/message "Please wait..."}}
+  (dom/div (clj->js {:style {:position        :absolute
+                             :display         (if active? "block" "none")
+                             :zIndex          65000
+                             :width           "400px"
+                             :height          "100px"
+                             :backgroundColor "rgba(0,0,0,0.5)"}})
+    (dom/div (clj->js {:style {:position  :relative
+                               :top       "40px"
+                               :color     "white"
+                               :textAlign "center"}}) message)))
+
+(def ui-overlay (prim/factory BlockingOverlay))
+
+(defn set-overlay-visible* [state tf] (assoc-in state [:overlay :ui/active?] tf))
+(defn set-overlay-message* [state message] (assoc-in state [:overlay :ui/message] message))
+
+(defui MutationStatus
+  static prim/Ident
+  (ident [t p] [:remote-mutation :status])
+  static prim/IQuery
+  (query [this] [:message :result]))
+
+(defmutation submit-form [params]
+  (action [{:keys [state]}] (swap! state set-overlay-visible* true))
+  (remote [{:keys [state ast] :as env}]
+    (m/returning ast state MutationStatus)))
+
+(defn submit-ok? [env] (= 0 (some-> env :state deref :remote-mutation :status :result)))
+
+(defmutation retry-or-hide-overlay [params]
+  (action [{:keys [reconciler state] :as env}]
+    (if (submit-ok? env)
+      (swap! state (fn [s]
+                     (-> s
+                       (set-overlay-message* "Please wait...") ; reset the overlay message for the next appearance
+                       (set-overlay-visible* false))))
+      (do
+        (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) " (Retrying...)"))
+        (prim/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})])))))
+
+(defsc Root [this {:keys [ui/name ui/react-key overlay]} _ _]
+  {:query         [:ui/react-key :ui/name {:overlay (prim/get-query BlockingOverlay)}]
+   :initial-state {:overlay {} :ui/name "Alicia"}}
+  (dom/div #js {:key react-key :style (clj->js {:width "400px" :height "100px"})}
+    (ui-overlay overlay)
+    (dom/p nil "Name: " (dom/input #js {:value name}))
+    (dom/button #js {:onClick #(prim/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
+      "Submit")))
+
+
 
 (defcard-doc
   "
@@ -42,40 +135,110 @@
   pure rendering of application state: meaning that if you want to block the UI, then you need a way to put a block-the-ui
   marker in state (that renders in a way that prevents navigation), and remove that marker when the operation is complete.
 
-  That is the general problem statement. There are many ways you can accomplish this in Fulcro, so we'll give you
-  a simple re-usable model that will work, and you can experiment with other techniques as you think of them.
+  Fulcro has a number of ways that you can accomplish this, but we'll cover the simplest and most obvious.
 
   ### Blocking on Remote Mutations
 
-  #### Technique 1: Post-reads and Fallbacks
-
   This technique uses the following pattern:
 
-  1. During the optimistic update of the full-stack mutation: make your local change, and include a state change that
-  will prevent UI progress (e.g. a property like `:ui/disabled?` that disables next/close/progress buttons, or causes
-  an overlay div to pop up that blocks all events from the DOM).
-  2. Include a *fallback* in your transaction that will unblock the UI, show the error, and clear the outgoing network queue
-  3. Issue a load (from within the mutation is fine) and include a post-mutation that examines state for errors and unblocks the UI.
+  1. We use the `prim/ptransact!` to submit a transaction, which will run each mutation in pessimistic mode (each element
+  runs only after the prior element has completed a round-trip to the server).
+  2. The first call in the tx will block the UI, and do the remote operation. We'll also leverage mutation return values
+  so the server can indicate success to us.
+  3. Once the first call finishes, the second call in the tx can choose to unblock the UI, or handle any problem it
+  sees. The mutation return value is merged (and visible) in app state.
 
-  The load itself can be nothing more than a ping that intends to run the post-mutation to unblock the UI. You just need
-  something at the network layer that will follow the mutation.
+  Unlike `transact!`, `ptransact!` expects that you might have to nest it within a mutation in order to retry a
+  prior call. This is a supported use, and you should find the reconciler in the mutations `env` parameter.
 
-  TODO: This Needs `ptransact!`
- ********************************************************************************
- ********************************************************************************
- ********************************************************************************
- ********************************************************************************
- CONTINUE HERE
- CONTINUE HERE
- CONTINUE HERE
- CONTINUE HERE
- CONTINUE HERE
- ********************************************************************************
- ********************************************************************************
- ********************************************************************************
- ********************************************************************************
- ********************************************************************************
- ********************************************************************************
+  To show how this all works we'll use an in-browser server emulation and show you a working example.
+
+  First, we need something to block our UI (which in the card measures 400x100 px). It is a simple div with some style
+  that will overlay the main UI and prevent further interactions while also showing some kind of feedback message.
+
+  We define it, along with some helper functions that can manipulate its state. It does not have an ident, and we
+  plan to just place it in root at `:overlay`:
+
+  "
+  (dc/mkdn-pprint-source set-overlay-visible*)
+  (dc/mkdn-pprint-source set-overlay-message*)
+  (dc/mkdn-pprint-source BlockingOverlay)
+  "The main UI is just a simple one-field form and submission button. Note, however, that it submits the form
+  with `ptransact!` which will force each call to complete before the next one can start. Thus the second call can
+  check the result and run whatever in response to it.
+  "
+  (dc/mkdn-pprint-source Root)
+  "Now a bit of information about our \"server\". It has the following definition of the remote mutation:
+
+  ```
+  (defmethod server-mutate `submit-form [env k params]
+    {:action (fn []
+               (if (> 0.5 (rand))
+                 {:message \"Everything went swell!\"
+                  :result  0}
+                 {:message \"There was an error!\"
+                  :result  1}))})
+  ```
+
+  As you can see it's just a stub that randomly responds with success or error. The client mutation looks like this:
+
+  ```
+  (defmutation submit-form [params]
+    (action [{:keys [state]}] (swap! state set-overlay-visible* true))
+    (remote [{:keys [state ast] :as env}]
+      (m/returning ast state MutationStatus)))
+  ```
+
+  It just shows the overlay, and goes remote. Notice the remote part is  using `returning` from the mutations namespace
+  to indicate a merge of the result value of the mutation. For that we've defined a singleton component (for its query only):
+  "
+  (dc/mkdn-pprint-source MutationStatus)
+  "This means that when this remote mutation is done, we should see a the return value of the server mutation
+  at `[:remote-mutation :status]` (the ident (table/id) of `MutationStatus`).
+
+  Now for our second client mutation:
+
+  "
+  (dc/mkdn-pprint-source submit-ok?)
+  "
+
+  ```
+  (defmutation retry-or-hide-overlay [params]
+    (action [{:keys [reconciler state] :as env}]
+      (if (submit-ok? env)
+        (swap! state (fn [s]
+                       (-> s
+                         (set-overlay-message* \"Please wait...\") ; reset the overlay message for the next appearance
+                         (set-overlay-visible* false))))
+        (do
+          (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) \" (Retrying...)\"))
+          (prim/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})])))))
+  ```
+
+  It's the real work-horse. The optimistic side can assume the result is updated, so it looks for the result code via
+  `submit-ok?`. If things are OK, then it resets the overlay message and hides it.
+
+  If the submission had an error, then it
+
+  - Adds \"retrying\" to the server message and puts that on the overlay
+  - Does a new call to `ptransact!`.
+
+  You can try out the finished product in the card below. Try it a few times so you can see the error-handling in action.
+  ")
+
+(defcard-fulcro pessimistic-ui-card
+  Root
+  {}
+  {:inspect-data true
+   :fulcro       {:networking (map->MockNetwork {})}})
+
+(defcard-doc
+  "
+
+
+
+
+
 
 
   If you're running a mutation that has likely server errors, then you can explicitly encode a fallback with the mutation.
@@ -200,6 +363,4 @@
 
 
 
-
   ")
-

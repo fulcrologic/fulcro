@@ -177,9 +177,7 @@
         on-error   (comp send-complete on-error)
         on-done    (comp send-complete merge-data)]
     (if (f/is-deferred-transaction? query)
-      (do
-        (log/info "Skipping send of load due to deferred transaction")
-        (send-complete))
+      (on-done {}) ; immediately let the deferred tx go by pretending that the load is done
       (real-send network query on-done on-error on-update))))
 
 (defn is-sequential? [network]

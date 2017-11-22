@@ -352,13 +352,11 @@
 (defmutation run-deferred-transaction [{:keys [tx reconciler]}]
   (action [env]
     (let [reconciler (-> reconciler meta :reconciler)]
-      (log/info "Running deferred mutation " tx)
       #?(:clj  (prim/transact! reconciler tx)
          :cljs (js/setTimeout (fn [] (prim/transact! reconciler tx)) 1)))))
 
 (defmutation deferred-transaction [{:keys [tx remote]}]
   (action [env]
-    (log/info (str "Queing deferred transaction " tx " against remote " remote))
     (let [{:keys [reconciler component] :as env} env
           reconciler (cond
                        reconciler reconciler
@@ -367,6 +365,7 @@
       (if reconciler
         (load-action env ::impl/deferred-transaction nil {:post-mutation        `run-deferred-transaction
                                                           :remote               remote
+                                                          :marker               false
                                                           :post-mutation-params {:tx         tx
                                                                                  :reconciler (with-meta {} {:reconciler reconciler})}})
         (log/error (str "Cannot defer transaction. Reconciler was not available. Tx = " tx)))))
@@ -397,7 +396,9 @@
   "Returns the remote against which the given mutation will try to execute. Returns nil if it is not a remote mutation"
   [dispatch-symbol]
   (try
-    (let [mutation-map (mutate {:state (atom {})} dispatch-symbol {})
+    (let [mutation-map (mutate {:ast    (-> (prim/query->ast `[(~dispatch-symbol)]) :children first)
+                                :parser (constantly nil)
+                                :state  (atom {})} dispatch-symbol {})
           ks           (set (keys mutation-map))
           remotes      (set/difference ks #{:action :refresh :keys :value})
           remote       (first remotes)]
@@ -406,4 +407,5 @@
         nil))
     (catch #?(:clj Throwable :cljs :default) e
       (log/error (str "Attempting to get the declared remote for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!"))
+      #?(:cljs (js/console.log e))
       nil)))
