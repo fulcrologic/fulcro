@@ -1,6 +1,7 @@
 (ns fulcro.ui.elements
   (:require [om.next :as om :refer [defui]]
-            [om.dom :as dom]))
+            [om.dom :as dom]
+            #?(:cljs [goog.object :as gobj])))
 
 (defn react-instance?
   "Returns the react-instance (which is logically true) iff the given react instance is an instance of the given react class.
