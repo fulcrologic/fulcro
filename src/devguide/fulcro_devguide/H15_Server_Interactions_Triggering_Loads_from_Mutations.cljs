@@ -132,4 +132,9 @@
   ```
 
   (the follow-on read is to ensure load markers update).
+
+  ## What's Next?
+
+  Now that we know how to make loads happen behind the scenes.  You might be interested in knowing how to accomplish
+  [incremental loading](#!/fulcro_devguide.H20_Server_Interactions_Incremental_Loading).
   ")

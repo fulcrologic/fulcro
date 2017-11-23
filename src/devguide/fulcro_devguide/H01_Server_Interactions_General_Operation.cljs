@@ -8,7 +8,7 @@
             [fulcro.client.core :as fc]))
 
 (defcard-doc
-  ("
+  "
   # Server interaction - General Operation
 
   One of the most interesting and powerful things about Fulcro is that the model for server interaction is unified into
@@ -102,5 +102,46 @@
   When you interact with a server through the data fetch API, remember that it is essentially doing a server interaction
   (send the query to get the response), but everything that happens after that is pretty much just `merge!`.
 
-  "))
+  ## The Central Functions : `transact!` and `merge!`
+
+  When you start a Fulcro application your start-callback will get the completed `app` as a parameter.
+
+  Inside of this app is a `reconciler`. The `reconciler` is a central component in the system, particularly with
+  respect to remote interaction. It is the component that is responsible for managing the query engine, the remote
+  networking, data merge, etc.
+
+  There are some core central functions you should be well aware of, because they can be used from anywhere if used
+  with the `reconciler`. It is therefore often also useful to make sure your `app` or `reconciler` are stored in
+  a more global location where you can access them from outside of the application if you should need to.
+
+  - `prim/transact!` : The central function for running abstract changes in the application. Can be run with a component
+  or reconciler. If run with the reconciler, will typically cause a root re-render.
+  - `prim/merge!` : A function that can be run against the reconciler to merge a tree of data via a UI query. This is
+  the primary function that is used to integrate data in response to things like websocket server push.
+
+  ## Augmenting the Ring Response
+
+  In the following sections we'll be showing you how to respond to queries and mutations. The Ring stack is supplied for
+  you in the server, but there are times when you need to modify something about the low-level response itself (such
+  as adding a cookie).
+
+  Any of the techniques you read about in the coming sections all allow you to wrap your response as follows:
+
+  ```
+  (fulcro.server/augment-response your-response (fn [ring-response] ring-response'))
+  ```
+
+  For example, if you were using Ring and Ring Session, you could cause a session cookie to be generated, and user
+  information to be stored in a server session store simply by returning this from a query on user:
+
+  ```
+  (server/augment-response user (fn [resp] (assoc-in resp [:session :uid] real-uid)))
+  ```
+
+  We'll mention this again when you need to be reminded in an upcoming section.
+
+  ## What's Next?
+
+  Now, let's make sure you can [build a simple server](#!/fulcro_devguide.H02_Making_An_Easy_Server) to play with.
+  ")
 
