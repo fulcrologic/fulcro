@@ -47,7 +47,6 @@
     fulcro-devguide.O10-Forms-Full-Stack-Demo
     fulcro-devguide.O15-Forms-File-Upload
     fulcro-devguide.Z-Deploying-To-Heroku
-    fulcro-devguide.Z-Further-Reading
     fulcro-devguide.Z-Glossary
     fulcro-devguide.Z-Query-Quoting
     fulcro-devguide.ZZ-HTML-to-CLJS
