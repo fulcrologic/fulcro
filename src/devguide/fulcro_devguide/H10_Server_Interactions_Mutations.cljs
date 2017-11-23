@@ -7,7 +7,8 @@
             [fulcro.client.mutations :as m]
             [fulcro.client.core :as fc]))
 
-(defcard-doc "
+(defcard-doc
+  "
   # Mutations
 
   You've already seen how to define local mutations on the client. That portion of a mutation is run immediately on the
@@ -251,16 +252,36 @@
 
   The server query response can validate the credentials, set a cookie, and return the user info all at once!
 
-  See Building A Server for information on augmenting Ring responses on the server-side.
+  If you remember from the General Operations section, you can modify the low-level Ring response by associating a lambda
+  with your return value. If you were using Ring Session, then this might be how the query would be implemented on the server:
+
+  ```
+  (ns my-api
+    (:require [fulcro.server :as server :refer [defmutation defquery-root]]))
+
+  (def bad-user {:db/id 0})
+
+  (defquery-root :current-user
+    (value [env params]
+      (if-let [{:keys [db/id] :as user} (authenticate params)]
+        (server/augment-response user (fn [resp] (assoc-in resp [:session :uid] id)))
+        bad-user)))
+  ```
 
   ## Running Mutations in the Context of an Entity
 
   If you submit a transaction and include an ident:
 
   ```
-  (transact! this [:person/by-id 4] `[(f)])
+  (transact! reconciler [:person/by-id 4] `[(f)])
   ```
 
   then the transaction will run as-if it were executed in the context of any live component on the screen that currently has
-  that ident. This will also make the ident available in the mutation's environment as `:ref`.
+  that ident. This will make the ident available in the mutation's environment as `:ref`, and will focus refresh at that
+  component sub-tree(s). This can be useful when you have out-of-band data that you're running using the reconciler.
+
+  ## What's Next?
+
+  Now that we have the basics of server interaction programming under our belt, let's
+  [show the user that we're talking to the server.](#!/fulcro_devguide.H11_Server_Interactions_Network_Activity_Indicators)
   ")

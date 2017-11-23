@@ -359,9 +359,9 @@
 
   The good news is that Fulcro has a story that we believe is, as of 2017, a novel and quite compelling error handling story!
 
-  ##
+  ## What's Next?
 
-
-
+  Now that you know what to do about error handling, you might also be interested in
+  [remotes as an abstraction](#!/fulcro_devguide.H40_Server_Interactions_As_An_Abstraction).
 
   ")

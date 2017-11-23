@@ -15,6 +15,7 @@
     fulcro-devguide.G-Mutation-Exercises
     fulcro-devguide.G-Mutation-Solutions
     fulcro-devguide.H01-Server-Interactions-General-Operation
+    fulcro-devguide.H02-Making-An-Easy-Server
     fulcro-devguide.H05-Server-Interactions-Basic-Loading
     fulcro-devguide.H08-Server-Interactions-Morphing-Loaded-Data
     fulcro-devguide.H10-Server-Interactions-Mutations

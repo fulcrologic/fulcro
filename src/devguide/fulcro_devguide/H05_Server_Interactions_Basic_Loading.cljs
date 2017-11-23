@@ -194,4 +194,8 @@
   - `:fallback` - A mutation to run if the server throws an error during the load.
   - `:without` - A set of keywords to elide from the query. Covered in Incremental Loading.
   - `:params` - A map. If supplied the params will appear as the params of the query on the server.
+
+  ## What's Next?
+
+  Now that we know how to get stuff from the server, let's [talk about reshaping it](#!/fulcro_devguide.H08_Server_Interactions_Morphing_Loaded_Data)
   ")

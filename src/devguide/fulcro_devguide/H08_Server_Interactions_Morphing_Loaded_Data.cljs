@@ -209,4 +209,8 @@
 
   Subqueries must always be *joined* in another component's query, never just re-used. This rule helps ensure you don't
   end up with surprises around normalization.
+
+  ## What's Next?
+
+  Now we can get the data into our client in whatever form we need it. Now let's [talk about full-stack changes!](#!/fulcro_devguide.H10_Server_Interactions_Mutations)
   ")

@@ -56,4 +56,9 @@
   ```
   [{[:blog/by-id 1] [{:blog/comments [:db/id :comment/author :comment/body]}]}]
   ```
+
+  ## What's Next?
+
+  Now that you know how to load a graph over time, you might also want to know what to do when
+  [there are errors](#!/fulcro_devguide.H30_Server_Interactions_Error_Handling).
   ")

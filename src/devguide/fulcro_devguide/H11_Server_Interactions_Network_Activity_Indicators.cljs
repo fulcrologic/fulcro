@@ -35,4 +35,8 @@
   Because the global loading marker is at the top level of the application state, do not use the keyword as a follow-on
   read to mutations because it may unnecessarily trigger a re-render of the entire application.
 
+  ## What's Next?
+
+  Now that the user can see what is going on, let's talk about more advanced topics. What if we need to
+  [return a value from a mutation](#!/fulcro_devguide.H12_Server_Interactions_Mutation_Return_Values).
 ")
