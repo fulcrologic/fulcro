@@ -41,7 +41,7 @@
     and play with the UI. What happens?
 
     If you did it as instructed, you should see the number jump by two each time. This is
-    because we broke the cardinal rule: mutations return a thunk. The internals of Om
+    because we broke the cardinal rule: mutations return a thunk. The internals of Fulcro
     run the mutation methods more than once, which is why the proper implementation should
     return a map that indicates a lambda to run instead.
 
@@ -148,7 +148,7 @@
 
   The problem is that the element in the UI is changing state that some other part of the UI needs.
 
-  Om is perfectly happy to update elements with the same Ident when you transact on them, but it
+  Fulcro is perfectly happy to update elements with the same Ident when you transact on them, but it
   does not keep track of a dependency tree. Instead, it knows which components queried for what
   data.
 

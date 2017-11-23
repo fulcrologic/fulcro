@@ -49,9 +49,9 @@
                        (timbre/info "web server stopped.")
                        (assoc this :server nil)))))
 
-; This is both a server module AND hooks into the Om parser for the incoming /api read/mutate requests. The
+; This is both a server module AND hooks into the parser for the incoming /api read/mutate requests. The
 ; modular server support lets you chain as many of these together as you want, allowing you to define
-; reusable Om server components.
+; reusable server components.
 (defn make-web-server
   "Builds a web server with an optional argument that
    specifies which component to get `:middleware` from,

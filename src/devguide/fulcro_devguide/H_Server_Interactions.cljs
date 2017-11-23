@@ -961,7 +961,7 @@ TODO: CONTINUE REWRITE HERE...
   Of course, you can (and *should*) use syntax quoting to embed a query from (prim/get-query) so that normalization works,
   and the post-mutation can be used to deal with the fact that other parts of the UI may want to, for example, point
   to this newly-loaded thing. The `after-load-sym` is a symbol (e.g. dispatch key to the mutate multimethod). The multi-method
-  is guaranteed to be called with the app state in the environment, but no other Om environment items are ensured at
+  is guaranteed to be called with the app state in the environment, but no other environment items are ensured at
   the moment.
 
   IMPORTANT: post mutations look like regular mutations, but *only* the `action` is applied. Remotes are not processed
@@ -979,7 +979,7 @@ TODO: CONTINUE REWRITE HERE...
 
   #### New item creation – Temporary IDs
 
-  Om has a built in function `tempid` that will generate an om-specific temporary ID. This allows the normalization
+  Fulcro has a built in function `tempid` that will generate an om-specific temporary ID. This allows the normalization
   and denormalization of the client side database to continue working while the server processes the new data and returns
   the permanent identifiers.
 

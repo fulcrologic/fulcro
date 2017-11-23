@@ -28,7 +28,7 @@
 
   ```
   (m/defmutation delete-item
-    \"Om Mutation: Delete an item from a list\"
+    \"Mutation: Delete an item from a list\"
     [{:keys [id]}]
     (action [{:keys [state]}]
       (letfn [(filter-item [list] (filterv #(not= (second %) id) list))]

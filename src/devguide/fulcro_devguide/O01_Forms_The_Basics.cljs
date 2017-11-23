@@ -84,8 +84,8 @@
 (defcard-doc
   "# Forms – The Basics
 
-  Generic form support is a primary rapid appliation development feature. Fortunately, the overall structure of Om Next
-  and Fulcro makes it relatively simple to write form support in a general-purpose, composeable manner. This library
+  Generic form support is a primary rapid appliation development feature. Fortunately, the overall structure of
+  Fulcro makes it relatively simple to write form support in a general-purpose, composeable manner. This library
   defines form support that has:
 
   - Declarative forms
@@ -112,7 +112,7 @@
   ```
 
   **IMPORTANT NOTE**: When we use the parameter `form` or the word 'form' in the descriptions below, we mean the data
-  of the entire entity from an Om table that normally represents something in your application (like a person, phone number, etc).
+  of the entire entity from a table that normally represents something in your application (like a person, phone number, etc).
   This library *augments* your database entry with form support data (your 'person' becomes a 'person' AND a 'form'). In
   raw technical terms, the `build-form` function takes a map, and adds a `f/form-key { ... }` entry *to it*. The only
   implication for your UI is that your component queries must be expanded to include queries for this additional support
@@ -418,7 +418,7 @@ TODO: remove the need to pass the component? The form is just prim/props of the 
 
   ### Composition and Rendering Refresh
 
-  The one caveat is that when forms are nested the mutations on the nested fields cannot (due to the design of Om) refresh
+  The one caveat is that when forms are nested the mutations on the nested fields cannot (due to the design of Fulcro) refresh
   the parent automatically. To work around this, all built-in form mutations will trigger follow-on reads of
   the special property `f/form-root-key`. So, if you add that to your parent form's query, rendering of the top-level
   form elements (e.g. buttons that control submission) will properly update when any element of a subform changes.
@@ -516,7 +516,7 @@ TODO: remove the need to pass the component? The form is just prim/props of the 
   - `f/valid?` : Test if the form (or a field) is currently marked valid (must run validation separately)
   - `f/invalid?` : Test if the form (or a field) is currently marked invalid (must run validation separately)
   - `f/field-names` : Get the field names on a form
-  - `f/form-id` : returns the Om Ident of the form (which is also the ident of the entity)
+  - `f/form-id` : returns the Ident of the form (which is also the ident of the entity)
   - `f/validate-fields` : returns a new version of the form with the fields marked with validation. Pure function.
   - `f/validate-entire-form!` : Transacts a mutation that runs and sets validation markers on the form (which will update UI)
    ")

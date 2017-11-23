@@ -115,14 +115,14 @@
 
 #?(:cljs
    (fulcro.client.mutations/defmutation change-locale
-     "Om mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\")."
+     "mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\")."
      [{:keys [lang]}]
      (action [{:keys [state]}] (swap! state change-locale-impl lang))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation set-props
      "
-     Om mutation: A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
+     mutation: A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
      Specifically, merge the given `params` into the state of the database object at the component's ident.
      In general, it is recommended this be used for ui-only properties that have no real use outside of the component.
      "
@@ -133,7 +133,7 @@
 
 #?(:cljs
    (fulcro.client.mutations/defmutation toggle
-     "Om mutation: A helper method that toggles the true/false nature of a component's state by ident.
+     "mutation: A helper method that toggles the true/false nature of a component's state by ident.
       Use for local UI data only. Use your own mutations for things that have a good abstract meaning. "
      [{:keys [field]}]
 

@@ -372,7 +372,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                       (update-routing-links bidi-match))))))
 
 (m/defmutation route-to
-  "Om Mutation (use in transact! only):
+  "Mutation (use in transact! only):
 
   Change the application's overall UI route to the given route by handler. Handler must be a single keyword that
   indicates an entry in your routing tree (which must be in the initial app state of your UI root). route-params

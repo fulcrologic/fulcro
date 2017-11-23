@@ -15,7 +15,7 @@
 
   In general you should do a full devguide on macros which will give you a great
   facility with quoting. This appendix to the devguide is to help you see the
-  patterns that are commonly used in Fulcro/Om UI to properly encode
+  patterns that are commonly used in Fulcro UI to properly encode
   queries on the UI.
 
   If you really want to see all of the edges, you might want to read
@@ -35,7 +35,7 @@
   and you'll get back a vector containing a list (which contains a symbol), and two other
   symbols (`_` and `...`).
 
-  Since Om queries use these things in the query notation, this is the most basic tool
+  Since queries use these things in the query notation, this is the most basic tool
   for getting the correct data  structure as a query.
 
   ## Syntax quotes
@@ -63,7 +63,7 @@
   ### Dealing with symbols in syntax quoting
 
   The automatic namespacing of symbols helps ensure that their use in macros is correct; however, it
-  is at cross purposes to our Om queries.
+  is at cross purposes to our queries.
 
   For example:
 

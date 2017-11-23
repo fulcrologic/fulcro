@@ -61,7 +61,7 @@
         parser (server/parser {:read my-read :mutate my-mutate})
         parse-result (fn [query] (easy/api {:parser parser :transit-params query}))]
 
-    (behavior "for Om reads"
+    (behavior "for reads"
       (behavior "for a valid request"
         (behavior "returns a query response"
           (let [result (parse-result [:foo])]
@@ -97,7 +97,7 @@
               "returns exception data in the response body."
               (:body result) => {:type "class java.lang.IllegalArgumentException", :message nil})))))
 
-    (behavior "for Om mutates"
+    (behavior "for mutates"
       (behavior "for a valid request"
         (behavior "returns a query response"
           (let [result (parse-result ['(foo)])]

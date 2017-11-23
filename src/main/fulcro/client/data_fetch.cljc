@@ -105,7 +105,7 @@
   - `app-or-comp-or-reconciler` : A component instance, Fulcro application, or reconciler
   - `server-property-or-ident` : A keyword or ident that represents the root of the query to send to the server. If this is an ident
   you are loading a specific entity from the database into a local app db table. A custom target will be ignored.
-  - `SubqueryClass` : An Om component that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
+  - `SubqueryClass` : A component that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
     SubqueryClass can be nil, in which case the resulting server query will not be a join.
   - `config` : A map of load configuration parameters.
 
@@ -384,7 +384,7 @@
     {:remote true}))
 
 (defmutation fallback
-  "Om mutation: Add a fallback for network failures to the transaction.
+  "mutation: Add a fallback for network failures to the transaction.
 
   Parameters:
   `action` - The symbol of the mutation to run on error."

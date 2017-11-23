@@ -311,8 +311,9 @@
   ### UI attributes
 
   There is a special use-case in your applications for attributes in a component query: local, UI-only data. For
-  example, is a checkbox checked. Om generally hooks this stuff up to component local state, but that makes
-  debugging more difficult, and it also makes some user interactions invisible to the support VCR viewer. Instead,
+  example, is a checkbox checked. Fulcro hooks this stuff up to component local state for form inputs to maintain
+  stock React behavior, but that makes debugging more difficult, and it also makes some user interactions invisible
+  to the support VCR viewer. Instead,
   if you namespace these UI-only attrubutes to `ui`, they will be elided from server queries (see Server Interactions).
 
   Since UI attributes really don't need very abstract mutations (typical operations are 'set to this string' and 'toggle')

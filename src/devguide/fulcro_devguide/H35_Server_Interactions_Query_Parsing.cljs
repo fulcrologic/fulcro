@@ -1,4 +1,4 @@
-(ns fulcro-devguide.M45-Advanced-Server-Query-Processing
+(ns fulcro-devguide.H35-Server-Interactions-Query-Parsing
   (:require-macros [cljs.test :refer [is]])
   (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
@@ -11,13 +11,11 @@
             [fulcro.client.impl.parser :as p]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
-; TODO: make external refs (e.g. to ss component) links
-
 (defcard-doc
   "
-  # Advanced Query Processing
+  # Query Parsing
 
-  All incoming client communication will be in the form of Om Query/Mutation expressions. You've
+  All incoming client communication will be in the form of Query/Mutation expressions. You've
   already seen that your `defquery-root` and `defquery-entity` are called for each separate element
   of a query or mutation; however, there is no built-in recursive processing, but the UI might
   prune the query (using `:without` or `load-field`) and the server should really only respond
@@ -26,7 +24,7 @@
   The most important item in the query processing is the received environment (`env`). On
   the server it contains:
 
-  - Anything components you've asked to be injected. Perhaps database and config components.
+  - Any components you've asked to be injected. Perhaps database and config components.
   - `ast`: An AST representation of the item being parsed.
   - `query`: The subquery (e.g. of a join)
   - `parser`: The query expression parser itself (which allows you to do recursive calls)
@@ -39,10 +37,10 @@
 
   If you're not using Datomic, then read on.
 
-  ## The `env` Parser
+  ## There is a Parser in your `env`
 
-  The parser is exactly what it sounds like: a parser for the query grammar. The one you
-  get in `env` is already hooked into your dispatch mechanism (e.g. defquery-root).
+  Parser is exactly what it sounds like: a parser for the query grammar. You
+  get one in the query/mutation `env` that already hooked into your dispatch mechanism (e.g. defquery-root).
 
   Thus, if you run `(parser env [:x])` you should see a dispatch to your `defquery-root` on `:x`.
 
@@ -56,11 +54,11 @@
 
   ")
 
-(defcard om-parser
-  "This card will run an Om parser on an arbitrary query, record the calls to the read emitter,
+(defcard basic-parser
+  "This card will run a parser on an arbitrary query, record the calls to the read emitter,
   and shows the trace of those calls in order. Feel free to look at the source of this card.
 
-  Essentially, it creates an Om parser that dispatches reads to `read-tracking`:
+  Essentially, it creates a parser that dispatches reads to `read-tracking`:
 
   ```
    (prim/parser {:read read-tracking})
@@ -99,12 +97,12 @@
                         :value    v
                         :onChange (fn [evt] (swap! state assoc :v (.. evt -target -value)))})
         (dom/button #js {:onClick #(try
-                                    (reset! trace [])
-                                    (swap! state assoc :error nil)
-                                    (parser {} (r/read-string v))
-                                    (swap! state assoc :result @trace)
-                                    (catch js/Error e (swap! state assoc :error e))
-                                    )} "Run Parser")
+                                     (reset! trace [])
+                                     (swap! state assoc :error nil)
+                                     (parser {} (r/read-string v))
+                                     (swap! state assoc :result @trace)
+                                     (catch js/Error e (swap! state assoc :error e))
+                                     )} "Run Parser")
         (dom/h4 nil "Parsing Trace")
         (html-edn (:result @state)))))
   {}
@@ -136,7 +134,7 @@
 
   For educational purposes, we're going to walk you through implementing this read function yourself.
 
-  The Om Next parser understands the grammar, and is written to work as follows:
+  The parser understands the grammar, and is written to work as follows:
 
   - The parser calls your `read` with the key that it parsed, along with some other helpful information.
   - Your read function returns a value for that key (possibly calling the parser recursively if it is a join).
@@ -171,12 +169,12 @@
                         :value    v
                         :onChange (fn [evt] (swap! state assoc :v (.. evt -target -value)))})
         (dom/button #js {:onClick #(try
-                                    (reset! trace [])
-                                    (swap! state assoc :error nil)
-                                    (parser {} (r/read-string v))
-                                    (swap! state assoc :result @trace)
-                                    (catch js/Error e (swap! state assoc :error e))
-                                    )} "Run Parser")
+                                     (reset! trace [])
+                                     (swap! state assoc :error nil)
+                                     (parser {} (r/read-string v))
+                                     (swap! state assoc :result @trace)
+                                     (catch js/Error e (swap! state assoc :error e))
+                                     )} "Run Parser")
         (dom/h4 nil "Parsing Trace")
         (html-edn (:result @state)))))
   {}
@@ -282,9 +280,9 @@
                         :value    v
                         :onChange (fn [evt] (swap! state assoc :v (.. evt -target -value)))})
         (dom/button #js {:onClick #(try
-                                    (swap! state assoc :error "" :result (parser {:state (atom (:db @state))} (r/read-string v)))
-                                    (catch js/Error e (swap! state assoc :error e))
-                                    )} "Run Parser")
+                                     (swap! state assoc :error "" :result (parser {:state (atom (:db @state))} (r/read-string v)))
+                                     (catch js/Error e (swap! state assoc :error e))
+                                     )} "Run Parser")
         (when error
           (dom/div nil (str error)))
         (dom/h4 nil "Query Result")
@@ -524,3 +522,31 @@
   "Result: "
   parser3/parse-result-ms)
 
+(defcard-doc
+  "
+  ## Using a Completely Custom Parser
+
+  Most of this section assumed you're entering your server code via the built-in parser. Note that it is possible to use an
+  alternate (custom) parser at any phase of parsing. In fact, you can even install a custom parser in your server
+  (though then the macros for defining mutations and query handlers won't work for you).
+
+  Just remember that at any time in parsing you may change over to using an alternate instance of a parser to continue
+  processing. Parsers can be constructed using the `prim/parser` function.
+
+  # External Libraries
+
+  ## [Pathom](https://github.com/wilkerlucio/pathom)
+
+  A really nice library for building recursive Fulcro query parsers. It has a good model for building parsers that can
+  bridge everything from REST services to microservice architectures. In general if you need to interpret your UI queries,
+  this tool can be very useful.
+
+
+  ## [Fulcro-SQL](https://github.com/fulcrologic/fulcro-sql)
+
+  A library that can run Fulcro graph queries against SQL databases. This library lets you define your joins in relation
+  to the Fulcro join notion. It can walk to-one, to-many, and many-to-many joins in an SQL database in response to a
+  Fulcro join. This allows it to handle many Fulcro queries as graph queries against your SQL database with just a little
+  configuration and extra code.
+
+  ")

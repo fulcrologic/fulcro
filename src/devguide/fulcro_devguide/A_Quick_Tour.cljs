@@ -118,7 +118,7 @@
                               nil)})
     nil))
 
-; Om Next query parser. Calls read/write handlers with keywords from the query
+; query parser. Calls read/write handlers with keywords from the query
 (def server-parser (prim/parser {:read read-handler :mutate write-handler}))
 
 ; Simulated server. You'd never write this part
@@ -546,7 +546,7 @@
   data that changed wasn't a counter, we (accidentally) short-circuit the sum for efficiency.
 
   This is the point of the earlier mysterious `:counter-sum` in the `transact!`. Any keyword that appears in a transaction
-  will cause Om to re-render any component that *queried* for that property (in our case this is the Root UI component). These
+  will cause a re-render of any component that *queried* for that property (in our case this is the Root UI component). These
   are called 'follow-on reads', to imply that 'anything that reads the given property should be asked to re-read it
   (and implicitly, this means it will re-render if the value has changed)'.
 

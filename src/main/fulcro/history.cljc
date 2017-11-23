@@ -4,9 +4,6 @@
                     [fulcro.util :as util]
                     [clojure.spec.alpha :as s]))
 
-
-;; FIXME: Logging should be a leaf, so we can refer to it...but the import of Om kind of breaks things...
-
 (defn is-timestamp? [t]
   #?(:clj  (instance? java.util.Date t)
      :cljs (instance? js/Date t)))

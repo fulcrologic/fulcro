@@ -1191,7 +1191,7 @@
     (comp xf :form)))
 
 #?(:cljs (defmutation commit-to-entity
-           "Om Mutation: Commit the changes on the form. This will cause the state of the pristine cache to match what you see on the
+           "Mutation: Commit the changes on the form. This will cause the state of the pristine cache to match what you see on the
            form. Note, until tempids are rewritten a form will appear modified (unsaved changes).
 
            `form` is the COMPLETE PROPS of a form. NOT AN IDENT.
@@ -1212,7 +1212,7 @@
       (assoc ast :params (diff-form form)))))
 
 #?(:cljs (defmutation reset-from-entity
-           "Om Mutation: Reset the entity back to its original state before editing. This will be the last state that
+           "Mutation: Reset the entity back to its original state before editing. This will be the last state that
            the entity had just following initialization or the last commit.
 
            `form-id` is the ident of the entity acting as a form.
@@ -1221,8 +1221,8 @@
            (action [{:keys [state]}] (swap! state entity-xform form-id reset-entity))))
 
 (defn reset-from-entity!
-  "Reset the form from a given entity in your application database using an Om transaction and update the validation state.
-   You may compose your own Om transactions and use `(f/reset-from-entity {:form-id [:entity id]})` directly."
+  "Reset the form from a given entity in your application database using a transaction and update the validation state.
+   You may compose your own transactions and use `(f/reset-from-entity {:form-id [:entity id]})` directly."
   [comp-or-reconciler form]
   (let [form-id (form-ident form)]
     (prim/transact! comp-or-reconciler

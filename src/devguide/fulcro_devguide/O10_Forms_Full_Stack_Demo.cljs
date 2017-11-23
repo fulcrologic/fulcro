@@ -54,7 +54,7 @@
                               (log/info "Server asked to update unknown entity " table))))
     nil))
 
-; Om Next query parser. Calls read/write handlers with keywords from the query
+; query parser. Calls read/write handlers with keywords from the query
 (def server-parser (prim/parser {:read read-handler :mutate write-handler}))
 
 ; Simulated server. You'd never write this part
@@ -113,7 +113,7 @@
   (update-in state-map form-ident #(f/build-form form-class %)))
 
 (defmutation edit-phone
-  "Om Mutation: Set up the given phone number to be editable in the
+  "Mutation: Set up the given phone number to be editable in the
   phone form, and route the UI to the form."
   [{:keys [id]}]
   (action [{:keys [state]}]
@@ -242,7 +242,7 @@
   (dc/mkdn-pprint-source MockNetwork)
   "
 
-  where `server` is pretty much what you have to write on any Fulcro Server: an Om parser with
+  where `server` is pretty much what you have to write on any Fulcro Server: a parser with
   a read and write handler:
 
   "
@@ -360,7 +360,7 @@
 
   ## Commit and Reset
 
-  Commit and reset are a built-in mutations.  They both have cljs and Om-composable version (the former
+  Commit and reset are a built-in mutations.  They both have a function and mutation-composable version (the former
   just calls transact for you). Often you'll want to combine other operations with a commit or
   reset, as is shown in the form editor.
 

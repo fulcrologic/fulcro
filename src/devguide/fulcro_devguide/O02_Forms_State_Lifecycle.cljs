@@ -16,7 +16,7 @@
 
   Form support is meant to track the state of one or more entities through
   the process of editing. It is important to remember the general
-  model of Om/Fulcro is one where the application moves from
+  model of Fulcro is one where the application moves from
   state to state over time, and the components themselves have (ideally)
   no local state.
 
@@ -59,7 +59,7 @@
 
   - Any field of the form or its declared subforms has a value different from
   the initial (or most recently committed) value.
-  - Any form or subform in a set has an Om tempid (e.g. server remaps have not
+  - Any form or subform in a set has a tempid (e.g. server remaps have not
   yet taken effect)
 
   NOTE: If you're writing forms on a UI that has
@@ -71,7 +71,7 @@
   Form fields that support validation will typically run validation on the field when that
   field is manipulated. Full-form validation can be done at any time by composing `validate-fields`
   into your own mutation (see also `on-form-change`). The system is fully flexible, and for the
-  most part validation is composable, extensible, configurable, and happens at Om transaction
+  most part validation is composable, extensible, configurable, and happens at transaction
   boundaries in whatever ways you define.
 
   Validation is tri-state. All fields start out `:unchecked`. If you wish your form to start out

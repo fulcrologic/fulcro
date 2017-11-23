@@ -24,6 +24,7 @@
     fulcro-devguide.H15-Server-Interactions-Triggering-Loads-from-Mutations
     fulcro-devguide.H20-Server-Interactions-Incremental-Loading
     fulcro-devguide.H30-Server-Interactions-Error-Handling
+    fulcro-devguide.H35-Server-Interactions-Query-Parsing
     fulcro-devguide.H40-Server-Interactions-As-An-Abstraction
     fulcro-devguide.I-Building-A-Server
     fulcro-devguide.J-Exercise-on-Putting-It-Together
@@ -35,7 +36,6 @@
     fulcro-devguide.M15-Routing-UI
     fulcro-devguide.M30-Advanced-Mutation
     fulcro-devguide.M40-Advanced-Server-Topics
-    fulcro-devguide.M45-Advanced-Server-Query-Processing
     fulcro-devguide.M50-Server-Side-Rendering
     fulcro-devguide.N10-Twitter-Bootstrap-CSS
     fulcro-devguide.N15-Twitter-Bootstrap-Components

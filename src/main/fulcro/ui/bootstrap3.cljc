@@ -469,14 +469,14 @@
     [dropdown-item-table id-or-props]))
 
 (m/defmutation set-dropdown-open
-  "Om Mutation. Set the open flag to true/false to open/close the dropdown."
+  "Mutation. Set the open flag to true/false to open/close the dropdown."
   [{:keys [id open?]}]
   (action [{:keys [state]}]
     (let [kpath (conj (dropdown-ident id) ::open?)]
       (swap! state assoc-in kpath open?))))
 
 (m/defmutation set-dropdown-item-active
-  "Om Mutation. Set one of the items in a dropdown to active.
+  "Mutation. Set one of the items in a dropdown to active.
 
   id - the ID of the dropdown
   item-id - the ID of the dropdown item
@@ -489,7 +489,7 @@
   (reduce (fn [m id] (assoc-in m [id ::open?] false)) dropdown-map (keys dropdown-map)))
 
 (m/defmutation close-all-dropdowns
-  "Om Mutations: Close all dropdowns (globally)"
+  "Mutations: Close all dropdowns (globally)"
   [ignored]
   (action [{:keys [state]}]
     (swap! state update dropdown-table close-all-dropdowns-impl)))
@@ -633,7 +633,7 @@
   (update-in state-map (nav-ident nav-id) assoc ::active-link-id link-id))
 
 (m/defmutation set-active-nav-link
-  "Om Mutation: Set the active navigation link"
+  "Mutation: Set the active navigation link"
   [{:keys [id target]}]
   (action [{:keys [state]}]
     (swap! state set-active-nav-link* id target)))
@@ -868,7 +868,7 @@
 
 #?(:cljs
    (defmutation show-modal
-     "Om Mutation: Show a modal by ID."
+     "Mutation: Show a modal by ID."
      [{:keys [id]}]
      (action [{:keys [state]}]
        (swap! state update-in (modal-ident id) show-modal* true)
@@ -876,7 +876,7 @@
 
 #?(:cljs
    (defmutation hide-modal
-     "Om mutation: Hide a modal by ID."
+     "mutation: Hide a modal by ID."
      [{:keys [id]}]
      (action [{:keys [state]}]
        (swap! state update-in (modal-ident id) activate-modal* false)
@@ -1043,7 +1043,7 @@
           #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :closed)) 350)))))))
 
 (defmutation toggle-collapse
-  "Om mutation: Toggle a collapse"
+  "mutation: Toggle a collapse"
   [{:keys [id]}]
   (action [{:keys [state]}]
     (let [cident  (collapse-ident id)
@@ -1052,13 +1052,13 @@
       (set-collapse* state id (not is-open)))))
 
 (defmutation set-collapse
-  "Om mutation: Set the state of a collapse."
+  "mutation: Set the state of a collapse."
   [{:keys [id open]}]
   (action [{:keys [state]}]
     (set-collapse* state id open)))
 
 (defmutation toggle-collapse-group-item
-  "Om mutation: Toggle a collapse element as if in a group.
+  "mutation: Toggle a collapse element as if in a group.
 
   item-id: The specific group to toggle
   all-item-ids: A collection of all of the items that are to be considered part of the group. If any items are
@@ -1105,7 +1105,7 @@
 
 
 (defmutation carousel-slide-to
-  "Om mutation: Slides a carousel from the current frame to the indicated frame. The special `frame` value of `:wrap`
+  "mutation: Slides a carousel from the current frame to the indicated frame. The special `frame` value of `:wrap`
   can be used to slide from the current frame to the first as if wrapping in a circle."
   [{:keys [id frame]}]
   (action [{:keys [state]}]
