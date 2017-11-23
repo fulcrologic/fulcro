@@ -18,30 +18,40 @@
 
 #?(:cljs
    (defn update-frame-content [this child]
-     (let [frame-component (om/get-state this :frame-component)]
+     (let [frame-component (gobj/get this "frame-component")]
        (when frame-component
          (js/ReactDOM.render child frame-component)))))
 
 #?(:cljs
-   (defui IFrame
-     Object
-     (initLocalState [this] {:border 0})
-     (componentDidMount [this]
-       (let [frame-body (.-body (.-contentDocument (js/ReactDOM.findDOMNode this)))
-             child      (:child (om/props this))
-             e1         (.createElement js/document "div")]
+   (defn start-frame [this]
+     (let [frame-body (.-body (.-contentDocument (js/ReactDOM.findDOMNode this)))
+           {:keys [child]} (om/props this)
+           e1         (.createElement js/document "div")]
+       (when (= 0 (gobj/getValueByKeys frame-body #js ["children" "length"]))
          (.appendChild frame-body e1)
-         (om/update-state! this assoc :frame-component e1)
-         (update-frame-content this child)))
-     (componentDidUpdate [this pprops pstate]
-       (let [child (:child (om/props this))]
-         (update-frame-content this child)))
-     (render [this]
-       (dom/iframe (-> (om/props this) (dissoc :child) clj->js)))))
+         (gobj/set this "frame-component" e1)
+         (update-frame-content this child)))))
 
 #?(:cljs
-   (defn ui-iframe [props child]
-     ((om/factory IFrame) (assoc props :child child))))
+   (om/defui IFrame
+     Object
+     (componentDidMount [this] (start-frame this))
+
+     (componentDidUpdate [this _ _]
+       (let [child (:child (om/props this))]
+         (update-frame-content this child)))
+
+     (render [this]
+       (dom/iframe
+         (-> (om/props this)
+             (dissoc :child)
+             (assoc :onLoad #(start-frame this))
+             clj->js)))))
+
+#?(:cljs
+   (let [factory (om/factory IFrame)]
+     (defn ui-iframe [props child]
+       (factory (assoc props :child child)))))
 
 #?(:cljs
    (defui ShadowDOM
