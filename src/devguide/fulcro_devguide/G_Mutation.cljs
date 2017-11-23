@@ -301,6 +301,9 @@
   To use the new support, simply include a `refresh` section in your mutation, like so:
 
   ```
+  (defmutation do-thing [params]
+    (action [env] ...)
+    (refresh [env] [:person/name]))
   ```
 
   ## Fulcro built-in mutations
