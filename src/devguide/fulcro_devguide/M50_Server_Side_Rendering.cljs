@@ -194,7 +194,9 @@
 
   If you use external Javascript libraries of React components, then you'll probably want to work just a little
   bit harder. The techniques described above work perfectly if you're writing all of your own UI, but as soon as there
-  are some pure js components you have to stub them out with placeholders.
+  are some pure js components you have to stub them out with placeholders. Doing so can still be a good idea if you
+  can quickly make static versions of them with the proper CSS, but sometimes you'd just like to get a more accurate
+  initial rendering.
 
   If you're willing to work just a little bit harder, then you can maintain a true isomorphic application using Java
   8 and the Nashorn ECMA scripting engine.
