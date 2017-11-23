@@ -1,17 +1,98 @@
 (ns fulcro-devguide.I-Building-A-Server
-  (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
+  (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+            [fulcro.client.primitives :as prim]
+            [fulcro.client.core :as fc :refer [defsc]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
+            [fulcro.client.mutations :as m :refer [defmutation]]
+            [fulcro.client.dom :as dom]))
 
 (defcard-doc
   "
   # Building a Server - More Details
 
   Fulcro comes with pre-built server components. These allow you to very quickly get the server side of your
-  application up and running. There are two main ways to do this:
+  application up and running. We'll talk about three ways to do this:
 
+  - How to use the pre-built bits to manually build your own server.
   - A one-liner that will work to get started, and possibly even into production
-  - A more involved modular appraoch that has more overall flexibility.
+  - A more involved pre-written, but modular approach, that has more overall flexibility.
 
   The are referred to as the \"easy\" and \"modular\" servers respectively.
+
+  ## Rolling Your Own Server
+
+  If you're integrating with an existing server then you probably just want to know how to get things working without
+  having to use a Component library, and all of the other stuff that comes along with it.
+
+  It turns out that the server API handling is relatively light. Most of the work goes into getting things set up
+  for easy server restart (e.g. making components stop/start) and getting those components into your parsing environment.
+
+  If you have an existing server, then you've mostly figured out all of that stuff already, and just want to plug
+  a Fulcro API handler into it.
+
+  Here are the basic requirements:
+
+  1. Make sure your Ring stack has transit-response and transit-params. You can see the a sample Ring stack in
+  [Fulcro's source](https://github.com/fulcrologic/fulcro/blob/1.2.0/src/main/fulcro/easy_server.clj#L94)
+  2. Check to see if the incoming request is for \"/api\". If so:
+  3. Call [`handle-api-request`](https://github.com/fulcrologic/fulcro/blob/1.2.0/src/main/fulcro/server.clj#L354). Pass
+  a parser to it (recommend using `fulcro.server/fulcro-parser`), an environment, and the EDN of the request. It will
+  give back a Ring response.
+
+  You're responsible for creating the parser environment. I'd recommend using
+  the `fulcro.server/fulcro-parser` because it is already hooked to the multimethods that the dev guide talks about
+   for handling server requests at the API level like `defquery-root`. Those won't work unless you use it, but any parser
+  that can deal with the query/mutation syntax is technically legal.
+
+  Here's a crappy little server with no configuration support, no ability to hot code reload, and no external
+  integrations at all. But it shows how little you need:
+
+  ```
+  (ns solutions.tiny-server
+    (:require
+      [ring.middleware.content-type :refer [wrap-content-type]]
+      [ring.middleware.gzip :refer [wrap-gzip]]
+      [ring.middleware.not-modified :refer [wrap-not-modified]]
+      [ring.middleware.resource :refer [wrap-resource]]
+      [ring.util.response :as rsp :refer [response file-response resource-response]]
+      [org.httpkit.server]
+      [fulcro.server :as server]))
+
+  (defn not-found-handler []
+    (fn [req]
+      {:status  404
+       :headers {\"Content-Type\" \"text/plain\"}
+       :body    \"NOPE\"}))
+
+  (def parser (server/fulcro-parser))
+
+  (defn wrap-api [handler uri]
+    (fn [request]
+      (if (= uri (:uri request))
+        (server/handle-api-request parser {} (:transit-params request))
+        (handler request))))
+
+  (defn my-tiny-server []
+    (let [port       9002
+          ring-stack (-> (not-found-handler)
+                       (wrap-api \"/api\")
+                       (server/wrap-transit-params)
+                       (server/wrap-transit-response)
+                       (wrap-resource \"public\")
+                       (wrap-content-type)
+                       (wrap-not-modified)
+                       (wrap-gzip))]
+      (org.httpkit.server/run-server ring-stack {:port port})))
+  ```
+
+  In a REPL, you could start this one up with:
+
+  ```
+  solutions.tiny-server=> (my-tiny-server)
+  ```
+
+  This source is already `src/devguide/solutions/tiny-server.clj` if you're running the dev guide and would
+  like to play with it in a REPL.
 
   ## Making an \"Easy\" Server
 
@@ -224,9 +305,8 @@
   ```
 
   The main difference is that `env` on the client contains the client app `state`, while the `env` on the server
-  has your parser injections from server configuration. ")
+  has your parser injections from server configuration.
 
-(defcard-doc "
   ## Modular Server
 
   Fulcro's easy server support is an attempt to get you going quickly, but it suffers from a few drawbacks:

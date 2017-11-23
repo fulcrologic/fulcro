@@ -39,6 +39,7 @@
    Can pass transit writer customization opts map."
   ([out] (transit/writer out))
   ([out opts] (transit/writer out opts)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CONFIG
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -309,7 +310,8 @@ default-malformed-response
     (not (some (fn [[_ {:keys [fulcro.client.primitives/error]}]] (some? error)) result))))
 
 (defn raise-response
-  "For om mutations, converts {'my/mutation {:result {...}}} to {'my/mutation {...}}"
+  "Mutations running through a parser all come back in a map like this {'my/mutation {:result {...}}}. This function
+  converts that to {'my/mutation {...}}."
   [resp]
   (reduce (fn [acc [k v]]
             (if (and (symbol? k) (not (nil? (:result v))))
@@ -318,20 +320,20 @@ default-malformed-response
     {} resp))
 
 (defn augment-map
-  "Parses response the top level values processing the augmented response. This function
-  expects the parser mutation results to be raised (use the raise-response function)."
+  "Fulcro queries and mutations can wrap their responses with `augment-response` to indicate they need access to
+   the raw Ring response. This function processes those into the response.
+
+  IMPORTANT: This function expects that the parser results have already been raised via the raise-response function."
   [response]
   (->> (keep #(some-> (second %) meta :fulcro.server/augment-response) response)
     (reduce (fn [response f] (f response)) {})))
 
 (defn generate-response
-  "Generate a response containing status code, headers, and body.
-  The content type will always be 'application/transit+json',
-  and this function will assert if otherwise."
-  [{:keys [status body headers] :or {status 200} :as input}]
-  {:pre [(not (contains? headers "Content-Type"))
-         (and (>= status 100) (< status 600))]}
-  (-> (assoc input :status status :body body)
+  "Generate a Fulcro-compatible response containing at least a status code, headers, and body. You should
+  pre-populate at least the body of the input-response.
+  The content type of the returned response will always be pegged to 'application/transit+json'."
+  [{:keys [status body headers] :or {status 200} :as input-response}]
+  (-> (assoc input-response :status status :body body)
     (update :headers assoc "Content-Type" "application/transit+json")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -568,7 +570,7 @@ default-malformed-response
 
 (defmacro ^{:doc      "Define a server-side query handler for queries joined at the root.
 
-The `value` method you define will receive the full parser environment (server-side, with your
+The `value` method you define will receive the full Om parser environment (server-side, with your
 component injections) as `env` and any params the server sent with the specific top-level query. Note that the subquery and
 AST for the query will be available in `env`.
 
