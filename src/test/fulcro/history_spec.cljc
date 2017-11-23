@@ -47,13 +47,11 @@
     "compressible-tx? returns false for normal transactions "
     (hist/compressible-tx? []) => false)
   (when-mocking
-    (prim/reconciler? r) => true
-    (prim/component? c) => false
-    (prim/transact* r a b tx) => (assertions
+    (prim/transact! r tx) => (assertions
                                "Are marked compressible by prim/compressible-transact!"
                                (hist/compressible-tx? tx) => true)
 
-    (prim/transact! :mock-reconciler [] {:compressible? true})))
+    (prim/compressible-transact! :mock-reconciler [])))
 
 (specification "Last tx time"
   (let [steps   {1 mock-step 2 mock-step 3 mock-step 4 mock-step 5 mock-step}
