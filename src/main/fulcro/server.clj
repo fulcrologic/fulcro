@@ -29,13 +29,13 @@
   [_ key _] key)
 
 (defn reader
-  "Create a Om Next transit reader. This reader can handler the tempid type.
+  "Create a transit reader. This reader can handler the tempid type.
    Can pass transit reader customization opts map."
   ([in] (transit/reader in))
   ([in opts] (transit/reader in opts)))
 
 (defn writer
-  "Create a Om Next transit reader. This writer can handler the tempid type.
+  "Create a transit reader. This writer can handler the tempid type.
    Can pass transit writer customization opts map."
   ([out] (transit/writer out))
   ([out opts] (transit/writer out opts)))
@@ -489,7 +489,7 @@ default-malformed-response
                        This macro expands just like the client defmutation (though it uses server multimethod and only
                        support `action`).
 
-                       NOTE: It will only work if you're using the `fulcro-parser` as your server's Om parser.
+                       NOTE: It will only work if you're using the `fulcro-parser` as your server's parser.
                        "
             :arglists '([sym docstring? arglist action])} defmutation
   [& args]
@@ -515,7 +515,7 @@ default-malformed-response
 (declare server-read)
 
 (defn fulcro-parser
-  "Builds and returns an Om parser that uses Fulcro's query and mutation handling. See `defquery-entity`, `defquery-root`,
+  "Builds and returns a parser that uses Fulcro's query and mutation handling. See `defquery-entity`, `defquery-root`,
   and `defmutation` in the `fulcro.server` namespace."
   []
   (parser {:read server-read :mutate server-mutate}))
@@ -542,7 +542,7 @@ default-malformed-response
   (value [env id params] {:db/id id :person/name \"Joe\"}))
 
   The `env` argument will be the server parser environment, which will include all of your component injections, the AST for
-  this query, along with the subquery (see Om docs). `id` will be the ID of the entity to load. `params` will be any additional
+  this query, along with the subquery. `id` will be the ID of the entity to load. `params` will be any additional
   params that were sent via the client `load` (i.e. `(load this [:person/by-id 1] Person {:params {:auth 1223555}})`).
 "
             :arglists '([entity-type docstring? value])} defquery-entity
@@ -568,7 +568,7 @@ default-malformed-response
 
 (defmacro ^{:doc      "Define a server-side query handler for queries joined at the root.
 
-The `value` method you define will receive the full Om parser environment (server-side, with your
+The `value` method you define will receive the full parser environment (server-side, with your
 component injections) as `env` and any params the server sent with the specific top-level query. Note that the subquery and
 AST for the query will be available in `env`.
 
@@ -595,7 +595,7 @@ The return value of `value` will be sent to the client.
          {:value v#}))))
 
 (defn server-read
-  "A built-in read method for Fulcro's built-in server Om parser."
+  "A built-in read method for Fulcro's built-in server parser."
   [env k params]
   (let [k (-> env :ast :key)]
     (if (util/ident? k)

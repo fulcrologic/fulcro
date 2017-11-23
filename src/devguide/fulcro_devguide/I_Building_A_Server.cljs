@@ -81,7 +81,7 @@
   ### Pre-installed components
 
   When you start a Fulcro server it comes pre-supplied with injectable components that your
-  own component can depend on, as well as inject into the server-side Om parsing environment.
+  own component can depend on, as well as inject into the server-side parsing environment.
 
   The most important of these, of course, is the configuration itself. The available components
   are known by the following keys:

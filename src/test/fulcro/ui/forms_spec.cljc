@@ -146,7 +146,7 @@
         (assertions
           "are marked as valid to start"
           (-> default-state :validation :db/id) => :valid
-          "are given an Om tempid by default"
+          "are given a tempid by default"
           (-> default-state :state :db/id) =fn=> prim/tempid?)))
     (component "non-id fields"
       (let [fields        [(f/text-input :name :default-value :ABC)]
@@ -872,7 +872,7 @@
                    => "MCQ"))))
 
            (specification "Resetting a Form"
-             (component "The reset-from-entity Om mutation"
+             (component "The reset-from-entity mutation"
                (when-mocking
                  (f/entity-xform _ form-id xf) => (do (assertions
                                                         "Triggers a reset-entity function on the form ID"
@@ -891,7 +891,7 @@
                (when-mocking
                  (prim/transact! _ tx) => (let [[reset-mutation follow-on-read] tx]
                                           (assertions
-                                            "Issues an Om transaction to reset the entity via the composable Om mutation."
+                                            "Issues a transaction to reset the entity via the composable mutation."
                                             reset-mutation =fn=> list?
                                             (first reset-mutation) => `f/reset-from-entity
                                             "which has params with the form-id as the ident of the form to reset"

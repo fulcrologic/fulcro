@@ -20,7 +20,7 @@
 
 (defn fallback-handler
   "This internal function is responsible for generating and returning a function that can accomplish calling the fallbacks that
-  appear in an incoming Om transaction, which is in turn used by the error-handling logic of the plumbing."
+  appear in an incoming transaction, which is in turn used by the error-handling logic of the plumbing."
   [{:keys [reconciler]} query]
   (fn [error]
     (swap! (prim/app-state reconciler) assoc :fulcro/server-error error)

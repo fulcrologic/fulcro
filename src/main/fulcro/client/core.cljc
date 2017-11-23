@@ -102,7 +102,7 @@
   always have normalization turned on (for server data merging). If it is not an atom, it will be auto-normalized.
 
   `:started-callback` is an optional function that will receive the intiailized fulcro application after it is
-  mounted in the DOM, and is useful for triggering initial loads, routing mutations, etc. The Om reconciler is available
+  mounted in the DOM, and is useful for triggering initial loads, routing mutations, etc. The reconciler is available
   under the `:reconciler` key (and you can access the app state, root node, etc from there.)
 
   `:network-error-callback` is a function of two arguments, the app state atom and the error, which will be invoked for
@@ -111,8 +111,8 @@
 
   `:migrate` is optional. It is a (fn [state tid->rid] ... state') that should return a new state where all tempids
   (the keys of `tid->rid`) are rewritten to real ids (the values of tid->rid). This defaults to a full recursive
-  algorithm against all data in the app-state, which is correct but possibly slow).  Note that tempids will have an Om tempid data type.
-  See Om reconciler documentation for further information.
+  algorithm against all data in the app-state, which is correct but possibly slow).  Note that tempids will have an tempid data type.
+  See reconciler documentation for further information.
 
   `:transit-handlers` (optional). A map with keys for `:read` and `:write`, which contain maps to be used for the read
   and write side of transit to extend the supported data types. See `make-fulcro-network` in network.cljs. Only used
@@ -120,7 +120,7 @@
 
   `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (prim/shared this)
 
-  `:read-local` (optional). An Om read function for the Om Parser. (fn [env k params] ...). If supplied,
+  `:read-local` (optional). An read function for the Parser. (fn [env k params] ...). If supplied,
   it will be called once for each root-level query key. If it returns `nil` or `false` for that key then the built-in Fulcro read will handle that
   branch of the root query. If it returns a map with the shape `{:value ...}`, then that will be used for the response. This is *not*
   recursive. If you begin handling a *branch* (e.g. a join), you must finish doing so (though if using recursion, you can technically handle just
@@ -138,7 +138,7 @@
   with a console message for debugging. If you need information about the original mutation arguments then you must reflect
   them back from the server in your return value. By default such values are discarded.
   
-  `:reconciler-options (optional). A map that will be merged into the reconciler options for Om.next. Currently it's mostly
+  `:reconciler-options (optional). A map that will be merged into the reconciler options. Currently it's mostly
   useful to override things like :root-render and :root-unmount for React Native Apps.`
 
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
@@ -304,7 +304,7 @@
              (swap! hist-atom (fn [{:keys [::hist/max-size]}] (hist/new-history max-size))))))
 
 (defn refresh* [{:keys [reconciler] :as app} root target]
-  ; NOTE: from devcards, the mount target node could have changed. So, we re-call Om's add-root
+  ; NOTE: from devcards, the mount target node could have changed. So, we re-call add-root
   (let [old-target     (-> reconciler :state deref :target)
         target #?(:clj target
                   :cljs (if (string? target) (gdom/getElement target) target))]
@@ -510,7 +510,7 @@
   This function is primarily meant to be used from things like server push and setTimeout/setInterval, where you're outside
   of the normal mutation story. Do not use this function within abstract mutations.
 
-  - app-or-reconciler: The Fulcro application or Om reconciler
+  - app-or-reconciler: The Fulcro application or reconciler
   - component: The class of the component that corresponsds to the data. Must have an ident.
   - object-data: A map (tree) of data to merge. Will be normalized for you.
   - named-parameter: Post-processing ident integration steps. see integrate-ident!

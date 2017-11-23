@@ -36,7 +36,7 @@
     :otherwise "UNKNOWN"))
 
 (defn to-cljs
-  "Convert an HTML fragment (containing just one tag) into a corresponding Om Dom cljs"
+  "Convert an HTML fragment (containing just one tag) into a corresponding Dom cljs"
   [html-fragment]
   (let [hiccup-list (map hc/as-hiccup (hc/parse-fragment html-fragment))]
     (first (map elem-to-cljs hiccup-list))))
@@ -79,7 +79,7 @@
         #js {:key react-key} (ui-html-convert converter)))))
 
 (defcard html-converter
-  "The input below can be used to convert raw HTML into Om DOM code in CLJS. Simply paste in valid HTML and press the button.
+  "The input below can be used to convert raw HTML into DOM code in CLJS. Simply paste in valid HTML and press the button.
   Then copy/paste the result into an editor and reformat. The converter will convert space text nodes into literal
   quoted spaces, but other than that is does a pretty effective job. If there are React attributes that get mis-translated
   then edit this file and add a mapping to the `attr-renames` map."

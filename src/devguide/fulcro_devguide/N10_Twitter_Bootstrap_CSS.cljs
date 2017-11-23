@@ -23,13 +23,13 @@
 
   NOTE: You must include version 3 of Bootstrap's CSS (and optionally theme), but *not* js, in your HTML file.
 
-  The CSS affects many DOM elements, which means you'll see examples that use Om's DOM functions, which
+  The CSS affects many DOM elements, which means you'll see examples that use DOM functions, which
   in turn require a JavaScript object as the first argument (for performance). The helper functions from the
   `bootstrap` namespace need to modify the incoming arguments, so the first argument (if it takes DOM props) is
   a cljs map instead.
 
   ```
-  ; render an Om regular DOM element:
+  ; render a regular DOM element:
   (dom/div #js { :className \"a\" })
   ; render a bootstrap element via one of these functions
   (b/button { :className \"b\"} \"Button label\")

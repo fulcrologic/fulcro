@@ -83,7 +83,7 @@
      :body    (io/file (io/resource "public/not-found.html"))}))
 
 (defn handler
-  "Create a web request handler that sends all requests through an Om parser. The om-parsing-env of the parses
+  "Create a web request handler that sends all requests through a parser. The om-parsing-env of the parses
   will include any components that were injected into the handler.
 
   Returns a function that handles requests."
@@ -151,7 +151,7 @@
   "Build a web request handler.
 
    Parameters:
-   - `api-parser`: An Om AST Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
+   - `api-parser`: A Parser that can interpret incoming API queries, and return the proper response. Return is the response when no exception is thrown.
    - `injections`: A vector of keywords to identify component dependencies.  Components injected here can be made available to your parser.
    - `extra-routes`: See `make-fulcro-server`
    - `app-name`: See `make-fulcro-server`

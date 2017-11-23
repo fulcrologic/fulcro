@@ -211,7 +211,7 @@
          (assertions
            "Clears the network queue"
            @cleared-network? => true
-           "Resets Om's app history"
+           "Resets app history"
            @history-reset? => true
            "Sets the base state from component"
            @state => {:x 1}

@@ -708,17 +708,6 @@
       "give the correct join value for mutation joins"
       (util/join-value mj) => [:a])))
 
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Om Next query spec, with generators for property-based tests
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-(specification "Static Queries"
-  (behavior "Maintain their backward-compatible functionality" :manual-test))
-
-
 (defmutation f [params]
   (action [env] true)
   (remote [env] true))
@@ -743,6 +732,10 @@
                                                                                                              {:remote :rest-remote
                                                                                                               :tx     [(h)]})]})]))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; query spec, with generators for property-based tests
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (comment
   (defn anything? [x] true)
@@ -806,4 +799,7 @@
 
   (s/valid? ::param-expr '({:x [:a]} {:f 1})))
 
+
+(specification "Static Queries"
+  (behavior "Maintain their backward-compatible functionality" :manual-test))
 

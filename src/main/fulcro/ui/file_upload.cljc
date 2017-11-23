@@ -303,7 +303,7 @@
 
 #?(:cljs
    (defmutation cancel-file-upload
-     "Om mutation: Cancels the current file upload. `upload-id` is the ID of the file-upload control, and
+     "mutation: Cancels the current file upload. `upload-id` is the ID of the file-upload control, and
      `file-id` is the ID of the file to cancel."
      [{:keys [upload-id file-id]}]
      (action [{:keys [state]}]
@@ -316,7 +316,7 @@
 
 #?(:cljs
    (defmutation add-file
-     "Add a file to the given file-upload (id) component. `file-id` should be an Om tempid.
+     "Add a file to the given file-upload (id) component. `file-id` should be a tempid.
       The name, size, and js-file should be taken from the js/FileList event that the file input
       gives on change events."
      [{:keys [file-upload file-id name size js-file]}]

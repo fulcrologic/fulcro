@@ -186,7 +186,7 @@
   1. Install file upload server support in your server's Ring stack and add logic for dealing with
   forms submissions that contain uploaded files.
   2. Run the server
-  3. Add file-upload networking as an extra remote in Fulcro Client (requires v1.0.0+, and Om alpha48+)
+  3. Add file-upload networking as an extra remote in Fulcro Client
   4. Load the page through your server (not figwheel).
 
   This repository includes a script named `run-file-upload-server.sh`. The devcard in this file should be loaded

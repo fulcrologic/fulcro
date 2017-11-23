@@ -14,10 +14,10 @@
 
 (defn force-render
   "Re-render components. If only a reconciler is supplied then it forces a full DOM re-render by updating the :ui/react-key
-  in app state and forcing Om to re-render the entire DOM, which only works properly if you query
+  in app state and forcing a re-render of the entire DOM, which only works properly if you query
   for :ui/react-key in your Root render component and add that as the react :key to your top-level element.
 
-  If you supply an additional vector of keywords and idents then it will ask Om to rerender only those components that mention
+  If you supply an additional vector of keywords and idents then it will ask to rerender only those components that mention
   those things in their queries."
   ([reconciler keywords]
    (proto/queue! reconciler keywords)

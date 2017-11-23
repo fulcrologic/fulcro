@@ -33,7 +33,7 @@
 
 #?(:cljs
         (defn debug
-          "Print a debug message to the Om logger which includes a value.
+          "Print a debug message to the logger which includes a value.
           Returns the value (like identity) so it can be harmlessly nested in expressions."
           ([value] (glog/fine *logger* (value-message "DEBUG" value)) value)
           ([msg value] (glog/fine *logger* (value-message msg value)) value))
@@ -43,7 +43,7 @@
 
 #?(:cljs
    (defn info
-     "output an INFO level message to the Om logger"
+     "output an INFO level message to the logger"
      [& data]
      (glog/info *logger* (apply str (interpose " " data))))
    :clj
@@ -52,17 +52,17 @@
 
 #?(:cljs
         (defn warn
-          "output a WARNING level message to the Om logger"
+          "output a WARNING level message to the logger"
           [& data]
           (glog/warning *logger* (apply str (interpose " " data))))
    :clj (defn warn
-          "output a WARNING level message to the Om logger"
+          "output a WARNING level message to the logger"
           [& data]
           (timbre/warn (apply str (interpose " " data)))))
 
 #?(:cljs
         (defn error
-          "output an ERROR level message to the Om logger"
+          "output an ERROR level message to the logger"
           [& data]
           (glog/error *logger* (apply str (interpose " " data))))
    :clj (defn error [& data] (timbre/error (apply str (interpose " " data)))))

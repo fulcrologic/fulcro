@@ -27,7 +27,7 @@
 (defn write-handler [env k p]
   (log/info "SERVER mutation for " k " with params " p))
 
-; Om Next query parser. Calls read/write handlers with keywords from the query
+; query parser. Calls read/write handlers with keywords from the query
 (def server-parser (prim/parser {:read read-handler :mutate write-handler}))
 
 ; Simulated server. You'd never write this part

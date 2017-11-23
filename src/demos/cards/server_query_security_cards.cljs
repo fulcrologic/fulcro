@@ -23,7 +23,7 @@
   "
   ## UI Query Security
 
-  If you examine any UI query it will have a tree form. That is the nature of Om query and Datomic pull syntax. It
+  If you examine any UI query it will have a tree form. That is the nature of Fulcro's query and Datomic pull syntax. It
   is also the nature of UI's. For any such query, you can imagine it as a graph walk:
 
   Take this query:

@@ -38,7 +38,7 @@
   "
   # Active Dropdown Component
 
-  Active dropdowns are Om components with state.
+  Active dropdowns are components with state.
 
   - `dropdown` - a function that creates a dropdown's state
   - `dropdown-item` - a function that creates an items with a label
@@ -48,7 +48,7 @@
 
   All labels are run through `tr-unsafe`, so if a translation for the current locale exists it will be used.
 
-  The following Om mutations are are available:
+  The following mutations are are available:
 
   Close (or open) a specific dropdown by ID:
   ```
@@ -257,7 +257,7 @@
 
   If you're using something like HTML5 routing, then you'll not only need to make sure the current screen is showing,
   but you'll need to make sure the `Nav` knows which tab to show as active. The bootstrap namespace includes
-  an Om mutation for setting the current nav link `set-active-nav-link`, and a helper function `set-active-nav-link*`
+  an mutation for setting the current nav link `set-active-nav-link`, and a helper function `set-active-nav-link*`
   that can be composed into mutations.
 
   If you're careful to make the IDs of the tabs and screens the same, then you'll be able to ensure lock-step
@@ -333,7 +333,7 @@
   (assoc person :person/name (:ui/edited-name person)))
 
 (defmutation save-person
-  "Om mutation: Save a person. Takes the entire person entity as :person"
+  "mutation: Save a person. Takes the entire person entity as :person"
   [{:keys [id]}]
   (action [{:keys [state]}]
     (swap! state update-in (person-ident id) copy-edit-to-name*)))
@@ -351,7 +351,7 @@
   (update-in state (person-ident id) (fn [person] (assoc person :ui/edited-name (:person/name person)))))
 
 (defmutation edit-person
-  "Om mutation: Start editing a person."
+  "mutation: Start editing a person."
   [{:keys [id]}]
   (action [{:keys [state]}]
     (swap! state (fn [s] (-> s
@@ -419,7 +419,7 @@
 (def ui-modal-router (prim/factory ModalRouter))
 
 (defn start-person-editor
-  "Run an Om transaction that does all of the steps to edit a given person."
+  "Run a transaction that does all of the steps to edit a given person."
   [comp person-id]
   (prim/transact! comp `[(routing/route-to {:handler :edit})  ; :edit is a route in the routing tree
                        (edit-person {:id ~person-id})
@@ -428,7 +428,7 @@
                        :modal-router]))
 
 (defn show-warning
-  "Run an Om transaction that does all of the steps to show a warning modal."
+  "Run a transaction that does all of the steps to show a warning modal."
   [comp]
   (prim/transact! comp `[(routing/route-to {:handler :warning}) ; :warning is a route in the routing tree
                        (b/show-modal {:id :warning-modal})
@@ -516,14 +516,14 @@
 
   ```
   (defmutation save-person
-    \"Om mutation: Save a person. Takes the entire person entity as :person\"
+    \"mutation: Save a person. Takes the entire person entity as :person\"
     [{:keys [id]}]
     (action [{:keys [state]}]
       (swap! state update-in (person-ident id) copy-edit-to-name*)))
 
 
   (defmutation edit-person
-    \"Om mutation: Start editing a person.\"
+    \"mutation: Start editing a person.\"
     [{:keys [id]}]
     (action [{:keys [state]}]
       (swap! state (fn [s] (-> s

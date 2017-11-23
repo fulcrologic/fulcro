@@ -234,7 +234,7 @@
        (let [next-children#     (. next-props# -children)
              next-props#        (goog.object/get next-props# "omcljs$value")
              next-props#        (cond-> next-props#
-                                  (instance? OmProps next-props#) unwrap)
+                                  (instance? FulcroProps next-props#) unwrap)
              current-props#     (fulcro.client.primitives/props this#)
              ; a parent could send in stale props due to a component-local state change..make sure we don't use them. (Props have a timestamp on metadata)
              next-props-stale?# (> (get-basis-time current-props#) (get-basis-time next-props#))
@@ -543,7 +543,7 @@
 
 
 (defn component?
-  "Returns true if the argument is an Om component."
+  "Returns true if the argument is a component."
   #?(:cljs {:tag boolean})
   [x]
   (if-not (nil? x)
@@ -582,11 +582,11 @@
   #?(:clj  (get (:props c) k)
      :cljs (gobj/get (.-props c) k)))
 
-#?(:cljs (deftype ^:private OmProps [props basis-t]))
+#?(:cljs (deftype ^:private FulcroProps [props basis-t]))
 
 #?(:cljs
    (defn- om-props [props basis-t]
-     (OmProps. props basis-t)))
+     (FulcroProps. props basis-t)))
 
 #?(:cljs
    (defn- om-props-basis [om-props]
@@ -709,7 +709,7 @@
          (-> c .-state get-props)))))
 
 (defn- parent
-  "Returns the parent Om component."
+  "Returns the parent component."
   [component]
   (get-prop component #?(:clj  :omcljs$parent
                          :cljs "omcljs$parent")))
@@ -1134,7 +1134,7 @@
     :else #{}))
 
 (defn- path
-  "Returns the component's Om data path."
+  "Returns the component's data path."
   [c]
   (get-prop c #?(:clj  :omcljs$path
                  :cljs "omcljs$path")))
@@ -1225,7 +1225,7 @@
         ret))))
 
 (defn tree->db
-  "Given a Om component class or instance and a tree of data, use the component's
+  "Given a component class or instance and a tree of data, use the component's
    query to transform the tree into the default database format. All nodes that
    can be mapped via Ident implementations wil be replaced with ident links. The
    original node data will be moved into tables indexed by ident. If merge-idents
@@ -2520,13 +2520,13 @@
   (tempid/tempid? x))
 
 (defn reader
-  "Create a Om Next transit reader. This reader can handler the tempid type.
+  "Create a transit reader. This reader can handler the tempid type.
    Can pass transit reader customization opts map."
   ([] (transit/reader))
   ([opts] (transit/reader opts)))
 
 (defn writer
-  "Create a Om Next transit writer. This writer can handler the tempid type.
+  "Create a transit writer. This writer can handler the tempid type.
    Can pass transit writer customization opts map."
   ([] (transit/writer))
   ([opts] (transit/writer opts)))
@@ -2576,7 +2576,7 @@
   (p/remove-root! reconciler target))
 
 (defn shared
-  "Return the global shared properties of the Om Next root. See :shared and
+  "Return the global shared properties of the root. See :shared and
    :shared-fn reconciler options."
   ([component]
    (shared component []))

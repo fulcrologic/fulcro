@@ -42,8 +42,8 @@
   ### Built-in Form Submisssion – `commit-to-entity`
 
   A form submission can be done via the `commit-to-entity` function/mutation with the inclusion
-  of a `:remote` flag. The function version `commit-to-entity!` is a simple wrapper of an
-  Om `transact!` that invokes the Om `f/commit-to-entity` mutation (where `f` is the forms namespace).
+  of a `:remote` flag. The function version `commit-to-entity!` is a simple wrapper of a
+  `transact!` that invokes the `f/commit-to-entity` mutation (where `f` is the forms namespace).
   The former is a convenience, and the latter is more useful when you want to compose commit with
   other transaction actions (such as navigation away from the form).
 
@@ -169,9 +169,9 @@
 
   ### New Entities
 
-  When a form (and/or subforms) is submitted that has a primary ID whose value is an Om tempid then
+  When a form (and/or subforms) is submitted that has a primary ID whose value is a tempid then
   the incoming commit parameters will include the `:form/new-entities` key. The value of this entry is just like
-  that of `:form/updates`, but the ID in the ident will be an Om tempid (which you must send remaps
+  that of `:form/updates`, but the ID in the ident will be a tempid (which you must send remaps
   back for), and the map of data will include all attributes of that entity that were declared as part
   of the form.
 

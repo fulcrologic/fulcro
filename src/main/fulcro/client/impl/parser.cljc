@@ -6,7 +6,7 @@
 
    Query expressions are a variation on Datomic Pull Syntax
    http://docs.datomic.com/pull.html more suitable for generic client/server
-   state transfer. It's important to note the Om Next query expression syntax is
+   state transfer. It's important to note the query expression syntax is
    *not* a strict superset of Datomic Pull.
 
    A query expression is composed of EDN values. The grammar for query
@@ -22,7 +22,7 @@
    UnionExpr      := EdnMap(Keyword, QueryRoot)
    RecurExpr      := ('... | Integer)
 
-   Note most apis in Om Next expect a QueryRoot not a QueryExpr.
+   Note most of the api expects a QueryRoot not a QueryExpr.
 
    QUERY EXPRESSION AST FORMAT
 
