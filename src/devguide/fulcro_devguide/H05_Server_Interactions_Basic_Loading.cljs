@@ -166,4 +166,32 @@
   ```
 
   Note that `multiple-targets` can use plain target vectors (replacement) or any of the special wrappers.
+
+  ## Refreshing the UI After Load
+
+  The component that issued the load will automatically be refreshed when the load completes. You may use the data-driven
+  nature of the app to request other components refresh as well. The `:refresh` option tells the system what data has
+  changed due to the load. It causes all live components that have queried those things to refresh.
+  You can supply keywords and/or idents:
+
+  ```
+  ; load my best friend, and re-render every live component that queried for the name of a person
+  (df/load comp :best-friend Person {:refresh [:person/name]})
+  ```
+
+  ## Other Load Options
+
+  Loads allow a number of additional arguments. Many of these are discussed in more detail in later sections:
+
+  - `:post-mutation` and `:post-mutation-params` - A mutation to run once the load is complete (local data transform only).
+    Covered in Morphing Loaded Data.
+  - `:remote` - The name of the remote you want to load from.
+  - `:refresh` - A vector of keywords and idents. Any component that queries these will be re-rendered once the load completes.
+  - `:marker` - Boolean or keyword. Indicates how (of if) load should indicate progress in your app state. Covered in
+    Network Activity Indicators. Defaults to overwriting your target data with a load marker.
+  - `:parallel` - Boolean. Defaults to false. When true, bypasses the sequential network queue. Allows multiple loads to run at once,
+    but causes you to lose any guarantees about ordering since the server might complete them out-of-order.
+  - `:fallback` - A mutation to run if the server throws an error during the load.
+  - `:without` - A set of keywords to elide from the query. Covered in Incremental Loading.
+  - `:params` - A map. If supplied the params will appear as the params of the query on the server.
   ")

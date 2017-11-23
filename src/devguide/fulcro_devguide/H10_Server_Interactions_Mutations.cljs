@@ -49,6 +49,12 @@
     (action [env] ...)
     ; send (do-thing {:x 1}) even if params are different than that on the client
     (remote [{:keys [ast]}] (assoc ast :params {:x 1})) ; change the param list for the remote
+
+  ; or using the with-params helper
+  (defmutation do-thing [params]
+    (action [env] ...)
+    ; send (do-thing {:x 1}) even if params are different than that on the client
+    (remote [{:keys [ast]}] (m/with-params ast {:x 1})) ; change the param list for the remote
   ```
 
   or
@@ -59,6 +65,9 @@
     {:remote (assoc ast :key 'server/mutation :dispatch-key 'server/mutation)
      :action (fn[] ...)}))
   ```
+
+  You could even go as far as using the functions in the `parser` namespace to generate a completely new AST node that
+  has nothing to do with the UI mutation.
 
   We generally recommend using the `defmutation` macro because it integrated nicely with IDEs and also prevents some kinds
   of mistakes (like making changes outside of the action).
@@ -77,7 +86,7 @@
   typically pass the needed data as a *parameter* to the mutation so that the mutation invocation closes over it and you
   don't have to rely on state (which might have changed in an earlier pass).
 
-  ## Writing The Server Mutations
+  ### Writing The Server Mutations
 
   Server-side mutations in Fulcro are written the same way as on the client: A mutation returns a map with a key `:action`
   and a function of no variables as a value. The mutation then does whatever server-side operation is indicated. The `env`
@@ -143,7 +152,7 @@
   Please see I_Building_A_Server for more information about setting up a server with injected components in the mutation
   environment.
 
-  #### New item creation – Temporary IDs
+  ## New item creation – Temporary IDs
 
   Fulcro has a built in function `prim/tempid` that will generate a unique temporary ID. This allows the normalization
   and denormalization of the client side database to continue working while the server processes the new data and returns
@@ -154,7 +163,7 @@
   you have optimistic updates on the client it is important that things go in the correct sequence, and that queued operations
   for the server don't get confused about what ID is correct!
 
-  WARNING: Because om mutations can be called multiple times (at least once and once per each remote),
+  WARNING: Because mutation code can be called multiple times (at least once + once per each remote),
   you should take care to not call `fulcro.client.primitives/tempid` inside your mutation.
   Instead call it from your UI code that builds the mutation params.
 
@@ -165,7 +174,7 @@
   3. If remote mutations are separated in time, then they go through a sequential networking queue, and are processed
   in order.
   4. As mutations complete on the server, they return tempid remappings. Those are applied to the application state *and*
-  network queue before the next remote mutation is sent.
+  network queue before the next network operation (load or mutation) is sent.
 
   This set of rules helps ensure that you can reason about your program, even in the presence of optimistic updates that
   could theoretically be somewhat ahead of the server.
@@ -173,9 +182,9 @@
   For example, you could create an item, edit it, then delete it. The UI responds immediately, but the initial create might
   still be running on the server. This means the server has not even given it a real ID before you're queuing up a request
   to delete it! With the above rules, it will just work! The network queue will have two backlogged operations (the edit
-  and the delete), each with the same tempid that the items is known as in the database. When the create finally returns
-  it will rewrite all of the tempids in state and the network queues. Thus, the edit will apply to the current server
-  entity, as will the delete.
+  and the delete), each with the same tempid that you currently know. When the create finally returns
+  it will automatically rewrite all of the tempids in state and the network queues, then send the next operation. Thus,
+  the edit will apply to the current server entity, as will the delete.
 
   All the server code has to do is return a map with the special key `:tempids` whose value is a map of `tempid->realid`
   whenever it sees an ID during persistence operations.
@@ -206,11 +215,11 @@
         {:tempids {tempid database-id}})))
   ```
 
-  Other mutation return values are covered in a later section of this guide.
+  Other mutation return values are covered in Mutation Return Values.
 
-  #### Remote reads after a mutation
+  ## Remote Reads After a Mutation
 
-  In earlier sections you learned that you can list properties after your mutation to indicate re-renders.
+  In earlier sections you learned that you can list properties with your mutation to indicate re-renders.
   These follow-on read keywords are always local re-render reads, and nothing more:
 
   ```
@@ -218,24 +227,40 @@
   ; Does mutation, and re-renders anything that has :thing in a query
   ```
 
-TODO: CONTINUE REWRITE HERE...
-
-  Instead, we supply access to the internal mutation we use to queue loads, so that remote reads are simple and explicit:
+  Fulcro will automatically queue remote reads *after* writes when they are submitted in the same thread interaction:
 
   ```
-  ; Do mutation, then run a remote read of the given query, along with a post-mutation
-  ; to alter app state when the load is complete.
-  (prim/transact! this `[(app/f) (fulcro/load {:query ~(prim/get-query Thing) :post-mutation after-load-sym}])
+  (prim/transact! this `[(f)])
+  (df/load this :thing Thing)
+  (prim/transact! this `[(g)])
   ```
 
-  Of course, you can (and *should*) use syntax quoting to embed a query from (prim/get-query) so that normalization works,
-  and the post-mutation can be used to deal with the fact that other parts of the UI may want to, for example, point
-  to this newly-loaded thing. The `after-load-sym` is a symbol (e.g. dispatch key to the mutate multimethod). The multi-method
-  is guaranteed to be called with the app state in the environment, but no other Om environment items are ensured at
-  the moment.
+  will result in two network interactions. The first will run `[(f) (g)]`, and the second will be a load of `:thing`. This
+  is a defined and official behavior.
 
-  IMPORTANT: post mutations look like regular mutations, but *only* the `action` is applied. Remotes are not processed
-  on post mutations (or fallbacks) because they are not meant to trigger further network interactions, just app state
-  adjustments.
+  Thus, one way you can implement a sequence of mutation followed by learning a result is to run a mutation and a load.
 
+  ## Using Loads as Mutations
+
+  There is technically nothing wrong with issuing a load that has side-effects on the server. For example, one way to
+  implement login is to issue a load with the user's credentials:
+
+  ```
+  (df/load :current-user User {:params {:username u :password p}})
+  ```
+
+  The server query response can validate the credentials, set a cookie, and return the user info all at once!
+
+  See Building A Server for information on augmenting Ring responses on the server-side.
+
+  ## Running Mutations in the Context of an Entity
+
+  If you submit a transaction and include an ident:
+
+  ```
+  (transact! this [:person/by-id 4] `[(f)])
+  ```
+
+  then the transaction will run as-if it were executed in the context of any live component on the screen that currently has
+  that ident. This will also make the ident available in the mutation's environment as `:ref`.
   ")

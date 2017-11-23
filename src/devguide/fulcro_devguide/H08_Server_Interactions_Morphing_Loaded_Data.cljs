@@ -174,3 +174,39 @@
   {:inspect-data true})
 
 
+(defcard-doc
+  "
+  ## Using `defui` For Server Queries
+
+  It is perfectly legal to use `defui` to define an graph query (and normalization) for something like this that doesn't exactly
+  exist on your UI. This can be quite useful in the presence of post mutations that can re-shape the data.
+
+  Simply code your (nested) queries using `defui`, and skip writing the `Object` section and `render`:
+
+  ```
+  (defui ServerItem
+    static prim/Ident
+    (ident [this props] ...)
+    static prim/IQuery
+    (query [this] ...))
+
+  ...
+
+  (df/load this :all-items ServerItem {:post-mutation `group-all-items-by-category})
+  ```
+
+  NOTE: We know that the name `defui` seems a bit of a misnomer for this, so feel free to create an alias for it.
+
+  WARNING: Do *not* try to steal queries! Remember that `get-query` adds component metadata to the query. So this is an error:
+
+  ```
+  ; NEVER DO THIS
+  (defui ServerItem
+     static prim/IQuery
+     (query [this] (prim/get-query Item)) ; Bad news
+     ...)
+  ```
+
+  Subqueries must always be *joined* in another component's query, never just re-used. This rule helps ensure you don't
+  end up with surprises around normalization.
+  ")
