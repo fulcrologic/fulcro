@@ -770,9 +770,6 @@
 (defprotocol IQuery
   (query [this] "Return the component's unbound static query"))
 
-(defprotocol IDynamicQuery
-  (dynamic-query [this state] "Return the component's unbound dynamic query"))
-
 ;; DEPRECATED: Unless someone can give me a compelling case to keep this, I'm dropping it:
 (defprotocol ILocalState
   (-set-state! [this new-state] "Set the component's local state")
@@ -800,16 +797,7 @@
                             (gobj/get state "fulcro$state")))))]
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
 
-(defn has-dynamic-query?
-  #?(:cljs {:tag boolean})
-  [x]
-  #?(:clj  (if (fn? x)
-             (some? (-> x meta :dynamic-query))
-             (let [class (cond-> x (component? x) class)]
-               (extends? IDynamicQuery class)))
-     :cljs (implements? IDynamicQuery x)))
-
-(defn has-static-query?
+(defn has-query?
   #?(:cljs {:tag boolean})
   [x]
   #?(:clj  (if (fn? x)
@@ -830,19 +818,8 @@
 (defn- get-static-query
   "Get the statically-declared query of IQuery from a given class."
   [c]
-  {:pre (has-static-query? c)}
+  {:pre (has-query? c)}
   #?(:clj ((-> c meta :query) c) :cljs (query c)))
-
-(defn- get-dynamic-query
-  "Get the statically-declared IDynamicQuery from a given class, using the given state."
-  [c state]
-  {:pre (has-dynamic-query? c)}
-  #?(:clj ((-> c meta :dynamic-query) c state) :cljs (dynamic-query c state)))
-
-(defn has-query?
-  "Returns true if the given class or component has a dynamic or static query."
-  [x]
-  (or (has-dynamic-query? x) (has-static-query? x)))
 
 (defn some-hasquery?
   "Returns true if the given component or one of its parents has a query."
@@ -1019,9 +996,7 @@
 
 (defn get-query-by-id [state-map class queryid]
   (let [static-params (get-query-params class)
-        query         (or (denormalize-query state-map queryid) (if (has-dynamic-query? class)
-                                                                  (get-dynamic-query class state-map)
-                                                                  (get-static-query class)))
+        query         (or (denormalize-query state-map queryid) (get-static-query class))
         params        (get-in state-map [::queries queryid :params] static-params)]
     (with-meta (bind-query query params) {:component class
                                           :queryid   queryid})))
@@ -1031,34 +1006,25 @@
   (and (fn? class-or-factory)
     (-> class-or-factory meta (contains? :qualifier))))
 
+(def ^{:dynamic true :private true} *query-state* {})
+
 (defn get-query
-  "Get the query for the given class or factory. Obtains the static query unless state is supplied and the target component(s)
-  implement IDynamicQuery."
-  ([class-or-factory]
-   (let [class  (if (is-factory? class-or-factory)
-                  (-> class-or-factory meta :class)
-                  class-or-factory)
-         q      (cond
-                  (has-dynamic-query? class) (get-dynamic-query class {})
-                  (has-static-query? class) (get-static-query class)
-                  :otherwise nil)
-         params (when (has-query-params? class)
-                  (get-query-params class))
-         c      (-> q meta :component)]
-     (assert (nil? c) (str "Query violation, " class-or-factory, " reuses " c " query"))
-     (with-meta (bind-query q params) {:component class-or-factory
-                                       :queryid   (query-id class-or-factory nil)})))
+  "Get the query for the given class or factory. If called without a state map, then you'll get the declared static
+  query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
+  the current dynamically-set query according to that state."
+  ([class-or-factory] (get-query class-or-factory *query-state*))
   ([class-or-factory state-map]
-   (let [class     (cond
-                     (is-factory? class-or-factory) (-> class-or-factory meta :class)
-                     (component? class-or-factory) (react-type class-or-factory)
-                     :else class-or-factory)
-         qualifier (if (is-factory? class-or-factory)
-                     (-> class-or-factory meta :qualifier)
-                     nil)
-         queryid   (query-id class qualifier)]
-     (when (and class (has-query? class))
-       (get-query-by-id state-map class queryid)))))
+   (binding [*query-state* state-map]
+     (let [class     (cond
+                       (is-factory? class-or-factory) (-> class-or-factory meta :class)
+                       (component? class-or-factory) (react-type class-or-factory)
+                       :else class-or-factory)
+           qualifier (if (is-factory? class-or-factory)
+                       (-> class-or-factory meta :qualifier)
+                       nil)
+           queryid   (query-id class qualifier)]
+       (when (and class (has-query? class))
+         (get-query-by-id state-map class queryid))))))
 
 (declare normalize-query)
 
@@ -2146,7 +2112,7 @@
   (reindex! [this]
     (let [root       (get @state :root)
           root-class (react-type root)]
-      (when (has-dynamic-query? root)
+      (when (has-query? root)
         (let [indexer (:indexer config)]
           (p/index-root (assoc indexer :state (-> config :state deref)) root-class)))))
 
@@ -2417,8 +2383,8 @@
        (not (has-query? x)) (do
                               (when (some-hasquery? x) (log/error
                                                          (str "transact! should be called on a component"
-                                                           "that implements IDynamicQuery or has a parent that"
-                                                           "implements IDynamicQuery")))
+                                                           "that implements IQuery or has a parent that"
+                                                           "implements IQuery")))
                               (transact* (get-reconciler x) nil nil tx))
        :else (do
                (loop [p (parent x) x x tx tx]
@@ -2680,7 +2646,7 @@
         tx         (into `[(fulcro.client.mutations/set-query! {:queryid ~queryid :query ~query :params ~params})] follow-on-reads)]
     (if (and (string? queryid) (or query params))
       (do
-        (transact! component-or-reconciler tx)
+        (transact! reconciler tx) ; against reconciler, because we need to re-render from root
         (p/reindex! reconciler))
       (log/error "Unable to set query. Invalid arguments."))))
 

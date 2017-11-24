@@ -25,8 +25,7 @@
       - IMPORTANT: Your dynamically loaded screen *MUST* have a call to `(cljs.loader/set-loaded! KW)` at the bottom of the file (where KW is from (1)).
   3. Configure your cljs build to use modules. Place the screen from (2) into a module with the name from (1).
   4. Use a DynamicRouter for the router that will route to the screen (2). This means you won't have to explicitly refer to the class of the component.
-      - The Query that composes in the router *must* be an IDynamicQuery (which must compose to Root), and you must use
-      the special `get-dynamic-router-query` to join in the DynamicRouter.
+      - The Query that composes in the router must use the special `get-dynamic-router-query` to join in the DynamicRouter's query.
   5. Create your routing tree as usual. Remember that a routing tree is just routing instructions (keywords).
 
   If you are routing through a DynamicRouter as part of your initial startup, then there are a few more steps. See Pre-loaded routes below.

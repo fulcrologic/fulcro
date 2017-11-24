@@ -76,20 +76,18 @@ AND application state (since that is where custom ones are stored).
 
 ==== The trade-offs:
 
-There is no free lunch. Fulcro 2.0's dynamic queries have the following properties:
+There is no free lunch. Fulcro 2.0's dynamic queries require you to basically give queries an identity. As such,
+they have the following properties:
 
-* You *must* use/compose a different kind of query in your UI (`IDynamicQuery` instead of `IQuery`). The dynamic composition must
-reach root using `IDynamicRoot`.
+* You may set a query class-wide. All instances on screen that share that class will use the new query.
 * You may target a new query to a specific React factory (with a qualifier). This allows you to dynamically set a query
 on a subset of on-screen components that share a class.
-* You may set a query class-wide. All instances on screen that share that class *and* use dynamic queries *and* do not have
-a query qualifier will have the new query.
 
-The down-side is that you cannot arbitrarily set a query on an arbitrary on-screen component. That would require
-indexing by component React instace, and just doesn't work well with other features (react re-mounts and serializable
-history). In practice dynamic queries are mainly needed for code splitting, and the fact that you can re-use a single
-class with as many different qualifiers as you want means that the vast majority of dynamic query
-desires can be easily met.
+The down-side is that you cannot arbitrarily set a query on an arbitrary on-screen component without involving a custom
+factory for that instance. That would require indexing by component React instace, and just doesn't work well with other
+features (react re-mounts and serializable history). In practice dynamic queries are mainly needed for code splitting,
+and the fact that you can re-use a single class with as many different qualifiers as you want means that the vast
+majority of dynamic query desires can be easily met.
 
 ==== Query IDs
 
@@ -111,7 +109,10 @@ set, then setting a query on the given class will affect all instances on the sc
 
 ==== The Dynamic Query API
 
-The new dynamic query protocol looks like this:
+If you just want to be able to change the query class-wide, then there are no source changes to your components. If
+you'd like to be able to change the queries for specific instances, then you'll have to involve factories in your
+query functions.
+
 
 ```
 (ns ui
@@ -120,34 +121,45 @@ The new dynamic query protocol looks like this:
 (declare ui-thing-a)
 
 (defui Thing
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:prop {:join (prim/get-query ui-thing-a state)}])
+  static prim/IQuery
+  (dynamic-query [this] [:prop {:join (prim/get-query ui-thing-a state)}])
   ; nothing else changes...
   )
 
 (def ui-thing-a (fulcro.client.primitives/factory Thing {:qualifier :a}))
 ```
 
-Changing queries must now be done within a mutation, because you need access to the app state. The new `set-query!`
-has an API change to match:
+The new `set-query!` has an API change to match (you must pass a class, factory, or query ID):
 
 ```
 (set-query! this ui-factory {:query [:x]})
 ```
 
-There is a `set-query*` function for SSR initial app setup so you can pre-populate dynamic queries. The API will
-likely evolve, since setting up initial state for dynamic routers will probably need some kind of additional heleprs.
+There is a `set-query*` function for SSR initial app setup so you can pre-populate dynamic queries. There is also
+a mutation version you can call directly from `transact!`: `fulcro.client.mutations/set-query!`.
 
 === Status
 
-* Advanced optimization should now work, but untested.
-* Dynamic queries work. A few things need more testing
-** I need to test having non-dynamic subtrees. That probably doesn't yet work.
-** Query parameters (e.g. IQueryParams) is as-yet untested.
+* Om Next is no longer a dependency. The relevant code has been imported, and simplified internally. A lot of this
+was to fix dynamic queries, and make the rendering refresh a bit simpler.
+* Advanced optimization works. It has been tested.
+* Dynamic queries work.
+** Query parameters (e.g. IQueryParams) is as-yet untested, but it wasn't changed much.
 * Other than the renames and a few minor function moves (from util), it should be API compatible with existing Fulcro apps
-* RENDERING REFRESH should work well, and should be faster than stock Om Next. There are several places where I know I
-can make it faster still.
-* New history recording in place, but not yet integration tested with viewer
-* A number of new cool features like mutation joins, and auto-mergable return values from server mutations
-
+* Rendering should should be at least as fast as stock Om Next in most circumstances. It should be faster in many, but there
+are some circumstances where it could be slower.
+* New history recording and viewer work (tested against todo mvc)
+** History now contains client timestamps, db before/after, the transaction itself, and whatever the mutation functions returned.
+** History API is now richer. It includes a navigator for moving around. See `fulcro.history`.
+** History tracks networking so that old history isn't removed until the network actions related to it complete.
+* There are a number of new features:
+** Mutation joins (returning entities from server mutations)
+** Load markers can now be normalized and queried directly (instead of stomping on your data)
+** Targeting of loads is more capable (can target to-many with append/prepend, and multiple different places all at once)
+** Pessimistic transactions! You can now have the items in a full-stack mutation run one at a time (in a full-stack sense)
+** Compressible transactions. You can now ask the history to elide steps of history, like side-by-side keystrokes.
+** Every change to app state (except your raw swaps) is now a transaction internally (`set-query!`, `merge!`, and `transact!`). This
+means that all strucutured progression of your app is properly recorded in history!
+** Should work with React 16 and Clojure 1.9. Not heavily used in either yet, though. There are some React 16 things that could
+break your apps if you use deprecated things. Many existing React libraries have yet to port.
 

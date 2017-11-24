@@ -12,8 +12,8 @@
   static InitialAppState
   (initial-state [clz params] {:which-tab :active-users})
 
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:which-tab])
+  static prim/IQuery
+  (query [this] [:which-tab])
 
   static prim/Ident
   (ident [this props]
@@ -29,8 +29,8 @@
 (defui ^:once Leaf
   static InitialAppState
   (initial-state [clz params] {:x 1 :y 42})
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:x])
+  static prim/IQuery
+  (query [this] [:x])
   static prim/Ident
   (ident [this props] [:LEAF :ID])
   Object
@@ -50,8 +50,8 @@
 (defui ^:once HighScoreTab
   static InitialAppState
   (initial-state [clz params] {:which-tab :high-score :leaf (fc/get-initial-state Leaf {})})
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:which-tab {:leaf (prim/get-query ui-leaf state)}])
+  static prim/IQuery
+  (query [this] [:which-tab {:leaf (prim/get-query ui-leaf)}])
 
   static prim/Ident
   (ident [this props]
@@ -71,8 +71,8 @@
 (defui ^:once Union
   static InitialAppState
   (initial-state [clz params] (initial-state HighScoreTab nil))
-  static prim/IDynamicQuery
-  (dynamic-query [this state] {:active-users (prim/get-query ui-active-users-tab state) :high-score (prim/get-query ui-high-score-tab state)})
+  static prim/IQuery
+  (query [this] {:active-users (prim/get-query ui-active-users-tab) :high-score (prim/get-query ui-high-score-tab)})
   static prim/Ident
   (ident [this props] [(:which-tab props) :tab])
   Object
@@ -88,9 +88,9 @@
   static InitialAppState
   (initial-state [clz params] {:ui/react-key "A"
                                :current-tab  (fc/get-initial-state Union nil)})
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [{:current-tab (prim/get-query ui-settings-viewer state)}
-                               :ui/react-key])
+  static prim/IQuery
+  (query [this] [{:current-tab (prim/get-query ui-settings-viewer)}
+                 :ui/react-key])
   Object
   (render [this]
     (let [{:keys [ui/react-key current-tab] :as props} (prim/props this)]

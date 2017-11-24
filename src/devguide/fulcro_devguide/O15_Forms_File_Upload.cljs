@@ -101,7 +101,7 @@
   (query [this] [:db/id :ui/page {:library/images (prim/get-query Image)}])
   Object
   ; Ensure that we have a page of images loaded when we're shown.  Only trigger if the content is actually empty.
-  (componentDidMount [this props]
+  (componentDidMount [this]
     (let [{:keys [library/images ui/page]} (prim/props this)]
       (when (and (vector? images) (empty? images))
         (load-images this (or page 1)))))
@@ -155,9 +155,9 @@
       (if show-library?
         (ui-image-library (prim/computed image-library {:onUpload #(m/toggle! this :ui/show-library?)}))
         (ui-example (prim/computed demo {:onDone (fn []
-                                                 ; when moving away from the upload screen, clear the list so we don't see it again when we come back
-                                                 (prim/transact! this `[(clear-upload-list {})])
-                                                 (m/toggle! this :ui/show-library?))}))))))
+                                                   ; when moving away from the upload screen, clear the list so we don't see it again when we come back
+                                                   (prim/transact! this `[(clear-upload-list {})])
+                                                   (m/toggle! this :ui/show-library?))}))))))
 
 (def ui-demo (prim/factory ImageLibraryDemo))
 

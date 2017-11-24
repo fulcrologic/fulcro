@@ -52,64 +52,64 @@
            ((prim/factory class) {}))))))
 
 (defui Q
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:a :b]))
+  static prim/IQuery
+  (query [this] [:a :b]))
 
 (def ui-q (prim/factory Q))
 
 (defui UnionChildA
   static prim/Ident
   (ident [this props] [:union-child/by-id (:L props)])
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:L]))
+  static prim/IQuery
+  (query [this] [:L]))
 
 (def ui-a (prim/factory UnionChildA))
 
 (defui UnionChildB
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:M]))
+  static prim/IQuery
+  (query [this] [:M]))
 
 (def ui-b (prim/factory UnionChildB))
 
 (defui Union
-  static prim/IDynamicQuery
-  (dynamic-query [this state] {:u1 (prim/get-query ui-a state)
-                               :u2 (prim/get-query ui-b state)}))
+  static prim/IQuery
+  (query [this] {:u1 (prim/get-query ui-a)
+                 :u2 (prim/get-query ui-b)}))
 
 (def ui-union (prim/factory Union))
 
 (defui Child
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:x]))
+  static prim/IQuery
+  (query [this] [:x]))
 
 (def ui-child (prim/factory Child))
 
 (defui Root
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:a
-                               {:join (prim/get-query ui-child state)}
-                               {:union (prim/get-query ui-union state)}]))
+  static prim/IQuery
+  (query [this] [:a
+                 {:join (prim/get-query ui-child)}
+                 {:union (prim/get-query ui-union)}]))
 
 (def ui-root (prim/factory Root))
 
 (defui UnionChildAP
-  static prim/IDynamicQuery
-  (dynamic-query [this state] '[(:L {:child-params 1})]))
+  static prim/IQuery
+  (query [this] '[(:L {:child-params 1})]))
 
 (def ui-ap (prim/factory UnionChildAP))
 
 (defui UnionP
-  static prim/IDynamicQuery
-  (dynamic-query [this state] {:u1 (prim/get-query ui-ap state)
-                               :u2 (prim/get-query ui-b state)}))
+  static prim/IQuery
+  (query [this] {:u1 (prim/get-query ui-ap)
+                 :u2 (prim/get-query ui-b)}))
 
 (def ui-unionp (prim/factory UnionP))
 
 (defui RootP
-  static prim/IDynamicQuery
-  (dynamic-query [this state] `[:a
-                                ({:join ~(prim/get-query ui-child state)} {:join-params 2})
-                                ({:union ~(prim/get-query ui-unionp state)} {:union-params 3})]))
+  static prim/IQuery
+  (query [this] `[:a
+                  ({:join ~(prim/get-query ui-child)} {:join-params 2})
+                  ({:union ~(prim/get-query ui-unionp)} {:union-params 3})]))
 
 (def ui-rootp (prim/factory RootP))
 
@@ -719,7 +719,7 @@
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "pessimistic-transaction->transaction" :focused
+(specification "pessimistic-transaction->transaction"
   (assertions
     "Returns the transaction if it only contains a single call"
     (prim/pessimistic-transaction->transaction `[(f {:x 1})]) => `[(f {:x 1})]

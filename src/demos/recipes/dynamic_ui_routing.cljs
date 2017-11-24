@@ -39,9 +39,9 @@
                                   (r/make-route :login [(r/router-instruction :top-router [:login :singleton])])
                                   (r/make-route :new-user [(r/router-instruction :top-router [:new-user :singleton])]))
                                 {:top-router (fc/get-initial-state r/DynamicRouter {:id :top-router})}))
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:ui/react-key {:top-router (r/get-dynamic-router-query state :top-router)}
-                               :fulcro.client.routing/pending-route])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:top-router (r/get-dynamic-router-query :top-router)}
+                 :fulcro.client.routing/pending-route])
   Object
   (render [this]
     (let [{:keys [ui/react-key top-router :fulcro.client.routing/pending-route]} (prim/props this)
