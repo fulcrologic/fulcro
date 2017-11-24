@@ -202,11 +202,19 @@
 
 #?(:cljs
    (fulcro.client.mutations/defmutation set-query!
-     "The mutation version of `prim/set-query!`."
-     [{:keys [queryid] :as params}]
+     "The mutation version of `prim/set-query!`. This version requires queryid as an input string.
+
+     queryid (required) - A string query ID. Can be obtained via (prim/query-id Class qualifier)
+     query - The new query
+     params - The new query params
+
+     One of query or params is required.
+     "
+     [{:keys [queryid query params]}]
      (action [{:keys [reconciler state]}]
-       (swap! state prim/set-query* queryid params)
-       (p/reindex! reconciler))))
+       (swap! state prim/set-query* queryid {:query query :params params})
+       (when reconciler
+         (p/reindex! reconciler)))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation merge!

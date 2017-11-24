@@ -154,7 +154,6 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                    (some-> target-kw
                      get-dynamic-router-target
                      (prim/get-query state)))]
-    (log/debug (str "Set query on router " router-id " with state: " router))
     (if query
       (do
         (log/debug (str "Setting routing query for " router-id " to " query))
