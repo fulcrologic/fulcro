@@ -704,7 +704,7 @@ There are 3 supported options to a factory:
 [horizontal]
 `:keyfn`:: A function from `props` to a React key. Should generally be supplied to ensure React rendering can properly diff.
 `:validator`:: A function from props to boolean. If it returns false then an assertion will be thrown at runtime.
-`:instrument?`:: A boolean. If true, it indicates that Om Next's instrumentation should be enabled on the component.
+`:instrument?`:: A boolean. If true, it indicates that instrumentation should be enabled on the component.
 Instrumentation is a function you can install on the reconciler that wraps component `render` allowing you to add
 measurement and debugging code to your component's rendering.
 
@@ -1338,12 +1338,12 @@ should be.
 
 == The AST
 
-Om Next can convert any expression in the query/mutation language into an AST (abstract syntax tree) and vice
+You can convert any expression in the query/mutation language into an AST (abstract syntax tree) and vice
 versa. This lends itself to doing complex parsing of the query (typically on the server). The functions
 of interest are `fulcro.client.primitives/query->ast` and `ast->query`.
 
 There are many uses for this. One such use might be to convert the graph expression into another form. For
-example, say you wanted to run an Om query against and SQL database. You could write an algorithm that translates
+example, say you wanted to run a query against and SQL database. You could write an algorithm that translates
 the AST into a series of SQL queries to build the desired result. The AST is always available as one
 of the parameters in the mutation/query `env` on the client and server.
 
@@ -1944,8 +1944,7 @@ run willy-nilly queries and get what they want.
 In the example of "people who've had this phone number", the graph would be phone-number centric. Maybe
 `[:db/id :phone/number {:phone/historical-owners (prim/get-query Person)}]`. There probably isn't a graph edge in the
 real database called `:phone/historical-owners`.  One could write parser code that understood this particular edge,
-and did the logic. In this case, that really isn't even that hard and may be a good choice. It is the central
-suggested design of stock Om Next.
+and did the logic. In this case, that really isn't even that hard and may be a good choice.
 
 Fulcro gives you an easy-to-access additional option: morph something the server can easily provide (on the
 real graph without custom code). Issuing
@@ -2079,9 +2078,9 @@ to understand exactly which entity to start at (blog 3) and what sub-graph is ne
 
 == Processing Remote Queries
 
-The server-side processing defines two internal multimethods, and joins them together via a call to `fulcro-parser`. You
-can also write your own custom Om Next parser and use that instead. The latter is covered in some detail in the
-Developer's Guide, and in stock Om Next documentation.
+The server-side processing defines two internal multimethods, and joins them together in a parser via a call
+to `fulcro-parser`. You can also write your own custom parser and use that instead. The latter is covered in some detail in the
+Developer's Guide.
 
 All of the techniques you'd use in a parser can be easily applied using the `fulcro-parser`, but the entry points are
 slightly more well-defined.
@@ -2222,7 +2221,7 @@ Note that this is a state-map, not an atom. You must return the new state of the
 entire UI database). This allows you to use functions like `merge`, `tree->db`, and such to do whatever is necessary with the
 return value with respect to application state.
 
-= Advanced Om-based Parsing
+= Advanced Parsing
 
 See the Developer's Guide for details on advanced parsing.
 
@@ -2234,8 +2233,8 @@ Guide on advanced server query processing; and it is similar in that you must st
 
 This is a limitation of how queries are processed. Fulcro normally runs the query through `db->tree`, which attempts to
 fill the entire result. If you supply a `:read-local` function during client construction, then your `:read-local` will
-get first shot at each element of the query that was submitted. Note that path optimization in Om could cause the
-query to *start* at an ident. If your `read-local` function returns `nil` for an element, then the normal Fulcro
+get first shot at each element of the query that was submitted. Note that the query *can start* at an ident.
+If your `read-local` function returns `nil` for an element, then the normal Fulcro
 processing takes place on that sub-query. If your `read-local` returns a value, then that is all the processing that
 is done for that sub-tree. Thus, custom client parsing always requires you to process sub-trees of the query, not just
 individual elements.  Of course, you can use `db->tree` at any time to "finish out" some subquery against real data.
@@ -2575,8 +2574,8 @@ In general Fulcro should be able to handle a reasonably high frame-rate. In fact
 UIs can have negative performance impacts at both the query and DOM layers.
 
 Since React does your rendering, it is best to understand how to best optimize it using their suggestions and documentation. Note
-that Fulcro already ensures (through Om Next) that `shouldComponentUpdate` is defined to a sane value that should prevent refresh of DOM that has
-not changed in an efficient manner.
+that Fulcro already ensures that `shouldComponentUpdate` is defined to a sane value that should prevent even a regen/diff of VDOM
+when data hasn't changed.
 
 Some general tips to start with are:
 

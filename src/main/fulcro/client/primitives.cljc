@@ -1,4 +1,5 @@
 (ns fulcro.client.primitives
+  #?(:cljs (:require-macros fulcro.client.primitives))
   (:refer-clojure :exclude #?(:clj [deftype replace var? force]
                               :cljs [var? key replace force]))
   (:require
@@ -25,7 +26,8 @@
                [clojure.walk :as walk :refer [prewalk]]
                [clojure.string :as str]
                [clojure.spec.alpha :as s]
-               #?(:clj [clojure.future :refer :all])
+    #?(:clj
+               [clojure.future :refer :all])
                [cognitect.transit :as t])
   #?(:clj
            (:import [java.io Writer])

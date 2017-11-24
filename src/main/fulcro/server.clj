@@ -21,7 +21,7 @@
   "Create a parser. The argument is a map of two keys, :read and :mutate. Both
    functions should have the signature (Env -> Key -> Params -> ParseResult)."
   [opts]
-  (parser/parser (assoc opts :elide-paths true)))
+  (parser/parser opts))
 
 (defn dispatch
   "Helper function for implementing :read and :mutate as multimethods. Use this
