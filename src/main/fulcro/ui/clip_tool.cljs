@@ -166,12 +166,11 @@
        :min-size        20}))
   (shouldComponentUpdate [this next-props next-state] false)
   (componentWillReceiveProps [this props] (refresh-clip-region this props)) ; for URL changes
-  (componentDidMount [this newprops]
+  (componentDidMount [this]
     (let [{:keys [url handle-size aspect-ratio size]} (prim/props this)
           {:keys [image-object clip-region] :as state} (prim/get-state this)]
       (prim/update-state! this assoc :aspect-ratio aspect-ratio :handle-size (or handle-size 10))
-      (set! (.-src image-object) url)
-      (refresh-clip-region this newprops)))
+      (set! (.-src image-object) url)))
   (render [this]
     (let [{:keys [id size]} (prim/props this)
           onChange (prim/get-computed this :onChange)]

@@ -538,7 +538,7 @@
                                                             element
                                                             (react-empty-node))]
                                              (assoc rendered :react-key
-                                                             (some-> (:props c) :omcljs$reactKey)))
+                                                             (some-> (:props c) :fulcro$reactKey)))
 
                                            (or (string? c) (number? c))
                                            (let [c (cond-> c (number? c) str)]

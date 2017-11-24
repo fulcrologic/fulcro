@@ -126,8 +126,8 @@
                         fulcro.client.primitives/*parent*     this#]
                 (let [ret#   (do ~@body)
                       props# (:props this#)]
-                  (when-not @(:omcljs$mounted? props#)
-                    (swap! (:omcljs$mounted? props#) not))
+                  (when-not @(:fulcro$mounted? props#)
+                    (swap! (:fulcro$mounted? props#) not))
                   ret#)))))
        'componentWillMount
        (fn [[name [this :as args] & body]]
@@ -154,7 +154,7 @@
     (fn [[name [this :as args] & body]]
       `(~name ~args
          (let [ret# (do ~@body)]
-           (cljs.core/js-obj "omcljs$state" ret#))))
+           (cljs.core/js-obj "fulcro$state" ret#))))
     'componentWillReceiveProps
     (fn [[name [this next-props :as args] & body]]
       `(~name [this# next-props#]
@@ -166,8 +166,8 @@
       `(~name [this# next-props# next-state#]
          (let [~this this#
                ~next-props (fulcro.client.primitives/-next-props next-props# this#)
-               ~next-state (or (goog.object/get next-state# "omcljs$pendingState")
-                             (goog.object/get next-state# "omcljs$state"))
+               ~next-state (or (goog.object/get next-state# "fulcro$pendingState")
+                             (goog.object/get next-state# "fulcro$state"))
                ret# (do ~@body)]
            (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
              (let [ident#      (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))
@@ -188,7 +188,7 @@
       `(~name [this# prev-props# prev-state#]
          (let [~this this#
                ~prev-props (fulcro.client.primitives/-prev-props prev-props# this#)
-               ~prev-state (goog.object/get prev-state# "omcljs$previousState")]
+               ~prev-state (goog.object/get prev-state# "fulcro$previousState")]
            ~@body
            (fulcro.client.primitives/clear-prev-props! this#))))
     'componentWillMount
@@ -199,6 +199,12 @@
            (when-not (nil? indexer#)
              (fulcro.client.impl.protocols/index-component! indexer# this#))
            ~@body)))
+    'componentDidMount
+    (fn [[name [this :as args] & body]]
+      `(~name [this#]
+         (let [~this this#]
+           (goog.object/set this# "fulcro$mounted" true)
+           ~@body)))
     'componentWillUnmount
     (fn [[name [this :as args] & body]]
       `(~name [this#]
@@ -207,6 +213,7 @@
                cfg# (:config r#)
                st# (:state cfg#)
                indexer# (:indexer cfg#)]
+           (goog.object/set this# "fulcro$mounted" false)
            (when (and (not (nil? st#))
                    (get-in @st# [:fulcro.client.primitives/queries this#]))
              (swap! st# update-in [:fulcro.client.primitives/queries] dissoc this#))
@@ -224,17 +231,10 @@
                      fulcro.client.primitives/*parent*     this#]
              ~@body))))}
    :defaults
-   `{~'isMounted
-     ([this#]
-       (boolean
-         (or (some-> this# .-_reactInternalFiber .-stateNode)
-           ;; Pre React 16 support. Remove when we don't wish to support
-           ;; React < 16 anymore - Antonio
-           (some-> this# .-_reactInternalInstance .-_renderedComponent))))
-     ~'shouldComponentUpdate
+   `{~'shouldComponentUpdate
      ([this# next-props# next-state#]
        (let [next-children#     (. next-props# -children)
-             next-props#        (goog.object/get next-props# "omcljs$value")
+             next-props#        (goog.object/get next-props# "fulcro$value")
              next-props#        (cond-> next-props#
                                   (instance? FulcroProps next-props#) unwrap)
              current-props#     (fulcro.client.primitives/props this#)
@@ -244,8 +244,8 @@
                                   (not next-props-stale?#)
                                   (not= current-props# next-props#))
              state-changed?#    (and (.. this# ~'-state)
-                                  (not= (goog.object/get (. this# ~'-state) "omcljs$state")
-                                    (goog.object/get next-state# "omcljs$state")))
+                                  (not= (goog.object/get (. this# ~'-state) "fulcro$state")
+                                    (goog.object/get next-state# "fulcro$state")))
              children-changed?# (not= (.. this# -props -children)
                                   next-children#)]
          (or props-changed?# state-changed?# children-changed?#)))
@@ -272,12 +272,15 @@
        (let [indexer# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
          (when-not (nil? indexer#)
            (fulcro.client.impl.protocols/index-component! indexer# this#))))
+     ~'componentDidMount
+     ([this#] (goog.object/set this# "fulcro$mounted" true))
      ~'componentWillUnmount
      ([this#]
        (let [r#       (fulcro.client.primitives/get-reconciler this#)
              cfg#     (:config r#)
              st#      (:state cfg#)
              indexer# (:indexer cfg#)]
+         (goog.object/set this# "fulcro$mounted" false)
          (when (and (not (nil? st#))
                  (get-in @st# [:fulcro.client.primitives/queries this#]))
            (swap! st# update-in [:fulcro.client.primitives/queries] dissoc this#))
@@ -608,15 +611,15 @@
 
 #?(:cljs
    (defn- get-prev-props [x]
-     (get-props* x "omcljs$prev$value")))
+     (get-props* x "fulcro$prev$value")))
 
 #?(:cljs
    (defn- get-next-props [x]
-     (get-props* x "omcljs$next$value")))
+     (get-props* x "fulcro$next$value")))
 
 #?(:cljs
    (defn- get-props [x]
-     (get-props* x "omcljs$value")))
+     (get-props* x "fulcro$value")))
 
 #?(:cljs
    (defn- set-prop!
@@ -645,8 +648,8 @@
 (defn get-reconciler
   [c]
   {:pre [(component? c)]}
-  (get-prop c #?(:clj  :omcljs$reconciler
-                 :cljs "omcljs$reconciler")))
+  (get-prop c #?(:clj  :fulcro$reconciler
+                 :cljs "fulcro$reconciler")))
 
 #?(:cljs
    (defn- unwrap [om-props]
@@ -689,16 +692,16 @@
      {:pre [(component? c)]}
      (let [cst     (. c -state)
            props   (.-props c)
-           pending (gobj/get cst "omcljs$next$value")
+           pending (gobj/get cst "fulcro$next$value")
            prev    (props* (get-props cst) (get-props props))]
-       (gobj/set cst "omcljs$prev$value" prev)
+       (gobj/set cst "fulcro$prev$value" prev)
        (when-not (nil? pending)
-         (gobj/remove cst "omcljs$next$value")
-         (gobj/set cst "omcljs$value" pending)))))
+         (gobj/remove cst "fulcro$next$value")
+         (gobj/set cst "fulcro$value" pending)))))
 
 #?(:cljs
    (defn- clear-prev-props! [c]
-     (gobj/remove (.-state c) "omcljs$prev$value")))
+     (gobj/remove (.-state c) "fulcro$prev$value")))
 
 #?(:cljs
    (defn- t
@@ -713,28 +716,28 @@
 (defn- parent
   "Returns the parent component."
   [component]
-  (get-prop component #?(:clj  :omcljs$parent
-                         :cljs "omcljs$parent")))
+  (get-prop component #?(:clj  :fulcro$parent
+                         :cljs "fulcro$parent")))
 
 (defn depth
   "PRIVATE: Returns the render depth (a integer) of the component relative to
    the mount root."
   [component]
   (when (component? component)
-    (get-prop component #?(:clj  :omcljs$depth
-                           :cljs "omcljs$depth"))))
+    (get-prop component #?(:clj  :fulcro$depth
+                           :cljs "fulcro$depth"))))
 
 (defn react-key
   "Returns the components React key."
   [component]
-  (get-prop component #?(:clj  :omcljs$reactKey
-                         :cljs "omcljs$reactKey")))
+  (get-prop component #?(:clj  :fulcro$reactKey
+                         :cljs "fulcro$reactKey")))
 
 
 #?(:clj
    (defn props [component]
      {:pre [(component? component)]}
-     (:omcljs$value (:props component))))
+     (:fulcro$value (:props component))))
 
 #?(:cljs
    (defn props
@@ -785,8 +788,8 @@
                (-get-state component)
                #?(:clj  @(:state component)
                   :cljs (when-let [state (. component -state)]
-                          (or (gobj/get state "omcljs$pendingState")
-                            (gobj/get state "omcljs$state")))))]
+                          (or (gobj/get state "fulcro$pendingState")
+                            (gobj/get state "fulcro$state")))))]
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
 
 (defn has-dynamic-query?
@@ -916,18 +919,18 @@
                                :else (compute-react-key class props))
                    ctor      class
                    ref       (:ref props)
-                   props     {:omcljs$reactRef   ref
-                              :omcljs$reactKey   react-key
-                              :omcljs$value      (cond-> props
+                   props     {:fulcro$reactRef   ref
+                              :fulcro$reactKey   react-key
+                              :fulcro$value      (cond-> props
                                                    (map? props) (dissoc :ref))
-                              :omcljs$queryid    (query-id class qualifier)
-                              :omcljs$mounted?   (atom false)
-                              :omcljs$path       (-> props meta :om-path)
-                              :omcljs$reconciler *reconciler*
-                              :omcljs$parent     *parent*
-                              :omcljs$shared     *shared*
-                              :omcljs$instrument *instrument*
-                              :omcljs$depth      *depth*}
+                              :fulcro$queryid    (query-id class qualifier)
+                              :fulcro$mounted?   (atom false)
+                              :fulcro$path       (-> props meta :om-path)
+                              :fulcro$reconciler *reconciler*
+                              :fulcro$parent     *parent*
+                              :fulcro$shared     *shared*
+                              :fulcro$instrument *instrument*
+                              :fulcro$depth      *depth*}
                    component (ctor (atom nil) (atom nil) props children)]
                (when ref
                  (assert (some? *parent*))
@@ -971,15 +974,15 @@
               (create-element class
                 #js {:key               key
                      :ref               ref
-                     :omcljs$reactKey   key
-                     :omcljs$value      (om-props props t)
-                     :omcljs$path       (-> props meta :om-path)
-                     :omcljs$queryid    (query-id class qualifier)
-                     :omcljs$reconciler *reconciler*
-                     :omcljs$parent     *parent*
-                     :omcljs$shared     *shared*
-                     :omcljs$instrument *instrument*
-                     :omcljs$depth      *depth*}
+                     :fulcro$reactKey   key
+                     :fulcro$value      (om-props props t)
+                     :fulcro$path       (-> props meta :om-path)
+                     :fulcro$queryid    (query-id class qualifier)
+                     :fulcro$reconciler *reconciler*
+                     :fulcro$parent     *parent*
+                     :fulcro$shared     *shared*
+                     :fulcro$instrument *instrument*
+                     :fulcro$depth      *depth*}
                 (or (util/force-children children) [])))))
         {:class     class
          :queryid   (query-id class qualifier)
@@ -1138,8 +1141,8 @@
 (defn- path
   "Returns the component's data path."
   [c]
-  (get-prop c #?(:clj  :omcljs$path
-                 :cljs "omcljs$path")))
+  (get-prop c #?(:clj  :fulcro$path
+                 :cljs "fulcro$path")))
 
 (defn- normalize* [query data refs union-seen]
   (cond
@@ -1946,8 +1949,8 @@
   "Returns true if the component is mounted."
   #?(:cljs {:tag boolean})
   [x]
-  #?(:clj  (and (component? x) @(get-prop x :omcljs$mounted?))
-     :cljs (and (component? x) ^boolean (.isMounted x))))
+  #?(:clj  (and (component? x) @(get-prop x :fulcro$mounted?))
+     :cljs (and (component? x) ^boolean (boolean (goog.object/get x "fulcro$mounted")))))
 
 
 (defn fulcro-ui->props
@@ -1960,10 +1963,7 @@
              (let [id    (ident c (props c))
                    query [{id (get-query c @state)}]]
                (get (parser env query) id)))]
-    (or ui
-      (let [component-name (.. c -constructor -displayName)]
-        (log/debug (str "PERFORMANCE NOTE: " component-name " does not have an ident (ignore this message if it is your root). This will cause full root-level renders that may affect rendering performance."))
-        ::no-ident))))
+    (or ui ::no-ident)))
 
 (defn computed
   "Add computed properties to props. Note will replace any pre-existing
@@ -2006,8 +2006,8 @@
      ([c next-props next-state]
       {:pre [(component? c)]}
       (.shouldComponentUpdate c
-        #js {:omcljs$value next-props}
-        #js {:omcljs$state next-state}))))
+        #js {:fulcro$value next-props}
+        #js {:fulcro$state next-state}))))
 
 #?(:cljs
    (defn- update-props!
@@ -2017,7 +2017,7 @@
      {:pre [(component? c)]}
      ;; We cannot write directly to props, React will complain
      (doto (.-state c)
-       (gobj/set "omcljs$next$value"
+       (gobj/set "fulcro$next$value"
          (om-props next-props (get-current-time (get-reconciler c)))))))
 
 #?(:cljs
@@ -2209,7 +2209,7 @@
                                               next-props)]
                              ;; `componentWilReceiveProps` is always called before `shouldComponentUpdate`
                              (.componentWillReceiveProps c
-                               #js {:omcljs$value (om-props next-props (get-current-time this))})))
+                               #js {:fulcro$value (om-props next-props (get-current-time this))})))
                          (when (should-update? c next-props (get-state c))
                            (if-not (nil? next-props)
                              (update-component! c next-props)
@@ -2448,7 +2448,7 @@
      {:pre [(component? component)]}
      (if (implements? ILocalState component)
        (-set-state! component new-state)
-       (gobj/set (.-state component) "omcljs$pendingState" new-state))
+       (gobj/set (.-state component) "fulcro$pendingState" new-state))
      (if-let [r (get-reconciler component)]
        (do
          (p/queue! r [component])
@@ -2463,7 +2463,7 @@
     #?(:clj  (do
                (set-state! component new-state)
                (cb))
-       :cljs (.setState component #js {:omcljs$state new-state} cb))))
+       :cljs (.setState component #js {:fulcro$state new-state} cb))))
 
 (defn update-state!
   "Update a component's local state. Similar to Clojure(Script)'s swap!"
@@ -2584,8 +2584,8 @@
    (shared component []))
   ([component k-or-ks]
    {:pre [(component? component)]}
-   (let [shared #?(:clj (get-prop component :omcljs$shared)
-                   :cljs (gobj/get (. component -props) "omcljs$shared"))
+   (let [shared #?(:clj (get-prop component :fulcro$shared)
+                   :cljs (gobj/get (. component -props) "fulcro$shared"))
          ks             (cond-> k-or-ks
                           (not (sequential? k-or-ks)) vector)]
      (cond-> shared
@@ -2593,19 +2593,19 @@
 
 (defn instrument [component]
   {:pre [(component? component)]}
-  (get-prop component #?(:clj  :omcljs$instrument
-                         :cljs "omcljs$instrument")))
+  (get-prop component #?(:clj  :fulcro$instrument
+                         :cljs "fulcro$instrument")))
 
 #?(:cljs
    (defn- merge-pending-state! [c]
      (if (implements? ILocalState c)
        (-merge-pending-state! c)
-       (when-let [pending (some-> c .-state (gobj/get "omcljs$pendingState"))]
+       (when-let [pending (some-> c .-state (gobj/get "fulcro$pendingState"))]
          (let [state    (.-state c)
-               previous (gobj/get state "omcljs$state")]
-           (gobj/remove state "omcljs$pendingState")
-           (gobj/set state "omcljs$previousState" previous)
-           (gobj/set state "omcljs$state" pending))))))
+               previous (gobj/get state "fulcro$state")]
+           (gobj/remove state "fulcro$pendingState")
+           (gobj/set state "fulcro$previousState" previous)
+           (gobj/set state "fulcro$state" pending))))))
 
 (defn class->any
   "Get any component from the indexer that matches the component class."
@@ -2637,7 +2637,7 @@
                     :cljs (implements? ILocalState component))
                (-get-rendered-state component)
                #?(:clj  (get-state component)
-                  :cljs (some-> component .-state (gobj/get "omcljs$state"))))]
+                  :cljs (some-> component .-state (gobj/get "fulcro$state"))))]
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
 
 (defn nil-or-map?

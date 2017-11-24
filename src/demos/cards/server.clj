@@ -16,12 +16,12 @@
             [recipes.websockets-server :as wsdemo]
             [fulcro.easy-server :as core]
             [fulcro.server :refer [server-read server-mutate]]
-            ;[fulcro-sql.core :as sql]
+            [fulcro-sql.core :as sql]
             [fulcro.websockets.components.channel-server :as cs]
             [com.stuartsierra.component :as component]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SHARED SERVER FOR ALL EXAMPLE
+;; SHARED SERVER FOR ALL EXAMPLES
 ;; We use namespacing on the query keys and mutations to isolate the various examples. All that needs to happen is
 ;; the loading of the server-side namespace of an example, which will add it's stuff to the multimethods defined
 ;; here
@@ -58,7 +58,7 @@
                            ;; websocket components and route additions
                            :channel-server   (cs/make-channel-server)
                            :channel-listener (wsdemo/make-channel-listener)}
-                    include-postgres? (merge {} #_{:sqldb (component/using
+                    include-postgres? (merge  {:sqldb (component/using
                                                        (sql/build-db-manager {})
                                                        [:config])})))))
 
