@@ -40,11 +40,11 @@
          (prim/query-id c q) => :ID
          (prim/create-element class props children) => (do
                                                          (assertions
-                                                           (gobj/get props "omcljs$queryid") => :ID))
+                                                           (gobj/get props "fulcro$queryid") => :ID))
 
          ((prim/factory A) {}))
        :clj
-       (let [class (fn [_ _ props _] (assertions (:omcljs$queryid props) => :ID))]
+       (let [class (fn [_ _ props _] (assertions (:fulcro$queryid props) => :ID))]
          (when-mocking
            (prim/query-id c q) => :ID
            (prim/init-local-state c) => nil

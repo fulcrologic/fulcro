@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.0.0-alpha3"
+(defproject fulcrologic/fulcro "2.0.0-alpha4-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -28,9 +28,9 @@
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
   :source-paths ["src/main"]
+  :jar-exclusions [#"public/.*" #"private/.*"]
   :resource-paths ["resources"]
   :test-paths ["src/test"]
-  :jar-exclusions [#"public/.*" #"private/.*"]
 
   :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target"]
@@ -75,6 +75,20 @@
                                ;:parallel-build       true
                                :source-map-timestamp true
                                :optimizations        :none}}
+               {:id           "production-demos"
+                :source-paths ["src/main" "src/demos"]
+                :compiler     {:devcards      true
+                               :output-dir    "resources/public/js/production-demos"
+                               :asset-path    "js/production-demos"
+                               :modules       {:entry-point {:output-to "resources/public/js/production-demos/demos.min.js"
+                                                             :entries   #{cards.card-ui}}
+                                               :de          {:output-to "resources/public/js/production-demos/de.js"
+                                                             :entries   #{translations.de}}
+                                               :es-MX       {:output-to "resources/public/js/production-demos/es-MX.js"
+                                                             :entries   #{translations.es-MX}}
+                                               :main        {:output-to "resources/public/js/production-demos/main-ui.js"
+                                                             :entries   #{recipes.dynamic-ui-main}}}
+                               :optimizations :advanced}}
                {:id           "demos"
                 :source-paths ["src/main" "src/demos"]
                 :figwheel     {:devcards true}
@@ -152,27 +166,44 @@
                                          [cljsjs/d3 "3.5.7-1"]
                                          [cljsjs/victory "0.9.0-0"]
                                          [hickory "0.7.1"]
-                                         [fulcrologic/fulcro-css "1.0.0"] ; demos
-                                         [com.rpl/specter "1.0.2"] ; only used in demos
+                                         [fulcrologic/fulcro-css "2.0.0-SNAPSHOT"] ; demos
+                                         [com.rpl/specter "1.0.5"] ; only used in demos
                                          [org.flywaydb/flyway-core "4.2.0"]
                                          [com.layerware/hugsql "0.4.8"]
                                          [org.clojure/tools.namespace "0.3.0-alpha4"]
                                          [cljsjs/codemirror "5.8.0-0"]
                                          [org.clojure/tools.nrepl "0.2.13"]]}
+             :uberjar    {:source-paths   ["src/main" "src/demos"]
+                          :main           cards.server-main
+                          :uberjar-name   "fulcro-demos.jar"
+                          :jar-exclusions ^:replace []
+                          :dependencies   [[devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
+                                           [fulcrologic/fulcro-css "2.0.0-SNAPSHOT"] ; demos
+                                           [com.rpl/specter "1.0.5"] ; only used in demos
+                                           [org.flywaydb/flyway-core "4.2.0"]
+                                           [com.layerware/hugsql "0.4.8"]
+                                           [fulcrologic/fulcro-sql "0.3.0-SNAPSHOT"] ; demos
+                                           [org.clojure/java.jdbc "0.7.3"] ; pinned dependency
+                                           [org.postgresql/postgresql "42.1.4"] ; demos
+                                           [org.clojure/tools.namespace "0.3.0-alpha4"]
+                                           [cljsjs/codemirror "5.8.0-0"]
+                                           [org.clojure/tools.nrepl "0.2.13"]]
+                          :aot            :all
+                          :prep-tasks     ["compile" ["cljsbuild" "once" "production-demos"]]}
              :dev        {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
                           :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                           :dependencies [[binaryage/devtools "0.9.7"]
                                          [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                         [fulcrologic/fulcro-css "1.0.0"] ; demos
-                                         ;[fulcrologic/fulcro-sql "0.2.0"] ; demos
-                                         ;[org.clojure/java.jdbc "0.7.3"] ; pinned dependency
+                                         [fulcrologic/fulcro-css "2.0.0-SNAPSHOT"] ; demos
+                                         [fulcrologic/fulcro-sql "0.3.0-SNAPSHOT"] ; demos
+                                         [org.clojure/java.jdbc "0.7.3"] ; pinned dependency
                                          [org.postgresql/postgresql "42.1.4"] ; demos
                                          [com.cemerick/piggieback "0.2.2"]
                                          [figwheel-sidecar "0.5.14"]
                                          [cljsjs/d3 "3.5.7-1"]
                                          [cljsjs/victory "0.9.0-0"]
                                          [hickory "0.7.1"]
-                                         [com.rpl/specter "1.0.2"] ; only used in demos
+                                         [com.rpl/specter "1.0.5"] ; only used in demos
                                          [org.flywaydb/flyway-core "4.2.0"]
                                          [com.layerware/hugsql "0.4.8"]
                                          [org.clojure/tools.namespace "0.3.0-alpha4"]
