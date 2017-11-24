@@ -677,7 +677,7 @@
                                                                                                                        :stuff  [[:y 2]]
                                                                                                                        :things [[:x 1] [:x 2] [:y 2]]}}})))))
 
-(specification "is-deferred-transaction?" :focused
+(specification "is-deferred-transaction?"
   (assertions
     "Returns false for invalid or nil queries"
     (dfi/is-deferred-transaction? nil) => false
@@ -698,7 +698,7 @@
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "get-remote" :focused
+(specification "get-remote"
   (assertions
     "Returns the correct remote for a given mutation"
     (df/get-remote `f) => :remote

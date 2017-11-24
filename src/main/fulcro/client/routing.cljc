@@ -247,8 +247,8 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   (initial-state [clz {:keys [id]}] {::id id ::dynamic true ::current-route {}})
   static prim/Ident
   (ident [this props] [routers-table (::id props)])
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [::id ::dynamic ::current-route])
+  static prim/IQuery
+  (query [this] [::id ::dynamic ::current-route])
   Object
   (render [this]
     (let [{:keys [::id ::current-route]} (prim/props this)
@@ -262,8 +262,10 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   (let [ui-factory (prim/factory DynamicRouter {:qualifier (get props ::id) :keyfn ::id})]
     (ui-factory props)))
 
-(defn get-dynamic-router-query [state router-id]
-  (prim/get-query (prim/factory DynamicRouter {:qualifier router-id}) state))
+(defn get-dynamic-router-query
+  "Get the query for the router with the given router-id."
+  [router-id]
+  (prim/get-query (prim/factory DynamicRouter {:qualifier router-id})))
 
 (defn- process-pending-route!
   "Finish doing the routing after a module completes loading"

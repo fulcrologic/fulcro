@@ -13,8 +13,8 @@
 (defui ^:once Leaf
   static InitialAppState
   (initial-state [clz {:keys [id]}] {:id id :x 1 :y 42})
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [:id :x])
+  static prim/IQuery
+  (query [this] [:id :x])
   static prim/Ident
   (ident [this props] [:LEAF (:id props)])
   Object
@@ -35,8 +35,8 @@
   static InitialAppState
   (initial-state [clz params] {:left  (fc/get-initial-state Leaf {:id :left})
                                :right (fc/get-initial-state Leaf {:id :right})})
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [{:left (prim/get-query ui-leaf state)} {:right (prim/get-query ui-leaf state)}])
+  static prim/IQuery
+  (query [this] [{:left (prim/get-query ui-leaf)} {:right (prim/get-query ui-leaf)}])
 
   static prim/Ident
   (ident [this props]
@@ -48,7 +48,7 @@
           {:keys [value]} (prim/get-state this)]
       (dom/div nil
         (dom/p nil value)
-        (dom/button #js {:onClick #(prim/react-set-state! this {:value (inc value)})} "Bump!")
+        (dom/button #js {:onClick #(prim/react-set-state! this {:value (inc value)})} "Modify local state only. A bug would cause children to go back in time!")
         (dom/h4 nil "Left")
         (ui-leaf left)
         (dom/h4 nil "Right")
@@ -60,13 +60,13 @@
   static InitialAppState
   (initial-state [clz params] {:ui/react-key "A"
                                :parent       (fc/get-initial-state Parent nil)})
-  static prim/IDynamicQuery
-  (dynamic-query [this state] [{:parent (prim/get-query ui-parent state)} :ui/react-key])
+  static prim/IQuery
+  (query [this] [{:parent (prim/get-query ui-parent)} :ui/react-key])
   Object
   (render [this]
     (let [{:keys [ui/react-key parent] :as props} (prim/props this)]
       (dom/div #js {:key (or react-key)}
-        (dom/button #js {:onClick #(prim/transact! this `[:left])} "Bam!")
+        (dom/button #js {:onClick #(prim/transact! this `[:left])} "Run real transaction (no-op)")
         (ui-parent parent)))))
 
 (defcard-fulcro parent-refresh-card
