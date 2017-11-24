@@ -496,7 +496,9 @@
           (set! (.-cljs$lang$ctorStr ~rname) ~(str rname))
           (set! (.-cljs$lang$ctorPrWriter ~rname)
             (fn [this# writer# opt#]
-              (cljs.core/-write writer# ~(str rname)))))))))
+              (cljs.core/-write writer# ~(str rname))))
+          ;; TODO: here is where we could emit uses of the statics in a try/catch so the Closure will not collapse them
+          )))))
 
 (defmacro defui [name & forms]
   (if (boolean (:ns &env))
@@ -896,10 +898,10 @@
 (defn query-id
   "Returns a string ID for the query of the given class with qualifier"
   [class qualifier]
-  (let [classname #?(:clj (-> (str (-> class meta :component-ns) "." (-> class meta :component-name))
-                            (str/replace "." "$")
-                            (str/replace "-" "_"))
-                     :cljs (.-name class))]
+  (when-let [classname #?(:clj (-> (str (-> class meta :component-ns) "." (-> class meta :component-name))
+                                 (str/replace "." "$")
+                                 (str/replace "-" "_"))
+                          :cljs (.-name class))]
     (str classname (when qualifier (str "$" qualifier)))))
 
 #?(:clj
@@ -1114,21 +1116,25 @@
 
 (defn set-query*
   "Put a query in app state.
-  NOTE: Indexes must be rebuilt after setting a query, so this function should only be used to build
-  up an initial app state. Do not use it as part of a mutation."
-  [state-map queryid-or-class-or-ui-factory {:keys [query params]}]
-  (if-let [queryid (cond
-                     (string? queryid-or-class-or-ui-factory) queryid-or-class-or-ui-factory
-                     (contains? (meta queryid-or-class-or-ui-factory) :queryid) (some-> queryid-or-class-or-ui-factory meta :queryid)
-                     :otherwise (query-id queryid-or-class-or-ui-factory nil))]
-    (do
-      ; we have to dissoc the old one, because normalize won't overwrite by default
-      (let [new-state (normalize-query (update state-map ::queries dissoc queryid) (with-meta query {:queryid queryid}))
-            params    (get-in new-state [::queries queryid :params] params)]
-        (if params
-          (assoc-in new-state [::queries queryid :params] params)
-          new-state)))
-    state-map))
+  NOTE: Indexes must be rebuilt after setting a query, so this function should primarily be used to build
+  up an initial app state."
+  [state-map ui-factory-class-or-queryid {:keys [query params]}]
+  (let [queryid (cond
+                  (nil? ui-factory-class-or-queryid) nil
+                  (string? ui-factory-class-or-queryid) ui-factory-class-or-queryid
+                  (some-> ui-factory-class-or-queryid meta (contains? :queryid)) (some-> ui-factory-class-or-queryid meta :queryid)
+                  :otherwise (query-id ui-factory-class-or-queryid nil))]
+    (if (string? queryid)
+      (do
+        ; we have to dissoc the old one, because normalize won't overwrite by default
+        (let [new-state (normalize-query (update state-map ::queries dissoc queryid) (with-meta query {:queryid queryid}))
+              params    (get-in new-state [::queries queryid :params] params)]
+          (if params
+            (assoc-in new-state [::queries queryid :params] params)
+            new-state)))
+      (do
+        (log/error "Set query failed. There was no query ID.")
+        state-map))))
 
 (defn gather-keys
   "Gather the keys that would be considered part of the refresh set for the given query.
@@ -2667,12 +2673,16 @@
   (let [reconciler (if (reconciler? component-or-reconciler)
                      component-or-reconciler
                      (get-reconciler component-or-reconciler))
-        queryid    (if (string? ui-factory-or-queryid)
-                     ui-factory-or-queryid
-                     (-> ui-factory-or-queryid meta :queryid))
-        tx         (into `[(fulcro.client.mutations/set-query {:query-id ~queryid :query ~query :params ~params})] follow-on-reads)]
-    (transact! component-or-reconciler tx)
-    (p/reindex! reconciler)))
+        queryid    (cond
+                     (string? ui-factory-or-queryid) ui-factory-or-queryid
+                     (some-> ui-factory-or-queryid meta (contains? :queryid)) (some-> ui-factory-or-queryid meta :queryid)
+                     :otherwise (query-id ui-factory-or-queryid nil))
+        tx         (into `[(fulcro.client.mutations/set-query! {:queryid ~queryid :query ~query :params ~params})] follow-on-reads)]
+    (if (and (string? queryid) (or query params))
+      (do
+        (transact! component-or-reconciler tx)
+        (p/reindex! reconciler))
+      (log/error "Unable to set query. Invalid arguments."))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; DRAGONS BE HERE: The following code HACKS the cljs compiler to add an annotation so that
