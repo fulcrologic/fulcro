@@ -48,20 +48,26 @@
     (p/get-history reconciler)))
 
 (defn add-basis-time
-  "Recursively add the given basis time to all of the maps in the props."
+  "Recursively add the given basis time to all of the maps in the props. This is part of the UI refresh optimization
+  algorithm. Children that refresh in isolation could be mis-drawn if a parent subsequently does a re-render without
+  a query (e.g. local state change). The basis times allow us to detect and avoid that."
   [props time]
   (prewalk (fn [ele]
              (if (map? ele)
                (vary-meta ele assoc ::time time)
                ele)) props))
 
-(defn get-basis-time [props] (or (-> props meta ::time) :unset))
+(defn get-basis-time
+  "Returns the basis time from the given props, or ::unset if not available."
+  [props] (or (-> props meta ::time) :unset))
 
 (defn get-current-time
-  "get the current basis time from the reconciler. Used instead of the protocol to facilitate testing."
+  "get the current basis time from the reconciler. Used instead of calling the protocol method `basis-t` to facilitate testing."
   [reconciler] (p/basis-t reconciler))
 
-(defn collect-statics [dt]
+(defn collect-statics
+  "Collect the static declarations from the defui."
+  [dt]
   (letfn [(split-on-static [forms]
             (split-with (complement '#{static}) forms))
           (split-on-symbol [forms]
@@ -819,11 +825,15 @@
                (extends? IQueryParams class)))
      :cljs (implements? IQueryParams x)))
 
-(defn- get-static-query [c]
+(defn- get-static-query
+  "Get the statically-declared query of IQuery from a given class."
+  [c]
   {:pre (has-static-query? c)}
   #?(:clj ((-> c meta :query) c) :cljs (query c)))
 
-(defn- get-dynamic-query [c state]
+(defn- get-dynamic-query
+  "Get the statically-declared IDynamicQuery from a given class, using the given state."
+  [c state]
   {:pre (has-dynamic-query? c)}
   #?(:clj ((-> c meta :dynamic-query) c state) :cljs (dynamic-query c state)))
 
