@@ -5,7 +5,9 @@ If you're just getting started, please be sure you've at least watched a few of 
 the [documentation](docs.html).
 
 If you're still scratching your head and need someone to talk to, the best place to go
-is the #fulcro [Clojurians Slack Channel](https://clojurians.slack.com/).
+is Slack. You can get a free invite to the proper are via [https://clojurians.herokuapp.com/](https://clojurians.herokuapp.com/).
+Once you're in the [Clojurians Slack Channel](https://clojurians.slack.com/), look for us in the
+#fulcro channel.
 
 It is possible that someone has already asked your question, so it can be useful to search the 
 [Clojurians Slack Archive](https://clojurians-log.clojureverse.org/).
