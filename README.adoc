@@ -13,6 +13,10 @@ Clojure and Clojurescript (so it has first-class functional abilities with immut
 syncrhonous story for the UI. The result is a stack that dramatically reduces the amount of boilerplate and incidental complexity
 in your software.
 
+Fulcro 1.0 is still supported but is only getting bug fix releases at this point. Version 1.0 was an
+add-on library for Om Next. Fulcro 2.0 no longer has a dependency on Om Next, though the surface API
+is still very similar. See README-fulcro-2.0.adoc for details of this evolution.
+
 Latest version on Clojars: image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
 
 Latest Release: image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"]
