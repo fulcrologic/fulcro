@@ -3,7 +3,7 @@
 If you've tried stock Om Next, you probably found out pretty quickly that there are a lot of things you have
 to figure out, plug in, and set up before you actually have something working as a full-stack app with
 complete features. The primary difference is that Fulcro makes a lot of these choices for you so that you
-can work on what you care about: your features!
+can work on what you care about: your software!
 
 ## TL;DR
 
@@ -32,14 +32,11 @@ that component's mutations! There is no known database on the client for them to
 at a query cost that might be too high for your UI refresh rates to look good. Also, the code to write
 to interact with something like Datascript is a heck of a lot harder than `get-in`, `update-in`, or `assoc-in`
 
-The primary disadvantage is that you don't have full support of all of the query langauge features
-in the client.
-Om Next has the general idea that since you're writing the guts of query engine, you can "interpret" the query on the fly.
-This is a great idea, but the Fulcro philosophy is that most people don't want to think about feeding their
-UI by having to write query parsing "emitters". It decouples things in a way that is powerful, but overkill for
-most applications.
+The primary disadvantage is...hm. We're not sure there is one. There are hooks to put
+yourself back in the situation you would be in with Om Next, but why would you do that?
 
-Instead, Fulcro has you explicitly represent what you want from a query through the data model itself.
+Instead of parsers as the primary mechanism, Fulcro has you explicitly represent what
+you want from a query through the data model itself.
 
 Om Next:
 
@@ -57,7 +54,9 @@ Query -> db->tree -> UI
 Thus, in Fulcro you essentially have the mutations update the data graph so that the query will be answered
 in the "correct" way.
 
-While this sounds less powerful (it technically is), it makes general development much simpler.
+While this sounds less powerful (it technically is), it turns out in practice that
+it makes general development much simpler. There is a hook that lets you
+supply a parser in any situation in which you feel the need for it.
 
 ### Simpler Development Process
 
@@ -65,7 +64,7 @@ Adopting the model above leads to much easier development.
 
 #### Implementing something new
 
-**Stock Om Next:**
+**Om Next:**
 
 1. Write the UI
 2. Compose the UI
@@ -83,7 +82,7 @@ Adopting the model above leads to much easier development.
 3. Compose in the component
 4. Write mutations (you need those anyhow) that directly evolve the model to "look right"
 
-The remote story is separate, and not complected with the local data reads at all. Notice
+Fulcr's remote story is separate, and not complected with the local data reads at all. Notice
 that in Fulcro your view updates are directly linked to an action of the UI (mutation)
 instead of logic that might have performance implications during rendering. The (sort of)
 down-side is that Fulcro is essentially asking you to always cache your calculation for rendering.
@@ -97,7 +96,7 @@ This is perhaps the very biggest positive result of Fulcro making
 the decisions it has made: elements of your program become much more
 isolated and modular!
 
-**Stock Om Next**
+**Om Next**
 
 Unfortunately, your parser is usually tied to the UI structure you invent (you have to expect
 the UI to want to walk some particular graph). This means that if you want to pull out
@@ -111,8 +110,8 @@ a higher likelihood of code conflicts on merge.
 
 **Fulcro**
 
-The predefined data model means there is no parser. All components have an ident, their initial
-state composes locally, and loads are not tied to UI structure. If you want to put a screen
+The predefined data model means there is no need for a parser. All components have an ident,
+their initial state composes locally, and loads are not tied to UI structure. If you want to put a screen
 in a devcard you just compose it into a new Root and drop it in place! The only thing
 that (typically) fails to work is navigation to UI stuff that you didn't bring along!
 
@@ -122,7 +121,7 @@ Code conflicts become a lot less frequent as well since co-development is now al
 
 #### Here is the process of debugging something that isn't getting data (for some reason):
 
-**Stock Om Next:**
+**Om Next:**
 
 1. Examine the component and make sure the query is right
 2. Go find your initial app state (which is a hand-written blob of data), and see if it looks right
@@ -133,6 +132,7 @@ Code conflicts become a lot less frequent as well since co-development is now al
 
 1. Examine the component for query (and possibly initial state..but that is co-located and composed **locally** on the component)
 2. Examine the current data graph (usually one entry in the table for that component)
+3. Use fulcro-inspect, a *live* Chrome tool that lets you visualize everything your app is doing!
 
 In practice this is much much simpler and easier.
 
@@ -142,7 +142,7 @@ In practice this is much much simpler and easier.
 
 1. Move the component and re-compose the query into the parent
 
-**Stock Om Next:**
+**Om Next:**
 
 2. Fix your initial app state data structure
 3. Fix your parser/read emitters
@@ -150,7 +150,7 @@ In practice this is much much simpler and easier.
 
 **Fulcro:**
 
-2. Re-compose InitialAppState into parent (like query)
+1. Re-compose InitialAppState into parent (like query)
 (remoting is separate, and there is no custom parser)
 
 ## Remote Interaction
@@ -158,7 +158,7 @@ In practice this is much much simpler and easier.
 Om Next *defines* the model of how to unify the local and remote interactions to the same data language (query + mutations)
 in order to make a nice data-driven application, but much of the *implementation* is up to you.
 
-When doing networking: stock Om Next has you return remote information
+When doing networking: Om Next has you return remote information
 from your parser emitters. This joins the logic of network
 interaction with the local read processing. At first this sounds good: the logic for triggering
 the correct remote query is with the logic for locally satisfying it.
@@ -212,8 +212,10 @@ Fulcro attempts to include solutions for most of the common problems that busine
 trying to solve: testing, i18n, and advanced system for generating full-stack forms, CSS,
 file uploads, standing up a server.
 
-All of these are things you have to "plug in" with
-stock Om Next. While Fulcro doesn't lock you in to one solution for these, it does provide an
-included option that makes rapid application development possible.
+All of these are things you have to "plug in" with Om Next.
+
+Fulcro doesn't lock you in to one solution for these (Closure will dead-code eliminate
+anything you don't user). It does, however, provide an
+included production-ready option that makes rapid application development possible.
 
 
