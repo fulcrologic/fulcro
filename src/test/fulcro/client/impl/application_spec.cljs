@@ -129,13 +129,13 @@
       (when-mocking
         (prim/rewrite-tempids-in-request-queue queue remaps) =1x=> (assertions
                                                                          "Remaps tempids in the requests queue(s)"
-                                                                         remaps => :tempids)
+                                                                         remaps => :mock-tempids)
         (prim/resolve-tempids state remaps) =1x=> (assertions
                                                         "Remaps tempids in the app state"
                                                         state => :app-state
-                                                        remaps => :tempids)
+                                                        remaps => :mock-tempids)
 
-        (migrate :app-state :query :tempids :id-key)))
+        (migrate :app-state :query :mock-tempids :id-key)))
 
     (component "Remote transactions"
       (when-mocking
@@ -201,9 +201,9 @@
         (prim/resolve-tempids state remaps) =1x=> (assertions
                                                         "remaps tempids in state"
                                                         state => :state
-                                                        remaps => :tempids)
+                                                        remaps => :mock-tempids)
 
-        (migrate :state :query :tempids :id-key)
+        (migrate :state :query :mock-tempids :id-key)
 
         (assertions
           "Remaps ids in all queues"

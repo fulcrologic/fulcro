@@ -187,8 +187,8 @@
   it will automatically rewrite all of the tempids in state and the network queues, then send the next operation. Thus,
   the edit will apply to the current server entity, as will the delete.
 
-  All the server code has to do is return a map with the special key `:tempids` whose value is a map of `tempid->realid`
-  whenever it sees an ID during persistence operations.
+  All the server code has to do is return a map with the special key `:fulcro.client.primitives/tempids`
+  (or the legacy `:tempids`) whose value is a map of `tempid->realid` whenever it sees an ID during persistence operations.
   Here are the client-side and server-side implementations of the same mutation that create a new item:
 
   ```
@@ -207,13 +207,14 @@
   ;; server
   ;; src/my_app/mutations.clj
   (ns my-app.mutations
-    (:require [fulcro.server :refer [defmutation]]))
+    (:require [fulcro.client.primitives :as prim]
+              [fulcro.server :refer [defmutation]]))
 
   (defmutation new-item [{:keys [tempid text]}]
     (action [{:keys [state]}]
       (let [database-tempid (make-database-tempid)
             database-id (add-item-to-database database {:db/id database-tempid :item/text text})]
-        {:tempids {tempid database-id}})))
+        {::prim/tempids {tempid database-id}})))
   ```
 
   Other mutation return values are covered in Mutation Return Values.

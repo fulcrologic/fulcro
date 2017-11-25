@@ -16,6 +16,17 @@
       (m/returning state Item)
       (m/with-params {:db/id id}))))
 
+(defmutation add-item [{:keys [list-id id value]}]
+  (action [{:keys [state]}]
+    (let [idnt [:item/by-id id]]
+      (swap! state
+        (fn [s]
+          (-> s
+            (assoc-in idnt {:db/id id :item/value value})
+            (fc/integrate-ident idnt :append [:list/by-id list-id :list/items]))))))
+  (remote [{:keys [state ast]}]
+    (m/returning ast state Item)))
+
 (defsc Item [this {:keys [db/id item/value]} _ _]
   {:query [:db/id :item/value]
    :ident [:item/by-id :db/id]}
@@ -27,10 +38,12 @@
 (defsc ItemList [this {:keys [db/id list/title list/items] :as props} _ _]
   {:query [:db/id :list/title {:list/items (prim/get-query Item)}]
    :ident [:list/by-id :db/id]}
-  (js/console.log id)
   (dom/div nil
     (dom/h3 nil title)
-    (dom/ul nil (map ui-item items))))
+    (dom/ul nil (map ui-item items))
+    (dom/button #js {:onClick #(prim/transact! this `[(add-item {:list-id ~id
+                                                                 :id ~(prim/tempid)
+                                                                 :value "A New Value"})])} "Add item")))
 
 (def ui-list (prim/factory ItemList {:keyfn :db/id}))
 
@@ -81,7 +94,10 @@
   "# Demonstration
 
   The two items in the list are clickable. Clicking on either of them will ask the server to change their value
-  to some random UUID and return the updated entity. Using mutation joins this data is auto-merged and the UI updated."
+  to some random UUID and return the updated entity. Using mutation joins this data is auto-merged and the UI updated.
+
+  NOTE: The Add Item button is full-stack, and uses tempids. The server has a 4-second delay on that so you can examine
+  the app state as it runs."
   Root
   {}
   {:inspect-data true
