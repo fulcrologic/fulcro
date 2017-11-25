@@ -8,14 +8,17 @@
 
 image:docs/logo.png[]
 
-image::https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
+Fulcro 2.0 is a library for building data-driven full-stack applications for the web. Is uses React, is written in
+Clojure and Clojurescript (so it has first-class functional abilities with immutible data) which leads to a very clean
+syncrhonous story for the UI. The result is a stack that dramatically reduces the amount of boilerplate and incidental complexity
+in your software.
 
-Release: image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"]
-Snapshot: image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"]
+Latest version on Clojars: image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
 
-Fulcro is a library stacked on Om Next that provides much of what is needed to use that library (client parser,
-networking, server elements, a database format, clear constructs for data loading). The intention is to provide you
-with most of the experience of Om Next with very little of the pain.
+Latest Release: image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"]
+
+Development Snapshot: image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"]
+
 
 ## Writing Applications with Fulcro
 
@@ -57,10 +60,68 @@ and follow the instructions.
 
 ## See Some Demos
 
-There are a number of demos that show how particular common things are done with Fulcro. To view them use
-the `run-demos.sh` shell script at the top of this project and follow the instructions it gives.
+There are a number of demos that show how particular common things are done with Fulcro. To view them:
+
+- Use git to clone this repository
+- Use the `run-demos.sh` shell script at the top of the project and follow the instructions it gives.
 
 This compiles the demos, and runs a server that can respond to the full-stack examples.
 
 NOTE: A number of things might use the network port of the demo server, so don't try to do this while also
 doing something else in the project.
+
+## Contributors
+
+Fulcro is maintained by Fulcrologic, LLC. The primary architect and maintainer is Tony Kay.
+
+Fulcro expands on the work of David Nolen's Om Next, and that code represents about 30% of 2.0's code base.
+Much of the core API is similar, but this
+library is intended to be an easier-to-use alternative that follows the original simplicity of design while eliminating
+some experimental features of that library, and rounding out the story with a complete concrete implementation
+that is easy to use.
+
+Many people have contributed to this library. Much of the original internal work was part of Om Next and
+as written by David Nolen. Some of the contributions of Antonio Monteiro have also been incorporated.
+
+Fulcro itself originated as an effort of Navis in Bend, Oregon. Tony Kay was the primary architect, and numerous people
+contributed in that original project (known as Untangled).
+
+Fulcro can therefore be considered a fork of Untangled and Om Next.
+
+See the github statistics for information on all contributors.
+
+## Join us on Slack!
+
+We have an active and very helpful community on Slack. Please join us!
+
+Get an invite from here:
+
+https://clojurians.herokuapp.com/
+
+Follow the instructions to get into Slack, and find us in the `#fulcro` channel.
+
+## Copyright and License
+
+Source code obtained from Om Next is:
+
+Copyright © 2013-2017 David Nolen
+
+Licensed under the Eclipse Public License.
+
+Fulcro is:
+
+Copyright (c) 2017, Fulcrologic, LLC
+The MIT License (MIT)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

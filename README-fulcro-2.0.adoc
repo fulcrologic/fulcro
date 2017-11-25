@@ -1,7 +1,5 @@
 == Fulcro 2.0
 
-WORK IN PROGRESS -- NOT FOR PRODUCTION
-
 Fulcro 2.0 maintains the majority of API compatibility with 1.0, but has forked from Om Next due to
 a number of things:
 
@@ -30,7 +28,7 @@ oldns=$1
 newns=$2
 files=$(git grep -l "$oldns")
 
-if [ ! -z "$files" ]; then 
+if [ ! -z "$files" ]; then
   perl -pi.bak -e 's/\b\Q'$oldns'\E\b/'$newns'/g' $files
   find . -name '*.bak' -print0 | xargs -0 -n100 rm
 fi
