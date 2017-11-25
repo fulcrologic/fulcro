@@ -3,6 +3,7 @@
             [taoensso.timbre :as timbre]
             [fulcro.client.impl.parser :as op]
             [recipes.background-loads-server :as bg]
+            recipes.declarative-mutation-refresh-server
             recipes.error-handling-server
             recipes.mutation-join-server
             recipes.lazy-loading-visual-indicators-server
