@@ -12,7 +12,7 @@
   "Change the size of the canvas by some (pos or neg) amount.."
   [amount state]
   (let [current-size (get-in @state [:child/by-id 0 :size])
-        new-size (+ amount current-size)]
+        new-size     (+ amount current-size)]
     (swap! state assoc-in [:child/by-id 0 :size] new-size)))
 
 ; Make the canvas smaller. This will cause
@@ -30,8 +30,8 @@
   (let [cx (.-clientX evt)
         cy (.-clientY evt)
         BB (.getBoundingClientRect dom-ele)
-        x (- cx (.-left BB))
-        y (- cy (.-top BB))]
+        x  (- cx (.-left BB))
+        y  (- cy (.-top BB))]
     [x y]))
 
 (defn event->normalized-coords
@@ -40,33 +40,33 @@
   (let [cx (.-clientX evt)
         cy (.-clientY evt)
         BB (.getBoundingClientRect dom-ele)
-        w (- (.-right BB) (.-left BB))
-        h (- (.-bottom BB) (.-top BB))
-        x (/ (- cx (.-left BB))
+        w  (- (.-right BB) (.-left BB))
+        h  (- (.-bottom BB) (.-top BB))
+        x  (/ (- cx (.-left BB))
              w)
-        y (/ (- cy (.-top BB))
+        y  (/ (- cy (.-top BB))
              h)]
     [x y]))
 
 (defn render-hover-and-marker
   "Render the graphics in the canvas. Pass the component props and state. "
   [props state]
-  (let [canvas (:canvas state)
-        hover (:coords state)
-        marker (:marker props)
-        size (:size props)
+  (let [canvas             (:canvas state)
+        hover              (:coords state)
+        marker             (:marker props)
+        size               (:size props)
         real-marker-coords (mapv (partial * size) marker)
         ; See HTML5 canvas docs
-        ctx (.getContext canvas "2d")
-        clear (fn []
-                (set! (.-fillStyle ctx) "white")
-                (.fillRect ctx 0 0 size size))
-        drawHover (fn []
-                    (set! (.-strokeStyle ctx) "gray")
-                    (.strokeRect ctx (- (first hover) 5) (- (second hover) 5) 10 10))
-        drawMarker (fn []
-                     (set! (.-strokeStyle ctx) "red")
-                     (.strokeRect ctx (- (first real-marker-coords) 5) (- (second real-marker-coords) 5) 10 10))]
+        ctx                (.getContext canvas "2d")
+        clear              (fn []
+                             (set! (.-fillStyle ctx) "white")
+                             (.fillRect ctx 0 0 size size))
+        drawHover          (fn []
+                             (set! (.-strokeStyle ctx) "gray")
+                             (.strokeRect ctx (- (first hover) 5) (- (second hover) 5) 10 10))
+        drawMarker         (fn []
+                             (set! (.-strokeStyle ctx) "red")
+                             (.strokeRect ctx (- (first real-marker-coords) 5) (- (second real-marker-coords) 5) 10 10))]
     (.save ctx)
     (clear)
     (drawHover)
@@ -82,8 +82,11 @@
   "Updates the hover location of a proposed marker using canvas coordinates. Hover location is stored in component
   local state (meaning that a low-level app database query will not run to do the render that responds to this change)"
   [child evt]
-  (prim/update-state! child assoc :coords (event->dom-coords evt (prim/get-state child :canvas)))
-  (render-hover-and-marker (prim/props child) (prim/get-state child)))
+  (let [current-state  (prim/get-state child)
+        updated-coords (event->dom-coords evt (:canvas current-state))
+        new-state      (assoc current-state :coords updated-coords)]
+    (prim/set-state! child new-state)
+    (render-hover-and-marker (prim/props child) new-state)))
 
 (defui ^:once Child
   static InitialAppState

@@ -1,4 +1,4 @@
-(ns cards.lazy-loading-indicators-cards
+(ns cards.fulcro-legacy-loading-indicator-cards
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.lazy-loading-visual-indicators-client :as client]
@@ -12,7 +12,10 @@
 
 
 (dc/defcard-doc
-  "# Lazy Load Indicators
+  "# Lazy Load Indicators (Legacy)
+
+  NOTE: Fulcro 2.0 has an improved version of this. See the Developer's Guide for more details. Feel free to contribute
+  a patch to this demo!
 
   Fulcro places markers on items that are being loaded. These markers can be used to show progress indicators in
   the UI. There are essentially two kinds: a global marker, and an item-based marker. The global marker is present during

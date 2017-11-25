@@ -1,4 +1,4 @@
-(ns cards.mutation-return-value-cards
+(ns cards.mutation-return-value-manual-merge
   (:require
     [devcards.core :as dc :include-macros true]
     [recipes.mutation-return-value-client :as client]
@@ -12,7 +12,10 @@
   "
   # Mutation Return Values
 
-  Note: This is a full-stack example. Make sure you're running the server and are serving this page from it. The
+  NOTE: In most cases you're better off using Mutation Joins instead of this. See the Developer's Guide and
+  the demo of Mutation Joins in these demos for more information.
+
+  This is a full-stack example. Make sure you're running the server and are serving this page from it. The
   displayed volume in the UI is coming from the server's mutation return value.
 
   There is a bit of simulated delay on the server (200ms). Notice if you click too rapidly then the value doesn't increase

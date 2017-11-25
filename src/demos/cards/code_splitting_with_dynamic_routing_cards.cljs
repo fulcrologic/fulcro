@@ -1,4 +1,4 @@
-(ns cards.dynamic-routing-cards
+(ns cards.code-splitting-with-dynamic-routing-cards
   (:require [fulcro.client.dom :as dom]
             [recipes.dynamic-ui-routing :as dur]
             [fulcro.client.primitives :as prim]

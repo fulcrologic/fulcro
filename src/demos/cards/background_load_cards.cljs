@@ -8,7 +8,7 @@
 (dc/defcard-doc
   "# Background Loads
 
-  This is a full-stack example.
+  This is a full-stack example. See the Introduction for how to run the demo server.
 
   Note that all of the examples share the same server, but the server code is isolated for each using
   namespacing of the queries and mutations.
@@ -17,13 +17,13 @@
 
   Normally, Fulcro runs separate event-based loads in sequence, ensuring that your reasoning can be synchronous;
   however, for loads that might take some time to complete, and for which you can guarantee order of
-  completion doesn't matter, you can specify an option on load.
+  completion doesn't matter, you can specify an option on load (`:parallel true`) that allows them to proceed in parallel.
 
   The buttons in the card below come from this UI component:
   "
   (dc/mkdn-pprint-source bg/Child)
   "
-  and you can see how they trigger the same load. The load has a built-in delay of 5 seconds.")
+  and you can see how they trigger the same load.")
 
 (defcard-fulcro background-loads
   "# Background Loads

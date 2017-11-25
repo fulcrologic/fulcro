@@ -49,4 +49,48 @@
     (ui-left left)
     (ui-right right)))
 
-(defcard-fulcro mutation-refresh Root)
+(defcard-doc
+  "
+  # Fulcro 2.0 Declarative Refresh
+
+  In Fulcro 1.0 data model refreshes were indicated purely as follow-on reads at UI-level transactions:
+
+  ```
+  (transact! this `[(f) :person/name])
+  ```
+
+  This was the model inherited from Om Next; however, since the mutation is really more aware of what data is changing,
+  and the UI is indexed by the data model properties, it makes quite a bit of sense for you to be able to declare
+  this *on the mutation itself*.
+
+  The mechanism is quite simple: add a `refresh` section on your mutation and return the list of keywords
+  for the data that changed:
+
+  ```
+  (defmutation ping-left [params]
+    (action [{:keys [state]}]
+      (swap! state update-in [:left/by-id 5 :left/value] inc))
+    (refresh [env] [:left/value]))
+  ```
+
+  The above mutation just indicates what it changed: `:left/value`.
+
+  The UI can then drop the follow-on reads:
+
+  "
+  (dc/mkdn-pprint-source Right)
+  "
+  In this case the transaction is running on a component that doesn't query for the data being changed (it is pinging the
+  Left component). The built-in refresh list on the mutation takes care of the update!")
+
+(defcard-fulcro mutation-refresh
+  "## Demonstration
+
+  This card is a full-stack live demo of this. The buttons update data that the other button displays. The transacts
+  on these would normally require follow-on reads or a callback to the parent to refresh properly. With the refresh
+  list on the mutation itself, the UI designer is freed from this responsibility.
+
+  The right button uses data from the server in a pessimistic fashion (it does no optimistic update, and there is a simulated
+  delay on the server), so pinging if from the left actually reads a value from the server. This demonstrates that the
+  refresh is working for full-stack operations."
+  Root)

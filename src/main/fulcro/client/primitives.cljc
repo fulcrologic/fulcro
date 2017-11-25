@@ -1988,8 +1988,8 @@
      ([c next-props next-state]
       {:pre [(component? c)]}
       (.shouldComponentUpdate c
-        #js {:fulcro$value next-props}
-        #js {:fulcro$state next-state}))))
+        #js {"fulcro$value" next-props}
+        #js {"fulcro$state" next-state}))))
 
 #?(:cljs
    (defn- update-props!
@@ -2445,7 +2445,7 @@
     #?(:clj  (do
                (set-state! component new-state)
                (cb))
-       :cljs (.setState component #js {:fulcro$state new-state} cb))))
+       :cljs (.setState component #js {"fulcro$state" new-state} cb))))
 
 (defn update-state!
   "Update a component's local state. Similar to Clojure(Script)'s swap!"
