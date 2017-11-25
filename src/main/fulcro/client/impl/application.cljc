@@ -231,7 +231,7 @@
   [{:keys [send-queues mutation-merge] :as app} initial-state parser {:keys [migrate] :as reconciler-options}]
   (let [rec-atom                  (atom nil)
         remotes                   (keys send-queues)
-        tempid-migrate            (fn [pure _ tempids _]
+        tempid-migrate            (fn [pure _ tempids]
                                     (doseq [queue (vals send-queues)]
                                       (prim/rewrite-tempids-in-request-queue queue tempids))
                                     (let [state-migrate (or migrate prim/resolve-tempids)]

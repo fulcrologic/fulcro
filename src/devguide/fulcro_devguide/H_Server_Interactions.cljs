@@ -1011,13 +1011,13 @@ TODO: CONTINUE REWRITE HERE...
     (action [{:keys [state]}]
       (let [database-tempid (make-database-tempid)
             database-id (add-item-to-database database {:db/id database-tempid :item/text text})]
-        {:tempids {tempid database-id}})))
+        {::prim/tempids {tempid database-id}})))
   ```
 
-  The return value of a mutation may include the special key `:tempids`. This is a mapping from incoming temporary
+  The return value of a mutation may include the special key `::prim/tempids`. This is a mapping from incoming temporary
   IDs to the real IDs they got assigned on the server.
   This will be passed back to the client, where Fulcro will *automatically* do a recursive walk of the client-side
-  database to replace **every instance** of the temporary ID with the database id. Note that the map at the :tempids key can have
+  database to replace **every instance** of the temporary ID with the database id. Note that the map at the ::prim/tempids key can have
   more than one tempid to database-id pair.
 
   #### Dealing with Server Mutation Return Values
@@ -1026,7 +1026,7 @@ TODO: CONTINUE REWRITE HERE...
   previoiusly discussed, because that is automatically processed:
 
   ```
-  {:tempids {old-id new-id}}
+  {::prim/tempids {old-id new-id}}
   ```
 
   In some cases you'd like to return other details. However, remember back at the beginning of this section we talked

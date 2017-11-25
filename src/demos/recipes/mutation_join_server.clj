@@ -1,10 +1,6 @@
 (ns recipes.mutation-join-server
-  (:require [fulcro.server :as prim]
-            [fulcro.client.impl.parser :as op]
-            [taoensso.timbre :as timbre]
-            [fulcro.easy-server :as core]
+  (:require [fulcro.client.primitives :as prim]
             [fulcro.server :refer [defquery-root defquery-entity defmutation server-mutate]]
-            [fulcro.client.impl.parser :as op]
             [fulcro.util :as util]))
 
 (defquery-root :mutation-join-list
@@ -19,3 +15,13 @@
 (defmutation cards.mutation-join-cards/change-label [{:keys [db/id item/value]}]
   (action [env]
     {:db/id id :item/value (str (util/unique-key))}))
+
+(def ids (atom 999))
+
+(defmutation cards.mutation-join-cards/add-item [{:keys [id value]}]
+  (action [env]
+    (Thread/sleep 4000)
+    (let [new-id (swap! ids inc)]
+      (merge
+        {::prim/tempids {id new-id}}
+        {:db/id id :item/value value}))))

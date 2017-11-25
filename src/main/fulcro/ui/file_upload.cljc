@@ -42,7 +42,7 @@
            str-id  (get-in req [:params "id"])
            id      (util/transit-str->clj str-id)
            real-id (store upload file)]
-       (ring.util.response/response {:tempids {id real-id}}))))
+       (ring.util.response/response {::prim/tempids {id real-id}}))))
 
 #?(:clj
    (defn wrap-file-upload
@@ -100,7 +100,7 @@
   (render [this]
     (let [renderFile (prim/get-computed this :renderFile)
           onRetry    (fn [] (log/info "User asked to retry upload"))
-          onCancel   (prim/get-computed this :onCancel)       ; TODO: Unhappy path
+          onCancel   (prim/get-computed this :onCancel)     ; TODO: Unhappy path
           {:keys [file/id file/name file/size file/progress file/status] :as props} (prim/props this)
           label      (cropped-name name 20)]
       (if renderFile
@@ -153,8 +153,8 @@
           file-upload-id id
           control-id     (str "file-upload-" id)
           onCancel       (fn [id] (prim/transact! this `[(cancel-file-upload {:upload-id ~file-upload-id
-                                                                            :file-id     ~id})
-                                                       ~f/form-root-key]))
+                                                                              :file-id   ~id})
+                                                         ~f/form-root-key]))
           onChange       (fn [evt]
                            (let [js-file-list (.. evt -target -files)]
                              (prim/transact! this
@@ -242,10 +242,13 @@
                  is-add? (let [xhrio        (XhrIo.)
                                done-fn      (fn [edn]
                                               (let [ident             (file-ident id)
-                                                    real-id           (get-in edn [`add-file :tempids id] id)
+                                                    real-id           (or
+                                                                        (get-in edn [`add-file ::prim/tempids id])
+                                                                        (get-in edn [`add-file :tempids id])
+                                                                        id)
                                                     file-obj          (get-in @state ident)
                                                     file              (assoc file-obj :file/id real-id :file/progress 100 :file/status :done)
-                                                    incoming-remap-id (->> edn :tempids keys first)]
+                                                    incoming-remap-id (->> edn prim/get-tempids keys first)]
                                                 ; force update of forms at completion of upload, so validation states can update
                                                 (omp/queue! @reconciler [f/form-root-key])
                                                 (ok {ident file `add-file edn} [{ident (prim/get-query File)}])))

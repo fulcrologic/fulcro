@@ -343,6 +343,7 @@
                 '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (fulcro.client.data-fetch/fallback {:a 3 :execute true :error {:error 42}})])))
 
 (specification "tempid handling"
+
   (behavior "rewrites all tempids used in pending requests in the request queue"
     (let [queue           (async/chan 10000)
           tid1            (prim/tempid)
@@ -596,6 +597,8 @@
   (assertions
     "removes not-found values from maps"
     (prim/sweep-one {:a 1 :b ::prim/not-found}) => {:a 1}
+    "removes tempids from maps"
+    (prim/sweep-one {::prim/tempids {1 2} :tempids {3 4}}) => {}
     "is not recursive"
     (prim/sweep-one {:a 1 :b {:c ::prim/not-found}}) => {:a 1 :b {:c ::prim/not-found}}
     "maps over vectors not recursive"
@@ -615,6 +618,8 @@
     (prim/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:x 1}}) => {:a 2 :c {:b 2 :x 1}}
     "stops recursive merging if the source element is marked as a leaf"
     (prim/sweep-merge {:a 1 :c {:d {:x 2} :e 4}} {:a 2 :c (prim/as-leaf {:d {:x 1}})}) => {:a 2 :c {:d {:x 1}}}
+    "sweeps tempids from maps"
+    (prim/sweep-merge {:a 1 :c {:b 2}} {:a 2 :tempids {} :c {::prim/tempids {} :b ::prim/not-found}}) => {:a 2 :c {}}
     "sweeps values that are marked as not found"
     (prim/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:b ::prim/not-found}}) => {:a 2 :c {}}
     (prim/sweep-merge {:a 1 :c 2} {:a 2 :c {:b ::prim/not-found}}) => {:a 2 :c {}}
@@ -645,18 +650,36 @@
     "overwrites target (non-map) value if incoming value is a map"
     (prim/sweep-merge {:a 1 :c 2} {:a 2 :c {:b 1}}) => {:a 2 :c {:b 1}}))
 
+(specification "merge*" :focused
+  (when-mocking
+    (prim/merge-novelty! r s res q) => {:next true}
+
+    (let [result `{:data 33 f {:tempids {1 2}} g {::prim/tempids {3 4}}}
+          {:keys [keys next ::prim/tempids]} (prim/merge* :reconciler (atom {}) result [])]
+
+      (assertions
+        "Finds all of the tempid remappings"
+        tempids => {1 2 3 4}
+        "gives back the next state for the app"
+        next => {:next true}
+        "Finds all of the data keys on the response"
+        keys => [:data]))))
+
 (specification "Merge handler"
   (let [swept-state                       {:state 1}
         data-response                     {:v 1}
-        mutation-response                 {'f {:x 1 :tempids {1 2}} 'g {:y 2}}
-        mutation-response-without-tempids (update mutation-response 'f dissoc :tempids)
+        mutation-response                 {'f {:x 1 ::prim/tempids {1 2}} 'g {:tempids {3 4} :y 2}}
+        mutation-response-without-tempids (-> mutation-response
+                                            (update 'f dissoc ::prim/tempids)
+                                            (update 'g dissoc :tempids))
         response                          (merge data-response mutation-response)
         rh                                (fn [state k v]
                                             (assertions
                                               "return handler is passed the swept state as a map"
                                               state => swept-state
                                               "tempids are stripped from return value before calling handler"
-                                              (:tempids v) => nil)
+                                              (contains? v :tempids) => false
+                                              (contains? v ::prim/tempids) => false)
                                             (vary-meta state assoc k v))]
     (when-mocking
       (prim/sweep-merge t s) => (do

@@ -19,7 +19,7 @@
   (defmutation new-thing [params]
     (action [env]
       ...
-      {:tempids {old-id new-id}}))
+      {::prim/tempids {old-id new-id}}))
   ```
 
   In some cases you'd like to return other details. However, remember back at the beginning of this section we talked

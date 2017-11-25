@@ -33,6 +33,8 @@
            (:import [java.io Writer])
      :cljs (:import [goog.debug Console])))
 
+(declare tempid? normalize-query focus-query* ast->query query->ast transact! remove-root!)
+
 (s/def ::remote keyword?)
 (s/def ::ident util/ident?)
 (s/def ::query vector?)
@@ -40,6 +42,7 @@
                        :kind vector?))
 (s/def ::component-or-reconciler vector?)
 (s/def ::pessimistic? boolean?)
+(s/def ::tempids (s/map-of tempid? any?))
 
 (defn get-history
   "pass-through function for getting history, that enables testing (cannot mock protocols easily)"
@@ -1026,7 +1029,6 @@
        (when (and class (has-query? class))
          (get-query-by-id state-map class queryid))))))
 
-(declare normalize-query)
 
 (defn link-element [element]
   (prewalk (fn link-element-helper [ele]
@@ -1227,7 +1229,6 @@
        (let [refs' @refs] (merge ret refs'))
        (with-meta ret @refs)))))
 
-(declare focus-query*)
 
 (defn- focused-join [expr ks full-expr union-expr]
   (let [expr-meta (meta expr)
@@ -1513,8 +1514,6 @@
   (let [indexer (if (reconciler? x) (get-indexer x) x)]
     (first (p/key->components indexer ref))))
 
-(declare tempid?)
-
 (defn resolve-tempids
   "Replaces all om-tempids in app-state with the ids returned by the server."
   [state tid->rid]
@@ -1533,7 +1532,6 @@
       (seq entries) (doseq [e entries] (when-not (async/offer! queue e)
                                          (log/error "Unable to put request back on network queue during tempid rewrite!"))))))
 
-(declare query->ast ast->query)
 
 (defn remove-loads-and-fallbacks
   "Removes all fulcro/load and tx/fallback mutations from the query"
@@ -1685,7 +1683,7 @@
 (defn sweep-one "Remove not-found keys from m (non-recursive)" [m]
   (cond
     (map? m) (reduce (fn [acc [k v]]
-                       (if (or (= ::not-found k) (= ::not-found v))
+                       (if (or (= ::not-found k) (= ::not-found v) (= ::tempids k) (= :tempids k))
                          acc
                          (assoc acc k v)))
                (with-meta {} (meta m)) m)
@@ -1698,7 +1696,7 @@
     (leaf? m) (sweep-one m)
     (map? m) (reduce (fn [acc [k v]]
                        (cond
-                         (or (= ::not-found k) (= ::not-found v)) acc
+                         (or (= ::not-found k) (= ::not-found v) (= ::tempids k) (= :tempids k)) acc
                          (and (util/ident? v) (= ::not-found (second v))) acc
                          :otherwise (assoc acc k (sweep v))))
                (with-meta {} (meta m))
@@ -1716,7 +1714,7 @@
   (reduce (fn [acc [key new-value]]
             (let [existing-value (get acc key)]
               (cond
-                (= key ::not-found) acc
+                (or (= key ::tempids) (= key :tempids) (= key ::not-found)) acc
                 (= new-value ::not-found) (dissoc acc key)
                 (and (util/ident? new-value) (= ::not-found (second new-value))) acc
                 (leaf? new-value) (assoc acc key (sweep-one new-value))
@@ -1734,7 +1732,7 @@
         merged-state    (sweep-merge target source-to-merge)]
     (reduce (fn [acc [k v]]
               (if (and mutation-merge (symbol? k))
-                (if-let [updated-state (mutation-merge acc k (dissoc v :tempids))]
+                (if-let [updated-state (mutation-merge acc k (dissoc v :tempids ::tempids))]
                   updated-state
                   (do
                     (log/info "Return value handler for" k "returned nil. Ignored.")
@@ -1789,20 +1787,20 @@
       (merge-idents config idts query)
       ((:merge-tree config) res'))))
 
+(defn get-tempids [m] (or (get m :tempids) (get m ::tempids)))
+
 (defn merge*
   "Internal implementation of merge. Given a reconciler, state, result, and query returns a map of the:
 
   `:keys` to refresh
   `:next` state
-  and `:tempids` that need to be migrated"
+  and `::tempids` that need to be migrated"
   [reconciler state res query]
-  {:keys    (into [] (remove symbol?) (keys res))
-   :next    (merge-novelty! reconciler state res query)
-   :tempids (->> (filter (comp symbol? first) res)
-              (map (comp :tempids second))
-              (reduce merge {}))})
-
-(declare transact!)
+  {:keys     (into [] (remove symbol?) (keys res))
+   :next     (merge-novelty! reconciler state res query)
+   ::tempids (->> (filter (comp symbol? first) res)
+               (map (comp get-tempids second))
+               (reduce merge {}))})
 
 (defn merge!
   "Merge an arbitrary data-tree that conforms to the shape of the given query.
@@ -1934,7 +1932,6 @@
   #?(:clj  (and (component? x) @(get-prop x :fulcro$mounted?))
      :cljs (and (component? x) ^boolean (boolean (goog.object/get x "fulcro$mounted")))))
 
-
 (defn fulcro-ui->props
   "Finds props for a given component. Returns ::no-ident if the component has
   no ident (which prevents localized update). This eliminates the need for
@@ -2010,7 +2007,6 @@
      {:pre [(component? c)]}
      (update-props! c next-props)
      (.forceUpdate c)))
-
 
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
@@ -2259,7 +2255,7 @@
            merge-tree merge-ident
            optimize
            root-render root-unmount
-           migrate id-key
+           migrate
            instrument tx-listen
            history]
     :or   {merge-sends  #(merge-with into %1 %2)
@@ -2285,7 +2281,7 @@
                          :normalize   (or (not norm?) normalize)
                          :root-render root-render :root-unmount root-unmount
                          :pathopt     true
-                         :migrate     migrate :id-key id-key
+                         :migrate     migrate
                          :instrument  instrument :tx-listen tx-listen}
                         (atom {:queue        []
                                :remote-queue {}
@@ -2295,8 +2291,6 @@
                                :t            0 :normalized norm?})
                         (atom (hist/new-history history)))]
     ret))
-
-
 
 (defn transact*
   "Internal implementation detail of transact!. Call that function instead."
@@ -2321,7 +2315,6 @@
         snds               (gather-sends env tx (:remotes cfg) tx-time)
         new-state          @(:state cfg)
         xs                 (cond-> declared-refreshes
-
                              (not (nil? c)) (conj c)
                              (not (nil? ref)) (conj ref))
         history-step       {::hist/tx          (if (transit/serializable? tx) tx :NOT-SERIALIZABLE)
@@ -2536,8 +2529,6 @@
   {:pre [(map? opts)]}
   (parser/parser opts))
 
-(declare remove-root!)
-
 (defn add-root!
   "Given a root component class and a target root DOM node, instantiate and
    render the root class using the reconciler's :state property. The reconciler
@@ -2646,7 +2637,7 @@
         tx         (into `[(fulcro.client.mutations/set-query! {:queryid ~queryid :query ~query :params ~params})] follow-on-reads)]
     (if (and (string? queryid) (or query params))
       (do
-        (transact! reconciler tx) ; against reconciler, because we need to re-render from root
+        (transact! reconciler tx)                           ; against reconciler, because we need to re-render from root
         (p/reindex! reconciler))
       (log/error "Unable to set query. Invalid arguments."))))
 
