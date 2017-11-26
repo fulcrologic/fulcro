@@ -11,7 +11,8 @@
     [fulcro.client.impl.protocols :as proto]
     [fulcro.util :as util]
     [fulcro.client.util :as cutil]
-    #?(:clj [clojure.future :refer :all])
+    #?(:clj
+    [clojure.future :refer :all])
     [clojure.set :as set]
     #?(:cljs [goog.dom :as gdom])
     [clojure.spec.alpha :as s]
@@ -27,9 +28,11 @@
 (s/def ::tx-listen (s/fspec :args (s/cat :env map? :tx-info map?) :ret any?))
 (s/def ::network-wrapper (s/fspec :args (s/cat :networks map?) :ret map?))
 (s/def ::app-started (s/fspec :args (s/cat :fulcro-app map?) :ret any?))
+(s/def ::lifecycle-event #{:mounted :unmounted})
 (s/def ::instrument (s/fspec :args (s/cat :args (s/keys :req-un [::props ::children ::class ::factory])) :ret any?))
+(s/def ::component-lifecycle (s/fspec :args (s/cat :react-component prim/component? :event ::lifecycle-event) :ret any?))
 (s/def ::instrument-wrapper (s/fspec :args (s/cat :existing-instrument ::instrument) :ret ::instrument))
-(s/def ::tool-registry (s/keys :req [::tool-id] :opt [::tx-listen ::network-wrapper ::app-started ::instrument-wrapper]))
+(s/def ::tool-registry (s/keys :req [::tool-id] :opt [::tx-listen ::network-wrapper ::app-started ::component-lifecycle ::instrument-wrapper]))
 
 (defn register-tool
   "Register a debug tool. When an app starts, the debug tool can have several hooks that are notified:
@@ -38,6 +41,7 @@
   ::tx-listen is a (fn [tx info] ...) that will be called on every `transact!` of the app. Return value is ignored.
   ::network-wrapper is (fn [network-map] network-map') that will be given the networking config BEFORE it is initialized. You can wrap
   them, but you MUST return a compatible map out or you'll disable networking.
+  ::component-lifecycle is (fn [component evt]) that is called with evt of :mounted and :unmounted to tell you when the given component mounts/unmounts.
   ::instrument-wrapper is a (fn [instrument] instrument') that allows you to wrap your own instrumentation (for rendering) around any existing (which may be nil)
   ::app-started (fn [app] ...) that will be called once the app is mounted, just like started-callback. Return value ignored."
   [{:keys [::tool-id] :as tool-registry}]
@@ -53,13 +57,14 @@
         listen  (or original-tx-listen (constantly nil))
         started (or original-start (constantly nil))]
     (reduce
-      (fn [[start net listen instrument] {:keys [::tool-id ::tx-listen ::network-wrapper ::app-started ::instrument-wrapper]}]
+      (fn [[start net listen instrument lifecycle] {:keys [::tool-id ::tx-listen ::network-wrapper ::app-started ::instrument-wrapper ::component-lifecycle]}]
         (let [start      (if app-started (fn [app] (app-started app) (start app)) start)
               net        (if network-wrapper (network-wrapper net) net)
               listen     (if tx-listen (fn [env info] (tx-listen env info)) listen)
-              instrument (if instrument-wrapper (instrument-wrapper instrument) instrument)]
-          [start net listen instrument]))
-      [started net listen original-instrument]
+              instrument (if instrument-wrapper (instrument-wrapper instrument) instrument)
+              lifecycle  (if component-lifecycle (fn [c e] (component-lifecycle c e) (when lifecycle (lifecycle c e))) lifecycle)]
+          [start net listen instrument lifecycle]))
+      [started net listen nil nil]
       (vals @fulcro-tools))))
 
 (defn iinitial-app-state?
@@ -152,14 +157,17 @@
                                                       :request-transform request-transform
                                                       :transit-handlers transit-handlers
                                                       :global-error-callback network-error-callback)))
-        [started-callback networking tx-listen instrument] (add-tools started-callback networking (:tx-listen reconciler-options) (:instrument reconciler-options))]
+        [started-callback networking tx-listen instrument lifecycle] (add-tools started-callback networking (:tx-listen reconciler-options)
+                                                                       (:instrument reconciler-options))]
     (map->Application {:initial-state      initial-state
                        :read-local         read-local
                        :mutation-merge     mutation-merge
                        :started-callback   started-callback
+                       :lifecycle          lifecycle
                        :reconciler-options (merge (cond-> {}
                                                     tx-listen (assoc :tx-listen tx-listen)
                                                     instrument (assoc :instrument instrument)
+                                                    lifecycle (assoc :lifecycle lifecycle)
                                                     migrate (assoc :migrate migrate)
                                                     shared (assoc :shared shared))
                                              reconciler-options)
@@ -266,7 +274,7 @@
 (defn- initialize
   "Initialize the fulcro Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
-  [{:keys [networking read-local started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
+  [{:keys [networking read-local started-callback lifecycle] :as app} initial-state root-component dom-id-or-node reconciler-options]
   (let [network-map         (normalize-network networking)
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
