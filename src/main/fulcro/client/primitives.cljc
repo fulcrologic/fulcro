@@ -142,7 +142,7 @@
        (fn [[name [this :as args] & body]]
          `(~name [this#]
             (let [~this this#
-                  indexer# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
+                  indexer# (get-in reconciler# [:config :indexer])]
               (when-not (nil? indexer#)
                 (fulcro.client.impl.protocols/index-component! indexer# this#))
               ~@body)))}
@@ -151,7 +151,11 @@
         ([this#])
         ~'componentWillMount
         ([this#]
-          (let [indexer# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
+          (let [reconciler# (fulcro.client.primitives/get-reconciler this#)
+                lifecycle#  (get-in reconciler# [:config :lifecycle])
+                indexer#    (get-in reconciler# [:config :indexer])]
+            (when-not (nil? lifecycle#)
+              (lifecycle# this# :mount))
             (when-not (nil? indexer#)
               (fulcro.client.impl.protocols/index-component! indexer# this#))))
         ~'render
@@ -204,28 +208,36 @@
     (fn [[name [this :as args] & body]]
       `(~name [this#]
          (let [~this this#
-               indexer# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
+               reconciler# (fulcro.client.primitives/get-reconciler this#)
+               indexer# (get-in reconciler# [:config :indexer])]
            (when-not (nil? indexer#)
              (fulcro.client.impl.protocols/index-component! indexer# this#))
            ~@body)))
     'componentDidMount
     (fn [[name [this :as args] & body]]
       `(~name [this#]
-         (let [~this this#]
+         (let [~this this#
+               reconciler# (fulcro.client.primitives/get-reconciler this#)
+               lifecycle# (get-in reconciler# [:config :lifecycle])]
            (goog.object/set this# "fulcro$mounted" true)
+           (when-not (nil? lifecycle#)
+             (lifecycle# this# :mount))
            ~@body)))
     'componentWillUnmount
     (fn [[name [this :as args] & body]]
       `(~name [this#]
          (let [~this this#
-               r# (fulcro.client.primitives/get-reconciler this#)
-               cfg# (:config r#)
+               reconciler# (fulcro.client.primitives/get-reconciler this#)
+               lifecycle# (get-in reconciler# [:config :lifecycle])
+               cfg# (:config reconciler#)
                st# (:state cfg#)
                indexer# (:indexer cfg#)]
            (goog.object/set this# "fulcro$mounted" false)
            (when (and (not (nil? st#))
                    (get-in @st# [:fulcro.client.primitives/queries this#]))
              (swap! st# update-in [:fulcro.client.primitives/queries] dissoc this#))
+           (when-not (nil? lifecycle#)
+             (lifecycle# this# :unmount))
            (when-not (nil? indexer#)
              (fulcro.client.impl.protocols/drop-component! indexer# this#))
            ~@body)))
@@ -1020,6 +1032,7 @@
    (binding [*query-state* state-map]
      (let [class     (cond
                        (is-factory? class-or-factory) (-> class-or-factory meta :class)
+                       ; FIXME: Not right...if it is a component, we need to look up the qualifier!
                        (component? class-or-factory) (react-type class-or-factory)
                        :else class-or-factory)
            qualifier (if (is-factory? class-or-factory)
@@ -2245,6 +2258,7 @@
      :root-render  - the root render function. Defaults to ReactDOM.render
      :root-unmount - the root unmount function. Defaults to
                      ReactDOM.unmountComponentAtNode
+     :lifecycle    - A function (fn [component event]) that is called when react component s and either :mount or :unmount. Useful for debugging tools.
      :tx-listen    - a function of 2 arguments that will listen to transactions.
                      The first argument is the parser's env map also containing
                      the old and new state. The second argument is a history-step (see history). It also contains
@@ -2253,7 +2267,7 @@
            parser normalize
            send merge-sends remotes
            merge-tree merge-ident
-           optimize
+           optimize lifecycle
            root-render root-unmount
            migrate
            instrument tx-listen
@@ -2261,6 +2275,7 @@
     :or   {merge-sends  #(merge-with into %1 %2)
            remotes      [:remote]
            history      100
+           lifecycle    nil
            optimize     (fn depth-sorter [cs] (sort-by depth cs))
            root-render  #?(:clj  (fn clj-root-render [c target] c)
                            :cljs #(js/ReactDOM.render %1 %2))
@@ -2282,6 +2297,7 @@
                          :root-render root-render :root-unmount root-unmount
                          :pathopt     true
                          :migrate     migrate
+                         :lifecycle   lifecycle
                          :instrument  instrument :tx-listen tx-listen}
                         (atom {:queue        []
                                :remote-queue {}
