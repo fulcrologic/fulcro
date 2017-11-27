@@ -324,11 +324,11 @@
   (when valid-client-id-fn
     (reset! valid-client-id-atom valid-client-id-fn))
   (component/using
-    (map->ChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
-                                                                    (get (:headers ring-req) "Authorization")))
-                         :server-adapter    (or server-adapter sente-web-server-adapter)
-                         :client-id-fn      (or client-id-fn (fn [request]
-                                                               (:client-id request)))
-                         :transit-handlers  transit-handlers})
+    (map->SimpleChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
+                                                                          (get (:headers ring-req) "Authorization")))
+                               :server-adapter    (or server-adapter sente-web-server-adapter)
+                               :client-id-fn      (or client-id-fn (fn [request]
+                                                                     (:client-id request)))
+                               :transit-handlers  transit-handlers})
     (into [] (cond-> []
                dependencies (concat dependencies)))))
