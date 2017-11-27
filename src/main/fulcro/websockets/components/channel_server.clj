@@ -7,7 +7,8 @@
             [ring.middleware.keyword-params :as keyword-params]
             [fulcro.easy-server :refer [api get-pre-hook set-pre-hook!]]
             [fulcro.websockets.transit-packer :as tp]
-            [fulcro.websockets.protocols :refer [WSNet WSListener client-added client-dropped]]))
+            [fulcro.websockets.protocols :refer [WSNet WSListener client-added client-dropped]]
+            [fulcro.server :as server]))
 
 (def post-handler (atom nil))
 
@@ -62,18 +63,18 @@
       "Your handlers are nil. Did you start the channel server?")
     (if (valid-origin? config request)
       (case (:request-method request)
-        :get  (if (@valid-client-id-atom (get-in request [:params :client-id]))
-                (try (ring-ajax-get-or-ws-handshake request)
+        :get (if (@valid-client-id-atom (get-in request [:params :client-id]))
+               (try (ring-ajax-get-or-ws-handshake request)
                     (catch Exception e
                       (let [message (.getMessage e)
                             type    (str (type e))]
                         (timbre/error "Sente handler error: " type message)
                         {:status 500
                          :body   {:type type :message message}})))
-                  (do
-                    (timbre/info request)
-                    {:status 500
-                     :body "invalid client id"}))
+               (do
+                 (timbre/info request)
+                 {:status 500
+                  :body   "invalid client id"}))
         :post (ring-ajax-post request))
       {:status 403
        :body   "You have tried to connect from an invalid origin."})))
@@ -153,9 +154,9 @@
   component/Lifecycle
   (start [component]
     (timbre/info "Starting Channel Server.")
-    (let [pre-hook          (get-pre-hook handler)
+    (let [pre-hook  (get-pre-hook handler)
           {:keys [api-parser
-                  env]}     handler
+                  env]} handler
           {:keys [ajax-get-or-ws-handshake-fn
                   ajax-post-fn
                   ch-recv
@@ -165,14 +166,14 @@
                               {:user-id-fn        client-id-fn
                                :handshake-data-fn handshake-data-fn
                                :packer            (tp/make-packer transit-handlers)})
-          component         (assoc component
-                              :ring-ajax-post ajax-post-fn
-                              :ring-ajax-get-or-ws-handshake ajax-get-or-ws-handshake-fn
-                              :ch-recv ch-recv
-                              :chsk-send! send-fn
-                              :connected-cids connected-uids ; remap uid's to cid's
-                              :router (sente/start-server-chsk-router! ch-recv message-received))
-          env               (assoc env :ws-net component)]
+          component (assoc component
+                      :ring-ajax-post ajax-post-fn
+                      :ring-ajax-get-or-ws-handshake ajax-get-or-ws-handshake-fn
+                      :ch-recv ch-recv
+                      :chsk-send! send-fn
+                      :connected-cids connected-uids        ; remap uid's to cid's
+                      :router (sente/start-server-chsk-router! ch-recv message-received))
+          env       (assoc env :ws-net component)]
 
       (reset! post-handler ajax-post-fn)
       (reset! ajax-get-or-ws-handler ajax-get-or-ws-handshake-fn)
@@ -230,4 +231,104 @@
                                                                (:client-id request)))
                          :transit-handlers  transit-handlers})
     (into [] (cond-> [:handler]
+               dependencies (concat dependencies)))))
+
+(defrecord SimpleChannelServer [get-parser-env
+                                ring-ajax-post
+                                ring-ajax-get-or-ws-handshake
+                                ch-recv
+                                chsk-send!
+                                connected-cids
+                                router
+                                handshake-data-fn
+                                server-adapter
+                                client-id-fn
+                                transit-handlers]
+  WSNet
+  (add-listener [this listener]
+    (add-listener listeners listener))
+  (remove-listener [this listener]
+    (remove-listener listeners listener))
+  (push [this cid verb edn]
+    (chsk-send! cid [:api/server-push {:topic verb :msg edn}]))
+
+  component/Lifecycle
+  (start [component]
+    (timbre/info "Starting Channel Server.")
+    (let [{:keys [ajax-get-or-ws-handshake-fn
+                  ajax-post-fn
+                  ch-recv
+                  connected-uids
+                  send-fn]} (sente/make-channel-socket!
+                              server-adapter
+                              {:user-id-fn        client-id-fn
+                               :handshake-data-fn handshake-data-fn
+                               :packer            (tp/make-packer transit-handlers)})
+          component (assoc component
+                      :ring-ajax-post ajax-post-fn
+                      :ring-ajax-get-or-ws-handshake ajax-get-or-ws-handshake-fn
+                      :ch-recv ch-recv
+                      :chsk-send! send-fn
+                      :connected-cids connected-uids        ; remap uid's to cid's
+                      :router (sente/start-server-chsk-router! ch-recv message-received))
+          env       (assoc {} :ws-net component)]
+
+      (reset! post-handler ajax-post-fn)
+      (reset! ajax-get-or-ws-handler ajax-get-or-ws-handshake-fn)
+
+      (defmethod message-received :default [message]
+        (timbre/error (str "Received message " message ", but no receiver wanted it!")))
+
+      (defmethod message-received :api/parse [{:keys [client-id ?data ring-req uid] :as message}]
+        (let [result (server/handle-api-request server/fulcro-parser (assoc env :cid uid :request ring-req) (:content ?data))]
+          (send-fn uid [:api/parse result])))
+
+      (defmethod message-received :chsk/uidport-open [{:keys [client-id ?data ring-req uid state] :as message}]
+        (timbre/debug "Port opened by client: " uid)
+        (timbre/debug "Port state: " state)
+        (notify-listeners client-added listeners component uid))
+
+      (defmethod message-received :chsk/uidport-close [{:keys [client-id ?data ring-req uid] :as message}]
+        (timbre/debug "Connection closed" client-id)
+        (notify-listeners client-dropped listeners component uid))
+
+      (defmethod message-received :chsk/ws-ping [{:keys [client-id ?data ring-req uid] :as message}]
+        (timbre/trace "Ping from client" client-id))
+
+      component))
+
+  (stop [component]
+    (let [stop-f router]
+      (dosync (ref-set listeners #{}))
+      (assoc component :router (stop-f)))))
+
+(defn simple-channel-server
+  "
+  UNTESTED: This should create a component that can be used with any server (assuming you give the correct sente adapter).
+
+  Creates a channel server that uses the default server parser (you can use defmutation, defquery-root, etc.) for
+  incoming requests.  Any dependencies you need in the parsing environment will be injected into the :ws-net entry
+  in the parsing env. In other words: this function makes the channel server depend on your stated dependencies,
+  and the channel server itself appears under :ws-net in the parsing env. Thus, any injected dependencies will be
+  there as well.
+
+  Params:
+  - `handshake-data-fn` (Optional) - Used by sente for adding data at the handshake.
+  - `server-adapter` (Optional) - adapter for handling servers implemented by sente. Default is http-kit.
+  - `client-id-fn` (Optional) - returns a client id from the request.
+  - `dependencies` (Optional) - adds dependecies to the :ws-net entry in the parsing environment.
+  - `valid-client-id-fn` (Optional) - Function for validating websocket clients. Expects a client-id.
+  - `transit-handlers` (Optional) - Expects a map with `:read` and/or `:write` key containing a map of transit handlers,
+  "
+  [& {:keys [handshake-data-fn server-adapter client-id-fn dependencies valid-client-id-fn transit-handlers]}]
+  (when valid-client-id-fn
+    (reset! valid-client-id-atom valid-client-id-fn))
+  (component/using
+    (map->ChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
+                                                                    (get (:headers ring-req) "Authorization")))
+                         :server-adapter    (or server-adapter sente-web-server-adapter)
+                         :client-id-fn      (or client-id-fn (fn [request]
+                                                               (:client-id request)))
+                         :transit-handlers  transit-handlers})
+    (into [] (cond-> []
                dependencies (concat dependencies)))))
