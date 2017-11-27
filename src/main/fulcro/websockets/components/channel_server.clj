@@ -233,8 +233,7 @@
     (into [] (cond-> [:handler]
                dependencies (concat dependencies)))))
 
-(defrecord SimpleChannelServer [get-parser-env
-                                ring-ajax-post
+(defrecord SimpleChannelServer [ring-ajax-post
                                 ring-ajax-get-or-ws-handshake
                                 ch-recv
                                 chsk-send!
@@ -271,6 +270,7 @@
                       :chsk-send! send-fn
                       :connected-cids connected-uids        ; remap uid's to cid's
                       :router (sente/start-server-chsk-router! ch-recv message-received))
+          parser    (server/fulcro-parser)
           env       (assoc {} :ws-net component)]
 
       (reset! post-handler ajax-post-fn)
@@ -280,7 +280,7 @@
         (timbre/error (str "Received message " message ", but no receiver wanted it!")))
 
       (defmethod message-received :api/parse [{:keys [client-id ?data ring-req uid] :as message}]
-        (let [result (server/handle-api-request server/fulcro-parser (assoc env :cid uid :request ring-req) (:content ?data))]
+        (let [result (server/handle-api-request parser (assoc env :cid uid :request ring-req) (:content ?data))]
           (send-fn uid [:api/parse result])))
 
       (defmethod message-received :chsk/uidport-open [{:keys [client-id ?data ring-req uid state] :as message}]
