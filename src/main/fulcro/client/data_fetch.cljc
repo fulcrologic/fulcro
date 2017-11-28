@@ -407,5 +407,4 @@
         nil))
     (catch #?(:clj Throwable :cljs :default) e
       (log/error (str "Attempting to get the declared remote for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!"))
-      #?(:cljs (js/console.log e))
       nil)))

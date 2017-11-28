@@ -558,11 +558,19 @@
        `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~query)))))
 
 #?(:clj
-   (defn- build-ident [id-prop table legal-keys]
+   (defn- build-ident
+     "Builds the ident form. If ident is a vector, then it generates the function and validates that the ID is
+     in the query. Otherwise, if ident is of the form (ident [this props] ...) it simply generates the correct
+     entry in defui without error checking."
+     [{:keys [:method :template]} legal-keys]
      (cond
-       (nil? table) nil
-       (not (contains? legal-keys id-prop)) (throw (ex-info "ID property of :ident must appear in your :query" {}))
-       :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))
+       method `(~'static fulcro.client.primitives/Ident ~method)
+       template (let [table   (first template)
+                      id-prop (or (second template) :db/id)]
+                  (cond
+                    (nil? table) (throw (ex-info "TABLE part of ident template was nil" {}))
+                    (not (contains? legal-keys id-prop)) (throw (ex-info "ID property of :ident does not appear in your :query" {:id-property id-prop}))
+                    :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
 
 #?(:clj
    (defn- build-render [thissym propsym compsym childrensym body]
@@ -602,48 +610,61 @@
     (into {} (keep value-of initial-state))))
 
 #?(:clj
-   (defn- build-initial-state [sym initial-state legal-keys children is-a-form?]
-     (when initial-state
-       (let [join-keys     (set (keys children))
-             init-keys     (set (keys initial-state))
-             illegal-keys  (set/difference init-keys legal-keys)
-             is-child?     (fn [k] (contains? join-keys k))
-             param-expr    (fn [v]
-                             (if-let [kw (and (keyword? v) (= "param" (namespace v))
-                                           (keyword (name v)))]
-                               `(~kw ~'params)
-                               v))
-             parameterized (fn [init-map] (into {} (map (fn [[k v]] (if-let [expr (param-expr v)] [k expr] [k v])) init-map)))
-             child-state   (fn [k]
-                             (let [state-params    (get initial-state k)
-                                   to-one?         (map? state-params)
-                                   to-many?        (and (vector? state-params) (every? map? state-params))
-                                   from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
-                                   child-class     (get children k)]
-                               (cond
-                                 (not (or from-parameter? to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
-                                 to-one? `(fulcro.client.core/get-initial-state ~child-class ~(parameterized state-params))
-                                 to-many? (mapv (fn [params]
-                                                  `(fulcro.client.core/get-initial-state ~child-class ~(parameterized params)))
-                                            state-params)
-                                 from-parameter? `(fulcro.client.core/get-initial-state ~child-class ~(param-expr state-params))
-                                 :otherwise nil)))
-             kv-pairs      (map (fn [k]
-                                  [k (if (is-child? k)
-                                       (child-state k)
-                                       (param-expr (get initial-state k)))]) init-keys)
-             state-map     (into {} kv-pairs)]
-         (when (seq illegal-keys)
-           (throw (ex-info "Initial state includes keys that are not in your query." {:offending-keys illegal-keys})))
-         (if is-a-form?
-           `(~'static fulcro.client.core/InitialAppState
-              (~'initial-state [~'c ~'params] (fulcro.ui.forms/build-form ~sym (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))
-           `(~'static fulcro.client.core/InitialAppState
-              (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))))))
+   (defn build-and-validate-initial-state-map [sym initial-state legal-keys children is-a-form?]
+     (let [join-keys     (set (keys children))
+           init-keys     (set (keys initial-state))
+           illegal-keys  (set/difference init-keys legal-keys)
+           is-child?     (fn [k] (contains? join-keys k))
+           param-expr    (fn [v]
+                           (if-let [kw (and (keyword? v) (= "param" (namespace v))
+                                         (keyword (name v)))]
+                             `(~kw ~'params)
+                             v))
+           parameterized (fn [init-map] (into {} (map (fn [[k v]] (if-let [expr (param-expr v)] [k expr] [k v])) init-map)))
+           child-state   (fn [k]
+                           (let [state-params    (get initial-state k)
+                                 to-one?         (map? state-params)
+                                 to-many?        (and (vector? state-params) (every? map? state-params))
+                                 from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
+                                 child-class     (get children k)]
+                             (cond
+                               (not (or from-parameter? to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
+                               to-one? `(fulcro.client.core/get-initial-state ~child-class ~(parameterized state-params))
+                               to-many? (mapv (fn [params]
+                                                `(fulcro.client.core/get-initial-state ~child-class ~(parameterized params)))
+                                          state-params)
+                               from-parameter? `(fulcro.client.core/get-initial-state ~child-class ~(param-expr state-params))
+                               :otherwise nil)))
+           kv-pairs      (map (fn [k]
+                                [k (if (is-child? k)
+                                     (child-state k)
+                                     (param-expr (get initial-state k)))]) init-keys)
+           state-map     (into {} kv-pairs)]
+       (when (seq illegal-keys)
+         (throw (ex-info "Initial state includes keys that are not in your query." {:offending-keys illegal-keys})))
+       (if is-a-form?
+         `(~'static fulcro.client.core/InitialAppState
+            (~'initial-state [~'c ~'params] (fulcro.ui.forms/build-form ~sym (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))
+         `(~'static fulcro.client.core/InitialAppState
+            (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children ~'params)))))))
 
-#?(:clj (s/def ::ident vector?))
+#?(:clj
+   (defn build-raw-initial-state
+     "Given an initial state form that is a list (function-form), simple copy it into the form needed by defui."
+     [method]
+     `(~'static fulcro.client.core/InitialAppState
+        ~method)))
+
+#?(:clj
+   (defn- build-initial-state [sym {:keys [template method]} legal-keys children is-a-form?]
+     (when (or template method)
+       (cond
+         template (build-and-validate-initial-state-map sym template legal-keys children is-a-form?)
+         method (build-raw-initial-state method)))))
+
+#?(:clj (s/def ::ident (s/or :template (s/and vector? #(= 2 (count %))) :method list?)))
 #?(:clj (s/def ::query vector?))
-#?(:clj (s/def ::initial-state map?))
+#?(:clj (s/def ::initial-state (s/or :template map? :method list?)))
 #?(:clj (s/def ::css vector?))
 #?(:clj (s/def ::css-include (s/and vector? #(every? symbol? %))))
 #?(:clj (s/def ::options (s/keys :opt-un [::query ::ident ::initial-state ::css ::css-include])))
@@ -690,10 +711,10 @@
      (let [{:keys [sym doc arglist options body]} (s/conform ::defsc-args args)
            [thissym propsym computedsym childrensym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
+           ident             (into {} [ident])                 ;clojure spec returns a map entry as a vector
+           initial-state     (into {} [initial-state])
            props            (or (legal-keys query) #{})
            children         (or (children-by-prop query) {})
-           table            (first ident)
-           id               (or (second ident) :db/id)
            parsed-protocols (when protocols (group-by :protocol (s/conform ::protocols protocols)))
            object-methods   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
            addl-protocols   (some->> (dissoc parsed-protocols 'Object)
@@ -703,7 +724,7 @@
                                        (concat ['static (:protocol v)] (:methods v))
                                        (concat [(:protocol v)] (:methods v)))))
                               (mapcat identity))
-           ident-forms      (build-ident id table props)
+           ident-forms      (build-ident ident props)
            state-forms      (build-initial-state sym initial-state props children (boolean (seq form-fields)))
            query-forms      (validate-query thissym propsym query)
            form-forms       (build-form form-fields)
@@ -721,7 +742,7 @@
           ~@object-methods))))
 
 #?(:clj
-   (defmacro ^{:doc      "Define a statful component. This macro emits a React UI component with a query,
+   (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI component with a query,
    optional ident (if :ident is specified in options), optional initial state, optional css,
    optional forms, and a render method. It can also emit additional protocols  that you specify.
 
