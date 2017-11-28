@@ -1,5 +1,5 @@
-2.0.0-alpha1
-------------
+2.0.0
+-----
 - Removed dependency on Om Next. See README-fulcro-2.0.adoc for upgrade instructions.
 - Imported and refined the useful Om Next abstractions.
 - Dropped indexer support for data path, and class path.
@@ -24,10 +24,20 @@ to-many collections (see the doc string).
     - Added a better API for accessing and navigating history
 - Added support for client mutations to declare a refresh set so that UI follow-on reads are no longer necessary.
 - Added more examples in demos
-- Added compressible? and pessimistic? options to `transact!`, instead of making them extra new API calls.
+- Added pessimistic transaction support with ptransact!
+- Added compressible transaction support with compressible-transact!
+- Both of the above use support functions to rewrite the transaction, so you can still use transact! if you like.
+- Mutations can now be interned. This enables docstrings and navigation to work for things like nREPL, and also allows you
+to use devcards mkdn-pprint-source with mutations in your devcards. See the docstring of defmutation for more details.
+- Demos compressed into fewer source files.
+- Websockets demo moved to external project
+- Expanded and cleaned up many portions of the developer's guide
 
-- Added support for auto-recovery from network issues. This can dramatically reduce
-the amount of error handling code you need to write.
+1.2.1
+-----
+- Expanded tool registry support
+- Expanded websocket support a bit
+- Fixed elements/ui-iframe in Firefox
 
 1.2.0
 -----

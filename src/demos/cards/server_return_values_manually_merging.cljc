@@ -16,7 +16,7 @@
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(server/defmutation crank-it-up [{:keys [value]}]
+(server/defmutation ^{:intern "-server"} crank-it-up [{:keys [value]}]
   (action [env]
     (sleep 200)
     {:new-volume (inc value)}))
@@ -28,7 +28,7 @@
 (defmulti merge-return-value (fn [state sym return-value] sym))
 
 ; Do all of the work on the server.
-(m/defmutation crank-it-up [params]
+(m/defmutation ^:intern crank-it-up [params]
   (remote [env] true))
 
 (defmethod merge-return-value `crank-it-up
@@ -112,23 +112,22 @@
      You can then define methods for each mutation symbol. For example, the demo has a `crank-it-up` mutation, which
      does no optimistic update. It simply sends it off to the server for processing.
 
-     ```
-     (defmutation m/mutate `crank-it-up [env k params] {:remote true})
-     ```
+     "
+     (dc/mkdn-pprint-source crank-it-up)
+     "
 
      Our mutation asks a remote server to increase the volume. It does the computation and returns the new value
      (in this case based on the old value from the UI). It need only return a value to have it propagate to the client:
 
-     ```
-     (server/defmutation crank-it-up [{:keys [value]}]
-       (action [env] (inc value)))
-     ```
-
+     "
+     (dc/mkdn-pprint-source crank-it-up-server)
+     "
      Handling the return value involves defining a method for that dispatch:
 
      ```
-     (defmethod merge-return-value `crank-it-up [state _ {:keys [value]}]
-       (assoc-in state [:child/by-id 0 :volume] value))
+     (defmethod merge-return-value `crank-it-up
+       [state _ {:keys [new-volume]}]
+       (assoc-in state [:child/by-id 0 :volume] new-volume))
      ```
 
      The remainder of the setup is just giving the merge handler function to the application at startup:
