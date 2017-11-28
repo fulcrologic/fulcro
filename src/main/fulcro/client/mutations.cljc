@@ -46,31 +46,53 @@
                          (action [env] ...)
                          (my-remote [env] ...)
                          (other-remote [env] ...)
-                         (remote [env] ...))"
+                         (remote [env] ...))
+
+                       There is special support for placing the action as a var in the namespace. This support
+                       only work when using a plain symbol. Simple add `:intern` metadata to the symbol. If
+                       the metadata is true, it will intern the symbol as-is. It it is a string, it will suffix
+                       the symbol with that string. If it is a symbol, it will use that symbol. The interned
+                       symbol will act like the action side of the mutation, and has the signature:
+                       `(fn [env params])`. This is also useful in devcards for using mkdn-pprint-source on mutations,
+                       and should give you docstring and navigation support from nREPL.
+                       "
                :arglists '([sym docstring? arglist action]
                             [sym docstring? arglist action remote]
                             [sym docstring? arglist remote])} defmutation
      [& args]
      (let [{:keys [sym doc arglist action remote]} (conform! ::mutation-args args)
-           fqsym         (if (namespace sym)
-                           sym
-                           (symbol (name (ns-name *ns*)) (name sym)))
+           fqsym           (if (namespace sym)
+                             sym
+                             (symbol (name (ns-name *ns*)) (name sym)))
+           intern?         (-> sym meta :intern)
+           interned-symbol (cond
+                             (string? intern?) (symbol (namespace fqsym) (str (name fqsym) intern?))
+                             (symbol? intern?) intern?
+                             :else fqsym)
            {:keys [action-args action-body]} (if action
                                                (conform! ::action action)
                                                {:action-args ['env] :action-body []})
-           remotes       (if (seq remote)
-                           (map #(conform! ::remote %) remote)
-                           [{:remote-name :remote :remote-args ['env] :remote-body [false]}])
-           env-symbol    (gensym "env")
-           remote-blocks (map (fn [{:keys [remote-name remote-args remote-body]}]
-                                `(let [~(first remote-args) ~env-symbol]
-                                   {~(keyword (name remote-name)) (do ~@remote-body)})
-                                ) remotes)]
-       `(defmethod fulcro.client.mutations/mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
-          (merge
-            (let [~(first action-args) ~env-symbol]
-              {:action (fn [] ~@action-body)})
-            ~@remote-blocks)))))
+           remotes         (if (seq remote)
+                             (map #(conform! ::remote %) remote)
+                             [{:remote-name :remote :remote-args ['env] :remote-body [false]}])
+           env-symbol      (gensym "env")
+           doc             (or doc "")
+           remote-blocks   (map (fn [{:keys [remote-name remote-args remote-body]}]
+                                  `(let [~(first remote-args) ~env-symbol]
+                                     {~(keyword (name remote-name)) (do ~@remote-body)})
+                                  ) remotes)
+           multimethod     `(defmethod fulcro.client.mutations/mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
+                              (merge
+                                (let [~(first action-args) ~env-symbol]
+                                  {:action (fn [] ~@action-body)})
+                                ~@remote-blocks))]
+       (if intern?
+         `(def ~interned-symbol ~doc
+            (do
+              ~multimethod
+              (fn [~(first action-args) ~(first arglist)]
+                ~@action-body)))
+         multimethod))))
 
 ;; Add methods to this to implement your local mutations
 (defmulti mutate prim/dispatch)

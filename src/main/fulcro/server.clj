@@ -492,20 +492,41 @@ default-malformed-response
                        support `action`).
 
                        NOTE: It will only work if you're using the `fulcro-parser` as your server's parser.
+
+                       There is special support for placing the action as a var in the namespace. This support
+                       only work when using a plain symbol. Simple add `:intern` metadata to the symbol. If
+                       the metadata is true, it will intern the symbol as-is. It it is a string, it will suffix
+                       the symbol with that string. If it is a symbol, it will use that symbol. The interned
+                       symbol will act like the action side of the mutation, and has the signature:
+                       `(fn [env params])`. This is also useful in devcards for using mkdn-pprint-source on mutations,
+                       and should give you docstring and navigation support from nREPL.
                        "
             :arglists '([sym docstring? arglist action])} defmutation
   [& args]
   (let [{:keys [sym doc arglist action remote]} (util/conform! ::mutation-args args)
-        fqsym      (if (namespace sym)
-                     sym
-                     (symbol (name (ns-name *ns*)) (name sym)))
+        fqsym           (if (namespace sym)
+                          sym
+                          (symbol (name (ns-name *ns*)) (name sym)))
+        intern?         (-> sym meta :intern)
+        interned-symbol (cond
+                          (string? intern?) (symbol (namespace fqsym) (str (name fqsym) intern?))
+                          (symbol? intern?) intern?
+                          :else fqsym)
+        doc             (or doc "")
         {:keys [action-args action-body]} (if action
                                             (util/conform! ::action action)
                                             {:action-args ['env] :action-body []})
-        env-symbol (gensym "env")]
-    `(defmethod fulcro.server/server-mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
-       (let [~(first action-args) ~env-symbol]
-         {:action (fn [] ~@action-body)}))))
+        env-symbol      (gensym "env")
+        multimethod     `(defmethod fulcro.server/server-mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
+                           (let [~(first action-args) ~env-symbol]
+                             {:action (fn [] ~@action-body)}))]
+    (if intern?
+      `(def ~interned-symbol ~doc
+         (do
+           ~multimethod
+           (fn [~(first action-args) ~(first arglist)]
+             ~@action-body)))
+      multimethod)))
 
 (defmulti read-entity
   "The multimethod for Fulcro's built-in support for reading an entity."
