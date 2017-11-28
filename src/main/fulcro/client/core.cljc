@@ -605,14 +605,14 @@
      "Builds the ident form. If ident is a vector, then it generates the function and validates that the ID is
      in the query. Otherwise, if ident is of the form (ident [this props] ...) it simply generates the correct
      entry in defui without error checking."
-     [{:keys [:method :template]} is-legal-key?]
+     [{:keys [:method :template]} legal-keys]
      (cond
-       method `(~'static om.next/Ident ~(replace-and-validate-fn 'ident 2 method))
+       method `(~'static fulcro.client.primitives/Ident ~method)
        template (let [table   (first template)
                       id-prop (or (second template) :db/id)]
                   (cond
                     (nil? table) (throw (ex-info "TABLE part of ident template was nil" {}))
-                    (not (is-legal-key? id-prop)) (throw (ex-info "ID property of :ident does not appear in your :query" {:id-property id-prop}))
+                    (not (contains? legal-keys id-prop)) (throw (ex-info "ID property of :ident does not appear in your :query" {:id-property id-prop}))
                     :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
 
 #?(:clj

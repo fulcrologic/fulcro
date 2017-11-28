@@ -321,7 +321,7 @@
           (easy/get-fallback-hook handler))
         =fn=> #(= '_ (%1 nil))))))
 
-(specification "Raw API Request Handling (primary components for hand-building server)" :focused
+(specification "Raw API Request Handling (primary components for hand-building server)"
   (component "handle-api-request"
     (let [parser-return-value {'f {:result {:value 1}}}
           parser              (constantly parser-return-value)

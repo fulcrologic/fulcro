@@ -52,11 +52,11 @@
            (fc/component-merge-query comp data) => :merge-query
            (prim/db->tree q d r) => {:ident :data}
            (prim/mark-missing d q) => (do
-                                            (assertions
-                                              "wraps union queries in a vector"
-                                              q => [union-query])
+                                        (assertions
+                                          "wraps union queries in a vector"
+                                          q => [union-query])
 
-                                            {:ident :data})
+                                        {:ident :data})
            (util/deep-merge d1 d2) => :merge-result
 
            (#'fc/preprocess-merge state :comp :data))))
@@ -528,7 +528,7 @@
       (get-in new-state [:graph 1]) => graph-1)))
 
 #?(:clj
-   (specification "defsc helpers"
+   (specification "defsc helpers" :focused
      (component "validate-query"
        (assertions
          "Honors the symbol for this that is defined by defsc"
@@ -541,15 +541,37 @@
          (#'fc/validate-query 'this '{:keys [db/id person/nme person/job]} '[:db/id :person/name {:person/job (prim/get-query Job)}])
          =throws=> (ExceptionInfo #"One or more destructured parameters" (fn [e]
                                                                            (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
+     (component "build-initial-state"
+       (assertions
+         "Generates nothing when there is entry"
+         (#'fc/build-initial-state 'S nil #{} [] false) => nil
+         "Can build initial state from a method"
+         (#'fc/build-initial-state 'S {:method '(initial-state [t p] {:x 1})} #{} [] false) =>
+         '(static fulcro.client.core/InitialAppState
+            (initial-state [t p] {:x 1}))
+         "Can build initial state from a template"
+         (#'fc/build-initial-state 'S {:template {}} #{} [] false) =>
+         '(static fulcro.client.core/InitialAppState
+            (initial-state [c params]
+              (fulcro.client.core/make-state-map {} [] params)))
+
+         "Adds build-form around the initial state if it is a template and there are form fields"
+         (#'fc/build-initial-state 'S {:template {}} #{} [] true) =>
+         '(static fulcro.client.core/InitialAppState
+            (initial-state [c params]
+              (fulcro.ui.forms/build-form S (fulcro.client.core/make-state-map {} [] params))))))
      (component "build-ident"
        (assertions
          "Generates nothing when there is no table"
-         (#'fc/build-ident :db/id nil #{}) => nil
-         (#'fc/build-ident :id nil #{:boo}) => nil
+         (#'fc/build-ident nil #{}) => nil
+         (#'fc/build-ident nil #{:boo}) => nil
          "Requires the ID to be in the declared props"
-         (#'fc/build-ident :id :TABLE/by-id #{}) =throws=> (ExceptionInfo #"ID property of :ident")
-         "Generates a list of forms to emit as the ident function"
-         (#'fc/build-ident :id :TABLE/by-id #{:id})
+         (#'fc/build-ident {:template [:TABLE/by-id :id]} #{}) =throws=> (ExceptionInfo #"ID property of :ident")
+         "Can use a ident method to build the defui forms"
+         (#'fc/build-ident {:method '(ident [this props] [:x :id])} #{}) =>
+         '(static fulcro.client.primitives/Ident (ident [this props] [:x :id]))
+         "Can use a vector template to generate defui forms"
+         (#'fc/build-ident {:template [:TABLE/by-id :id]} #{:id})
          => `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [:TABLE/by-id (:id ~'props)]))))
      (component "build-render"
        (assertions
@@ -658,7 +680,7 @@
              {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
-   (specification "defsc"
+   (specification "defsc" :focused
      (assertions
        "works with initial state"
        (#'fc/defsc* '(Person
@@ -676,6 +698,26 @@
                   :db/id      42}
                  {:person/job ~'Job}
                  ~'params))
+             ~'static fulcro.client.primitives/Ident
+             (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
+             ~'static fulcro.client.primitives/IQuery
+             (~'query [~'this] [:db/id {:person/job (~'prim/get-query ~'Job)}])
+             ~'Object
+             (~'render [~'this]
+               (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)
+                     ~'children (fulcro.client.primitives/children ~'this)]
+                 (~'dom/div nil "Boo"))))
+       "allows an initial state method body"
+       (fc/defsc* '(Person
+                     [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
+                     {:query         [:db/id {:person/job (prim/get-query Job)}]
+                      :initial-state (initial-state [this params] {:x 1})
+                      :ident         [:PERSON/by-id :db/id]}
+                     (dom/div nil "Boo")))
+       => `(fulcro.client.primitives/defui ~'Person
+             ~'static fulcro.client.core/InitialAppState
+             (~'initial-state [~'this ~'params] {:x 1})
              ~'static fulcro.client.primitives/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
              ~'static fulcro.client.primitives/IQuery

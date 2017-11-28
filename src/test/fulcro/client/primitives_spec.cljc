@@ -650,7 +650,7 @@
     "overwrites target (non-map) value if incoming value is a map"
     (prim/sweep-merge {:a 1 :c 2} {:a 2 :c {:b 1}}) => {:a 2 :c {:b 1}}))
 
-(specification "merge*" :focused
+(specification "merge*"
   (when-mocking
     (prim/merge-novelty! r s res q) => {:next true}
 
