@@ -1,19 +1,24 @@
 (ns cards.server
   (:require [fulcro.server :as server]
             [taoensso.timbre :as timbre]
-            [fulcro.client.impl.parser :as op]
-            cards.legacy-loading-indicators
-            cards.loading-data-basics
             cards.autocomplete
-            cards.declarative-mutation-refresh
-            cards.parallel-vs-sequential-loading
-            cards.server-error-handling
-            [recipes.server-query-security-server :as server-security]
-            [recipes.websockets-server :as wsdemo]
+            cards.card_utils
+            cards.declarative_mutation_refresh
+            cards.legacy_loading_indicators
+            cards.loading_data_basics
+            cards.loading_in_response_to_UI_routing
+            cards.paginating_large_lists_from_server
+            cards.parallel_vs_sequential_loading
+            cards.server_SQL_graph_queries
+            cards.server_error_handling
+            cards.server_query_security
+            cards.server_return_values_as_data_driven_mutation_joins
+            cards.server_return_values_manually_merging
+            [fulcro.client.impl.parser :as op]
             [fulcro.easy-server :as core]
+            [cards.server-query-security :as server-security]
             [fulcro.server :refer [server-read server-mutate]]
             [fulcro-sql.core :as sql]
-            [fulcro.websockets.components.channel-server :as cs]
             [com.stuartsierra.component :as component]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -41,19 +46,12 @@
       :parser (server/parser {:read logging-query :mutate logging-mutate})
       :parser-injections (cond-> #{:authorization}
                            include-postgres? (conj :sqldb))
-      ;; extra routes (for websockets demo)
-      :extra-routes {:routes   ["" {["/chsk"] :web-socket}]
-                     :handlers {:web-socket cs/route-handlers}}
       :components (cond-> {
                            ;; Server security demo components
                            ; Server security demo: This puts itself into the Ring pipeline to add user info to the request
-                           :auth-hook        (server-security/make-authentication)
+                           :auth-hook     (server-security/make-authentication)
                            ; This is here as a component so it can be injected into the parser env for processing security
-                           :authorization    (server-security/make-authorizer)
-
-                           ;; websocket components and route additions
-                           :channel-server   (cs/make-channel-server)
-                           :channel-listener (wsdemo/make-channel-listener)}
+                           :authorization (server-security/make-authorizer)}
                     include-postgres? (merge {:sqldb (component/using
                                                        (sql/build-db-manager {})
                                                        [:config])})))))

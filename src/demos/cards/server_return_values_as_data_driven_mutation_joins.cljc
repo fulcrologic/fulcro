@@ -5,6 +5,7 @@
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.dom :as dom]
+    [cards.card-utils :refer [sleep]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.core :as fc :refer [defsc]]
     [fulcro.server :as server]
@@ -32,7 +33,7 @@
 
 (server/defmutation add-item [{:keys [id value]}]
   (action [env]
-    (Thread/sleep 4000)
+    (sleep 4000)
     (let [new-id (swap! ids inc)]
       (merge
         {::prim/tempids {id new-id}}

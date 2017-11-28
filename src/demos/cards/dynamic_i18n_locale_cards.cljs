@@ -53,7 +53,7 @@
                                   :es-MX       {:output-to \"resources/public/js/demos/es-MX.js\"
                                                 :entries   #{translations.es-MX}}
                                   :main        {:output-to \"resources/public/js/demos/main-ui.js\"
-                                                :entries   #{recipes.dynamic-ui-main}}}
+                                                :entries   #{cards.dynamic-ui-main}}}
                   :optimizations :none}}
   {:id           \"demo-i18n\"
    :source-paths [\"src/main\" \"src/demos\"]

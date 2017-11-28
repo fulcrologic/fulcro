@@ -1,6 +1,7 @@
 (ns cards.declarative-mutation-refresh
   (:require [fulcro.client.dom :as dom]
             [fulcro.client.primitives :as prim :refer [defui]]
+            [cards.card-utils :refer [sleep]]
             [fulcro.client.dom :as dom]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
@@ -15,7 +16,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (server/defmutation cards.declarative-mutation-refresh/ping-right [params]
   (action [env]
-    (Thread/sleep 500)
+    (sleep 500)
     {:db/id 1 :right/value (util/unique-key)}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -32,6 +33,8 @@
   (remote [{:keys [state ast]}]
     (m/returning ast state Right))
   (refresh [env] [:right/value]))
+
+#?(:clj (def clj->js identity))
 
 (defsc Left [this {:keys [db/id left/value]} _ _]
   {:query         [:db/id :left/value]
@@ -58,7 +61,7 @@
                    :ui/react-key
                    {:right (prim/get-query Right)}]
    :initial-state {:left {} :right {}}}
-  (dom/div (clj->js {:key react-key :style {:width "500px" :height "50px"}})
+  (dom/div #js {:key react-key :style #js {:width "500px" :height "50px"}}
     (ui-left left)
     (ui-right right)))
 
