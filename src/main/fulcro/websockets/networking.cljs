@@ -51,13 +51,9 @@
     (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
       (push-received app ?data))
 
-    (defmethod message-received :chsk/handshake [{:keys [ch-recv send-fn state event id ?data] :as message}]
-      (log/debug "Message Routed to handshake handler " state))
+    (defmethod message-received :chsk/handshake [{:keys [ch-recv send-fn state event id ?data] :as message}] )
 
     (defmethod message-received :chsk/state [{:keys [ch-recv send-fn state event id ?data] :as message}]
-      (log/debug "Message Routed to state handler" (keys message))
-      (log/debug "Event" event)
-      (log/debug "State" state)
       (when (:ever-opened? @state)
         (put! init-chan true))))
   (reconnect [this]
@@ -68,24 +64,22 @@
     (do
       (go
         (let [{:keys [status body]} (<! parse-queue)]
-          (log/debug "Receiving " body)
           ;; We are saying that all we care about at this point is the body.
           (if (= status 200)
             (ok body)
             (do
-              (log/debug (str "SERVER ERROR CODE: " status))
+              (log/error (str "SERVER ERROR CODE: " status))
               (when global-error-callback
                 (global-error-callback status body))
               (err body)))
           parse-queue))
       (go
         (<! init-chan)
-        (log/debug "Sending " edn)
         (send-fn `[:api/parse ~{:action  :send-message
                                 :command :send-om-request
                                 :content edn}]))))
   (start [this]
-    (log/debug "Remember to install the push handlers.")
+    (log/debug "Remember to install the push handlers!")
     (start-router! ch-recv message-received)
     this))
 
