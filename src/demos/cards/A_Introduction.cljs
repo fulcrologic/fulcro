@@ -15,13 +15,8 @@
   ```
   src/demos
   |-- cards
-  |   |-- ... the various card source
-  |   |-- server.clj
-  |   `-- server_api.clj
-  `-- recipes
-  |-- background_loads_client.cljs
-  |-- background_loads_server.clj
-  `-- ... the source for each demo in a client and (optional) server file
+  |   |-- ... the various card source. CLJC means it is full stack and will require you run the server
+  |   |-- server.clj  - The single web server for all cards
   ```
 
   ## Running the Demos
@@ -62,7 +57,6 @@
   You should see some status messages from the server, including one that tells you what port it is running on. The
   preconfigured port is 8081, so you should now be able to see the demos at
   [http://localhost:8081/demos.html](http://localhost:8081/demos.html).
-
 
   ")
 

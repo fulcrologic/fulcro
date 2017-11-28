@@ -72,7 +72,7 @@
 
 (defcard-fulcro router-demo
   "Notice on initial load that the `[:main :singleton]` path in app state is not present. You could use the console to
-  verify that `recipes.dynamic_ui_main.Main` is not present either. Once you route to Main, both will be present. You should
+  verify that `cards.dynamic_ui_main.Main` is not present either. Once you route to Main, both will be present. You should
   see the network load of the code when you route as well. See the `demos` build configuration in project.clj as well.
 
   Note: The build config with devcards requires us to name more namespaces than would normally be required because

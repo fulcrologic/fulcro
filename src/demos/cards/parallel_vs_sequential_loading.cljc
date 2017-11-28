@@ -1,15 +1,16 @@
 (ns cards.parallel-vs-sequential-loading
   (:require
-    #?@(:clj  [[taoensso.timbre :as timbre]]
-        :cljs [yahoo.intl-messageformat-with-locales
+    [cards.card-utils :refer [sleep now]]
+    #?@(:cljs [yahoo.intl-messageformat-with-locales
                [devcards.core :as dc :include-macros true]
                [fulcro.client.cards :refer [defcard-fulcro]]])
-               [fulcro.server :refer [defquery-root defquery-entity defmutation]]
-               [fulcro.client.core :as fc]
-               [fulcro.i18n :refer [tr trf]]
-               [fulcro.client.data-fetch :as df]
-               [fulcro.client.dom :as dom]
-               [fulcro.client.primitives :as prim :refer [defui]]))
+    [fulcro.server :refer [defquery-root defquery-entity defmutation]]
+    [fulcro.client.logging :as log]
+    [fulcro.client.core :as fc]
+    [fulcro.i18n :refer [tr trf]]
+    [fulcro.client.data-fetch :as df]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defui]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -21,9 +22,9 @@
 
 (defquery-root :background/long-query
   (value [{:keys [ast query] :as env} params]
-    (timbre/info "Long query started")
-    (Thread/sleep 5000)
-    (timbre/info "Long query finished")
+    (log/info "Long query started")
+    (sleep 5000)
+    (log/info "Long query finished")
     42))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -76,7 +77,7 @@
 
      The buttons in the card below come from this UI component:
      "
-     (dc/mkdn-pprint-source bg/Child)
+     (dc/mkdn-pprint-source Child)
      "
      and you can see how they trigger the same load."))
 
@@ -89,4 +90,4 @@
       If you rapidly click the parallel buttons, then the loads will not be sequenced, and you will see them complete in roughly
       5 seconds overall (from the time you click the last one).
      "
-     bg/Root))
+     Root))

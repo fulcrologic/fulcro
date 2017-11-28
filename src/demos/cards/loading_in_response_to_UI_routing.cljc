@@ -3,6 +3,7 @@
     #?@(:cljs [[devcards.core :as dc :include-macros true]
                [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client.routing :as r]
+    [cards.card-utils :refer [sleep]]
     [fulcro.client.mutations :as m]
     [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro.client.dom :as dom]
@@ -19,6 +20,7 @@
 (server/defquery-root :all-settings
   "This is the only thing we wrote for the server...just return some value so we can see it really talked to the server for this query."
   (value [env params]
+    (sleep 500)
     [{:id 1 :value "Gorgon"}
      {:id 2 :value "Thraser"}
      {:id 3 :value "Under"}]))

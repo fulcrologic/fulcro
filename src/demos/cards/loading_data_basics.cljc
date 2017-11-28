@@ -3,6 +3,7 @@
     #?@(:cljs [[devcards.core :as dc :include-macros true]
                [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
+    [cards.card-utils :refer [sleep now]]
     [fulcro.client.data-fetch :as df]
     [fulcro.util :as util]
     [fulcro.client.mutations :as m]
@@ -23,18 +24,17 @@
 (server/defquery-entity :load-samples.person/by-id
   (value [{:keys [] :as env} id p]
     (let [person (first (filter #(= id (:db/id %)) all-users))]
-      (assoc person :person/age-ms (System/currentTimeMillis)))))
+      (assoc person :person/age-ms (now)))))
 
 (server/defquery-root :load-samples/people
   (value [env {:keys [kind]}]
-    (util/delayed
-      #(let [result (->> all-users
-                      (filter (fn [p] (= kind (:kind p))))
-                      (mapv (fn [p] (-> p
-                                      (select-keys [:db/id :person/name])
-                                      (assoc :person/age-ms (System/currentTimeMillis))))))]
-         result)
-      400)))
+    (sleep 400)
+    (let [result (->> all-users
+                   (filter (fn [p] (= kind (:kind p))))
+                   (mapv (fn [p] (-> p
+                                   (select-keys [:db/id :person/name])
+                                   (assoc :person/age-ms (now))))))]
+      result)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -149,7 +149,7 @@
                       (filter (fn [p] (= kind (:kind p)))) ; get just the right kind of users
                       (mapv (fn [p] (-> p
                                       (select-keys [:db/id :person/name])
-                                      (assoc :person/age-ms (System/currentTimeMillis))))))]
+                                      (assoc :person/age-ms (now))))))]
          {:value result}))
      ```
 
@@ -175,7 +175,7 @@
      (defmethod api/server-read :load-samples.person/by-id [{:keys [ast query-root] :as env} _ p]
        (let [id     (second (:key ast)) ; the key of the ast will be the ident, whose second member is the entity ID
              person (first (filter #(= id (:db/id %)) all-users))] ; use the all-users global in-memory db
-         {:value (assoc person :person/age-ms (System/currentTimeMillis))}))
+         {:value (assoc person :person/age-ms (now))}))
      ```
 
      The final kind of load (fill in a field of an already loaded element) is called `load-field`, and can be seen in action

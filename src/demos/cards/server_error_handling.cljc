@@ -15,9 +15,9 @@
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(server/defmutation error-mutation [env k params]
+(server/defmutation error-mutation [params]
   ;; Throw a mutation error for the client to handle
-  {:action (fn [] (throw (ex-info "Server error" {:status 401 :body "Unauthorized User"})))})
+  (action [env] (throw (ex-info "Server error" {:status 401 :body "Unauthorized User"}))))
 
 (server/defquery-entity :error.child/by-id
   (value [env id params]
@@ -92,13 +92,22 @@
    (dc/defcard error-handling
      "# Error Handling
 
-     NOTE: The error handling stuff needs work...
+     This example has installed a global handler that can watch for network errors (it logs them to the console).
+
+     On startup it attempts to read garbage (which generates an error and triggers a fallback). This will leave a load
+     marker in app state, which can be examined to show an actual UI error.
+
+     Each button tries a different mutation. The one on the left disables itself on errors, whereas the right
+     one allows you to keep trying.
+
+     In all cases the application internals place the last server error in the top-level `:fulcro/server-error`. You
+     should manually clear this if you wish to use it to track hard server errors.
      "
      (fulcro-app Root
        :started-callback
        (fn [{:keys [reconciler]}]
          ;; specify a fallback mutation symbol as a named parameter after the component or reconciler and query
-         (df/load reconciler :data nil {:fallback 'read/error-log}))
+         (df/load reconciler :data nil {:fallback `log-read-error}))
 
        ;; this function is called on *every* network error, regardless of cause
        :network-error-callback

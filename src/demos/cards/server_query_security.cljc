@@ -53,8 +53,9 @@
        this)
      (stop [this] this)))
 
-(defn make-authentication []
-  (c/using (map->Authentication {}) [:handler]))
+#?(:clj
+   (defn make-authentication []
+     (c/using (map->Authentication {}) [:handler])))
 
 (defprotocol Auth
   (can-access-entity? [this user key entityid] "Check if the given user is allowed to access the entity designated by the given key and entity id")

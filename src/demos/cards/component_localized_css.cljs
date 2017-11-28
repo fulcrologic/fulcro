@@ -99,12 +99,12 @@
   Any number of those can be done, at whatever ID you care to invent (it will replace or insert a style element
   as necessary).
 
-  The card below upserts the co-located CSS in the code in `recipes.colocated-css` file itself, but it also
+  The card below upserts the co-located CSS from the code itself, but these code rules  also
   bases the color on the value in an atom (think theme color). At any time you can change your various
   embedded data on colocated CSS and re-upsert the generated result! For example, at a REPL you could run:
 
    ```
-   (recipes.colocated-css/change-color \"red\")
+   (cards.component-localize-css/change-color \"red\")
    ```
 
   and the color of the text will change. Look near the bottom of the HTML Elements in developers console

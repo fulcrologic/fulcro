@@ -9,6 +9,7 @@
     [fulcro.client.core :as fc]
     [fulcro.server :as server]
     [fulcro.client.mutations :as m :refer [defmutation]]
+    [cards.card-utils :refer [sleep]]
     [fulcro.client.primitives :as prim :refer [defui]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -17,7 +18,7 @@
 
 (server/defquery-entity :lazy-load/ui
   (value [env id params]
-    (Thread/sleep 2000)
+    (sleep 2000)
     (case id
       :panel {:child {:db/id 5 :child/label "Child"}}
       :child {:items [{:db/id 1 :item/label "A"} {:db/id 2 :item/label "B"}]}
@@ -25,8 +26,8 @@
 
 (server/defquery-entity :lazy-load.items/by-id
   (value [env id params]
-    (timbre/info "Item query for " id)
-    (Thread/sleep 4000)
+    (log/info "Item query for " id)
+    (sleep 4000)
     {:db/id id :item/label (str "Refreshed Label " (rand-int 100))}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
