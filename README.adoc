@@ -8,7 +8,7 @@
 
 image:docs/logo.png[]
 
-Current Release: [fulcrologic/fulcro "1.2.0"]
+Current Release: [fulcrologic/fulcro "1.2.1"]
 
 Latest Development Version:
 image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
