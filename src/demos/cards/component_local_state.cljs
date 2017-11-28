@@ -5,25 +5,30 @@
     [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.mutations :as m]
+    [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.dom :as dom]
     yahoo.intl-messageformat-with-locales))
 
-(defn change-size
+(defn change-size*
   "Change the size of the canvas by some (pos or neg) amount.."
-  [amount state]
-  (let [current-size (get-in @state [:child/by-id 0 :size])
+  [state-map amount]
+  (let [current-size (get-in state-map [:child/by-id 0 :size])
         new-size     (+ amount current-size)]
-    (swap! state assoc-in [:child/by-id 0 :size] new-size)))
+    (assoc-in state-map [:child/by-id 0 :size] new-size)))
 
 ; Make the canvas smaller. This will cause
-(defmethod m/mutate 'canvas/make-smaller [{:keys [state]} k p] {:action (partial change-size -20 state)})
+(defmutation ^:intern make-smaller [p]
+  (action [{:keys [state]}]
+    (swap! state change-size* -20)))
 
-(defmethod m/mutate 'canvas/make-bigger [{:keys [state]} k p] {:action (partial change-size 20 state)})
+(defmutation ^:intern make-bigger [p]
+  (action [{:keys [state]}]
+    (swap! state change-size* 20)))
 
-(defmethod m/mutate 'canvas/place-marker [{:keys [state]} k {:keys [coords]}]
-  {:action (fn [] (swap! state assoc-in [:child/by-id 0 :marker] coords))})
+(defmutation ^:intern update-marker [{:keys [coords]}]
+  (action [{:keys [state]}]
+    (swap! state assoc-in [:child/by-id 0 :marker] coords)))
 
 
 (defn event->dom-coords
@@ -78,11 +83,13 @@
 (defn place-marker
   "Update the marker in app state. Derives normalized coordinates, and updates the marker in application state."
   [child evt]
-  (prim/transact! child `[(canvas/place-marker {:coords ~(event->normalized-coords evt (prim/get-state child :canvas))})]))
+  (prim/transact! child `[(update-marker
+                            {:coords ~(event->normalized-coords evt (prim/get-state child :canvas))})]))
 
 (defn hover-marker
-  "Updates the hover location of a proposed marker using canvas coordinates. Hover location is stored in component
-  local state (meaning that a low-level app database query will not run to do the render that responds to this change)"
+  "Updates the hover location of a proposed marker using canvas coordinates. Hover location
+   is stored in component local state (meaning that a low-level app database query will not
+   run to do the render that responds to this change)"
   [child evt]
   (let [current-state  (prim/get-state child)
         updated-coords (event->dom-coords evt (:canvas current-state))
@@ -99,7 +106,8 @@
   (ident [this props] [:child/by-id (:id props)])
   Object
   (initLocalState [this] {:coords [-50 -50]})
-  ; Remember that this "render" just renders the DOM (e.g. the canvas DOM element). The graphical rendering within the canvas is done during event handling.
+  ; Remember that this "render" just renders the DOM (e.g. the canvas DOM element). The graphical
+  ; rendering within the canvas is done during event handling.
   (render [this]
     (let [{:keys [size]} (prim/props this)]
       ; size comes from props. Transactions on size will cause the canvas to resize in the DOM
@@ -108,7 +116,8 @@
                        :onMouseDown (fn [evt] (place-marker this evt))
                        :onMouseMove (fn [evt] (hover-marker this evt))
                        ; This is a pure React mechanism for getting the underlying DOM element.
-                       ; Note: when the DOM element changes this fn gets called with nil (to help you manage memory leaks), then the new element
+                       ; Note: when the DOM element changes this fn gets called with nil
+                       ; (to help you manage memory leaks), then the new element
                        :ref         (fn [r]
                                       (when r
                                         (prim/update-state! this assoc :canvas r)
@@ -127,8 +136,8 @@
   (render [this]
     (let [{:keys [ui/react-key child]} (prim/props this)]
       (dom/div #js {:key react-key}
-        (dom/button #js {:onClick #(prim/transact! this '[(canvas/make-bigger)])} "Bigger!")
-        (dom/button #js {:onClick #(prim/transact! this '[(canvas/make-smaller)])} "Smaller!")
+        (dom/button #js {:onClick #(prim/transact! this `[(make-bigger {})])} "Bigger!")
+        (dom/button #js {:onClick #(prim/transact! this `[(make-smaller {})])} "Smaller!")
         (dom/br nil)
         (dom/br nil)
         (ui-child child)))))
@@ -145,7 +154,7 @@
   but it *also* reconcles the database with the stateful components. This one will not give you as much of a speed boost
   (though it may be enough, since you're not changing the database or recording more UI history).
 
-  The other mechanism completely avoids this, and just asks React for an immeidate forced update.
+  The other mechanism completely avoids this, and just asks React for an immediate forced update.
 
   - `(set-state! this data)` and `(update-state! this data)` - trigger a reconcile against the database at the next animation frame. Limits frame rate to 60 fps.
   - `(react-set-state! this data)` - trigger a React forceUpdate immediately
@@ -153,8 +162,16 @@
   In this example we're using `set-state!`, and you can see it is still plenty fast!
 
   The source of the component in the demo looks like this:"
+  (dc/mkdn-pprint-source change-size*)
+  (dc/mkdn-pprint-source update-marker)
+  (dc/mkdn-pprint-source make-bigger)
+  (dc/mkdn-pprint-source make-smaller)
+  (dc/mkdn-pprint-source event->dom-coords)
+  (dc/mkdn-pprint-source event->normalized-coords)
+  (dc/mkdn-pprint-source place-marker)
   (dc/mkdn-pprint-source hover-marker)
-  (dc/mkdn-pprint-source Child))
+  (dc/mkdn-pprint-source Child)
+  (dc/mkdn-pprint-source Root))
 
 (defcard-fulcro local-state
   "# Component Local State

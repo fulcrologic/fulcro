@@ -54,7 +54,7 @@
 
 (def ui-completion-list (prim/factory CompletionList))
 
-(m/defmutation populate-loaded-suggestions
+(m/defmutation ^:intern populate-loaded-suggestions
   "Fulcro mutation: Autocomplete suggestions are loaded in a non-visible property to "
   [{:keys [id]}]
   (action [{:keys [state]}]
@@ -191,17 +191,9 @@
      The UI renders the `:autocomplete/suggestions`. We do this so there is no flicker on the UI while loading, but
      at the end of the load we need to update the suggestions. We do this by running this post mutation:
 
-     ```
-     (defmutation populate-loaded-suggestions
-       \"Fulcro mutation: Autocomplete suggestions are loaded in a non-visible property to prevent flicker.
-         This copies it over to the visible area\"
-       [{:keys [id]}]
-       (action [{:keys [state]}]
-         (let [autocomplete-path (autocomplete-ident id)
-               source-path       (conj autocomplete-path :autocomplete/loaded-suggestions)
-               target-path       (conj autocomplete-path :autocomplete/suggestions)]
-           (swap! state assoc-in target-path (get-in @state source-path)))))
-     ```
+     "
+     (dc/mkdn-pprint-source populate-loaded-suggestions)
+     "
 
      ### The List of Matches
 
