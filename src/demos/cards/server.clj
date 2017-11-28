@@ -1,18 +1,13 @@
 (ns cards.server
-  (:require [fulcro.server :as prim]
+  (:require [fulcro.server :as server]
             [taoensso.timbre :as timbre]
             [fulcro.client.impl.parser :as op]
-            [recipes.background-loads-server :as bg]
-            recipes.declarative-mutation-refresh-server
-            recipes.error-handling-server
-            recipes.mutation-join-server
-            recipes.lazy-loading-visual-indicators-server
-            recipes.load-samples-server
-            recipes.mutation-return-value-server
-            recipes.paginate-large-lists-server
-            recipes.tabbed-interface-server
-            recipes.autocomplete-server
-            recipes.sql-graph-query-server
+            cards.legacy-loading-indicators
+            cards.loading-data-basics
+            cards.autocomplete
+            cards.declarative-mutation-refresh
+            cards.parallel-vs-sequential-loading
+            cards.server-error-handling
             [recipes.server-query-security-server :as server-security]
             [recipes.websockets-server :as wsdemo]
             [fulcro.easy-server :as core]
@@ -43,7 +38,7 @@
     (core/make-fulcro-server
       :config-path "config/demos.edn"
       ;; This is fulcro.server/fulcro-parser, but we've added in logging
-      :parser (prim/parser {:read logging-query :mutate logging-mutate})
+      :parser (server/parser {:read logging-query :mutate logging-mutate})
       :parser-injections (cond-> #{:authorization}
                            include-postgres? (conj :sqldb))
       ;; extra routes (for websockets demo)
@@ -59,7 +54,7 @@
                            ;; websocket components and route additions
                            :channel-server   (cs/make-channel-server)
                            :channel-listener (wsdemo/make-channel-listener)}
-                    include-postgres? (merge  {:sqldb (component/using
+                    include-postgres? (merge {:sqldb (component/using
                                                        (sql/build-db-manager {})
                                                        [:config])})))))
 
