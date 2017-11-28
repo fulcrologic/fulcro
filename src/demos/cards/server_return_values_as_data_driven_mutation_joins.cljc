@@ -16,6 +16,8 @@
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+#?(:clj (def clj->js identity))
+
 (server/defquery-root :mutation-join-list
   (value [env {:keys [kind]}]
     {:db/id      1
@@ -50,6 +52,9 @@
       (m/returning state Item)
       (m/with-params {:db/id id}))))
 
+(defn set-overlay-visible* [state-map visible?] (assoc-in state-map [:overlay :visible?] visible?))
+(defmutation set-overlay [{:keys [:visible?]}] (action [{:keys [state]}] (swap! state set-overlay-visible* visible?)))
+
 (defmutation add-item [{:keys [list-id id value]}]
   (action [{:keys [state]}]
     (let [idnt [:item/by-id id]]
@@ -57,6 +62,7 @@
         (fn [s]
           (-> s
             (assoc-in idnt {:db/id id :item/value value})
+            (set-overlay-visible* true)
             (fc/integrate-ident idnt :append [:list/by-id list-id :list/items]))))))
   (remote [{:keys [state ast]}]
     (m/returning ast state Item)))
@@ -69,21 +75,40 @@
 
 (def ui-item (prim/factory Item {:keyfn :db/id}))
 
+(def example-height "400px")
+
 (defsc ItemList [this {:keys [db/id list/title list/items] :as props} _ _]
   {:query [:db/id :list/title {:list/items (prim/get-query Item)}]
    :ident [:list/by-id :db/id]}
-  (dom/div nil
+  (dom/div (clj->js {:style {:width "600px" :height example-height}})
     (dom/h3 nil title)
     (dom/ul nil (map ui-item items))
-    (dom/button #js {:onClick #(prim/transact! this `[(add-item {:list-id ~id
-                                                                 :id      ~(prim/tempid)
-                                                                 :value   "A New Value"})])} "Add item")))
+    (dom/button #js {:onClick #(prim/ptransact! this `[(add-item {:list-id ~id
+                                                                  :id      ~(prim/tempid)
+                                                                  :value   "A New Value"})
+                                                       (set-overlay {:visible? false})])} "Add item")))
 
 (def ui-list (prim/factory ItemList {:keyfn :db/id}))
 
-(defsc Root [this {:keys [ui/react-key mutation-join-list]} _ _]
-  {:query [:ui/react-key {:mutation-join-list (prim/get-query ItemList)}]}
-  (dom/div #js {:key react-key}
+(defsc Overlay [this {:keys [:visible?] :as props} computed children]
+  {:query         [:db/id :visible?]
+   :initial-state {:visible? false}}
+  (dom/div (clj->js {:onClick #(.stopPropagation %)
+                     :style   {:background-color "black"
+                               :display          (if visible? "block" "none")
+                               :position         "absolute"
+                               :opacity          "0.6"
+                               :z-index          "100"
+                               :width            "600px"
+                               :height           example-height}}) ""))
+
+(def ui-overlay (prim/factory Overlay {:keyfn :db/id}))
+
+(defsc Root [this {:keys [ui/react-key overlay mutation-join-list]} _ _]
+  {:query         [:ui/react-key {:overlay (prim/get-query Overlay)} {:mutation-join-list (prim/get-query ItemList)}]
+   :initial-state {:overlay {}}}
+  (dom/div (clj->js {:key react-key :style {:position "relative"}})
+    (ui-overlay overlay)
     "Test"
     (ui-list mutation-join-list)))
 
