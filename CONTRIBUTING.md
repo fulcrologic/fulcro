@@ -2,7 +2,10 @@
 
 If you'd like to submit a PR, please follow these general guidelines:
 
+- Read through the current issues on Github. There might be something you can
+help with!
 - Either talk about it in Slack on #fulcro, or open a github issue
+- Please use a github issue to go along with your PR.
 - Do development against the *develop* branch (we use git flow). PRs should be directed at the develop branch. Master is
   the latest release, not the live development.
 - In general, please squash your change into a single commit

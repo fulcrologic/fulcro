@@ -8,10 +8,13 @@
 
 image:docs/logo.png[]
 
-image::https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
+Current Release: [fulcrologic/fulcro "1.2.1"]
+
+Latest Development Version:
+image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
 
 Release: image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"]
-Snapshot: image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"]
+Development: image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"]
 
 Fulcro is a library stacked on Om Next that provides much of what is needed to use that library (client parser,
 networking, server elements, a database format, clear constructs for data loading). The intention is to provide you
