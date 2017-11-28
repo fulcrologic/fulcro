@@ -28,8 +28,8 @@
 
   ## Handling Submission of a Form
 
-  Form submission has some general helpers. In general, it is recommended that you write your own
-  custom mutation to do a form submission, but there is a general-purpose mutation that can also do it
+  Form submission has some general helpers. In general, *it is recommended that you write your own
+  custom mutation to do a form submission*, but there is a general-purpose mutation that can also do it
   for you.
 
   The advantage of using the general-purpose mutation is that it is already written, but the disadvantage is that

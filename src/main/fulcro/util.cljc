@@ -104,3 +104,9 @@
 #?(:clj
    (def TRUE (s/with-gen (constantly true) sg/int)))
 
+(defn delayed
+  "Calls f after t ms. Works on client and server."
+  [f t]
+  (:cljs (js/setTimeout f t)
+    :clj (do (Thread/sleep t) (f))))
+

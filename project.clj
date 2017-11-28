@@ -87,7 +87,7 @@
                                                :es-MX       {:output-to "resources/public/js/production-demos/es-MX.js"
                                                              :entries   #{translations.es-MX}}
                                                :main        {:output-to "resources/public/js/production-demos/main-ui.js"
-                                                             :entries   #{recipes.dynamic-ui-main}}}
+                                                             :entries   #{cards.dynamic-ui-main}}}
                                :optimizations :advanced}}
                {:id           "demos"
                 :source-paths ["src/main" "src/demos"]
@@ -103,7 +103,7 @@
                                                :es-MX       {:output-to "resources/public/js/demos/es-MX.js"
                                                              :entries   #{translations.es-MX}}
                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
-                                                             :entries   #{recipes.dynamic-ui-main}}}
+                                                             :entries   #{cards.dynamic-ui-main}}}
                                :optimizations :none}}
                {:id           "demo-i18n"
                 :source-paths ["src/main" "src/demos"]
@@ -169,7 +169,6 @@
                                          [fulcrologic/fulcro-css "2.0.0-SNAPSHOT"] ; demos
                                          [com.rpl/specter "1.0.5"] ; only used in demos
                                          [org.flywaydb/flyway-core "4.2.0"]
-                                         [com.layerware/hugsql "0.4.8"]
                                          [org.clojure/tools.namespace "0.3.0-alpha4"]
                                          [cljsjs/codemirror "5.8.0-0"]
                                          [org.clojure/tools.nrepl "0.2.13"]]}
@@ -181,7 +180,6 @@
                                            [fulcrologic/fulcro-css "2.0.0-SNAPSHOT"] ; demos
                                            [com.rpl/specter "1.0.5"] ; only used in demos
                                            [org.flywaydb/flyway-core "4.2.0"]
-                                           [com.layerware/hugsql "0.4.8"]
                                            [fulcrologic/fulcro-sql "0.3.0-SNAPSHOT"] ; demos
                                            [org.clojure/java.jdbc "0.7.3"] ; pinned dependency
                                            [org.postgresql/postgresql "42.1.4"] ; demos
@@ -205,7 +203,6 @@
                                          [hickory "0.7.1"]
                                          [com.rpl/specter "1.0.5"] ; only used in demos
                                          [org.flywaydb/flyway-core "4.2.0"]
-                                         [com.layerware/hugsql "0.4.8"]
                                          [org.clojure/tools.namespace "0.3.0-alpha4"]
                                          [cljsjs/codemirror "5.8.0-0"]
                                          [org.clojure/tools.nrepl "0.2.13"]]}})
