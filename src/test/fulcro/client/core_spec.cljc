@@ -529,37 +529,52 @@
 
 #?(:clj
    (specification "defsc helpers" :focused
-     (component "validate-query"
+     (component "build-query-forms"
        (assertions
          "Honors the symbol for this that is defined by defsc"
-         (#'fc/validate-query 'that 'props '[:db/id])
+         (#'fc/build-query-forms 'that 'props {:template '[:db/id]})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'that] [:db/id]))
          "Composes properties and joins into a proper query expression as a list of defui forms"
-         (#'fc/validate-query 'this 'props '[:db/id :person/name {:person/job (prim/get-query Job)} {:person/settings (prim/get-query Settings)}])
+         (#'fc/build-query-forms 'this 'props {:template '[:db/id :person/name {:person/job (prim/get-query Job)} {:person/settings (prim/get-query Settings)}]})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'this] [:db/id :person/name {:person/job (~'prim/get-query ~'Job)} {:person/settings (~'prim/get-query ~'Settings)}]))
          "Verifies the propargs matches queries data when not a symbol"
-         (#'fc/validate-query 'this '{:keys [db/id person/nme person/job]} '[:db/id :person/name {:person/job (prim/get-query Job)}])
+         (#'fc/build-query-forms 'this '{:keys [db/id person/nme person/job]} {:template '[:db/id :person/name {:person/job (prim/get-query Job)}]})
          =throws=> (ExceptionInfo #"One or more destructured parameters" (fn [e]
                                                                            (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
      (component "build-initial-state"
        (assertions
          "Generates nothing when there is entry"
-         (#'fc/build-initial-state 'S nil #{} [] false) => nil
+         (#'fc/build-initial-state 'S nil #{} {:template []} false) => nil
          "Can build initial state from a method"
-         (#'fc/build-initial-state 'S {:method '(initial-state [t p] {:x 1})} #{} [] false) =>
+         (#'fc/build-initial-state 'S {:method '(initial-state [t p] {:x 1})} #{} {:template []} false) =>
          '(static fulcro.client.core/InitialAppState
             (initial-state [t p] {:x 1}))
          "Can build initial state from a template"
-         (#'fc/build-initial-state 'S {:template {}} #{} [] false) =>
+         (#'fc/build-initial-state 'S {:template {}} #{} {:template []} false) =>
          '(static fulcro.client.core/InitialAppState
             (initial-state [c params]
-              (fulcro.client.core/make-state-map {} [] params)))
-
+              (fulcro.client.core/make-state-map {} {} params)))
+         "If the query is a method, so must the initial state"
+         (#'fc/build-initial-state 'S {:template {:x 1}} #{} {:method '(query [t] [])} false) =throws=>
+         (ExceptionInfo #"When query is a method, initial state MUST")
+         "Allows any state in initial-state method form, independent of the query form"
+         (#'fc/build-initial-state 'S {:method '(initial-state [t p] {:x 1 :y 2})} #{} {:tempate []} false) =>
+         '(static fulcro.client.core/InitialAppState (initial-state [t p] {:x 1 :y 2}))
+         (#'fc/build-initial-state 'S {:method '(initial-state [t p] {:x 1 :y 2})} #{} {:method '(query [t] [])} false) =>
+         '(static fulcro.client.core/InitialAppState (initial-state [t p] {:x 1 :y 2}))
+         "In template mode: Disallows initial state to contain items that are not in the query"
+         (#'fc/build-initial-state 'S {:template {:x 1}} #{} {:template [:x]} false) =throws=>
+         (ExceptionInfo #"Initial state includes keys that are not" (fn [e] (-> (ex-data e) :offending-keys (= #{:x}))))
+         "Generates proper state parameters to make-state-map when data is available"
+         (#'fc/build-initial-state 'S {:template {:x 1}} #{:x} {:template [:x]} false) =>
+         '(static fulcro.client.core/InitialAppState
+            (initial-state [c params]
+              (fulcro.client.core/make-state-map {:x 1} {} params)))
          "Adds build-form around the initial state if it is a template and there are form fields"
-         (#'fc/build-initial-state 'S {:template {}} #{} [] true) =>
+         (#'fc/build-initial-state 'S {:template {}} #{} {:template []} true) =>
          '(static fulcro.client.core/InitialAppState
             (initial-state [c params]
-              (fulcro.ui.forms/build-form S (fulcro.client.core/make-state-map {} [] params))))))
+              (fulcro.ui.forms/build-form S (fulcro.client.core/make-state-map {} {} params))))))
      (component "build-ident"
        (assertions
          "Generates nothing when there is no table"

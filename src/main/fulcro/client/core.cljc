@@ -598,21 +598,21 @@
              (throw (ex-info "Syntax error in defsc. One or more destructured parameters do not appear in your query!" {:offending-symbols illegal-syms})))
            `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
        method
-       `(~'static om.next/IQuery ~(replace-and-validate-fn 'query 1 method)))))
+       `(~'static fulcro.client.primitives/IQuery ~method))))
 
 #?(:clj
    (defn- build-ident
      "Builds the ident form. If ident is a vector, then it generates the function and validates that the ID is
      in the query. Otherwise, if ident is of the form (ident [this props] ...) it simply generates the correct
      entry in defui without error checking."
-     [{:keys [:method :template]} legal-keys]
+     [{:keys [:method :template]} is-legal-key?]
      (cond
        method `(~'static fulcro.client.primitives/Ident ~method)
        template (let [table   (first template)
                       id-prop (or (second template) :db/id)]
                   (cond
                     (nil? table) (throw (ex-info "TABLE part of ident template was nil" {}))
-                    (not (contains? legal-keys id-prop)) (throw (ex-info "ID property of :ident does not appear in your :query" {:id-property id-prop}))
+                    (not (is-legal-key? id-prop)) (throw (ex-info "ID property of :ident does not appear in your :query" {:id-property id-prop}))
                     :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
 
 #?(:clj
