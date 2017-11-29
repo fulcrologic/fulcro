@@ -528,9 +528,14 @@
       (get-in new-state [:graph 1]) => graph-1)))
 
 #?(:clj
-   (specification "defsc helpers" :focused
+   (specification "defsc helpers"
      (component "build-query-forms"
        (assertions
+         "Support a method form"
+         (#'fc/build-query-forms 'that 'props {:method '(fn [this] [:db/id])})
+         => `(~'static fulcro.client.primitives/IQuery (~'query [~'this] [:db/id]))
+         (#'fc/build-query-forms 'that 'props {:method '(query [this] [:db/id])})
+         => `(~'static fulcro.client.primitives/IQuery (~'query [~'this] [:db/id]))
          "Honors the symbol for this that is defined by defsc"
          (#'fc/build-query-forms 'that 'props {:template '[:db/id]})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'that] [:db/id]))
@@ -546,7 +551,7 @@
          "Generates nothing when there is entry"
          (#'fc/build-initial-state 'S nil #{} {:template []} false) => nil
          "Can build initial state from a method"
-         (#'fc/build-initial-state 'S {:method '(initial-state [t p] {:x 1})} #{} {:template []} false) =>
+         (#'fc/build-initial-state 'S {:method '(fn [t p] {:x 1})} #{} {:template []} false) =>
          '(static fulcro.client.core/InitialAppState
             (initial-state [t p] {:x 1}))
          "Can build initial state from a template"
@@ -555,26 +560,26 @@
             (initial-state [c params]
               (fulcro.client.core/make-state-map {} {} params)))
          "If the query is a method, so must the initial state"
-         (#'fc/build-initial-state 'S {:template {:x 1}} #{} {:method '(query [t] [])} false) =throws=>
-         (ExceptionInfo #"When query is a method, initial state MUST")
+         (#'fc/build-initial-state 'S {:template {:x 1}} #{} {:method '(fn [t] [])} false)
+         =throws=> (ExceptionInfo #"When query is a method, initial state MUST")
          "Allows any state in initial-state method form, independent of the query form"
-         (#'fc/build-initial-state 'S {:method '(initial-state [t p] {:x 1 :y 2})} #{} {:tempate []} false) =>
-         '(static fulcro.client.core/InitialAppState (initial-state [t p] {:x 1 :y 2}))
+         (#'fc/build-initial-state 'S {:method '(fn [t p] {:x 1 :y 2})} #{} {:tempate []} false)
+         => '(static fulcro.client.core/InitialAppState (initial-state [t p] {:x 1 :y 2}))
          (#'fc/build-initial-state 'S {:method '(initial-state [t p] {:x 1 :y 2})} #{} {:method '(query [t] [])} false) =>
          '(static fulcro.client.core/InitialAppState (initial-state [t p] {:x 1 :y 2}))
          "In template mode: Disallows initial state to contain items that are not in the query"
-         (#'fc/build-initial-state 'S {:template {:x 1}} #{} {:template [:x]} false) =throws=>
-         (ExceptionInfo #"Initial state includes keys that are not" (fn [e] (-> (ex-data e) :offending-keys (= #{:x}))))
+         (#'fc/build-initial-state 'S {:template {:x 1}} #{} {:template [:x]} false)
+         =throws=> (ExceptionInfo #"Initial state includes keys that are not" (fn [e] (-> (ex-data e) :offending-keys (= #{:x}))))
          "Generates proper state parameters to make-state-map when data is available"
-         (#'fc/build-initial-state 'S {:template {:x 1}} #{:x} {:template [:x]} false) =>
-         '(static fulcro.client.core/InitialAppState
-            (initial-state [c params]
-              (fulcro.client.core/make-state-map {:x 1} {} params)))
+         (#'fc/build-initial-state 'S {:template {:x 1}} #{:x} {:template [:x]} false)
+         => '(static fulcro.client.core/InitialAppState
+               (initial-state [c params]
+                 (fulcro.client.core/make-state-map {:x 1} {} params)))
          "Adds build-form around the initial state if it is a template and there are form fields"
-         (#'fc/build-initial-state 'S {:template {}} #{} {:template []} true) =>
-         '(static fulcro.client.core/InitialAppState
-            (initial-state [c params]
-              (fulcro.ui.forms/build-form S (fulcro.client.core/make-state-map {} {} params))))))
+         (#'fc/build-initial-state 'S {:template {}} #{} {:template []} true)
+         => '(static fulcro.client.core/InitialAppState
+               (initial-state [c params]
+                 (fulcro.ui.forms/build-form S (fulcro.client.core/make-state-map {} {} params))))))
      (component "build-ident"
        (assertions
          "Generates nothing when there is no table"
@@ -583,11 +588,32 @@
          "Requires the ID to be in the declared props"
          (#'fc/build-ident {:template [:TABLE/by-id :id]} #{}) =throws=> (ExceptionInfo #"ID property of :ident")
          "Can use a ident method to build the defui forms"
-         (#'fc/build-ident {:method '(ident [this props] [:x :id])} #{}) =>
-         '(static fulcro.client.primitives/Ident (ident [this props] [:x :id]))
+         (#'fc/build-ident {:method '(ident [this props] [:x :id])} #{})
+         => '(static fulcro.client.primitives/Ident (ident [this props] [:x :id]))
          "Can use a vector template to generate defui forms"
          (#'fc/build-ident {:template [:TABLE/by-id :id]} #{:id})
          => `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [:TABLE/by-id (:id ~'props)]))))
+     (component "rename-and-validate-fn"
+       (assertions
+         "Replaces the first symbol in a method/lambda form"
+         (#'fc/replace-and-validate-fn 'nm 1 '(fn [this] ...)) => '(nm [this] ...)
+         "Throws an exception if the arity is wrong"
+         (#'fc/replace-and-validate-fn 'nm 2 '(fn [this] ...))
+         =throws=> (ExceptionInfo #"Invalid arity for nm")))
+     (component "build-css"
+       (assertions
+         "Can take templates and turn them into the proper protocol"
+         (#'fc/build-css {:template []} {:template []})
+         => '(static fulcro-css.css/CSS
+               (local-rules [_] [])
+               (include-children [_] []))
+         "Can take methods and turn them into the proper protocol"
+         (#'fc/build-css {:method '(fn [t] [:rule])} {:method '(fn [this] [CrapTastic])})
+         => '(static fulcro-css.css/CSS
+               (local-rules [t] [:rule])
+               (include-children [this] [CrapTastic]))
+         "Omits the entire protocol if neiter are supplied"
+         (#'fc/build-css nil nil) => nil))
      (component "build-render"
        (assertions
          "emits a list of forms for the render itself"
@@ -695,7 +721,91 @@
              {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
-   (specification "defsc" :focused
+   (specification "defsc"
+     (component "css"
+       (let [expected-defui '(fulcro.client.primitives/defui Person
+                               static
+                               fulcro-css.css/CSS
+                               (local-rules [_] [:rule])
+                               (include-children [_] [A])
+                               static
+                               fulcro.client.primitives/IQuery
+                               (query [this] [:db/id])
+                               Object
+                               (render [this]
+                                 (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)
+                                                    _ (fulcro.client.primitives/get-computed this)
+                                                    _ (fulcro.client.primitives/children this)]
+                                   (dom/div nil "Boo"))))]
+         (assertions
+           "allows optional use of include"
+           (fc/defsc* '(Person
+                         [this {:keys [db/id]} _ _]
+                         {:query [:db/id]
+                          :css   [:rule]}
+                         (dom/div nil "Boo")))
+           => '(fulcro.client.primitives/defui Person
+                 static
+                 fulcro-css.css/CSS
+                 (local-rules [_] [:rule])
+                 (include-children [_] [])
+                 static
+                 fulcro.client.primitives/IQuery
+                 (query [this] [:db/id])
+                 Object
+                 (render [this]
+                   (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)
+                                      _ (fulcro.client.primitives/get-computed this)
+                                      _ (fulcro.client.primitives/children this)]
+                     (dom/div nil "Boo"))))
+           "allows optional use of css"
+           (fc/defsc* '(Person
+                         [this {:keys [db/id]} _ _]
+                         {:query       [:db/id]
+                          :css-include [A]}
+                         (dom/div nil "Boo")))
+           => '(fulcro.client.primitives/defui Person
+                 static
+                 fulcro-css.css/CSS
+                 (local-rules [_] [])
+                 (include-children [_] [A])
+                 static
+                 fulcro.client.primitives/IQuery
+                 (query [this] [:db/id])
+                 Object
+                 (render [this]
+                   (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)
+                                      _ (fulcro.client.primitives/get-computed this)
+                                      _ (fulcro.client.primitives/children this)]
+                     (dom/div nil "Boo"))))
+           "checks method arities"
+           (fc/defsc* '(Person
+                         [this {:keys [db/id]} _ _]
+                         {:query [:db/id]
+                          :css   (fn [a b] [])}
+                         (dom/div nil "Boo")))
+           =throws=> (ExceptionInfo #"Invalid arity for css")
+           (fc/defsc* '(Person
+                         [this {:keys [db/id]} _ _]
+                         {:query       [:db/id]
+                          :css-include (fn [a b] [])}
+                         (dom/div nil "Boo")))
+           =throws=> (ExceptionInfo #"Invalid arity for css-include")
+           "allows method bodies"
+           (fc/defsc* '(Person
+                         [this {:keys [db/id]} _ _]
+                         {:query       [:db/id]
+                          :css         (fn [_] [:rule])
+                          :css-include (fn [_] [A])}
+                         (dom/div nil "Boo")))
+           => expected-defui
+           (fc/defsc* '(Person
+                         [this {:keys [db/id]} _ _]
+                         {:query       [:db/id]
+                          :css         (some-random-name [_] [:rule]) ; doesn't really care what sym you use
+                          :css-include (craptastic! [_] [A])}
+                         (dom/div nil "Boo")))
+           => expected-defui)))
      (assertions
        "works with initial state"
        (#'fc/defsc* '(Person

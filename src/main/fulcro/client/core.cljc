@@ -598,7 +598,7 @@
              (throw (ex-info "Syntax error in defsc. One or more destructured parameters do not appear in your query!" {:offending-symbols illegal-syms})))
            `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
        method
-       `(~'static fulcro.client.primitives/IQuery ~method))))
+       `(~'static fulcro.client.primitives/IQuery ~(replace-and-validate-fn 'query 1 method)))))
 
 #?(:clj
    (defn- build-ident
@@ -607,7 +607,7 @@
      entry in defui without error checking."
      [{:keys [:method :template]} is-legal-key?]
      (cond
-       method `(~'static fulcro.client.primitives/Ident ~method)
+       method `(~'static fulcro.client.primitives/Ident ~(replace-and-validate-fn 'ident 2 method))
        template (let [table   (first template)
                       id-prop (or (second template) :db/id)]
                   (cond
