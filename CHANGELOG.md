@@ -1,3 +1,8 @@
+1.2.2
+-----
+- Back-ported improvements to defsc to 1.x dev line. Supports lambdas
+for options as well as the original templates. See docstring.
+
 1.2.0
 -----
 - Added support for tools to be notified when a Fulcro app starts so they

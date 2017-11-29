@@ -533,28 +533,6 @@
 
 #?(:clj
    (specification "defsc helpers"
-     (component "validate-query"
-       (assertions
-         "Honors the symbol for this that is defined by defsc"
-         (#'fc/validate-query 'that 'props '[:db/id])
-         => `(~'static om.next/IQuery (~'query [~'that] [:db/id]))
-         "Composes properties and joins into a proper query expression as a list of defui forms"
-         (#'fc/validate-query 'this 'props '[:db/id :person/name {:person/job (om/get-query Job)} {:person/settings (om/get-query Settings)}])
-         => `(~'static om.next/IQuery (~'query [~'this] [:db/id :person/name {:person/job (~'om/get-query ~'Job)} {:person/settings (~'om/get-query ~'Settings)}]))
-         "Verifies the propargs matches queries data when not a symbol"
-         (#'fc/validate-query 'this '{:keys [db/id person/nme person/job]} '[:db/id :person/name {:person/job (om/get-query Job)}])
-         =throws=> (ExceptionInfo #"One or more destructured parameters" (fn [e]
-                                                               (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
-     (component "build-ident"
-       (assertions
-         "Generates nothing when there is no table"
-         (#'fc/build-ident :db/id nil #{}) => nil
-         (#'fc/build-ident :id nil #{:boo}) => nil
-         "Requires the ID to be in the declared props"
-         (#'fc/build-ident :id :TABLE/by-id #{}) =throws=> (ExceptionInfo #"ID property of :ident")
-         "Generates a list of forms to emit as the ident function"
-         (#'fc/build-ident :id :TABLE/by-id #{:id})
-         => `(~'static om.next/Ident (~'ident [~'this ~'props] [:TABLE/by-id (:id ~'props)]))))
      (component "build-render"
        (assertions
          "emits a list of forms for the render itself"

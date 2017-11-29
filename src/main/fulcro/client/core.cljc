@@ -565,31 +565,52 @@
                   [k cls])
                 nil) query))))
 
-#?(:clj
-   (defn- validate-query
-     "Validate that the property destructuring and query make sense with each other."
-     [thissym propargs query]
-     (assert (or (symbol? propargs) (map? propargs)) "Property args must be a symbol or destructuring expression.")
-     (let [to-keyword        (fn [s] (cond
-                                       (nil? s) nil
-                                       (keyword? s) s
-                                       :otherwise (let [nspc (namespace s)
-                                                        nm   (name s)]
-                                                    (keyword nspc nm))))
-           destructured-keys (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
-           queried-keywords  (legal-keys query)
-           to-sym            (fn [k] (symbol (namespace k) (name k)))
-           illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
-       (when (seq illegal-syms)
-         (throw (ex-info "Syntax error in defsc. One or more destructured parameters do not appear in your query!" {:offending-symbols illegal-syms})))
-       `(~'static om.next/IQuery (~'query [~thissym] ~query)))))
+(defn- replace-and-validate-fn
+  "Replace the first sym in a list (the function name) with the given symbol."
+  ([sym arity fn-form] (replace-and-validate-fn sym arity fn-form sym))
+  ([sym arity fn-form user-known-sym]
+   (when-not (= arity (count (second fn-form)))
+     (throw (ex-info (str "Invalid arity for " user-known-sym) {})))
+   (conj (rest fn-form) sym)))
 
 #?(:clj
-   (defn- build-ident [id-prop table legal-keys]
+   (defn- build-query-forms
+     "Validate that the property destructuring and query make sense with each other."
+     [thissym propargs {:keys [template method]}]
      (cond
-       (nil? table) nil
-       (not (contains? legal-keys id-prop)) (throw (ex-info "ID property of :ident must appear in your :query" {}))
-       :otherwise `(~'static om.next/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))
+       template
+       (do
+         (assert (or (symbol? propargs) (map? propargs)) "Property args must be a symbol or destructuring expression.")
+         (let [to-keyword        (fn [s] (cond
+                                           (nil? s) nil
+                                           (keyword? s) s
+                                           :otherwise (let [nspc (namespace s)
+                                                            nm   (name s)]
+                                                        (keyword nspc nm))))
+               destructured-keys (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
+               queried-keywords  (legal-keys template)
+               to-sym            (fn [k] (symbol (namespace k) (name k)))
+               illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
+           (when (seq illegal-syms)
+             (throw (ex-info "Syntax error in defsc. One or more destructured parameters do not appear in your query!" {:offending-symbols illegal-syms})))
+           `(~'static om.next/IQuery (~'query [~thissym] ~template))))
+       method
+       `(~'static om.next/IQuery ~(replace-and-validate-fn 'query 1 method)))))
+
+#?(:clj
+   (defn- build-ident
+     "Builds the ident form. If ident is a vector, then it generates the function and validates that the ID is
+     in the query. Otherwise, if ident is of the form (ident [this props] ...) it simply generates the correct
+     entry in defui without error checking."
+     [{:keys [:method :template]} is-legal-key?]
+     (cond
+       method `(~'static om.next/Ident ~(replace-and-validate-fn 'ident 2 method))
+       template (let [table   (first template)
+                      id-prop (or (second template) :db/id)]
+                  (cond
+                    (nil? table) (throw (ex-info "TABLE part of ident template was nil" {}))
+                    (not (is-legal-key? id-prop)) (throw (ex-info "ID property of :ident does not appear in your :query" {:id-property id-prop}))
+                    :otherwise `(~'static om.next/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
 
 #?(:clj
    (defn- build-render [thissym propsym compsym childrensym body]
@@ -603,8 +624,8 @@
 (defn make-state-map
   "Build a component's initial state using the defsc initial-state-data from
   options, the children from options, and the params from the invocation of get-initial-state."
-  [initial-state children params]
-  (let [join-keys (set (keys children))
+  [initial-state children-by-query-key params]
+  (let [join-keys (set (keys children-by-query-key))
         init-keys (set (keys initial-state))
         is-child? (fn [k] (contains? join-keys k))
         value-of  (fn value-of* [[k v]]
@@ -615,7 +636,7 @@
                           param-key     (param-name v)
                           param-exists? (contains? params param-key)
                           param-value   (get params param-key)
-                          child-class   (get children k)]
+                          child-class   (get children-by-query-key k)]
                       (cond
                         (and param-key (not param-exists?)) nil
                         (and (map? v) (is-child? k)) [k (get-initial-state child-class (into {} (keep value-of* v)))]
@@ -629,50 +650,67 @@
     (into {} (keep value-of initial-state))))
 
 #?(:clj
-   (defn- build-initial-state [sym initial-state legal-keys children is-a-form?]
-     (when initial-state
-       (let [join-keys     (set (keys children))
-             init-keys     (set (keys initial-state))
-             illegal-keys  (set/difference init-keys legal-keys)
-             is-child?     (fn [k] (contains? join-keys k))
-             param-expr    (fn [v]
-                             (if-let [kw (and (keyword? v) (= "param" (namespace v))
-                                           (keyword (name v)))]
-                               `(~kw ~'params)
-                               v))
-             parameterized (fn [init-map] (into {} (map (fn [[k v]] (if-let [expr (param-expr v)] [k expr] [k v])) init-map)))
-             child-state   (fn [k]
-                             (let [state-params    (get initial-state k)
-                                   to-one?         (map? state-params)
-                                   to-many?        (and (vector? state-params) (every? map? state-params))
-                                   from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
-                                   child-class     (get children k)]
-                               (cond
-                                 (not (or from-parameter? to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
-                                 to-one? `(fulcro.client.core/get-initial-state ~child-class ~(parameterized state-params))
-                                 to-many? (mapv (fn [params]
-                                                  `(fulcro.client.core/get-initial-state ~child-class ~(parameterized params)))
-                                            state-params)
-                                 from-parameter? `(fulcro.client.core/get-initial-state ~child-class ~(param-expr state-params))
-                                 :otherwise nil)))
-             kv-pairs      (map (fn [k]
-                                  [k (if (is-child? k)
-                                       (child-state k)
-                                       (param-expr (get initial-state k)))]) init-keys)
-             state-map     (into {} kv-pairs)]
-         (when (seq illegal-keys)
-           (throw (ex-info "Initial state includes keys that are not in your query." {:offending-keys illegal-keys})))
-         (if is-a-form?
-           `(~'static fulcro.client.core/InitialAppState
-              (~'initial-state [~'c ~'params] (fulcro.ui.forms/build-form ~sym (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))
-           `(~'static fulcro.client.core/InitialAppState
-              (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children ~'params))))))))
+   (defn build-and-validate-initial-state-map [sym initial-state legal-keys children-by-query-key is-a-form?]
+     (let [join-keys     (set (keys children-by-query-key))
+           init-keys     (set (keys initial-state))
+           illegal-keys  (set/difference init-keys legal-keys)
+           is-child?     (fn [k] (contains? join-keys k))
+           param-expr    (fn [v]
+                           (if-let [kw (and (keyword? v) (= "param" (namespace v))
+                                         (keyword (name v)))]
+                             `(~kw ~'params)
+                             v))
+           parameterized (fn [init-map] (into {} (map (fn [[k v]] (if-let [expr (param-expr v)] [k expr] [k v])) init-map)))
+           child-state   (fn [k]
+                           (let [state-params    (get initial-state k)
+                                 to-one?         (map? state-params)
+                                 to-many?        (and (vector? state-params) (every? map? state-params))
+                                 from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
+                                 child-class     (get children-by-query-key k)]
+                             (cond
+                               (not (or from-parameter? to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
+                               to-one? `(fulcro.client.core/get-initial-state ~child-class ~(parameterized state-params))
+                               to-many? (mapv (fn [params]
+                                                `(fulcro.client.core/get-initial-state ~child-class ~(parameterized params)))
+                                          state-params)
+                               from-parameter? `(fulcro.client.core/get-initial-state ~child-class ~(param-expr state-params))
+                               :otherwise nil)))
+           kv-pairs      (map (fn [k]
+                                [k (if (is-child? k)
+                                     (child-state k)
+                                     (param-expr (get initial-state k)))]) init-keys)
+           state-map     (into {} kv-pairs)]
+       (when (seq illegal-keys)
+         (throw (ex-info "Initial state includes keys that are not in your query." {:offending-keys illegal-keys})))
+       (if is-a-form?
+         `(~'static fulcro.client.core/InitialAppState
+            (~'initial-state [~'c ~'params] (fulcro.ui.forms/build-form ~sym (fulcro.client.core/make-state-map ~initial-state ~children-by-query-key ~'params))))
+         `(~'static fulcro.client.core/InitialAppState
+            (~'initial-state [~'c ~'params] (fulcro.client.core/make-state-map ~initial-state ~children-by-query-key ~'params)))))))
 
-#?(:clj (s/def ::ident vector?))
-#?(:clj (s/def ::query vector?))
-#?(:clj (s/def ::initial-state map?))
-#?(:clj (s/def ::css vector?))
-#?(:clj (s/def ::css-include (s/and vector? #(every? symbol? %))))
+#?(:clj
+   (defn build-raw-initial-state
+     "Given an initial state form that is a list (function-form), simple copy it into the form needed by defui."
+     [method]
+     `(~'static fulcro.client.core/InitialAppState
+        ~(replace-and-validate-fn 'initial-state 2 method))))
+
+#?(:clj
+   (defn- build-initial-state [sym {:keys [template method]} legal-keys query-template-or-method is-a-form?]
+     (when (and template (contains? query-template-or-method :method))
+       (throw (ex-info "When query is a method, initial state MUST be as well." {:component sym})))
+     (cond
+       method (build-raw-initial-state method)
+       template (let [query    (:template query-template-or-method)
+                      children (or (children-by-prop query) {})]
+                  (build-and-validate-initial-state-map sym template legal-keys children is-a-form?)))))
+
+#?(:clj (s/def ::ident (s/or :template (s/and vector? #(= 2 (count %))) :method list?)))
+#?(:clj (s/def ::query (s/or :template vector? :method list?)))
+#?(:clj (s/def ::initial-state (s/or :template map? :method list?)))
+#?(:clj (s/def ::css (s/or :template vector? :method list?)))
+#?(:clj (s/def ::css-include (s/or :template (s/and vector? #(every? symbol? %)) :method list?)))
+
 #?(:clj (s/def ::options (s/keys :opt-un [::query ::ident ::initial-state ::css ::css-include])))
 
 #?(:clj (s/def ::defsc-args (s/cat
@@ -681,9 +719,9 @@
                               :arglist (s/and vector? #(= 4 (count %)))
                               :options ::options
                               :body (s/+ (constantly true)))))
-
 #?(:clj (s/def ::static #{'static}))
 #?(:clj (s/def ::protocol-method list?))
+
 #?(:clj (s/def ::protocols (s/* (s/cat :static (s/? ::static) :protocol symbol? :methods (s/+ ::protocol-method)))))
 
 #?(:clj
@@ -693,17 +731,23 @@
           (~'form-spec [~'this] ~form-fields)))))
 
 #?(:clj
-   (defn build-css [css includes]
-     (when (or css includes)
-       (let [css      (or css [])
-             includes (or includes [])]
-         (when-not (vector? css)
-           (throw (ex-info "css MUST be a vector of garden-syntax rules" {})))
-         (when-not (and (vector? includes) (every? symbol? includes))
-           (throw (ex-info "css-include must be a vector of component symbols" {})))
+   (defn build-css [{css-method :method css-template :template} {include-method :method include-template :template}]
+     (when (or css-method css-template include-method include-template)
+       (let [local-form   (cond
+                            css-template (if-not (vector? css-template)
+                                           (throw (ex-info "css MUST be a vector of garden-syntax rules" {}))
+                                           `(~'local-rules [~'_] ~css-template))
+                            css-method (replace-and-validate-fn 'local-rules 1 css-method 'css)
+                            :else '(local-rules [_] []))
+             include-form (cond
+                            include-template (if-not (and (vector? include-template) (every? symbol? include-template))
+                                               (throw (ex-info "css-include must be a vector of component symbols" {}))
+                                               `(~'include-children [~'_] ~include-template))
+                            include-method (replace-and-validate-fn 'include-children 1 include-method 'css-include)
+                            :else '(include-children [_] []))]
          `(~'static fulcro-css.css/CSS
-            (~'local-rules [~'_] ~css)
-            (~'include-children [~'_] ~includes))))))
+            ~local-form
+            ~include-form)))))
 
 #?(:clj
    (defn defsc*
@@ -717,25 +761,30 @@
      (let [{:keys [sym doc arglist options body]} (s/conform ::defsc-args args)
            [thissym propsym computedsym childrensym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
-           props            (or (legal-keys query) #{})
-           children         (or (children-by-prop query) {})
-           table            (first ident)
-           id               (or (second ident) :db/id)
-           parsed-protocols (when protocols (group-by :protocol (s/conform ::protocols protocols)))
-           object-methods   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
-           addl-protocols   (some->> (dissoc parsed-protocols 'Object)
-                              vals
-                              (map (fn [[v]]
-                                     (if (contains? v :static)
-                                       (concat ['static (:protocol v)] (:methods v))
-                                       (concat [(:protocol v)] (:methods v)))))
-                              (mapcat identity))
-           ident-forms      (build-ident id table props)
-           state-forms      (build-initial-state sym initial-state props children (boolean (seq form-fields)))
-           query-forms      (validate-query thissym propsym query)
-           form-forms       (build-form form-fields)
-           css-forms        (build-css css css-include)
-           render-forms     (build-render thissym propsym computedsym childrensym body)]
+           ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
+           initial-state-template-or-method (into {} [initial-state])
+           query-template-or-method         (into {} [query])
+           css-template-or-method           (into {} [css])
+           css-include-template-or-method  (into {} [css-include])
+           validate-query?                  (:template query-template-or-method)
+           legal-key-cheker                 (if validate-query?
+                                              (or (legal-keys (:template query-template-or-method)) #{})
+                                              (complement #{}))
+           parsed-protocols                 (when protocols (group-by :protocol (s/conform ::protocols protocols)))
+           object-methods                   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
+           addl-protocols                   (some->> (dissoc parsed-protocols 'Object)
+                                              vals
+                                              (map (fn [[v]]
+                                                     (if (contains? v :static)
+                                                       (concat ['static (:protocol v)] (:methods v))
+                                                       (concat [(:protocol v)] (:methods v)))))
+                                              (mapcat identity))
+           ident-forms                      (build-ident ident-template-or-method legal-key-cheker)
+           state-forms                      (build-initial-state sym initial-state-template-or-method legal-key-cheker query-template-or-method (boolean (seq form-fields)))
+           query-forms                      (build-query-forms thissym propsym query-template-or-method)
+           form-forms                       (build-form form-fields)
+           css-forms                        (build-css css-template-or-method css-include-template-or-method)
+           render-forms                     (build-render thissym propsym computedsym childrensym body)]
        (assert (or (nil? protocols) (s/valid? ::protocols protocols)) "Protocols must be valid protocol declarations")
        `(om.next/defui ~(with-meta sym {:once true})
           ~@addl-protocols
@@ -748,7 +797,7 @@
           ~@object-methods))))
 
 #?(:clj
-   (defmacro ^{:doc      "Define a statful component. This macro emits a React UI component with a query,
+   (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI component with a query,
    optional ident (if :ident is specified in options), optional initial state, optional css,
    optional forms, and a render method. It can also emit additional protocols  that you specify.
 
@@ -759,7 +808,7 @@
 
    ```
    (defsc Component [this props computed children]
-      { :query [:db/id :component/x {:component/child (om/get-query Child)} {:component/other (om/get-query Other)}]
+      { :query [:db/id :component/x {:component/child (prim/get-query Child)} {:component/other (prim/get-query Other)}]
         :form-fields [(f/id-field :db/id) ...] ; See IForm in forms for description of form fields
         :css [] ; fulcro-css local-rules
         :css-include [] ; fulcro-css include-children
@@ -785,6 +834,54 @@
    result at compile time, alerting you to your error. Many other things are also checked (that you query for the ID
    field, that initial state only initializes things you query, etc.). This can prevent a lot of common errors when
    building your UI.
+
+   ## Initial State
+
+   IMPORTANT: Initial state using the template (a map) treats the top-level map as the actual data. Anything
+   nested in this map as keys *that match a join in the query* are automatically transformed into calls
+   to `(fc/get-initial-state)`. This is so that error-checking can be performed. Any parameters you expect to
+   receive in your initial state will be mapped via keywords in the `params` namespace:
+
+   ```
+   (defsc Component [this {:keys [db/id component/x] :as props} computed children]
+      { :initial-state {:db/id 2 :component/x {:db/id :params/child-id}}
+       :query [:db/id {:component/x (get-query X)}]
+      ...)
+   ```
+
+   means:
+
+   ```
+   static fc/InitialAppState
+   (initial-state [t {:keys [child-id]}] {:db/id 2 (fc/get-initial-state X {:db/id child-id})})
+   ```
+
+   If the initial state includes keys that do not appear in your query, then it will issue an error. You may
+   avoid this by writing it as a method instead.
+
+   ## Error Checking
+
+   The above for uses templates to succinctly express the methods. When you use the template style you're more
+   restricted in what you can do, but it is also less error prone because the defsc macro can check your component
+   for many errors (such as a typo in desctructuring).
+
+   You may write methods instead of data templates, which loosens the checking (depending on what you still leave
+   as a template). For example, if you make `:ident` a method, the macro is still able to verify destructuring against
+   `:query`.
+
+   ## Using Methods Instead
+
+   You may instead use methods on
+   `:query`, `ident`, `initial-state`. Using the method forms turns off much of the error checking.
+
+   ```
+   (defsc Component [this props computed children]
+     {:query (fn [this] [:x])
+      :initial-state (fn [t p] {:x 1})
+      :ident (fn [this props] [:table (:db/id props)])
+      ...}
+     (dom/div ...))
+   ```
 
    See section M05-More-Concise-UI of the Developer's Guide for more details.
 
