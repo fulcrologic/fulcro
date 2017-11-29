@@ -32,8 +32,8 @@ to use devcards mkdn-pprint-source with mutations in your devcards. See the docs
 - Demos compressed into fewer source files.
 - Websockets demo moved to external project
 - Expanded and cleaned up many portions of the developer's guide
-- Expanded defsc. It can now take a method body for `initial-state` and `ident` in
-addition to a simpler template.
+- Expanded defsc. It can now take a method body for `initial-state`, `ident`, and `query` in
+addition to a simpler template. Using the method forms loosens verification logic.
 
 1.2.1
 -----
