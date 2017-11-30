@@ -701,12 +701,6 @@
   (get-prop c #?(:clj  :fulcro$reconciler
                  :cljs "fulcro$reconciler")))
 
-(defn get-queryid
-  [component]
-  {:pre [(component? c)]}
-  (get-prop c #?(:clj  :fulcro$queryid
-                 :cljs "fulcro$queryid")))
-
 #?(:cljs
    (defn- unwrap [om-props]
      (.-props om-props)))
@@ -1042,6 +1036,13 @@
 
 (def ^{:dynamic true :private true} *query-state* {})
 
+(defn- get-query-qualifier
+  "Get the query qualifier that is cached in the component's props."
+  [component]
+  {:pre [(component? component)]}
+  (get-prop component #?(:clj  :fulcro$queryid
+                         :cljs "fulcro$queryid")))
+
 (defn get-query
   "Get the query for the given class or factory. If called without a state map, then you'll get the declared static
   query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
@@ -1056,8 +1057,8 @@
            ; TODO: Test that query qualifier can be obtained from a component instance.
            qualifier (cond
                        (is-factory? class-or-factory) (-> class-or-factory meta :qualifier)
-                       (component? class-or-factory) (get-queryid class-or-factory)
-                       nil)
+                       (component? class-or-factory) (get-query-qualifier class-or-factory)
+                       :else nil)
            queryid   (query-id class qualifier)]
        (when (and class (has-query? class))
          (get-query-by-id state-map class queryid))))))
