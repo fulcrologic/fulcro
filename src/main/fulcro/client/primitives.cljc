@@ -1036,8 +1036,8 @@
 
 (def ^{:dynamic true :private true} *query-state* {})
 
-(defn- get-query-qualifier
-  "Get the query qualifier that is cached in the component's props."
+(defn- get-query-id
+  "Get the query id that is cached in the component's props."
   [component]
   {:pre [(component? component)]}
   (get-prop component #?(:clj  :fulcro$queryid
@@ -1054,12 +1054,12 @@
                        (is-factory? class-or-factory) (-> class-or-factory meta :class)
                        (component? class-or-factory) (react-type class-or-factory)
                        :else class-or-factory)
-           ; TODO: Test that query qualifier can be obtained from a component instance.
-           qualifier (cond
-                       (is-factory? class-or-factory) (-> class-or-factory meta :qualifier)
-                       (component? class-or-factory) (get-query-qualifier class-or-factory)
-                       :else nil)
-           queryid   (query-id class qualifier)]
+           qualifier (if (is-factory? class-or-factory)
+                       (-> class-or-factory meta :qualifier)
+                       nil)
+           queryid   (if (component? class-or-factory)
+                       (get-query-id class-or-factory)
+                       (query-id class qualifier))]
        (when (and class (has-query? class))
          (get-query-by-id state-map class queryid))))))
 

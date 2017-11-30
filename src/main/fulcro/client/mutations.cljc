@@ -247,7 +247,7 @@
              config         (:config reconciler)
              state          (prim/app-state reconciler)
              root-component (prim/app-root reconciler)
-             root-query     (prim/get-query root-component @state)
+             root-query     (when-not query (prim/get-query root-component @state))
              {:keys [keys next ::prim/tempids]} (prim/merge* reconciler @state data-tree query)]
          (p/queue! reconciler keys remote)
          (reset! state
