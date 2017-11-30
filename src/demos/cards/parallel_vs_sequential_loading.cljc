@@ -10,7 +10,7 @@
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]))
+    [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -49,7 +49,7 @@
 (def ui-child (prim/factory Child {:keyfn :id}))
 
 (defui ^:once Root
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c params] {:children [{:id 1 :name "A"} {:id 2 :name "B"} {:id 3 :name "C"}]})
   static prim/IQuery
   (query [this] [:ui/react-key {:children (prim/get-query Child)}])

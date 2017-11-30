@@ -668,7 +668,7 @@
 
   ```
   (defui ^:once PhoneForm
-    static fc/InitialAppState
+    static prim/InitialAppState
     (initial-state [this params] (f/build-form this (or params {})))
     static f/IForm
     (form-spec [this] [(f/id-field :db/id)

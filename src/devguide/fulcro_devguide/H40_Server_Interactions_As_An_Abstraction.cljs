@@ -1,13 +1,13 @@
 (ns fulcro-devguide.H40-Server-Interactions-As-An-Abstraction
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard-doc]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.network :as net]
             [fulcro.client.util :as util]
-            [fulcro.client.core :as fc :refer [defsc]]
+            [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]))
 
 (defn save [edn]

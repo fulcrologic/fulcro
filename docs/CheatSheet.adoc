@@ -20,8 +20,8 @@
   (query [this] [:prop {:child (prim/get-query Child)}])
   static prim/Ident
   (ident [this props] [:TABLE ID])
-  static fc/InitialAppState
-  (initial-state [class params] {:prop scalar-value :child (fc/get-initial-state Child {})})
+  static prim/InitialAppState
+  (initial-state [class params] {:prop scalar-value :child (prim/get-initial-state Child {})})
   Object
   ; React component methods (optional, see React docs):
   (initLocalState [this] ...)
@@ -144,8 +144,8 @@ there will be a key in the initial state whose value is the `get-initial-state` 
 in the query join.
 +
 ```
-static fc/InitialAppState
-(initial-state [c p] {:scalar-prop 42 :child-props (fc/get-initial-state Child {})})
+static prim/InitialAppState
+(initial-state [c p] {:scalar-prop 42 :child-props (prim/get-initial-state Child {})})
 static prim/IQuery
 (query [this] [:scalar-prop {:child-props (prim/get-query Child)}])
 ```

@@ -2,7 +2,7 @@
   #?(:cljs (:require-macros fulcro.client.routing))
   (:require [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.core :as fc]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.impl.protocols :as p]
             fulcro.client.dom
     #?(:cljs [cljs.loader :as loader])
@@ -29,8 +29,8 @@
                                      (-> cases
                                        (conj kw (screen-render sym)))) [] kws-and-screens)]
          `(fulcro.client.primitives/defui ~(vary-meta sym assoc :once true)
-            ~'static fulcro.client.core/InitialAppState
-            (~'initial-state [~'clz ~'params] (fulcro.client.core/get-initial-state ~first-screen ~'params))
+            ~'static fulcro.client.primitives/InitialAppState
+            (~'initial-state [~'clz ~'params] (fulcro.client.primitives/get-initial-state ~first-screen ~'params))
             ~'static fulcro.client.primitives/Ident
             ~ident-fn
             ~'static fulcro.client.primitives/IQuery
@@ -46,8 +46,8 @@
 #?(:clj
    (defn- emit-router [router-id sym union-sym]
      `(fulcro.client.primitives/defui ~(vary-meta sym assoc :once true)
-        ~'static fulcro.client.core/InitialAppState
-        (~'initial-state [~'clz ~'params] {::id ~router-id ::current-route (fulcro.client.core/get-initial-state ~union-sym ~'params)})
+        ~'static fulcro.client.primitives/InitialAppState
+        (~'initial-state [~'clz ~'params] {::id ~router-id ::current-route (fulcro.client.primitives/get-initial-state ~union-sym ~'params)})
         ~'static fulcro.client.primitives/Ident
         (~'ident [~'this ~'props] [:fulcro.client.routing.routers/by-id ~router-id])
         ~'static fulcro.client.primitives/IQuery
@@ -101,8 +101,8 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 
   ```
   (defui Root
-    static fc/InitialAppState
-    (initial-state [cls params]  (merge {:child-key (fc/get-initial-state Child)}
+    static prim/InitialAppState
+    (initial-state [cls params]  (merge {:child-key (prim/get-initial-state Child)}
                                         (routing-tree
                                           (make-route :route/a [(router-instruction ...)])
                                           ...)))
@@ -200,7 +200,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (defmethod get-dynamic-router-target :default [k] nil)
 
 (defn add-route-state [state-map target-kw component]
-  (let [tree-state       {:tmp/new-route (fc/get-initial-state component nil)}
+  (let [tree-state       {:tmp/new-route (prim/get-initial-state component nil)}
         query            [{:tmp/new-route (prim/get-query component)}]
         normalized-state (-> (prim/tree->db query tree-state true)
                            (dissoc :tmp/new-route))]
@@ -226,7 +226,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   (def target-kw :my-component)
 
   (defui Component
-    static fc/InitialAppState
+    static prim/InitialAppState
     (initial-state [c p] {fulcro.client.routing/dynamic-route-key target-kw})
     static prim/Ident
     (ident [this props] [target-kw :singleton])
@@ -243,7 +243,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (def dynamic-route-key ::dynamic-route)
 
 (defui ^:once DynamicRouter
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz {:keys [id]}] {::id id ::dynamic true ::current-route {}})
   static prim/Ident
   (ident [this props] [routers-table (::id props)])

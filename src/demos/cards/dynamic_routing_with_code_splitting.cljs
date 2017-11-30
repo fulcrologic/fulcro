@@ -38,7 +38,7 @@
 
   ```
   (prim/defui ^:once Main
-    static fc/InitialAppState
+    static prim/InitialAppState
     (initial-state [clz params] {r/dynamic-route-key :main :label \"MAIN\"})
     static prim/Ident
     (ident [this props] [:main :singleton])

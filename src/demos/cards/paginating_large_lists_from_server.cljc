@@ -1,9 +1,9 @@
 (ns cards.paginating-large-lists-from-server
   (:require
     #?@(:cljs [[devcards.core :as dc :include-macros true]
-               [fulcro.client.cards :refer [fulcro-app]]])
+               [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client.mutations :as m]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.server :as server]
     [fulcro.client.data-fetch :as df]
@@ -97,7 +97,7 @@
 (def ui-list-item (prim/factory ListItem {:keyfn :item/id}))
 
 (defui ^:once ListPage
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {:page/number 1 :page/items []})
   static prim/IQuery
   (query [this] [:page/number {:page/items (prim/get-query ListItem)}])
@@ -113,8 +113,8 @@
 (def ui-list-page (prim/factory ListPage {:keyfn :page/number}))
 
 (defui ^:once LargeList
-  static fc/InitialAppState
-  (initial-state [c params] {:list/current-page (fc/get-initial-state ListPage {})})
+  static prim/InitialAppState
+  (initial-state [c params] {:list/current-page (prim/get-initial-state ListPage {})})
   static prim/IQuery
   (query [this] [{:list/current-page (prim/get-query ListPage)}])
   static prim/Ident
@@ -131,8 +131,8 @@
 (def ui-list (prim/factory LargeList))
 
 (defui ^:once Root
-  static fc/InitialAppState
-  (initial-state [c params] {:pagination/list (fc/get-initial-state LargeList {})})
+  static prim/InitialAppState
+  (initial-state [c params] {:pagination/list (prim/get-initial-state LargeList {})})
   static prim/IQuery
   (query [this] [:ui/react-key {:pagination/list (prim/get-query LargeList)}])
   Object
@@ -142,7 +142,7 @@
 
 
 #?(:cljs
-   (dc/defcard paginate-list-card
+   (defcard-fulcro paginate-list-card
      "
      # Paginating Large Lists
 
@@ -157,11 +157,11 @@
      from your current position. You can demostrate this by moving ahead by more than 4 pages, then page back 5. You should
      see a reload of that early page when you go back to it.
      "
-     (fulcro-app Root :started-callback
-       (fn [{:keys [reconciler]}]
-         (prim/transact! reconciler `[(goto-page {:page-number 1})])))
+     Root
      {}
-     {:inspect-data false}))
+     {:inspect-data false
+      :fulcro       {:started-callback (fn [{:keys [reconciler]}]
+                                         (prim/transact! reconciler `[(goto-page {:page-number 1})]))}}))
 
 #?(:cljs
    (dc/defcard-doc

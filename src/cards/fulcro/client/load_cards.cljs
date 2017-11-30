@@ -1,9 +1,9 @@
 (ns fulcro.client.load-cards
   (:require
-    [devcards.core :as dc :refer-macros [defcard]]
+    [devcards.core :as dc]
     [fulcro.client.core :as fc]
-    [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]
@@ -40,7 +40,7 @@
     (swap! state assoc-in [:thing/by-id id] {:id id :label label}))
   (remote [env] true))
 
-(defcard load-with-follow-on-read
+(defcard-fulcro load-with-follow-on-read
   "# Sequential Processing
 
   This card does a write (with a tempid) and a re-read of that as a follow-on read. This
@@ -55,14 +55,14 @@
     - Should see a load marker appear IN the entity
     - Should see no load markers at the end
   "
-  (fulcro-app Root
-    :networking (MockNetwork.)
-    :started-callback (fn [{:keys [reconciler]}]
-                        (let [id (prim/tempid)]
-                          (prim/transact! reconciler `[(add-thing {:id ~id :label "A"})])
-                          (df/load reconciler [:thing/by-id id] Thing))))
+  Root
   {}
-  {:inspect-data true})
+  {:inspect-data true
+   :fulcro       {:networking       (MockNetwork.)
+                  :started-callback (fn [{:keys [reconciler]}]
+                                      (let [id (prim/tempid)]
+                                        (prim/transact! reconciler `[(add-thing {:id ~id :label "A"})])
+                                        (df/load reconciler [:thing/by-id id] Thing)))}})
 
 (defrecord MockNetForMerge []
   net/FulcroNetwork
@@ -73,7 +73,7 @@
                        :else (done-callback {[:thing/by-id 1] {:id 1 :label "UPDATED A"}}))) 500))
   (start [this] this))
 
-(defcard ui-attribute-merge
+(defcard-fulcro ui-attribute-merge
   "# Merging
 
   This card loads over both a non-normalized item, and entry that is normalized from a tree response,
@@ -91,13 +91,13 @@
    :thing       [:thing/by-id 2]}
   ```
   "
-  (fulcro-app Root
-    :started-callback (fn [{:keys [reconciler]}]
-                        (js/setTimeout #(df/load reconciler [:thing/by-id 1] Thing {:refresh [[:fake 1] :no-prop] :without #{:ui/value}}) 100)
-                        (js/setTimeout #(df/load reconciler :thing Thing {:without #{:ui/value}}) 200))
-    :networking (MockNetForMerge.))
+  Root
   {:thing/by-id {1 {:id 1 :label "A" :ui/value 1}
                  2 {:id 2 :label "B" :ui/value 2}
                  3 {:id 3 :label "C" :ui/value 3}}}
-  {:inspect-data true})
+  {:fulcro       {:started-callback (fn [{:keys [reconciler]}]
+                                      (js/setTimeout #(df/load reconciler [:thing/by-id 1] Thing {:refresh [[:fake 1] :no-prop] :without #{:ui/value}}) 100)
+                                      (js/setTimeout #(df/load reconciler :thing Thing {:without #{:ui/value}}) 200))
+                  :networking       (MockNetForMerge.)}
+   :inspect-data true})
 

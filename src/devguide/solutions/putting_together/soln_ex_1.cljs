@@ -5,7 +5,7 @@
             [fulcro.client.data-fetch :as df]))
 
 (defui ^:once TodoItem
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this {:keys [id label complete]}] {:item/id id :item/label label :item/done complete})
   static prim/IQuery
   (query [this] [:item/id :item/label :item/done])
@@ -22,11 +22,11 @@
 (def ui-item (prim/factory TodoItem))
 
 (defui ^:once ItemList
-  static fc/InitialAppState
-  (initial-state [this params] {:list/title "My List" :list/items [(fc/initial-state TodoItem {:id 1 :label "A" :complete false})
-                                                                   (fc/initial-state TodoItem {:id 2 :label "B" :complete false})
-                                                                   (fc/initial-state TodoItem {:id 3 :label "C" :complete true})
-                                                                   (fc/initial-state TodoItem {:id 4 :label "D" :complete false})]})
+  static prim/InitialAppState
+  (initial-state [this params] {:list/title "My List" :list/items [(prim/get-initial-state TodoItem {:id 1 :label "A" :complete false})
+                                                                   (prim/get-initial-state TodoItem {:id 2 :label "B" :complete false})
+                                                                   (prim/get-initial-state TodoItem {:id 3 :label "C" :complete true})
+                                                                   (prim/get-initial-state TodoItem {:id 4 :label "D" :complete false})]})
   static prim/IQuery
   (query [this] [:list/title {:list/items (prim/get-query TodoItem)}])
   static prim/Ident
@@ -42,8 +42,8 @@
 (def ui-item-list (prim/factory ItemList))
 
 (defui ^:once TodoList
-  static fc/InitialAppState
-  (initial-state [this params] {:ui/react-key "A" :item-list (fc/initial-state ItemList nil)})
+  static prim/InitialAppState
+  (initial-state [this params] {:ui/react-key "A" :item-list (prim/get-initial-state ItemList nil)})
   static prim/IQuery
   (query [this] [:ui/react-key {:item-list (prim/get-query ItemList)}])
   Object

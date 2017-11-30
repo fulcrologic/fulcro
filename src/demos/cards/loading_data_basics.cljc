@@ -2,13 +2,13 @@
   (:require
     #?@(:cljs [[devcards.core :as dc :include-macros true]
                [fulcro.client.cards :refer [defcard-fulcro]]])
-    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
+    [fulcro.client.core :as fc]
     [cards.card-utils :refer [sleep now]]
     [fulcro.client.data-fetch :as df]
     [fulcro.util :as util]
     [fulcro.client.mutations :as m]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]
     [fulcro.server :as server]))
 
@@ -59,7 +59,7 @@
 (def ui-person (prim/factory Person {:keyfn :db/id}))
 
 (defui ^:once People
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [kind]}] {:people/kind kind})
   static prim/IQuery
   (query [this] [:people/kind {:people (prim/get-query Person)}])
@@ -76,9 +76,9 @@
 (def ui-people (prim/factory People {:keyfn :people/kind}))
 
 (defui ^:once Root
-  static fc/InitialAppState
-  (initial-state [c {:keys [kind]}] {:friends (fc/get-initial-state People {:kind :friends})
-                                     :enemies (fc/get-initial-state People {:kind :enemies})})
+  static prim/InitialAppState
+  (initial-state [c {:keys [kind]}] {:friends (prim/get-initial-state People {:kind :friends})
+                                     :enemies (prim/get-initial-state People {:kind :enemies})})
   static prim/IQuery
   (query [this] [:ui/react-key
                  {:enemies (prim/get-query People)}

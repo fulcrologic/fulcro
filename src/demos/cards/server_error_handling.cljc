@@ -1,13 +1,13 @@
 (ns cards.server-error-handling
   (:require
     #?@(:cljs [[devcards.core :as dc :include-macros true]
-               [fulcro.client.cards :refer [fulcro-app]]])
+               [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client.core :as fc]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.server :as server]
     [fulcro.client.dom :as dom]))
 
@@ -41,7 +41,7 @@
   (action [env] (log/warn "Read specific fallback: " error)))
 
 (defui ^:once Child
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c params] {})
   static prim/IQuery
   ;; you can query for the server-error using a link from any component that composes to root
@@ -64,8 +64,8 @@
 (def ui-child (prim/factory Child))
 
 (defui ^:once Root
-  static fc/InitialAppState
-  (initial-state [c params] {:child (fc/get-initial-state Child {})})
+  static prim/InitialAppState
+  (initial-state [c params] {:child (prim/get-initial-state Child {})})
   static prim/IQuery
   (query [_] [:ui/react-key {:child (prim/get-query Child)}])
   Object
@@ -89,7 +89,7 @@
      (dc/mkdn-pprint-source Root)))
 
 #?(:cljs
-   (dc/defcard error-handling
+   (defcard-fulcro error-handling
      "# Error Handling
 
      This example has installed a global handler that can watch for network errors (it logs them to the console).
@@ -103,15 +103,12 @@
      In all cases the application internals place the last server error in the top-level `:fulcro/server-error`. You
      should manually clear this if you wish to use it to track hard server errors.
      "
-     (fulcro-app Root
-       :started-callback
-       (fn [{:keys [reconciler]}]
-         ;; specify a fallback mutation symbol as a named parameter after the component or reconciler and query
-         (df/load reconciler :data nil {:fallback `log-read-error}))
-
-       ;; this function is called on *every* network error, regardless of cause
-       :network-error-callback
-       (fn [state status-code error]
-         (log/warn "Global callback:" error " with status code: " status-code)))
+     Root
      {}
-     {:inspect-data true}))
+     {:fulcro       {:started-callback       (fn [{:keys [reconciler]}]
+                                               ;; specify a fallback mutation symbol as a named parameter after the component or reconciler and query
+                                               (df/load reconciler :data nil {:fallback `log-read-error}))
+                     ;; this function is called on *every* network error, regardless of cause
+                     :network-error-callback (fn [state status-code error]
+                                               (log/warn "Global callback:" error " with status code: " status-code))}
+      :inspect-data true}))

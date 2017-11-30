@@ -7,7 +7,7 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.core :as fc]
-    [fulcro.client.primitives :as prim :refer [defui]]))
+    [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 ; Not using an atom, so use a tree for app state (will auto-normalize via ident functions)
 (def initial-state {:ui/react-key "abc"
@@ -30,7 +30,7 @@
             (update-in [:lists 1 :list/items] filter-item)))))))
 
 (defui ^:once Item
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id label]}] {:item/id id :item/label label})
   static prim/IQuery
   (query [this] [:item/id :item/label])
@@ -47,11 +47,11 @@
 (def ui-list-item (prim/factory Item {:keyfn :item/id}))
 
 (defui ^:once ItemList
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {:list/id    1
                         :list/name  "List 1"
-                        :list/items [(fc/get-initial-state Item {:id 1 :label "A"})
-                                     (fc/get-initial-state Item {:id 2 :label "B"})]})
+                        :list/items [(prim/get-initial-state Item {:id 1 :label "A"})
+                                     (prim/get-initial-state Item {:id 2 :label "B"})]})
   static prim/IQuery
   (query [this] [:list/id :list/name {:list/items (prim/get-query Item)}])
   static prim/Ident
@@ -69,8 +69,8 @@
 (def ui-list (prim/factory ItemList))
 
 (defui ^:once Root
-  static fc/InitialAppState
-  (initial-state [c p] {:main-list (fc/get-initial-state ItemList {})})
+  static prim/InitialAppState
+  (initial-state [c p] {:main-list (prim/get-initial-state ItemList {})})
   static prim/IQuery
   (query [this] [:ui/react-key {:main-list (prim/get-query ItemList)}])
   Object

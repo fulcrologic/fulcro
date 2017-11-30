@@ -3,11 +3,11 @@
     #?@(:cljs [[devcards.core :as dc :refer-macros [defcard defcard-doc]]
                [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
     [cards.card-utils :refer [sleep]]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.core :as fc :refer [defsc]]
+    [fulcro.client.core :as fc]
     [fulcro.server :as server]
     [fulcro.util :as util]
     [fulcro.client.data-fetch :as df]))

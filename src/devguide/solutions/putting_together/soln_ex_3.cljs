@@ -1,5 +1,5 @@
 (ns solutions.putting-together.soln-ex-3
-  (:require [fulcro.client.primitives :as prim :refer [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.client.data-fetch :as df]
@@ -32,7 +32,7 @@
   (remote [env] true))
 
 (defui ^:once TodoItem
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this {:keys [id label complete]}] {:item/id id :item/label label :item/done complete})
   static prim/IQuery
   (query [this] [:item/id :item/label :item/done])
@@ -51,7 +51,7 @@
 (def ui-item (prim/factory TodoItem))
 
 (defui ^:once ItemList
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] {:list/title "My List" :list/items []})
   static prim/IQuery
   (query [this] [:ui/new-item-text :list/title {:list/items (prim/get-query TodoItem)}])
@@ -77,8 +77,8 @@
 (def ui-item-list (prim/factory ItemList))
 
 (defui ^:once TodoList
-  static fc/InitialAppState
-  (initial-state [this params] {:ui/react-key "A" :item-list (fc/initial-state ItemList nil)})
+  static prim/InitialAppState
+  (initial-state [this params] {:ui/react-key "A" :item-list (prim/get-initial-state ItemList nil)})
   static prim/IQuery
   (query [this] [:ui/react-key {:item-list (prim/get-query ItemList)}])
   Object

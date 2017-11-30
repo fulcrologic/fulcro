@@ -5,7 +5,7 @@
     [cognitect.transit :as ct]
     #?(:cljs [goog.events :as events])
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.transit :as t]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
@@ -139,7 +139,7 @@
   static f/IForm
   (form-spec [this] [(f/id-field :file-upload/id)
                      (f/subform-element :file-upload/files File :many)])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [cls {:keys [id]}] (f/build-form FileUploadInput {:file-upload/id id :file-upload/files []}))
   static prim/IQuery
   (query [this] [f/form-key f/form-root-key :file-upload/id
@@ -251,7 +251,8 @@
                                                     incoming-remap-id (->> edn prim/get-tempids keys first)]
                                                 ; force update of forms at completion of upload, so validation states can update
                                                 (omp/queue! @reconciler [f/form-root-key])
-                                                (ok {ident file `add-file edn} [{ident (prim/get-query File)}])))
+                                                (js/console.log {ident file `add-file edn} [{ident (prim/get-query File)} `(add-file)])
+                                                (ok {ident file `add-file edn} [{ident (prim/get-query File)} `(add-file)])))
                                progress-fn  (fn [evt]
                                               (let [ident    (file-ident id)
                                                     file-obj (get-in @state ident)

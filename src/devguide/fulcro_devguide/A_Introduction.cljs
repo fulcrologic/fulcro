@@ -16,10 +16,53 @@
 
   ## What is Fulcro?
 
-  Fulcro is a full-stack library based upon the concepts of Om Next by David Nolen. It allows you to build data-driven full-stack single-page
-  software using what we feel is a more well-rounded set of primitives that other competing libraries. Fulcro requires that
-  you change how you think about developing your software, but the good news is that once you understand the model you'll
-  be surprised at how uniform and simple most tasks become (all the way end-to-end, not just in the UI).
+  Fulcro is a full-stack library based upon the concepts of Om Next by David Nolen. It allows you to build data-driven, full-stack,
+  single-page software using a well-rounded set of primitives. Think React+Redux+GraphQL, but with a *lot* less boilerplate and incidental
+  complexity, and OO noise.
+
+  Fulcro does require that you change how you think about developing your software, but the good news is that
+  once you understand the model you'll be surprised at how uniform and simple most tasks become (all the way end-to-end,
+  not just in the UI).
+
+  Oh, did we mention you get to use the same advanced functional programming language on the
+  client and server? That hot code reload is *actually* useful (as opposed to a novelty that rarely does)? That you can
+  debug errors from the field against the *state history* that the user's browser that experienced the error? Did you
+  know that Clojure and Clojurescript usually require
+  [a lot less code](http://blog.wolfram.com/2012/11/14/code-length-measured-in-14-languages/) to accomplish a given task?
+
+  We hope you'll give it a shot, and a little time to really learn it. We think this combination of idea and programming
+  language hit a real sweet spot for software development.
+
+  ## Where Can I see Working Demos???
+
+  This guide contains a lot of active running code. Any time you see a card like this:
+  ")
+
+(defcard A-live-card
+  (fn [state _]
+    (dom/div nil
+      "I'm Live Code!"
+      (dom/br nil)
+      (dom/button #js {:onClick #(swap! state update :n inc)} (str "I've been clicked " (:n @state) " times!"))))
+  {:n 0})
+
+(defcard-doc
+  "
+  then you're looking at something that is running live in your browser. Much of the source you see in this document
+  is also being pulled directly from the source files to help ensure they are in sync.
+
+  You have many choices when looking for running full-stack examples. The easiest and most approchable source of these
+  is in the Fulcro Github repository. You can clone it, and follow the instructions to run them. At the time of this
+  writing you should be able to find the source here:
+  [https://github.com/fulcrologic/fulcro/tree/develop/src/demos](https://github.com/fulcrologic/fulcro/tree/develop/src/demos)
+
+  Some other things that show off more advanced features as standalone demos (or templates):
+
+  - A Websocket Chat Application: [https://github.com/fulcrologic/websocket-demo](https://github.com/fulcrologic/websocket-demo)
+  - The lein template `lein new fulcro my-app`. A minimal full-stack app, but includes a *lot* of production-necessary bits
+    like testing (locally and with CI), server, and client.
+  - A template application. This one has a bit more code in it, and demonstrates HTML5 routing, Server-Side (isomorphic) rendering,
+  a little bit of login logic. [https://github.com/fulcrologic/fulcro-template](https://github.com/fulcrologic/fulcro-template)
 
   ## Why Clojure and Clojurescript?
 
@@ -39,8 +82,9 @@
   adjust to the fact that you can trust your values, you'll find a lot of bugs simply
   never happen!
   +
-  3. *The code itself is written in a data language, which means you can easily transmit it, store it, transform it, etc.*
-  This leads to really interesting features, like richer on-the-wire protocols and our support viewer.
+  3. *Since the code itself is written in a data language it which means you can easily transmit it, store it, transform it, etc.*
+  This leads to really interesting features, like richer on-the-wire protocols and our support viewer. No more sending
+  home-grown JSON or string-encodings in deal with information!
   4. *Great support for concurrency.*
   This is more of an advantage on the server, but Clojure was designed with concurrency in mind, and we think it has a
   cleaner picture than most languages.
@@ -52,15 +96,25 @@
 
   It is likely that you can dive in and start playing with Fulcro without knowing too
   much about Clojure, but you should check out a book like
-  \"Clojure for the Brave and True\" to at least get through the basics.
+  \"Clojure for the Brave and True\" to at least get through the basics. There is a great site for practicing the
+  basics at [http://www.4clojure.com](http://www.4clojure.com).
 
   ## History
 
-  Fulcro started life as an add-on library for Om Next known as Untangled. It has seen continual growth for quite some
-  time. In 2017 it underwent a name change to avoid trademark conflicts, and later that year version 2.0 forked away
-  from Om Next and began using it's own version of primitive internals in order to accelerate development and provide
-  users with a better overall experience. The library is largely API-compatible with Om Next, but vastly easier to get
-  started with. Fulcro 2.0 also introduced facilities that enabled features that were not possible with Om Next's internals.
+  The ideas for data-driven applications were pioneered in the production space by Netflix and Facebook. The Clojurescript
+  community adopted React very early because it was such a great fit for doing rendering in a functional programming
+  language. David Nolen pioneered the data-driven Clojurescript movement with a library called Om Next. Fulcro started out
+  life as an add-on library for Om Next known as Untangled.
+
+  Fulcro has always meant to be for production use, but Om Next has been more of an experimental library.
+  It took 2 years to get to a beta1, and has been sitting idle at that same spot for six months at the
+  time of this writing due to other demands on David's time. So in late 2017 Fulcro 2.0
+  became a standalone library in 2017 in order to
+  expand a number of things and address some prevailing issues of using Om Next as a basis for production code and
+  provide users with a better overall experience and more reliable updates.
+
+  Fulcro 2.0 is has a look-alike internal API based upon Om Next.
+  and has introduced facilities that enabled features that were not possible with Om Next's internals.
 
   ## About this guide
 
@@ -87,13 +141,13 @@
   to user interaction:
   ")
 (defcard interactive-card
-         (fn [state-atom owner]                             ;wrapper function that can accept a state atom
-           (dom/div nil "A single top-level element."
-                    (dom/span nil (str "value of x: " (:x @state-atom)))
-                    (dom/br nil)
-                    (dom/button #js {:onClick #(swap! state-atom update-in [:x] inc)} "Click me")))
-         {:x 2}                                             ; This is a map of initial state that devcards puts in an atom
-         {:inspect-data true})                              ; options....show me the current value of the data
+  (fn [state-atom owner]                                    ;wrapper function that can accept a state atom
+    (dom/div nil "A single top-level element."
+      (dom/span nil (str "value of x: " (:x @state-atom)))
+      (dom/br nil)
+      (dom/button #js {:onClick #(swap! state-atom update-in [:x] inc)} "Click me")))
+  {:x 2}                                                    ; This is a map of initial state that devcards puts in an atom
+  {:inspect-data true})                                     ; options....show me the current value of the data
 
 (defcard-doc
   "

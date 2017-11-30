@@ -186,7 +186,7 @@
   {:remote true})
 
 (defui Root
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] {})
   Object
   (render [this]

@@ -1,5 +1,5 @@
 (ns fulcro.server-render-spec
-  (:require [fulcro.client.primitives :as prim :refer [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]
             [fulcro-spec.core :refer [specification behavior assertions]]
             [fulcro.server-render :as ssr]
@@ -7,7 +7,7 @@
             [fulcro.client.core :as fc]))
 
 (defui Item
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [cls {:keys [id label]}] {:id id :label label})
   static prim/IQuery
   (query [this] [:id :label])
@@ -22,9 +22,9 @@
 (def ui-item (prim/factory Item {:keyfn :id}))
 
 (defui Root
-  static fc/InitialAppState
-  (initial-state [cls params] {:items [(fc/get-initial-state Item {:id 1 :label "A"})
-                                       (fc/get-initial-state Item {:id 2 :label "B"})]})
+  static prim/InitialAppState
+  (initial-state [cls params] {:items [(prim/get-initial-state Item {:id 1 :label "A"})
+                                       (prim/get-initial-state Item {:id 2 :label "B"})]})
   static prim/IQuery
   (query [this] [{:items (prim/get-query Item)}])
   Object
@@ -39,7 +39,7 @@
    (specification "Server-side rendering"
      (assertions
        "Can generate a string from UI with initial state"
-       (dom/render-to-str (ui-root (fc/get-initial-state Root {}))) => "<div class=\"root\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"830295248\"><div class=\"item\" data-reactid=\"2\"><span class=\"label\" data-reactid=\"3\">A</span></div><div class=\"item\" data-reactid=\"4\"><span class=\"label\" data-reactid=\"5\">B</span></div></div>")))
+       (dom/render-to-str (ui-root (prim/get-initial-state Root {}))) => "<div class=\"root\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"830295248\"><div class=\"item\" data-reactid=\"2\"><span class=\"label\" data-reactid=\"3\">A</span></div><div class=\"item\" data-reactid=\"4\"><span class=\"label\" data-reactid=\"5\">B</span></div></div>")))
 
 #?(:clj
    (specification "SSR script tag generation"
@@ -57,34 +57,34 @@
 
 (def table-1 {:type :table :id 1 :rows [1 2 3]})
 (defui Table
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] table-1)
   static prim/IQuery
   (query [this] [:type :id :rows]))
 
 (def graph-1 {:type :graph :id 1 :data [1 2 3]})
 (defui Graph
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] graph-1)
   static prim/IQuery
   (query [this] [:type :id :data]))
 
 (defui Reports
-  static fc/InitialAppState
-  (initial-state [c p] (fc/get-initial-state Graph nil))    ; initial state will already include Graph
+  static prim/InitialAppState
+  (initial-state [c p] (prim/get-initial-state Graph nil))    ; initial state will already include Graph
   static prim/Ident
   (ident [this props] [(:type props) (:id props)])
   static prim/IQuery
   (query [this] {:graph (prim/get-query Graph) :table (prim/get-query Table)}))
 
 (defui MRRoot
-  static fc/InitialAppState
-  (initial-state [c p] {:reports (fc/get-initial-state Reports nil)})
+  static prim/InitialAppState
+  (initial-state [c p] {:reports (prim/get-initial-state Reports nil)})
   static prim/IQuery
   (query [this] [{:reports (prim/get-query Reports)}]))
 
 (specification "Build Initial State"
-  (let [state-tree (fc/get-initial-state MRRoot nil)
+  (let [state-tree (prim/get-initial-state MRRoot nil)
         norm-db    (ssr/build-initial-state state-tree MRRoot)]
     (assertions
       "Builds a normalized database from the given state tree"

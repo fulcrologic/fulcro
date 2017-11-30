@@ -8,7 +8,7 @@
             [cljs.reader :as r]
             [fulcro.client.impl.parser :as p]
             [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.mutations :as m]))
 
 (reset! ic/*loaded-translations* {"es" {"|This is a test" "Spanish for 'this is a test'"
@@ -119,7 +119,7 @@
 ")
 
 (defui Format
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz p] {:ui/label "Your Name"})
   static prim/Ident
   (ident [this props] [:components :ui])
@@ -139,8 +139,8 @@
 (def ui-format (prim/factory Format))
 
 (defui Root2
-  static fc/InitialAppState
-  (initial-state [clz p] {:format (fc/initial-state Format {})})
+  static prim/InitialAppState
+  (initial-state [clz p] {:format (prim/get-initial-state Format {})})
   static prim/IQuery
   (query [this] [:ui/react-key :ui/locale {:format (prim/get-query Format)}])
   Object

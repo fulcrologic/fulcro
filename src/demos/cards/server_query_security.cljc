@@ -5,7 +5,7 @@
                [fulcro.client.cards :refer [defcard-fulcro]]])
                [fulcro.client.data-fetch :as df]
                [fulcro.client.mutations :as m]
-               [fulcro.client.primitives :as prim :refer [defui]]
+               [fulcro.client.primitives :as prim :refer [defui defsc]]
                [com.rpl.specter :as s]
                [clojure.set :as set]
                [fulcro.client.dom :as dom]

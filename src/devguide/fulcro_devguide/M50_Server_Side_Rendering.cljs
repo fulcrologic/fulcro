@@ -246,7 +246,7 @@
     ; incoming data will come from JVM as transit-stringified EDN
     (if-let [props (some-> props-str util/transit-str->clj)]
       (js/ReactDOMServer.renderToString (ui-root props))
-      (js/ReactDOMServer.renderToString (ui-root (fc/get-initial-state root/Root nil)))))
+      (js/ReactDOMServer.renderToString (ui-root (prim/get-initial-state root/Root nil)))))
   ```
 
   And the server-side code holds a script engine in an atom or something (a component would be best), and

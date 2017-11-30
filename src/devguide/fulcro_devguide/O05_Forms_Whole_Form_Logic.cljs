@@ -1,15 +1,15 @@
 (ns fulcro-devguide.O05-Forms-Whole-Form-Logic
   (:require
     [clojure.string :as str]
-    [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+    [devcards.core :as dc :refer-macros [defcard-doc]]
     [com.stuartsierra.component :as component]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.ui.icons :as i]
     [fulcro.ui.forms :as f]
-    [fulcro.client.cards :refer [fulcro-app]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro-devguide.simulated-server :refer [make-mock-network]]
     [fulcro.client.logging :as log]
     [fulcro.client.data-fetch :as df]
@@ -67,13 +67,13 @@
       (let [value (get-in @state (conj form-id field))]
         (swap! state assoc-in (conj form-id :ui/name-status) :checking)
         (df/load-action env :name-in-use nil {:target  (conj form-id :ui/name-status)
-                                                :refresh [f/form-root-key]
-                                                :marker  false
-                                                :params  {:name value}}))))
+                                              :refresh [f/form-root-key]
+                                              :marker  false
+                                              :params  {:name value}}))))
   (remote [env] (df/remote-load env)))
 
 (defui ^:once Person
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
@@ -107,8 +107,8 @@
 (def ui-person (prim/factory Person {:keyfn :db/id}))
 
 (defui ^:once CommitRoot
-  static fc/InitialAppState
-  (initial-state [this _] {:person (fc/initial-state Person {:db/id 1})})
+  static prim/InitialAppState
+  (initial-state [this _] {:person (prim/get-initial-state Person {:db/id 1})})
   static prim/IQuery
   (query [this] [:ui/react-key
                  {:person (prim/get-query Person)}])
@@ -143,7 +143,7 @@
 
   ```
   (defui ^:once Person
-    static fc/InitialAppState
+    static prim/InitialAppState
     (initial-state [this params] (f/build-form this (or params {})))
     static f/IForm
     (form-spec [this] [(f/id-field :db/id)
@@ -209,7 +209,7 @@
   to verify the username.
   ")
 
-(defcard form-changes
+(defcard-fulcro form-changes
   "# Live Example
 
   The following sample uses a mock server to do a full-stack form interaction example that uses
@@ -220,8 +220,8 @@
 
   Try `tony` (in use) and `bob` (not in use).
   "
-  (fulcro-app CommitRoot
-    :networking (map->MockNetwork {}))
+  CommitRoot
   {}
-  {:inspect-data false})
+  {:fulcro       {:networking (map->MockNetwork {})}
+   :inspect-data false})
 

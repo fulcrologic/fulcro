@@ -2,10 +2,10 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [fulcro.client.core :as fc :refer [defsc]]
+    [fulcro.client.core :as fc]
     [cljs.spec.alpha :as s]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.ui.forms :as f]
     [fulcro-css.css :as css]))
 
@@ -76,9 +76,9 @@
   static fulcro-css.css/CSS
   (local-rules [_] [[:.namecls {:font-weight :bold}]])
   (include-children [_] [])
-  static fulcro.client.core/InitialAppState
+  static fulcro.client.primitives/InitialAppState
   (initial-state [c params]
-    (fulcro.client.core/make-state-map
+    (fulcro.client.primitives/make-state-map
       {:db/id             :param/id,
        :person/name       :param/name,
        :person/job        :param/job,

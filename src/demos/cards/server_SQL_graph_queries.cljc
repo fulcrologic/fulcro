@@ -11,7 +11,7 @@
                [fulcro.client.logging :as log]
                [fulcro.client.core :as fc]
                [fulcro.ui.bootstrap3 :as b]
-               [fulcro.client.primitives :as prim :refer [defui]]))
+               [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:

@@ -33,6 +33,33 @@
            (:import [java.io Writer])
      :cljs (:import [goog.debug Console])))
 
+(defprotocol Ident
+  (ident [this props] "Return the ident for this component"))
+
+(defprotocol IQueryParams
+  (params [this] "Return the query parameters"))
+
+(defprotocol IQuery
+  (query [this] "Return the component's unbound static query"))
+
+;; DEPRECATED: Unless someone can give me a compelling case to keep this, I'm dropping it:
+(defprotocol ILocalState
+  (-set-state! [this new-state] "Set the component's local state")
+  (-get-state [this] "Get the component's local state")
+  (-get-rendered-state [this] "Get the component's rendered local state")
+  (-merge-pending-state! [this] "Get the component's pending local state"))
+
+(defprotocol InitialAppState
+  (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
+
+(defn get-initial-state
+  "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
+  [class params]
+  #?(:clj  (when-let [initial-state (-> class meta :initial-state)]
+             (initial-state class params))
+     :cljs (when (implements? InitialAppState class)
+             (initial-state class params))))
+
 (declare tempid? normalize-query focus-query* ast->query query->ast transact! remove-root!)
 
 (s/def ::remote keyword?)
@@ -776,22 +803,6 @@
          (-> component .-props get-props)
          (-> component .-state get-props)))))
 
-(defprotocol Ident
-  (ident [this props] "Return the ident for this component"))
-
-(defprotocol IQueryParams
-  (params [this] "Return the query parameters"))
-
-(defprotocol IQuery
-  (query [this] "Return the component's unbound static query"))
-
-;; DEPRECATED: Unless someone can give me a compelling case to keep this, I'm dropping it:
-(defprotocol ILocalState
-  (-set-state! [this new-state] "Set the component's local state")
-  (-get-state [this] "Get the component's local state")
-  (-get-rendered-state [this] "Get the component's rendered local state")
-  (-merge-pending-state! [this] "Get the component's pending local state"))
-
 #?(:clj
    (defn init-local-state [component]
      (reset! (:state component) (.initLocalState component))))
@@ -890,11 +901,13 @@
 (defn query-id
   "Returns a string ID for the query of the given class with qualifier"
   [class qualifier]
-  (when-let [classname #?(:clj (-> (str (-> class meta :component-ns) "." (-> class meta :component-name))
-                                 (str/replace "." "$")
-                                 (str/replace "-" "_"))
-                          :cljs (.-name class))]
-    (str classname (when qualifier (str "$" qualifier)))))
+  (if (nil? class)
+    (log/error "Query ID received no class (if you see this warning, it probably means metadata was lost on your query)" (ex-info "" {}))
+    (when-let [classname #?(:clj (-> (str (-> class meta :component-ns) "." (-> class meta :component-name))
+                                   (str/replace "." "$")
+                                   (str/replace "-" "_"))
+                            :cljs (.-name class))]
+      (str classname (when qualifier (str "$" qualifier))))))
 
 #?(:clj
    (defn factory
@@ -1756,18 +1769,20 @@
 (defn merge-mutation-joins
   "Merge all of the mutations that were joined with a query"
   [state query data-tree]
-  (reduce (fn [s query-element]
-            (let [k       (and (util/mutation-join? query-element) (util/join-key query-element))
-                  subtree (get data-tree k)]
-              (if (and k subtree)
-                (let [subquery         (util/join-value query-element)
-                      idnt             ::temporary-key
-                      norm-query       [{idnt subquery}]
-                      norm-tree        {idnt subtree}
-                      norm-tree-marked (mark-missing norm-tree norm-query)
-                      db-fragment      (dissoc (tree->db norm-query norm-tree-marked true) idnt)]
-                  (sweep-merge s db-fragment))
-                s))) state query))
+  (if (map? data-tree)
+    (reduce (fn [updated-state query-element]
+              (let [k       (and (util/mutation-join? query-element) (util/join-key query-element))
+                    subtree (get data-tree k)]
+                (if (and k subtree)
+                  (let [subquery         (util/join-value query-element)
+                        idnt             ::temporary-key
+                        norm-query       [{idnt subquery}]
+                        norm-tree        {idnt subtree}
+                        norm-tree-marked (mark-missing norm-tree norm-query)
+                        db-fragment      (dissoc (tree->db norm-query norm-tree-marked true) idnt)]
+                    (sweep-merge updated-state db-fragment))
+                  updated-state))) state query)
+    state))
 
 (defn- merge-idents [tree config refs query]
   (let [{:keys [merge-ident indexer]} config
@@ -1987,7 +2002,7 @@
   [component]
   (let [cs #?(:clj (:children component)
               :cljs (.. component -props -children))]
-    (if (coll? cs) cs [cs])))
+    (if (or (coll? cs) #?(:cljs (array? cs))) cs [cs])))
 
 #?(:cljs
    (defn should-update?
@@ -2088,11 +2103,12 @@
                        ((:root-unmount config) target)))})
         (add-watch (:state config) (or target guid)
           (fn add-fn [_ _ _ _]
-            (p/tick! this)
             #?(:cljs
                (if-not (has-query? root-class)
                  (queue-render! parsef)
-                 (schedule-render! this)))))
+                 (do
+                   (p/tick! this)
+                   (schedule-render! this))))))
         (parsef)
         (when-let [sel (get-query rctor (-> config :state deref))]
           (let [env  (to-env config)
@@ -2311,48 +2327,49 @@
 (defn transact*
   "Internal implementation detail of transact!. Call that function instead."
   [reconciler c ref tx]
-  (p/tick! reconciler)                                      ; ensure time moves forward. A tx that doesn't swap would fail to do so
-  (let [cfg                (:config reconciler)
-        ref                (if (and c #?(:clj  (satisfies? Ident c)
-                                         :cljs (implements? Ident c)) (not ref))
-                             (ident c (props c))
-                             ref)
-        env                (merge
-                             (to-env cfg)
-                             {:reconciler reconciler :component c}
-                             (when ref
-                               {:ref ref}))
-        old-state          @(:state cfg)
-        history            (get-history reconciler)
-        v                  ((:parser cfg) env tx)
-        declared-refreshes (or (some-> v meta ::refresh vec) [])
-        follow-on-reads    (filter keyword? tx)
-        tx-time            (get-current-time reconciler)
-        snds               (gather-sends env tx (:remotes cfg) tx-time)
-        new-state          @(:state cfg)
-        xs                 (cond-> declared-refreshes
-                             (not (nil? c)) (conj c)
-                             (not (nil? ref)) (conj ref))
-        history-step       {::hist/tx          (if (transit/serializable? tx) tx :NOT-SERIALIZABLE)
-                            ::hist/tx-result   (if (transit/serializable? v) v :NOT-SERIALIZABLE)
-                            ::hist/client-time #?(:cljs (js/Date.) :clj (java.util.Date.))
-                            ::hist/db-before   old-state
-                            ::hist/db-after    new-state}]
-    ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
-    (when history
-      (swap! history hist/record-history-step tx-time history-step))
-    (p/queue! reconciler (into xs (remove symbol?) (keys v)))
-    (when-not (empty? snds)
-      (doseq [[remote _] snds]
-        (p/queue! reconciler xs remote))
-      (p/queue-sends! reconciler snds)
-      (schedule-sends! reconciler))
-    (when-let [f (:tx-listen cfg)]
-      (let [tx-data (merge env
-                      {:old-state old-state
-                       :new-state new-state})]
-        (f tx-data (assoc history-step :tx tx :ret v))))
-    v))
+  (when reconciler
+    (p/tick! reconciler)                                    ; ensure time moves forward. A tx that doesn't swap would fail to do so
+    (let [cfg                (:config reconciler)
+          ref                (if (and c #?(:clj  (satisfies? Ident c)
+                                           :cljs (implements? Ident c)) (not ref))
+                               (ident c (props c))
+                               ref)
+          env                (merge
+                               (to-env cfg)
+                               {:reconciler reconciler :component c}
+                               (when ref
+                                 {:ref ref}))
+          old-state          @(:state cfg)
+          history            (get-history reconciler)
+          v                  ((:parser cfg) env tx)
+          declared-refreshes (or (some-> v meta ::refresh vec) [])
+          follow-on-reads    (filter keyword? tx)
+          tx-time            (get-current-time reconciler)
+          snds               (gather-sends env tx (:remotes cfg) tx-time)
+          new-state          @(:state cfg)
+          xs                 (cond-> declared-refreshes
+                               (not (nil? c)) (conj c)
+                               (not (nil? ref)) (conj ref))
+          history-step       {::hist/tx          (if (transit/serializable? tx) tx :NOT-SERIALIZABLE)
+                              ::hist/tx-result   (if (transit/serializable? v) v :NOT-SERIALIZABLE)
+                              ::hist/client-time #?(:cljs (js/Date.) :clj (java.util.Date.))
+                              ::hist/db-before   old-state
+                              ::hist/db-after    new-state}]
+      ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
+      (when history
+        (swap! history hist/record-history-step tx-time history-step))
+      (p/queue! reconciler (into xs (remove symbol?) (keys v)))
+      (when-not (empty? snds)
+        (doseq [[remote _] snds]
+          (p/queue! reconciler xs remote))
+        (p/queue-sends! reconciler snds)
+        (schedule-sends! reconciler))
+      (when-let [f (:tx-listen cfg)]
+        (let [tx-data (merge env
+                        {:old-state old-state
+                         :new-state new-state})]
+          (f tx-data (assoc history-step :tx tx :ret v))))
+      v)))
 
 (defn annotate-mutations
   "Given a query expression annotate all mutations by adding a :mutator -> ident
@@ -2754,3 +2771,375 @@
   [comp-or-reconciler tx]
   #?(:clj  (transact! comp-or-reconciler (pessimistic-transaction->transaction tx))
      :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler (pessimistic-transaction->transaction tx))) 0)))
+
+#?(:clj
+   (defn- is-link? [query-element] (and (vector? query-element)
+                                     (keyword? (first query-element))
+                                     (= '_ (second query-element)))))
+#?(:clj
+   (defn- legal-keys [query]
+     (set (keep #(cond
+                   (keyword? %) %
+                   (is-link? %) (first %)
+                   (and (map? %) (keyword? (ffirst %))) (ffirst %)
+                   (and (map? %) (is-link? (ffirst %))) (first (ffirst %))
+                   :else nil) query))))
+
+#?(:clj
+   (defn- children-by-prop [query]
+     (into {}
+       (keep #(if (and (map? %) (or (is-link? (ffirst %)) (keyword? (ffirst %))))
+                (let [k   (if (vector? (ffirst %))
+                            (first (ffirst %))
+                            (ffirst %))
+                      cls (-> % first second second)]
+                  [k cls])
+                nil) query))))
+
+(defn- replace-and-validate-fn
+  "Replace the first sym in a list (the function name) with the given symbol."
+  ([sym arity fn-form] (replace-and-validate-fn sym arity fn-form sym))
+  ([sym arity fn-form user-known-sym]
+   (when-not (= arity (count (second fn-form)))
+     (throw (ex-info (str "Invalid arity for " user-known-sym) {})))
+   (conj (rest fn-form) sym)))
+
+#?(:clj
+   (defn- build-query-forms
+     "Validate that the property destructuring and query make sense with each other."
+     [thissym propargs {:keys [template method]}]
+     (cond
+       template
+       (do
+         (assert (or (symbol? propargs) (map? propargs)) "Property args must be a symbol or destructuring expression.")
+         (let [to-keyword        (fn [s] (cond
+                                           (nil? s) nil
+                                           (keyword? s) s
+                                           :otherwise (let [nspc (namespace s)
+                                                            nm   (name s)]
+                                                        (keyword nspc nm))))
+               destructured-keys (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
+               queried-keywords  (legal-keys template)
+               to-sym            (fn [k] (symbol (namespace k) (name k)))
+               illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
+           (when (seq illegal-syms)
+             (throw (ex-info "Syntax error in defsc. One or more destructured parameters do not appear in your query!" {:offending-symbols illegal-syms})))
+           `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
+       method
+       `(~'static fulcro.client.primitives/IQuery ~(replace-and-validate-fn 'query 1 method)))))
+
+#?(:clj
+   (defn- build-ident
+     "Builds the ident form. If ident is a vector, then it generates the function and validates that the ID is
+     in the query. Otherwise, if ident is of the form (ident [this props] ...) it simply generates the correct
+     entry in defui without error checking."
+     [{:keys [:method :template]} is-legal-key?]
+     (cond
+       method `(~'static fulcro.client.primitives/Ident ~(replace-and-validate-fn 'ident 2 method))
+       template (let [table   (first template)
+                      id-prop (or (second template) :db/id)]
+                  (cond
+                    (nil? table) (throw (ex-info "TABLE part of ident template was nil" {}))
+                    (not (is-legal-key? id-prop)) (throw (ex-info "ID property of :ident does not appear in your :query" {:id-property id-prop}))
+                    :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
+
+#?(:clj
+   (defn- build-render [thissym propsym compsym childrensym body]
+     `(~'Object
+        (~'render [~thissym]
+          (let [~propsym (fulcro.client.primitives/props ~thissym)
+                ~compsym (fulcro.client.primitives/get-computed ~thissym)
+                ~childrensym (fulcro.client.primitives/children ~thissym)]
+            ~@body)))))
+
+(defn make-state-map
+  "Build a component's initial state using the defsc initial-state-data from
+  options, the children from options, and the params from the invocation of get-initial-state."
+  [initial-state children-by-query-key params]
+  (let [join-keys (set (keys children-by-query-key))
+        init-keys (set (keys initial-state))
+        is-child? (fn [k] (contains? join-keys k))
+        value-of  (fn value-of* [[k v]]
+                    (let [param-name    (fn [v] (and (keyword? v) (= "param" (namespace v)) (keyword (name v))))
+                          substitute    (fn [ele] (if-let [k (param-name ele)]
+                                                    (get params k)
+                                                    ele))
+                          param-key     (param-name v)
+                          param-exists? (contains? params param-key)
+                          param-value   (get params param-key)
+                          child-class   (get children-by-query-key k)]
+                      (cond
+                        (and param-key (not param-exists?)) nil
+                        (and (map? v) (is-child? k)) [k (get-initial-state child-class (into {} (keep value-of* v)))]
+                        (map? v) [k (into {} (keep value-of* v))]
+                        (and (vector? v) (is-child? k)) [k (mapv (fn [m] (get-initial-state child-class (into {} (keep value-of* m)))) v)]
+                        (and (vector? param-value) (is-child? k)) [k (mapv (fn [params] (get-initial-state child-class params)) param-value)]
+                        (vector? v) [k (mapv (fn [ele] (substitute ele)) v)]
+                        (and param-key (is-child? k) param-exists?) [k (get-initial-state child-class param-value)]
+                        param-key [k param-value]
+                        :else [k v])))]
+    (into {} (keep value-of initial-state))))
+
+#?(:clj
+   (defn- build-and-validate-initial-state-map [sym initial-state legal-keys children-by-query-key is-a-form?]
+     (let [join-keys     (set (keys children-by-query-key))
+           init-keys     (set (keys initial-state))
+           illegal-keys  (set/difference init-keys legal-keys)
+           is-child?     (fn [k] (contains? join-keys k))
+           param-expr    (fn [v]
+                           (if-let [kw (and (keyword? v) (= "param" (namespace v))
+                                         (keyword (name v)))]
+                             `(~kw ~'params)
+                             v))
+           parameterized (fn [init-map] (into {} (map (fn [[k v]] (if-let [expr (param-expr v)] [k expr] [k v])) init-map)))
+           child-state   (fn [k]
+                           (let [state-params    (get initial-state k)
+                                 to-one?         (map? state-params)
+                                 to-many?        (and (vector? state-params) (every? map? state-params))
+                                 from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
+                                 child-class     (get children-by-query-key k)]
+                             (cond
+                               (not (or from-parameter? to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
+                               to-one? `(fulcro.client.primitives/get-initial-state ~child-class ~(parameterized state-params))
+                               to-many? (mapv (fn [params]
+                                                `(fulcro.client.primitives/get-initial-state ~child-class ~(parameterized params)))
+                                          state-params)
+                               from-parameter? `(fulcro.client.primitives/get-initial-state ~child-class ~(param-expr state-params))
+                               :otherwise nil)))
+           kv-pairs      (map (fn [k]
+                                [k (if (is-child? k)
+                                     (child-state k)
+                                     (param-expr (get initial-state k)))]) init-keys)
+           state-map     (into {} kv-pairs)]
+       (when (seq illegal-keys)
+         (throw (ex-info "Initial state includes keys that are not in your query." {:offending-keys illegal-keys})))
+       (if is-a-form?
+         `(~'static fulcro.client.primitives/InitialAppState
+            (~'initial-state [~'c ~'params] (fulcro.ui.forms/build-form ~sym (fulcro.client.primitives/make-state-map ~initial-state ~children-by-query-key ~'params))))
+         `(~'static fulcro.client.primitives/InitialAppState
+            (~'initial-state [~'c ~'params] (fulcro.client.primitives/make-state-map ~initial-state ~children-by-query-key ~'params)))))))
+
+#?(:clj
+   (defn- build-raw-initial-state
+     "Given an initial state form that is a list (function-form), simple copy it into the form needed by defui."
+     [method]
+     `(~'static fulcro.client.primitives/InitialAppState
+        ~(replace-and-validate-fn 'initial-state 2 method))))
+
+#?(:clj
+   (defn- build-initial-state [sym {:keys [template method]} legal-keys query-template-or-method is-a-form?]
+     (when (and template (contains? query-template-or-method :method))
+       (throw (ex-info "When query is a method, initial state MUST be as well." {:component sym})))
+     (cond
+       method (build-raw-initial-state method)
+       template (let [query    (:template query-template-or-method)
+                      children (or (children-by-prop query) {})]
+                  (build-and-validate-initial-state-map sym template legal-keys children is-a-form?)))))
+
+#?(:clj (s/def :fulcro.client.primitives.defsc/ident (s/or :template (s/and vector? #(= 2 (count %))) :method list?)))
+#?(:clj (s/def :fulcro.client.primitives.defsc/query (s/or :template vector? :method list?)))
+#?(:clj (s/def :fulcro.client.primitives.defsc/initial-state (s/or :template map? :method list?)))
+#?(:clj (s/def :fulcro.client.primitives.defsc/css (s/or :template vector? :method list?)))
+#?(:clj (s/def :fulcro.client.primitives.defsc/css-include (s/or :template (s/and vector? #(every? symbol? %)) :method list?)))
+
+#?(:clj (s/def :fulcro.client.primitives.defsc/options (s/keys :opt-un [:fulcro.client.primitives.defsc/query :fulcro.client.primitives.defsc/ident :fulcro.client.primitives.defsc/initial-state :fulcro.client.primitives.defsc/css :fulcro.client.primitives.defsc/css-include])))
+
+#?(:clj (s/def :fulcro.client.primitives.defsc/args (s/cat
+                                                      :sym symbol?
+                                                      :doc (s/? string?)
+                                                      :arglist (s/and vector? #(= 4 (count %)))
+                                                      :options :fulcro.client.primitives.defsc/options
+                                                      :body (s/+ (constantly true)))))
+#?(:clj (s/def :fulcro.client.primitives.defsc/static #{'static}))
+#?(:clj (s/def :fulcro.client.primitives.defsc/protocol-method list?))
+
+#?(:clj (s/def :fulcro.client.primitives.defsc/protocols (s/* (s/cat :static (s/? :fulcro.client.primitives.defsc/static) :protocol symbol? :methods (s/+ :fulcro.client.primitives.defsc/protocol-method)))))
+
+#?(:clj
+   (defn- build-form [form-fields]
+     (when form-fields
+       `(~'static ~'fulcro.ui.forms/IForm
+          (~'form-spec [~'this] ~form-fields)))))
+
+#?(:clj
+   (defn build-css [{css-method :method css-template :template} {include-method :method include-template :template}]
+     (when (or css-method css-template include-method include-template)
+       (let [local-form   (cond
+                            css-template (if-not (vector? css-template)
+                                           (throw (ex-info "css MUST be a vector of garden-syntax rules" {}))
+                                           `(~'local-rules [~'_] ~css-template))
+                            css-method (replace-and-validate-fn 'local-rules 1 css-method 'css)
+                            :else '(local-rules [_] []))
+             include-form (cond
+                            include-template (if-not (and (vector? include-template) (every? symbol? include-template))
+                                               (throw (ex-info "css-include must be a vector of component symbols" {}))
+                                               `(~'include-children [~'_] ~include-template))
+                            include-method (replace-and-validate-fn 'include-children 1 include-method 'css-include)
+                            :else '(include-children [_] []))]
+         `(~'static fulcro-css.css/CSS
+            ~local-form
+            ~include-form)))))
+
+#?(:clj
+   (defn defsc*
+     [args]
+     (if-not (s/valid? :fulcro.client.primitives.defsc/args args)
+       (throw (ex-info "Invalid arguments"
+                {:reason (str (-> (s/explain-data :fulcro.client.primitives.defsc/args args)
+                                ::s/problems
+                                first
+                                :path) " is invalid.")})))
+     (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
+           [thissym propsym computedsym childrensym] arglist
+           {:keys [ident query initial-state protocols form-fields css css-include]} options
+           ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
+           initial-state-template-or-method (into {} [initial-state])
+           query-template-or-method         (into {} [query])
+           css-template-or-method           (into {} [css])
+           css-include-template-or-method   (into {} [css-include])
+           validate-query?                  (:template query-template-or-method)
+           legal-key-cheker                 (if validate-query?
+                                              (or (legal-keys (:template query-template-or-method)) #{})
+                                              (complement #{}))
+           parsed-protocols                 (when protocols (group-by :protocol (s/conform :fulcro.client.primitives.defsc/protocols protocols)))
+           object-methods                   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
+           addl-protocols                   (some->> (dissoc parsed-protocols 'Object)
+                                              vals
+                                              (map (fn [[v]]
+                                                     (if (contains? v :static)
+                                                       (concat ['static (:protocol v)] (:methods v))
+                                                       (concat [(:protocol v)] (:methods v)))))
+                                              (mapcat identity))
+           ident-forms                      (build-ident ident-template-or-method legal-key-cheker)
+           state-forms                      (build-initial-state sym initial-state-template-or-method legal-key-cheker query-template-or-method (boolean (seq form-fields)))
+           query-forms                      (build-query-forms thissym propsym query-template-or-method)
+           form-forms                       (build-form form-fields)
+           css-forms                        (build-css css-template-or-method css-include-template-or-method)
+           render-forms                     (build-render thissym propsym computedsym childrensym body)]
+       (assert (or (nil? protocols) (s/valid? :fulcro.client.primitives.defsc/protocols protocols)) "Protocols must be valid protocol declarations")
+       `(fulcro.client.primitives/defui ~(with-meta sym {:once true})
+          ~@addl-protocols
+          ~@css-forms
+          ~@state-forms
+          ~@ident-forms
+          ~@query-forms
+          ~@form-forms
+          ~@render-forms
+          ~@object-methods))))
+
+#?(:clj
+   (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI component with a query,
+   optional ident (if :ident is specified in options), optional initial state, optional css,
+   optional forms, and a render method. It can also emit additional protocols  that you specify.
+
+   The argument list can include destructuring to pull items from props or computed. `children` will be a
+   sequence (possibly nil) of child react components that were passed to the component's factory.
+
+   Following the argument list is an options map:
+
+   ```
+   (defsc Component [this props computed children]
+      { :query [:db/id :component/x {:component/child (prim/get-query Child)} {:component/other (prim/get-query Other)}]
+        :form-fields [(f/id-field :db/id) ...] ; See IForm in forms for description of form fields
+        :css [] ; fulcro-css local-rules
+        :css-include [] ; fulcro-css include-children
+        :ident [:COMPONENT/by-id :db/id]
+        :protocols [Object
+                    (shouldComponentUpdate [this] true)]
+        ; Use :param/x to indicate a value that should come from the caller of get-initial-state on this component
+        :initial-state {:db/id 4 :component/Child {} :component/other [{}]} }
+      body)
+   ```
+
+   The options map supplies the necessary information to build the component's ident, query, initial state,
+   render method, form support, component-local CSS rules, and any additional arbitrary protocols.
+   It is also used to error check your code. For example, you may destructure props:
+
+   ```
+   (defsc Component [this {:keys [db/id component/x] :as props} computed children]
+      { :query [:db/id :component/x]
+      ...)
+   ```
+
+   If the destructuring of props tries to pull data that the options map does not have in `:query`, then an error will
+   result at compile time, alerting you to your error. Many other things are also checked (that you query for the ID
+   field, that initial state only initializes things you query, etc.). This can prevent a lot of common errors when
+   building your UI.
+
+   ## Initial State
+
+   IMPORTANT: Initial state using the template (a map) treats the top-level map as the actual data. Anything
+   nested in this map as keys *that match a join in the query* are automatically transformed into calls
+   to `(prim/get-initial-state)`. This is so that error-checking can be performed. Any parameters you expect to
+   receive in your initial state will be mapped via keywords in the `params` namespace:
+
+   ```
+   (defsc Component [this {:keys [db/id component/x] :as props} computed children]
+      { :initial-state {:db/id 2 :component/x {:db/id :params/child-id}}
+       :query [:db/id {:component/x (get-query X)}]
+      ...)
+   ```
+
+   means:
+
+   ```
+   static prim/InitialAppState
+   (initial-state [t {:keys [child-id]}] {:db/id 2 (prim/get-initial-state X {:db/id child-id})})
+   ```
+
+   If the initial state includes keys that do not appear in your query, then it will issue an error. You may
+   avoid this by writing it as a method instead.
+
+   ## Error Checking
+
+   The above for uses templates to succinctly express the methods. When you use the template style you're more
+   restricted in what you can do, but it is also less error prone because the defsc macro can check your component
+   for many errors (such as a typo in desctructuring).
+
+   You may write methods instead of data templates, which loosens the checking (depending on what you still leave
+   as a template). For example, if you make `:ident` a method, the macro is still able to verify destructuring against
+   `:query`.
+
+   ## Using Methods Instead
+
+   You may instead use methods on
+   `:query`, `ident`, `initial-state`. Using the method forms turns off much of the error checking. Note that you
+   do not supply a `this` arg to the functions, as it is already in scope from the component argument list in the
+   declaration (similar to defrecord, BUT you can use destructuring that applies in all of the the methods).
+
+   The following are the supported method signatures:
+
+   ```
+   :ident (fn [] ...) ; gets this and props from destructured arguments to defsc
+   :query (fn [] ...) ; gets this from destructured args
+   :css (fn [] ...) ; gets this from destructured args
+   :css-include (fn [] ...) ; gets this from destructured args
+   :initial-state (fn [params) ...) ; gets this from destructured args
+   :form-fields [(f/id-field :db/id) ...] ; gets this from destructured args
+   ```
+
+   Note that most of the protocols in question above are *static*, meaning that `this` is often the component
+   class itself, and isn't that useful.
+
+   ```
+   (defsc Component [this props computed children]
+     {:query (fn [] [:x])
+      :initial-state (fn [t p] {:x 1})
+      :ident (fn [props] [:table (:db/id props)])
+      ...}
+     (dom/div ...))
+   ```
+
+   See section M05-More-Concise-UI of the Developer's Guide for more details.
+
+   NOTE: `defsc` automatically declares your component with `:once` metadata for correct operation with hot code reload.
+   "
+               :arglists '([this dbprops computedprops children])}
+   defsc
+     [& args]
+     (let [location (str *ns* ":" (:line (meta &form)))]
+       (try
+         (defsc* args)
+         (catch Exception e
+           (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
+

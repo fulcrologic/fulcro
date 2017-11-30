@@ -2,7 +2,7 @@
   (:require
     [fulcro.client.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
@@ -27,9 +27,9 @@
     (b/col {:xs 10} (apply f/form-field comp form name params))))
 
 (defui ^:once FileUploads
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params]
-    (f/build-form this {:db/id 1 :image-uploads (fc/get-initial-state FileUploadInput {:id :image-uploads})}))
+    (f/build-form this {:db/id 1 :image-uploads (prim/get-initial-state FileUploadInput {:id :image-uploads})}))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
                      (file-upload-input :image-uploads)])
@@ -93,7 +93,7 @@
                                                   :target [:image-library/by-id 1 :library/images]}))
 
 (defui ^:once ImageLibrary
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {:db/id (:id p) :ui/page 1 :library/images []})
   static prim/Ident
   (ident [this props] [:image-library/by-id (:db/id props)])
@@ -138,9 +138,9 @@
     (swap! state upload/clear-upload-list-impl :image-uploads)))
 
 (defui ^:once ImageLibraryDemo
-  static fc/InitialAppState
-  (initial-state [this _] {:demo          (fc/get-initial-state FileUploads {:db/id 1})
-                           :image-library (fc/get-initial-state ImageLibrary {:id 1})})
+  static prim/InitialAppState
+  (initial-state [this _] {:demo          (prim/get-initial-state FileUploads {:db/id 1})
+                           :image-library (prim/get-initial-state ImageLibrary {:id 1})})
   static prim/Ident
   (ident [this props] [:demo/by-id :images])
   static prim/IQuery
@@ -162,8 +162,8 @@
 (def ui-demo (prim/factory ImageLibraryDemo))
 
 (defui ^:once DemoRoot
-  static fc/InitialAppState
-  (initial-state [this _] {:screen (fc/get-initial-state ImageLibraryDemo {})})
+  static prim/InitialAppState
+  (initial-state [this _] {:screen (prim/get-initial-state ImageLibraryDemo {})})
   static prim/IQuery
   (query [this] [:ui/react-key {:screen (prim/get-query ImageLibraryDemo)}])
   Object
@@ -343,7 +343,7 @@
   "
   DemoRoot
   {}
-  {:inspect-data false
+  {:inspect-data true
    :fulcro       {:started-callback (fn [{:keys [reconciler]}] (fu/install-reconciler! upload-networking reconciler))
                   :networking       {:remote      (net/make-fulcro-network "/api" :global-error-callback identity)
                                      :file-upload upload-networking}}})

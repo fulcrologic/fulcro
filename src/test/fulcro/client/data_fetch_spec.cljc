@@ -5,7 +5,7 @@
     [fulcro.client.util :as util]
     #?@(:cljs
         [[goog.log :as glog]])
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [clojure.test :refer [is are]]
     [fulcro-spec.core :refer
      [specification behavior assertions provided component when-mocking]]

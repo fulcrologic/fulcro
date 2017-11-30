@@ -5,9 +5,9 @@
     [fulcro.client.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
-    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
+    [fulcro.client.core :as fc ]
     [fulcro.client.mutations :as m]
-    [fulcro.client.primitives :as prim :refer [defui]]))
+    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]))
 
 (defonce app (atom (fc/new-fulcro-client)))
 

@@ -168,8 +168,8 @@
 (def minion-image "https://s-media-cache-ak0.pinimg.com/736x/34/c2/f5/34c2f59284fcdff709217e14df2250a0--film-minions-minions-images.jpg")
 
 (defui ^:once ICRoot
-  static fc/InitialAppState
-  (initial-state [c p] {:ctool (fc/get-initial-state ct/ClipTool {:id        :clipper :aspect-ratio 0.5
+  static prim/InitialAppState
+  (initial-state [c p] {:ctool (prim/get-initial-state ct/ClipTool {:id        :clipper :aspect-ratio 0.5
                                                                   :image-url minion-image})})
   static prim/IQuery
   (query [this] [:ui/react-key :ctool])
@@ -236,7 +236,7 @@
     (swap! state update-in [:child/by-id id :n] dec)))
 
 (defui ^:once ListItem
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id n]}] {:id id :n n})
   static prim/IQuery
   (query [this] [:id :n])
@@ -253,10 +253,10 @@
 (def ui-list-item (prim/factory ListItem {:keyfn :id}))
 
 (defui ^:once ItemList
-  static fc/InitialAppState
-  (initial-state [c p] {:id 1 :title "My List" :min 1 :max 1000 :items [(fc/get-initial-state ListItem {:id 1 :n 2})
-                                                                        (fc/get-initial-state ListItem {:id 2 :n 5})
-                                                                        (fc/get-initial-state ListItem {:id 3 :n 7})]})
+  static prim/InitialAppState
+  (initial-state [c p] {:id 1 :title "My List" :min 1 :max 1000 :items [(prim/get-initial-state ListItem {:id 1 :n 2})
+                                                                        (prim/get-initial-state ListItem {:id 2 :n 5})
+                                                                        (prim/get-initial-state ListItem {:id 3 :n 7})]})
   static prim/IQuery
   (query [this] [:id :title :max :min {:items (prim/get-query ListItem)}])
   static prim/Ident
@@ -273,8 +273,8 @@
 (def ui-list (prim/factory ItemList {:keyfn :id}))
 
 (defui ^:once SDRoot
-  static fc/InitialAppState
-  (initial-state [c p] {:lists [(fc/get-initial-state ItemList {})]})
+  static prim/InitialAppState
+  (initial-state [c p] {:lists [(prim/get-initial-state ItemList {})]})
   static prim/IQuery
   (query [this] [:ui/react-key {:lists (prim/get-query ItemList)}])
   Object

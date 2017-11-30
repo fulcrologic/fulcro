@@ -1,5 +1,5 @@
 (ns fulcro.ui.elements
-  (:require [fulcro.client.primitives :as prim :refer [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]))
 
 (defn react-instance?

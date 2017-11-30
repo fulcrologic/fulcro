@@ -1,5 +1,5 @@
 (ns cards.dynamic-ui-main
-  (:require [fulcro.client.primitives :as prim :refer [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.core :as fc]
             [fulcro.client.routing :as r]
             cljs.loader
@@ -9,7 +9,7 @@
 ; of the module needs to match the first element of the ident, as that's how the dynamic router figures out what module
 ; to load.
 (defui ^:once Main
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {r/dynamic-route-key :main :label "MAIN" :main-prop "main page data"})
   static prim/Ident
   (ident [this props] [:main :singleton])

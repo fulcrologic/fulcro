@@ -1,12 +1,12 @@
 (ns fulcro-devguide.H30-Server-Interactions-Error-Handling
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
             [fulcro-devguide.A-Quick-Tour :as qt]
-            [fulcro.client.core :as fc :refer [defsc]]
+            [fulcro.client.core :as fc]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.data-fetch :as df]
             [fulcro.client.network :as fcn]
