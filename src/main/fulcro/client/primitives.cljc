@@ -60,7 +60,7 @@
      :cljs (when (implements? InitialAppState class)
              (initial-state class params))))
 
-(declare tempid? normalize-query focus-query* ast->query query->ast transact! remove-root!)
+(declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root!)
 
 (s/def ::remote keyword?)
 (s/def ::ident util/ident?)
@@ -701,6 +701,12 @@
   (get-prop c #?(:clj  :fulcro$reconciler
                  :cljs "fulcro$reconciler")))
 
+(defn get-queryid
+  [component]
+  {:pre [(component? c)]}
+  (get-prop c #?(:clj  :fulcro$queryid
+                 :cljs "fulcro$queryid")))
+
 #?(:cljs
    (defn- unwrap [om-props]
      (.-props om-props)))
@@ -1045,11 +1051,12 @@
    (binding [*query-state* state-map]
      (let [class     (cond
                        (is-factory? class-or-factory) (-> class-or-factory meta :class)
-                       ; FIXME: Not right...if it is a component, we need to look up the qualifier!
                        (component? class-or-factory) (react-type class-or-factory)
                        :else class-or-factory)
-           qualifier (if (is-factory? class-or-factory)
-                       (-> class-or-factory meta :qualifier)
+           ; TODO: Test that query qualifier can be obtained from a component instance.
+           qualifier (cond
+                       (is-factory? class-or-factory) (-> class-or-factory meta :qualifier)
+                       (component? class-or-factory) (get-queryid class-or-factory)
                        nil)
            queryid   (query-id class qualifier)]
        (when (and class (has-query? class))
@@ -1967,9 +1974,14 @@
   [{:keys [parser state] :as env} c]
   (let [ui (when #?(:clj  (satisfies? Ident c)
                     :cljs (implements? Ident c))
-             (let [id    (ident c (props c))
-                   query [{id (get-query c @state)}]]
-               (get (parser env query) id)))]
+             (let [id          (ident c (props c))
+                   has-tempid? (tempid? (second id))
+                   query       [{id (get-query c @state)}]
+                   value       (get (parser env query) id)]
+               (if (and has-tempid? (or (nil? value) (empty? value)))
+                 ::no-ident                                 ; tempid remap happened...cannot do targeted props until full re-render
+                 value)
+               ))]
     (or ui ::no-ident)))
 
 (defn computed
@@ -2017,6 +2029,17 @@
         #js {"fulcro$state" next-state}))))
 
 #?(:cljs
+   (defn force-update
+     "An exception-protected React .forceUpdate"
+     ([c cb]
+      (try
+        (.forceUpdate c cb)
+        (catch :default e
+          (js/console.log "Component" c "threw an exception while rendering " e))))
+     ([c]
+      (force-update c nil))))
+
+#?(:cljs
    (defn- update-props!
      "Store the given props onto the component so that when the factory is called (via forceUpdate) they can be used as the new
      props for the rendering of that component."
@@ -2034,7 +2057,7 @@
      [c next-props]
      {:pre [(component? c)]}
      (update-props! c next-props)
-     (.forceUpdate c)))
+     (force-update c)))
 
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
@@ -2075,7 +2098,7 @@
                                                      (reset! ret nil)
                                                      (rctor data))
                                              :cljs (when (mounted? c')
-                                                     (.forceUpdate c' data)))))]
+                                                     (force-update c' data)))))]
                           (when (and (nil? @ret) (not (nil? c)))
                             (swap! state assoc :root c)
                             (reset! ret c)))))
@@ -2204,7 +2227,7 @@
                          next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
                      (if force-root?
                        (do
-                         (.forceUpdate c)                   ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
+                         (force-update c)                   ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
                          (render-root))                     ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
                        (do
                          (when (and (exists? (.-componentWillReceiveProps c))
@@ -2220,7 +2243,7 @@
                          (when (should-update? c next-props (get-state c))
                            (if-not (nil? next-props)
                              (update-component! c next-props)
-                             (.forceUpdate c))))))))))))))
+                             (force-update c))))))))))))))
 
   (send! [this]
     (let [sends (:queued-sends @state)]
@@ -2461,7 +2484,7 @@
        (do
          (p/queue! r [component])
          (schedule-render! r))
-       (.forceUpdate component))))
+       (force-update component))))
 
 (defn react-set-state!
   ([component new-state]

@@ -101,6 +101,8 @@
     (let [renderFile (prim/get-computed this :renderFile)
           onRetry    (fn [] (log/info "User asked to retry upload"))
           onCancel   (prim/get-computed this :onCancel)     ; TODO: Unhappy path
+          r (prim/get-reconciler this)
+          s (prim/app-state r)
           {:keys [file/id file/name file/size file/progress file/status] :as props} (prim/props this)
           label      (cropped-name name 20)]
       (if renderFile
@@ -226,7 +228,6 @@
            (log/error "File upload networking does not have the reconciler. In your started-callback, please call `fulcro.ui.file-upload/install-reconciler!`."))
          (let [state (prim/app-state @reconciler)]
            (doseq [call edn]
-             (log/info "updating send called with " call)
              (let [action     (-> call first)
                    params     (-> call second)
                    js-file    (:js-file params)
@@ -247,11 +248,9 @@
                                                                         (get-in edn [`add-file :tempids id])
                                                                         id)
                                                     file-obj          (get-in @state ident)
-                                                    file              (assoc file-obj :file/id real-id :file/progress 100 :file/status :done)
-                                                    incoming-remap-id (->> edn prim/get-tempids keys first)]
+                                                    file              (assoc file-obj :file/id real-id :file/progress 100 :file/status :done)]
                                                 ; force update of forms at completion of upload, so validation states can update
                                                 (omp/queue! @reconciler [f/form-root-key])
-                                                (js/console.log {ident file `add-file edn} [{ident (prim/get-query File)} `(add-file)])
                                                 (ok {ident file `add-file edn} [{ident (prim/get-query File)} `(add-file)])))
                                progress-fn  (fn [evt]
                                               (let [ident    (file-ident id)
