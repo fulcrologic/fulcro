@@ -1,12 +1,11 @@
 (ns cards.dynamic-ui-routing
   (:require [fulcro.client.routing :as r]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [cljs.loader :as loader]))
 
 (prim/defui ^:once Login
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {r/dynamic-route-key :login :label "LOGIN" :login-prop "login data"})
   static prim/Ident
   (ident [this props] [:login :singleton])
@@ -19,7 +18,7 @@
         (str label " " login-prop)))))
 
 (prim/defui ^:once NewUser
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {r/dynamic-route-key :new-user :label "New User" :new-user-prop "new user data"})
   static prim/Ident
   (ident [this props] [:new-user :singleton])
@@ -32,13 +31,13 @@
         (str label " " new-user-prop)))))
 
 (prim/defui ^:once Root
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] (merge
                                 (r/routing-tree
                                   (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
                                   (r/make-route :login [(r/router-instruction :top-router [:login :singleton])])
                                   (r/make-route :new-user [(r/router-instruction :top-router [:new-user :singleton])]))
-                                {:top-router (fc/get-initial-state r/DynamicRouter {:id :top-router})}))
+                                {:top-router (prim/get-initial-state r/DynamicRouter {:id :top-router})}))
   static prim/IQuery
   (query [this] [:ui/react-key {:top-router (r/get-dynamic-router-query :top-router)}
                  :fulcro.client.routing/pending-route])

@@ -9,8 +9,7 @@
     [fulcro.client.logging :as log]
     [fulcro.util :as util]
     [fulcro.client.mutations :as m]
-    [fulcro.client.primitives :as prim :refer [defui]]
-    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]))
+    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:

@@ -118,7 +118,7 @@ Place this in `src/main/app/basic_ui.cljs`:
 (ns app.basic-ui
   (:require [fulcro.client.core :as fc]
             [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defui]]))
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 ; Create an application
 (defonce app-1 (atom (fc/new-fulcro-client)))
@@ -371,7 +371,7 @@ So, changing your current application to this:
 (ns app.basic-ui
   (:require [fulcro.client.core :as fc]
             [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defui]]))
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 (defonce app-1 (atom (fc/new-fulcro-client)))
 
@@ -411,7 +411,7 @@ Replace your `basic_ui.cljs` content with this:
 (ns app.basic-ui
   (:require [fulcro.client.core :as fc]
             [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defui]]))
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 (defonce app-1 (atom (fc/new-fulcro-client)))
 
@@ -529,7 +529,7 @@ It looks like this:
 [source]
 ----
 (defui ^:once Person
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [name age] :as params}] {:person/name name :person/age age})
   Object
   (render [this]
@@ -540,14 +540,14 @@ It looks like this:
 (def ui-person (prim/factory Person {:keyfn :person/name}))
 
 (defui ^:once PersonList
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [label]}]
     {:person-list/label  label
      :person-list/people (if (= label "Friends")
-                           [(fc/get-initial-state Person {:name "Sally" :age 32})
-                            (fc/get-initial-state Person {:name "Joe" :age 22})]
-                           [(fc/get-initial-state Person {:name "Fred" :age 11})
-                            (fc/get-initial-state Person {:name "Bobby" :age 55})])})
+                           [(prim/get-initial-state Person {:name "Sally" :age 32})
+                            (prim/get-initial-state Person {:name "Joe" :age 22})]
+                           [(prim/get-initial-state Person {:name "Fred" :age 11})
+                            (prim/get-initial-state Person {:name "Bobby" :age 55})])})
   Object
   (render [this]
     (let [{:keys [person-list/label person-list/people]} (prim/props this)]
@@ -560,13 +560,13 @@ It looks like this:
 
 (defui ^:once Root
   static
-  fc/InitialAppState
-  (initial-state [c params] {:friends (fc/get-initial-state PersonList {:label "Friends"})
-                             :enemies (fc/get-initial-state PersonList {:label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
+                             :enemies (prim/get-initial-state PersonList {:label "Enemies"})})
   Object
   (render [this]
     (let [{:keys [ui/react-key]} (prim/props this)
-          {:keys [friends enemies]} (fc/get-initial-state Root {})]
+          {:keys [friends enemies]} (prim/get-initial-state Root {})]
       (dom/div #js {:key react-key}
         (ui-person-list friends)
         (ui-person-list enemies)))))
@@ -587,7 +587,7 @@ In fact, at the figwheel REPL you can see the tree by running:
 
 [source]
 ----
-dev:cljs.user=> (fulcro.client.core/get-initial-state app.basic-ui/Root {})
+dev:cljs.user=> (fulcro.client.primitives/get-initial-state app.basic-ui/Root {})
 {:friends
  {:person-list/label "Friends",
   :person-list/people
@@ -674,7 +674,7 @@ against it:
 
 [source]
 ----
-dev:cljs.user=>  (fulcro.client.primitives/db->tree [{:friends [:person-list/label]}] (fulcro.client.core/get-initial-state app.basic-ui/Root {}) {})
+dev:cljs.user=>  (fulcro.client.primitives/db->tree [{:friends [:person-list/label]}] (fulcro.client.primitives/get-initial-state app.basic-ui/Root {}) {})
 {:friends {:person-list/label "Friends"}}
 ----
 
@@ -696,7 +696,7 @@ So, the `Person` component queries for just the properties it needs:
 (defui ^:once Person
   static prim/IQuery
   (query [this] [:person/name :person/age])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [name age] :as params}] {:person/name name :person/age age})
   Object
   (render [this]
@@ -715,14 +715,14 @@ are mirrored):
 (defui ^:once PersonList
   static prim/IQuery
   (query [this] [:person-list/label {:person-list/people (prim/get-query Person)}])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [label]}]
     {:person-list/label  label
      :person-list/people (if (= label "Friends")
-                           [(fc/get-initial-state Person {:name "Sally" :age 32})
-                            (fc/get-initial-state Person {:name "Joe" :age 22})]
-                           [(fc/get-initial-state Person {:name "Fred" :age 11})
-                            (fc/get-initial-state Person {:name "Bobby" :age 55})])})
+                           [(prim/get-initial-state Person {:name "Sally" :age 32})
+                            (prim/get-initial-state Person {:name "Joe" :age 22})]
+                           [(prim/get-initial-state Person {:name "Fred" :age 11})
+                            (prim/get-initial-state Person {:name "Bobby" :age 55})])})
   Object
   (render [this]
     (let [{:keys [person-list/label person-list/people]} (prim/props this)]
@@ -746,9 +746,9 @@ Finally, we compose to `Root`:
                  {:friends (prim/get-query PersonList)}
                  {:enemies (prim/get-query PersonList)}])
   static
-  fc/InitialAppState
-  (initial-state [c params] {:friends (fc/get-initial-state PersonList {:label "Friends"})
-                             :enemies (fc/get-initial-state PersonList {:label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
+                             :enemies (prim/get-initial-state PersonList {:label "Enemies"})})
   Object
   (render [this]
     ; NOTE: the data now comes in through props!!!
@@ -800,7 +800,7 @@ the parent will need to pass in a function that the child can call to affect the
 (defui ^:once Person
   static prim/IQuery
   (query [this] [:person/name :person/age])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [name age] :as params}] {:person/name name :person/age age})
   Object
   (render [this]
@@ -813,14 +813,14 @@ the parent will need to pass in a function that the child can call to affect the
 (defui ^:once PersonList
   static prim/IQuery
   (query [this] [:person-list/label {:person-list/people (prim/get-query Person)}])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [label]}]
     {:person-list/label  label
      :person-list/people (if (= label "Friends")
-                           [(fc/get-initial-state Person {:name "Sally" :age 32})
-                            (fc/get-initial-state Person {:name "Joe" :age 22})]
-                           [(fc/get-initial-state Person {:name "Fred" :age 11})
-                            (fc/get-initial-state Person {:name "Bobby" :age 55})])})
+                           [(prim/get-initial-state Person {:name "Sally" :age 32})
+                            (prim/get-initial-state Person {:name "Joe" :age 22})]
+                           [(prim/get-initial-state Person {:name "Fred" :age 11})
+                            (prim/get-initial-state Person {:name "Bobby" :age 55})])})
   Object
   (render [this]
     (let [{:keys [person-list/label person-list/people]} (prim/props this)
@@ -975,7 +975,7 @@ Then all that remains is to change `basic-ui` in the following ways:
             [fulcro.client.dom :as dom]
             ; ADD THIS:
             [app.operations :as ops] ; <1>
-            [fulcro.client.primitives :as prim :refer [defui]]))
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 ...
 
@@ -1098,7 +1098,7 @@ do it for you, other than the actual value of the `Ident`. So, we'll add one mor
   (ident [this props] [:person/by-id (:db/id props)])
   static prim/IQuery
   (query [this] [:db/id :person/name :person/age]) ; <2>
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [id name age] :as params}] {:db/id id :person/name name :person/age age}) ; <3>
   Object
   (render [this]
@@ -1114,15 +1114,15 @@ do it for you, other than the actual value of the `Ident`. So, we'll add one mor
   (ident [this props] [:person-list/by-id (:db/id props)]) ; <5>
   static prim/IQuery
   (query [this] [:db/id :person-list/label {:person-list/people (prim/get-query Person)}]) ; <5>
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [id label]}]
     {:db/id              id ; <5>
      :person-list/label  label
      :person-list/people (if (= id :friends)
-                           [(fc/get-initial-state Person {:id 1 :name "Sally" :age 32}) ; <3>
-                            (fc/get-initial-state Person {:id 2 :name "Joe" :age 22})]
-                           [(fc/get-initial-state Person {:id 3 :name "Fred" :age 11})
-                            (fc/get-initial-state Person {:id 4 :name "Bobby" :age 55})])})
+                           [(prim/get-initial-state Person {:id 1 :name "Sally" :age 32}) ; <3>
+                            (prim/get-initial-state Person {:id 2 :name "Joe" :age 22})]
+                           [(prim/get-initial-state Person {:id 3 :name "Fred" :age 11})
+                            (prim/get-initial-state Person {:id 4 :name "Bobby" :age 55})])})
   Object
   (render [this]
     (let [{:keys [db/id person-list/label person-list/people]} (prim/props this)
@@ -1142,9 +1142,9 @@ do it for you, other than the actual value of the `Ident`. So, we'll add one mor
                  {:friends (prim/get-query PersonList)}
                  {:enemies (prim/get-query PersonList)}])
   static
-  fc/InitialAppState
-  (initial-state [c params] {:friends (fc/get-initial-state PersonList {:id :friends :label "Friends"}) ; <5>
-                             :enemies (fc/get-initial-state PersonList {:id :enemies :label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"}) ; <5>
+                             :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})
   Object
   (render [this]
     ; NOTE: the data now comes in through props!!!
@@ -1546,7 +1546,7 @@ First, let's correct our application's initial state so that no people are there
 ----
 (defui ^:once PersonList
   ...
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [id label]}]
     {:db/id              id
      :person-list/label  label
@@ -1583,7 +1583,7 @@ To do this, we can add an option to our client. In `app.basic-ui` change `app-1`
   (:require [fulcro.client.core :as fc]
             [fulcro.client.dom :as dom]
             [app.operations :as ops]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.data-fetch :as df] ; <1>
             [fulcro.client.mutations :as m]))
 
@@ -1700,9 +1700,9 @@ We'll just use it on the Root UI node, where we don't need to "jump to the top":
                  {:friends (prim/get-query PersonList)}
                  {:enemies (prim/get-query PersonList)}])
   static
-  fc/InitialAppState
-  (initial-state [c params] {:friends (fc/get-initial-state PersonList {:id :friends :label "Friends"})
-                             :enemies (fc/get-initial-state PersonList {:id :enemies :label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
+                             :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})
   Object
   (render [this]
     ; NOTE: the data now comes in through props!!!
@@ -2028,7 +2028,7 @@ a very simple UI we can add to our program:
 (def ui-post (prim/factory Post {:keyfn :db/id}))
 
 (defui Posts ; <2>
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c params] {:posts []})
   static prim/Ident
   (ident [this props] [:post-list/by-id :the-one])
@@ -2051,10 +2051,10 @@ a very simple UI we can add to our program:
                  {:friends (prim/get-query PersonList)}
                  {:enemies (prim/get-query PersonList)}])
   static
-  fc/InitialAppState
-  (initial-state [c params] {:blog-posts (fc/get-initial-state Posts {}) ; <4>
-                             :friends    (fc/get-initial-state PersonList {:id :friends :label "Friends"})
-                             :enemies    (fc/get-initial-state PersonList {:id :enemies :label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:blog-posts (prim/get-initial-state Posts {}) ; <4>
+                             :friends    (prim/get-initial-state PersonList {:id :friends :label "Friends"})
+                             :enemies    (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})
   Object
   (render [this]
     ; NOTE: the data now comes in through props!!!
@@ -2184,7 +2184,7 @@ to talk to the REST server. The modification is done in our `basic-ui` namespace
   (:require [fulcro.client.core :as fc]
             [fulcro.client.dom :as dom]
             [app.operations :as ops]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [app.rest :as rest] ; <-------ADD THIS
             [fulcro.client.data-fetch :as df]
             [fulcro.client.mutations :as m]

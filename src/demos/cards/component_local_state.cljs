@@ -2,11 +2,11 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
+    [fulcro.client.core :as fc ]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
     [fulcro.client.dom :as dom]
     yahoo.intl-messageformat-with-locales))
 

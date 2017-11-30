@@ -51,7 +51,7 @@
       (swap! state assoc :position new-position))))
 
 (defui ^:once SupportViewerRoot
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [t p] {:history {} :position :controls-left :client-time (js/Date.) :comments ""})
   static prim/IQuery
   (query [this] [:ui/react-key :history-nav :comments :position])

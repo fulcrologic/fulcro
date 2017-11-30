@@ -8,7 +8,7 @@
     [clojure.test.check.properties :as prop]
     [clojure.test :refer [is]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]))
+    [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 #?(:cljs
    (specification "Log app state"

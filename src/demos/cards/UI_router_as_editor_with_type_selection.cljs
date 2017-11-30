@@ -2,7 +2,7 @@
   (:require [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.routing :as r :refer [defrouter]]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.core :as fc]
             [fulcro.ui.bootstrap3 :as b]
             [fulcro.ui.elements :as ele]
@@ -28,7 +28,7 @@
   ; defrouter expects there to be an initial state for each possible target. We'll cause this to be a "no selection"
   ; state so that the detail screen that starts out will show "Nothing selected". We initialize all three in case
   ; we later re-order them in the defrouter.
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {:db/id :no-selection :kind :person})
   Object
   (render [this]
@@ -43,7 +43,7 @@
   (ident [this props] (item-ident props))
   static prim/IQuery
   (query [this] [:kind :db/id :place/name])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {:db/id :no-selection :kind :place})
   Object
   (render [this]
@@ -58,7 +58,7 @@
   (ident [this props] (item-ident props))
   static prim/IQuery
   (query [this] [:kind :db/id :thing/label])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {:db/id :no-selection :kind :thing})
   Object
   (render [this]
@@ -136,7 +136,7 @@
 (def ui-item-union (prim/factory ItemUnion {:keyfn item-key}))
 
 (defui ^:once ItemList
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p]
     ; These would normally be loaded...but for demo purposes we just hand code a few
     {:items [(make-person 1 "Tony")
@@ -162,12 +162,12 @@
   static prim/IQuery
   (query [this] [{:item-list (prim/get-query ItemList)}
                  {:item-detail (prim/get-query ItemDetail)}])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] (merge
                          (r/routing-tree
                            (r/make-route :detail [(r/router-instruction :detail-router [:param/kind :param/id])]))
-                         {:item-list   (fc/get-initial-state ItemList nil)
-                          :item-detail (fc/get-initial-state ItemDetail nil)}))
+                         {:item-list   (prim/get-initial-state ItemList nil)
+                          :item-detail (prim/get-initial-state ItemDetail nil)}))
   Object
   (render [this]
     (let [{:keys [item-list item-detail]} (prim/props this)

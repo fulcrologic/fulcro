@@ -7,7 +7,6 @@
             [fulcro.client.impl.parser :as p]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.elements :as ele]
-            [fulcro.client.cards :refer [fulcro-app]]
             [fulcro.client.mutations :as m]
             [fulcro.ui.bootstrap3 :as b]
             [fulcro.client.core :as fc]

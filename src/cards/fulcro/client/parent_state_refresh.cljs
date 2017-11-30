@@ -1,11 +1,10 @@
 (ns fulcro.client.parent-state-refresh
   (:require [devcards.core :as dc]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
+            [fulcro.client.core :as fc ]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [goog.object]
-            [fulcro.client.cards :refer [fulcro-app]]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]))
 
 (declare ui-leaf)
@@ -33,8 +32,8 @@
 
 (defui ^:once Parent
   static InitialAppState
-  (initial-state [clz params] {:left  (fc/get-initial-state Leaf {:id :left})
-                               :right (fc/get-initial-state Leaf {:id :right})})
+  (initial-state [clz params] {:left  (prim/get-initial-state Leaf {:id :left})
+                               :right (prim/get-initial-state Leaf {:id :right})})
   static prim/IQuery
   (query [this] [{:left (prim/get-query ui-leaf)} {:right (prim/get-query ui-leaf)}])
 
@@ -59,7 +58,7 @@
 (defui ^:once Root
   static InitialAppState
   (initial-state [clz params] {:ui/react-key "A"
-                               :parent       (fc/get-initial-state Parent nil)})
+                               :parent       (prim/get-initial-state Parent nil)})
   static prim/IQuery
   (query [this] [{:parent (prim/get-query ui-parent)} :ui/react-key])
   Object

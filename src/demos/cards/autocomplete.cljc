@@ -1,6 +1,6 @@
 (ns cards.autocomplete
   (:require
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m]
@@ -86,7 +86,7 @@
                  :autocomplete/value])                      ; the current user-entered value
   static prim/Ident
   (ident [this props] (autocomplete-ident props))
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id]}] {:db/id id :autocomplete/suggestions [] :autocomplete/value ""})
   Object
   (render [this]
@@ -119,8 +119,8 @@
 (def ui-autocomplete (prim/factory Autocomplete))
 
 (defui ^:once AutocompleteRoot
-  static fc/InitialAppState
-  (initial-state [c p] {:airport-input (fc/get-initial-state Autocomplete {:id :airports})})
+  static prim/InitialAppState
+  (initial-state [c p] {:airport-input (prim/get-initial-state Autocomplete {:id :airports})})
   static prim/IQuery
   (query [this] [:ui/react-key {:airport-input (prim/get-query Autocomplete)}])
   Object

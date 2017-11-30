@@ -2,14 +2,14 @@
   (:require [fulcro.client.routing :as r :refer-macros [defrouter]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
-            [fulcro.client.cards :refer-macros [fulcro-app]]
+            [fulcro.client.core :as fc]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.data-fetch :as df]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]))
 
 (prim/defui ^:once Main
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {:page :main :label "MAIN"})
   static prim/IQuery
   (query [this] [:page :label])
@@ -20,7 +20,7 @@
         label))))
 
 (prim/defui ^:once Login
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {:page :login :label "LOGIN"})
   static prim/IQuery
   (query [this] [:page :label])
@@ -31,7 +31,7 @@
         label))))
 
 (prim/defui ^:once NewUser
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {:page :new-user :label "New User"})
   static prim/IQuery
   (query [this] [:page :label])
@@ -42,7 +42,7 @@
         label))))
 
 (prim/defui ^:once StatusReport
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {:id :a :page :status-report})
   static prim/IQuery
   (query [this] [:id :page :label])
@@ -52,7 +52,7 @@
                      (dom/div nil (str "Status " id))))))
 
 (prim/defui ^:once GraphingReport
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {:id :a :page :graphing-report})
   static prim/IQuery
   (query [this] [:id :page :label])                         ; make sure you query for everything need by the router's ident function!
@@ -74,9 +74,9 @@
 
 ; BIG GOTCHA: Make sure you query for the prop (in this case :page) that the union needs in order to decide. It won't pull it itself!
 (prim/defui ^:once ReportsMain
-  static fc/InitialAppState
+  static prim/InitialAppState
   ; nest the router under any arbitrary key, just be consistent in your query and props extraction.
-  (initial-state [clz params] {:page :report :report-router (fc/get-initial-state ReportRouter {})})
+  (initial-state [clz params] {:page :report :report-router (prim/get-initial-state ReportRouter {})})
   static prim/IQuery
   (query [this] [:page {:report-router (prim/get-query ReportRouter)}])
   Object
@@ -116,10 +116,10 @@
                            (r/router-instruction :report-router [:status-report :param/report-id])])))
 
 (prim/defui ^:once Root
-  static fc/InitialAppState
+  static prim/InitialAppState
   ; r/routing-tree-key implies the alias of fulcro.client.routing as r.
   (initial-state [clz params] (merge routing-tree
-                                {:top-router (fc/get-initial-state TopRouter {})}))
+                                {:top-router (prim/get-initial-state TopRouter {})}))
   static prim/IQuery
   (query [this] [:ui/react-key {:top-router (prim/get-query TopRouter)}])
   Object
@@ -134,11 +134,11 @@
         (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :graph :route-params {:report-id :a}})])} "Graph A")
         (ui-top top-router)))))
 
-(defcard router-demo
+(defcard-fulcro router-demo
   "# Router Demo
 
   Background colors are used to show where the screens shown are different, and possibly nested."
-  (fulcro-app Root)
+  Root
   {}
   {:inspect-data true})
 

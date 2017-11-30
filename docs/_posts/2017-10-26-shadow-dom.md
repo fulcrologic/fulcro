@@ -100,7 +100,7 @@ and the implementation of the shadow DOM component has been added to `fulcro.ui.
     (swap! state update-in [:child/by-id id :n] dec)))
 
 (defui ^:once ListItem
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id n]}] {:id id :n n})
   static om/IQuery
   (query [this] [:id :n])
@@ -119,12 +119,12 @@ and the implementation of the shadow DOM component has been added to `fulcro.ui.
 (def ui-list-item (om/factory ListItem {:keyfn :id}))
 
 (defui ^:once List
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p]
     {:id 1 :title "My List"
-     :items [(fc/get-initial-state ListItem {:id 1 :n 2})
-             (fc/get-initial-state ListItem {:id 2 :n 5})
-             (fc/get-initial-state ListItem {:id 3 :n 7})]})
+     :items [(prim/get-initial-state ListItem {:id 1 :n 2})
+             (prim/get-initial-state ListItem {:id 2 :n 5})
+             (prim/get-initial-state ListItem {:id 3 :n 7})]})
   static om/IQuery
   (query [this] [:id :title :max :min {:items (om/get-query ListItem)}])
   static om/Ident
@@ -139,8 +139,8 @@ and the implementation of the shadow DOM component has been added to `fulcro.ui.
 (def ui-list (om/factory List {:keyfn :id}))
 
 (defui ^:once SDRoot
-  static fc/InitialAppState
-  (initial-state [c p] {:lists [(fc/get-initial-state List {})]})
+  static prim/InitialAppState
+  (initial-state [c p] {:lists [(prim/get-initial-state List {})]})
   static om/IQuery
   (query [this] [:ui/react-key {:lists (om/get-query List)}])
   Object

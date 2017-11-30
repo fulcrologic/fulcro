@@ -10,7 +10,7 @@
     [fulcro.server :as server]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [cards.card-utils :refer [sleep]]
-    [fulcro.client.primitives :as prim :refer [defui]]))
+    [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -80,7 +80,7 @@
 (def ui-child (prim/factory Child {:keyfn :child/label}))
 
 (defui ^:once Panel
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c params] {:child nil})
   static prim/IQuery
   (query [this] [[:ui/loading-data '_] [df/marker-table '_] {:child (prim/get-query Child)}])
@@ -105,8 +105,8 @@
 ; Note: Kinda hard to do idents/lazy loading right on root...so generally just have root render a div
 ; and then render a child that has the rest.
 (defui ^:once Root
-  static fc/InitialAppState
-  (initial-state [c params] {:ui/react-key "A" :panel (fc/get-initial-state Panel nil)})
+  static prim/InitialAppState
+  (initial-state [c params] {:ui/react-key "A" :panel (prim/get-initial-state Panel nil)})
   static prim/IQuery
   (query [this] [:ui/react-key {:panel (prim/get-query Panel)}])
   Object

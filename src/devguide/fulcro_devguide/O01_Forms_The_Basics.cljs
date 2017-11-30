@@ -2,12 +2,12 @@
   (:require
     [clojure.string :as str]
     [com.stuartsierra.component :as component]
-    [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+    [devcards.core :as dc :refer-macros [defcard-doc]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.cards :refer [fulcro-app]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.ui.forms :as f :refer [defvalidator]]
     [fulcro.i18n :refer [tr]]))
 
@@ -41,7 +41,7 @@
      (dom/label nil (f/form-field comp form name) label))))
 
 (defui ^:once PhoneForm
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)                    ; Mark which thing is the ID of this entity
@@ -71,7 +71,7 @@
 (defui PhoneRoot
   static prim/IQuery
   (query [this] [{:phone (prim/get-query PhoneForm)}])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params]
     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
       {:phone (f/build-form PhoneForm phone-number)}))
@@ -100,11 +100,11 @@
   ```
   (ns your-ns
     (:require
-      [fulcro.client.cards :refer [fulcro-app]]
+      [fulcro.client.cards :refer [defcard-fulcro]]
       [clojure.string :as str]
       [com.stuartsierra.component :as component]
       [fulcro.client.dom :as dom]
-      [fulcro.client.primitives :as prim :refer [defui]]
+      [fulcro.client.primitives :as prim :refer [defui defsc]]
       [fulcro.client.core :as fc]
       [fulcro.client.mutations :as m]
       [fulcro.ui.forms :as f]
@@ -210,14 +210,14 @@
   (dc/mkdn-pprint-source PhoneRoot)
   "We can embed it into an active dev card to play with it (you may edit the devcard options to include :")
 
-(defcard phone-form
+(defcard-fulcro phone-form
   "A Sample Form (edit this card and set `:inspect-data` to `true` to see the augmented data)"
-  (fulcro-app PhoneRoot)
+  PhoneRoot
   {}
   #_{:inspect-data true})
 
 (defui ^:once ValidatedPhoneForm
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
@@ -240,7 +240,7 @@
 (defui ValidatedPhoneRoot
   static prim/IQuery
   (query [this] [f/form-key {:phone (prim/get-query ValidatedPhoneForm)}])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params]
     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
       {:phone (f/build-form ValidatedPhoneForm phone-number)}))
@@ -286,12 +286,12 @@ TODO: remove the need to pass the component? The form is just prim/props of the 
   "
   (dc/mkdn-pprint-source ValidatedPhoneForm))
 
-(defcard validated-phone-number
+(defcard-fulcro validated-phone-number
   "Edit the phone field and then set the phone type. The blur will trigger validation"
-  (fulcro-app ValidatedPhoneRoot))
+  ValidatedPhoneRoot)
 
 (defui ^:once PersonForm
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
@@ -340,19 +340,19 @@ TODO: remove the need to pass the component? The form is just prim/props of the 
 (def ui-person-form (prim/factory PersonForm))
 
 (defui ^:once Root
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params]
     {:ui/person-id 1
-     :person       (fc/initial-state PersonForm
+     :person       (prim/get-initial-state PersonForm
                      {:db/id                      1
                       :person/name                "Tony Kay"
                       :person/age                 23
                       :person/registered-to-vote? false
-                      :person/phone-numbers       [(fc/initial-state ValidatedPhoneForm
+                      :person/phone-numbers       [(prim/get-initial-state ValidatedPhoneForm
                                                      {:db/id        22
                                                       :phone/type   :work
                                                       :phone/number "(123) 412-1212"})
-                                                   (fc/initial-state ValidatedPhoneForm
+                                                   (prim/get-initial-state ValidatedPhoneForm
                                                      {:db/id        23
                                                       :phone/type   :home
                                                       :phone/number "(541) 555-1212"})]})})
@@ -453,9 +453,9 @@ TODO: remove the need to pass the component? The form is just prim/props of the 
   those commits will be sent to the server as a single transaction (if you include the remote parameter).
   ")
 
-(defcard sample-form-1
+(defcard-fulcro sample-form-1
   "This card shows a very simple form in action. (Edit the code and set :inspect-data to true to watch app state)"
-  (fulcro-app Root)
+  Root
   {}
   {:inspect-data false})
 

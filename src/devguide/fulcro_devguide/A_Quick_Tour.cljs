@@ -13,7 +13,7 @@
 (defn increment-counter [counter] (update counter :counter/n inc))
 
 (defui ^:once Counter
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this {:keys [id start]
                         :or   {id 1 start 1}
                         :as   params}] {:counter/id id :counter/n start})
@@ -38,9 +38,9 @@
    :action (fn [] (swap! state update-in [:counter/by-id id] increment-counter))})
 
 (defui ^:once CounterPanel
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params]
-    {:counters [(fc/get-initial-state Counter {:id 1 :start 1})]})
+    {:counters [(prim/get-initial-state Counter {:id 1 :start 1})]})
   static prim/IQuery
   (query [this] [{:counters (prim/get-query Counter)}])
   static prim/Ident
@@ -59,7 +59,7 @@
 (def ui-counter-panel (prim/factory CounterPanel))
 
 (defui ^:once CounterSum
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] {})
   static prim/IQuery
   (query [this] [[:counter/by-id '_]])
@@ -73,9 +73,9 @@
 (def ui-counter-sum (prim/factory CounterSum))
 
 (defui ^:once Root
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params]
-    {:panel (fc/get-initial-state CounterPanel {})})
+    {:panel (prim/get-initial-state CounterPanel {})})
   static prim/IQuery
   (query [this] [:ui/loading-data
                  {:panel (prim/get-query CounterPanel)}
@@ -447,7 +447,7 @@
 
   Normally you create a Fulcro application and mount it on a DIV in your real HTML DOM. We'll cover that later in the
   Guide. Here we're in devcards and we have a helper to do that. It accepts the same basic parameters as
-  `make-fulcro-app`, but mounts the resulting application in a devcard:
+  `new-fulcro-client`, but mounts the resulting application in a devcard:
 
   ```
   (defcard-fulcro SampleApp

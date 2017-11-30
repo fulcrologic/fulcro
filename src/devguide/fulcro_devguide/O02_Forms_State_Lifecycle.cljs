@@ -2,10 +2,9 @@
   (:require
     [clojure.string :as str]
     [com.stuartsierra.component :as component]
-    [fulcro.client.cards :refer [fulcro-app]]
-    [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+    [devcards.core :as dc :refer-macros [defcard-doc]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.core :as fc]
     [fulcro.client.mutations :as m]
     [fulcro.ui.forms :as f]

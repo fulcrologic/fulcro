@@ -1,6 +1,6 @@
 (ns cards.UI-router-as-list-with-item-editor
   (:require [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
@@ -96,7 +96,7 @@
 (def person-list-ident [:person-list/table :singleton])
 
 (defui ^:once PersonList
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {:people []})
   static prim/Ident
   (ident [this props] person-list-ident)
@@ -126,13 +126,13 @@
 (defui ^:once DemoRoot
   static prim/IQuery
   (query [this] [:ui/react-key {:root/router (prim/get-query PersonListOrForm)}])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] (merge
                          (r/routing-tree
                            (r/make-route :people [(r/router-instruction :listform-router person-list-ident)])
                            ; configure the editor route to be able to point to any person via a route parameter
                            (r/make-route :editor [(r/router-instruction :listform-router (person-ident :param/id))]))
-                         {:root/router (fc/get-initial-state PersonListOrForm nil)}))
+                         {:root/router (prim/get-initial-state PersonListOrForm nil)}))
   Object
   (render [this]
     (let [{:keys [ui/react-key root/router]} (prim/props this)]

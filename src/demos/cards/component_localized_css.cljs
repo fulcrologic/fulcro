@@ -2,9 +2,9 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
+    [fulcro.client.core :as fc ]
     [fulcro-css.css :as css]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
     [fulcro.client.dom :as dom]))
 
 (defonce theme-color (atom :blue))

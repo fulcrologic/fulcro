@@ -3,12 +3,12 @@
             [fulcro.client.routing :as r :refer [defrouter]]
             [fulcro.client.dom :as dom]
             [fulcro.client.util :as util]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.mutations :as m]
             [fulcro.client.core :as fc]))
 
 (defui Screen1
-  fc/InitialAppState
+  prim/InitialAppState
   (initial-state [cls params] {:type :screen1})
   Object
   (render [this] (dom/div nil "TODO")))

@@ -1,7 +1,6 @@
 (ns cards.A-Introduction
   (:require
     [devcards.core :as dc :include-macros true]
-    [fulcro.client.cards :refer [fulcro-app]]
     [fulcro.client.dom :as dom]))
 
 (dc/defcard-doc

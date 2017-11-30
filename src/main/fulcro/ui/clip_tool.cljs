@@ -1,5 +1,5 @@
 (ns fulcro.ui.clip-tool
-  (:require [fulcro.client.primitives :as prim :refer [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.ui.clip-geometry :as cg]))
@@ -136,9 +136,9 @@
     (prim/update-state! comp assoc :clip-region clip)))
 
 (defui ^:once ClipTool
-  static fc/InitialAppState
-  (fc/initial-state [clz {:keys [image-url id aspect-ratio handle-size width height] :or {id           "clip-1"
-                                                                                          aspect-ratio 1 width 400 height 400 handle-size 10} :as params}]
+  static prim/InitialAppState
+  (initial-state [clz {:keys [image-url id aspect-ratio handle-size width height] :or {id           "clip-1"
+                                                                                       aspect-ratio 1 width 400 height 400 handle-size 10} :as params}]
     {:id           id
      :url          image-url
      :aspect-ratio aspect-ratio

@@ -1,6 +1,6 @@
 (ns fulcro.ui.bootstrap3
   (:require [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.ui.elements :as ele]
             [fulcro.events :as evt]
             [fulcro.ui.html-entities :as ent]
@@ -904,7 +904,7 @@
 (def ui-modal-footer (prim/factory ModalFooter {:keyfn (fn [props] "modal-footer")}))
 
 (defui ^:once Modal
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id sz backdrop keyboard] :or {backdrop true keyboard true}}]
     {:db/id      id :modal/active false :modal/visible false :modal/keyboard keyboard
      :modal/size sz :modal/backdrop (boolean backdrop)})
@@ -953,9 +953,9 @@
     Modal content should include a ui-modal-title, ui-modal-body, and ui-modal-footer as children. The footer usually contains
     one or more buttons.
 
-    Use the `fc/get-initial-state` function to pull a valid initial state for this component. The arguments are:
+    Use the `prim/get-initial-state` function to pull a valid initial state for this component. The arguments are:
 
-    `(fc/get-initial-state Modal {:id ID :sz SZ :backdrop BOOLEAN})`
+    `(prim/get-initial-state Modal {:id ID :sz SZ :backdrop BOOLEAN})`
 
     where the id is required (and must be unique among modals, and `:sz` is optional and must be `:sm` or `:lg`. The
     :backdrop option is boolean, and indicates you want a backdrop that blocks the UI. The `:keyboard` option
@@ -987,7 +987,7 @@
     [:fulcro.ui.bootstrap3.collapse/by-id id-or-props]))
 
 (defui Collapse
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id start-open]}] {:db/id id :collapse/phase :closed})
   static prim/Ident
   (ident [this props] (collapse-ident props))
@@ -1126,7 +1126,7 @@
         (swap! state assoc :carousel/slide-to frame :carousel/timer-id new-timer-id)))))
 
 (defui Carousel
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id interval wrap keyboard pause-on-hover show-controls]
                      :or   {interval 5000 wrap true keyboard true pause-on-hover true show-controls true}}]
     {:db/id                   id

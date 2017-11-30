@@ -34,6 +34,12 @@ to use devcards mkdn-pprint-source with mutations in your devcards. See the docs
 - Expanded and cleaned up many portions of the developer's guide
 - Expanded defsc. It can now take a method body for `initial-state`, `ident`, and `query` in
 addition to a simpler template. Using the method forms loosens verification logic.
+- Removed deprecated fulcro.client.cards/fulcro-app. Please port to `defcard-fulcro` instead (trivial port).
+
+Renames:
+- Moved defsc from fulcro.client.core to fulcro.client.primitives namespace
+- Moved and renamed iinitial-state and iident from core to primitives
+- Renamed fulcro.client.core to fulcro.client
 
 1.2.1
 -----

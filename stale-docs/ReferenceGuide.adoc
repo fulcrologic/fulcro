@@ -890,8 +890,8 @@ should be shown/hidden. The actual DOM elements of those children are immaterial
 
 ```
 (defui ^:once CollapseExample
-  static fc/InitialAppState
-  (initial-state [c p] {:collapse-1 (fc/get-initial-state b/Collapse {:id 1 :start-open false})})
+  static prim/InitialAppState
+  (initial-state [c p] {:collapse-1 (prim/get-initial-state b/Collapse {:id 1 :start-open false})})
   static prim/IQuery
   (query [this] [{:collapse-1 (prim/get-query b/Collapse)}
                  {:child (prim/get-query SomeChild)}])
@@ -1420,7 +1420,7 @@ protocol cannot work on the server, so this helper method makes server-side rend
 
 (defui Parent
   static fulcro.core/InitialAppState
-  (initial-state [cls params] { :y 2 :child (fc/get-initial-state Child {}) }) ; set y, and compose in child's state
+  (initial-state [cls params] { :y 2 :child (prim/get-initial-state Child {}) }) ; set y, and compose in child's state
   static prim/IQuery
   (query [this] [:y {:child (prim/get-query Child)}]) ; query for :y and compose child's query
   static prim/Ident
@@ -1460,20 +1460,20 @@ If you look at a proposed initial state, it will make the problem more clear:
 
 ```
 (defui Person
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id name]}] {:id id :name name :type :person})
   ...)
 
 (defui PersonPlaceUnion
-  static fc/InitialAppState
-  (initial-state [c p] (fc/get-initial-state Person {:id 1 :name "Joe"}))
+  static prim/InitialAppState
+  (initial-state [c p] (prim/get-initial-state Person {:id 1 :name "Joe"}))
   static prim/IQuery
   (query [this] {:person (prim/get-query Person) :place (prim/get-query Place)})
   ...)
 
 (defui Parent
-  static fc/InitialAppState
-  (initial-state [c p] {:person-or-place (fc/get-initial-state PersonPlaceUnion)})
+  static prim/InitialAppState
+  (initial-state [c p] {:person-or-place (prim/get-initial-state PersonPlaceUnion)})
   static prim/IQuery
   (query [this] [{:person-or-place (prim/get-query PersonPlaceUnion)}]))
 ```
@@ -2277,12 +2277,12 @@ with data inspection).
 The third option is *definitely* the option you should use. It enable easy UI refactoring, and it by far the
 easiest and most reliable way to generate your application's initial state database.
 
-Simply statically implement the fulcro.client.core/InitialAppState protocol and compose that to the root
+Simply statically implement the fulcro.client.primitives/InitialAppState protocol and compose that to the root
 component of your UI:
 
 ```
 (defui Component
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [cls params] {:x 1})
   static prim/IQuery
   (query [this] [:x])
@@ -2294,8 +2294,8 @@ Composing that into it's parent (repeated up until root) will result in the cons
 
 ```
 (defui Parent
-  static fc/InitialAppState
-  (initial-state [cls params] {:comp (fc/get-initial-state Component {}})
+  static prim/InitialAppState
+  (initial-state [cls params] {:comp (prim/get-initial-state Component {}})
   static prim/IQuery
   (query [this] [{:comp (prim/get-query Component)}])
   Object

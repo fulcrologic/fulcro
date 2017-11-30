@@ -9,7 +9,7 @@
             [fulcro.client.mutations :as m]))
 
 (defui Child
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] {:id 1 :x 1})
   static prim/IQuery
   (query [this] [:id :x])
@@ -23,8 +23,8 @@
 (def ui-child (prim/factory Child))
 
 (defui Root
-  static fc/InitialAppState
-  (initial-state [this params] {:root-prop 42 :child (fc/get-initial-state Child {})})
+  static prim/InitialAppState
+  (initial-state [this params] {:root-prop 42 :child (prim/get-initial-state Child {})})
   static prim/IQuery
   (query [this] [:ui/react-key :root-prop {:child (prim/get-query Child)}])
   Object
@@ -94,13 +94,13 @@
   (dc/mkdn-pprint-source Root)
 
   "
-  Note the parallel composition of queries and state. It really is that simple: just use the `fc/get-initial-state` function
+  Note the parallel composition of queries and state. It really is that simple: just use the `prim/get-initial-state` function
   to grab the child state and make sure each component that should appear has some initial state that matches what is
   asked for in the query. Be careful that
   any component with an ident also has the data in its initial state needed by that `ident` function, or things won't normalize
   correctly!
 
-  Note also that we use `fc/get-initial-state` instead of calling the protocol `initial-state` directly. The latter will work
+  Note also that we use `prim/get-initial-state` instead of calling the protocol `initial-state` directly. The latter will work
   in cljs, but if you ever want to use your components with server-side rendering then you'll have a problem. This is because the JVM
   doesn't support any way of doing `Class<Component> implements InitialAppState` (which is what the `static` qualifier implies).
   So, for server-sider rendering we have to do a bit of behind-the-scenes magic that we've wrapped in `get-initial-state`.
@@ -208,7 +208,7 @@
 
 
 (defui ^:once AQueryRoot
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {})                                  ; empty, but present initial state
   static prim/IQuery
   (query [this] [[:root-prop '_]])                          ; A asks for something from root, but has no local props (empty map)
@@ -231,8 +231,8 @@
 (def ui-b (prim/factory BQueryRoot))
 
 (defui ^:once RootQueryRoot
-  static fc/InitialAppState
-  (initial-state [c p] {:root-prop 42 :a (fc/get-initial-state AQueryRoot {}) :b nil}) ; b has no state
+  static prim/InitialAppState
+  (initial-state [c p] {:root-prop 42 :a (prim/get-initial-state AQueryRoot {}) :b nil}) ; b has no state
   static prim/IQuery
   (query [this] [{:a (prim/get-query AQueryRoot) :b (prim/get-query BQueryRoot)}])
   Object

@@ -66,7 +66,7 @@
   ")
 
 (defui ^:once CheckSetupRoot
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] {})
   static prim/IQuery
   (query [this] [:ui/react-key :something])

@@ -1,9 +1,9 @@
 (ns fulcro-devguide.ZZ-HTML-to-CLJS
   (:require
     [fulcro.client.dom :as dom]
-    [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [fulcro.client.primitives :as prim :refer [defui]]
-    [fulcro.client.cards :refer [fulcro-app]]
+    [devcards.core :as dc]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.core :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.client.mutations :as m :refer [defmutation]]
@@ -48,7 +48,7 @@
       (swap! state assoc-in [:top :conv :cljs] cljs))))
 
 (defui HTMLConverter
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {:html "<div></div>" :cljs (list)})
   static prim/IQuery
   (query [this] [:cljs :html])
@@ -68,8 +68,8 @@
 (def ui-html-convert (prim/factory HTMLConverter))
 
 (defui HTMLConverterApp
-  static fc/InitialAppState
-  (initial-state [clz params] {:converter (fc/initial-state HTMLConverter {})})
+  static prim/InitialAppState
+  (initial-state [clz params] {:converter (prim/get-initial-state HTMLConverter {})})
   static prim/IQuery
   (query [this] [{:converter (prim/get-query HTMLConverter)} :react-key])
   Object
@@ -78,9 +78,9 @@
       (dom/div
         #js {:key react-key} (ui-html-convert converter)))))
 
-(defcard html-converter
+(defcard-fulcro html-converter
   "The input below can be used to convert raw HTML into DOM code in CLJS. Simply paste in valid HTML and press the button.
   Then copy/paste the result into an editor and reformat. The converter will convert space text nodes into literal
   quoted spaces, but other than that is does a pretty effective job. If there are React attributes that get mis-translated
   then edit this file and add a mapping to the `attr-renames` map."
-  (fulcro-app HTMLConverterApp))
+  HTMLConverterApp)

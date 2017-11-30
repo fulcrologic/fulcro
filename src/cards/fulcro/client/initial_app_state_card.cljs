@@ -1,11 +1,10 @@
 (ns fulcro.client.initial-app-state-card
   (:require [devcards.core :as dc]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc :refer [InitialAppState initial-state]]
-            [fulcro.client.cards :refer [defcard-fulcro]]
+            [fulcro.client.core :as fc]
             [goog.object]
-            [fulcro.client.cards :refer [fulcro-app]]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
+            [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]))
 
 (defui ^:once ActiveUsersTab
@@ -49,7 +48,7 @@
 
 (defui ^:once HighScoreTab
   static InitialAppState
-  (initial-state [clz params] {:which-tab :high-score :leaf (fc/get-initial-state Leaf {})})
+  (initial-state [clz params] {:which-tab :high-score :leaf (prim/get-initial-state Leaf {})})
   static prim/IQuery
   (query [this] [:which-tab {:leaf (prim/get-query ui-leaf)}])
 
@@ -87,7 +86,7 @@
 (defui ^:once Root
   static InitialAppState
   (initial-state [clz params] {:ui/react-key "A"
-                               :current-tab  (fc/get-initial-state Union nil)})
+                               :current-tab  (prim/get-initial-state Union nil)})
   static prim/IQuery
   (query [this] [{:current-tab (prim/get-query ui-settings-viewer)}
                  :ui/react-key])

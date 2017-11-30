@@ -114,7 +114,7 @@ query functions.
 
 ```
 (ns ui
-  (:require [fulcro.client.primitives :as prim :refer [defui]]))
+  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 (declare ui-thing-a)
 

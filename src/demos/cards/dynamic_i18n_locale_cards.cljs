@@ -1,7 +1,7 @@
 (ns cards.dynamic-i18n-locale-cards
   (:require [fulcro.client.dom :as dom]
             [fulcro.i18n :as i18n :refer [tr]]
-            [fulcro.client.primitives :as prim :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.mutations :as m]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]

@@ -1,8 +1,8 @@
 (ns fulcro-devguide.O10-Forms-Full-Stack-Demo
   (:require
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.client.core :as fc]
     [fulcro.client.routing :as r :refer [defrouter]]
@@ -133,13 +133,13 @@
   (render [this]
     (let [{:keys [db/id phone/type phone/number]} (prim/props this)]
       (b/row {:onClick #(prim/transact! this `[(edit-phone {:id ~id})
-                                             :ui/react-key])}
+                                               :ui/react-key])}
         (b/col {:xs 2} (name type)) (b/col {:xs 2} number)))))
 
 (def ui-phone-row (prim/factory PhoneDisplayRow {:keyfn :db/id}))
 
 (defui ^:once PhoneEditor
-  static fc/InitialAppState
+  static prim/InitialAppState
   ; make sure to include the :screen-type so the router can get the ident of this component
   (initial-state [cls params] {:screen-type :screen/phone-editor})
   static prim/IQuery
@@ -157,14 +157,14 @@
           save        (fn [evt]
                         (when valid?
                           (prim/transact! this `[(f/commit-to-entity {:form ~number-to-edit :remote true})
-                                               (r/route-to {:handler :route/phone-list})
-                                               ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
-                                               :main-ui-router])))
+                                                 (r/route-to {:handler :route/phone-list})
+                                                 ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
+                                                 :main-ui-router])))
           cancel-edit (fn [evt]
                         (prim/transact! this `[(f/reset-from-entity {:form-id ~(phone-ident (:db/id number-to-edit))})
-                                             (r/route-to {:handler :route/phone-list})
-                                             ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
-                                             :main-ui-router]))]
+                                               (r/route-to {:handler :route/phone-list})
+                                               ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
+                                               :main-ui-router]))]
       (dom/div nil
         (dom/h1 nil "Edit Phone Number")
         (when number-to-edit
@@ -177,7 +177,7 @@
 (defui ^:once PhoneList
   static prim/IQuery
   (query [this] [:screen-type {:phone-numbers (prim/get-query PhoneDisplayRow)}])
-  static fc/InitialAppState
+  static prim/InitialAppState
   ; make sure to include the :screen-type so the router can get the ident of this component
   (initial-state [this params] {:screen-type   :screen/phone-list
                                 :phone-numbers []})
@@ -202,11 +202,11 @@
 (defui ^:once Root
   static prim/IQuery
   (query [this] [:ui/react-key {:main-ui-router (prim/get-query TopLevelRouter)}])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [cls params]
     ; merge the routing tree into the app state
     (merge
-      {:main-ui-router (fc/get-initial-state TopLevelRouter {})}
+      {:main-ui-router (prim/get-initial-state TopLevelRouter {})}
       (r/routing-tree
         (r/make-route :route/phone-list [(r/router-instruction :top-router [:screen/phone-list :tab])])
         (r/make-route :route/phone-editor [(r/router-instruction :top-router [:screen/phone-editor :tab])]))))
@@ -403,16 +403,16 @@
   server-state
   {:inspect-data true})
 
-(defcard
+(defcard-fulcro
   "# The Application
 
   You can enable data inspection on this card to see the client state as you work on the form.
   "
-  (fulcro-app Root
-    :networking (map->MockNetwork {})
-    :started-callback (fn [{:keys [reconciler] :as app}]
-                        (df/load app :all-numbers PhoneDisplayRow {:target  [:screen/phone-list :tab :phone-numbers]
-                                                                   :refresh [:screen-type]})))
+  Root
   {}
-  {:inspect-data false})
+  {:fulcro       {:networking       (map->MockNetwork {})
+                  :started-callback (fn [{:keys [reconciler] :as app}]
+                                      (df/load app :all-numbers PhoneDisplayRow {:target  [:screen/phone-list :tab :phone-numbers]
+                                                                                 :refresh [:screen-type]}))}
+   :inspect-data false})
 
