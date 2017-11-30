@@ -249,13 +249,14 @@
              root-component (prim/app-root reconciler)
              root-query     (prim/get-query root-component @state)
              {:keys [keys next ::prim/tempids]} (prim/merge* reconciler @state data-tree query)]
-         (when-not (and (nil? remote) keys)
-           (p/queue! reconciler keys remote))
+         (p/queue! reconciler keys remote)
          (reset! state
            (if-let [migrate (:migrate config)]
              (merge (select-keys next [:fulcro.client.primitives/queries])
                (migrate next (or query root-query) tempids))
-             next))))))
+             next))
+         (when-not (nil? remote)
+           (p/reconcile! reconciler remote))))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation send-history
