@@ -78,8 +78,9 @@
 (def example-height "400px")
 
 (defsc ItemList [this {:keys [db/id list/title list/items] :as props} _ _]
-  {:query [:db/id :list/title {:list/items (prim/get-query Item)}]
-   :ident [:list/by-id :db/id]}
+  {:query         [:db/id :list/title {:list/items (prim/get-query Item)}]
+   :initial-state {}
+   :ident         [:list/by-id :db/id]}
   (dom/div (clj->js {:style {:width "600px" :height example-height}})
     (dom/h3 nil title)
     (dom/ul nil (map ui-item items))
@@ -94,23 +95,24 @@
   {:query         [:db/id :visible?]
    :initial-state {:visible? false}}
   (dom/div (clj->js {:onClick #(.stopPropagation %)
-                     :style   {:background-color "black"
-                               :display          (if visible? "block" "none")
-                               :position         "absolute"
-                               :opacity          "0.6"
-                               :z-index          "100"
-                               :width            "600px"
-                               :height           example-height}}) ""))
+                     :style   {:backgroundColor "black"
+                               :display         (if visible? "block" "none")
+                               :position        "absolute"
+                               :opacity         "0.6"
+                               :zIndex          "100"
+                               :width           "600px"
+                               :height          example-height}}) ""))
 
 (def ui-overlay (prim/factory Overlay {:keyfn :db/id}))
 
 (defsc Root [this {:keys [ui/react-key overlay mutation-join-list]} _ _]
   {:query         [:ui/react-key {:overlay (prim/get-query Overlay)} {:mutation-join-list (prim/get-query ItemList)}]
-   :initial-state {:overlay {}}}
+   :initial-state {:overlay {} :mutation-join-list {}}}
   (dom/div (clj->js {:key react-key :style {:position "relative"}})
     (ui-overlay overlay)
     "Test"
-    (ui-list mutation-join-list)))
+    (when-not (empty? mutation-join-list)
+      (ui-list mutation-join-list))))
 
 #?(:cljs
    (defcard-doc
