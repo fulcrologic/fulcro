@@ -32,8 +32,14 @@ to use devcards mkdn-pprint-source with mutations in your devcards. See the docs
 - Demos compressed into fewer source files.
 - Websockets demo moved to external project
 - Expanded and cleaned up many portions of the developer's guide
-- Expanded defsc. It can now take a method body for `initial-state`, `ident`, and `query` in
-addition to a simpler template. Using the method forms loosens verification logic.
+- Expanded defsc.
+   - It can now take a method body for `initial-state`, `ident`, and `query` in
+     addition to a simpler template. Using the method forms loosens verification logic.
+   - Parameters to the lambda forms get `this` and `props` from main args, so you don't list them.
+     (e.g. `:ident (fn [] ...use this and props from defsc args...)`
+   - BREAKING CHANGE: IF you use `:css`, then the children argument shifts right one, and
+     the 4th argument is now the css classnames.
+   - Defsc now considers all arguments *after* props to be optional, so you don't need to list underscores
 - Removed deprecated fulcro.client.cards/fulcro-app. Please port to `defcard-fulcro` instead (trivial port).
 
 Renames:

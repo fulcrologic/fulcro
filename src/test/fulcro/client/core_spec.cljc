@@ -17,7 +17,7 @@
 
 (defui ^:once Parent
   static prim/InitialAppState
-  (fc/initial-state [this params] {:ui/checked true})
+  (initial-state [this params] {:ui/checked true})
   static prim/Ident
   (ident [this props] [:parent/by-id (:id props)])
   static prim/IQuery

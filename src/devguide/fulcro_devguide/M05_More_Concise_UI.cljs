@@ -11,12 +11,10 @@
 
 (defsc Job
   "A job component"
-  [this {:keys [db/id job/name]} computed children]
-  {:ident         [:JOB/by-id :db/id]
-   :query         [:db/id :job/name]
-   ; expects to be called as `(get-initial-state Job {:id i :name n})`
-   :initial-state {:db/id    :param/id
-                   :job/name :param/name}}
+  [this {:keys [db/id job/name]}]
+  {:ident         (fn [] [:JOB/by-id id])
+   :query         (fn [] [:db/id :job/name])
+   :initial-state (fn [{:keys [id name] :as params}] {:db/id id :job/name name})}
   (dom/span nil name))
 
 (def ui-job (prim/factory Job {:keyfn :db/id}))
@@ -24,24 +22,23 @@
 (defsc Person
   "A person component"
   [this {:keys [db/id person/name person/job person/prior-jobs]} computed children]
-  {:ident         [:PERSON/by-id :db/id]
-   :css           [[:.namecls {:font-weight :bold}]]
-   :query         [:db/id :person/name
-                   {:person/job (prim/get-query Job)}
-                   {:person/prior-jobs (prim/get-query Job)}]
-   ; expects to be called as (get-initial-state Person {:id i :name n :job j :jobs [j1 j2]})
-   :initial-state {:db/id             :param/id
-                   :person/name       :param/name
-                   ; job and jobs are known children. Will be resolved by calling (get-initial-state Job j), etc.
-                   :person/job        :param/job
-                   :person/prior-jobs :param/jobs}}
+  {:ident         (fn [] [:PERSON/by-id id])
+   :css           (fn [] [[:.namecls {:font-weight :bold}]])
+   :query         (fn [] [:db/id :person/name
+                          {:person/job (prim/get-query Job)}
+                          {:person/prior-jobs (prim/get-query Job)}])
+   :initial-state (fn [{:keys [id name job jobs]}]
+                    (cond-> {:db/id       id
+                             :person/name name}
+                      job (assoc :person/job (prim/get-initial-state Job job))
+                      jobs (assoc :person/prior-jobs (mapv #(prim/get-initial-state Job %) jobs))))}
   (let [{:keys [namecls]} (css/get-classnames Person)]
     (dom/div nil
       (dom/span #js {:className namecls} name)
       (dom/ul nil
-        (when job
+        (when-not (empty? job)
           (dom/li nil "Current Job: " (ui-job job)))
-        (when prior-jobs
+        (when-not (empty? prior-jobs)
           (dom/li nil "Prior Jobs: "
             (dom/ul nil
               (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))
@@ -111,8 +108,8 @@
 
 (defsc Root
   [this {:keys [people ui/react-key]} _ _]
-  {:query         [:ui/react-key {:people (prim/get-query Person)}]
-   :css           [[:.thing {:color "gray"}]]               ; define colocated CSS classes
+  {:query         (fn [] [:ui/react-key {:people (prim/get-query Person)}])
+   :css           (fn [] [[:.thing {:color "gray"}]])
    :css-include   [Person]
    ; protocols is for anything "extra" you need that you could normally list under defui
    :protocols     [Object
@@ -121,9 +118,11 @@
                      (css/upsert-css "the-css" Root))]
    ; we know :people is a child of class Person, so initial values on the :people key will automatically get run
    ; through `(get-initial-state Person _)`. Person, in turn, will find the job and jobs parameter maps. See Person.
-   :initial-state {:people [{:id 1 :name "Tony" :job {:id 1 :name "Consultant"}}
-                            {:id 2 :name "Sam" :jobs [{:id 2 :name "Meat Packer"} {:id 4 :name "Butcher"}]}
-                            {:id 3 :name "Sally"}]}}
+   :initial-state (fn [params]
+                    {:people (mapv #(prim/get-initial-state Person %)
+                               [{:id 1 :name "Tony" :job {:id 1 :name "Consultant"}}
+                                {:id 2 :name "Sam" :jobs [{:id 2 :name "Meat Packer"} {:id 4 :name "Butcher"}]}
+                                {:id 3 :name "Sally"}])})}
   (let [{:keys [thing]} (css/get-classnames Root)]          ;localized classname
     (dom/div #js {:key react-key :className thing}
       (mapv ui-person people))))
