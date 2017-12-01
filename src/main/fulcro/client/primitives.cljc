@@ -3032,9 +3032,9 @@
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
            [thissym propsym computedsym opt-css childrensym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
-           has-css?                         (#{:template :method} css)
-           csssym                           (if has-css? (or opt-css '_) nil)
-           childrensym                      (if has-css? (or childrensym '_) opt-css)
+           has-css?                         (boolean css)
+           csssym                           (if has-css? opt-css nil)
+           childrensym                      (if has-css? childrensym opt-css)
            ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
            initial-state-template-or-method (into {} [initial-state])
            query-template-or-method         (into {} [query])

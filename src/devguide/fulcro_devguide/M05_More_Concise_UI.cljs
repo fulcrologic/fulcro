@@ -21,9 +21,9 @@
 
 (defsc Person
   "A person component"
-  [this {:keys [db/id person/name person/job person/prior-jobs]} computed children]
+  [this {:keys [db/id person/name person/job person/prior-jobs]} _ {:keys [namecls]} children]
   {:ident         (fn [] [:PERSON/by-id id])
-   :css           (fn [] [[:.namecls {:font-weight :bold}]])
+   :css           (fn [] [[:.namecls {:color :blue}]])
    :query         (fn [] [:db/id :person/name
                           {:person/job (prim/get-query Job)}
                           {:person/prior-jobs (prim/get-query Job)}])
@@ -32,77 +32,76 @@
                              :person/name name}
                       job (assoc :person/job (prim/get-initial-state Job job))
                       jobs (assoc :person/prior-jobs (mapv #(prim/get-initial-state Job %) jobs))))}
-  (let [{:keys [namecls]} (css/get-classnames Person)]
-    (dom/div nil
-      (dom/span #js {:className namecls} name)
-      (dom/ul nil
-        (when-not (empty? job)
-          (dom/li nil "Current Job: " (ui-job job)))
-        (when-not (empty? prior-jobs)
-          (dom/li nil "Prior Jobs: "
-            (dom/ul nil
-              (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))
+  (dom/div nil
+    (dom/span #js {:className namecls} name)
+    (dom/ul nil
+      (when-not (empty? job)
+        (dom/li nil "Current Job: " (ui-job job)))
+      (when-not (empty? prior-jobs)
+        (dom/li nil "Prior Jobs: "
+          (dom/ul nil
+            (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs)))))))
 
 (comment
   (macroexpand-1 '(defsc Person
                     "A person component"
-                    [this {:keys [db/id person/name person/job person/prior-jobs]} computed children]
-                    {:ident         [:PERSON/by-id :db/id]
-                     :css           [[:.namecls {:font-weight :bold}]]
-                     :query         [:db/id :person/name
-                                     {:person/job (prim/get-query Job)}
-                                     {:person/prior-jobs (prim/get-query Job)}]
-                     ; expects to be called as (get-initial-state Person {:id i :name n :job j :jobs [j1 j2]})
-                     :initial-state {:db/id             :param/id
-                                     :person/name       :param/name
-                                     ; job and jobs are known children. Will be resolved by calling (get-initial-state Job j), etc.
-                                     :person/job        :param/job
-                                     :person/prior-jobs :param/jobs}}
-                    (let [{:keys [namecls]} (css/get-classnames Person)]
-                      (dom/div nil
-                        (dom/span #js {:className namecls} name)
-                        (dom/ul nil
-                          (when job
-                            (dom/li nil "Current Job: " (ui-job job)))
-                          (when prior-jobs
-                            (dom/li nil "Prior Jobs: "
-                              (dom/ul nil
-                                (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))))
+                    [this {:keys [db/id person/name person/job person/prior-jobs]} _ {:keys [namecls]} children]
+                    {:ident         (fn [] [:PERSON/by-id id])
+                     :css           (fn [] [[:.namecls {:color :blue}]])
+                     :query         (fn [] [:db/id :person/name
+                                            {:person/job (prim/get-query Job)}
+                                            {:person/prior-jobs (prim/get-query Job)}])
+                     :initial-state (fn [{:keys [id name job jobs]}]
+                                      (cond-> {:db/id       id
+                                               :person/name name}
+                                        job (assoc :person/job (prim/get-initial-state Job job))
+                                        jobs (assoc :person/prior-jobs (mapv #(prim/get-initial-state Job %) jobs))))}
+                    (dom/div nil
+                      (dom/span #js {:className namecls} name)
+                      (dom/ul nil
+                        (when-not (empty? job)
+                          (dom/li nil "Current Job: " (ui-job job)))
+                        (when-not (empty? prior-jobs)
+                          (dom/li nil "Prior Jobs: "
+                            (dom/ul nil
+                              (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs)))))))))
+
 
 (fulcro.client.primitives/defui GeneratedPerson
   static fulcro-css.css/CSS
-  (local-rules [_] [[:.namecls {:font-weight :bold}]])
+  (local-rules [this] [[:.namecls {:color :blue}]])
   (include-children [_] [])
   static fulcro.client.primitives/InitialAppState
-  (initial-state [c params]
-    (fulcro.client.primitives/make-state-map
-      {:db/id             :param/id,
-       :person/name       :param/name,
-       :person/job        :param/job,
-       :person/prior-jobs :param/jobs}
-      #:person{:job Job, :prior-jobs Job}
-      params))
+  (initial-state
+    [this {:keys [id name job jobs]}]
+    (cond-> {:db/id id, :person/name name}
+      job (assoc :person/job (prim/get-initial-state Job job))
+      jobs (assoc :person/prior-jobs
+                  (mapv
+                    (fn* [p1__191012#] (prim/get-initial-state Job p1__191012#))
+                    jobs))))
   static fulcro.client.primitives/Ident
-  (ident [this props] [:PERSON/by-id (:db/id props)])
+  (ident [this {:keys [db/id person/name person/job person/prior-jobs]}]
+    [:PERSON/by-id id])
   static fulcro.client.primitives/IQuery
-  (query [this] [:db/id :person/name #:person{:job (prim/get-query Job)} #:person{:prior-jobs (prim/get-query Job)}])
+  (query [this] [:db/id :person/name {:person/job (prim/get-query Job)} {:person/prior-jobs (prim/get-query Job)}])
   Object
   (render
     [this]
     (clojure.core/let
       [{:keys [db/id person/name person/job person/prior-jobs]} (fulcro.client.primitives/props this)
-       computed (fulcro.client.primitives/get-computed this)
+       _        (fulcro.client.primitives/get-computed this)
+       {:keys [namecls]} (fulcro-css.css/get-classnames Person)
        children (fulcro.client.primitives/children this)]
-      (let [{:keys [namecls]} (css/get-classnames Person)]
-        (dom/div nil
-          (dom/span #js {:className namecls} name)
-          (dom/ul nil
-            (when job (dom/li nil "Current Job: " (ui-job job)))
-            (when prior-jobs
-              (dom/li nil "Prior Jobs: "
-                (dom/ul nil
-                  (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs))))))))))
-
+      (dom/div nil
+        (dom/span #js {:className namecls} name)
+        (dom/ul nil
+          (when-not (empty? job) (dom/li nil "Current Job: " (ui-job job)))
+          (when-not (empty? prior-jobs)
+            (dom/li nil
+              "Prior Jobs: "
+              (dom/ul nil
+                (map (fn [j] (dom/li #js {:key (:db/id j)} (ui-job j))) prior-jobs)))))))))
 
 (def ui-person (prim/factory Person {:keyfn :db/id}))
 
@@ -142,29 +141,97 @@
   (dc/mkdn-pprint-source Person)
   "And the resulting generated person would look like this (but would have the name `Person`):"
   (dc/mkdn-pprint-source GeneratedPerson)
-  "A root component (with no ident, but with query children) might look like this:"
-  (dc/mkdn-pprint-source Root)
   "
+
+  ## Lambda vs. Template
+
+  The core options (:query, :ident, :initial-state, :css, and :css-include) of `defsc` support both a lambda and a template form.
+  The template form is shorter and enables some sanity checks; however, it is not expressive enough to cover all
+  possible cases. The lambda form is slightly more verbose, but enables full flexibility at the expense of the sanity checks.
+
+  IMPORTANT NOTE: In lambda mode the pattern for the lambda requires that you use `this` and `props` from the
+  `defsc` argument list. So, for example, `(fn [] [:x])` is valid for query (`this` is added by the macro), and
+  `(fn [] [:table/by-id db])` is valid for `ident` (this and the props destructuring are copied from the `defsc` arg list.
 
   ## Ident Generation
 
-  The (optional) `:ident` parameter should be a vector of two elements. The first is the literal table name, and the
-  second is the ID field that will exist in props.
+  If you include `:ident`, it can take two forms: a *template* or *lambda*.
 
-  For example, `:ident [:person/by-id :person/id]` will turn into `prim/Ident (ident [this props] [:person/by-id (:person/id props)])`
-  on the resulting component.
+  ### Template Idents
+
+  A template ident is just a vector that patterns what goes in the ident. The first element is *always* literal,
+  and the second is the *name* of the property to pull from props to get the ID.
+
+  This is the most common case, and *if* you use the template mechanism you get some added sanity checks:
+  it won't compile if your ID key isn't in your query, eliminating some possible frustration.
+
+  ### Lambda Idents
+
+  Template idents are great for the common case, but they don't work if you have a single instance ever (i.e. you
+  want a literal second element), and they won't work at all for union queries. They also do *not* support embedded
+  code. Therefore, if you want a more advanced ident, you'll need to spell out the code.
+
+  `defsc` at least eliminates some of the boilerplate:
+
+  ```
+  (defsc UnionComponent [this {:keys [db/id component/type]}]
+    {:ident (fn [] [type id])}
+    ...)
+  ```
+
+  expands to:
+
+  ```
+  (defui UnionComponent
+    static prim/Ident
+    (ident [this {:keys [db/id component/type]}] [type id])
+    ...)
+  ```
+
+  The first two parameters of `defsc` (this and props) are copied into ident and your render, so that you don't have
+  to say (or destructure them) again!
 
   ## Query
 
-  `defsc` uses any valid Om Next Query at the :query option. The query will be validated against the prop destructuring
-  to help you make fewer mistakes.
+  `defsc` also allows you to specify the query as a template or lambda.
+
+  ### Template Query
+
+  The template form is *strongly* recommended
+  for most cases, because without it many of the sanity checks won't work.
+
+  In template mode, the following sanity checks are enabled:
+
+  - The props destructuring
+  - The ident's id name is in the query (if ident is in template mode)
+  - The initial app state only contains things that are queried for (if it is in template mode as well)
+
+  ### Lambda Query
+
+  This mode is necessary if you use more complex queries. The template mode currently *does not support* link
+  queries (joins on an ident with `_` as the id) or union queries.
+
+  To use this mode, specify your query as `(fn [] [:x])`. In lambda mode, `this` comes from the argument list
+  of `defsc`.
 
   ## Initial State
 
-  Notice in the code samples above that the initial state setup is actually quite powerful. We're passing parameters
+  As with query and ident, :initial-state supports a template and lambda form. In this case the template form
+  is kind of magical and complex, because it tries to sanity check your initial state.
+
+  ### Initial State Template Mode
+
+  In template mode the `defsc` macro converts incoming parameters (which must use simple keywords) into `:param/nm`
+  keys. So, if `{:x 1}` were passed as params to `(get-initial-state Job {:x 1})` then the template
+  initial state in `Job` would use `:param/x` as a stand-in for that parameter.
+
+  It is even more powerful that that, because it analyzes your query and can deal with to-one and to-many
+  join initialization as well!
+
+  In the code samples above we're passing parameters
   to the Root component and having them take effect all the way down to jobs. The rules are pretty simple:
 
-  - If you're initializing a scalar value, you may use a scalar value, a `param` namespaced keyword, a map containing
+  - If you're initializing a simple prop value, then you may use any value, a `param` namespaced keyword, a map containing
   param-namespaced keywords as values, or a vector containing param-namespaced keywords as values. In all cases the
   parameters will be substituted by the name of that keyword, as obtained at runtime from the params of the call
   to the initial-state method.
