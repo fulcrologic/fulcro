@@ -2821,12 +2821,23 @@
                 nil) query))))
 
 (defn- replace-and-validate-fn
-  "Replace the first sym in a list (the function name) with the given symbol."
-  ([sym arity fn-form] (replace-and-validate-fn sym arity fn-form sym))
-  ([sym arity fn-form user-known-sym]
-   (when-not (= arity (count (second fn-form)))
+  "Replace the first sym in a list (the function name) with the given symbol.
+
+  sym - The symbol that the lambda should have
+  external-args - A sequence of argmuments that the user should not include, but that you want to be inserted in the external-args by this function.
+  user-arity - The number of external-args the user should supply (resulting user-arity is (count external-args) + user-arity).
+  fn-form - The form to rewrite
+  sym - The symbol to report in the error message (in case the rewrite uses a different target that the user knows)."
+  ([sym external-args user-arity fn-form] (replace-and-validate-fn sym external-args user-arity fn-form sym))
+  ([sym external-args user-arity fn-form user-known-sym]
+   (when-not (= user-arity (count (second fn-form)))
      (throw (ex-info (str "Invalid arity for " user-known-sym) {})))
-   (conj (rest fn-form) sym)))
+   (let [user-args    (second fn-form)
+         updated-args (into (vec (or external-args [])) user-args)
+         body-forms   (drop 2 fn-form)]
+     (->> body-forms
+       (cons updated-args)
+       (cons sym)))))
 
 #?(:clj
    (defn- build-query-forms
@@ -2847,19 +2858,19 @@
                to-sym            (fn [k] (symbol (namespace k) (name k)))
                illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
            (when (seq illegal-syms)
-             (throw (ex-info "Syntax error in defsc. One or more destructured parameters do not appear in your query!" {:offending-symbols illegal-syms})))
+             (throw (ex-info (str "Syntax error in defsc: " illegal-syms " are destructured in props but do not appear in your query!") {:offending-symbols illegal-syms})))
            `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
        method
-       `(~'static fulcro.client.primitives/IQuery ~(replace-and-validate-fn 'query 1 method)))))
+       `(~'static fulcro.client.primitives/IQuery ~(replace-and-validate-fn 'query [thissym] 0 method)))))
 
 #?(:clj
    (defn- build-ident
      "Builds the ident form. If ident is a vector, then it generates the function and validates that the ID is
      in the query. Otherwise, if ident is of the form (ident [this props] ...) it simply generates the correct
      entry in defui without error checking."
-     [{:keys [:method :template]} is-legal-key?]
+     [thissym propsarg {:keys [:method :template]} is-legal-key?]
      (cond
-       method `(~'static fulcro.client.primitives/Ident ~(replace-and-validate-fn 'ident 2 method))
+       method `(~'static fulcro.client.primitives/Ident ~(replace-and-validate-fn 'ident [thissym propsarg] 0 method))
        template (let [table   (first template)
                       id-prop (or (second template) :db/id)]
                   (cond
@@ -2946,16 +2957,16 @@
 #?(:clj
    (defn- build-raw-initial-state
      "Given an initial state form that is a list (function-form), simple copy it into the form needed by defui."
-     [method]
+     [thissym method]
      `(~'static fulcro.client.primitives/InitialAppState
-        ~(replace-and-validate-fn 'initial-state 2 method))))
+        ~(replace-and-validate-fn 'initial-state [thissym] 1 method))))
 
 #?(:clj
-   (defn- build-initial-state [sym {:keys [template method]} legal-keys query-template-or-method is-a-form?]
+   (defn- build-initial-state [sym thissym {:keys [template method]} legal-keys query-template-or-method is-a-form?]
      (when (and template (contains? query-template-or-method :method))
        (throw (ex-info "When query is a method, initial state MUST be as well." {:component sym})))
      (cond
-       method (build-raw-initial-state method)
+       method (build-raw-initial-state thissym method)
        template (let [query    (:template query-template-or-method)
                       children (or (children-by-prop query) {})]
                   (build-and-validate-initial-state-map sym template legal-keys children is-a-form?)))))
@@ -2986,19 +2997,19 @@
           (~'form-spec [~'this] ~form-fields)))))
 
 #?(:clj
-   (defn build-css [{css-method :method css-template :template} {include-method :method include-template :template}]
+   (defn build-css [thissym {css-method :method css-template :template} {include-method :method include-template :template}]
      (when (or css-method css-template include-method include-template)
        (let [local-form   (cond
                             css-template (if-not (vector? css-template)
                                            (throw (ex-info "css MUST be a vector of garden-syntax rules" {}))
                                            `(~'local-rules [~'_] ~css-template))
-                            css-method (replace-and-validate-fn 'local-rules 1 css-method 'css)
+                            css-method (replace-and-validate-fn 'local-rules [thissym] 0 css-method 'css)
                             :else '(local-rules [_] []))
              include-form (cond
                             include-template (if-not (and (vector? include-template) (every? symbol? include-template))
                                                (throw (ex-info "css-include must be a vector of component symbols" {}))
                                                `(~'include-children [~'_] ~include-template))
-                            include-method (replace-and-validate-fn 'include-children 1 include-method 'css-include)
+                            include-method (replace-and-validate-fn 'include-children [thissym] 0 include-method 'css-include)
                             :else '(include-children [_] []))]
          `(~'static fulcro-css.css/CSS
             ~local-form
@@ -3034,11 +3045,11 @@
                                                        (concat ['static (:protocol v)] (:methods v))
                                                        (concat [(:protocol v)] (:methods v)))))
                                               (mapcat identity))
-           ident-forms                      (build-ident ident-template-or-method legal-key-cheker)
-           state-forms                      (build-initial-state sym initial-state-template-or-method legal-key-cheker query-template-or-method (boolean (seq form-fields)))
+           ident-forms                      (build-ident thissym propsym ident-template-or-method legal-key-cheker)
+           state-forms                      (build-initial-state sym thissym initial-state-template-or-method legal-key-cheker query-template-or-method (boolean (seq form-fields)))
            query-forms                      (build-query-forms thissym propsym query-template-or-method)
            form-forms                       (build-form form-fields)
-           css-forms                        (build-css css-template-or-method css-include-template-or-method)
+           css-forms                        (build-css thissym css-template-or-method css-include-template-or-method)
            render-forms                     (build-render thissym propsym computedsym childrensym body)]
        (assert (or (nil? protocols) (s/valid? :fulcro.client.primitives.defsc/protocols protocols)) "Protocols must be valid protocol declarations")
        `(fulcro.client.primitives/defui ~(with-meta sym {:once true})

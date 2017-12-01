@@ -7,9 +7,7 @@
     [clojure.core.async :as async]
     [fulcro.client.logging :as log]
     [fulcro.client.util :as fcu]
-    [fulcro.util :as util])
-  #?(:clj
-     (:import (clojure.lang ExceptionInfo))))
+    [fulcro.util :as util]))
 
 (defui ^:once Child
   static prim/Ident
@@ -503,7 +501,7 @@
 
 (defui Reports
   static prim/InitialAppState
-  (initial-state [c p] (prim/get-initial-state Graph nil))    ; initial state will already include Graph
+  (initial-state [c p] (prim/get-initial-state Graph nil))  ; initial state will already include Graph
   static prim/Ident
   (ident [this props] [(:type props) (:id props)])
   static prim/IQuery
