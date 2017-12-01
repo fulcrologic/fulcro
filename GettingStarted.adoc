@@ -1340,14 +1340,14 @@ In `src/dev/user.clj`, we'll add the following for development use:
 (defn go
   "Start the server. Optionally supply a path to your desired config. Relative paths will scan classpath. Absolute
   paths will come from the filesystem. The default is config/dev.edn."
-  ([] (go :dev))
+  ([] (go "config/dev.edn"))
   ([path]
    (if @system
      (println "The server is already running. Use reset to stop, refresh, and start.")
      (letfn [(start []
               (swap! system component/start))
             (init [path]
-              (when-let [new-system (app.server/make-system "config/dev.edn")]
+              (when-let [new-system (app.server/make-system path)]
                 (reset! system new-system)))]
       (init path)
       (start)))))
