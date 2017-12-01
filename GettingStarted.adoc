@@ -199,9 +199,7 @@ For Emacs + Cider:
                                   [figwheel-sidecar "0.5.13"]
                                   [org.clojure/tools.nrepl "0.2.13"]]}})
 ----
-* With `src/dev/user.clj` open in a buffer, choose `M-x cider-jack-in-clojurescript` or `C-c M-J` (`M-J` with capital J).
-
-Two repls will open up, one for clojure, one for clojurescript.
+* With `src/dev/user.clj` open in a buffer, choose `M-x cider-jack-in`. In the clojure repl, run `(start-fighweel)`, which will launch a cljs repl.
 
 You should see the application printing "Hello World" at: http://localhost:3449[]
 
