@@ -2842,7 +2842,7 @@
 #?(:clj
    (defn- build-query-forms
      "Validate that the property destructuring and query make sense with each other."
-     [thissym propargs {:keys [template method]}]
+     [class thissym propargs {:keys [template method]}]
      (cond
        template
        (do
@@ -2858,7 +2858,7 @@
                to-sym            (fn [k] (symbol (namespace k) (name k)))
                illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
            (when (seq illegal-syms)
-             (throw (ex-info (str "Syntax error in defsc: " illegal-syms " are destructured in props but do not appear in your query!") {:offending-symbols illegal-syms})))
+             (throw (ex-info (str "defsc " class ": " illegal-syms " destructured in props but do(es) not appear in your query!") {:offending-symbols illegal-syms})))
            `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
        method
        `(~'static fulcro.client.primitives/IQuery ~(replace-and-validate-fn 'query [thissym] 0 method)))))
@@ -2879,13 +2879,17 @@
                     :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
 
 #?(:clj
-   (defn- build-render [thissym propsym compsym childrensym body]
-     `(~'Object
-        (~'render [~thissym]
-          (let [~propsym (fulcro.client.primitives/props ~thissym)
-                ~compsym (fulcro.client.primitives/get-computed ~thissym)
-                ~childrensym (fulcro.client.primitives/children ~thissym)]
-            ~@body)))))
+   (defn- build-render [classsym thissym propsym compsym csssym childrensym body]
+     (let [css-bindings      (when csssym `[~csssym (fulcro-css.css/get-classnames ~classsym)])
+           computed-bindings (when compsym `[~compsym (fulcro.client.primitives/get-computed ~thissym)])
+           children-bindings (when childrensym `[~childrensym (fulcro.client.primitives/children ~thissym)])]
+       `(~'Object
+          (~'render [~thissym]
+            (let [~propsym (fulcro.client.primitives/props ~thissym)
+                  ~@computed-bindings
+                  ~@css-bindings
+                  ~@children-bindings]
+              ~@body))))))
 
 (defn make-state-map
   "Build a component's initial state using the defsc initial-state-data from
@@ -2982,7 +2986,7 @@
 #?(:clj (s/def :fulcro.client.primitives.defsc/args (s/cat
                                                       :sym symbol?
                                                       :doc (s/? string?)
-                                                      :arglist (s/and vector? #(= 4 (count %)))
+                                                      :arglist (s/and vector? #(<= 2 (count %) 5))
                                                       :options :fulcro.client.primitives.defsc/options
                                                       :body (s/+ (constantly true)))))
 #?(:clj (s/def :fulcro.client.primitives.defsc/static #{'static}))
@@ -3015,6 +3019,7 @@
             ~local-form
             ~include-form)))))
 
+
 #?(:clj
    (defn defsc*
      [args]
@@ -3025,13 +3030,17 @@
                                 first
                                 :path) " is invalid.")})))
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
-           [thissym propsym computedsym childrensym] arglist
+           [thissym propsym computedsym opt-css childrensym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
+           has-css?                         (#{:template :method} css)
+           csssym                           (if has-css? (or opt-css '_) nil)
+           childrensym                      (if has-css? (or childrensym '_) opt-css)
            ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
            initial-state-template-or-method (into {} [initial-state])
            query-template-or-method         (into {} [query])
            css-template-or-method           (into {} [css])
            css-include-template-or-method   (into {} [css-include])
+           ; TODO: validate-css?                    (and (map? csssym) (:template css))
            validate-query?                  (:template query-template-or-method)
            legal-key-cheker                 (if validate-query?
                                               (or (legal-keys (:template query-template-or-method)) #{})
@@ -3047,11 +3056,16 @@
                                               (mapcat identity))
            ident-forms                      (build-ident thissym propsym ident-template-or-method legal-key-cheker)
            state-forms                      (build-initial-state sym thissym initial-state-template-or-method legal-key-cheker query-template-or-method (boolean (seq form-fields)))
-           query-forms                      (build-query-forms thissym propsym query-template-or-method)
+           query-forms                      (build-query-forms sym thissym propsym query-template-or-method)
            form-forms                       (build-form form-fields)
            css-forms                        (build-css thissym css-template-or-method css-include-template-or-method)
-           render-forms                     (build-render thissym propsym computedsym childrensym body)]
+           render-forms                     (build-render sym thissym propsym computedsym csssym childrensym body)]
        (assert (or (nil? protocols) (s/valid? :fulcro.client.primitives.defsc/protocols protocols)) "Protocols must be valid protocol declarations")
+       ;; TODO: Add CSS destructuring validation here? Must use dynamic loading of fulcro CSS IFF css is used, so that we
+       ; don't have a hard dependency on it.
+       ; You're at *compile time* in *Clojure*...you *cannot rely on components* that are defined because they might be only
+       ; cljs artifacts.
+       ; (when validate-css? (validate-css-destructuring csssym (:template css)))
        `(fulcro.client.primitives/defui ~(with-meta sym {:once true})
           ~@addl-protocols
           ~@css-forms
@@ -3157,7 +3171,7 @@
    class itself, and isn't that useful.
 
    ```
-   (defsc Component [this props computed children]
+   (defsc Component [this props computed]
      {:query (fn [] [:x])
       :initial-state (fn [t p] {:x 1})
       :ident (fn [props] [:table (:db/id props)])
@@ -3165,11 +3179,19 @@
      (dom/div ...))
    ```
 
+   *Yes, There are two 4-arg variants.* IF AND ONLY IF you include a :css option, then the ones with local-css-classes
+   are how the arguments will be understood. It was felt that this bit of irregularity was worth the more concise
+   notation, since children are so much less frequently used than CSS (when you're using it).
+
    See section M05-More-Concise-UI of the Developer's Guide for more details.
 
    NOTE: `defsc` automatically declares your component with `:once` metadata for correct operation with hot code reload.
+
    "
-               :arglists '([this dbprops computedprops children])}
+               :arglists '([this dbprops computedprops]
+                            [this dbprops computedprops children]
+                            [this dbprops computedprops local-css-classes]
+                            [this dbprops computedprops local-css-classes children])}
    defsc
      [& args]
      (let [location (str *ns* ":" (:line (meta &form)))]

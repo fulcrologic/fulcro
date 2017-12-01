@@ -10,9 +10,9 @@
 (declare ui-leaf)
 
 (defsc Leaf [this {:keys [x y]} _ _]
-  {:initial-state (fn [c params] {:x 1 :y 42})
-   :query         (fn [this] [:x])
-   :ident         (fn [this props] [:LEAF :ID])}
+  {:initial-state (fn [params] {:x 1 :y 42})
+   :query         (fn [] [:x])
+   :ident         (fn [] [:LEAF :ID])}
   (dom/div nil
     (dom/button #js {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:x]}))} "Set query to :x")
     (dom/button #js {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:y]}))} "Set query to :y")
@@ -25,8 +25,8 @@
 (def ui-leaf (prim/factory Leaf {:qualifier :x}))
 
 (defsc Root [this {:keys [ui/react-key root/leaf] :as props} _ _]
-  {:initial-state (fn [t p] {:ui/react-key "A" :root/leaf (prim/get-initial-state Leaf {})})
-   :query         (fn [this] [{:root/leaf (prim/get-query ui-leaf)} :ui/react-key])}
+  {:initial-state (fn [p] {:ui/react-key "A" :root/leaf (prim/get-initial-state Leaf {})})
+   :query         (fn [] [{:root/leaf (prim/get-query ui-leaf)} :ui/react-key])}
   (dom/div #js {:key (or react-key)}
     (ui-leaf leaf)))
 

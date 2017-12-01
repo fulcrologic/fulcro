@@ -58,24 +58,46 @@ arbitrary additional protocols (optional), co-located css (optional),
 and an argument list that gives you access to destructured props, computed data, and react children.
 All this in one very compact form. It also looks like a `defn` (for IDE integration) and checks for common errors:
 
+Method form (this and props taken from main args lists):
+
+```
+(defsc Person
+  "Docstring"
+  [this {:keys [person/id person/name] :as props} {:keys [onSelect] :as computed-props} children]
+  { :query (fn [] [:person/id :person/name {:person/job (prim/get-query Job)}])
+    :ident (fn [] [:PERSON/by-id id] ; id comes from destructured props
+    :css (fn []) ; garden css
+    :css-include (fn []) ;see fulcro-css
+    :protocols [Object  ; arbitrary additional protocols
+                (my-method [this] ...)]
+    :initial-state (fn [{:keys [id name] :as params}]
+                     {:person/name name
+                      :person/job (prim/get-initial-state Job {:id 2 :name "Programmer"})
+                      :person/id id} }
+  (dom/div #js {:onClick onSelect} name))
+```
+
+A slightly shorter (and more restrictive) version is supported that gives more warnings/errors if things don't follow
+common rules (if you destructure something from props that isn't in the query):
+
 ```
 (defsc Person
   "Docstring"
   [this {:keys [person/name] :as props} {:keys [onSelect] :as computed-props} children]
   { :query [:person/id :person/name {:person/job (prim/get-query Job)}]
-    :ident [:PERSON/by-id :person/id]
+    :ident [:PERSON/by-id :person/id] ; it pulls the second one from props itself
     :form-fields [(f/id-field :person/id) ...] ; See forms support
     :css [] ; garden css
     :css-include [] ;see fulcro-css
     :protocols [Object  ; arbitrary additional protocols
                 (my-method [this] ...)]
-    :initial-state {:person/name :param/name
-                    :person/job {:id 2 :name "Programmer"}
+    :initial-state {:person/name :param/name ; pulls `name` from incoming parameters
+                    :person/job {:id 2 :name "Programmer"} ; calls get-initial-state with the map as params
                     :person/id :param/id} }
   (dom/div #js {:onClick onSelect} name))
 ```
 
-==== Trick for helping with computed props:
+==== A Trick for helping with computed props:
 
 ```
 (let [factory (prim/factory ComponentName {:keyfn :id-prop})]
