@@ -1,9 +1,9 @@
 (ns fulcro.client.impl.data-fetch
   (:require [fulcro.client.impl.parser :as op]
-            [fulcro.client.primitives :as prim]
+            [fulcro.client.primitives :as prim :refer [integrate-ident]]
             [fulcro.client.impl.protocols :as omp]
             [fulcro.util :as util]
-            [fulcro.client.util :refer [force-render integrate-ident]]
+            [fulcro.client.util :refer [force-render]]
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
             [fulcro.client.logging :as log]

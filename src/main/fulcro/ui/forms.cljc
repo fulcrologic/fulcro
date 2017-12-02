@@ -107,7 +107,7 @@
   affects how a diff is reported when calculated for submission."
   ([field form-class cardinality & {:keys [isComponent]}]
    (assert (contains? #{:one :many} cardinality) "subform-element requires a cardinality of :one or :many")
-   (assert ((every-pred #(fc/iident? %) #(iform? %) #(prim/has-query? %)) form-class)
+   (assert ((every-pred #(prim/has-ident? %) #(iform? %) #(prim/has-query? %)) form-class)
      (str "Subform element " field " MUST implement IForm, IQuery, and Ident."))
    (with-meta {:input/name          field
                :input/is-form?      true
@@ -387,12 +387,12 @@
                               (fail! "Subforms cannot be on union queries. You will have to manually group your subforms if you use unions."
                                 {:ast-node ast-node}))
                             (when (and wants-to-be?
-                                    (not (and (fc/iident? form-class) (iform? form-class) (prim/has-query? form-class))))
+                                    (not (and (prim/has-ident? form-class) (iform? form-class) (prim/has-query? form-class))))
                               (fail! (str "Declared subform for property " prop
                                        " does not implement IForm, IQuery, and Ident.")
                                 {:ast-node ast-node}))
                             (and form-class wants-to-be? join? (not union?) (prim/has-query? form-class)
-                              (fc/iident? form-class) (iform? form-class))))
+                              (prim/has-ident? form-class) (iform? form-class))))
          sub-forms      (->> ast :children
                           (keep (fn [ast-node]
                                   (when (is-form-node? ast-node)

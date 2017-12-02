@@ -43,9 +43,14 @@ to use devcards mkdn-pprint-source with mutations in your devcards. See the docs
 - Removed deprecated fulcro.client.cards/fulcro-app. Please port to `defcard-fulcro` instead (trivial port).
 - Moved defsc from fulcro.client.core to fulcro.client.primitives namespace
 - Renamed fulcro.client.core to fulcro.client
-
-Upcoming Renames:
-- Moved and renamed iinitial-state and iident from core to primitives
+- Code motion (old names refer to new ones, so no action needed on 1.x apps)
+  - iinitial-app-state (now has-initial-app-state?), iident (now has-ident?),
+    integrate-ident, integrate-ident!, merge-component, merge-state!
+    (now merge-component!), component-merge-query,
+    merge-alternate-unions, merge-alternate-union-elements!, and
+    merge-alternate-union-elements moved to primitives.
+- Removed log-app-state utility. Will reduce production deploy size. (thanks @thheller)
+  - Added code for log-app-state to Guide's F_DevEnv documentation, along with a note about fulcro-inspect
 
 1.2.1
 -----
