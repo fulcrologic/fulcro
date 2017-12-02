@@ -3079,114 +3079,36 @@
 #?(:clj
    (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI component with a query,
    optional ident (if :ident is specified in options), optional initial state, optional css,
-   optional forms, and a render method. It can also emit additional protocols  that you specify.
-
-   The argument list can include destructuring to pull items from props or computed. `children` will be a
-   sequence (possibly nil) of child react components that were passed to the component's factory.
-
-   Following the argument list is an options map:
+   optional forms, and a render method. It can also emit additional protocols  that you specify. Destructuring is
+   supported in the argument list, and made available in the body and lambda versions of the options.
 
    ```
-   (defsc Component [this props computed children]
-      { :query [:db/id :component/x {:component/child (prim/get-query Child)} {:component/other (prim/get-query Other)}]
-        :form-fields [(f/id-field :db/id) ...] ; See IForm in forms for description of form fields
-        :css [] ; fulcro-css local-rules
-        :css-include [] ; fulcro-css include-children
-        :ident [:COMPONENT/by-id :db/id]
-        :protocols [Object
-                    (shouldComponentUpdate [this] true)]
-        ; Use :param/x to indicate a value that should come from the caller of get-initial-state on this component
-        :initial-state {:db/id 4 :component/Child {} :component/other [{}]} }
-      body)
+   (defsc Component [this {:keys [db/id x] :as props} {:keys [onSelect] :as computed} children]
+     {:query [:db/id :x] ; OR (fn [] [:db/id :x])
+      :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id])
+      :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)})
+      :protocols [Object
+                  (shouldComponentUpdate ...)]}
+      (dom/div #js {:onClick onSelect} x))
    ```
 
-   The options map supplies the necessary information to build the component's ident, query, initial state,
-   render method, form support, component-local CSS rules, and any additional arbitrary protocols.
-   It is also used to error check your code. For example, you may destructure props:
+   To use with Fulcro CSS, be sure to require `fulcro-css.css`, and modify the argument list (only when used) to:
 
    ```
-   (defsc Component [this {:keys [db/id component/x] :as props} computed children]
-      { :query [:db/id :component/x]
-      ...)
+   (ns ui
+     (require fulcro-css.css))
+
+   (defsc Component [this props computed {:keys [my-classname]} children]
+     {:css [[:.my-classname]] ; OR (fn [] [[:my-classname]])
+      ... }
+      (dom/div #js {:className my-classname} ...))
    ```
 
-   If the destructuring of props tries to pull data that the options map does not have in `:query`, then an error will
-   result at compile time, alerting you to your error. Many other things are also checked (that you query for the ID
-   field, that initial state only initializes things you query, etc.). This can prevent a lot of common errors when
-   building your UI.
-
-   ## Initial State
-
-   IMPORTANT: Initial state using the template (a map) treats the top-level map as the actual data. Anything
-   nested in this map as keys *that match a join in the query* are automatically transformed into calls
-   to `(prim/get-initial-state)`. This is so that error-checking can be performed. Any parameters you expect to
-   receive in your initial state will be mapped via keywords in the `params` namespace:
-
-   ```
-   (defsc Component [this {:keys [db/id component/x] :as props} computed children]
-      { :initial-state {:db/id 2 :component/x {:db/id :params/child-id}}
-       :query [:db/id {:component/x (get-query X)}]
-      ...)
-   ```
-
-   means:
-
-   ```
-   static prim/InitialAppState
-   (initial-state [t {:keys [child-id]}] {:db/id 2 (prim/get-initial-state X {:db/id child-id})})
-   ```
-
-   If the initial state includes keys that do not appear in your query, then it will issue an error. You may
-   avoid this by writing it as a method instead.
-
-   ## Error Checking
-
-   The above for uses templates to succinctly express the methods. When you use the template style you're more
-   restricted in what you can do, but it is also less error prone because the defsc macro can check your component
-   for many errors (such as a typo in desctructuring).
-
-   You may write methods instead of data templates, which loosens the checking (depending on what you still leave
-   as a template). For example, if you make `:ident` a method, the macro is still able to verify destructuring against
-   `:query`.
-
-   ## Using Methods Instead
-
-   You may instead use methods on
-   `:query`, `ident`, `initial-state`. Using the method forms turns off much of the error checking. Note that you
-   do not supply a `this` arg to the functions, as it is already in scope from the component argument list in the
-   declaration (similar to defrecord, BUT you can use destructuring that applies in all of the the methods).
-
-   The following are the supported method signatures:
-
-   ```
-   :ident (fn [] ...) ; gets this and props from destructured arguments to defsc
-   :query (fn [] ...) ; gets this from destructured args
-   :css (fn [] ...) ; gets this from destructured args
-   :css-include (fn [] ...) ; gets this from destructured args
-   :initial-state (fn [params) ...) ; gets this from destructured args
-   :form-fields [(f/id-field :db/id) ...] ; gets this from destructured args
-   ```
-
-   Note that most of the protocols in question above are *static*, meaning that `this` is often the component
-   class itself, and isn't that useful.
-
-   ```
-   (defsc Component [this props computed]
-     {:query (fn [] [:x])
-      :initial-state (fn [t p] {:x 1})
-      :ident (fn [props] [:table (:db/id props)])
-      ...}
-     (dom/div ...))
-   ```
-
-   *Yes, There are two 4-arg variants.* IF AND ONLY IF you include a :css option, then the ones with local-css-classes
-   are how the arguments will be understood. It was felt that this bit of irregularity was worth the more concise
-   notation, since children are so much less frequently used than CSS (when you're using it).
+   Only the first two arguments are required (this and props).
 
    See section M05-More-Concise-UI of the Developer's Guide for more details.
 
    NOTE: `defsc` automatically declares your component with `:once` metadata for correct operation with hot code reload.
-
    "
                :arglists '([this dbprops computedprops]
                             [this dbprops computedprops children]
