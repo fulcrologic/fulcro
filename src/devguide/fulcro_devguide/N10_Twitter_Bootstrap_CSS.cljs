@@ -1,5 +1,5 @@
 (ns fulcro-devguide.N10-Twitter-Bootstrap-CSS
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim]
             [fulcro.client.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
@@ -674,8 +674,8 @@
     (apply dom/div #js {:key "example-frame-key"}
       (dom/style nil ".boxed {border: 1px solid black}")
       #_(dom/link #js {:rel  "stylesheet"
-                     :href "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"})
-      (dom/link #js {:rel  "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+                       :href "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"})
+      (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       children)))
 
 (defn sample [ele description]
