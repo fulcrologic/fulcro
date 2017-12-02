@@ -1,5 +1,5 @@
 (ns fulcro-devguide.M30-Advanced-Mutation
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
@@ -8,17 +8,15 @@
             [fulcro.client.logging :as log]
             [fulcro.client.data-fetch :as df]))
 
-(defui SubQuery
-  static prim/Ident
-  (ident [this props] [:sub/by-id (:id props)])
-  static prim/IQuery
-  (query [this] [:id :data]))
+(defsc SubQuery [t p]
+  {:ident [:sub/by-id :id]
+   :query [:id :data]}
+  nil)
 
-(defui TopQuery
-  static prim/Ident
-  (ident [this props] [:top/by-id (:id props)])
-  static prim/IQuery
-  (query [this] [:id {:subs (prim/get-query SubQuery)}]))
+(defsc TopQuery [t p]
+  {:ident [:top/by-id :id]
+   :query [:id {:subs (prim/get-query SubQuery)}]}
+  nil)
 
 (defcard-doc
   "
@@ -146,16 +144,12 @@
   (fc/merge-state! app tour/Counter counter
     :append [:panels/by-kw :counter :counters]))
 
-(defui ^:once Root
-  static prim/IQuery
-  (query [this] [{:panel (prim/get-query tour/CounterPanel)}])
-  Object
-  (render [this]
-    (let [{:keys [panel]} (prim/props this)]
-      (dom/div #js {:style #js {:border "1px solid black"}}
-        (dom/button #js {:onClick #(add-counter @sample-of-counter-app-with-merge-state-fulcro-app {:counter/id 4 :counter/n 22})} "Simulate Data Import")
-        "Counters:"
-        (tour/ui-counter-panel panel)))))
+(defsc Root [this {:keys [panel]}]
+  {:query [{:panel (prim/get-query tour/CounterPanel)}]}
+  (dom/div #js {:style #js {:border "1px solid black"}}
+    (dom/button #js {:onClick #(add-counter @sample-of-counter-app-with-merge-state-fulcro-app {:counter/id 4 :counter/n 22})} "Simulate Data Import")
+    "Counters:"
+    (tour/ui-counter-panel panel)))
 
 (defcard-doc
   "
@@ -191,7 +185,10 @@
 
   We can do this with:
   "
-  (dc/mkdn-pprint-source add-counter))
+  (dc/mkdn-pprint-source add-counter)
+  "given the following components:"
+  (dc/mkdn-pprint-source tour/CounterPanel)
+  (dc/mkdn-pprint-source tour/Root))
 
 (defcard-fulcro sample-of-counter-app-with-merge-state
   "The button in the UI calls `(add-counter app {:counter/id 4 :counter/n 22})`"

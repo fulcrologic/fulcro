@@ -70,7 +70,7 @@
            (dom/render child shadow-root))))
      (render [this]
        ; placeholder node to attach shadow DOM to
-       (dom/div #js {:style #js {:font-size "14pt" :color "red"}} "Your browser does not support shadow DOM. Please try Chrome or Safari."))))
+       (dom/div #js {:style #js {:fontSize "14pt" :color "red"}} "Your browser does not support shadow DOM. Please try Chrome or Safari."))))
 
 #?(:clj
    (defn ui-shadow-dom [props children]
@@ -78,6 +78,8 @@
    :cljs
    (def ui-shadow-dom
      "Create a div with a shadow DOM, and render the given child (singular) within that root.
+
+     EXPERIMENTAL!!!
 
      WARNING: Some browsers may require a polyfill to enable shadow DOM. See also `ui-iframe`.
 

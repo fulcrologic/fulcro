@@ -1,5 +1,5 @@
 (ns fulcro.ui.clip-tool
-  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.core :as fc]
             [fulcro.ui.clip-geometry :as cg]))
@@ -135,54 +135,49 @@
         clip        (cg/max-rect img-bbox aspect-ratio)]
     (prim/update-state! comp assoc :clip-region clip)))
 
-(defui ^:once ClipTool
-  static prim/InitialAppState
-  (initial-state [clz {:keys [image-url id aspect-ratio handle-size width height] :or {id           "clip-1"
-                                                                                       aspect-ratio 1 width 400 height 400 handle-size 10} :as params}]
-    {:id           id
-     :url          image-url
-     :aspect-ratio aspect-ratio
-     :handle-size  handle-size
-     :size         {:width width :height height}})
-  static prim/IQuery
-  (query [this] [:id :url :size :aspect-ratio :handle-size])
-  static prim/Ident
-  (ident [this props] [:clip-tools/by-id (:id props)])
-  Object
-  (initLocalState [this]
-    (let [img (js/Image.)]
-      (set! (.-onload img) (fn []
-                             (set-initial-clip this img)
-                             (let [{:keys [size]} (prim/props this)
-                                   onChange (prim/get-computed this :onChange)
-                                   {:keys [clip-region]} (prim/get-state this)]
-                               (when onChange (onChange (assoc (prim/get-state this) :clip-region (translate-clip-region clip-region size img)))))
-                             (refresh-clip-region this (prim/props this))))
-      {:image-object    img
-       :origin          (cg/->Point 0 0)
-       :clip-region     (cg/->Rectangle (cg/->Point 0 0)
-                          (cg/->Point 0 0))
-       :activeOperation :none
-       :min-size        20}))
-  (shouldComponentUpdate [this next-props next-state] false)
-  (componentWillReceiveProps [this props] (refresh-clip-region this props)) ; for URL changes
-  (componentDidMount [this]
-    (let [{:keys [url handle-size aspect-ratio size]} (prim/props this)
-          {:keys [image-object clip-region] :as state} (prim/get-state this)]
-      (prim/update-state! this assoc :aspect-ratio aspect-ratio :handle-size (or handle-size 10))
-      (set! (.-src image-object) url)))
-  (render [this]
-    (let [{:keys [id size]} (prim/props this)
-          onChange (prim/get-computed this :onChange)]
-      (dom/div #js {:style #js {:width "500px"}}
-        (dom/canvas #js {:ref         (fn [ele] (when ele (prim/update-state! this assoc :canvas ele)))
-                         :id          id
-                         :width       (str (:width size) "px")
-                         :height      (str (:height size) "px")
-                         :onMouseDown (fn [evt] (mouseDown this evt))
-                         :onMouseMove (fn [evt] (mouseMoved this evt onChange))
-                         :onMouseUp   (fn [evt] (mouseUp this evt))
-                         :className   "clip-tool"})))))
+(defsc ClipTool [this {:keys [id size]}]
+  {:initial-state (fn [{:keys [image-url id aspect-ratio handle-size width height]
+                        :or   {id "clip-1" aspect-ratio 1 width 400 height 400 handle-size 10} :as params}]
+                    {:id           id
+                     :url          image-url
+                     :aspect-ratio aspect-ratio
+                     :handle-size  handle-size
+                     :size         {:width width :height height}})
+   :query         [:id :url :size :aspect-ratio :handle-size]
+   :ident         [:clip-tools/by-id :id]
+   :protocols     [Object
+                   (initLocalState [this]
+                     (let [img (js/Image.)]
+                       (set! (.-onload img) (fn []
+                                              (set-initial-clip this img)
+                                              (let [{:keys [size]} (prim/props this)
+                                                    onChange (prim/get-computed this :onChange)
+                                                    {:keys [clip-region]} (prim/get-state this)]
+                                                (when onChange (onChange (assoc (prim/get-state this) :clip-region (translate-clip-region clip-region size img)))))
+                                              (refresh-clip-region this (prim/props this))))
+                       {:image-object    img
+                        :origin          (cg/->Point 0 0)
+                        :clip-region     (cg/->Rectangle (cg/->Point 0 0)
+                                           (cg/->Point 0 0))
+                        :activeOperation :none
+                        :min-size        20}))
+                   (shouldComponentUpdate [this next-props next-state] false)
+                   (componentWillReceiveProps [this props] (refresh-clip-region this props)) ; for URL changes
+                   (componentDidMount [this]
+                     (let [{:keys [url handle-size aspect-ratio size]} (prim/props this)
+                           {:keys [image-object clip-region] :as state} (prim/get-state this)]
+                       (prim/update-state! this assoc :aspect-ratio aspect-ratio :handle-size (or handle-size 10))
+                       (set! (.-src image-object) url)))]}
+  (let [onChange (prim/get-computed this :onChange)]
+    (dom/div #js {:style #js {:width "500px"}}
+      (dom/canvas #js {:ref         (fn [ele] (when ele (prim/update-state! this assoc :canvas ele)))
+                       :id          id
+                       :width       (str (:width size) "px")
+                       :height      (str (:height size) "px")
+                       :onMouseDown (fn [evt] (mouseDown this evt))
+                       :onMouseMove (fn [evt] (mouseMoved this evt onChange))
+                       :onMouseUp   (fn [evt] (mouseUp this evt))
+                       :className   "clip-tool"}))))
 
 (def ui-clip-tool (prim/factory ClipTool))
 
@@ -201,24 +196,22 @@
       (cg/draw-rect ctx (cg/->Rectangle (cg/->Point 0 0) (cg/->Point w h)) :solid-black)
       (.drawImage ctx image-object sx sy sw sh 0 0 w h))))
 
-(defui ^:once PreviewClip
-  Object
-  (render [this]
-    (let [{:keys [filename width height clip-region]} (prim/props this)
-          {:keys [ul lr]} clip-region]
-      (dom/div #js {:style #js {:position "relative" :top "-400px" :left "500px"}}
-        (dom/canvas #js {:ref       (fn [elem] (when elem
-                                                 (refresh-image elem this)))
-                         :style     #js {:border "1px solid black"}
-                         :width     (str width "px")
-                         :height    (str height "px")
-                         :className "preview-clip"})
-        (dom/div nil (str filename
-                       "?x1=" (-> ul :x int)
-                       "&y1=" (-> ul :y int)
-                       "&x2=" (-> lr :x int)
-                       "&y2=" (-> lr :y int)
-                       "&width=" width))))))
+(defsc PreviewClip [this {:keys [filename width height clip-region]}]
+  {}
+  (let [{:keys [ul lr]} clip-region]
+    (dom/div #js {:style #js {:position "relative" :top "-400px" :left "500px"}}
+      (dom/canvas #js {:ref       (fn [elem] (when elem
+                                               (refresh-image elem this)))
+                       :style     #js {:border "1px solid black"}
+                       :width     (str width "px")
+                       :height    (str height "px")
+                       :className "preview-clip"})
+      (dom/div nil (str filename
+                     "?x1=" (-> ul :x int)
+                     "&y1=" (-> ul :y int)
+                     "&x2=" (-> lr :x int)
+                     "&y2=" (-> lr :y int)
+                     "&width=" width)))))
 
 (def ui-preview-clip
   "Render a preview of a clipped image. "
