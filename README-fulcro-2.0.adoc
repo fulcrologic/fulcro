@@ -44,7 +44,7 @@ rename-ns om.dom fulcro.client.dom
 rename-ns om.tempid fulcro.tempid
 rename-ns om.util fulcro.util
 rename-ns om.next fulcro.client.primitives
-rename-ns fulcro.client fulcro.client
+rename-ns fulcro.client.core fulcro.client
 ```
 +
 5. Fix your use of `util` namespaces. There are now two util namespaces. This is an unfortunate consequence of the
