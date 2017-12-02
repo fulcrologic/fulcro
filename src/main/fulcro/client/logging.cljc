@@ -1,7 +1,7 @@
 (ns fulcro.client.logging
   #?(:clj
      (:require [taoensso.timbre :as timbre]))
-  #?(:cljs (:require cljs.pprint
+  #?(:cljs (:require
              [goog.log :as glog]
              [goog.debug.Logger.Level :as level]))
   #?(:cljs (:import [goog.debug Console])))
@@ -26,7 +26,7 @@
    (defn value-message
      "Include a pretty-printed cljs value as a string with the given text message."
      [msg val]
-     (str msg ":\n" (with-out-str (cljs.pprint/pprint val))))
+     (str msg ":\n" (with-out-str (pr-str val))))
    :clj
    (defn value-message [msg val] (str msg val)))
 

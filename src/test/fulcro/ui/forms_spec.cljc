@@ -26,7 +26,7 @@
 (specification "Utility functions"
   (assertions
     "Can detect query, ident, and form protocols on class"
-    (fc/iident? Stub) => true
+    (prim/has-ident? Stub) => true
     (f/iform? Stub) => true
     (prim/has-query? Stub) => true
     "Can pull the ident for a component class"

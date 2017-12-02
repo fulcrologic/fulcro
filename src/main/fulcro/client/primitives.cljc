@@ -17,7 +17,6 @@
                [fulcro.tempid :as tempid]
                [fulcro.transit :as transit]
                [clojure.zip :as zip]
-               [clojure.pprint :refer [pprint]]
                [fulcro.client.impl.protocols :as p]
                [fulcro.client.impl.parser :as parser]
                [fulcro.util :as util]
@@ -32,6 +31,8 @@
   #?(:clj
            (:import [java.io Writer])
      :cljs (:import [goog.debug Console])))
+
+(declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root! component?)
 
 (defprotocol Ident
   (ident [this props] "Return the ident for this component"))
@@ -52,6 +53,42 @@
 (defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
 
+(defn has-initial-app-state?
+  #?(:cljs {:tag boolean})
+  [component]
+  #?(:clj  (if (fn? component)
+             (some? (-> component meta :initial-state))
+             (let [class (cond-> component (component? component) class)]
+               (extends? InitialAppState class)))
+     :cljs (implements? InitialAppState component)))
+
+(defn has-ident?
+  #?(:cljs {:tag boolean})
+  [component]
+  #?(:clj  (if (fn? component)
+             (some? (-> component meta :ident))
+             (let [class (cond-> component (component? component) class)]
+               (extends? Ident class)))
+     :cljs (implements? Ident component)))
+
+(defn has-query?
+  #?(:cljs {:tag boolean})
+  [component]
+  #?(:clj  (if (fn? component)
+             (some? (-> component meta :query))
+             (let [class (cond-> component (component? component) class)]
+               (extends? IQuery class)))
+     :cljs (implements? IQuery component)))
+
+(defn has-query-params?
+  #?(:cljs {:tag boolean})
+  [component]
+  #?(:clj  (if (fn? component)
+             (some? (-> component meta :params))
+             (let [class (cond-> component (component? component) class)]
+               (extends? IQueryParams class)))
+     :cljs (implements? IQueryParams component)))
+
 (defn get-initial-state
   "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
   [class params]
@@ -59,8 +96,6 @@
              (initial-state class params))
      :cljs (when (implements? InitialAppState class)
              (initial-state class params))))
-
-(declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root!)
 
 (s/def ::remote keyword?)
 (s/def ::ident util/ident?)
@@ -552,18 +587,6 @@
   (let [t (with-meta (gensym "ui_") {:anonymous true})]
     `(do (defui ~t ~@forms) ~t)))
 
-;; TODO: #?:clj invariant - António
-(defn invariant*
-  [condition message env]
-  (let [opts     (ana-api/get-options)
-        fn-scope (:fn-scope env)
-        fn-name  (some-> fn-scope first :name str)]
-    (when-not (:elide-asserts opts)
-      `(when-not ~condition
-         (log/error (str "Invariant Violation"
-                      (when-not (nil? ~fn-name)
-                        (str " (in function: `" ~fn-name "`)"))
-                      ": " ~message))))))
 
 ;; =============================================================================
 ;; Globals & Dynamics
@@ -822,24 +845,6 @@
                           (or (gobj/get state "fulcro$pendingState")
                             (gobj/get state "fulcro$state")))))]
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
-
-(defn has-query?
-  #?(:cljs {:tag boolean})
-  [x]
-  #?(:clj  (if (fn? x)
-             (some? (-> x meta :query))
-             (let [class (cond-> x (component? x) class)]
-               (extends? IQuery class)))
-     :cljs (implements? IQuery x)))
-
-(defn has-query-params?
-  #?(:cljs {:tag boolean})
-  [x]
-  #?(:clj  (if (fn? x)
-             (some? (-> x meta :params))
-             (let [class (cond-> x (component? x) class)]
-               (extends? IQueryParams class)))
-     :cljs (implements? IQueryParams x)))
 
 (defn- get-static-query
   "Get the statically-declared query of IQuery from a given class."
@@ -3121,4 +3126,207 @@
          (defsc* args)
          (catch Exception e
            (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
+
+(defn integrate-ident
+  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
+  implementations as a general helper function.
+
+  The named parameters can be specified any number of times. They are:
+
+  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
+  the ident if that ident is already in the list.
+  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
+  the ident if that ident is already in the list.
+  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
+   If the target is a vector element then that element must already exist in the vector."
+  [state ident & named-parameters]
+  {:pre [(map? state)]}
+  (let [actions (partition 2 named-parameters)]
+    (reduce (fn [state [command data-path]]
+              (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
+                (case command
+                  :prepend (if (already-has-ident-at-path? data-path)
+                             state
+                             (do
+                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
+                               (update-in state data-path #(into [ident] %))))
+                  :append (if (already-has-ident-at-path? data-path)
+                            state
+                            (do
+                              (assert (vector? (get-in state data-path)) (str "Path " data-path " for append must target an app-state vector."))
+                              (update-in state data-path conj ident)))
+                  :replace (let [path-to-vector (butlast data-path)
+                                 to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
+                                 index          (last data-path)
+                                 vector         (get-in state path-to-vector)]
+                             (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
+                             (when to-many?
+                               (do
+                                 (assert (vector? vector) "Path for replacement must be a vector")
+                                 (assert (number? index) "Path for replacement must end in a vector index")
+                                 (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
+                             (assoc-in state data-path ident))
+                  (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
+      state actions)))
+
+(defn component-merge-query
+  "Calculates the query that can be used to pull (or merge) a component with an ident
+  to/from a normalized app database. Requires a tree of data that represents the instance of
+  the component in question (e.g. ident will work on it)"
+  [component object-data]
+  (let [ident        (ident component object-data)
+        object-query (get-query component)]
+    [{ident object-query}]))
+
+(defn- preprocess-merge
+  "Does the steps necessary to honor the data merge technique defined by Fulcro with respect
+  to data overwrites in the app database."
+  [state-atom component object-data]
+  (let [ident         (get-ident component object-data)
+        object-query  (get-query component)
+        object-query  (if (map? object-query) [object-query] object-query)
+        base-query    (component-merge-query component object-data)
+        ;; :fulcro/merge is way to make unions merge properly when joined by idents
+        merge-query   [{:fulcro/merge base-query}]
+        existing-data (get (db->tree base-query @state-atom @state-atom) ident {})
+        marked-data   (mark-missing object-data object-query)
+        merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]
+    {:merge-query merge-query
+     :merge-data  merge-data}))
+
+(defn- is-atom?
+  "Returns TRUE when x is an atom."
+  [x]
+  (instance? #?(:cljs cljs.core.Atom
+                :clj  clojure.lang.Atom) x))
+
+(defn integrate-ident!
+  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
+  implementations as a general helper function.
+
+  The named parameters can be specified any number of times. They are:
+
+  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
+  the ident if that ident is already in the list.
+  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
+  the ident if that ident is already in the list.
+  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
+   If the target is a vector element then that element must already exist in the vector.
+  "
+  [state ident & named-parameters]
+  (assert (is-atom? state)
+    "The state has to be an atom. Use 'integrate-ident' instead.")
+  (apply swap! state integrate-ident ident named-parameters))
+
+(defn merge-component
+  "Given a state map of the application database, a component, and a tree of component-data: normalizes
+   the tree of data and merges the component table entries into the state, returning a new state map.
+   Since there is not an implied root, the component itself won't be linked into your graph (though it will
+   remain correctly linked for its own consistency).
+   Therefore, this function is just for dropping normalized things into tables
+   when they themselves have a recursive nature. This function is useful when you want to create a new component instance
+   and put it in the database, but the component instance has recursive normalized state. This is a basically a
+   thin wrapper around `prim/tree->db`.
+
+   See also integrate-ident, integrate-ident!, and merge-component!"
+  [state-map component component-data]
+  (if-let [top-ident (get-ident component component-data)]
+    (let [query          [{top-ident (get-query component)}]
+          state-to-merge {top-ident component-data}
+          table-entries  (-> (tree->db query state-to-merge true)
+                           (dissoc ::tables top-ident))]
+      (util/deep-merge state-map table-entries))
+    state-map))
+
+(defn merge-component!
+  "Normalize and merge a (sub)tree of application state into the application using a known UI component's query and ident.
+
+  This utility function obtains the ident of the incoming object-data using the UI component's ident function. Once obtained,
+  it uses the component's query and ident to normalize the data and place the resulting objects in the correct tables.
+  It is also quite common to want those new objects to be linked into lists in other spot in app state, so this function
+  supports optional named parameters for doing this. These named parameters can be repeated as many times as you like in order
+  to place the ident of the new object into other data structures of app state.
+
+  This function honors the data merge story for Fulcro: attributes that are queried for but do not appear in the
+  data will be removed from the application. This function also uses the initial state for the component as a base
+  for merge if there was no state for the object already in the database.
+
+  This function will also trigger re-renders of components that directly render object merged, as well as any components
+  into which you integrate that data via the named-parameters.
+
+  This function is primarily meant to be used from things like server push and setTimeout/setInterval, where you're outside
+  of the normal mutation story. Do not use this function within abstract mutations.
+
+  - reconciler: A reconciler
+  - component: The class of the component that corresponsds to the data. Must have an ident.
+  - object-data: A map (tree) of data to merge. Will be normalized for you.
+  - named-parameter: Post-processing ident integration steps. see integrate-ident!
+
+  Any keywords that appear in ident integration steps will be added to the re-render queue.
+
+  See also `fulcro.client.primitives/merge!`.
+  "
+  [reconciler component object-data & named-parameters]
+  (if-not (has-ident? component)
+    (log/error "merge-component!: component must implement Ident. Merge skipped.")
+    (let [ident          (get-ident component object-data)
+          reconciler     (if (contains? reconciler :reconciler) (:reconciler reconciler))
+          state          (app-state reconciler)
+          data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
+          {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
+      (merge! reconciler merge-data merge-query)
+      (swap! state dissoc :fulcro/merge)
+      (apply integrate-ident! state ident named-parameters)
+      (p/queue! reconciler data-path-keys)
+      @state)))
+
+(defn merge-alternate-unions
+  "Walks the given query and calls (merge-fn parent-union-component union-child-initial-state) for each non-default element of a union that has initial app state.
+  You probably want to use merge-alternate-union-elements[!] on a state map or app."
+  [merge-fn root-component]
+  (letfn [(walk-ast
+            ([ast visitor]
+             (walk-ast ast visitor nil))
+            ([{:keys [children component type dispatch-key union-key key] :as parent-ast} visitor parent-union]
+             (when (and component parent-union (= :union-entry type))
+               (visitor component parent-union))
+             (when children
+               (doseq [ast children]
+                 (cond
+                   (= (:type ast) :union) (walk-ast ast visitor component) ; the union's component is on the parent join
+                   (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
+                   ast (walk-ast ast visitor nil))))))
+          (merge-union [component parent-union]
+            (let [default-initial-state   (and parent-union (has-initial-app-state? parent-union) (get-initial-state parent-union {}))
+                  to-many?                (vector? default-initial-state)
+                  component-initial-state (and component (has-initial-app-state? component) (get-initial-state component {}))]
+              (when-not default-initial-state
+                (log/warn "WARNING: Subelements of union " (.. parent-union -displayName) " have initial state. This means your default branch of the union will not have initial application state."))
+              (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
+                (merge-fn parent-union component-initial-state))))]
+    (walk-ast
+      (query->ast (get-query root-component))
+      merge-union)))
+
+;q: {:a (gq A) :b (gq B)
+;is: (is A)  <-- default branch
+;state:   { kw { id [:page :a]  }}
+(defn merge-alternate-union-elements!
+  "Walks the query and initial state of root-component and merges the alternate sides of unions with initial state into
+  the application state database. See also `merge-alternate-union-elements`, which can be used on a state map and
+  is handy for server-side rendering. This function side-effects on your app, and returns nothing."
+  [app root-component]
+  (merge-alternate-unions (partial merge-component! app) root-component))
+
+(defn merge-alternate-union-elements
+  "Just like merge-alternate-union-elements!, but usable from within mutations and on server-side rendering. Ensures
+  that when a component has initial state it will end up in the state map, even if it isn't currently in the
+  initial state of the union component (which can only point to one at a time)."
+  [state-map root-component]
+  (let [initial-state  (get-initial-state root-component nil)
+        state-map-atom (atom state-map)
+        merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
+        _              (merge-alternate-unions merge-to-state root-component)
+        new-state      @state-map-atom]
+    new-state))
 

@@ -143,7 +143,27 @@
 
   #### Seeing the Data
 
+  NOTE: The fulcro-inspect project makes this much better...use it instead!
+
   When debugging your app state it can be useful to see several things:
+
+  ```
+  (defn log-app-state
+    \"Helper for logging the app-state. Pass in a Fulcro application atom and either top-level keys, data-paths (like get-in), or both.\"
+    [app-atom & keys-and-paths]
+    (let [app-state (prim/app-state (:reconciler @app-atom))]
+      (pprint
+        (letfn [(make-path [location]
+                  (if (sequential? location) location [location]))
+                (process-location [acc location]
+                  (let [path (make-path location)]
+                    (assoc-in acc path (get-in @app-state path))))]
+
+          (condp = (count keys-and-paths)
+            0 @app-state
+            1 (get-in @app-state (make-path (first keys-and-paths)))
+            (reduce process-location {} keys-and-paths))))))
+  ```
 
   - Seeing the entire app state:
     ```

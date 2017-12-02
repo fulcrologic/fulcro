@@ -5,7 +5,6 @@
     [fulcro.history :as hist]
     [fulcro.client.data-fetch :refer [load]]
     [fulcro.client :as core]
-    [clojure.pprint :refer [pprint]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     yahoo.intl-messageformat-with-locales
     [fulcro.i18n :refer [tr trf]]
@@ -76,7 +75,7 @@
         (dom/span #js {:className "timestamp"} (trf "Client Time: {ts,date,short} {ts,time,long}" :ts client-time))
         (dom/hr nil)
         (dom/h4 nil "Transaction")
-        (dom/p nil (with-out-str (pprint tx)))
+        (dom/p nil (pr-str tx))
         (dom/hr nil)
         (dom/span #js {:className "history-jump-to"} "Jump to:")
         (dom/div #js {}

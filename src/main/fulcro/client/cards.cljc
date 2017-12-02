@@ -30,7 +30,7 @@
           (if (-> ~app-sym deref :mounted? not)
             (let [use-components-initial-state?# (-> state-atom# deref empty?)]
               (if (and use-components-initial-state?#
-                    (fulcro.client/iinitial-app-state? ~root-ui))
+                    (fulcro.client.primitives/has-initial-app-state? ~root-ui))
                 (reset! state-atom# (fulcro.client.primitives/tree->db ~root-ui (fulcro.client.primitives/get-initial-state ~root-ui nil) true))
                 state-atom#)
               (reset! ~app-sym (fulcro.client/mount (deref ~app-sym) ~root-ui node#)))
