@@ -3,7 +3,7 @@
     #?(:clj [taoensso.timbre :as timbre])
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.logging :as log]
     [fulcro.client.mutations :as m]
     [fulcro.client.util :as uu]

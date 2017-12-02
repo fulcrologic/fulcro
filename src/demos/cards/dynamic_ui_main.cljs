@@ -1,6 +1,6 @@
 (ns cards.dynamic-ui-main
   (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.routing :as r]
             cljs.loader
             [fulcro.client.dom :as dom]))

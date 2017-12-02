@@ -6,7 +6,7 @@
                [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.server :refer [defquery-root defquery-entity defmutation]]
     [fulcro.client.logging :as log]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.dom :as dom]

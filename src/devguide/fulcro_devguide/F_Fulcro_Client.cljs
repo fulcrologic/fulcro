@@ -37,7 +37,7 @@
   (ns app.core
     (:require
       app.mutations ; remember to load your add-on mutations
-      [fulcro.client.core :as fc]
+      [fulcro.client :as fc]
       [app.ui :as ui]
       yahoo.intl-messageformat-with-locales ; if using i18n
       [fulcro.client.primitives :as prim]))

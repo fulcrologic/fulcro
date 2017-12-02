@@ -2,7 +2,7 @@
   (:require
     #?@(:cljs [[devcards.core :as dc :include-macros true]
                [fulcro.client.cards :refer [defcard-fulcro]]])
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [cards.card-utils :refer [sleep now]]
     [fulcro.client.data-fetch :as df]
     [fulcro.util :as util]

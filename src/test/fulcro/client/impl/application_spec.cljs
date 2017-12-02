@@ -1,6 +1,6 @@
 (ns fulcro.client.impl.application-spec
   (:require
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
     [fulcro.client.dom :as dom]

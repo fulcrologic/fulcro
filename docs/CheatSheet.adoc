@@ -2,7 +2,7 @@
 
 == Common Namespaces
 
-- `[fulcro.client.core :as fc]`: Primary Fulcro namespace
+- `[fulcro.client :as fc]`: Primary Fulcro namespace
 - `[fulcro.client.data-fetch :as df]`: Fulcro functions for loading data from remotes.
 - `[fulcro.client.mutations :as m]`: Fulcro mutations and mutation definition macro.
 - `[fulcro.client.util :as fu]`: Some helper functions

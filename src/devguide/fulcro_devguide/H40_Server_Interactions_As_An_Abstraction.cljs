@@ -7,7 +7,7 @@
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.network :as net]
             [fulcro.client.util :as util]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.data-fetch :as df]))
 
 (defn save [edn]

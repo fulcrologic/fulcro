@@ -4,7 +4,7 @@
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro-devguide.A-Quick-Tour :as tour]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.logging :as log]
             [fulcro.client.data-fetch :as df]))
 
@@ -61,7 +61,7 @@
   ###  Using `integrate-ident`
 
   When in a mutation you very often need to place an ident in various spots in your graph database. The helper
-  function `fulcro.client.core/integrate-ident` can by used from within mutations to help you do this. It accepts
+  function `fulcro.client/integrate-ident` can by used from within mutations to help you do this. It accepts
   any number of named parameters that specify operations to do with a given ident:
 
   ```
@@ -153,7 +153,7 @@
 
 (defcard-doc
   "
-  ### Using `fulcro.client.core/merge-state!`
+  ### Using `fulcro.client/merge-state!`
 
   There is a common special case that comes up often: You want to merge something that is in the context of some particular UI component.
 

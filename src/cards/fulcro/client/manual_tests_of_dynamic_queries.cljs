@@ -1,7 +1,7 @@
 (ns fulcro.client.manual-tests-of-dynamic-queries
   (:require [devcards.core :as dc]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [goog.object]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]

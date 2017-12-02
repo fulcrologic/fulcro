@@ -4,7 +4,7 @@
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.routing :as r :refer [defrouter]]
             [fulcro.client.mutations :refer [defmutation]]
             [fulcro.ui.bootstrap3 :as b]

@@ -5,7 +5,7 @@
     [goog.debug.Logger.Level :as level]
     [fulcro.i18n :as i18n]
     [fulcro.client.impl.data-fetch :as df]
-    [fulcro.client.core ]
+    [fulcro.client ]
     [fulcro.client.dom :as dom]
     [goog.log :as glog]
     [fulcro.client.primitives :as prim :refer [defsc]]

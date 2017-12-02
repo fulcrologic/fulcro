@@ -7,7 +7,7 @@
     [fulcro.client.dom :as dom]
     [cards.card-utils :refer [sleep]]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.server :as server]
     [fulcro.util :as util]
     [fulcro.client.data-fetch :as df]))

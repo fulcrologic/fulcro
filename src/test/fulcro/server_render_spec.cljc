@@ -4,7 +4,7 @@
             [fulcro-spec.core :refer [specification behavior assertions]]
             [fulcro.server-render :as ssr]
             [fulcro.client.util :as util]
-            [fulcro.client.core :as fc]))
+            [fulcro.client :as fc]))
 
 (defui Item
   static prim/InitialAppState

@@ -12,7 +12,7 @@
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.ui.bootstrap3 :as b]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [devcards.core :as dc]))
 
 (defui ^:once DropdownRoot

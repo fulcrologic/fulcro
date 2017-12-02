@@ -7,7 +7,7 @@
     [fulcro.client.mutations :refer [mutate defmutation]]
     [fulcro.client.logging :as log]
     [fulcro.client.dom :as dom]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.util :as util]
     [clojure.set :as set]))
 

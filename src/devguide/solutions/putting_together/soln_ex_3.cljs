@@ -1,7 +1,7 @@
 (ns solutions.putting-together.soln-ex-3
   (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.data-fetch :as df]
             [fulcro.client.mutations :as m :refer [defmutation]]))
 

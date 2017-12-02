@@ -1,7 +1,7 @@
 (ns fulcro.client.routing
   #?(:cljs (:require-macros fulcro.client.routing))
   (:require [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.impl.protocols :as p]
             fulcro.client.dom

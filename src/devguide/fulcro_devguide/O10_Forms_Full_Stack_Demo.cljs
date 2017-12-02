@@ -4,7 +4,7 @@
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.routing :as r :refer [defrouter]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.logging :as log]

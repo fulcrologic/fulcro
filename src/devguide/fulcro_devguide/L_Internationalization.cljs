@@ -4,7 +4,7 @@
             [fulcro.i18n :as ic :refer-macros [tr trc trf]]
             yahoo.intl-messageformat-with-locales
             [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [cljs.reader :as r]
             [fulcro.client.impl.parser :as p]
             [fulcro.client.dom :as dom]

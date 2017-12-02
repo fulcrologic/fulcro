@@ -1,7 +1,7 @@
 (ns fulcro.ui.clip-tool
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.ui.clip-geometry :as cg]))
 
 (defn refresh-clip-region [this props]

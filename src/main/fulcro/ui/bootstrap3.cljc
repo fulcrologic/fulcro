@@ -9,7 +9,7 @@
     #?(:clj [clojure.future :refer :all])
             [clojure.string :as str]
             [clojure.set :as set]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.logging :as log]
             [fulcro.client.util :as util]))
 

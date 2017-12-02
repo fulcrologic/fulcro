@@ -2,7 +2,7 @@
   (:require
     fulcro.client.impl.application-spec
     fulcro.client.impl.parser-spec
-    fulcro.client.core-spec
+    fulcro.client-spec
     fulcro.client.data-fetch-spec
     fulcro.client.logging-spec
     fulcro.client.mutations-spec

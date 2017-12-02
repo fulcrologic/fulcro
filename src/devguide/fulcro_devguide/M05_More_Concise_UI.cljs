@@ -2,7 +2,7 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [cljs.spec.alpha :as s]
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defui defsc]]

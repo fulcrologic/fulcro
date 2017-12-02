@@ -12,7 +12,7 @@
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.logging :as log]
     [fulcro.client.impl.protocols :as omp]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.impl.data-fetch :as f]
     [fulcro.history :as hist]))
 
