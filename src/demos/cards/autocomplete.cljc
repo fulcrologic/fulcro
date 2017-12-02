@@ -2,7 +2,7 @@
   (:require
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.mutations :as m]
     [fulcro.server :as s]
     [fulcro.client.data-fetch :as df]

@@ -2,7 +2,7 @@
   (:require [fulcro.client.routing :as r :refer-macros [defrouter]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.data-fetch :as df]
             [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]

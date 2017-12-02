@@ -2,7 +2,7 @@
   (:require-macros [cljs.test :refer [is]])
   (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.mutations :as m]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :include-macros true :refer-macros [defcard defcard-doc dom-node]]

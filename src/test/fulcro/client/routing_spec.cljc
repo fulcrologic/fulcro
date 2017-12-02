@@ -5,7 +5,7 @@
             [fulcro.client.util :as util]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.core :as fc]))
+            [fulcro.client :as fc]))
 
 (defui Screen1
   prim/InitialAppState

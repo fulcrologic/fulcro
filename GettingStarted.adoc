@@ -116,7 +116,7 @@ Place this in `src/main/app/basic_ui.cljs`:
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
+  (:require [fulcro.client :as fc]
             [fulcro.client.dom :as dom]
             [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
@@ -137,7 +137,7 @@ and this in `src/dev/cljs/user.cljs` (NOTE THIS IS DIFFERENT FROM `src/dev/user.
 (ns cljs.user
   (:require
     [app.basic-ui :refer [app-1 Root]]
-    [fulcro.client.core :as fc]))
+    [fulcro.client :as fc]))
 
 ; so figwheel can call it on reloads. Remounting just forces a UI refresh.
 (defn refresh [] (swap! app-1 fc/mount Root "app-1"))
@@ -369,7 +369,7 @@ So, changing your current application to this:
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
+  (:require [fulcro.client :as fc]
             [fulcro.client.dom :as dom]
             [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
@@ -409,7 +409,7 @@ Replace your `basic_ui.cljs` content with this:
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
+  (:require [fulcro.client :as fc]
             [fulcro.client.dom :as dom]
             [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
@@ -600,9 +600,9 @@ dev:cljs.user=> (fulcro.client.primitives/get-initial-state app.basic-ui/Root {}
    {:person/name "Bobby", :person/age 55}]}}
 ----
 
-NOTE: Technically, in cljs you can call `fulcro.client.core/initial-state` directly, but this doesn't work right when
+NOTE: Technically, in cljs you can call `initial-state` directly, but this doesn't work right when
 doing server-side rendering, so it is good to get in the habit of calling `static` protocol methods with the helper
-function.
+function `get-initial-state`.
 
 Behind the scenes Fulcro has detected this initial state and actually automatically used it to initialize your
 application state, but at the moment we're accessing it directly, but you can check out the application's
@@ -971,7 +971,7 @@ Then all that remains is to change `basic-ui` in the following ways:
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
+  (:require [fulcro.client :as fc]
             [fulcro.client.dom :as dom]
             ; ADD THIS:
             [app.operations :as ops] ; <1>
@@ -1580,7 +1580,7 @@ To do this, we can add an option to our client. In `app.basic-ui` change `app-1`
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
+  (:require [fulcro.client :as fc]
             [fulcro.client.dom :as dom]
             [app.operations :as ops]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
@@ -2181,7 +2181,7 @@ to talk to the REST server. The modification is done in our `basic-ui` namespace
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
+  (:require [fulcro.client :as fc]
             [fulcro.client.dom :as dom]
             [app.operations :as ops]
             [fulcro.client.primitives :as prim :refer [defui defsc]]

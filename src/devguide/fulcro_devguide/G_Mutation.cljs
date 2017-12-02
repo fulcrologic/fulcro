@@ -3,7 +3,7 @@
   (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.core :as fc]))
+            [fulcro.client :as fc]))
 
 (defcard-doc
   "

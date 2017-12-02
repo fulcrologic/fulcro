@@ -41,11 +41,11 @@ to use devcards mkdn-pprint-source with mutations in your devcards. See the docs
      the 4th argument is now the css classnames.
    - Defsc now considers all arguments *after* props to be optional, so you don't need to list underscores
 - Removed deprecated fulcro.client.cards/fulcro-app. Please port to `defcard-fulcro` instead (trivial port).
-
-Renames:
 - Moved defsc from fulcro.client.core to fulcro.client.primitives namespace
-- Moved and renamed iinitial-state and iident from core to primitives
 - Renamed fulcro.client.core to fulcro.client
+
+Upcoming Renames:
+- Moved and renamed iinitial-state and iident from core to primitives
 
 1.2.1
 -----

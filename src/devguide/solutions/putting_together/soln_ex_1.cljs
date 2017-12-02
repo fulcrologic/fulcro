@@ -1,7 +1,7 @@
 (ns solutions.putting-together.soln-ex-1
   (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.data-fetch :as df]))
 
 (defui ^:once TodoItem

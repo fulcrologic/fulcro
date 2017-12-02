@@ -1,7 +1,7 @@
 (ns fulcro.client.parent-state-refresh
   (:require [devcards.core :as dc]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc ]
+            [fulcro.client :as fc ]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [goog.object]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]

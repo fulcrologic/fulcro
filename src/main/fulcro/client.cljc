@@ -1,4 +1,4 @@
-(ns fulcro.client.core
+(ns fulcro.client
   (:require
     [fulcro.client.primitives :as prim]
     [fulcro.client.impl.application :as app]

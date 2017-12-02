@@ -13,7 +13,7 @@
                [com.stuartsierra.component :as c]
                [fulcro.client.data-fetch :as df]
                [fulcro.client.logging :as log]
-               [fulcro.client.core :as fc]))
+               [fulcro.client :as fc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:

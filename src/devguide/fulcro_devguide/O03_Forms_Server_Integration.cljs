@@ -5,7 +5,7 @@
     [devcards.core :as dc :refer-macros [ defcard-doc]]
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.mutations :as m]
     [fulcro.ui.forms :as f]
     [fulcro.i18n :refer [tr]]))

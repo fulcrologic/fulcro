@@ -8,7 +8,7 @@
             [cljs.reader :as r]
             [fulcro.client.impl.parser :as p]
             [fulcro.client.mutations :as m]
-            [fulcro.client.core :as fc]))
+            [fulcro.client :as fc]))
 
 ; TODO: (advanced?) Client headers? Cookies? related stuff to security.
 

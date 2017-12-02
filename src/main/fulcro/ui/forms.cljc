@@ -10,7 +10,7 @@
     [clojure.future :refer :all])
     [clojure.tools.reader :as reader]
     [clojure.spec.alpha :as s]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.primitives :as prim+]
     [fulcro.util :as uu :refer [conform!]]
     [fulcro.client.data-fetch :as df]

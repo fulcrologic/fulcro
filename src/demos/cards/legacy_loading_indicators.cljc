@@ -6,7 +6,7 @@
     [fulcro.client.impl.protocols :as p]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.server :as server]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [cards.card-utils :refer [sleep]]

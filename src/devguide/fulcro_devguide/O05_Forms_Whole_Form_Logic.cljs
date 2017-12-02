@@ -5,7 +5,7 @@
     [com.stuartsierra.component :as component]
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.ui.icons :as i]
     [fulcro.ui.forms :as f]

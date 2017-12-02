@@ -1,7 +1,7 @@
-(ns fulcro.client.core-spec
+(ns fulcro.client-spec
   (:require
     [fulcro.client.primitives :as prim :refer [defui defsc]]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro.client.impl.protocols :as omp]
     [clojure.core.async :as async]

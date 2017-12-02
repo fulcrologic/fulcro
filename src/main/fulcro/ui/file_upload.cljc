@@ -7,7 +7,7 @@
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.transit :as t]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.ui.icons :as icons]
     [fulcro.client.mutations :refer [defmutation]]

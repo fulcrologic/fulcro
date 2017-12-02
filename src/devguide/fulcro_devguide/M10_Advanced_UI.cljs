@@ -10,7 +10,7 @@
             [fulcro.client.dom :as dom]
             [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.util :as util]
-            [fulcro.client.core :as fc]))
+            [fulcro.client :as fc]))
 
 (defn us-dollars [n]
   (str "$" (cl-format nil "~:d" n)))

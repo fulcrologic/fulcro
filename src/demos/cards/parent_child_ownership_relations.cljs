@@ -6,7 +6,7 @@
     [fulcro.client.mutations :as m]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 ; Not using an atom, so use a tree for app state (will auto-normalize via ident functions)

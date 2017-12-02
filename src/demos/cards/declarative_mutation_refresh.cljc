@@ -6,7 +6,7 @@
             [fulcro.client.mutations :as m :refer [defmutation]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.data-fetch :as df]
             [fulcro.server :as server]
             [fulcro.util :as util]))

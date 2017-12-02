@@ -9,7 +9,7 @@
             [fulcro.ui.elements :as ele]
             [fulcro.client.mutations :as m]
             [fulcro.ui.bootstrap3 :as b]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.ui.html-entities :as ent]))
 
 (declare render-example sample)

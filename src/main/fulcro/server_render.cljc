@@ -1,6 +1,6 @@
 (ns fulcro.server-render
   (:require
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.client.primitives :as prim]
     [fulcro.client.util :as util]))
 

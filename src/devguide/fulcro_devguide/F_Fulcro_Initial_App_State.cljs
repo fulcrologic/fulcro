@@ -2,7 +2,7 @@
   (:require-macros [cljs.test :refer [is]])
   (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [cljs.reader :as r]
@@ -85,7 +85,7 @@
 
   ```
   (ns ...
-     (:require [fulcro.client.core :as fc]))
+     (:require [fulcro.client :as fc]))
   ```
 
   "

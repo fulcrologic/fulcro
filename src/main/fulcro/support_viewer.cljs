@@ -4,13 +4,13 @@
     [fulcro.client.dom :as dom]
     [fulcro.history :as hist]
     [fulcro.client.data-fetch :refer [load]]
-    [fulcro.client.core :as core]
+    [fulcro.client :as core]
     [clojure.pprint :refer [pprint]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     yahoo.intl-messageformat-with-locales
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.network :as net]
-    [fulcro.client.core :as fc]))
+    [fulcro.client :as fc]))
 
 (defonce support-viewer (atom nil))
 

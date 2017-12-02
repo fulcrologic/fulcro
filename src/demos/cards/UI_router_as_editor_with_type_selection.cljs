@@ -3,7 +3,7 @@
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.routing :as r :refer [defrouter]]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.ui.bootstrap3 :as b]
             [fulcro.ui.elements :as ele]
             [fulcro.client.cards :refer [defcard-fulcro]]))

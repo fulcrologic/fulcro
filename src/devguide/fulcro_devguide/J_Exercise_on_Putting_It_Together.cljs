@@ -7,7 +7,7 @@
             [solutions.putting-together.soln-ex-3 :as soln3]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard-doc]]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.data-fetch :as df]))
 
 (defcard-doc

@@ -5,12 +5,12 @@
     [fulcro.client.routing :as r]
     [cards.card-utils :refer [sleep]]
     [fulcro.client.mutations :as m]
-    [fulcro.client.core :as fc ]
+    [fulcro.client :as fc ]
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
-    [fulcro.client.core :as fc]
+    [fulcro.client :as fc]
     [fulcro.server :as server]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
