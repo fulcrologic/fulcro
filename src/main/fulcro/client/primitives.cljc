@@ -2411,8 +2411,7 @@
           xs                 (cond-> declared-refreshes
                                (not (nil? c)) (conj c)
                                (not (nil? ref)) (conj ref))
-          history-step       {::hist/tx          (if (transit/serializable? tx) tx :NOT-SERIALIZABLE)
-                              ::hist/tx-result   (if (transit/serializable? v) v :NOT-SERIALIZABLE)
+          history-step       {::hist/tx          tx
                               ::hist/client-time #?(:cljs (js/Date.) :clj (java.util.Date.))
                               ::hist/db-before   old-state
                               ::hist/db-after    new-state}]

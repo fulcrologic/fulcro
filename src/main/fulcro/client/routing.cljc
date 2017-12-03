@@ -140,7 +140,6 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   "Set the given screen-ident as the current route on the router with the given ID. Returns a new application
   state map."
   [state-map router-id screen-ident]
-  (log/debug (str "Setting route for router " router-id " to " screen-ident))
   (assoc-in state-map [routers-table router-id ::current-route] screen-ident))
 
 (declare DynamicRouter get-dynamic-router-target)
@@ -156,7 +155,6 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                      (prim/get-query state)))]
     (if query
       (do
-        (log/debug (str "Setting routing query for " router-id " to " query))
         (p/queue! reconciler [::pending-route])
         (prim/set-query* state (prim/factory DynamicRouter {:qualifier router-id})
           {:query [::id ::dynamic {::current-route query}]}))
@@ -207,7 +205,6 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
     (util/deep-merge state-map normalized-state)))
 
 (defn- install-route-impl [state target-kw component]
-  (log/debug (str "Installing route for component " component))
   (defmethod get-dynamic-router-target target-kw [k] component)
   (swap! state add-route-state target-kw component))
 
@@ -313,21 +310,18 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
     #?(:cljs (js/setTimeout
                (fn []
                  (let [current-pending-route (get @state-atom ::pending-route)]
-                   (if (and pending-route-handler (= current-pending-route pending-route-handler))
-                     (do
-                       (log/debug (str "Issuing module load for " route-to-load))
-                       ; if the load succeeds, finish will be called to finish the route instruction
-                       (let [deferred-result (loader/load route-to-load)
-                             ;; see if the route is no longer needed (pending has changed)
-                             next-delay      (min 10000 (* 2 (max 1000 delay)))]
-                         ; if the load fails, retry
-                         (.addCallback deferred-result finish)
-                         (.addErrback deferred-result
-                           (fn [_]
-                             (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
-                             ; TODO: We're tracking attempts..but I don't see a reason to stop trying if the route is still pending...
-                             (load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))
-                     (log/debug (str "Route changed or was nil. Stopped retry for route loading of " route-to-load)))))
+                   (when (and pending-route-handler (= current-pending-route pending-route-handler))
+                     ; if the load succeeds, finish will be called to finish the route instruction
+                     (let [deferred-result (loader/load route-to-load)
+                           ;; see if the route is no longer needed (pending has changed)
+                           next-delay      (min 10000 (* 2 (max 1000 delay)))]
+                       ; if the load fails, retry
+                       (.addCallback deferred-result finish)
+                       (.addErrback deferred-result
+                         (fn [_]
+                           (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
+                           ; TODO: We're tracking attempts..but I don't see a reason to stop trying if the route is still pending...
+                           (load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))))
                delay))))
 
 (defn- load-routes [{:keys [state reconciler] :as env} routes]
@@ -340,11 +334,9 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                                 (fn []
                                   (swap! loaded inc)
                                   (when (= @loaded to-load)
-                                    (log/debug "Loading succeeded for missing router with name " k)
                                     (swap! state add-route-state k (get-dynamic-router-target k))
                                     (process-pending-route! env))))]
             (doseq [r routes]
-              (log/debug (str "No route was loaded for " r ". Attempting to load."))
               (load-dynamic-route state pending-route r (finish r))))))
 
 (defn route-to-impl!
@@ -362,11 +354,9 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
       ; TODO: This could be the user clicking again, or a legitimate failure...Not much more I can do yet.
       (log/error "Attempt to trigger a route that was pending, but that wasn't done loading (or failed to load).")
       (do
-        (log/debug (str "Missing routes: " missing-routes))
         (swap! state assoc ::pending-route bidi-match)
         (load-routes env missing-routes)))
     (do
-      (log/debug (str "Updating routing links. Route params: " bidi-match))
       (swap! state #(-> %
                       (update-routing-queries reconciler bidi-match)
                       (dissoc ::pending-route)

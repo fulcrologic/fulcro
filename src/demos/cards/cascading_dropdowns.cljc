@@ -19,7 +19,7 @@
 
 (server/defquery-root :models
   (value [env {:keys [make]}]
-    (Thread/sleep 2000)
+    #?(:clj (Thread/sleep 2000))
     (case make
       :ford [(bs/dropdown-item :escort "Escort")
              (bs/dropdown-item :F-150 "F-150")]
