@@ -119,8 +119,11 @@
                        (apply concat (->> children first :children (map :children)))
                        children)]
         (-> (into {}
-                  (map (fn [{:keys [key] :as ast}]
-                         (let [x (get props key)]
+                  (map (fn [{:keys [key query] :as ast}]
+                         (let [x (get props key)
+                               ast (cond-> ast
+                                     (= '... query)
+                                     (assoc :children children))]
                            [key
                             (if (sequential? x)
                               (mapv #(add-basis-time* ast % time) x)

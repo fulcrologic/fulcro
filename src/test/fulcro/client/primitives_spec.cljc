@@ -64,9 +64,21 @@
           {:hello {:union {:x    {:content "bar"}
                            :type :ua}}} 10)
         (read-times))
-    => {:hello {:union {:x {::time 10}
+    => {:hello {:union {:x     {::time 10}
                         ::time 10}
                 ::time 10}
+        ::time 10}
+
+    "Handle recursive queries"
+    (-> (prim/add-basis-time [{:hello [{:parent '...}
+                                       :name]}]
+          {:hello {:name   "bla"
+                   :parent {:name   "meh"
+                            :parent {:name "other"}}}} 10)
+        (read-times))
+    => {:hello {:parent {:parent {::time 10}
+                         ::time  10}
+                ::time  10}
         ::time 10}
 
     "Meta data is preserved"
