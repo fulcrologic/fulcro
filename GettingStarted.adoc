@@ -21,7 +21,6 @@ Your project will need a few basic directories and files:
 
 Fulcro requires that you include a few things in your dependency list.
 
-* Om Next (1.0.0-beta1 or above)
 * Clojure (1.9.0-alpha16 or above)
 * Clojurescript (1.9.908 or above)
 * Fulcro (this library)
@@ -36,7 +35,6 @@ This goes in `project.clj`:
   :description "My Project"
   :dependencies [[org.clojure/clojure "1.9.0-alpha17"]
                  [org.clojure/clojurescript "1.9.908"]
-                 [org.omcljs/om "1.0.0-beta1"]
                  [fulcrologic/fulcro "1.0.0-beta10"]]
 
   :source-paths ["src/main"]
@@ -118,9 +116,9 @@ Place this in `src/main/app/basic_ui.cljs`:
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
-            [om.dom :as dom]
-            [om.next :as om :refer [defui]]))
+  (:require [fulcro.client :as fc]
+            [fulcro.client.dom :as dom]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 ; Create an application
 (defonce app-1 (atom (fc/new-fulcro-client)))
@@ -139,7 +137,7 @@ and this in `src/dev/cljs/user.cljs` (NOTE THIS IS DIFFERENT FROM `src/dev/user.
 (ns cljs.user
   (:require
     [app.basic-ui :refer [app-1 Root]]
-    [fulcro.client.core :as fc]))
+    [fulcro.client :as fc]))
 
 ; so figwheel can call it on reloads. Remounting just forces a UI refresh.
 (defn refresh [] (swap! app-1 fc/mount Root "app-1"))
@@ -199,9 +197,7 @@ For Emacs + Cider:
                                   [figwheel-sidecar "0.5.13"]
                                   [org.clojure/tools.nrepl "0.2.13"]]}})
 ----
-* With `src/dev/user.clj` open in a buffer, choose `M-x cider-jack-in-clojurescript` or `C-c M-J` (`M-J` with capital J).
-
-Two repls will open up, one for clojure, one for clojurescript.
+* With `src/dev/user.clj` open in a buffer, choose `M-x cider-jack-in`. In the clojure repl, run `(start-fighweel)`, which will launch a cljs repl.
 
 You should see the application printing "Hello World" at: http://localhost:3449[]
 
@@ -248,10 +244,10 @@ of a library that doesn't have some needed feature of bug fix.
 
 ## Basic UI Components
 
-Fulcro uses Om's `defui` to build React components. This macro emits React components that work as 100% raw React
+Fulcro supplies `defui` to build React components. This macro emits React components that work as 100% raw React
 components (i.e. once you compile them to Javascript they could be used from other native React code).
 
-Om also supplies factory functions for generating all standard HTML5 DOM elements in React in the `om.dom` namespace.
+There are also factory functions for generating all standard HTML5 DOM elements in React in the `fulcro.client.dom` namespace.
 
 ### The `defui` Macro
 
@@ -319,7 +315,7 @@ latter is useful when you've computed attributes in regular clj data structures 
 
 React components receive their data through props and state. In Fulcro we generally recommend using props. This
 ensures that various other features work well. The data passed to a component can be accessed (as a cljs map) by
-calling `om/props` on `this`.
+calling `prim/props` on `this`.
 
 So, let's define a `Person` component to display details about
 a person. We'll assume that we're going to pass in name and age as properties:
@@ -329,7 +325,7 @@ a person. We'll assume that we're going to pass in name and age as properties:
 (defui Person
   Object
   (render [this]
-    (let [{:keys [person/name person/age]} (om/props this)]
+    (let [{:keys [person/name person/age]} (prim/props this)]
       (dom/div nil
         (dom/p nil "Name: " name)
         (dom/p nil "Age: " age)))))
@@ -341,7 +337,7 @@ issue (Person the component vs. person the factory?) we recommend prefixing the 
 
 [source]
 ----
-(def ui-person (om/factory Person))
+(def ui-person (prim/factory Person))
 ----
 
 [source]
@@ -363,7 +359,7 @@ reload is working, but the UI refresh isn't.
 There are two steps to make this work.
 
 1. Make sure the definition of the UI components is marked with `:once` metadata:
-2. Force React to re-render the entire UI (Om optimizes away refresh when the app state hasn't changed).
+2. Force React to re-render the entire UI (Fulcro optimizes away refresh when the app state hasn't changed).
 The trick here is to change the React key on the root element (which forces React to throw away the prior tree
 and generate a whole new one). Fulcro helps by sending your root component a property named `:ui/react-key` that
 only changes on (re)mount and forced refresh.
@@ -373,26 +369,26 @@ So, changing your current application to this:
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
-            [om.dom :as dom]
-            [om.next :as om :refer [defui]]))
+  (:require [fulcro.client :as fc]
+            [fulcro.client.dom :as dom]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 (defonce app-1 (atom (fc/new-fulcro-client)))
 
 (defui ^:once Person
   Object
   (render [this]
-    (let [{:keys [person/name person/age]} (om/props this)]
+    (let [{:keys [person/name person/age]} (prim/props this)]
       (dom/div nil
         (dom/p nil "Name: " name)
         (dom/p nil "Age: " age)))))
 
-(def ui-person (om/factory Person))
+(def ui-person (prim/factory Person))
 
 (defui ^:once Root
   Object
   (render [this]
-    (let [{:keys [ui/react-key]} (om/props this)]
+    (let [{:keys [ui/react-key]} (prim/props this)]
       (dom/div #js {:key react-key}
         (ui-person {:person/name "Joe" :person/age 22})))))
 ----
@@ -413,36 +409,36 @@ Replace your `basic_ui.cljs` content with this:
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
-            [om.dom :as dom]
-            [om.next :as om :refer [defui]]))
+  (:require [fulcro.client :as fc]
+            [fulcro.client.dom :as dom]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 (defonce app-1 (atom (fc/new-fulcro-client)))
 
 (defui ^:once Person
   Object
   (render [this]
-    (let [{:keys [person/name person/age]} (om/props this)]
+    (let [{:keys [person/name person/age]} (prim/props this)]
       (dom/li nil
         (dom/h5 nil name (str "(age: " age ")"))))))
 
-(def ui-person (om/factory Person {:keyfn :person/name}))
+(def ui-person (prim/factory Person {:keyfn :person/name}))
 
 (defui ^:once PersonList
   Object
   (render [this]
-    (let [{:keys [person-list/label person-list/people]} (om/props this)]
+    (let [{:keys [person-list/label person-list/people]} (prim/props this)]
       (dom/div nil
         (dom/h4 nil label)
         (dom/ul nil
           (map ui-person people))))))
 
-(def ui-person-list (om/factory PersonList))
+(def ui-person-list (prim/factory PersonList))
 
 (defui ^:once Root
   Object
   (render [this]
-    (let [{:keys [ui/react-key]} (om/props this)
+    (let [{:keys [ui/react-key]} (prim/props this)
           ui-data {:friends {:person-list/label "Friends" :person-list/people
                                                 [{:person/name "Sally" :person/age 32}
                                                  {:person/name "Joe" :person/age 22}]}
@@ -513,7 +509,7 @@ So, how do we solve this?
 ### Why not have components just "grab" their data (sideband)?
 
 This is certainly a possibility; however, it leads to other complications. What is the data model? How do you
-interact with remotes to fill your data needs? Om Next has a very nice cohesive story for these questions,
+interact with remotes to fill your data needs? Fulcro has a very nice cohesive story for these questions,
 while systems like Re-frame end up with complications like event handler middleware, coeffect accretion,
 and signal graphs...not to mention that the sideband solution says nothing definitive about server interactions with
 said data model.
@@ -533,44 +529,44 @@ It looks like this:
 [source]
 ----
 (defui ^:once Person
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [name age] :as params}] {:person/name name :person/age age})
   Object
   (render [this]
-    (let [{:keys [person/name person/age]} (om/props this)]
+    (let [{:keys [person/name person/age]} (prim/props this)]
       (dom/li nil
         (dom/h5 nil name (str "(age: " age ")"))))))
 
-(def ui-person (om/factory Person {:keyfn :person/name}))
+(def ui-person (prim/factory Person {:keyfn :person/name}))
 
 (defui ^:once PersonList
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [label]}]
     {:person-list/label  label
      :person-list/people (if (= label "Friends")
-                           [(fc/get-initial-state Person {:name "Sally" :age 32})
-                            (fc/get-initial-state Person {:name "Joe" :age 22})]
-                           [(fc/get-initial-state Person {:name "Fred" :age 11})
-                            (fc/get-initial-state Person {:name "Bobby" :age 55})])})
+                           [(prim/get-initial-state Person {:name "Sally" :age 32})
+                            (prim/get-initial-state Person {:name "Joe" :age 22})]
+                           [(prim/get-initial-state Person {:name "Fred" :age 11})
+                            (prim/get-initial-state Person {:name "Bobby" :age 55})])})
   Object
   (render [this]
-    (let [{:keys [person-list/label person-list/people]} (om/props this)]
+    (let [{:keys [person-list/label person-list/people]} (prim/props this)]
       (dom/div nil
         (dom/h4 nil label)
         (dom/ul nil
           (map ui-person people))))))
 
-(def ui-person-list (om/factory PersonList))
+(def ui-person-list (prim/factory PersonList))
 
 (defui ^:once Root
   static
-  fc/InitialAppState
-  (initial-state [c params] {:friends (fc/get-initial-state PersonList {:label "Friends"})
-                             :enemies (fc/get-initial-state PersonList {:label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
+                             :enemies (prim/get-initial-state PersonList {:label "Enemies"})})
   Object
   (render [this]
-    (let [{:keys [ui/react-key]} (om/props this)
-          {:keys [friends enemies]} (fc/get-initial-state Root {})]
+    (let [{:keys [ui/react-key]} (prim/props this)
+          {:keys [friends enemies]} (prim/get-initial-state Root {})]
       (dom/div #js {:key react-key}
         (ui-person-list friends)
         (ui-person-list enemies)))))
@@ -591,7 +587,7 @@ In fact, at the figwheel REPL you can see the tree by running:
 
 [source]
 ----
-dev:cljs.user=> (fulcro.client.core/get-initial-state app.basic-ui/Root {})
+dev:cljs.user=> (fulcro.client.primitives/get-initial-state app.basic-ui/Root {})
 {:friends
  {:person-list/label "Friends",
   :person-list/people
@@ -604,9 +600,9 @@ dev:cljs.user=> (fulcro.client.core/get-initial-state app.basic-ui/Root {})
    {:person/name "Bobby", :person/age 55}]}}
 ----
 
-NOTE: Technically, in cljs you can call `fulcro.client.core/initial-state` directly, but this doesn't work right when
+NOTE: Technically, in cljs you can call `initial-state` directly, but this doesn't work right when
 doing server-side rendering, so it is good to get in the habit of calling `static` protocol methods with the helper
-function.
+function `get-initial-state`.
 
 Behind the scenes Fulcro has detected this initial state and actually automatically used it to initialize your
 application state, but at the moment we're accessing it directly, but you can check out the application's
@@ -614,14 +610,14 @@ current state (which is held in an atom) with:
 
 [source]
 ----
-dev:cljs.user=> @(om.next/app-state (get @app.basic-ui/app-1 :reconciler))
+dev:cljs.user=> @(fulcro.client.primitives/app-state (get @app.basic-ui/app-1 :reconciler))
 ----
 
 Let's see how we program our UI to access the data in the application state!
 
 ### Step 2 -- Establishing a Query
 
-Om Next unifies the data access story using a co-located query on each component. This sets up data access
+Fulcro unifies the data access story using a co-located query on each component. This sets up data access
 for both the client and server, and also continues our story of local reasoning and composition.
 
 Queries go on a component in the same way as initial state: as `static` implementations of a protocol.
@@ -672,13 +668,13 @@ vector.
 The namespacing of keywords in your data (and therefore your query) is highly encouraged, as it makes it clear to the reader what kind of entity you're working
 against (it also ensures that over-rendering doesn't happen on refreshes later).
 
-You can try this query stuff out in your REPL. Let's say you just want the friends list label. The Om function
+You can try this query stuff out in your REPL. Let's say you just want the friends list label. The function
 `db->tree` can take an application database (which we can generate from initial state) and run a query
 against it:
 
 [source]
 ----
-dev:cljs.user=>  (om.next/db->tree [{:friends [:person-list/label]}] (fulcro.client.core/get-initial-state app.basic-ui/Root {}) {})
+dev:cljs.user=>  (fulcro.client.primitives/db->tree [{:friends [:person-list/label]}] (fulcro.client.primitives/get-initial-state app.basic-ui/Root {}) {})
 {:friends {:person-list/label "Friends"}}
 ----
 
@@ -698,13 +694,13 @@ So, the `Person` component queries for just the properties it needs:
 [source]
 ----
 (defui ^:once Person
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:person/name :person/age])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [name age] :as params}] {:person/name name :person/age age})
   Object
   (render [this]
-    (let [{:keys [person/name person/age]} (om/props this)]
+    (let [{:keys [person/name person/age]} (prim/props this)]
       (dom/li nil
         (dom/h5 nil name (str "(age: " age ")"))))))
 ----
@@ -717,19 +713,19 @@ are mirrored):
 [source]
 ----
 (defui ^:once PersonList
-  static om/IQuery
-  (query [this] [:person-list/label {:person-list/people (om/get-query Person)}])
-  static fc/InitialAppState
+  static prim/IQuery
+  (query [this] [:person-list/label {:person-list/people (prim/get-query Person)}])
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [label]}]
     {:person-list/label  label
      :person-list/people (if (= label "Friends")
-                           [(fc/get-initial-state Person {:name "Sally" :age 32})
-                            (fc/get-initial-state Person {:name "Joe" :age 22})]
-                           [(fc/get-initial-state Person {:name "Fred" :age 11})
-                            (fc/get-initial-state Person {:name "Bobby" :age 55})])})
+                           [(prim/get-initial-state Person {:name "Sally" :age 32})
+                            (prim/get-initial-state Person {:name "Joe" :age 22})]
+                           [(prim/get-initial-state Person {:name "Fred" :age 11})
+                            (prim/get-initial-state Person {:name "Bobby" :age 55})])})
   Object
   (render [this]
-    (let [{:keys [person-list/label person-list/people]} (om/props this)]
+    (let [{:keys [person-list/label person-list/people]} (prim/props this)]
       (dom/div nil
         (dom/h4 nil label)
         (dom/ul nil
@@ -745,18 +741,18 @@ Finally, we compose to `Root`:
 [source]
 ----
 (defui ^:once Root
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key  ; IMPORTANT: have to ask for react-key from the database now
-                 {:friends (om/get-query PersonList)}
-                 {:enemies (om/get-query PersonList)}])
+                 {:friends (prim/get-query PersonList)}
+                 {:enemies (prim/get-query PersonList)}])
   static
-  fc/InitialAppState
-  (initial-state [c params] {:friends (fc/get-initial-state PersonList {:label "Friends"})
-                             :enemies (fc/get-initial-state PersonList {:label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
+                             :enemies (prim/get-initial-state PersonList {:label "Enemies"})})
   Object
   (render [this]
     ; NOTE: the data now comes in through props!!!
-    (let [{:keys [ui/react-key friends enemies]} (om/props this)]
+    (let [{:keys [ui/react-key friends enemies]} (prim/props this)]
       (dom/div #js {:key react-key}
         (ui-person-list friends)
         (ui-person-list enemies)))))
@@ -779,7 +775,7 @@ notice that `Root` still expects to receive the *entire* data tree for the UI (e
 know much about what is in it, other than the names of direct children), and it still picks out those sub-trees
 of data and passes them on. In this way an arbitrary component in the UI tree is not querying
 for it's data directly in a side-band sort of way, but is instead being composed in from parent to parent all the
-way to the root. Later, we'll learn how Om can optimize this and pull the data from the database for
+way to the root. Later, we'll learn how Fulcro can optimize this and pull the data from the database for
 a specific component, but the reasoning will remain the same.
 
 ## Passing Callbacks and Other Parent-computed Data
@@ -802,32 +798,32 @@ the parent will need to pass in a function that the child can call to affect the
 [source]
 ----
 (defui ^:once Person
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:person/name :person/age])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [name age] :as params}] {:person/name name :person/age age})
   Object
   (render [this]
-    (let [{:keys [person/name person/age onDelete]} (om/props this)]  ; <3>
+    (let [{:keys [person/name person/age onDelete]} (prim/props this)]  ; <3>
       (dom/li nil
         (dom/h5 nil name (str "(age: " age ")") (dom/button #js {:onClick #(onDelete name)} "X")))))) ; <4>
 
-(def ui-person (om/factory Person {:keyfn :person/name}))
+(def ui-person (prim/factory Person {:keyfn :person/name}))
 
 (defui ^:once PersonList
-  static om/IQuery
-  (query [this] [:person-list/label {:person-list/people (om/get-query Person)}])
-  static fc/InitialAppState
+  static prim/IQuery
+  (query [this] [:person-list/label {:person-list/people (prim/get-query Person)}])
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [label]}]
     {:person-list/label  label
      :person-list/people (if (= label "Friends")
-                           [(fc/get-initial-state Person {:name "Sally" :age 32})
-                            (fc/get-initial-state Person {:name "Joe" :age 22})]
-                           [(fc/get-initial-state Person {:name "Fred" :age 11})
-                            (fc/get-initial-state Person {:name "Bobby" :age 55})])})
+                           [(prim/get-initial-state Person {:name "Sally" :age 32})
+                            (prim/get-initial-state Person {:name "Joe" :age 22})]
+                           [(prim/get-initial-state Person {:name "Fred" :age 11})
+                            (prim/get-initial-state Person {:name "Bobby" :age 55})])})
   Object
   (render [this]
-    (let [{:keys [person-list/label person-list/people]} (om/props this)
+    (let [{:keys [person-list/label person-list/people]} (prim/props this)
           delete-person (fn [name] (js/console.log label "asked to delete" name))] ; <1>
       (dom/div nil
         (dom/h4 nil label)
@@ -858,27 +854,27 @@ The change is so small it is easy to miss:
   ...
   Object
   (render [this]
-    (let [{:keys [person/name person/age]} (om/props this)
-          onDelete (om/get-computed this :onDelete)] ; <2>
+    (let [{:keys [person/name person/age]} (prim/props this)
+          onDelete (prim/get-computed this :onDelete)] ; <2>
       (dom/li nil
         (dom/h5 nil name (str "(age: " age ")") (dom/button #js {:onClick #(onDelete name)} "X"))))))
 
-(def ui-person (om/factory Person {:keyfn :person/name}))
+(def ui-person (prim/factory Person {:keyfn :person/name}))
 
 (defui ^:once PersonList
   ...
   Object
   (render [this]
-    (let [{:keys [person-list/label person-list/people]} (om/props this)
+    (let [{:keys [person-list/label person-list/people]} (prim/props this)
           delete-person (fn [name] (js/console.log label "asked to delete" name))]
       (dom/div nil
         (dom/h4 nil label)
         (dom/ul nil
-          (map (fn [person] (ui-person (om/computed person {:onDelete delete-person}))) people)))))) ; <1>
+          (map (fn [person] (ui-person (prim/computed person {:onDelete delete-person}))) people)))))) ; <1>
 ----
 
-<1> The `om/computed` function is used to add the computed data to the props being passed.
-<2> The child pulls the computed data via `om/get-computed`.
+<1> The `prim/computed` function is used to add the computed data to the props being passed.
+<2> The child pulls the computed data via `prim/get-computed`.
 
 Now you can be sure that your callbacks (or other parent-computed data) won't be lost to render optimizations.
 
@@ -891,7 +887,7 @@ context that needs refreshed. But for general knowledge UI Refresh is triggered 
 
 - Running a data modification transaction on a component (which will re-render the subtree of that component), and
 refresh only the DOM for those bits that had actual changes.
-- Telling Om that some specific data changed (e.g. :person/name).
+- Telling Fulcro that some specific data changed (e.g. :person/name).
 
 The former is most common, but the latter is often needed when a change executed in one part of the application
 modifies data that some UI component elsewhere in the tree needs to respond to.
@@ -917,7 +913,7 @@ function names.
 
 [source]
 ----
-(om/transact! this `[(ops/delete-person {:list-name "Friends" :person "Fred"})])
+(prim/transact! this `[(ops/delete-person {:list-name "Friends" :person "Fred"})])
 ----
 
 is asking the underlying system to run the mutation `ops/delete-person` (where ops can be an alias established
@@ -925,13 +921,13 @@ in the `ns`). Of course, you'll typically use unquote to embed data from local v
 
 [source]
 ----
-(om/transact! this `[(ops/delete-person {:list-name ~name :person ~person})])
+(prim/transact! this `[(ops/delete-person {:list-name ~name :person ~person})])
 ----
 
 ### Handling Mutations
 
 When a transaction runs in Fulcro, it passes things off to a multimethod. This multi-method is described in more
-detail in the Om documentation and the Fulcro Developer's Guide, but Fulcro provides a macro that makes
+detail in the Fulcro Developer's Guide, but Fulcro provides a macro that makes
 building (and using) them easier: `defmutation`.
 
 Let's create a new namespace called `app.operations` in `src/main/app/operations.cljs`
@@ -975,11 +971,11 @@ Then all that remains is to change `basic-ui` in the following ways:
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
-            [om.dom :as dom]
+  (:require [fulcro.client :as fc]
+            [fulcro.client.dom :as dom]
             ; ADD THIS:
             [app.operations :as ops] ; <1>
-            [om.next :as om :refer [defui]]))
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 ...
 
@@ -987,11 +983,11 @@ Then all that remains is to change `basic-ui` in the following ways:
   ...
   Object
   (render [this]
-    (let [{:keys [person-list/label person-list/people]} (om/props this)
+    (let [{:keys [person-list/label person-list/people]} (prim/props this)
           delete-person (fn [name]
                           (js/console.log label "asked to delete" name)
                           ; AND THIS
-                          (om/transact! this `[(ops/delete-person {:list-name ~label :name ~name})]))] ; <2>
+                          (prim/transact! this `[(ops/delete-person {:list-name ~label :name ~name})]))] ; <2>
 ----
 
 <1> The require ensures that the mutations are loaded, and also gives us an alias to the namespace of the mutation's symbol.
@@ -1098,61 +1094,61 @@ do it for you, other than the actual value of the `Ident`. So, we'll add one mor
 ----
 ...
 (defui ^:once Person
-  static om/Ident ; <1>
+  static prim/Ident ; <1>
   (ident [this props] [:person/by-id (:db/id props)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :person/name :person/age]) ; <2>
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [id name age] :as params}] {:db/id id :person/name name :person/age age}) ; <3>
   Object
   (render [this]
-    (let [{:keys [db/id person/name person/age]} (om/props this)
-          onDelete (om/get-computed this :onDelete)]
+    (let [{:keys [db/id person/name person/age]} (prim/props this)
+          onDelete (prim/get-computed this :onDelete)]
       (dom/li nil
         (dom/h5 nil name (str "(age: " age ")") (dom/button #js {:onClick #(onDelete id)} "X")))))) ; <4>
 
-(def ui-person (om/factory Person {:keyfn :person/name}))
+(def ui-person (prim/factory Person {:keyfn :person/name}))
 
 (defui ^:once PersonList
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:person-list/by-id (:db/id props)]) ; <5>
-  static om/IQuery
-  (query [this] [:db/id :person-list/label {:person-list/people (om/get-query Person)}]) ; <5>
-  static fc/InitialAppState
+  static prim/IQuery
+  (query [this] [:db/id :person-list/label {:person-list/people (prim/get-query Person)}]) ; <5>
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [id label]}]
     {:db/id              id ; <5>
      :person-list/label  label
      :person-list/people (if (= id :friends)
-                           [(fc/get-initial-state Person {:id 1 :name "Sally" :age 32}) ; <3>
-                            (fc/get-initial-state Person {:id 2 :name "Joe" :age 22})]
-                           [(fc/get-initial-state Person {:id 3 :name "Fred" :age 11})
-                            (fc/get-initial-state Person {:id 4 :name "Bobby" :age 55})])})
+                           [(prim/get-initial-state Person {:id 1 :name "Sally" :age 32}) ; <3>
+                            (prim/get-initial-state Person {:id 2 :name "Joe" :age 22})]
+                           [(prim/get-initial-state Person {:id 3 :name "Fred" :age 11})
+                            (prim/get-initial-state Person {:id 4 :name "Bobby" :age 55})])})
   Object
   (render [this]
-    (let [{:keys [db/id person-list/label person-list/people]} (om/props this)
+    (let [{:keys [db/id person-list/label person-list/people]} (prim/props this)
           delete-person (fn [person-id]
                           (js/console.log label "asked to delete" name)
-                          (om/transact! this `[(ops/delete-person {:list-id ~id :person-id ~person-id})]))] ; <4>
+                          (prim/transact! this `[(ops/delete-person {:list-id ~id :person-id ~person-id})]))] ; <4>
       (dom/div nil
         (dom/h4 nil label)
         (dom/ul nil
-          (map (fn [person] (ui-person (om/computed person {:onDelete delete-person}))) people))))))
+          (map (fn [person] (ui-person (prim/computed person {:onDelete delete-person}))) people))))))
 
-(def ui-person-list (om/factory PersonList))
+(def ui-person-list (prim/factory PersonList))
 
 (defui ^:once Root
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key
-                 {:friends (om/get-query PersonList)}
-                 {:enemies (om/get-query PersonList)}])
+                 {:friends (prim/get-query PersonList)}
+                 {:enemies (prim/get-query PersonList)}])
   static
-  fc/InitialAppState
-  (initial-state [c params] {:friends (fc/get-initial-state PersonList {:id :friends :label "Friends"}) ; <5>
-                             :enemies (fc/get-initial-state PersonList {:id :enemies :label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"}) ; <5>
+                             :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})
   Object
   (render [this]
     ; NOTE: the data now comes in through props!!!
-    (let [{:keys [ui/react-key friends enemies]} (om/props this)]
+    (let [{:keys [ui/react-key friends enemies]} (prim/props this)]
       (dom/div #js {:key react-key}
         (ui-person-list friends)
         (ui-person-list enemies)))))
@@ -1169,7 +1165,7 @@ database at the REPL:
 
 [source]
 ----
-dev:cljs.user=> @(om.next/app-state (-> app.basic-ui/app-1 deref :reconciler))
+dev:cljs.user=> @(fulcro.client.primitives/app-state (-> app.basic-ui/app-1 deref :reconciler))
 {:friends [:person-list/by-id :friends], ; The TOP-LEVEL data keys, pointing to table entries now
  :enemies [:person-list/by-id :enemies],
  :ui/locale "en-US",
@@ -1194,9 +1190,9 @@ to the proper data tree (note the repetition of the app state is necessary now).
 
 [source]
 ----
-dev:cljs.user=> (def current-db @(om.next/app-state (-> app.basic-ui/app-1 deref :reconciler)))
+dev:cljs.user=> (def current-db @(fulcro.client.primitives/app-state (-> app.basic-ui/app-1 deref :reconciler)))
 #'cljs.user/current-db
-dev:cljs.user=> (om.next/db->tree (om.next/get-query app.basic-ui/Root) current-db current-db)
+dev:cljs.user=> (fulcro.client.primitives/db->tree (fulcro.client.primitives/get-query app.basic-ui/Root) current-db current-db)
 {:friends
  {:db/id :friends,
   :person-list/label "Friends",
@@ -1247,21 +1243,21 @@ database.
 It is good to know how an arbitrary tree of data (the one in InitialAppState) can be converted to the normalized form.
 Understanding how this is accomplished can help you avoid some mistakes later.
 
-When you compose your query (via `om/get-query`), the `get-query` function adds metadata to the query fragment that
+When you compose your query (via `prim/get-query`), the `get-query` function adds metadata to the query fragment that
 names which component that query fragment came from.
 
 For example, try this at the REPL:
 
 [source]
 ----
-dev:cljs.user=> (meta (om.next/get-query app.basic-ui/PersonList))
+dev:cljs.user=> (meta (fulcro.client.primitives/get-query app.basic-ui/PersonList))
 {:component app.basic-ui/PersonList}
 ----
 
 The `get-query` function adds the component itself to the metadata for that query fragment. We already know that
 we can call the static methods on a component (in this case we're interested in `ident`).
 
-So, Om includes a function called `tree->db` that can simultaneously walk a data tree (in this case initial-state) and a
+So, Fulcro includes a function called `tree->db` that can simultaneously walk a data tree (in this case initial-state) and a
 component-annotated query. When it reaches a data node whose query metadata names a component with an `Ident`, it
 places that data into the approprite table (by calling your `ident` function on it to obtain the table/id), and
 replaces the data in the tree with its FK ident.
@@ -1342,14 +1338,14 @@ In `src/dev/user.clj`, we'll add the following for development use:
 (defn go
   "Start the server. Optionally supply a path to your desired config. Relative paths will scan classpath. Absolute
   paths will come from the filesystem. The default is config/dev.edn."
-  ([] (go :dev))
+  ([] (go "config/dev.edn"))
   ([path]
    (if @system
      (println "The server is already running. Use reset to stop, refresh, and start.")
      (letfn [(start []
               (swap! system component/start))
             (init [path]
-              (when-let [new-system (app.server/make-system "config/dev.edn")]
+              (when-let [new-system (app.server/make-system path)]
                 (reset! system new-system)))]
       (init path)
       (start)))))
@@ -1380,7 +1376,7 @@ The server itself requires very little code. In `src/main/app/server.clj`:
 
 The `make-fulcro-server` function needs to know where to find the server config file, and what to use to process
 the incoming client requests (the parser). Fulcro comes with a parser that you can use to get going. You may also
-supply your own Om parser here.
+supply your own Fulcro parser here.
 
 Finally, you need two configuration files. Place these in `resources/config`:
 
@@ -1507,7 +1503,7 @@ CLJS file!) add:
 ----
 (defn dump
   [& keys]
-  (let [state-map        @(om.next/app-state (-> app-1 deref :reconciler))
+  (let [state-map        @(fulcro.client.primitives/app-state (-> app-1 deref :reconciler))
         data-of-interest (if (seq keys)
                            (get-in state-map keys)
                            state-map)]
@@ -1550,7 +1546,7 @@ First, let's correct our application's initial state so that no people are there
 ----
 (defui ^:once PersonList
   ...
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [comp-class {:keys [id label]}]
     {:db/id              id
      :person-list/label  label
@@ -1584,10 +1580,10 @@ To do this, we can add an option to our client. In `app.basic-ui` change `app-1`
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
-            [om.dom :as dom]
+  (:require [fulcro.client :as fc]
+            [fulcro.client.dom :as dom]
             [app.operations :as ops]
-            [om.next :as om :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.data-fetch :as df] ; <1>
             [fulcro.client.mutations :as m]))
 
@@ -1608,14 +1604,14 @@ If you do that at the moment, you should see an error in the developer console r
 
 IMPORTANT: Make sure your application is running from *your* server (port 4050) and not the figwheel one!
 
-Technically, `load` is just writing a query for you (in this case `[{:current-user (om/get-query Person)}]`) and sending it to the
+Technically, `load` is just writing a query for you (in this case `[{:current-user (prim/get-query Person)}]`) and sending it to the
 server. The server will receive *exactly* that query as a CLJ data structure.
 
 ##### Implementing the Server Handler
 
-In vanilla Om Next you would now be tasked with converting the raw CLJ query into a response. You can read more
-about that in the developer's guide; however, remember that we're using Fulcro's built-in request parser. This
-makes our job much easier.
+You now need to converting the raw CLJ query into a response. You can read more
+about the gory details of that in the developer's guide; however, Fulcro's has some
+helpers that make our job much easier.
 
 Create a new namespace in `src/main/app/operations.clj` (NOT the cljs file...that was for the client operations):
 
@@ -1689,7 +1685,7 @@ table.
 
 Of course, the question is now "how do I use that in some arbitrary component?" We won't completely
 explore that right now, but the answer is easy: The query syntax has a notation for "query something at the root". It looks like this:
-`[ {[:current-user '_] (om/get-query Person)} ]`. You should recognize this as a query join, but on something that
+`[ {[:current-user '_] (prim/get-query Person)} ]`. You should recognize this as a query join, but on something that
 looks like an ident without an ID (implying there is only one, at root).
 
 We'll just use it on the Root UI node, where we don't need to "jump to the top":
@@ -1697,20 +1693,20 @@ We'll just use it on the Root UI node, where we don't need to "jump to the top":
 [source]
 ----
 (defui ^:once Root
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key
                  :ui/person-id
-                 {:current-user (om/get-query Person)} ; <1>
-                 {:friends (om/get-query PersonList)}
-                 {:enemies (om/get-query PersonList)}])
+                 {:current-user (prim/get-query Person)} ; <1>
+                 {:friends (prim/get-query PersonList)}
+                 {:enemies (prim/get-query PersonList)}])
   static
-  fc/InitialAppState
-  (initial-state [c params] {:friends (fc/get-initial-state PersonList {:id :friends :label "Friends"})
-                             :enemies (fc/get-initial-state PersonList {:id :enemies :label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
+                             :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})
   Object
   (render [this]
     ; NOTE: the data now comes in through props!!!
-    (let [{:keys [ui/react-key current-user friends enemies]} (om/props this)] ; <2>
+    (let [{:keys [ui/react-key current-user friends enemies]} (prim/props this)] ; <2>
       (dom/div #js {:key react-key}
         (dom/h4 nil (str "Current User: " (:person/name current-user))) ; <3>
         (ui-person-list friends)
@@ -1861,7 +1857,7 @@ Let's embed that into our UI at the root:
   ...
   Object
   (render [this]
-    (let [{:keys [ui/react-key current-user friends enemies]} (om/props this)]
+    (let [{:keys [ui/react-key current-user friends enemies]} (prim/props this)]
       (dom/div #js {:key react-key}
         (dom/h4 nil (str "Current User: " (:person/name current-user)))
         ; Add a button:
@@ -1907,7 +1903,7 @@ So, say we wanted a refresh button on each person. We could leverage `df/refresh
 (defui ^:once Person
   ... as before
   (render [this]
-    (let [{:keys [db/id person/name person/age]} (om/props this)]
+    (let [{:keys [db/id person/name person/age]} (prim/props this)]
       (dom/li nil
         (dom/h5 nil name (str "(age: " age ")")
           (dom/button #js {:onClick #(df/refresh! this)} "Refresh"))))))
@@ -2018,51 +2014,51 @@ a very simple UI we can add to our program:
 [source]
 ----
 (defui Post ; <1>
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:posts/by-id (:db/id props)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :post/user-id :post/body :post/title])
   Object
   (render [this]
-    (let [{:keys [post/title post/body]} (om/props this)]
+    (let [{:keys [post/title post/body]} (prim/props this)]
       (dom/div nil
         (dom/h4 nil title)
         (dom/p nil body)))))
 
-(def ui-post (om/factory Post {:keyfn :db/id}))
+(def ui-post (prim/factory Post {:keyfn :db/id}))
 
 (defui Posts ; <2>
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c params] {:posts []})
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:post-list/by-id :the-one])
-  static om/IQuery
-  (query [this] [{:posts (om/get-query Post)}])
+  static prim/IQuery
+  (query [this] [{:posts (prim/get-query Post)}])
   Object
   (render [this]
-    (let [{:keys [posts]} (om/props this)]
+    (let [{:keys [posts]} (prim/props this)]
       (dom/ul nil
         (map ui-post posts)))))
 
-(def ui-posts (om/factory Posts))
+(def ui-posts (prim/factory Posts))
 
 (defui ^:once Root
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/react-key
                  :ui/person-id
-                 {:current-user (om/get-query Person)}
-                 {:blog-posts (om/get-query Posts)} ; <3>
-                 {:friends (om/get-query PersonList)}
-                 {:enemies (om/get-query PersonList)}])
+                 {:current-user (prim/get-query Person)}
+                 {:blog-posts (prim/get-query Posts)} ; <3>
+                 {:friends (prim/get-query PersonList)}
+                 {:enemies (prim/get-query PersonList)}])
   static
-  fc/InitialAppState
-  (initial-state [c params] {:blog-posts (fc/get-initial-state Posts {}) ; <4>
-                             :friends    (fc/get-initial-state PersonList {:id :friends :label "Friends"})
-                             :enemies    (fc/get-initial-state PersonList {:id :enemies :label "Enemies"})})
+  prim/InitialAppState
+  (initial-state [c params] {:blog-posts (prim/get-initial-state Posts {}) ; <4>
+                             :friends    (prim/get-initial-state PersonList {:id :friends :label "Friends"})
+                             :enemies    (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})
   Object
   (render [this]
     ; NOTE: the data now comes in through props!!!
-    (let [{:keys [ui/react-key blog-posts current-user friends enemies]} (om/props this)] ; <5>
+    (let [{:keys [ui/react-key blog-posts current-user friends enemies]} (prim/props this)] ; <5>
       (dom/div #js {:key react-key}
         (dom/h4 nil (str "Current User: " (:person/name current-user)))
         (dom/button #js {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh User with ID 3")
@@ -2092,10 +2088,10 @@ itself, rather than the work you have to do. Create a new namespace `src/main/ap
             [fulcro.client.network :as net]
             [cognitect.transit :as ct]
             [goog.events :as events]
-            [om.transit :as t]
+            [fulcro.transit :as t]
             [clojure.string :as str]
             [clojure.set :as set]
-            [om.next :as om])
+            [fulcro.client.primitives :as prim])
   (:import [goog.net XhrIo EventType]))
 
 (defn make-xhrio [] (XhrIo.))
@@ -2147,9 +2143,9 @@ itself, rather than the work you have to do. Create a new namespace `src/main/ap
   net/FulcroNetwork
   (send [this edn ok error]
     (let [xhrio       (make-xhrio)
-          ; STEP 1: Convert the request(s) from Om query notation to REST...
+          ; STEP 1: Convert the request(s) from query notation to REST...
           ; some logic to morph the incoming request into REST (assume you'd factor this out to handle numerous kinds)
-          request-ast (-> (om/query->ast edn) :children first)
+          request-ast (-> (prim/query->ast edn) :children first)
           uri         (str "/" (name (:key request-ast)))   ; in this case, posts
           url         (str "http://jsonplaceholder.typicode.com" uri)]
       (js/console.log :REQUEST request-ast :URI uri)
@@ -2165,7 +2161,7 @@ itself, rather than the work you have to do. Create a new namespace `src/main/ap
 
 The steps you need to customize are annotated in the comments of the code. There are just a few basic steps:
 
-1. Om comes with a handy function that can convert a query into an AST, which is easier to process. We don't really
+1. Fulcro comes with a handy function that can convert a query into an AST, which is easier to process. We don't really
 care too much about the whole query, we just want to detect what is being asked for (we're going to ask for
 `:posts`).
 2. Once we've understood what is wanted, we create a REST URL and GET the data from the REST server.
@@ -2185,10 +2181,10 @@ to talk to the REST server. The modification is done in our `basic-ui` namespace
 [source]
 ----
 (ns app.basic-ui
-  (:require [fulcro.client.core :as fc]
-            [om.dom :as dom]
+  (:require [fulcro.client :as fc]
+            [fulcro.client.dom :as dom]
             [app.operations :as ops]
-            [om.next :as om :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [app.rest :as rest] ; <-------ADD THIS
             [fulcro.client.data-fetch :as df]
             [fulcro.client.mutations :as m]

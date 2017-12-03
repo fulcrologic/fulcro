@@ -82,7 +82,6 @@
    (set! js/trf
      (fn trf [fmt & args]
        (try
-         (js/console.log args)
          (let [argmap         (if (and (map? (first args)) (= 1 (count args)))
                                 (first args)
                                 (into {} (mapv vec (partition 2 args))))
@@ -90,7 +89,6 @@
                translations   (translations-for-locale)
                translation    (get translations msg-key fmt)
                custom-formats (when @*custom-formats* (clj->js @*custom-formats*))
-               _              (js/console.log custom-formats)
                formatter      (if custom-formats
                                 (js/IntlMessageFormat. translation (current-locale) custom-formats)
                                 (js/IntlMessageFormat. translation (current-locale)))]

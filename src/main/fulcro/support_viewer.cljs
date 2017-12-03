@@ -1,127 +1,88 @@
 (ns fulcro.support-viewer
   (:require
-    [om.next :as om :refer-macros [defui]]
-    [om.dom :as dom]
+    [fulcro.client.primitives :as prim :refer-macros [defui]]
+    [fulcro.client.dom :as dom]
+    [fulcro.history :as hist]
     [fulcro.client.data-fetch :refer [load]]
-    [fulcro.client.core :as core]
+    [fulcro.client :as core]
     [fulcro.client.mutations :as m :refer [defmutation]]
     yahoo.intl-messageformat-with-locales
     [fulcro.i18n :refer [tr trf]]
-    [fulcro.client.network :as net]))
+    [fulcro.client.network :as net]
+    [fulcro.client :as fc]))
 
 (defonce support-viewer (atom nil))
 
 (defn get-target-app []
   (-> @support-viewer :application))
 
-(defn history-entry [history n]
-  (let [steps    (:steps history)
-        states   (:history history)
-        state-id (nth steps n (last steps))]
-    (get states state-id)))
-
-(defn history-step [state delta-fn]
-  (let [{:keys [history playback-speed]} @state
-        application    (get-target-app)
-        max-idx        (dec (count (:steps history)))
-        p              (:current-position @state)
-        playback-speed (max 1 playback-speed)               ;; Playback speed min is 1.
-        new-pos        (-> p
-                         delta-fn
-                         (- p)                              ; Get the delta i.e. (p' - p).
-                         (* playback-speed)                 ; Multiply delta by the playback speed.
-                         (+ p)                              ; Apply this new delta to p.
-                         (max 0)
-                         (min max-idx))
-        entry          (history-entry history new-pos)
-        tm             (-> entry :fulcro/meta :client-time)]
-    (swap! state (fn [s] (-> s
-                           (assoc :current-position new-pos)
-                           (assoc :client-time tm))))
-    (core/reset-state! @application entry)))
-
 (defmutation initialize-history
   [params]
   (action [{:keys [state]}]
     (swap! state
       (fn [s]
-        (let [req      (:support-request @state)
-              app      (get-target-app)
-              comments (:comment req)
-              history  (:history req)
-              frames   (-> history :steps count)
-              last-idx (dec frames)]
-          (core/reset-state! @app (history-entry history last-idx))
+        (let [req         (:support-request @state)
+              app         (get-target-app)
+              comments    (:comment req)
+              history     (:history req)
+              history-nav (hist/history-navigator history)]
+          (core/reset-state! @app (::hist/db-after (hist/current-step history-nav)))
           (-> s
             (dissoc :support-request)
             (assoc :comments comments)
-            (assoc :frames frames)
             (assoc :history history)
-            (assoc :current-position last-idx)))))))
+            (assoc :history-nav history-nav)))))))
 
-(defmutation step-forward
-  [params]
-  (action [{:keys [state]}] (history-step state inc)))
+(defn nav [state-atom history-fn]
+  (swap! state-atom update :history-nav history-fn)
+  (core/reset-state! @(get-target-app) (-> @state-atom :history-nav hist/current-step ::hist/db-after)))
 
-(defmutation step-back
-  [params]
-  (action [{:keys [state]}] (history-step state dec)))
+(defmutation step-forward [params] (action [{:keys [state]}] (nav state hist/focus-next)))
+(defmutation step-back [params] (action [{:keys [state]}] (nav state hist/focus-previous)))
+(defmutation go-to-beg [params] (action [{:keys [state]}] (nav state hist/focus-start)))
+(defmutation go-to-end [params] (action [{:keys [state]}] (nav state hist/focus-end)))
 
 (defmutation toggle-position
   [params]
   (action [{:keys [state]}]
     (let [{:keys [position]} @state
-          new-position (cond
-                         (= :controls-left position) :controls-right
-                         :else :controls-left)]
+          new-position (if (= :controls-left position) :controls-right :controls-left)]
       (swap! state assoc :position new-position))))
 
-(defmutation go-to-beg
-  [params]
-  (action [{:keys [state]}] (history-step state (fn [pos] 0))))
-
-(defmutation go-to-end
-  [params]
-  (action [{:keys [state]}] (let [steps (-> @state :history :steps count dec)]
-                              (history-step state (fn [pos] steps)))))
-
-(defmutation update-playback-speed
-  [{:keys [playback-speed]}]
-  (action [{:keys [state]}] (swap! state assoc :playback-speed playback-speed)))
-
 (defui ^:once SupportViewerRoot
-  static om/IQuery
-  (query [this] [:ui/react-key :playback-speed :current-position :client-time :frames :position :comments])
+  static prim/InitialAppState
+  (initial-state [t p] {:history {} :position :controls-left :client-time (js/Date.) :comments ""})
+  static prim/IQuery
+  (query [this] [:ui/react-key :history-nav :comments :position])
   Object
   (render [this]
-    (let [{:keys [ui/react-key playback-speed current-position client-time frames position comments] :or {ui/react-key "ROOT"}} (om/props this)]
-      (dom/div #js {:key react-key :className (str "history-controls " (name position))}
+    (let [{:keys [ui/react-key history-nav position comments] :or {ui/react-key "ROOT"}} (prim/props this)
+          [index frames] (hist/nav-position history-nav)
+          {:keys [::hist/client-time ::hist/network-result ::hist/tx ::hist/tx-result] :as step} (hist/current-step history-nav)]
+      (dom/div (clj->js {:key       react-key
+                         :style     {:max-width "300px"}
+                         :className (str "history-controls " (or (some-> position name) "controls-left"))})
         (dom/button #js {:className "toggle-position"
-                         :onClick   #(om/transact! this `[(toggle-position {})])} (tr "<= Reposition =>"))
+                         :onClick   #(prim/transact! this `[(toggle-position {})])} (tr "<= Reposition =>"))
         (dom/button #js {:className "history-back"
-                         :onClick   #(om/transact! this `[(step-back {})])} (tr "Back"))
+                         :onClick   #(prim/transact! this `[(step-back {})])} (tr "Back"))
         (dom/button #js {:className "history-forward"
-                         :onClick   #(om/transact! this `[(step-forward {})])} (tr "Forward"))
+                         :onClick   #(prim/transact! this `[(step-forward {})])} (tr "Forward"))
         (dom/hr nil)
-        (dom/span #js {:className "frame"} (trf "Frame {f,number} of {end,number} " :f (inc current-position) :end frames))
-        (dom/span #js {:className "timestamp"} (trf "{ts,date,short} {ts,time,long}" :ts client-time))
+        (dom/span #js {:className "frame"} (trf "History offset {f,number} of {end,number} " :f (inc index) :end frames))
         (dom/div #js {:className "user-comments"} comments)
         (dom/hr nil)
-        (dom/span #js {:className "playback-speed"} (trf "Playback speed {s,number}" :s playback-speed))
-        (dom/div #js {}
-          (dom/button #js {:className "speed-1"
-                           :onClick   #(om/transact! this `[(update-playback-speed {:playback-speed 1})])} (tr "1x"))
-          (dom/button #js {:className "speed-10"
-                           :onClick   #(om/transact! this `[(update-playback-speed {:playback-speed 10})])} (tr "10x"))
-          (dom/button #js {:className "speed-25"
-                           :onClick   #(om/transact! this `[(update-playback-speed {:playback-speed 25})])} (tr "25x")))
+        (dom/span #js {:className "timestamp"} (trf "Client Time: {ts,date,short} {ts,time,long}" :ts client-time))
+        (dom/hr nil)
+        (dom/h4 nil "Transaction")
+        (dom/p nil (pr-str tx))
         (dom/hr nil)
         (dom/span #js {:className "history-jump-to"} "Jump to:")
         (dom/div #js {}
           (dom/button #js {:className "history-beg"
-                           :onClick   #(om/transact! this `[(go-to-beg {})])} (tr "Beginning"))
+                           :onClick   #(prim/transact! this `[(go-to-beg {})])} (tr "Beginning"))
           (dom/button #js {:className "history-end"
-                           :onClick   #(om/transact! this `[(go-to-end {})])} (tr "End")))))))
+                           :onClick   #(prim/transact! this `[(go-to-end {})])} (tr "End")))))))
 
 (defrecord SupportViewer [support dom-id app-root application history]
   core/FulcroApplication
@@ -145,17 +106,12 @@
                   :dom-id      app-dom-id
                   :application (atom (core/new-fulcro-client :networking (net/mock-network)))
                   :support     (atom (core/new-fulcro-client
-                                       :initial-state {:history          {}
-                                                       :position         :controls-left
-                                                       :client-time      (js/Date.)
-                                                       :playback-speed   1
-                                                       :frames           0
-                                                       :current-position 0}
                                        :started-callback
                                        (fn [app]
                                          (load app :support-request nil
                                            {:params        {:id (core/get-url-param "id")}
-                                            :refresh       [:frames]
+                                            :refresh       [:history-nav]
                                             :post-mutation `initialize-history}))))})]
     (reset! support-viewer viewer)
     (core/mount viewer SupportViewerRoot support-dom-id)))
+

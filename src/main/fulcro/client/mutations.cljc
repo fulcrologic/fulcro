@@ -2,11 +2,12 @@
   #?(:cljs (:require-macros fulcro.client.mutations))
   (:require
     [clojure.spec.alpha :as s]
-    [om.next :as om]
-    [fulcro.client.util :refer [conform!]]
+    [fulcro.util :refer [conform! join-key join-value join?]]
     [fulcro.client.logging :as log]
+    [fulcro.client.primitives :as prim]
     [fulcro.i18n :as i18n]
-    #?(:cljs [cljs.loader :as loader])))
+    #?(:cljs [cljs.loader :as loader])
+    [fulcro.client.impl.protocols :as p]))
 
 
 #?(:clj (s/def ::action (s/cat
@@ -45,37 +46,59 @@
                          (action [env] ...)
                          (my-remote [env] ...)
                          (other-remote [env] ...)
-                         (remote [env] ...))"
+                         (remote [env] ...))
+
+                       There is special support for placing the action as a var in the namespace. This support
+                       only work when using a plain symbol. Simple add `:intern` metadata to the symbol. If
+                       the metadata is true, it will intern the symbol as-is. It it is a string, it will suffix
+                       the symbol with that string. If it is a symbol, it will use that symbol. The interned
+                       symbol will act like the action side of the mutation, and has the signature:
+                       `(fn [env params])`. This is also useful in devcards for using mkdn-pprint-source on mutations,
+                       and should give you docstring and navigation support from nREPL.
+                       "
                :arglists '([sym docstring? arglist action]
                             [sym docstring? arglist action remote]
                             [sym docstring? arglist remote])} defmutation
      [& args]
      (let [{:keys [sym doc arglist action remote]} (conform! ::mutation-args args)
-           fqsym         (if (namespace sym)
-                           sym
-                           (symbol (name (ns-name *ns*)) (name sym)))
+           fqsym           (if (namespace sym)
+                             sym
+                             (symbol (name (ns-name *ns*)) (name sym)))
+           intern?         (-> sym meta :intern)
+           interned-symbol (cond
+                             (string? intern?) (symbol (namespace fqsym) (str (name fqsym) intern?))
+                             (symbol? intern?) intern?
+                             :else fqsym)
            {:keys [action-args action-body]} (if action
                                                (conform! ::action action)
                                                {:action-args ['env] :action-body []})
-           remotes       (if (seq remote)
-                           (map #(conform! ::remote %) remote)
-                           [{:remote-name :remote :remote-args ['env] :remote-body [false]}])
-           env-symbol    (gensym "env")
-           remote-blocks (map (fn [{:keys [remote-name remote-args remote-body]}]
-                                `(let [~(first remote-args) ~env-symbol]
-                                   {~(keyword (name remote-name)) (do ~@remote-body)})
-                                ) remotes)]
-       `(defmethod fulcro.client.mutations/mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
-          (merge
-            (let [~(first action-args) ~env-symbol]
-              {:action (fn [] ~@action-body)})
-            ~@remote-blocks)))))
+           remotes         (if (seq remote)
+                             (map #(conform! ::remote %) remote)
+                             [{:remote-name :remote :remote-args ['env] :remote-body [false]}])
+           env-symbol      (gensym "env")
+           doc             (or doc "")
+           remote-blocks   (map (fn [{:keys [remote-name remote-args remote-body]}]
+                                  `(let [~(first remote-args) ~env-symbol]
+                                     {~(keyword (name remote-name)) (do ~@remote-body)})
+                                  ) remotes)
+           multimethod     `(defmethod fulcro.client.mutations/mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
+                              (merge
+                                (let [~(first action-args) ~env-symbol]
+                                  {:action (fn [] ~@action-body)})
+                                ~@remote-blocks))]
+       (if intern?
+         `(def ~interned-symbol ~doc
+            (do
+              ~multimethod
+              (fn [~(first action-args) ~(first arglist)]
+                ~@action-body)))
+         multimethod))))
 
 ;; Add methods to this to implement your local mutations
-(defmulti mutate om/dispatch)
+(defmulti mutate prim/dispatch)
 
 ;; Add methods to this to implement post mutation behavior (called after each mutation): WARNING: EXPERIMENTAL.
-(defmulti post-mutate om/dispatch)
+(defmulti post-mutate prim/dispatch)
 (defmethod post-mutate :default [env k p] nil)
 
 (defn default-locale? [locale-string] (#{"en" "en-US"} locale-string))
@@ -114,14 +137,14 @@
 
 #?(:cljs
    (fulcro.client.mutations/defmutation change-locale
-     "Om mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\")."
+     "mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\")."
      [{:keys [lang]}]
      (action [{:keys [state]}] (swap! state change-locale-impl lang))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation set-props
      "
-     Om mutation: A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
+     mutation: A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
      Specifically, merge the given `params` into the state of the database object at the component's ident.
      In general, it is recommended this be used for ui-only properties that have no real use outside of the component.
      "
@@ -132,7 +155,7 @@
 
 #?(:cljs
    (fulcro.client.mutations/defmutation toggle
-     "Om mutation: A helper method that toggles the true/false nature of a component's state by ident.
+     "mutation: A helper method that toggles the true/false nature of a component's state by ident.
       Use for local UI data only. Use your own mutations for things that have a good abstract meaning. "
      [{:keys [field]}]
 
@@ -149,13 +172,14 @@
   "Toggle the given boolean `field` on the specified component. It is recommended you use this function only on
   UI-related data (e.g. form checkbox checked status) and write clear top-level transactions for anything more complicated."
   [comp field]
-  (om/transact! comp `[(toggle {:field ~field})]))
+  (prim/compressible-transact! comp `[(toggle {:field ~field})]))
 
 (defn set-value!
   "Set a raw value on the given `field` of a `component`. It is recommended you use this function only on
-  UI-related data (e.g. form inputs that are used by the UI, and not persisted data)."
+  UI-related data (e.g. form inputs that are used by the UI, and not persisted data). Changes made via these
+  helpers are compressed in the history."
   [component field value]
-  (om/transact! component `[(set-props ~{field value})]))
+  (prim/compressible-transact! component `[(set-props ~{field value})]))
 
 #?(:cljs
    (defn- ensure-integer
@@ -173,7 +197,7 @@
   "Set the given integer on the given `field` of a `component`. Allows same parameters as `set-string!`.
 
    It is recommended you use this function only on UI-related data (e.g. data that is used for display purposes)
-   and write clear top-level transactions for anything else."
+   and write clear top-level transactions for anything else. Calls to this are compressed in history."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (ensure-integer (if event (target-value event) value))]
@@ -191,9 +215,74 @@
   ```
 
   It is recommended you use this function only on UI-related
-  data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else."
+  data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else.
+  Calls to this are compressed in history."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (if event (target-value event) value)]
     (set-value! component field value)))
 
+#?(:cljs
+   (fulcro.client.mutations/defmutation set-query!
+     "The mutation version of `prim/set-query!`. This version requires queryid as an input string.
+
+     queryid (required) - A string query ID. Can be obtained via (prim/query-id Class qualifier)
+     query - The new query
+     params - The new query params
+
+     One of query or params is required.
+     "
+     [{:keys [queryid query params]}]
+     (action [{:keys [reconciler state]}]
+       (swap! state prim/set-query* queryid {:query query :params params})
+       (when reconciler
+         (p/reindex! reconciler)))))
+
+#?(:cljs
+   (fulcro.client.mutations/defmutation merge!
+     "The mutation version of prim/merge!"
+     [{:keys [query data-tree remote] :as params}]
+     (action [env]
+       (let [{:keys [reconciler state]} env
+             config         (:config reconciler)
+             state          (prim/app-state reconciler)
+             root-component (prim/app-root reconciler)
+             root-query     (when-not query (prim/get-query root-component @state))
+             {:keys [keys next ::prim/tempids]} (prim/merge* reconciler @state data-tree query)]
+         (p/queue! reconciler keys remote)
+         (reset! state
+           (if-let [migrate (:migrate config)]
+             (merge (select-keys next [:fulcro.client.primitives/queries])
+               (migrate next (or query root-query) tempids))
+             next))
+         (when-not (nil? remote)
+           (p/reconcile! reconciler remote))))))
+
+#?(:cljs
+   (fulcro.client.mutations/defmutation send-history
+     "Send the current app history to the server. The params can include anything and will be merged with a `:history` entry.
+     Your server implementation of `fulcro.client.mutations/send-history` should record the data of history for
+     retrieval by a root query for :support-request, which should at least include the stored :history and optionally a
+     :comment from the user. You should add whatever identity makes sense for tracking."
+     [params]
+     (remote [{:keys [reconciler state ast]}]
+       (let [history (-> reconciler (prim/get-history) deref)
+             params  (assoc params :history history)]
+         (assoc ast :params params)))))
+
+(defn returning
+  "Indicate the the remote operation will return a value of the given component type. The server-side mutation need
+  simply return a tree matching that component's query and it will auto-merge into state. The ast param MUST be a query ast
+  containing exactly one mutation that is *not* already a mutation join. The state is required for looking up dynamic queries, and
+  may be nil if you use only static queries."
+  [ast state class]
+  {:pre [(symbol? (-> ast :key))]}
+  (let [{:keys [key params]} ast]
+    (-> (prim/query->ast `[{(~key ~params) ~(prim/get-query class state)}])
+      :children
+      first)))
+
+(defn with-params
+  "Modify an AST containing a single mutation, changing it's parameters to those given as an argument."
+  [ast params]
+  (assoc ast :params params))

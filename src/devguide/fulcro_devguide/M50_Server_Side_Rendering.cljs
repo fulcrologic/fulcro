@@ -123,8 +123,8 @@
    trivial:
 
    ```
-   (let [props                (om/db->tree (om/get-query app/Root normalized-db normalized-db)
-         root-factory         (om/factory app/Root)]
+   (let [props                (prim/db->tree (prim/get-query app/Root normalized-db normalized-db)
+         root-factory         (prim/factory app/Root)]
      (dom/render-to-str (root-factory props)))
    ```
 
@@ -194,7 +194,9 @@
 
   If you use external Javascript libraries of React components, then you'll probably want to work just a little
   bit harder. The techniques described above work perfectly if you're writing all of your own UI, but as soon as there
-  are some pure js components you have to stub them out with placeholders.
+  are some pure js components you have to stub them out with placeholders. Doing so can still be a good idea if you
+  can quickly make static versions of them with the proper CSS, but sometimes you'd just like to get a more accurate
+  initial rendering.
 
   If you're willing to work just a little bit harder, then you can maintain a true isomorphic application using Java
   8 and the Nashorn ECMA scripting engine.
@@ -238,13 +240,13 @@
   Server rendering (client-side cljs) is:
 
   ```
-  (def ui-root (om/factory root/Root))
+  (def ui-root (prim/factory root/Root))
 
   (defn ^:export server-render [props-str]
     ; incoming data will come from JVM as transit-stringified EDN
     (if-let [props (some-> props-str util/transit-str->clj)]
       (js/ReactDOMServer.renderToString (ui-root props))
-      (js/ReactDOMServer.renderToString (ui-root (fc/get-initial-state root/Root nil)))))
+      (js/ReactDOMServer.renderToString (ui-root (prim/get-initial-state root/Root nil)))))
   ```
 
   And the server-side code holds a script engine in an atom or something (a component would be best), and

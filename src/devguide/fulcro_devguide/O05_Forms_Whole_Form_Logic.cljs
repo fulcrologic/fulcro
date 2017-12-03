@@ -1,15 +1,15 @@
 (ns fulcro-devguide.O05-Forms-Whole-Form-Logic
   (:require
     [clojure.string :as str]
-    [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+    [devcards.core :as dc :refer-macros [defcard-doc]]
     [com.stuartsierra.component :as component]
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]
-    [fulcro.client.core :as fc]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.ui.icons :as i]
     [fulcro.ui.forms :as f]
-    [fulcro.client.cards :refer [fulcro-app]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro-devguide.simulated-server :refer [make-mock-network]]
     [fulcro.client.logging :as log]
     [fulcro.client.data-fetch :as df]
@@ -27,8 +27,8 @@
 (defn write-handler [env k p]
   (log/info "SERVER mutation for " k " with params " p))
 
-; Om Next query parser. Calls read/write handlers with keywords from the query
-(def server-parser (om/parser {:read read-handler :mutate write-handler}))
+; query parser. Calls read/write handlers with keywords from the query
+(def server-parser (prim/parser {:read read-handler :mutate write-handler}))
 
 ; Simulated server. You'd never write this part
 (defn server [env tx]
@@ -56,7 +56,7 @@
        (dom/div #js {:className (str "col-sm-offset-2 col-sm-10 " name)} validation-message)))))
 
 (defui NameInUseQuery
-  static om/IQuery
+  static prim/IQuery
   (query [this] []))
 
 (defmutation check-username-available
@@ -67,27 +67,27 @@
       (let [value (get-in @state (conj form-id field))]
         (swap! state assoc-in (conj form-id :ui/name-status) :checking)
         (df/load-action env :name-in-use nil {:target  (conj form-id :ui/name-status)
-                                                :refresh [f/form-root-key]
-                                                :marker  false
-                                                :params  {:name value}}))))
+                                              :refresh [f/form-root-key]
+                                              :marker  false
+                                              :params  {:name value}}))))
   (remote [env] (df/remote-load env)))
 
 (defui ^:once Person
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
                      (f/on-form-change `check-username-available)
                      (f/text-input :person/name)
                      (f/integer-input :person/age)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [f/form-root-key f/form-key
                  :db/id :person/name :person/age :ui/name-status])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:person/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [ui/name-status] :as props} (om/props this)]
+    (let [{:keys [ui/name-status] :as props} (prim/props this)]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this props :person/name "Username:"
           (case name-status
@@ -104,17 +104,17 @@
                            :onClick   #(f/commit-to-entity! this :remote true)}
             "Save!"))))))
 
-(def ui-person (om/factory Person {:keyfn :db/id}))
+(def ui-person (prim/factory Person {:keyfn :db/id}))
 
 (defui ^:once CommitRoot
-  static fc/InitialAppState
-  (initial-state [this _] {:person (fc/initial-state Person {:db/id 1})})
-  static om/IQuery
+  static prim/InitialAppState
+  (initial-state [this _] {:person (prim/get-initial-state Person {:db/id 1})})
+  static prim/IQuery
   (query [this] [:ui/react-key
-                 {:person (om/get-query Person)}])
+                 {:person (prim/get-query Person)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key new-person person]} (om/props this)]
+    (let [{:keys [ui/react-key new-person person]} (prim/props this)]
       (dom/div #js {:key react-key}
         (ui-person person)))))
 
@@ -143,7 +143,7 @@
 
   ```
   (defui ^:once Person
-    static fc/InitialAppState
+    static prim/InitialAppState
     (initial-state [this params] (f/build-form this (or params {})))
     static f/IForm
     (form-spec [this] [(f/id-field :db/id)
@@ -209,7 +209,7 @@
   to verify the username.
   ")
 
-(defcard form-changes
+(defcard-fulcro form-changes
   "# Live Example
 
   The following sample uses a mock server to do a full-stack form interaction example that uses
@@ -220,8 +220,8 @@
 
   Try `tony` (in use) and `bob` (not in use).
   "
-  (fulcro-app CommitRoot
-    :networking (map->MockNetwork {}))
+  CommitRoot
   {}
-  {:inspect-data false})
+  {:fulcro       {:networking (map->MockNetwork {})}
+   :inspect-data false})
 

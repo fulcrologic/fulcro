@@ -1,6 +1,6 @@
 (ns fulcro.ui.bootstrap3
-  (:require [om.dom :as dom]
-            [om.next :as om :refer [defui]]
+  (:require [fulcro.client.dom :as dom]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.ui.elements :as ele]
             [fulcro.events :as evt]
             [fulcro.ui.html-entities :as ent]
@@ -9,7 +9,7 @@
     #?(:clj [clojure.future :refer :all])
             [clojure.string :as str]
             [clojure.set :as set]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.client.logging :as log]
             [fulcro.client.util :as util]))
 
@@ -469,14 +469,14 @@
     [dropdown-item-table id-or-props]))
 
 (m/defmutation set-dropdown-open
-  "Om Mutation. Set the open flag to true/false to open/close the dropdown."
+  "Mutation. Set the open flag to true/false to open/close the dropdown."
   [{:keys [id open?]}]
   (action [{:keys [state]}]
     (let [kpath (conj (dropdown-ident id) ::open?)]
       (swap! state assoc-in kpath open?))))
 
 (m/defmutation set-dropdown-item-active
-  "Om Mutation. Set one of the items in a dropdown to active.
+  "Mutation. Set one of the items in a dropdown to active.
 
   id - the ID of the dropdown
   item-id - the ID of the dropdown item
@@ -489,21 +489,21 @@
   (reduce (fn [m id] (assoc-in m [id ::open?] false)) dropdown-map (keys dropdown-map)))
 
 (m/defmutation close-all-dropdowns
-  "Om Mutations: Close all dropdowns (globally)"
+  "Mutations: Close all dropdowns (globally)"
   [ignored]
   (action [{:keys [state]}]
     (swap! state update dropdown-table close-all-dropdowns-impl)))
 
 (defui ^:once DropdownItem
-  static om/IQuery
+  static prim/IQuery
   (query [this] [::id ::label ::active? ::disabled? :type])
-  static om/Ident
+  static prim/Ident
   (ident [this props] (dropdown-item-ident props))
   Object
   (render [this]
-    (let [{:keys [::label ::id ::disabled?]} (om/props this)
-          active?  (om/get-computed this :active?)
-          onSelect (or (om/get-computed this :onSelect) identity)]
+    (let [{:keys [::label ::id ::disabled?]} (prim/props this)
+          active?  (prim/get-computed this :active?)
+          onSelect (or (prim/get-computed this :onSelect) identity)]
       (if (= ::divider label)
         (dom/li #js {:key id :role "separator" :className "divider"})
         (dom/li #js {:key id :className (cond-> ""
@@ -514,7 +514,7 @@
                                  (onSelect id)
                                  false)} (tr-unsafe label)))))))
 
-(let [ui-dropdown-item-factory (om/factory DropdownItem {:keyfn ::id})]
+(let [ui-dropdown-item-factory (prim/factory DropdownItem {:keyfn ::id})]
   (defn ui-dropdown-item
     "Render a dropdown item. The props are the state props of the dropdown item. The additional by-name
     arguments:
@@ -523,27 +523,27 @@
     active? - render this item as active
     "
     [props & {:keys [onSelect active?]}]
-    (ui-dropdown-item-factory (om/computed props {:onSelect onSelect :active? active?}))))
+    (ui-dropdown-item-factory (prim/computed props {:onSelect onSelect :active? active?}))))
 
 (defui ^:once Dropdown
-  static om/IQuery
-  (query [this] [::id ::active-item ::label ::open? {::items (om/get-query DropdownItem)} :type])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [::id ::active-item ::label ::open? {::items (prim/get-query DropdownItem)} :type])
+  static prim/Ident
   (ident [this props] (dropdown-ident props))
   Object
   (render [this]
-    (let [{:keys [::id ::label ::active-item ::items ::open?]} (om/props this)
-          {:keys [onSelect kind stateful?]} (om/get-computed this)
+    (let [{:keys [::id ::label ::active-item ::items ::open?]} (prim/props this)
+          {:keys [onSelect kind stateful?]} (prim/get-computed this)
           active-item-label (->> items
                               (some #(and (= active-item (::id %)) %))
                               ::label)
           label             (if (and active-item-label stateful?) active-item-label label)
           onSelect          (fn [item-id]
-                              (om/transact! this `[(close-all-dropdowns {}) (set-dropdown-item-active ~{:id id :item-id item-id})])
+                              (prim/transact! this `[(close-all-dropdowns {}) (set-dropdown-item-active ~{:id id :item-id item-id})])
                               (when onSelect (onSelect item-id)))
           open-menu         (fn [evt]
                               (.stopPropagation evt)
-                              (om/transact! this `[(close-all-dropdowns {}) (set-dropdown-open ~{:id id :open? (not open?)})])
+                              (prim/transact! this `[(close-all-dropdowns {}) (set-dropdown-open ~{:id id :open? (not open?)})])
                               false)]
       (button-group {:className (if open? "open" "")}
         (button {:className (cond-> "dropdown-toggle"
@@ -552,7 +552,7 @@
         (dom/ul #js {:className "dropdown-menu"}
           (map #(ui-dropdown-item % :onSelect onSelect :active? (and stateful? (= (::id %) active-item))) items))))))
 
-(let [ui-dropdown-factory (om/factory Dropdown {:keyfn ::id})]
+(let [ui-dropdown-factory (prim/factory Dropdown {:keyfn ::id})]
   (defn ui-dropdown
     "Render a dropdown. The props are the state props of the dropdown. The additional by-name
     arguments:
@@ -561,7 +561,7 @@
     stateful? - If set to true, the dropdown will remember the selection and show it.
     kind - The kind of dropdown. See `button`."
     [props & {:keys [onSelect kind stateful?] :as attrs}]
-    (ui-dropdown-factory (om/computed props attrs))))
+    (ui-dropdown-factory (prim/computed props attrs))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; NAV (tabs/pills)
@@ -596,63 +596,63 @@
   {::id id ::kind kind ::layout layout ::active-link-id active-link-id ::links links})
 
 (defui ^:once NavLink
-  static om/IQuery
+  static prim/IQuery
   (query [this] [::id ::label ::disabled? :type])
-  static om/Ident
+  static prim/Ident
   (ident [this props] (nav-link-ident props))
   Object
   (render [this]
-    (let [{:keys [::id ::label ::disabled?]} (om/props this)
-          {:keys [onSelect active?]} (om/get-computed this)]
+    (let [{:keys [::id ::label ::disabled?]} (prim/props this)
+          {:keys [onSelect active?]} (prim/get-computed this)]
       (dom/li #js {:role "presentation" :className (cond-> ""
                                                      active? (str " active")
                                                      disabled? (str " disabled"))}
         (dom/a #js {:onClick #(when onSelect (onSelect id))} (tr-unsafe label))))))
 
-(def ui-nav-link (om/factory NavLink {:keyfn ::id}))
+(def ui-nav-link (prim/factory NavLink {:keyfn ::id}))
 
 (defui ^:once NavItemUnion
-  static om/Ident
+  static prim/Ident
   (ident [this {:keys [::id type]}] [type id])
-  static om/IQuery
-  (query [this] {dropdown-table (om/get-query Dropdown) nav-link-table (om/get-query NavLink)})
+  static prim/IQuery
+  (query [this] {dropdown-table (prim/get-query Dropdown) nav-link-table (prim/get-query NavLink)})
   Object
   (render [this]
-    (let [{:keys [type ::items] :as child} (om/props this)
-          {:keys [onSelect active-id active?] :as computed} (om/get-computed this)
+    (let [{:keys [type ::items] :as child} (prim/props this)
+          {:keys [onSelect active-id active?] :as computed} (prim/get-computed this)
           stateful? (some #(= active-id (::id %)) items)]
       (case type
-        :bootstrap.navitem/by-id (ui-nav-link (om/computed child computed))
+        :bootstrap.navitem/by-id (ui-nav-link (prim/computed child computed))
         :bootstrap.dropdown/by-id (ui-dropdown child :onSelect onSelect :stateful? stateful?)
         (dom/p nil "Unknown link type!")))))
 
-(def ui-nav-item (om/factory NavItemUnion {:keyfn ::id}))
+(def ui-nav-item (prim/factory NavItemUnion {:keyfn ::id}))
 
 (defn set-active-nav-link*
   [state-map nav-id link-id]
   (update-in state-map (nav-ident nav-id) assoc ::active-link-id link-id))
 
 (m/defmutation set-active-nav-link
-  "Om Mutation: Set the active navigation link"
+  "Mutation: Set the active navigation link"
   [{:keys [id target]}]
   (action [{:keys [state]}]
     (swap! state set-active-nav-link* id target)))
 
 (defui ^:once Nav
-  static om/Ident
+  static prim/Ident
   (ident [this props] (nav-ident props))
-  static om/IQuery
-  (query [this] [::id ::kind ::layout ::active-link-id {::links (om/get-query NavItemUnion)}])
+  static prim/IQuery
+  (query [this] [::id ::kind ::layout ::active-link-id {::links (prim/get-query NavItemUnion)}])
   Object
   (render [this]
-    (let [{:keys [::id ::kind ::layout ::active-link-id ::links]} (om/props this)
-          {:keys [onSelect]} (om/get-computed this)
+    (let [{:keys [::id ::kind ::layout ::active-link-id ::links]} (prim/props this)
+          {:keys [onSelect]} (prim/get-computed this)
           onSelect (fn [nav-id] (when onSelect (onSelect nav-id))
-                     (om/transact! this `[(set-active-nav-link ~{:id id :target nav-id})]))]
+                     (prim/transact! this `[(set-active-nav-link ~{:id id :target nav-id})]))]
       (dom/ul #js {:className (str "nav nav-" (name kind) (case layout :justified " nav-justified" :stacked " nav-stacked" ""))}
-        (map #(ui-nav-item (om/computed % {:onSelect onSelect :active-id active-link-id :active? (= (::id %) active-link-id)})) links)))))
+        (map #(ui-nav-item (prim/computed % {:onSelect onSelect :active-id active-link-id :active? (= (::id %) active-link-id)})) links)))))
 
-(let [nav-factory (om/factory Nav {:keyfn ::id})]
+(let [nav-factory (prim/factory Nav {:keyfn ::id})]
   (defn ui-nav
     "Render a nav, which should have state declared with `nav`.
 
@@ -660,7 +660,7 @@
     onSelect - an optional named parameter to supply a function that is called when navigation is done.
     "
     [props & {:keys [onSelect]}]
-    (nav-factory (om/computed props {:onSelect onSelect}))))
+    (nav-factory (prim/computed props {:onSelect onSelect}))))
 
 (defn label
   "Wraps children in an (inline) bootstrap label.
@@ -787,7 +787,7 @@
 (defui RenderInBody
   Object
   (renderLayer [this]
-    #?(:cljs (let [child (first (om/children this))
+    #?(:cljs (let [child (first (prim/children this))
                    popup (.-popup this)]
                (.render js/ReactDOM child popup))))
   (componentDidMount [this]
@@ -806,16 +806,16 @@
                  (.removeChild (.-body doc) (.-popup this))))))
   (render [this] (dom/div #js {:key "placeholder" :ref (fn [r] (set! (.-doc-element this) r))})))
 
-(def ui-render-in-body (om/factory RenderInBody {:keyfn :key}))
+(def ui-render-in-body (prim/factory RenderInBody {:keyfn :key}))
 
 (defui ^:once PopOver
   Object
   (componentWillUpdate [this new-props ns]
-    (let [old-props        (om/props this)
+    (let [old-props        (prim/props this)
           becoming-active? (and (:active new-props) (not (:active old-props)))]
-      (when becoming-active? (om/update-state! this update :render-for-size inc))))
+      (when becoming-active? (prim/update-state! this update :render-for-size inc))))
   (render [this]
-    (let [{:keys [active orientation] :or {orientation :top}} (om/props this)
+    (let [{:keys [active orientation] :or {orientation :top}} (prim/props this)
           target     (.-target-ref this)
           popup      (.-popup-ref this)
           popup-box  (if popup (get-abs-position popup) {})
@@ -849,9 +849,9 @@
                                                                  "50%")}})
             (dom/h3 #js {:className "popover-title"} "Title")
             (dom/div #js {:className "popover-content"} "This is a test of a popover")))
-        (om/children this)))))
+        (prim/children this)))))
 
-(def ui-popover (om/factory PopOver))
+(def ui-popover (prim/factory PopOver))
 
 (defn modal-ident
   "Get the ident for a modal with the given props or ID"
@@ -868,7 +868,7 @@
 
 #?(:cljs
    (defmutation show-modal
-     "Om Mutation: Show a modal by ID."
+     "Mutation: Show a modal by ID."
      [{:keys [id]}]
      (action [{:keys [state]}]
        (swap! state update-in (modal-ident id) show-modal* true)
@@ -876,7 +876,7 @@
 
 #?(:cljs
    (defmutation hide-modal
-     "Om mutation: Hide a modal by ID."
+     "mutation: Hide a modal by ID."
      [{:keys [id]}]
      (action [{:keys [state]}]
        (swap! state update-in (modal-ident id) activate-modal* false)
@@ -885,43 +885,43 @@
 (defui ^:once ModalTitle
   Object
   (render [this]
-    (apply dom/div (clj->js (om/props this)) (om/children this))))
+    (apply dom/div (clj->js (prim/props this)) (prim/children this))))
 
-(def ui-modal-title (om/factory ModalTitle {:keyfn (fn [props] "modal-title")}))
+(def ui-modal-title (prim/factory ModalTitle {:keyfn (fn [props] "modal-title")}))
 
 (defui ^:once ModalBody
   Object
   (render [this]
-    (div-with-class "modal-body" (om/props this) (om/children this))))
+    (div-with-class "modal-body" (prim/props this) (prim/children this))))
 
-(def ui-modal-body (om/factory ModalBody {:keyfn (fn [props] "modal-body")}))
+(def ui-modal-body (prim/factory ModalBody {:keyfn (fn [props] "modal-body")}))
 
 (defui ^:once ModalFooter
   Object
   (render [this]
-    (div-with-class "modal-footer" (om/props this) (om/children this))))
+    (div-with-class "modal-footer" (prim/props this) (prim/children this))))
 
-(def ui-modal-footer (om/factory ModalFooter {:keyfn (fn [props] "modal-footer")}))
+(def ui-modal-footer (prim/factory ModalFooter {:keyfn (fn [props] "modal-footer")}))
 
 (defui ^:once Modal
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id sz backdrop keyboard] :or {backdrop true keyboard true}}]
     {:db/id      id :modal/active false :modal/visible false :modal/keyboard keyboard
      :modal/size sz :modal/backdrop (boolean backdrop)})
-  static om/Ident
+  static prim/Ident
   (ident [this props] (modal-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :modal/active :modal/visible :modal/size :modal/backdrop :modal/keyboard])
   Object
   (componentDidMount [this] (.focus (.-the-dialog this)))
-  (componentDidUpdate [this pp _] (when (and (:modal/visible (om/props this)) (not (:modal/visible pp))) (.focus (.-the-dialog this))))
+  (componentDidUpdate [this pp _] (when (and (:modal/visible (prim/props this)) (not (:modal/visible pp))) (.focus (.-the-dialog this))))
   (render [this]
-    (let [{:keys [db/id modal/active modal/visible modal/size modal/keyboard modal/backdrop]} (om/props this)
-          {:keys [onClose]} (om/get-computed this)
+    (let [{:keys [db/id modal/active modal/visible modal/size modal/keyboard modal/backdrop]} (prim/props this)
+          {:keys [onClose]} (prim/get-computed this)
           onClose  (fn []
-                     (om/transact! this `[(hide-modal {:id ~id})])
+                     (prim/transact! this `[(hide-modal {:id ~id})])
                      (when onClose (onClose id)))
-          children (om/children this)
+          children (prim/children this)
           label-id (str "modal-label-" id)
           title    (util/first-node ModalTitle children)
           body     (util/first-node ModalBody children)
@@ -944,7 +944,7 @@
           (ui-render-in-body {}
             (dom/div #js {:key "backdrop" :className (str "modal-backdrop fade" (when active " in"))})))))))
 
-(let [modal-factory (om/factory Modal {:keyfn (fn [props] (str "modal-" (:db/id props)))})]
+(let [modal-factory (prim/factory Modal {:keyfn (fn [props] (str "modal-" (:db/id props)))})]
   (defn ui-modal
     "Render a modal.
 
@@ -953,9 +953,9 @@
     Modal content should include a ui-modal-title, ui-modal-body, and ui-modal-footer as children. The footer usually contains
     one or more buttons.
 
-    Use the `fc/get-initial-state` function to pull a valid initial state for this component. The arguments are:
+    Use the `prim/get-initial-state` function to pull a valid initial state for this component. The arguments are:
 
-    `(fc/get-initial-state Modal {:id ID :sz SZ :backdrop BOOLEAN})`
+    `(prim/get-initial-state Modal {:id ID :sz SZ :backdrop BOOLEAN})`
 
     where the id is required (and must be unique among modals, and `:sz` is optional and must be `:sm` or `:lg`. The
     :backdrop option is boolean, and indicates you want a backdrop that blocks the UI. The `:keyboard` option
@@ -970,7 +970,7 @@
       (b/ui-modal-body nil
         (dom/p #js {:className b/text-danger} \"Stuff went sideways.\"))
       (b/ui-modal-footer nil
-        (b/button {:onClick #(om/transact! this `[(b/hide-modal {:id :warning-modal})])} \"Bummer!\"))))))
+        (b/button {:onClick #(prim/transact! this `[(b/hide-modal {:id :warning-modal})])} \"Bummer!\"))))))
     ````
 
     NOTE: The grid (`row` and `col`) can be used within the modal body *without* a `container`.
@@ -987,15 +987,15 @@
     [:fulcro.ui.bootstrap3.collapse/by-id id-or-props]))
 
 (defui Collapse
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id start-open]}] {:db/id id :collapse/phase :closed})
-  static om/Ident
+  static prim/Ident
   (ident [this props] (collapse-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :collapse/phase])
   Object
   (render [this]
-    (let [{:keys [db/id collapse/phase]} (om/props this)
+    (let [{:keys [db/id collapse/phase]} (prim/props this)
           dom-ele    (.-dom-element this)
           box-height (when dom-ele (.-height (.getBoundingClientRect dom-ele)))
           height     (when dom-ele
@@ -1005,7 +1005,7 @@
                          :open nil
                          :closing (str box-height "px")
                          "0px"))
-          children   (om/children this)
+          children   (prim/children this)
           classes    (case phase
                        :open "collapse in"
                        :closed "collapse"
@@ -1017,7 +1017,7 @@
   app database initialized with `get-initial-state` of a Collapse component,
   and the children should be the elements you want to show/hide. Each component should have a unique
   (application-wide) ID. Use the `toggle-collapse` and `set-collapse` mutations to open/close. "
-  (om/factory Collapse {:keyfn :db/id}))
+  (prim/factory Collapse {:keyfn :db/id}))
 
 (defn- is-stable?
   "Returns true if the given collapse item is not transitioning"
@@ -1043,7 +1043,7 @@
           #?(:cljs (js/setTimeout (fn [] (swap! state assoc-in ppath :closed)) 350)))))))
 
 (defmutation toggle-collapse
-  "Om mutation: Toggle a collapse"
+  "mutation: Toggle a collapse"
   [{:keys [id]}]
   (action [{:keys [state]}]
     (let [cident  (collapse-ident id)
@@ -1052,13 +1052,13 @@
       (set-collapse* state id (not is-open)))))
 
 (defmutation set-collapse
-  "Om mutation: Set the state of a collapse."
+  "mutation: Set the state of a collapse."
   [{:keys [id open]}]
   (action [{:keys [state]}]
     (set-collapse* state id open)))
 
 (defmutation toggle-collapse-group-item
-  "Om mutation: Toggle a collapse element as if in a group.
+  "mutation: Toggle a collapse element as if in a group.
 
   item-id: The specific group to toggle
   all-item-ids: A collection of all of the items that are to be considered part of the group. If any items are
@@ -1090,8 +1090,8 @@
 (defui CarouselItem
   Object
   (render [this]
-    (let [{:keys [src alt] :as props} (om/props this)
-          caption (om/children this)]
+    (let [{:keys [src alt] :as props} (prim/props this)
+          caption (prim/children this)]
       (dom/div #js {:key (hash src)}
         (dom/img #js {:src src :alt alt})
         (when (seq caption)
@@ -1101,11 +1101,11 @@
 (def ui-carousel-item
   "Render a carousel item. Props can include src and alt for the image. If children are supplied, they will be
   treated as the caption."
-  (om/factory CarouselItem {:keyfn :index}))
+  (prim/factory CarouselItem {:keyfn :index}))
 
 
 (defmutation carousel-slide-to
-  "Om mutation: Slides a carousel from the current frame to the indicated frame. The special `frame` value of `:wrap`
+  "mutation: Slides a carousel from the current frame to the indicated frame. The special `frame` value of `:wrap`
   can be used to slide from the current frame to the first as if wrapping in a circle."
   [{:keys [id frame]}]
   (action [{:keys [state]}]
@@ -1126,7 +1126,7 @@
         (swap! state assoc :carousel/slide-to frame :carousel/timer-id new-timer-id)))))
 
 (defui Carousel
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id interval wrap keyboard pause-on-hover show-controls]
                      :or   {interval 5000 wrap true keyboard true pause-on-hover true show-controls true}}]
     {:db/id                   id
@@ -1138,20 +1138,20 @@
      :carousel/pause-on-hover pause-on-hover
      :carousel/paused         false
      :carousel/timer-id       nil})
-  static om/Ident
+  static prim/Ident
   (ident [this props] (carousel-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :carousel/active-index :carousel/slide-to :carousel/show-controls])
   Object
   (render [this]
-    (let [items             (om/children this)
+    (let [items             (prim/children this)
           slide-count       (count items)
-          {:keys [db/id carousel/active-index carousel/slide-to carousel/show-controls]} (om/props this)
+          {:keys [db/id carousel/active-index carousel/slide-to carousel/show-controls]} (prim/props this)
           to                (if (= :wrap slide-to) 0 slide-to)
           sliding?          (and slide-to (not= active-index slide-to))
           prior-index       (if (zero? active-index) (dec slide-count) (dec active-index))
           next-index        (if (= (dec slide-count) active-index) 0 (inc active-index))
-          goto              (fn [slide] (om/transact! this `[(carousel-slide-to {:id ~id :frame ~slide})]))
+          goto              (fn [slide] (prim/transact! this `[(carousel-slide-to {:id ~id :frame ~slide})]))
           from-the-left?    (or (= :wrap slide-to) (< active-index slide-to))
           active-item-class (str "item active "
                               (when sliding? (if from-the-left? "left" "right")))
@@ -1185,7 +1185,7 @@
             (dom/span #js {:className "sr-only"} "Next")))))))
 ; TODO: above is untested...might work ;)
 
-(def ui-carousel (om/factory Carousel {:keyfn :db/id}))
+(def ui-carousel (prim/factory Carousel {:keyfn :db/id}))
 
 ;; TODO: Carousel (stateful)
 ;; TODO: Scrollspy (spy-link component that triggers mutation + scrollspy component that gets updated on those mutations)

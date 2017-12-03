@@ -27,11 +27,11 @@
 
   ```
   (render [this]
-    (let [{:keys [id n]} (om/props this)]
+    (let [{:keys [id n]} (prim/props this)]
       (dom/li nil
         (dom/span nil \" n: \" n)
-        (dom/button #js {:onClick #(om/transact! this `[(exercise/g-ex2-inc {:id ~id}) :items])} \"Increment\")
-        (dom/button #js {:onClick #(om/transact! this `[(exercise/g-ex3-dec {:id ~id}) :items])} \"Decrement\")))))
+        (dom/button #js {:onClick #(prim/transact! this `[(exercise/g-ex2-inc {:id ~id}) :items])} \"Increment\")
+        (dom/button #js {:onClick #(prim/transact! this `[(exercise/g-ex3-dec {:id ~id}) :items])} \"Decrement\")))))
   ```
   ")
 

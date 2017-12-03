@@ -6,15 +6,39 @@
     [clojure.java.io :as io]
     [clojure.edn :as edn]
     [clojure.walk :as walk]
-    [cognitect.transit :as transit]
-    [om.next.server :as om]
-    om.util
+    [cognitect.transit :as ct]
     [ring.util.response :as resp]
     [ring.util.request :as req]
     [taoensso.timbre :as log]
-    [fulcro.client.util :as util])
+    [fulcro.transit :as transit]
+    [fulcro.client.impl.parser :as parser]
+    [fulcro.util :as util]
+    [taoensso.timbre :as timbre])
   (:import (clojure.lang ExceptionInfo)
            [java.io ByteArrayOutputStream File]))
+
+(defn parser
+  "Create a parser. The argument is a map of two keys, :read and :mutate. Both
+   functions should have the signature (Env -> Key -> Params -> ParseResult)."
+  [opts]
+  (parser/parser opts))
+
+(defn dispatch
+  "Helper function for implementing :read and :mutate as multimethods. Use this
+   as the dispatch-fn."
+  [_ key _] key)
+
+(defn reader
+  "Create a transit reader. This reader can handler the tempid type.
+   Can pass transit reader customization opts map."
+  ([in] (transit/reader in))
+  ([in opts] (transit/reader in opts)))
+
+(defn writer
+  "Create a transit reader. This writer can handler the tempid type.
+   Can pass transit writer customization opts map."
+  ([out] (transit/writer out))
+  ([out opts] (transit/writer out opts)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CONFIG
@@ -38,9 +62,13 @@
   "Calls load-edn on `file-path`,
   and throws an ex-info if that failed."
   [file-path]
-  (or (some-> file-path load-edn)
-    (throw (ex-info (str "Invalid config file at '" file-path "'")
-             {:file-path file-path}))))
+  (timbre/info "Reading configuration file at " file-path)
+  (if-let [edn (some-> file-path load-edn)]
+    edn
+    (do
+      (timbre/error "Unable to read configuration file " file-path)
+      (throw (ex-info (str "Invalid config file at '" file-path "'")
+               {:file-path file-path})))))
 
 (def get-defaults open-config-file)
 (def get-config open-config-file)
@@ -77,6 +105,7 @@
   component/Lifecycle
   (start [this]
     (let [config (or value (load-config {:config-path config-path}))]
+      (timbre/debug "Loaded configuration: " (pr-str config))
       (assoc this :value config)))
   (stop [this] this))
 
@@ -103,8 +132,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- write [x t opts]
   (let [baos (ByteArrayOutputStream.)
-        w    (om/writer baos opts)
-        _    (transit/write w x)
+        w    (writer baos opts)
+        _    (ct/write w x)
         ret  (.toString baos)]
     (.reset baos)
     ret))
@@ -118,9 +147,9 @@
   (let [[res _] (transit-request? request)]
     (if res
       (if-let [body (:body request)]
-        (let [rdr (om/reader body opts)]
+        (let [rdr (reader body opts)]
           (try
-            [true (transit/read rdr)]
+            [true (ct/read rdr)]
             (catch Exception ex
               [false nil])))))))
 
@@ -259,9 +288,9 @@ default-malformed-response
 (defn parser-mutate-error->response
   [mutation-result]
   (let [raise-error-data (fn [item]
-                           (if (and (map? item) (contains? item :om.next/error))
-                             (let [exception-data (serialize-exception (get-in item [:om.next/error]))]
-                               (assoc item :om.next/error exception-data))
+                           (if (and (map? item) (contains? item :fulcro.client.primitives/error))
+                             (let [exception-data (serialize-exception (get-in item [:fulcro.client.primitives/error]))]
+                               (assoc item :fulcro.client.primitives/error exception-data))
                              item))
         mutation-errors  (clojure.walk/prewalk raise-error-data mutation-result)]
 
@@ -278,10 +307,11 @@ default-malformed-response
 (defn valid-response? [result]
   (and
     (not (instance? Exception result))
-    (not (some (fn [[_ {:keys [om.next/error]}]] (some? error)) result))))
+    (not (some (fn [[_ {:keys [fulcro.client.primitives/error]}]] (some? error)) result))))
 
 (defn raise-response
-  "For om mutations, converts {'my/mutation {:result {...}}} to {'my/mutation {...}}"
+  "Mutations running through a parser all come back in a map like this {'my/mutation {:result {...}}}. This function
+  converts that to {'my/mutation {...}}."
   [resp]
   (reduce (fn [acc [k v]]
             (if (and (symbol? k) (not (nil? (:result v))))
@@ -290,20 +320,20 @@ default-malformed-response
     {} resp))
 
 (defn augment-map
-  "Parses response the top level values processing the augmented response. This function
-  expects the parser mutation results to be raised (use the raise-response function)."
+  "Fulcro queries and mutations can wrap their responses with `augment-response` to indicate they need access to
+   the raw Ring response. This function processes those into the response.
+
+  IMPORTANT: This function expects that the parser results have already been raised via the raise-response function."
   [response]
   (->> (keep #(some-> (second %) meta :fulcro.server/augment-response) response)
     (reduce (fn [response f] (f response)) {})))
 
 (defn generate-response
-  "Generate a response containing status code, headers, and body.
-  The content type will always be 'application/transit+json',
-  and this function will assert if otherwise."
-  [{:keys [status body headers] :or {status 200} :as input}]
-  {:pre [(not (contains? headers "Content-Type"))
-         (and (>= status 100) (< status 600))]}
-  (-> (assoc input :status status :body body)
+  "Generate a Fulcro-compatible response containing at least a status code, headers, and body. You should
+  pre-populate at least the body of the input-response.
+  The content type of the returned response will always be pegged to 'application/transit+json'."
+  [{:keys [status body headers] :or {status 200} :as input-response}]
+  (-> (assoc input-response :status status :body body)
     (update :headers assoc "Content-Type" "application/transit+json")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -362,7 +392,7 @@ default-malformed-response
   component/Lifecycle
   (start [this]
     (let [api-url     (cond->> "/api" app-name (str "/" app-name))
-          api-parser  (om/parser (comp-api-modules this))
+          api-parser  (parser (comp-api-modules this))
           api-handler (partial handle-api-request api-parser)]
       (assoc this
         :handler api-handler
@@ -434,7 +464,7 @@ default-malformed-response
 ;; Pre-built parser support
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmulti server-mutate om/dispatch)
+(defmulti server-mutate dispatch)
 
 
 (s/def ::mutation-args (s/cat
@@ -461,21 +491,42 @@ default-malformed-response
                        This macro expands just like the client defmutation (though it uses server multimethod and only
                        support `action`).
 
-                       NOTE: It will only work if you're using the `fulcro-parser` as your server's Om parser.
+                       NOTE: It will only work if you're using the `fulcro-parser` as your server's parser.
+
+                       There is special support for placing the action as a var in the namespace. This support
+                       only work when using a plain symbol. Simple add `:intern` metadata to the symbol. If
+                       the metadata is true, it will intern the symbol as-is. It it is a string, it will suffix
+                       the symbol with that string. If it is a symbol, it will use that symbol. The interned
+                       symbol will act like the action side of the mutation, and has the signature:
+                       `(fn [env params])`. This is also useful in devcards for using mkdn-pprint-source on mutations,
+                       and should give you docstring and navigation support from nREPL.
                        "
             :arglists '([sym docstring? arglist action])} defmutation
   [& args]
   (let [{:keys [sym doc arglist action remote]} (util/conform! ::mutation-args args)
-        fqsym      (if (namespace sym)
-                     sym
-                     (symbol (name (ns-name *ns*)) (name sym)))
+        fqsym           (if (namespace sym)
+                          sym
+                          (symbol (name (ns-name *ns*)) (name sym)))
+        intern?         (-> sym meta :intern)
+        interned-symbol (cond
+                          (string? intern?) (symbol (namespace fqsym) (str (name fqsym) intern?))
+                          (symbol? intern?) intern?
+                          :else fqsym)
+        doc             (or doc "")
         {:keys [action-args action-body]} (if action
                                             (util/conform! ::action action)
                                             {:action-args ['env] :action-body []})
-        env-symbol (gensym "env")]
-    `(defmethod fulcro.server/server-mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
-       (let [~(first action-args) ~env-symbol]
-         {:action (fn [] ~@action-body)}))))
+        env-symbol      (gensym "env")
+        multimethod     `(defmethod fulcro.server/server-mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
+                           (let [~(first action-args) ~env-symbol]
+                             {:action (fn [] ~@action-body)}))]
+    (if intern?
+      `(def ~interned-symbol ~doc
+         (do
+           ~multimethod
+           (fn [~(first action-args) ~(first arglist)]
+             ~@action-body)))
+      multimethod)))
 
 (defmulti read-entity
   "The multimethod for Fulcro's built-in support for reading an entity."
@@ -487,10 +538,10 @@ default-malformed-response
 (declare server-read)
 
 (defn fulcro-parser
-  "Builds and returns an Om parser that uses Fulcro's query and mutation handling. See `defquery-entity`, `defquery-root`,
+  "Builds and returns a parser that uses Fulcro's query and mutation handling. See `defquery-entity`, `defquery-root`,
   and `defmutation` in the `fulcro.server` namespace."
   []
-  (om/parser {:read server-read :mutate server-mutate}))
+  (parser {:read server-read :mutate server-mutate}))
 
 (s/def ::action (s/cat
                   :action-name (fn [sym] (= sym 'action))
@@ -514,7 +565,7 @@ default-malformed-response
   (value [env id params] {:db/id id :person/name \"Joe\"}))
 
   The `env` argument will be the server parser environment, which will include all of your component injections, the AST for
-  this query, along with the subquery (see Om docs). `id` will be the ID of the entity to load. `params` will be any additional
+  this query, along with the subquery. `id` will be the ID of the entity to load. `params` will be any additional
   params that were sent via the client `load` (i.e. `(load this [:person/by-id 1] Person {:params {:auth 1223555}})`).
 "
             :arglists '([entity-type docstring? value])} defquery-entity
@@ -567,10 +618,10 @@ The return value of `value` will be sent to the client.
          {:value v#}))))
 
 (defn server-read
-  "A built-in read method for Fulcro's built-in server Om parser."
+  "A built-in read method for Fulcro's built-in server parser."
   [env k params]
   (let [k (-> env :ast :key)]
-    (if (om.util/ident? k)
+    (if (util/ident? k)
       (read-entity env (first k) (second k) params)
       (read-root env k params))))
 

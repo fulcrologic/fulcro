@@ -1,15 +1,22 @@
 # The Benefits of Fulcro
 
-In a nutshell: Fulcro eliminates a lot of incidental complexity. It allows you to think
+In a nutshell: Fulcro eliminates a lot of incidental complexity.
+
+It allows you to think
 about rendering as a pure function of data, which then allows you to think about the
 clean evolution of your data model from one state to the next through *mutations* on that
 data model (atomic steps that complete one operation). The UI pretty much takes care
 of itself.
 
-In the interest of giving you some talking points:
+We understand that it is hard for you to take our word for it, but framework
+evaluation does require the reader to put in some effort. However, we also
+understand you're busy, so in the interest of giving you some talking points:
 
 ## Why to Use Fulcro
 
+- *Dramatically* reduce the amount of code you have to write. Fulcro apps are
+a *lot* smaller than the equivalent React/Relay/Redux variant.
+- Most asynchrony evaporates! Callbacks? We (mostly) don't need them.
 - Use an advanced, fast, FP language on both the client and server.
 - Reason about the UI as a pure function (no "bit twiddling" to modify the DOM).
 - Reason about the data model as a pure graph of data (mostly separate from the UI).
@@ -23,7 +30,7 @@ mechanisms (no two-way data binding causing (or failing to cause) storms of refr
 - It is [React](https://facebook.github.io/react/)-based: The rendering itself is done by a widely used, supported, and robust library.
 - The data and communication model is similar to that of GraphQL and Falcor, but simplified via a concise Datomic-like graph query language.
     - Read about [data driven architectures](https://medium.com/@env/demand-driven-development-relay-falcor-om-next-75818bd54ea1).
-    - The Om Next model makes [CQRS](https://www.youtube.com/watch?v=qDNPQo9UmJA) pretty easy to add for both auditing and performance.
+    - The model makes [CQRS](https://www.youtube.com/watch?v=qDNPQo9UmJA) pretty easy to add for both auditing and performance.
 - It has a strong FP flair:
     - Rendering is done as a pure function.
     - No in-place mutation (persistent data structures).

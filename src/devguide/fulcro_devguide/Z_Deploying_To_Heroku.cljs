@@ -1,7 +1,7 @@
 (ns fulcro-devguide.Z-Deploying-To-Heroku
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc
@@ -44,68 +44,7 @@
   Just follow the directions when adding a project. We've only used the git deployment method. Make sure you don't have
   a generated `pom.xml` as well as a `project.clj` file, or your project might get built using Maven instead of Lein.
 
-  ## Sample Project File
+  ## Sample Project
 
-  For reference, here are the non-dev parts of a project file that was working at the time of this writing:
-
-  ```
-  (defproject rad \"0.1.0-SNAPSHOT\"
-              :description \"RAD Project\"
-              :min-lein-version \"2.6.1\"  ;; VERY IMPORTANT!
-
-              :dependencies [[org.clojure/clojure \"1.8.0\"]
-                             [org.clojure/clojurescript \"1.9.229\"]
-                             [commons-io \"2.5\"]
-
-                             [fulcrologic/fulcro-client \"0.5.6\"]
-                             [fulcro/om-css \"1.0.0\"]
-                             [org.omcljs/om \"1.0.0-alpha45\"]
-
-                             [liberator \"0.14.1\"]
-                             [compojure \"1.5.1\"]
-
-                             [cljsjs/victory \"0.9.0-0\"]
-                             [fulcrologic/fulcro-spec \"0.3.9\" :scope \"test\"]
-                             [org.clojure/core.async \"0.2.391\"]
-                             [http-kit \"2.2.0\"]
-                             [com.taoensso/timbre \"4.3.1\"]
-                             [fulcrologic/fulcro-server \"0.6.2\" :exclusions [hiccup]]]
-
-              :plugins [[lein-cljsbuild \"1.1.4\"]]
-
-              :uberjar-name \"rad.jar\"
-
-              :source-paths [\"src/server\"]
-
-              :profiles {:uberjar {:main       rad.core
-                                   :aot        :all
-                                   :prep-tasks [\"compile\"
-                                                [\"cljsbuild\" \"once\" \"production\"]]
-                                   :cljsbuild  {:builds [{:id           \"production\"
-                                                          :source-paths [\"src/client\"]
-                                                          :jar          true
-                                                          :compiler     {:main          rad.main
-                                                                         :output-to     \"resources/public/js/rad.min.js\"
-                                                                         :output-dir    \"resources/public/js/prod\"
-                                                                         :asset-path    \"js/prod\"
-                                                                         :optimizations :simple}}]}}})
-  ```
-
-  with the following source layout:
-
-  ```
-  |-- resources
-  |   +-- public
-  |       |-- css
-  |       +-- js
-  +-- src
-      |-- client
-      |   +-- rad
-      |       |-- state
-      |       +-- ui
-      +-- server
-          |-- config
-          +-- rad
-              |-- api
-  ```
+  The [fulcro-template](http://github.com/fulcrologic/fulcro-template) is pre-configured for easy deployment to Heroku.
   ")

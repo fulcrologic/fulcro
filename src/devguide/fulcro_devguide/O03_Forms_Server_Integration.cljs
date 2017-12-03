@@ -2,11 +2,10 @@
   (:require
     [clojure.string :as str]
     [com.stuartsierra.component :as component]
-    [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]
-    [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.core :as fc]
+    [devcards.core :as dc :refer-macros [ defcard-doc]]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client :as fc]
     [fulcro.client.mutations :as m]
     [fulcro.ui.forms :as f]
     [fulcro.i18n :refer [tr]]))
@@ -28,8 +27,8 @@
 
   ## Handling Submission of a Form
 
-  Form submission has some general helpers. In general, it is recommended that you write your own
-  custom mutation to do a form submission, but there is a general-purpose mutation that can also do it
+  Form submission has some general helpers. In general, *it is recommended that you write your own
+  custom mutation to do a form submission*, but there is a general-purpose mutation that can also do it
   for you.
 
   The advantage of using the general-purpose mutation is that it is already written, but the disadvantage is that
@@ -42,8 +41,8 @@
   ### Built-in Form Submisssion – `commit-to-entity`
 
   A form submission can be done via the `commit-to-entity` function/mutation with the inclusion
-  of a `:remote` flag. The function version `commit-to-entity!` is a simple wrapper of an
-  Om `transact!` that invokes the Om `f/commit-to-entity` mutation (where `f` is the forms namespace).
+  of a `:remote` flag. The function version `commit-to-entity!` is a simple wrapper of a
+  `transact!` that invokes the `f/commit-to-entity` mutation (where `f` is the forms namespace).
   The former is a convenience, and the latter is more useful when you want to compose commit with
   other transaction actions (such as navigation away from the form).
 
@@ -124,10 +123,10 @@
   ```
   (ns amazing-server.mutations
   (:require
-  [om.next :as om]
+  [fulcro.client.primitives :as prim]
   [fulcro.ui.forms :as f]))
 
-  (defmulti my-mutate om/dispatch)
+  (defmulti my-mutate prim/dispatch)
 
   ;; NOTE: the syntax quote will honor the `f` aliasing in the ns.
   (defmethod my-mutate `f/commit-to-entity [env k params]
@@ -169,9 +168,9 @@
 
   ### New Entities
 
-  When a form (and/or subforms) is submitted that has a primary ID whose value is an Om tempid then
+  When a form (and/or subforms) is submitted that has a primary ID whose value is a tempid then
   the incoming commit parameters will include the `:form/new-entities` key. The value of this entry is just like
-  that of `:form/updates`, but the ID in the ident will be an Om tempid (which you must send remaps
+  that of `:form/updates`, but the ID in the ident will be a tempid (which you must send remaps
   back for), and the map of data will include all attributes of that entity that were declared as part
   of the form.
 

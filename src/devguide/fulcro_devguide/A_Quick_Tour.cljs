@@ -1,8 +1,8 @@
 (ns fulcro-devguide.A-Quick-Tour
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
-            [fulcro.client.core :as fc]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
+            [fulcro.client :as fc]
             [fulcro.client.network :as fcn]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
@@ -13,76 +13,76 @@
 (defn increment-counter [counter] (update counter :counter/n inc))
 
 (defui ^:once Counter
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this {:keys [id start]
                         :or   {id 1 start 1}
                         :as   params}] {:counter/id id :counter/n start})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:counter/id :counter/n])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:counter/by-id (:counter/id props)])
   Object
   (render [this]
-    (let [{:keys [counter/id counter/n]} (om/props this)
-          onClick (om/get-computed this :onClick)]
+    (let [{:keys [counter/id counter/n]} (prim/props this)
+          onClick (prim/get-computed this :onClick)]
       (dom/div #js {:className "counter"}
         (dom/span #js {:className "counter-label"}
           (str "Current count for counter " id ":  "))
         (dom/span #js {:className "counter-value"} n)
         (dom/button #js {:onClick #(onClick id)} "Increment")))))
 
-(def ui-counter (om/factory Counter {:keyfn :counter/id}))
+(def ui-counter (prim/factory Counter {:keyfn :counter/id}))
 
 (defmethod m/mutate 'counter/inc [{:keys [state] :as env} k {:keys [id] :as params}]
   {:remote true
    :action (fn [] (swap! state update-in [:counter/by-id id] increment-counter))})
 
 (defui ^:once CounterPanel
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params]
-    {:counters [(fc/get-initial-state Counter {:id 1 :start 1})]})
-  static om/IQuery
-  (query [this] [{:counters (om/get-query Counter)}])
-  static om/Ident
+    {:counters [(prim/get-initial-state Counter {:id 1 :start 1})]})
+  static prim/IQuery
+  (query [this] [{:counters (prim/get-query Counter)}])
+  static prim/Ident
   (ident [this props] [:panels/by-kw :counter])
   Object
   (render [this]
-    (let [{:keys [counters]} (om/props this)
-          click-callback (fn [id] (om/transact! this
+    (let [{:keys [counters]} (prim/props this)
+          click-callback (fn [id] (prim/transact! this
                                     `[(counter/inc {:id ~id}) :counter-sum]))]
       (dom/div nil
         ; embedded style: kind of silly in a real app, but doable
         (dom/style nil ".counter { width: 400px; padding-bottom: 20px; }
                         button { margin-left: 10px; }")
-        (map #(ui-counter (om/computed % {:onClick click-callback})) counters)))))
+        (map #(ui-counter (prim/computed % {:onClick click-callback})) counters)))))
 
-(def ui-counter-panel (om/factory CounterPanel))
+(def ui-counter-panel (prim/factory CounterPanel))
 
 (defui ^:once CounterSum
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] {})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [[:counter/by-id '_]])
   Object
   (render [this]
-    (let [{:keys [counter/by-id]} (om/props this)
+    (let [{:keys [counter/by-id]} (prim/props this)
           total (reduce (fn [total c] (+ total (:counter/n c))) 0 (vals by-id))]
       (dom/div nil
         (str "Grand total: " total)))))
 
-(def ui-counter-sum (om/factory CounterSum))
+(def ui-counter-sum (prim/factory CounterSum))
 
 (defui ^:once Root
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params]
-    {:panel (fc/get-initial-state CounterPanel {})})
-  static om/IQuery
+    {:panel (prim/get-initial-state CounterPanel {})})
+  static prim/IQuery
   (query [this] [:ui/loading-data
-                 {:panel (om/get-query CounterPanel)}
-                 {:counter-sum (om/get-query CounterSum)}])
+                 {:panel (prim/get-query CounterPanel)}
+                 {:counter-sum (prim/get-query CounterSum)}])
   Object
   (render [this]
-    (let [{:keys [ui/loading-data counter-sum panel]} (om/props this)]
+    (let [{:keys [ui/loading-data counter-sum panel]} (prim/props this)]
       (dom/div nil
         (when loading-data
           (dom/span #js {:style #js {:float "right"}} "Loading..."))
@@ -118,8 +118,8 @@
                               nil)})
     nil))
 
-; Om Next query parser. Calls read/write handlers with keywords from the query
-(def server-parser (om/parser {:read read-handler :mutate write-handler}))
+; query parser. Calls read/write handlers with keywords from the query
+(def server-parser (prim/parser {:read read-handler :mutate write-handler}))
 
 ; Simulated server. You'd never write this part
 (defn server [env tx]
@@ -138,35 +138,45 @@
   "# Quick Tour
 
   Fulcro is meant to be as simple as possible, but as Rich Hickey would tell you:
-  simple does not mean easy. Fortunately, hard vs. easy is something you can fix just by learning.
+  simple does not mean easy. Fortunately, hard vs. easy is something you can fix just by learning. English is easy
+  for me (and probably you, since you're reading this guide), but it is hardly simple (lacking in complexity). However,
+  study it long enough and it becomes easier.
 
-  Om Next (the lower layer of Fulcro) takes a very progressive approach
-  to web development, and as such requires that you understand some new
-  concepts. This is *by far* the most difficult part of adapting to Fulcro.
+  Software is rife with incidental complexities that are brought on by poor overall design, paltry language features (e.g. only classes),
+  side-effects, and in-place mutations.
 
-  In this quick tour our intention is to show you a full-stack Fulcro
-  application. We hope that as you read this Quick Start you will
+  Fulcro takes a very progressive approach to web development to minimize these while still providing what you need to do your job. Other
+  libraries are primarily concerned with the UI, and they leave the data model and server interaction up to you. We think
+  this is a big mistake. The rapid start-up leads developers down an ad-hoc path that typically results in a very hard to
+  navigate and reason-about code base.
+
+  Fulcro requires you follow some rules and learn a new way of doing things. This is *by far* the most difficult part of adapting to Fulcro,
+  but we hope you stick with it long enough to see that it is worth it!
+
+  In this quick tour our intention is to show you a full-stack Fulcro application. We hope that as you read this Quick Start you will
   start to comprehend how *simple* the resulting structure is:
 
   - No controllers are needed, ever.
-  - Networking becomes mostly transparent, and gives a synchronous reasoning model (by default)
+  - Networking becomes mostly transparent, and gives a *synchronous* reasoning model (by default)
   - Server and client code structure are identical. In fact, this tour leverages this fact to simulate server code in
   the browser that is identical to what you'd *put* on the server.
   - The reasoning at the UI layer can be completely local.
   - The reasoning at the model layer can be completely local.
   - The render refresh story is mostly automatic, and where it isn't, it
-  is completely abstracted from the UI structure to ease developer reasoning.
+  is completely abstracted to the concepts in your data model, and away from the (possibly refactored) UI structure.
+  - Refactoring UI becomes a much simpler task. In fact, picking up any part of your application and embedding it in a
+  devcard become almost trivial!
 
-  If you're coming from Om Next, you should know that Fulcro is *not* a competing project. Fulcro is a set of
-  thin libraries that
-  provide default implementations of all of the artifacts you'd normally have to write to make a full-stack
-   Om Next application. In many cases Fulcro is required to 'make a call' about how to do something.
-   When it does, our documentation tries to discuss the relative merits and costs.
+  If you're coming from Om Next, you should know that while Fulcro inherits a lot of goodness and shares a lot of similarities,
+  it is a different tool.
+  It provides concrete implementations of all of the artifacts you'd normally have to write to make a full-stack
+  Om Next application. It does dynamic queries differently (and in a way that is serializable, and actually navigable in time).
 
-  ## Om Next Components can use Stock React components
+  ## Fulcro can use Stock React components
 
-  The first major strength is that Om Next (and therefore Fulcro) integrates with stock React components. So, if you already
-  understand React then you already have a head start. If you know nothing of React, you should eventually
+  It is a major strength that Fulcro integrates with stock React components (i.e. you can use them from within your code,
+  and you can technically export your components to be used by external react components). So, if you already
+  understand React then you have a head start. If you know nothing of React, you should eventually
   read more about it. For now, we'll cover everything you need to know.
 
   ## The Rendering Model
@@ -181,14 +191,16 @@
   This is a key part of the simplification: You don't have to worry how to keep bits of UI up-to-date.
 
   There is a key difference that users of other frameworks might miss here: not only do you *not* have to figure out
-  the complexities of keeping the DOM up to date: there is no mutation or hidden local state to trip you up.
+  the complexities of keeping the DOM up to date: there is no embedded in-place mutation or hidden local state to trip you up
+  (unless you add it, which we don't advise except in animations).
   As you move from state to state (a sequence of app states, each of which is itself immutable) you can pretend
   as if render re-creates the entire DOM. This means you can test and reason about your UI in isolation from all
-  other logic!
+  other logic! It also means that cool features like time travel and support viewers for in-the-field diagnostics are
+  easy to obtain (our support viewer for viewing a user's history is less than 100 lines of logic).
 
   ## Core Model Concepts
 
-  Fulcro uses a very simple (default Om Next) database format for the application state in the browser. Basically
+  Fulcro uses a very simple database format for the application state in the browser. Basically
   this format is a normalized graph database made of maps and vectors. Anything you show on the UI is structured into
   this database, and can be queried to create arbitrary UI trees for display.
 
@@ -213,7 +225,7 @@
 
   and think about that counter as a complete abstract thing (and write tests and clojure specs for it, etc.).
 
-  The Fulcro database table for counters then looks something like this:
+  The Fulcro database table for counters might look something like this:
 
   ```
   { :counter/by-id { 1 { :counter/id 1 :counter/n 1 }
@@ -221,7 +233,7 @@
                      ...}}
   ```
 
-  A table is just an entry in the database (map) that, by convention, is keyed with a keyword whose  namespace indicates
+  A table is just an entry in the database (map) that, by convention, is keyed with a keyword whose namespace indicates
   the kind of thing in the table, and whose name indicates how it is indexed. The k-v pairs in the table are the keys
   (of the implied index) and the values of the actual data.
 
@@ -249,7 +261,7 @@
   - The concept of an abstract mutation can isolate the UI from networking, server interactions, and async thinking.
   - Abstract mutations give nice auditing and comprehension on both client and server.
 
-  The main UI entry point for affecting a change is the `om/transact!` function. This function lets you submit
+  The main UI entry point for affecting a change is the `prim/transact!` function. This function lets you submit
   an abstract sequence of operations that you'd like to accomplish, and isolates the UI author from the details of
   implementing that behavior (and of even having to know things like 'will that happen locally or on the server?').
 
@@ -257,14 +269,16 @@
   of the operations listed in the transaction:
 
   ```
-  (om/transact! this `[(counter/inc {:id ~id})])
+  (prim/transact! this `[(counter/inc {:id ~id})])
   ```
 
   in the above transaction, we must use Clojure syntax quoting so that we can list an abstract mutation (which looks like
   a function call, but is not) and parameters that themselves are derived from the environment (in this case
   an id). If you're not a Clojure(script) programmer, we understand that the above expression looks a little scary. The
-  '&grave;' means 'treat the following thing literally', and the '~' means 'don't treat this thing literally'. It's a way of keeping the compiler from treating the increment as a function while still being able to embed `id` from the local
-  execution environment.
+  '&grave;' means 'treat the following thing literally', and the '~' means 'don't treat this thing literally'. It's a way of
+  keeping the compiler from treating the increment as a function while still being able to embed `id` from the local
+  execution environment. Our goal is to be able to *record* what is going on, thus we want mutations to start out as
+  *pure data*.
 
   The concrete implementation of the mutation on the model side looks like this:
 
@@ -282,10 +296,20 @@
   dispatched on the symbol mentioned in the `transact!`. The basics are:
 
   - You key on a symbol instead of writing a function with that symbol name (this is what gives an abstraction that
-  is already 'network ready')
+  is already 'network ready' by being **just** data)
   - You return a map
   - The `:action` key of that map specifies a function to run to accomplish the optimistic update to the browser database. The
   use of a thunk (function) here is what helps isolate asynchronous internals and networking from synchronous abstract reasoning.
+
+  There's even some syntactic sugar to make it a little nicer to read:
+
+  ```
+  ; Identical to defmethod (defmutation is a macro that emits a defmethod(, but less error-prone and shorter to type
+  (defmutation 'counter/inc [{:keys [id] :as params}]
+    (action [{:keys [state] :as env}]
+      (swap! state update-in [:counter/by-id id] increment-counter)))
+  ```
+
 
   When you want to interact with a server, you need merely change it to:
 
@@ -295,6 +319,12 @@
       :action
         (fn []
           (swap! state update-in [:counter/by-id id] increment-counter))})
+
+  ; OR, with sugar
+  (defmutation 'counter/inc [{:keys [id] :as params}]
+    (action [{:keys [state] :as env}]
+      (swap! state update-in [:counter/by-id id] increment-counter))
+    (remote [env] true))
   ```
 
   and then write a similar function on the server that has an `:action` to affect the change on the server!
@@ -305,11 +335,11 @@
   - Sychronous *reasoning* about most aspects of the application.
   - Local optimistic (immediate) updates (through `:action`)
   - Automatically plumbed server interactions (triggered through `:remote` at transaction time)
-  - Use of the same abstract symbol for the operation on the client and server.
+  - Use of the same abstract symbol for the operation on the client and server. The UI need not know what is local vs remote.
   - Operations in the UI and on the server are identical in appearance.
   - Consistent implementation pattern for model manipulations on the client and server.
   - The operations 'on the wire' read like abstract function calls, and lead to easy auditing and reasoning, or
-  even easy-to-implement CQRS architectures.
+  even easy-to-implement CQRS architectures. They can also be persisted in any way you please.
 
   ## An Example
 
@@ -338,7 +368,7 @@
   same data.
   - Object/render : This is the (pure) function that outputs what a Counter should look like on the DOM
 
-  The incoming data from the database comes in via `om/props`, and things like callbacks come in via a mechanism known
+  The incoming data from the database comes in via `prim/props`, and things like callbacks come in via a mechanism known
   as the 'computed' data (e.g. stuff that isn't in the database, but is generated by the UI, such as callbacks).
 
   A `defui` generates a React Component (class). In order to render an instance of a Counter, we must make an element
@@ -409,23 +439,23 @@
   - `:ui/loading-data` is a special key, available at the root, that is true when data is loading over the network
   - We compose in another component we've yet to discuss (which sums all counters). We'll talk more about that shortly
 
-  There should be no surprises here. It is the same pattern all over again, except Root does not need an `Ident`, since
-  it need not live in a database table. The data for root can just be a standalone map entry (as can other things. There
-  is *no rule that absolutely everything* lives in tables. Top-level entries for other data structures are also useful).
+  There should be no surprises here. It is the same pattern all over again, except Root does cannot have an `Ident`, since
+  it represents the root node of the database itself. The data for root can just be a standalone entries at the top of the
+  database.
 
   ### Starting up the App
 
   Normally you create a Fulcro application and mount it on a DIV in your real HTML DOM. We'll cover that later in the
   Guide. Here we're in devcards and we have a helper to do that. It accepts the same basic parameters as
-  `make-fulcro-app`, but mounts the resulting application in a devcard:
+  `new-fulcro-client`, but mounts the resulting application in a devcard:
 
   ```
-  (defcard SampleApp
-     (fulcro-app Root
-                    :started-callback (fn [app]
+  (defcard-fulcro SampleApp
+     Root
+     {}
+     {:fulcro { :started-callback (fn [app]
                                         (log/info \"Application (re)started\")
-                                        (df/load app :all-counters Counter
-                                          {:target [:panels/by-kw :counter :counters]}))))
+                                        (df/load app :all-counters Counter {:target [:panels/by-kw :counter :counters]}))}})
   ```
 
   In this quick tour we're faking the networking so you can easily explore what the server and client look like in a
@@ -434,9 +464,9 @@
   The `:started-callback` is triggered as the application loads. This is where you can use Fulcro's networking layer
   to pre-fetch data from the server. In our case, we want to get all of the counters. Note that we can (and should) use UI
   queries. This triggers auto-normalization of the response. The `:target` option indicates that the loaded data should
-  be places in the database at the given path (usually 1 to 3 keywords in the vector, since the db is normalized). In
+  be placed in the database at the given path (usually 1 to 3 keywords in the vector, since the db is normalized). In
   this case the ident of the target panel gives the location of the component that wants the counters, and the `:counters`
-  property of that component is where it wants to know about them. Therefore the desired target path is the ident + the property
+  property of that component is the field under which they should be. Therefore the desired target path is the ident + the property
   as a vector.
 
   You'll need to understand a bit more about the structure of the database to completely understand this code, but you
@@ -510,13 +540,13 @@
 
   Thus we can easily use that to calculate our desired UI.
 
-  However, it turns out that we have a problem: Nothing in Fulcro or Om Next will trigger this component to refresh
+  However, it turns out that we have a problem: Nothing in Fulcro will trigger this component to refresh
   when an individual counter changes! The mutations are abstract, and even though you can imagine that the UI refresh is
-  a pure function that recreates the DOM, it is in fact optimized to only refresh the bits that have changed. Since the
-  data that changed wasn't a counter, Om Next will short-circuit the sum for efficiency.
+  a pure function that recreates the DOM, it is in fact optimized to only refresh the bits that are known to have changed. Since the
+  data that changed wasn't a counter, we (accidentally) short-circuit the sum for efficiency.
 
   This is the point of the earlier mysterious `:counter-sum` in the `transact!`. Any keyword that appears in a transaction
-  will cause Om to re-render any component that queried for that property (in our case the Root UI component). These
+  will cause a re-render of any component that *queried* for that property (in our case this is the Root UI component). These
   are called 'follow-on reads', to imply that 'anything that reads the given property should be asked to re-read it
   (and implicitly, this means it will re-render if the value has changed)'.
 

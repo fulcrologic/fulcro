@@ -1,10 +1,10 @@
 (ns fulcro-devguide.O10-Forms-Full-Stack-Demo
   (:require
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [fulcro.client.cards :refer [fulcro-app]]
-    [om.next :as om :refer [defui]]
-    [om.dom :as dom]
-    [fulcro.client.core :as fc]
+    [fulcro.client.cards :refer [defcard-fulcro]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client.dom :as dom]
+    [fulcro.client :as fc]
     [fulcro.client.routing :as r :refer [defrouter]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.logging :as log]
@@ -54,8 +54,8 @@
                               (log/info "Server asked to update unknown entity " table))))
     nil))
 
-; Om Next query parser. Calls read/write handlers with keywords from the query
-(def server-parser (om/parser {:read read-handler :mutate write-handler}))
+; query parser. Calls read/write handlers with keywords from the query
+(def server-parser (prim/parser {:read read-handler :mutate write-handler}))
 
 ; Simulated server. You'd never write this part
 (defn server [env tx]
@@ -92,19 +92,19 @@
   (form-spec [this] [(f/id-field :db/id)
                      (f/text-input :phone/number)
                      (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :phone/type :phone/number f/form-key])
-  static om/Ident
+  static prim/Ident
   (ident [this props] (phone-ident (:db/id props)))
   Object
   (render [this]
-    (let [form (om/props this)]
+    (let [form (prim/props this)]
       (dom/div #js {:className "form-horizontal"}
         ; field-with-label is just a render-helper as covered in basic form documentation
         (field-with-label this form :phone/type "Phone type:")
         (field-with-label this form :phone/number "Number:")))))
 
-(def ui-phone-form (om/factory PhoneForm))
+(def ui-phone-form (prim/factory PhoneForm))
 
 (defn- set-number-to-edit [state-map phone-id]
   (assoc-in state-map [:screen/phone-editor :tab :number-to-edit] (phone-ident phone-id)))
@@ -113,7 +113,7 @@
   (update-in state-map form-ident #(f/build-form form-class %)))
 
 (defmutation edit-phone
-  "Om Mutation: Set up the given phone number to be editable in the
+  "Mutation: Set up the given phone number to be editable in the
   phone form, and route the UI to the form."
   [{:keys [id]}]
   (action [{:keys [state]}]
@@ -125,29 +125,29 @@
                                               :handler      :route/phone-editor}))))))
 
 (defui ^:once PhoneDisplayRow
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/fetch-state :db/id :phone/type :phone/number])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:phone/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [db/id phone/type phone/number]} (om/props this)]
-      (b/row {:onClick #(om/transact! this `[(edit-phone {:id ~id})
-                                             :ui/react-key])}
+    (let [{:keys [db/id phone/type phone/number]} (prim/props this)]
+      (b/row {:onClick #(prim/transact! this `[(edit-phone {:id ~id})
+                                               :ui/react-key])}
         (b/col {:xs 2} (name type)) (b/col {:xs 2} number)))))
 
-(def ui-phone-row (om/factory PhoneDisplayRow {:keyfn :db/id}))
+(def ui-phone-row (prim/factory PhoneDisplayRow {:keyfn :db/id}))
 
 (defui ^:once PhoneEditor
-  static fc/InitialAppState
+  static prim/InitialAppState
   ; make sure to include the :screen-type so the router can get the ident of this component
   (initial-state [cls params] {:screen-type :screen/phone-editor})
-  static om/IQuery
+  static prim/IQuery
   ; NOTE: the query is asking for :number-to-edit. The edit mutation will fill this in before routing here.
-  (query [this] [f/form-root-key :screen-type {:number-to-edit (om/get-query PhoneForm)}])
+  (query [this] [f/form-root-key :screen-type {:number-to-edit (prim/get-query PhoneForm)}])
   Object
   (render [this]
-    (let [{:keys [number-to-edit]} (om/props this)
+    (let [{:keys [number-to-edit]} (prim/props this)
           ; dirty check is recursive and always up-to-date
           not-dirty?  (not (f/dirty? number-to-edit))
           ; validation is tri-state. Most fields are unchecked. Use pure functions to transform the
@@ -156,15 +156,15 @@
           not-valid?  (not valid?)
           save        (fn [evt]
                         (when valid?
-                          (om/transact! this `[(f/commit-to-entity {:form ~number-to-edit :remote true})
+                          (prim/transact! this `[(f/commit-to-entity {:form ~number-to-edit :remote true})
+                                                 (r/route-to {:handler :route/phone-list})
+                                                 ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
+                                                 :main-ui-router])))
+          cancel-edit (fn [evt]
+                        (prim/transact! this `[(f/reset-from-entity {:form-id ~(phone-ident (:db/id number-to-edit))})
                                                (r/route-to {:handler :route/phone-list})
                                                ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
-                                               :main-ui-router])))
-          cancel-edit (fn [evt]
-                        (om/transact! this `[(f/reset-from-entity {:form-id ~(phone-ident (:db/id number-to-edit))})
-                                             (r/route-to {:handler :route/phone-list})
-                                             ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
-                                             :main-ui-router]))]
+                                               :main-ui-router]))]
       (dom/div nil
         (dom/h1 nil "Edit Phone Number")
         (when number-to-edit
@@ -175,15 +175,15 @@
                      :onClick  save} "Save"))))))
 
 (defui ^:once PhoneList
-  static om/IQuery
-  (query [this] [:screen-type {:phone-numbers (om/get-query PhoneDisplayRow)}])
-  static fc/InitialAppState
+  static prim/IQuery
+  (query [this] [:screen-type {:phone-numbers (prim/get-query PhoneDisplayRow)}])
+  static prim/InitialAppState
   ; make sure to include the :screen-type so the router can get the ident of this component
   (initial-state [this params] {:screen-type   :screen/phone-list
                                 :phone-numbers []})
   Object
   (render [this]
-    (let [{:keys [phone-numbers]} (om/props this)]
+    (let [{:keys [phone-numbers]} (prim/props this)]
       (dom/div nil
         (dom/h1 nil "Phone Numbers (click a row to edit)")
         (b/container nil
@@ -197,22 +197,22 @@
   :screen/phone-list PhoneList
   :screen/phone-editor PhoneEditor)
 
-(def ui-top-router (om/factory TopLevelRouter))
+(def ui-top-router (prim/factory TopLevelRouter))
 
 (defui ^:once Root
-  static om/IQuery
-  (query [this] [:ui/react-key {:main-ui-router (om/get-query TopLevelRouter)}])
-  static fc/InitialAppState
+  static prim/IQuery
+  (query [this] [:ui/react-key {:main-ui-router (prim/get-query TopLevelRouter)}])
+  static prim/InitialAppState
   (initial-state [cls params]
     ; merge the routing tree into the app state
     (merge
-      {:main-ui-router (fc/get-initial-state TopLevelRouter {})}
+      {:main-ui-router (prim/get-initial-state TopLevelRouter {})}
       (r/routing-tree
         (r/make-route :route/phone-list [(r/router-instruction :top-router [:screen/phone-list :tab])])
         (r/make-route :route/phone-editor [(r/router-instruction :top-router [:screen/phone-editor :tab])]))))
   Object
   (render [this]
-    (let [{:keys [ui/react-key main-ui-router]} (om/props this)]
+    (let [{:keys [ui/react-key main-ui-router]} (prim/props this)]
       (dom/div #js {:key react-key}
         (ui-top-router main-ui-router)))))
 
@@ -242,7 +242,7 @@
   (dc/mkdn-pprint-source MockNetwork)
   "
 
-  where `server` is pretty much what you have to write on any Fulcro Server: an Om parser with
+  where `server` is pretty much what you have to write on any Fulcro Server: a parser with
   a read and write handler:
 
   "
@@ -360,7 +360,7 @@
 
   ## Commit and Reset
 
-  Commit and reset are a built-in mutations.  They both have cljs and Om-composable version (the former
+  Commit and reset are a built-in mutations.  They both have a function and mutation-composable version (the former
   just calls transact for you). Often you'll want to combine other operations with a commit or
   reset, as is shown in the form editor.
 
@@ -403,16 +403,16 @@
   server-state
   {:inspect-data true})
 
-(defcard
+(defcard-fulcro
   "# The Application
 
   You can enable data inspection on this card to see the client state as you work on the form.
   "
-  (fulcro-app Root
-    :networking (map->MockNetwork {})
-    :started-callback (fn [{:keys [reconciler] :as app}]
-                        (df/load app :all-numbers PhoneDisplayRow {:target  [:screen/phone-list :tab :phone-numbers]
-                                                                   :refresh [:screen-type]})))
+  Root
   {}
-  {:inspect-data false})
+  {:fulcro       {:networking       (map->MockNetwork {})
+                  :started-callback (fn [{:keys [reconciler] :as app}]
+                                      (df/load app :all-numbers PhoneDisplayRow {:target  [:screen/phone-list :tab :phone-numbers]
+                                                                                 :refresh [:screen-type]}))}
+   :inspect-data false})
 

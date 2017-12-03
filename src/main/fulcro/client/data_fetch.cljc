@@ -2,18 +2,27 @@
   (:refer-clojure :exclude [load])
   (:require
     [clojure.walk :refer [walk prewalk]]
-    [om.next :as om]
+    [fulcro.client.primitives :as prim]
     [fulcro.client.impl.data-fetch :as impl]
     [fulcro.client.mutations :refer [mutate defmutation]]
     [fulcro.client.logging :as log]
-    [om.dom :as dom]
-    [fulcro.client.core :as fc]
-    [om.util :as util]))
+    [fulcro.client.dom :as dom]
+    [fulcro.client :as fc]
+    [fulcro.util :as util]
+    [clojure.set :as set]))
 
 (declare load load-action load-field load-field-action)
 
+(defn bool? [v]
+  #?(:clj  (or (true? v) (false? v))
+     :cljs (boolean? v)))
+
+(def marker-table
+  "The name of the table in which fulcro load markers are stored"
+  impl/marker-table)
+
 (defn- computed-refresh
-  "Computes the refresh for the load by ensuring the loaded data is on the Om
+  "Computes the refresh for the load by ensuring the loaded data is on the
   list of things to re-render."
   [explicit-refresh load-key target]
   (let [to-refresh       (set explicit-refresh)
@@ -27,12 +36,25 @@
            (= 1 (count truncated-target)) (conj to-refresh (first target))
            :else to-refresh))))
 
+(defn multiple-targets [& targets]
+  (with-meta (vec targets) {::impl/multiple-targets true}))
+
+(defn prepend-to [target]
+  (with-meta target {::impl/prepend-target true}))
+
+(defn append-to [target]
+  (with-meta target {::impl/append-target true}))
+
+(defn replace-at [target]
+  (with-meta target {::impl/replace-target true}))
+
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation post-mutation-params
                                                   fallback remote without]
                                            :or   {remote :remote marker true parallel false refresh [] without #{}}}]
   {:pre [(or (nil? target) (vector? target))
+         (or (nil? marker) (bool? marker) (keyword? marker))
          (or (nil? post-mutation) (symbol? post-mutation))
          (or (nil? fallback) (symbol? fallback))
          (or (nil? post-mutation-params) (map? post-mutation-params))
@@ -40,11 +62,11 @@
          (or (nil? params) (map? params))
          (set? without)
          (or (util/ident? server-property-or-ident) (keyword? server-property-or-ident))
-         (or (nil? SubqueryClass) #?(:cljs (implements? om/IQuery SubqueryClass)
-                                     :clj  (satisfies? om/IQuery SubqueryClass)))]}
+         (or (nil? SubqueryClass) #?(:cljs (implements? prim/IQuery SubqueryClass)
+                                     :clj  (satisfies? prim/IQuery SubqueryClass)))]}
   (let [query (cond
-                (and SubqueryClass (map? params)) `[({~server-property-or-ident ~(om/get-query SubqueryClass)} ~params)]
-                SubqueryClass [{server-property-or-ident (om/get-query SubqueryClass)}]
+                (and SubqueryClass (map? params)) `[({~server-property-or-ident ~(prim/get-query SubqueryClass)} ~params)]
+                SubqueryClass [{server-property-or-ident (prim/get-query SubqueryClass)}]
                 (map? params) [(list server-property-or-ident params)]
                 :else [server-property-or-ident])]
     {:query                query
@@ -59,8 +81,8 @@
      :fallback             fallback}))
 
 (defn load-mutation
-  "Generates an Om transaction expression for a load mutation. It includes a follow-on read for :ui/loading-data. The args
-  must be a map of the parameters usable from `load`. Returns a complete Om expression (vector), not just the mutation
+  "Generates a transaction expression for a load mutation. It includes a follow-on read for :ui/loading-data. The args
+  must be a map of the parameters usable from `load`. Returns a complete tx (as a vector), not just the mutation
   since follow-on reads are part of the mutation. You may use `concat` to join this with additional expressions."
   [load-args]
   {:pre [(or (nil? (:refresh load-args)) (vector? (:refresh load-args)))]}
@@ -75,15 +97,15 @@
   components that are waiting for data. The `:target` parameter can be used to place the data somewhere besides app
   state root (which is the default).
 
-  The server will receive an Om query of the form: [({server-property (om/get-query SubqueryClass)} params)], which
-  the Om parser will correctly parse as a Join on server-property with the given subquery and params. See Om AST and
-  instructions on parsing Om queries.
+  The server will receive a query of the form: [({server-property (prim/get-query SubqueryClass)} params)], which
+  a Fulcro parser will correctly parse as a join on server-property with the given subquery and params. See the AST and
+  instructions on parsing queries in the developer's guide.
 
   Parameters:
-  - `app-or-comp-or-reconciler` : An Om component instance, Fulcro application, or Om reconciler
+  - `app-or-comp-or-reconciler` : A component instance, Fulcro application, or reconciler
   - `server-property-or-ident` : A keyword or ident that represents the root of the query to send to the server. If this is an ident
   you are loading a specific entity from the database into a local app db table. A custom target will be ignored.
-  - `SubqueryClass` : An Om component that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
+  - `SubqueryClass` : A component that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
     SubqueryClass can be nil, in which case the resulting server query will not be a join.
   - `config` : A map of load configuration parameters.
 
@@ -118,8 +140,8 @@
   "
   ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass] (load app-or-comp-or-reconciler server-property-or-ident SubqueryClass {}))
   ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
-   {:pre [(or (om/component? app-or-comp-or-reconciler)
-            (om/reconciler? app-or-comp-or-reconciler)
+   {:pre [(or (prim/component? app-or-comp-or-reconciler)
+            (prim/reconciler? app-or-comp-or-reconciler)
             #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
                :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler)))]}
    (let [config                  (merge {:marker true :parallel false :refresh [] :without #{}} config)
@@ -128,7 +150,7 @@
                                    (get app-or-comp-or-reconciler :reconciler)
                                    app-or-comp-or-reconciler)
          mutation-args           (load-params* server-property-or-ident SubqueryClass config)]
-     (om/transact! component-or-reconciler (load-mutation mutation-args)))))
+     (prim/transact! component-or-reconciler (load-mutation mutation-args)))))
 
 #?(:cljs
    (defn load-action
@@ -152,18 +174,15 @@
           (load-action env ...)
           ; other optimistic updates/state changes)}
 
-     It is preferable that you use `env` instead of `app-state` for the first argument, as this allows more details to
-     be available for post mutations and fallbacks."
-     ([env-or-state-atom server-property-or-ident SubqueryClass] (load-action env-or-state-atom server-property-or-ident SubqueryClass {}))
-     ([env-or-state-atom server-property-or-ident SubqueryClass config]
-      (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)
-            env    (if (and (map? env-or-state-atom) (contains? env-or-state-atom :state))
-                     env-or-state-atom
-                     {:state env-or-state-atom})]
+     `env` is the mutation's environment parameter."
+     ([env server-property-or-ident SubqueryClass] (load-action env server-property-or-ident SubqueryClass {}))
+     ([env server-property-or-ident SubqueryClass config]
+      {:pre [(and (map? env) (contains? env :state))]}
+      (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
         (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :env env))))))
 
 (defn load-field
-  "Load a field of the current component. Runs `om/transact!`.
+  "Load a field of the current component. Runs `prim/transact!`.
 
   Parameters
   - `component`: The component (**instance**, not class). This component MUST have an Ident.
@@ -182,25 +201,26 @@
 
   NOTE: The :ui/loading-data attribute is always included in refresh. This means you probably don't want to
   query for that attribute near the root of your UI. Instead, create some leaf component with an ident that queries for :ui/loading-data
-  using an Om link (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
-  improve your frame rate because Om will not have to run a full root query.
+  using a link  query (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
+  improve your frame rate because we will not have to run a full root query.
   "
   [component field & {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
                       :or   {remote :remote refresh [] marker true}}]
+  {:pre [(or (nil? marker) (bool? marker) (keyword? marker))]}
   (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
-  (om/transact! component (into [(list 'fulcro/load
-                                   {:ident                (om/get-ident component)
-                                    :field                field
-                                    :query                (om/focus-query (om/get-query component) [field])
-                                    :params               params
-                                    :without              without
-                                    :remote               remote
-                                    :post-mutation        post-mutation
-                                    :post-mutation-params post-mutation-params
-                                    :parallel             parallel
-                                    :marker               marker
-                                    :refresh              refresh
-                                    :fallback             fallback}) :ui/loading-data (om/get-ident component)] refresh)))
+  (prim/transact! component (into [(list 'fulcro/load
+                                     {:ident                (prim/get-ident component)
+                                      :field                field
+                                      :query                (prim/focus-query (prim/get-query component) [field])
+                                      :params               params
+                                      :without              without
+                                      :remote               remote
+                                      :post-mutation        post-mutation
+                                      :post-mutation-params post-mutation-params
+                                      :parallel             parallel
+                                      :marker               marker
+                                      :refresh              refresh
+                                      :fallback             fallback}) :ui/loading-data :ui.fulcro.client.data-fetch.load-markers/by-id (prim/get-ident component)] refresh)))
 
 (defn load-field-action
   "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`
@@ -222,13 +242,14 @@
   be available for post mutations and fallbacks."
   [env-or-app-state component-class ident field & {:keys [without remote params post-mutation post-mutation-params fallback parallel refresh marker]
                                                    :or   {remote :remote refresh [] marker true}}]
+  {:pre [(or (nil? marker) (bool? marker) (keyword? marker))]}
   (impl/mark-ready
     {:env                  (if (and (map? env-or-app-state) (contains? env-or-app-state :state))
                              env-or-app-state
                              {:state env-or-app-state})
      :field                field
      :ident                ident
-     :query                (om/focus-query (om/get-query component-class) [field])
+     :query                (prim/focus-query (prim/get-query component-class) [field])
      :params               params
      :remote               remote
      :without              without
@@ -261,7 +282,7 @@
   load-collection and load-field.
 
   `data-render` : the render method to call once the data has been successfully loaded from
-  the server. Can be an Om factory method or a React rendering function.
+  the server. Can be a factory method or a React rendering function.
 
   `props` : the React properties for the element to be loaded.
 
@@ -282,24 +303,24 @@
 
   ```
   (defui Thing
-    static om/IQuery
-    (query [this] [{:thing2 (om/get-query Thing2)}])
+    static prim/IQuery
+    (query [this] [{:thing2 (prim/get-query Thing2)}])
     Object
     (componentDidMount [this]
        (load-field this :thing2))
 
     (render [this]
-      (let [thing2 (:thing2 (om/props this))]
+      (let [thing2 (:thing2 (prim/props this))]
         (lazily-loaded ui-thing2 thing2))))
 
   (defui Thing2
-    static om/IQuery
+    static prim/IQuery
     (query [this] [:ui/fetch-state])
     Object
     (render [this]
       (display-thing-2))
 
-  (def ui-thing2 (om/factory Thing2))
+  (def ui-thing2 (prim/factory Thing2))
   ```"
   [data-render props & {:keys [ready-render loading-render failed-render not-present-render]
                         :or   {loading-render (fn [_] (dom/div (clj->js {"className" "lazy-loading-load"}) "Loading..."))
@@ -314,20 +335,41 @@
       (and not-present-render (nil? props)) (not-present-render props)
       :else (data-render props))))
 
-(defn refresh! [component]
-  (load component (om/get-ident component) (om/react-type component)))
+(defn refresh!
+  ([component load-options]
+   (load component (prim/get-ident component) (prim/react-type component) load-options))
+  ([component]
+   (load component (prim/get-ident component) (prim/react-type component))))
 
-(defmethod mutate 'fulcro/load
-  [env _ {:keys [post-mutation remote] :as config}]
+(defn- load* [env {:keys [post-mutation remote] :as config}]
   (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
   {(if remote remote :remote) true
    :action                    (fn [] (impl/mark-ready (assoc config :env env)))})
 
-(defmethod mutate `load
-  [env _ {:keys [post-mutation remote] :as config}]
-  (when (and post-mutation (not (symbol? post-mutation))) (log/error "post-mutation must be a symbol or nil"))
-  {(if remote remote :remote) true
-   :action                    (fn [] (impl/mark-ready (assoc config :env env)))})
+(defmethod mutate 'fulcro/load [env _ params] (load* env params))
+(defmethod mutate `load [env _ params] (load* env params))
+
+(defmutation run-deferred-transaction [{:keys [tx reconciler]}]
+  (action [env]
+    (let [reconciler (-> reconciler meta :reconciler)]
+      #?(:clj  (prim/transact! reconciler tx)
+         :cljs (js/setTimeout (fn [] (prim/transact! reconciler tx)) 1)))))
+
+(defmutation deferred-transaction [{:keys [tx remote]}]
+  (action [env]
+    (let [{:keys [reconciler component] :as env} env
+          reconciler (cond
+                       reconciler reconciler
+                       component (prim/get-reconciler component)
+                       :otherwise nil)]
+      (if reconciler
+        (load-action env ::impl/deferred-transaction nil {:post-mutation        `run-deferred-transaction
+                                                          :remote               remote
+                                                          :marker               false
+                                                          :post-mutation-params {:tx         tx
+                                                                                 :reconciler (with-meta {} {:reconciler reconciler})}})
+        (log/error (str "Cannot defer transaction. Reconciler was not available. Tx = " tx)))))
+  (remote [env] (remote-load env)))
 
 (defn- fallback-action*
   [env {:keys [action] :as params}]
@@ -342,10 +384,27 @@
     {:remote true}))
 
 (defmutation fallback
-  "Om mutation: Add a fallback for network failures to the transaction.
+  "mutation: Add a fallback for network failures to the transaction.
 
   Parameters:
   `action` - The symbol of the mutation to run on error."
   [{:keys [action] :as params}]
   (action [env] (when (:execute params) (fallback-action* env params)))
   (remote [env] (not (:execute params))))
+
+(defn get-remote
+  "Returns the remote against which the given mutation will try to execute. Returns nil if it is not a remote mutation"
+  [dispatch-symbol]
+  (try
+    (let [mutation-map (mutate {:ast    (-> (prim/query->ast `[(~dispatch-symbol)]) :children first)
+                                :parser (constantly nil)
+                                :state  (atom {})} dispatch-symbol {})
+          ks           (set (keys mutation-map))
+          remotes      (set/difference ks #{:action :refresh :keys :value})
+          remote       (first remotes)]
+      (if (and remote (get mutation-map remote false))
+        remote
+        nil))
+    (catch #?(:clj Throwable :cljs :default) e
+      (log/error (str "Attempting to get the declared remote for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!"))
+      nil)))

@@ -1,36 +1,36 @@
 (ns fulcro-devguide.N15-Twitter-Bootstrap-Components
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
             [fulcro.client.routing :as routing :refer [defrouter]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
             [cljs.reader :as r]
-            [om.next.impl.parser :as p]
+            [fulcro.client.impl.parser :as p]
             [fulcro-devguide.N10-Twitter-Bootstrap-CSS :refer [render-example sample]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.elements :as ele]
-            [fulcro.client.cards :refer [fulcro-app fulcro-application defcard-fulcro]]
+            [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.ui.bootstrap3 :as b]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [devcards.core :as dc]))
 
 (defui ^:once DropdownRoot
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this props] {:dropdown   (b/dropdown :file "File" [(b/dropdown-item :open "Open")
                                                                      (b/dropdown-item :close "Close")
                                                                      (b/dropdown-divider :divider-1)
                                                                      (b/dropdown-item :quit "Quit")])
                                :dropdown-2 (b/dropdown :select "Select One" [(b/dropdown-item :a "A")
                                                                              (b/dropdown-item :b "B")])})
-  static om/IQuery
-  (query [this] [{:dropdown (om/get-query b/Dropdown)} {:dropdown-2 (om/get-query b/Dropdown)}])
+  static prim/IQuery
+  (query [this] [{:dropdown (prim/get-query b/Dropdown)} {:dropdown-2 (prim/get-query b/Dropdown)}])
   Object
   (render [this]
-    (let [{:keys [dropdown dropdown-2]} (om/props this)]
+    (let [{:keys [dropdown dropdown-2]} (prim/props this)]
       (render-example "100%" "150px"
         (let [select (fn [id] (js/alert (str "Selected: " id)))]
-          (dom/div #js {:height "100%" :onClick #(om/transact! this `[(b/close-all-dropdowns {})])}
+          (dom/div #js {:height "100%" :onClick #(prim/transact! this `[(b/close-all-dropdowns {})])}
             (b/ui-dropdown dropdown :onSelect select :kind :success)
             (b/ui-dropdown dropdown-2 :onSelect select :kind :success :stateful? true)))))))
 
@@ -38,7 +38,7 @@
   "
   # Active Dropdown Component
 
-  Active dropdowns are Om components with state.
+  Active dropdowns are components with state.
 
   - `dropdown` - a function that creates a dropdown's state
   - `dropdown-item` - a function that creates an items with a label
@@ -48,53 +48,53 @@
 
   All labels are run through `tr-unsafe`, so if a translation for the current locale exists it will be used.
 
-  The following Om mutations are are available:
+  The following mutations are are available:
 
   Close (or open) a specific dropdown by ID:
   ```
-  (om/transact! component `[(b/set-dropdown-open {:id :dropdown :open? false})]`)
+  (prim/transact! component `[(b/set-dropdown-open {:id :dropdown :open? false})]`)
   ```
 
   Close dropdowns (globally). Useful for capturing clicks a the root to close dropdowns when the user clicks outside of
   an open dropdown.
 
   ```
-  (om/transact! component `[(b/close-all-dropdowns {})])
+  (prim/transact! component `[(b/close-all-dropdowns {})])
   ```
 
   You can set highlighting on an item in the menu (to mark it as active) with:
 
   ```
-  (om/transact! component `[(b/set-dropdown-item-active {:id :item-id :active? true})])
+  (prim/transact! component `[(b/set-dropdown-item-active {:id :item-id :active? true})])
   ```
 
   An example usage:
 
   ```
   (defui DropdownRoot
-    static fc/InitialAppState
+    static prim/InitialAppState
     (initial-state [this props] {:dropdown (b/dropdown :file \"File\" [(b/dropdown-item :open \"Open\")
                                                                      (b/dropdown-item :close \"Close\")
                                                                      (b/dropdown-divider)
                                                                      (b/dropdown-item :quit \"Quit\")])})
-    static om/IQuery
-    (query [this] [{:dropdown (om/get-query b/Dropdown)}])
+    static prim/IQuery
+    (query [this] [{:dropdown (prim/get-query b/Dropdown)}])
     Object
     (render [this]
-      (let [{:keys [dropdown]} (om/props this)]
+      (let [{:keys [dropdown]} (prim/props this)]
         (b/ui-dropdown dropdown :kind :success :onSelect (fn [id] (js/alert (str \"Selected: \" id)))))))
   ```
 
   generates the dropdown in the card below.
   ")
 
-(defcard dropdown (fulcro-app DropdownRoot) {} {:inspect-data false})
+(defcard-fulcro dropdown DropdownRoot {} {:inspect-data false})
 
 (m/defmutation nav-to [{:keys [page]}]
   (action [{:keys [state]}] (swap! state assoc :current-page page)))
 
 (defui ^:once NavRoot
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this props] {:current-page :home
                                ; Embed the nav in app state as a child of this component
                                :nav          (b/nav :main-nav :tabs :normal
@@ -104,18 +104,18 @@
                                                 (b/dropdown :reports "Reports"
                                                   [(b/dropdown-item :report-1 "Report 1")
                                                    (b/dropdown-item :report-2 "Report 2")])])})
-  static om/IQuery
+  static prim/IQuery
   ; make sure to add the join on the same keyword (:nav)
-  (query [this] [:current-page {:nav (om/get-query b/Nav)}])
+  (query [this] [:current-page {:nav (prim/get-query b/Nav)}])
   Object
   (render [this]
-    (let [{:keys [nav current-page]} (om/props this)]       ; pull the props for nav
+    (let [{:keys [nav current-page]} (prim/props this)]     ; pull the props for nav
       (render-example "100%" "150px"
         (b/container-fluid {}
           (b/row {}
             (b/col {:xs 12}
               ; render it, use onSelect to be notified when nav changes. Note: `nav-to` is just part of this demo.
-              (b/ui-nav nav :onSelect (fn [id] (om/transact! this `[(nav-to ~{:page id})])))))
+              (b/ui-nav nav :onSelect (fn [id] (prim/transact! this `[(nav-to ~{:page id})])))))
           (b/row {}
             (b/col {:xs 12}
               (dom/p #js {} (str "Current page: " current-page)))))))))
@@ -142,21 +142,21 @@
   "
   (dc/mkdn-pprint-source NavRoot))
 
-(defcard nav-tabs (fulcro-app NavRoot) {} {:inspect-data false})
+(defcard-fulcro nav-tabs NavRoot {} {:inspect-data false})
 
 (defui ^:once HomeScreen
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {:screen-type :home})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:screen-type])
   Object
   (render [this]
     (dom/div nil "HOME SCREEN")))
 
 (defui ^:once OtherScreen
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {:screen-type :other})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:screen-type])
   Object
   (render [this]
@@ -167,7 +167,7 @@
   :home HomeScreen
   :other OtherScreen)
 
-(def ui-router (om/factory MainRouter))
+(def ui-router (prim/factory MainRouter))
 
 (m/defmutation select-tab
   "Select the given tab"
@@ -179,21 +179,21 @@
                      (b/set-active-nav-link* :main-nav tab))))))
 
 (defui ^:once RouterRoot
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {
                         :nav    (b/nav :main-nav :tabs :normal
                                   :home
                                   [(b/nav-link :home "Home" false) (b/nav-link :other "Other" false)])
-                        :router (fc/get-initial-state MainRouter {})})
-  static om/IQuery
-  (query [this] [{:router (om/get-query MainRouter)} {:nav (om/get-query b/Nav)}])
+                        :router (prim/get-initial-state MainRouter {})})
+  static prim/IQuery
+  (query [this] [{:router (prim/get-query MainRouter)} {:nav (prim/get-query b/Nav)}])
   Object
   (render [this]
-    (let [{:keys [router nav]} (om/props this)]
+    (let [{:keys [router nav]} (prim/props this)]
       (render-example "100%" "150px"
         (b/container-fluid {}
           (b/row {}
-            (b/col {:xs 12} (b/ui-nav nav :onSelect #(om/transact! this `[(select-tab ~{:tab %})]))))
+            (b/col {:xs 12} (b/ui-nav nav :onSelect #(prim/transact! this `[(select-tab ~{:tab %})]))))
           (b/row {}
             (b/col {:xs 12} (ui-router router))))))))
 
@@ -257,7 +257,7 @@
 
   If you're using something like HTML5 routing, then you'll not only need to make sure the current screen is showing,
   but you'll need to make sure the `Nav` knows which tab to show as active. The bootstrap namespace includes
-  an Om mutation for setting the current nav link `set-active-nav-link`, and a helper function `set-active-nav-link*`
+  an mutation for setting the current nav link `set-active-nav-link`, and a helper function `set-active-nav-link*`
   that can be composed into mutations.
 
   If you're careful to make the IDs of the tabs and screens the same, then you'll be able to ensure lock-step
@@ -290,33 +290,33 @@
     [:person/by-id id-or-props]))
 
 (defui ^:once DemoPerson
-  static om/Ident
+  static prim/Ident
   (ident [this props] (person-ident props))
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :person/name])
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c {:keys [id name]}] {:db/id id :person/name name})
   ;; Just a simple component to display a person
   Object
   (render [this]
-    (let [{:keys [db/id person/name]} (om/props this)]
+    (let [{:keys [db/id person/name]} (prim/props this)]
       (b/container nil
         (b/row nil
           (b/col {:xs 4} "Name: ")
           (b/col {:xs 4} name))))))
 
-(def ui-demoperson (om/factory DemoPerson))
+(def ui-demoperson (prim/factory DemoPerson))
 
 (defui ^:once PersonEditor
   ; share the ident of a person, so we overlay the editor state on a person entity
-  static om/Ident
+  static prim/Ident
   (ident [this props] (person-ident props))
   ; :ui/edited-name is a temporary place to put what the user is typing in the editor. saving will copy this to :person/name
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :person/name :ui/edited-name])
   Object
   (render [this]
-    (let [{:keys [db/id person/name ui/edited-name]} (om/props this)]
+    (let [{:keys [db/id person/name ui/edited-name]} (prim/props this)]
       (b/container nil
         (b/row nil
           (b/col {:xs 4} "Name: ")
@@ -324,7 +324,7 @@
                                          ; leverage helper transact that uses our ident to update data
                                          :onChange #(m/set-string! this :ui/edited-name :event %)})))))))
 
-(def ui-person-editor (om/factory PersonEditor {:keyfn :db/id}))
+(def ui-person-editor (prim/factory PersonEditor {:keyfn :db/id}))
 
 (defn copy-edit-to-name*
   "Copy the current name of the person to the :ui/edited-name field for modal editing. This allows them to cancel
@@ -333,7 +333,7 @@
   (assoc person :person/name (:ui/edited-name person)))
 
 (defmutation save-person
-  "Om mutation: Save a person. Takes the entire person entity as :person"
+  "mutation: Save a person. Takes the entire person entity as :person"
   [{:keys [id]}]
   (action [{:keys [state]}]
     (swap! state update-in (person-ident id) copy-edit-to-name*)))
@@ -351,7 +351,7 @@
   (update-in state (person-ident id) (fn [person] (assoc person :ui/edited-name (:person/name person)))))
 
 (defmutation edit-person
-  "Om mutation: Start editing a person."
+  "mutation: Start editing a person."
   [{:keys [id]}]
   (action [{:keys [state]}]
     (swap! state (fn [s] (-> s
@@ -362,14 +362,14 @@
   ; We're storing both the real modal and the person-editor's state in this custom modal (which combines the two).
   ; The person-editor field will eventually need to point to the person to edit (by ident in the normalized db)
   ; When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
-  static fc/InitialAppState
-  (initial-state [t p] {:person-editor nil :modal (fc/get-initial-state b/Modal {:id :edit-modal :backdrop true :keyboard false})})
+  static prim/InitialAppState
+  (initial-state [t p] {:person-editor nil :modal (prim/get-initial-state b/Modal {:id :edit-modal :backdrop true :keyboard false})})
   ; ident will come from UI router
-  static om/IQuery
-  (query [this] [{:person-editor (om/get-query PersonEditor)} {:modal (om/get-query b/Modal)}])
+  static prim/IQuery
+  (query [this] [{:person-editor (prim/get-query PersonEditor)} {:modal (prim/get-query b/Modal)}])
   Object
   (render [this]
-    (let [{:keys [person-editor modal]} (om/props this)]
+    (let [{:keys [person-editor modal]} (prim/props this)]
       ; The modal container
       (b/ui-modal modal
         (b/ui-modal-title nil
@@ -379,33 +379,33 @@
           ; have more of a tree relation in the UI.
           (ui-person-editor person-editor))
         (b/ui-modal-footer nil
-          (b/button {:key "cancel" :onClick #(om/transact! this `[(b/hide-modal {:id :edit-modal})])} "Cancel")
+          (b/button {:key "cancel" :onClick #(prim/transact! this `[(b/hide-modal {:id :edit-modal})])} "Cancel")
           ; Save can be implemented with respect to the person data. Note, though, that the person-editor
           ; itself may be a stale copy (since the editor can refresh without re-rendering the modal)
           ; Thus, we use the ID from the person editor, which is stable in the context of an editing pop.
-          (b/button {:key "save" :onClick #(om/transact! this `[(save-person {:id ~(:db/id person-editor)})
-                                                                (b/hide-modal {:id :edit-modal})
-                                                                :person/name]) :kind :primary} "Save"))))))
+          (b/button {:key "save" :onClick #(prim/transact! this `[(save-person {:id ~(:db/id person-editor)})
+                                                                  (b/hide-modal {:id :edit-modal})
+                                                                  :person/name]) :kind :primary} "Save"))))))
 
 (defui ^:once WarningModal
   ; NOTE: When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
-  static fc/InitialAppState
-  (initial-state [t p] {:message "Stuff broke" :modal (fc/get-initial-state b/Modal {:id :warning-modal :backdrop true})})
+  static prim/InitialAppState
+  (initial-state [t p] {:message "Stuff broke" :modal (prim/get-initial-state b/Modal {:id :warning-modal :backdrop true})})
   ; ident will come from UI router
-  static om/IQuery
-  (query [this] [:message {:modal (om/get-query b/Modal)}]) ; so a mutation can change the message, in this case.
+  static prim/IQuery
+  (query [this] [:message {:modal (prim/get-query b/Modal)}]) ; so a mutation can change the message, in this case.
   Object
   (render [this]
-    (let [{:keys [message modal]} (om/props this)]
+    (let [{:keys [message modal]} (prim/props this)]
       (b/ui-modal modal
         (b/ui-modal-title nil
           (dom/b #js {:key "warning"} " WARNING!"))
         (b/ui-modal-body nil
           (dom/p #js {:key "message" :className b/text-danger} message))
         (b/ui-modal-footer nil
-          (b/button {:key "ok-button" :onClick #(om/transact! this `[(b/hide-modal {:id :warning-modal})])} "Bummer!"))))))
+          (b/button {:key "ok-button" :onClick #(prim/transact! this `[(b/hide-modal {:id :warning-modal})])} "Bummer!"))))))
 
-(def ui-warning-modal (om/factory WarningModal {:keyfn :id}))
+(def ui-warning-modal (prim/factory WarningModal {:keyfn :id}))
 
 (defrouter ModalRouter :modal-router
   ; REMEMBER: The ident determines the type of thing to render (the first element has to be the same
@@ -416,46 +416,46 @@
   :warning-modal WarningModal
   :edit-modal PersonModal)
 
-(def ui-modal-router (om/factory ModalRouter))
+(def ui-modal-router (prim/factory ModalRouter))
 
 (defn start-person-editor
-  "Run an Om transaction that does all of the steps to edit a given person."
+  "Run a transaction that does all of the steps to edit a given person."
   [comp person-id]
-  (om/transact! comp `[(routing/route-to {:handler :edit})  ; :edit is a route in the routing tree
-                       (edit-person {:id ~person-id})
-                       (b/show-modal {:id :edit-modal})
-                       ; follow-on read ensures re-render at root
-                       :modal-router]))
+  (prim/transact! comp `[(routing/route-to {:handler :edit}) ; :edit is a route in the routing tree
+                         (edit-person {:id ~person-id})
+                         (b/show-modal {:id :edit-modal})
+                         ; follow-on read ensures re-render at root
+                         :modal-router]))
 
 (defn show-warning
-  "Run an Om transaction that does all of the steps to show a warning modal."
+  "Run a transaction that does all of the steps to show a warning modal."
   [comp]
-  (om/transact! comp `[(routing/route-to {:handler :warning}) ; :warning is a route in the routing tree
-                       (b/show-modal {:id :warning-modal})
-                       ; follow-on read ensures re-render at root
-                       :modal-router]))
+  (prim/transact! comp `[(routing/route-to {:handler :warning}) ; :warning is a route in the routing tree
+                         (b/show-modal {:id :warning-modal})
+                         ; follow-on read ensures re-render at root
+                         :modal-router]))
 
 (defui ^:once ModalRoot
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] (merge
                          ; make a routing tree for the two modals and merge it in the app state
                          (routing/routing-tree
                            (routing/make-route :edit [(routing/router-instruction :modal-router [:edit-modal :singleton])])
                            (routing/make-route :warning [(routing/router-instruction :modal-router [:warning-modal :singleton])]))
                          ; general initial state
-                         {:person       (fc/get-initial-state DemoPerson {:id 1 :name "Sam"})
-                          :modal-router (fc/get-initial-state ModalRouter {})}))
-  static om/IQuery
-  (query [this] [:ui/react-key {:person (om/get-query DemoPerson)} {:modal-router (om/get-query ModalRouter)}])
+                         {:person       (prim/get-initial-state DemoPerson {:id 1 :name "Sam"})
+                          :modal-router (prim/get-initial-state ModalRouter {})}))
+  static prim/IQuery
+  (query [this] [:ui/react-key {:person (prim/get-query DemoPerson)} {:modal-router (prim/get-query ModalRouter)}])
   Object
   (render [this]
-    (let [{:keys [:ui/react-key person modal-router]} (om/props this)]
+    (let [{:keys [:ui/react-key person modal-router]} (prim/props this)]
       (render-example "100%" "500px"
         (dom/div #js {:key react-key}
-          (b/button {:onClick #(show-warning this)} "Show Warning")
           ; show the current value of the person
           (ui-demoperson person)
           (b/button {:onClick #(start-person-editor this (:db/id person))} "Edit Person")
+          (b/button {:onClick #(show-warning this)} "Show Warning")
           ; let the router render just the modal we need
           (ui-modal-router modal-router))))))
 
@@ -516,14 +516,14 @@
 
   ```
   (defmutation save-person
-    \"Om mutation: Save a person. Takes the entire person entity as :person\"
+    \"mutation: Save a person. Takes the entire person entity as :person\"
     [{:keys [id]}]
     (action [{:keys [state]}]
       (swap! state update-in (person-ident id) copy-edit-to-name*)))
 
 
   (defmutation edit-person
-    \"Om mutation: Start editing a person.\"
+    \"mutation: Start editing a person.\"
     [{:keys [id]}]
     (action [{:keys [state]}]
       (swap! state (fn [s] (-> s
@@ -562,7 +562,7 @@
 (defui ^:once GridModal
   Object
   (render [this]
-    (b/ui-modal (om/props this)
+    (b/ui-modal (prim/props this)
       (b/ui-modal-title {:key "title"} "A Modal Using a Grid")
       (b/ui-modal-body {:key "my-body"}
         "body"
@@ -576,7 +576,7 @@
           (b/col {:xs 3}
             "Column 4 xs 3"))))))
 
-(def ui-grid-modal (om/factory GridModal {:keyfn :id}))
+(def ui-grid-modal (prim/factory GridModal {:keyfn :id}))
 
 (defcard-doc
   "Modals are allowed to use the grid within the body without a container:"
@@ -588,17 +588,17 @@
 
 (defui ^:once CollapseRoot
   ; Use the initial state of b/Collapse to make the proper state for one
-  static fc/InitialAppState
-  (initial-state [c p] {:collapse-1 (fc/get-initial-state b/Collapse {:id 1 :start-open false})})
+  static prim/InitialAppState
+  (initial-state [c p] {:collapse-1 (prim/get-initial-state b/Collapse {:id 1 :start-open false})})
   ; Join it into your query
-  static om/IQuery
-  (query [this] [{:collapse-1 (om/get-query b/Collapse)}])
+  static prim/IQuery
+  (query [this] [{:collapse-1 (prim/get-query b/Collapse)}])
   Object
   (render [this]
-    (let [{:keys [collapse-1]} (om/props this)]             ; pull it out of props
+    (let [{:keys [collapse-1]} (prim/props this)]           ; pull it out of props
       (render-example "100%" "200px"
         (dom/div nil
-          (b/button {:onClick (fn [] (om/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
+          (b/button {:onClick (fn [] (prim/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
           ; Wrap the elements to be hidden as children
           ; NOTE: if the children need props they could be queried for above and passed in here.
           (b/ui-collapse collapse-1
@@ -624,8 +624,8 @@
   CollapseRoot)
 
 (defn accordian-section [this all-ids collapse]
-  (letfn [(toggle [] (om/transact! this `[(b/toggle-collapse-group-item {:item-id      ~(:db/id collapse)
-                                                                         :all-item-ids ~all-ids})]))]
+  (letfn [(toggle [] (prim/transact! this `[(b/toggle-collapse-group-item {:item-id      ~(:db/id collapse)
+                                                                           :all-item-ids ~all-ids})]))]
     (b/panel {:key (str "section-" (:db/id collapse))}
       (b/panel-heading {:key (str "heading-" (:db/id collapse))}
         (b/panel-title nil
@@ -636,17 +636,17 @@
 
 (defui ^:once CollapseGroupRoot
   ; Create a to-many list of collapse items in app state (or you could do them one by one)
-  static fc/InitialAppState
-  (initial-state [c p] {:collapses [(fc/get-initial-state b/Collapse {:id 1 :start-open false})
-                                    (fc/get-initial-state b/Collapse {:id 2 :start-open false})
-                                    (fc/get-initial-state b/Collapse {:id 3 :start-open false})
-                                    (fc/get-initial-state b/Collapse {:id 4 :start-open false})]})
+  static prim/InitialAppState
+  (initial-state [c p] {:collapses [(prim/get-initial-state b/Collapse {:id 1 :start-open false})
+                                    (prim/get-initial-state b/Collapse {:id 2 :start-open false})
+                                    (prim/get-initial-state b/Collapse {:id 3 :start-open false})
+                                    (prim/get-initial-state b/Collapse {:id 4 :start-open false})]})
   ; join it into the query
-  static om/IQuery
-  (query [this] [:ui/react-key {:collapses (om/get-query b/Collapse)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key {:collapses (prim/get-query b/Collapse)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key collapses]} (om/props this)  ; pull from db
+    (let [{:keys [ui/react-key collapses]} (prim/props this) ; pull from db
           all-ids [1 2 3 4]]                                ; convenience for all ids
       (render-example "100%" "300px"
         ; map over our helper function
@@ -682,13 +682,13 @@
   CollapseGroupRoot)
 
 (defui ^:once CarouselExample
-  static fc/InitialAppState
-  (initial-state [c p] {:carousel (fc/get-initial-state b/Carousel {:id :sample :interval 2000})})
-  static om/IQuery
-  (query [this] [{:carousel (om/get-query b/Carousel)}])
+  static prim/InitialAppState
+  (initial-state [c p] {:carousel (prim/get-initial-state b/Carousel {:id :sample :interval 2000})})
+  static prim/IQuery
+  (query [this] [{:carousel (prim/get-query b/Carousel)}])
   Object
   (render [this]
-    (let [{:keys [carousel]} (om/props this)]
+    (let [{:keys [carousel]} (prim/props this)]
       (render-example "100%" "400px"
         (b/ui-carousel carousel
 
@@ -706,6 +706,6 @@
     "
     (dc/mkdn-pprint-source CarouselExample))
 
-#_(defcard
+#_(defcard-fulcro
     "# Carousel Live Demo"
-    (fulcro-app CarouselExample))
+    CarouselExample)

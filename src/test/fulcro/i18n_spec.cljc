@@ -109,7 +109,7 @@
       (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n 146) => "146")))
 
 #?(:cljs
-   (specification "Formatted Message Customization" :focused
+   (specification "Formatted Message Customization"
      (i18n/merge-custom-formats {:number {:USD {:style "currency", :currency "USD"}}})
 
      (assertions

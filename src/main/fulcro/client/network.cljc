@@ -3,7 +3,7 @@
   (:require [fulcro.client.logging :as log]
             [cognitect.transit :as ct]
     #?(:cljs [goog.events :as events])
-            [om.transit :as t]
+            [fulcro.transit :as t]
             [clojure.string :as str])
   #?(:cljs (:import [goog.net XhrIo EventType])))
 
@@ -100,7 +100,7 @@
 
   Features:
 
-  - Can configure the target URL on the server for Om network requests
+  - Can configure the target URL on the server for network requests
   - Can supply a (fn [{:keys [body headers] :as req}] req') to transform arbitrary requests (e.g. to add things like auth headers)
   - Supports a global error callback (fn [status-code error] ) that is notified when a 400+ status code or hard network error occurs
   - `transit-handlers`: A map of transit handlers to install on the reader, such as

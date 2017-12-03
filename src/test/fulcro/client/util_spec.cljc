@@ -1,52 +1,15 @@
 (ns fulcro.client.util-spec
   (:require
+    clojure.pprint
     [fulcro-spec.core :refer [specification when-mocking assertions behavior]]
+    [fulcro.util :as primutil]
     [fulcro.client.util :as util]
     [clojure.test.check :as tc]
     [clojure.test.check.generators :as gen]
     [clojure.test.check.properties :as prop]
     [clojure.test :refer [is]]
-    [om.dom :as dom]
-    [om.next :as om :refer [defui]]))
-
-#?(:cljs
-   (specification "Log app state"
-     (let [state (atom {:foo        {:a :b
-                                     12 {:c         ["hello" "world"]
-                                         [:wee :ha] {:e [{:e :g}
-                                                         {:a [1 2 3 4]}
-                                                         {:t :k}]
-                                                     :g :h
-                                                     :i :j}}}
-                        {:map :key} {:other :data}
-                        [1 2 3]     :data})]
-
-       (when-mocking
-         (om/app-state _) => state
-         (cljs.pprint/pprint data) => data
-
-         (assertions
-           "Handle non-sequential keys"
-           (util/log-app-state state {:map :key}) => {:other :data}
-
-           "Handles sequential keys"
-           (util/log-app-state state [[1 2 3]]) => :data
-
-           "Handles non-sequential and sequential keys together"
-           (util/log-app-state state [:foo :a] {:map :key}) => {:foo        {:a :b}
-                                                                {:map :key} {:other :data}}
-
-           "Handles distinct paths"
-           (util/log-app-state state [:foo 12 [:wee :ha] :g] [{:map :key}]) => {:foo        {12 {[:wee :ha] {:g :h}}}
-                                                                                {:map :key} {:other :data}}
-
-           "Handles shared paths"
-           (util/log-app-state state [:foo 12 [:wee :ha] :g] [:foo :a]) => {:foo {12 {[:wee :ha] {:g :h}}
-                                                                                  :a :b}}
-
-           "Handles keys and paths together"
-           (util/log-app-state state {:map :key} [:foo 12 :c 1]) => {:foo        {12 {:c {1 "world"}}}
-                                                                     {:map :key} {:other :data}})))))
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 (specification "strip-parameters"
   (behavior "removes all parameters from"
@@ -79,7 +42,7 @@
       )))
 
 (defui A
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:a/by-id (:db/id props)])
   Object
   (render [this] (dom/div nil "")))
@@ -88,17 +51,17 @@
   Object
   (render [this] (dom/div nil "")))
 
-(def ui-a (om/factory A))
-(def ui-b (om/factory B))
+(def ui-a (prim/factory A))
+(def ui-b (prim/factory B))
 
 (specification "get-ident"
   (assertions
     "Can pull the ident from a class when given props"
-    (util/get-ident A {:db/id 1}) => [:a/by-id 1]))
+    (prim/get-ident A {:db/id 1}) => [:a/by-id 1]))
 
 (specification "unique-key"
-  (let [a (util/unique-key)
-        b (util/unique-key)]
+  (let [a (primutil/unique-key)
+        b (primutil/unique-key)]
     (assertions
       "Returns a different value every time"
       (= a b) => false)))
@@ -106,7 +69,7 @@
 (specification "atom?"
   (assertions
     "Detects the atom type"
-    (util/atom? (atom {})) => true))
+    (primutil/atom? (atom {})) => true))
 
 (specification "react-instance?"
   (let [instance (ui-a {})]

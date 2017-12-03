@@ -1,35 +1,35 @@
 (ns fulcro-devguide.F-Fulcro-Initial-App-State
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
-            [fulcro.client.core :as fc]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
+            [fulcro.client :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [cljs.reader :as r]
             [fulcro.client.mutations :as m]))
 
 (defui Child
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [this params] {:id 1 :x 1})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :x])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:child/by-id (:id props)])
   Object
   (render [this]
-    (let [{:keys [x]} (om/props this)]
+    (let [{:keys [x]} (prim/props this)]
       (dom/p nil (str "Child x: " x)))))
 
-(def ui-child (om/factory Child))
+(def ui-child (prim/factory Child))
 
 (defui Root
-  static fc/InitialAppState
-  (initial-state [this params] {:root-prop 42 :child (fc/get-initial-state Child {})})
-  static om/IQuery
-  (query [this] [:ui/react-key :root-prop {:child (om/get-query Child)}])
+  static prim/InitialAppState
+  (initial-state [this params] {:root-prop 42 :child (prim/get-initial-state Child {})})
+  static prim/IQuery
+  (query [this] [:ui/react-key :root-prop {:child (prim/get-query Child)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key root-prop child]} (om/props this)]
+    (let [{:keys [ui/react-key root-prop child]} (prim/props this)]
       (dom/div #js {:style #js {:border "1px solid black"} :key react-key}
         (str "Root prop: " root-prop)
         (ui-child child)))))
@@ -40,41 +40,52 @@
 
   Most applications need some kind of state to represent the starting conditions of an application. You've already
   studied the format of this (the application graph database), you have also worked with queries and have seen
-  how the graph can be turned into a tree. It turns out that the inverse operation is also possible: turning a
-  tree of data into a database through *normalization*!
+  how the normalized graph can be turned into a tree. We've also discussed co-locating an ident generating function
+  to enable auto-normalization, and now it's time to see it in action!
 
   The mechanism uses the ui query and ident functions to walk the tree of data and normalize it. Fulcro leverages this
-  for initial state, and will autodetect a tree of initial data automatically if you simply co-locate it on your
+  for initial state, and will autodetect a tree of initial data automatically if you simply co-locate it (statically) on your
   components using the InitialAppState protocol.
 
   You simply implement this protocol in your component tree (for the components that will initially show) and compose
   it in parallel with your application query and UI tree. This helps quite a bit with local reasoning and makes
   it much easier to find/fix problems with your application's startup. It also makes it trivial when you refactor your
-  UI and move things around: the state just moves with you!
+  UI and move things around: the normalized graph self-heals!
 
   You can see it in action in this [online getting started video](https://youtu.be/vzIrgR9iXOw?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R).
 
   ## The Basics
 
-  There is a built-in normalization mechanism called `om.next/tree->db`. It takes a UI query and some data and turns it
-  into a graph db. The query itself can be used to find the `ident` functions, which are applied to the data in the
-  tree to relocate it into tables.
+  There is a built-in normalization mechanism called `prim/tree->db`. It takes a UI query and some data and turns it
+  into a graph db. This works because when you call `get-query` against a component the component itself is annotated
+  onto the query as metadata. This allows the normalization to look up the correct `ident` function as it walks the
+  query. It is also why a plain hand-written query won't work.
+
+  ```
+  (def q (prim/get-query Root))
+  (-> q meta :component)
+  ;; => Root
+  ```
+
+  If you manually traverse the query `q` you'll find that each node of the query that came from a distinct component
+  has this `:component` metadata entry. This is the magic behind the curtains that allows auto-normalization to work,
+  and is also one of the reasons you call `(get-query Root)` instead of the method *you* defined called `query`.
 
   ## Fulcro and InitialAppState
 
-  If your root component implements the InitialAppState protocol, then Fulcro will detect that, normalize it using `tree->db`,
-  and use it as the initial database for your application.
+  If your root component implements the `InitialAppState` protocol, then Fulcro will detect that and use the query to
+  auto-normalize it using `tree->db`. This will then become your initial normalized graph database for your application.
 
   The steps are as follows:
 
-  1. Implement the InitialAppState protocol
+  1. Implement the `InitialAppState` protocol
      - Return a map of data that matches the query of the component
      - Make sure all of the joins in the query are also represented by composed initial state from the joined component(s)
-  2. Repeat for all children that are part of your initial application state.
+  2. Repeat for all children that need to be part of your *initial* application state.
 
   ```
   (ns ...
-     (:require [fulcro.client.core :as fc]))
+     (:require [fulcro.client :as fc]))
   ```
 
   "
@@ -83,22 +94,24 @@
   (dc/mkdn-pprint-source Root)
 
   "
-  Note the parallel composition of queries and state. It really is that simple: just use the `fc/get-initial-state` function
-  to grab the child state and make sure each component that should appear has some initial state. Be careful that
+  Note the parallel composition of queries and state. It really is that simple: just use the `prim/get-initial-state` function
+  to grab the child state and make sure each component that should appear has some initial state that matches what is
+  asked for in the query. Be careful that
   any component with an ident also has the data in its initial state needed by that `ident` function, or things won't normalize
-  correctly.
+  correctly!
 
-  Note also that we use `fc/get-initial-state` instead of calling the protocol `initial-state` directly. The latter will work
+  Note also that we use `prim/get-initial-state` instead of calling the protocol `initial-state` directly. The latter will work
   in cljs, but if you ever want to use your components with server-side rendering then you'll have a problem. This is because the JVM
-  doesn't support any way of doing `Class<Component> extends InitialAppState` (which is what the `static` qualifier implies).
-  So, for server-sider rendering we have to do a bit of behind-the-scenes magic.
+  doesn't support any way of doing `Class<Component> implements InitialAppState` (which is what the `static` qualifier implies).
+  So, for server-sider rendering we have to do a bit of behind-the-scenes magic that we've wrapped in `get-initial-state`.
 
-  Your top-level creation of the client now becomes much simpler. Fulcro will sense initial state (if it exists in the
+  Your top-level creation of the client now becomes *much* simpler, because you no longer have to worry about some external
+  data structure matching your UI! Fulcro will sense initial state (if it exists in the
   root component), and will automatically:
 
   1. Pull the initial state and use that as base app state
-  2. Ensure that it is normalized by Om
-  3. Will do a post-initialization step to ensure alternate branches of to-one unions are initialized.
+  2. Ensure that it is normalized
+  3. Will do a post-initialization step to ensure *alternate branches* of to-one unions are initialized.
   ")
 
 (defcard-fulcro sample-app
@@ -120,9 +133,9 @@
 
   ```
   ; suggested query on Root component:
-  [{:tab-switcher (om/get-query TabSwitcher)}]
+  [{:tab-switcher (prim/get-query TabSwitcher)}]
   ; which expands to:
-  [{:tab-switcher { :main (om/get-query Main) :settings (om/get-query Settings) }}]
+  [{:tab-switcher { :main (prim/get-query Main) :settings (prim/get-query Settings) }}]
   ```
 
   and the `ident` function generates idents `[:main-tab :id]` and `[:settings-tab :id]` for the two possible tabs. What
@@ -150,19 +163,19 @@
 
   - Scans the full application query for Unions
      - If (and only if) the union is a to-one (it detects a single map as the initial state of the union component instead of a vector)
-        - It checks each component of the union query for initial state
-        - For each component that implements InitialAppState, it merges that component state into the proper table
+        - It checks each *component* (via metadata) of the union *query* for initial state
+        - For each component that implements `InitialAppState`, it normalizes and merges that component state into the database
 
   This ensures that all branches of the to-one union can be initialized in app state.
 
-  The to-many case works without any post-step since you can put the acutal initial state of multiple things into the
-  resulting initial vector of state.
+  The to-many case works without any post-step since you can put the *actual* initial state of multiple things into the
+  resulting initial vector of tree state.
 
   See this [YouTube getting started video](https://youtu.be/Rj6ll6bNXn0?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R) for an in-depth demonstration.
 
   You can also clone [https://github.com/fulcrologic/getting-started-video](https://github.com/fulcrologic/getting-started-video)
   and check out the `tabs-union` tag (`git checkout tabs-union`) to explore a working application using this technique. NOTE: This
-  still uses the legacy Untangled lib and naming. 
+  still uses the legacy Untangled lib and naming.
 
   ## Additional Helpers
 
@@ -189,42 +202,42 @@
   - `:replace ks` : Replace the ident of the merged data at path `ks` (which can be a singleton, or position in vector)
   - `:prepend ks` : Prepend the ident of the merged data onto the vector at path `ks`
 
-  These helpers are descibed in more detail in [Advanced Server Topics](#!/fulcro_devguide.M40_Advanced_Server_Topics).
+  These helpers are descibed in more detail in the doc strings and in [Advanced Server Topics](#!/fulcro_devguide.M40_Advanced_Server_Topics).
 
 ")
 
 
 (defui ^:once AQueryRoot
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [c p] {})                                  ; empty, but present initial state
-  static om/IQuery
+  static prim/IQuery
   (query [this] [[:root-prop '_]])                          ; A asks for something from root, but has no local props (empty map)
   Object
   (render [this]
-    (let [{:keys [root-prop]} (om/props this)]
+    (let [{:keys [root-prop]} (prim/props this)]
       (dom/p nil "A got " (if root-prop root-prop "Nothing!")))))
 
-(def ui-a (om/factory AQueryRoot))
+(def ui-a (prim/factory AQueryRoot))
 
 (defui ^:once BQueryRoot
   ; no initial state
-  static om/IQuery
+  static prim/IQuery
   (query [this] [[:root-prop '_]])                          ; B asks for something from root, no local props (nil for state)
   Object
   (render [this]
-    (let [{:keys [root-prop]} (om/props this)]
+    (let [{:keys [root-prop]} (prim/props this)]
       (dom/p nil "B got " (if root-prop root-prop "Nothing!")))))
 
-(def ui-b (om/factory BQueryRoot))
+(def ui-b (prim/factory BQueryRoot))
 
 (defui ^:once RootQueryRoot
-  static fc/InitialAppState
-  (initial-state [c p] {:root-prop 42 :a (fc/get-initial-state AQueryRoot {}) :b nil}) ; b has no state
-  static om/IQuery
-  (query [this] [{:a (om/get-query AQueryRoot) :b (om/get-query BQueryRoot)}])
+  static prim/InitialAppState
+  (initial-state [c p] {:root-prop 42 :a (prim/get-initial-state AQueryRoot {}) :b nil}) ; b has no state
+  static prim/IQuery
+  (query [this] [{:a (prim/get-query AQueryRoot) :b (prim/get-query BQueryRoot)}])
   Object
   (render [this]
-    (let [{:keys [a b]} (om/props this)]
+    (let [{:keys [a b]} (prim/props this)]
       (dom/div nil
         (ui-a a)
         (ui-b b)))))
@@ -237,23 +250,23 @@
 
   - Component-local reasoning about your startup data state. Your initial state is co-located with the component.
   - Refactoring is trivial! Your initial state automatically reshapes itself when you move/re-compose a UI component.
-  - Components are fully embeddable in a devcard for component-centric development. Just write a devcard root and compose initial state! Loads are targeted at nodes (tables), so those
-  always relocate well.
+  - Components are fully embeddable in a devcard for component-centric development. Just write a devcard root and compose initial state! Even
+  server interactions are just normalized into tables, so those can be easily used in smaller contexts as well.
 
   The costs are very low. In fact, the costs are the minimum amount of work and complexity you could possibly have:
   state what is needed at UI startup in the context of the thing that needs it.
 
   Please do not confuse this mechanism with a constructor. It is not really that. It is simply a mechanism whereby you
-  can co-locate the data that will **fulfill** your initial applications query **with the query fragment**. You can
+  can co-locate the data that will **fulfill** your initial application's query **for a given query fragment**. You can
   technically use a component's initial state to build new instances during operation, but the primary purpose is
   getting the startup state of your application built.
 
-
   ### Root Link Queries
 
-  These are queries that pull data from the root of the graph (e.g. `[ [:root-prop '_] ]`). They work perfectly with all of this; However, there is a small gotcha.
+  In the D_Queries section we discussed link queries. These are the queries that pull data from the root of the
+  graph (e.g. `[ [:root-prop '_] ]`). They work perfectly with all of this; However, there is a small gotcha.
 
-  IF you have a component that queries for **nothing except through a root-link**, then that component **must** have
+  IF you have a component that queries for **nothing except through a link query**, then that component **must** have
   at least an empty map as it's local state. This is due to the fact that the query engine walks the query in parallel
   with the app state. If it sees no entry in the app state for the entire component, then it won't bother to work on it's
   query (philosophically, this is a questionable case anyhow...why is it a stateful component if it has no state?).

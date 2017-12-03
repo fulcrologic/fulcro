@@ -1,5 +1,5 @@
 (ns fulcro-devguide.state-reads.parser-1
-  (:require [om.next :as om]))
+  (:require [fulcro.client.primitives :as prim]))
 
 (def app-state (atom {
                       :window/size  [1920 1200]
@@ -19,6 +19,6 @@
                {:value friends})
     nil))
 
-(def parser (om/parser {:read read}))
+(def parser (prim/parser {:read read}))
 (def query [:window/size {:friends [:name :married]}])
 

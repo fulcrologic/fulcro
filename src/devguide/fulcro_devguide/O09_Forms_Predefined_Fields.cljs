@@ -1,10 +1,10 @@
 (ns fulcro-devguide.O09-Forms-Predefined-Fields
   (:require
-    [om.dom :as dom]
-    [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [om.next :as om :refer [defui]]
-    [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.core :as fc]
+    [fulcro.client.dom :as dom]
+    [devcards.core :as dc :refer-macros [defcard-doc]]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
+    [fulcro.client :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.ui.elements :as ele]
     [fulcro.client.mutations :refer [defmutation]]
@@ -12,7 +12,7 @@
     [fulcro.ui.elements :as e]
     [cognitect.transit :as ct]
     [goog.events :as events]
-    [om.transit :as t]
+    [fulcro.transit :as t]
     [clojure.string :as str]
     [fulcro.ui.file-upload :refer [FileUploadInput file-upload-input file-upload-networking]]
     [fulcro.client.logging :as log]
@@ -29,8 +29,8 @@
     (dom/div #js {:className "col-sm-10"} (apply f/form-field comp form name params))))
 
 (defui ^:once KitchenSink
-  static fc/InitialAppState
-  (initial-state [this params] (f/build-form this {:db/id 1 :short-story (fc/get-initial-state FileUploadInput {:id :story})}))
+  static prim/InitialAppState
+  (initial-state [this params] (f/build-form this {:db/id 1 :short-story (prim/get-initial-state FileUploadInput {:id :story})}))
   static f/IForm
   (form-spec [this] [(f/id-field :db/id)
                      (f/text-input :text)
@@ -40,14 +40,14 @@
                      (f/radio-input :rating #{1 2 3 4 5})
                      (f/textarea-input :essay)
                      (file-upload-input :short-story)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [f/form-root-key f/form-key :db/id :text :number :mood :done? :rating :essay
-                 {:short-story (om/get-query FileUploadInput)}])
-  static om/Ident
+                 {:short-story (prim/get-query FileUploadInput)}])
+  static prim/Ident
   (ident [this props] [:sink/by-id (:db/id props)])
   Object
   (render [this]
-    (let [props      (om/props this)
+    (let [props      (prim/props this)
           not-valid? (not (f/would-be-valid? props))]
       (dom/div #js {:className "form-horizontal"}
         (field-with-label this props :text "Text:")
@@ -67,17 +67,17 @@
         (b/button {:disabled not-valid?
                    :onClick  #(f/commit-to-entity! this :remote true)} "Submit")))))
 
-(def ui-sink (om/factory KitchenSink {:keyfn :db/id}))
+(def ui-sink (prim/factory KitchenSink {:keyfn :db/id}))
 
 (defui ^:once CommitRoot
-  static fc/InitialAppState
-  (initial-state [this _] {:sink (fc/initial-state KitchenSink {:db/id 1})})
-  static om/IQuery
+  static prim/InitialAppState
+  (initial-state [this _] {:sink (prim/get-initial-state KitchenSink {:db/id 1})})
+  static prim/IQuery
   (query [this] [:ui/react-key
-                 {:sink (om/get-query KitchenSink)}])
+                 {:sink (prim/get-query KitchenSink)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key sink]} (om/props this)]
+    (let [{:keys [ui/react-key sink]} (prim/props this)]
       (dom/div #js {:key react-key}
         (ui-sink sink)))))
 
@@ -99,10 +99,10 @@
   "
   (dc/mkdn-pprint-source KitchenSink))
 
-(defcard form-changes
-  (fulcro-app CommitRoot
-    :networking {:remote      (net/make-fulcro-network "/api" :global-error-callback identity)
-                 :file-upload (file-upload-networking)})
+(defcard-fulcro form-changes
+  CommitRoot
   {}
-  {:inspect-data false})
+  {:fulcro       {:networking {:remote      (net/make-fulcro-network "/api" :global-error-callback identity)
+                               :file-upload (file-upload-networking)}}
+   :inspect-data false})
 

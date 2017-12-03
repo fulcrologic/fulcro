@@ -1,10 +1,10 @@
 (ns fulcro-devguide.upload-server
   (:require [taoensso.timbre :as timbre]
-            [om.next.impl.parser :as op]
+            [fulcro.client.impl.parser :as op]
             [fulcro.server :as server :refer [defmutation defquery-root defquery-entity]]
             [fulcro.easy-server :as easy]
-            [om.next :as om]
-            om.next.server
+            [fulcro.client.primitives :as prim]
+            fulcro.server
             [ring.util.io :as ring-io]
             [ring.util.request :as ru]
             [ring.middleware.content-type :refer [wrap-content-type]]
@@ -49,9 +49,9 @@
                        (timbre/info "web server stopped.")
                        (assoc this :server nil)))))
 
-; This is both a server module AND hooks into the Om parser for the incoming /api read/mutate requests. The
+; This is both a server module AND hooks into the parser for the incoming /api read/mutate requests. The
 ; modular server support lets you chain as many of these together as you want, allowing you to define
-; reusable Om server components.
+; reusable server components.
 (defn make-web-server
   "Builds a web server with an optional argument that
    specifies which component to get `:middleware` from,

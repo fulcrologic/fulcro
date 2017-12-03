@@ -1,14 +1,14 @@
 (ns fulcro.client.routing-spec
   (:require [fulcro-spec.core :refer [specification behavior assertions when-mocking component provided]]
             [fulcro.client.routing :as r :refer [defrouter]]
-            [om.dom :as dom]
+            [fulcro.client.dom :as dom]
             [fulcro.client.util :as util]
-            [om.next :as om :refer [defui]]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.core :as fc]))
+            [fulcro.client :as fc]))
 
 (defui Screen1
-  fc/InitialAppState
+  prim/InitialAppState
   (initial-state [cls params] {:type :screen1})
   Object
   (render [this] (dom/div nil "TODO")))
@@ -22,13 +22,13 @@
 (specification "Routers"
   (assertions
     "Have a top-level table namespaced to the fulcro routing library"
-    (util/get-ident SampleRouter {}) => [r/routers-table :router-1]
+    (prim/get-ident SampleRouter {}) => [r/routers-table :router-1]
     "Use the user-supplied ident function for the union"
-    (util/get-ident SampleRouter-Union {:type :screen1}) => [:screen1 :top]))
+    (prim/get-ident SampleRouter-Union {:type :screen1}) => [:screen1 :top]))
 
 (specification "current-route"
-  (let [state-map {r/routers-table {:router-1 {:id :router-1 :current-route [:A :top]}
-                                    :router-2 {:id :router-2 :current-route [:B :top]}}}]
+  (let [state-map {r/routers-table {:router-1 {::r/id :router-1 ::r/current-route [:A :top]}
+                                    :router-2 {::r/id :router-2 ::r/current-route [:B :top]}}}]
     (assertions
       "Can read the current route from a router"
       (r/current-route state-map :router-1) => [:A :top]
@@ -42,8 +42,8 @@
           tree          (r/routing-tree r r2)
           state-map     (merge
                           tree
-                          {r/routers-table {:router-1 {:id :router-1 :current-route [:unset :unset]}
-                                            :router-2 {:id :router-2 :current-route [:unset :unset]}}})
+                          {r/routers-table {:router-1 {::r/id :router-1 ::r/current-route [:unset :unset]}
+                                            :router-2 {::r/id :router-2 ::r/current-route [:unset :unset]}}})
           new-state-map (r/update-routing-links state-map {:handler :foo})]
       (assertions
         "Switches the current routes according to the route instructions"
@@ -54,7 +54,7 @@
           tree          (r/routing-tree r)
           state-map     (merge
                           tree
-                          {r/routers-table {:router-1 {:id :router-1 :current-route [:unset :unset]}}})
+                          {r/routers-table {:router-1 {::r/id :router-1 ::r/current-route [:unset :unset]}}})
           new-state-map (r/update-routing-links state-map {:handler :boo :route-params {:some-id :target-id}})]
       (assertions
         "Switches the current routes with parameter substitutions"
@@ -67,15 +67,15 @@
 (specification "route-to mutation"
   (provided "There are no missing dynamically loaded routes: "
     (r/get-missing-routes r s p) => []
-    (r/update-routing-queries! r m) => nil
+    (r/update-routing-queries s r m) => s
 
     (let [r         (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
           r2        (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
                                         (r/router-instruction :router-1 [:screen1 :other])])
           tree      (r/routing-tree r r2)
           state-map (merge tree
-                      {r/routers-table {:router-1 {:id :router-1 :current-route [:initial :top]}
-                                        :router-2 {:id :router-2 :current-route [:initial :top]}}})
+                      {r/routers-table {:router-1 {::r/id :router-1 ::r/current-route [:initial :top]}
+                                        :router-2 {::r/id :router-2 ::r/current-route [:initial :top]}}})
           state     (atom state-map)
           action    (:action (m/mutate {:state state} `r/route-to {:handler :boo}))]
 
@@ -96,8 +96,8 @@
                                         (r/router-instruction :router-1 [:screen1 :other])])
           tree      (r/routing-tree r r2)
           state-map (merge tree
-                      {r/routers-table {:router-1 {:id :router-1 :current-route [:initial :top]}
-                                        :router-2 {:id :router-2 :current-route [:initial :top]}}})
+                      {r/routers-table {:router-1 {::r/id :router-1 ::r/current-route [:initial :top]}
+                                        :router-2 {::r/id :router-2 ::r/current-route [:initial :top]}}})
           state     (atom state-map)
           action    (:action (m/mutate {:state state} `r/route-to {:handler :boo}))]
 
@@ -112,9 +112,11 @@
 (specification "Completion of a dynamic route load (process-pending-route!)"
   (let [state-atom (atom {::r/pending-route {:handler :boo}})]
     (when-mocking
-      (r/update-routing-queries! r m) =1x=> (assertions
-                                              "Updates the queries on dynamic routers"
-                                              m => {:handler :boo})
+      (r/update-routing-queries s r m) =1x=> (do
+                                               (assertions
+                                                "Updates the queries on dynamic routers"
+                                                m => {:handler :boo})
+                                               s)
       (r/update-routing-links s m) =1x=> (assertions
                                            "Updates the routing links"
                                            m => {:handler :boo})

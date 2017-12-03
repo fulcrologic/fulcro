@@ -1,6 +1,6 @@
 (ns fulcro-devguide.F-Fulcro-DevEnv
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc
@@ -21,18 +21,26 @@
   The primary components of this layout are:
 
   - A project file that is configured for running both the server, client, and tests with hot code reload.
-  - An entry point for production that does nothing *but* mount the app. Nothing but the project build refers to this,
+  - An entry point for production that does nothing *but* mount the app. Nothing but the production build refers to this,
   so we don't accidentally try to do entry point operations more than once. It can also be used to do things
   like disable console logging.
   - A development-only namespace file that mounts the app in development mode. Only the dev build includes this source.
   - A core namespace that creates the application. This is referred to by the production
   build and the development-only namespace.
 
-  In general, using the [Fulcro Template](https://github.com/fulcrologic/fulcro-template) as a starting point (clone it) is a good idea.
+  In general, using a template as a starting point will save you a lot of time. You have two main options:
+
+  - [Fulcro Template](https://github.com/fulcrologic/fulcro-template) A full-featured template that already has a lot set
+  up including development, testing, devcards, production builds, a server with server-side rendering, UI routing, and more.
+  It's a lot to understand, but can be a good starting point for real software or just an example to help you understand
+  how to do some more common UI tasks.
+  - Lein Template (`lein new fulcro app`) - A bare-bones template that has all of the low-level setup out of the way. It
+  includes development, testing, devcards, and production builds, but contains very little actual code. Use this one if you're
+  wanting a bare-bones starting point.
 
   ## Enabling re-render on hot code reload
 
-  Om and React do their best to prevent unnecessary rendering. During development we'd like to
+  Fulcro and React do their best to prevent unnecessary rendering. During development we'd like to
   force a refresh that whenever code reloads so we can see our changes.
 
   In order to do this:
@@ -53,16 +61,16 @@
 
   ```
   (defui ^:once Root
-     static om/IQuery
+     static prim/IQuery
      (query [this] [:ui/react-key ...])
      Object
      (render [this]
-        (let [{:keys [ui/react-key ...]} (om/props this)]
+        (let [{:keys [ui/react-key ...]} (prim/props this)]
           (dom/div #js { :key react-key } ...))))
   ```
 
   The Fulcro refresh will automatically set this key in your app state to a new unique value
-  every time, ensuring that the app state has changed. The changing data will cause Om to allow a re-render, and
+  every time, ensuring that the app state has changed. The changing data will cause a re-render, and
   the top-level key change on the DOM will cause React to force a full DOM diff (ignoring the fact that the
   rest of the recursive state has not changed).
 
@@ -135,7 +143,27 @@
 
   #### Seeing the Data
 
+  NOTE: The fulcro-inspect project makes this much better...use it instead!
+
   When debugging your app state it can be useful to see several things:
+
+  ```
+  (defn log-app-state
+    \"Helper for logging the app-state. Pass in a Fulcro application atom and either top-level keys, data-paths (like get-in), or both.\"
+    [app-atom & keys-and-paths]
+    (let [app-state (prim/app-state (:reconciler @app-atom))]
+      (pprint
+        (letfn [(make-path [location]
+                  (if (sequential? location) location [location]))
+                (process-location [acc location]
+                  (let [path (make-path location)]
+                    (assoc-in acc path (get-in @app-state path))))]
+
+          (condp = (count keys-and-paths)
+            0 @app-state
+            1 (get-in @app-state (make-path (first keys-and-paths)))
+            (reduce process-location {} keys-and-paths))))))
+  ```
 
   - Seeing the entire app state:
     ```
@@ -145,12 +173,12 @@
     ```
     (log-app-state [:users/by-id 4])
     ```
-  - Run the Om Next query of a component against the app state, and show what a component is getting (NOTE: only
+  - Run the query of a component against the app state, and show what a component is getting (NOTE: only
   works correctly if the target component is only in the UI tree once):
     ```
     (q Root)
     ```
-  - Run the Om Next query of a component that asks for the given property. NOTE: only
+  - Run the query of a component that asks for the given property. NOTE: only
   works correctly if there is a single component in the rendered UI (on screen) that is asking for that property.
     ```
     (qkw :user/name)

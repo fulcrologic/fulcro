@@ -2,12 +2,12 @@
 
 == Common Namespaces
 
-- `[fulcro.client.core :as fc]`: Primary Fulcro namespace
+- `[fulcro.client :as fc]`: Primary Fulcro namespace
 - `[fulcro.client.data-fetch :as df]`: Fulcro functions for loading data from remotes.
 - `[fulcro.client.mutations :as m]`: Fulcro mutations and mutation definition macro.
 - `[fulcro.client.util :as fu]`: Some helper functions
-- `[om.next :as om]`: Primary Om Next namespace
-- `[om.dom :as dom]`: HTML5 React factories
+- `[fulcro.client.primitives :as prim]`: Primary namespace for base constructs
+- `[fulcro.client.dom :as dom]`: HTML5 React factories
 - `[fulcro.server :as server]`: Fulcro server primitives.
 - `[fulcro.easy-server :as easy]`: Fulcro's one-step web server.
 - `[com.stuartsierra.component :as component]`: Component control and dependency injection
@@ -15,13 +15,13 @@
 == Defining Components
 
 ```
-(om/defui ComponentName
-  static om/IQuery
-  (query [this] [:prop {:child (om/get-query Child)}])
-  static om/Ident
+(prim/defui ComponentName
+  static prim/IQuery
+  (query [this] [:prop {:child (prim/get-query Child)}])
+  static prim/Ident
   (ident [this props] [:TABLE ID])
-  static fc/InitialAppState
-  (initial-state [class params] {:prop scalar-value :child (fc/get-initial-state Child {})})
+  static prim/InitialAppState
+  (initial-state [class params] {:prop scalar-value :child (prim/get-initial-state Child {})})
   Object
   ; React component methods (optional, see React docs):
   (initLocalState [this] ...)
@@ -33,8 +33,8 @@
   (componentDidMount [this] ...)
   (componentWillUnmount [this] ...)
   (render [this]
-    (let [{:keys [prop child]} (om/props this)
-          {:keys [onSelect]    (om/get-computed this)]
+    (let [{:keys [prop child]} (prim/props this)
+          {:keys [onSelect]    (prim/get-computed this)]
       ; render prop and child
       (dom/div nil
         (dom/span nil prop)
@@ -42,13 +42,13 @@
 ```
 
 ```
-(def ui-component-name (om/factory ComponentName {:keyfn :id-prop}))
+(def ui-component-name (prim/factory ComponentName {:keyfn :id-prop}))
 ```
 
 ```
 (ui-component-name raw-props)
 ;; or, if callbacks and such are needed:
-(ui-component-name (om/computed raw-props {:onSelect (fn [] ...)))
+(ui-component-name (prim/computed raw-props {:onSelect (fn [] ...)))
 ```
 
 ==== Shortcut Macro for Stateful Components
@@ -58,29 +58,51 @@ arbitrary additional protocols (optional), co-located css (optional),
 and an argument list that gives you access to destructured props, computed data, and react children.
 All this in one very compact form. It also looks like a `defn` (for IDE integration) and checks for common errors:
 
+Method form (this and props taken from main args lists):
+
+```
+(defsc Person
+  "Docstring"
+  [this {:keys [person/id person/name] :as props} {:keys [onSelect] :as computed-props} children]
+  { :query (fn [] [:person/id :person/name {:person/job (prim/get-query Job)}])
+    :ident (fn [] [:PERSON/by-id id] ; id comes from destructured props
+    :css (fn []) ; garden css
+    :css-include (fn []) ;see fulcro-css
+    :protocols [Object  ; arbitrary additional protocols
+                (my-method [this] ...)]
+    :initial-state (fn [{:keys [id name] :as params}]
+                     {:person/name name
+                      :person/job (prim/get-initial-state Job {:id 2 :name "Programmer"})
+                      :person/id id} }
+  (dom/div #js {:onClick onSelect} name))
+```
+
+A slightly shorter (and more restrictive) version is supported that gives more warnings/errors if things don't follow
+common rules (if you destructure something from props that isn't in the query):
+
 ```
 (defsc Person
   "Docstring"
   [this {:keys [person/name] :as props} {:keys [onSelect] :as computed-props} children]
-  { :query [:person/id :person/name {:person/job (om/get-query Job)}]
-    :ident [:PERSON/by-id :person/id]
+  { :query [:person/id :person/name {:person/job (prim/get-query Job)}]
+    :ident [:PERSON/by-id :person/id] ; it pulls the second one from props itself
     :form-fields [(f/id-field :person/id) ...] ; See forms support
     :css [] ; garden css
     :css-include [] ;see fulcro-css
     :protocols [Object  ; arbitrary additional protocols
                 (my-method [this] ...)]
-    :initial-state {:person/name :param/name
-                    :person/job {:id 2 :name "Programmer"}
+    :initial-state {:person/name :param/name ; pulls `name` from incoming parameters
+                    :person/job {:id 2 :name "Programmer"} ; calls get-initial-state with the map as params
                     :person/id :param/id} }
   (dom/div #js {:onClick onSelect} name))
 ```
 
-==== Trick for helping with computed props:
+==== A Trick for helping with computed props:
 
 ```
-(let [factory (om/factory ComponentName {:keyfn :id-prop})]
+(let [factory (prim/factory ComponentName {:keyfn :id-prop})]
   (defn ui-component-name [props & {:keys [onSelect] :as computed-props}]
-    (factory (om/computed props computed-props))))
+    (factory (prim/computed props computed-props))))
 ```
 
 allows more readable `(ui-component-name props :onDelete (fn [e] ...))`. Other variations are possible,
@@ -88,22 +110,22 @@ especially if you intend to use children.
 
 ==== React Children
 
-- `(om/children this)` - Returns a (possibly empty) sequence of child elements sent to the React factory.
+- `(prim/children this)` - Returns a (possibly empty) sequence of child elements sent to the React factory.
 - `(fu/react-instance? Component child)` - Returns true if child is a react element of the given type.
 - `(fu/first-node Component children)` - Returns the first react child of class Component, or nil.
 
 ```
 (defui Heading
   ...)
-(def ui-heading (om/factory Heading))
+(def ui-heading (prim/factory Heading))
 
 (defui Note ...)
-(def ui-note (om/factory Note))
+(def ui-note (prim/factory Note))
 
 (defui NotePanel
   Object
   (render [this]
-    (let [children (om/children this)
+    (let [children (prim/children this)
           heading (first-node Heading children)
           notes (filter #(react-instance? Note %) children)]
       (dom/div nil
@@ -124,17 +146,17 @@ especially if you intend to use children.
 
 * `render` returns exactly *one* react element (which can have any number of direct children).
 * Every component that has state has it's *own* query. The following are errors:
-** `(query [this] (om/get-query OtherComponent))`
-** `(query [this] [(om/get-query OtherComponent)])`
-** `(query [this] [{:some-join (concat (om/get-query OtherComponent) (om/get-query AnotherComponent))}]`
+** `(query [this] (prim/get-query OtherComponent))`
+** `(query [this] [(prim/get-query OtherComponent)])`
+** `(query [this] [{:some-join (concat (prim/get-query OtherComponent) (prim/get-query AnotherComponent))}]`
 * Every child's query is composed in using an "invented" join name in the parent:
-** `(query [this] [{:invented-join-prop (om/get-query Child)}])`
+** `(query [this] [{:invented-join-prop (prim/get-query Child)}])`
 * Queries compose all the way to a single Root
-* Every child's props are pulled from `om/props` and passed to that child's factory for rendering:
+* Every child's props are pulled from `prim/props` and passed to that child's factory for rendering:
 +
 ```
 (render [this]
-  (let [{:keys [invented-join-prop]} (om/props this)]
+  (let [{:keys [invented-join-prop]} (prim/props this)]
     (ui-child invented-join-prop)))
 ```
 * If using initial state, the `InitialAppState` mirrors the component's query and composition all
@@ -144,10 +166,10 @@ there will be a key in the initial state whose value is the `get-initial-state` 
 in the query join.
 +
 ```
-static fc/InitialAppState
-(initial-state [c p] {:scalar-prop 42 :child-props (fc/get-initial-state Child {})})
-static om/IQuery
-(query [this] [:scalar-prop {:child-props (om/get-query Child)}])
+static prim/InitialAppState
+(initial-state [c p] {:scalar-prop 42 :child-props (prim/get-initial-state Child {})})
+static prim/IQuery
+(query [this] [:scalar-prop {:child-props (prim/get-query Child)}])
 ```
 * Every component that has state (except your root) *should* have an `Ident`. Exceptions
 are possible but rare.
@@ -162,30 +184,30 @@ PersonSummary might all have the same `[:person/by-id id]` style ident.
 Regular queries are held in a vector, which can contain:
 
 - `:prop`: Retrive a scalar value
-- `{:join-name (om/get-query Child)}`: Join in the query for some child.
+- `{:join-name (prim/get-query Child)}`: Join in the query for some child.
 
 Union queries are a map of sub-queries. Union queries require you encapsulate them
 in a union component. They stand for alternation, and use the component ident's TABLE during
 query processing to determine which query to continue.
 
 ```
-{:TABLE-1 (om/get-query Component-1) :TABLE-2 (om/get-query Component-2) ...}
+{:TABLE-1 (prim/get-query Component-1) :TABLE-2 (prim/get-query Component-2) ...}
 ```
 
 == Advanced Queries
 
-- `{[CHILD-TABLE ID] (om/get-query Child)}`: Query for a specific `Child` from that child's state
+- `{[CHILD-TABLE ID] (prim/get-query Child)}`: Query for a specific `Child` from that child's state
 table. Not relative to a parent's graph edges.
 - `[ROOT-PROP '\_]`: Query for a specific scalar property from the root of the database graph. The
 quoting is needed so `_` is not evaluated.
 - `(:prop {:x 1})`: Query for a given scala property, and include the given map as parameters. Fulcro
 client, by default, ignores such parameters, but a server can easily use them.
-- `({:join-prop (om/get-query Child)} {:x 1})`: Send parameters with a join query. Again, client
+- `({:join-prop (prim/get-query Child)} {:x 1})`: Send parameters with a join query. Again, client
 ignores these by default, but server queries may find them useful.
 
 == Mutation
 
-Mutations receive the entire state map, and parameters passed from `om/transact!`. They
+Mutations receive the entire state map, and parameters passed from `prim/transact!`. They
 must have at least one `action` and/or `remote`. If both `action` and `remote` are
 present, then `action` must be listed first.
 
@@ -193,8 +215,8 @@ present, then `action` must be listed first.
 - `remote` is an instruction to mirror the mutation to the stated remote(s). You may
 specify any number of remotes in a single mutation.
 - `true` for a remote means send the exact client mutation. Returning an AST allows you to
-alter the request to the server. See Om Next documentation on the AST and the functions
-`om/ast->query` and `query->ast` for ideas.
+alter the request to the server. See the Developer's Guide and the functions
+`prim/ast->query` and `query->ast` for more information.
 
 
 ```

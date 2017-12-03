@@ -1,22 +1,22 @@
 (ns cards.dynamic-i18n-locale-cards
-  (:require [om.dom :as dom]
+  (:require [fulcro.client.dom :as dom]
             [fulcro.i18n :as i18n :refer [tr]]
-            [om.next :as om :refer [defui]]
-            [om.dom :as dom]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]
+            [fulcro.client.dom :as dom]
             [fulcro.client.mutations :as m]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]))
 
 (defui ^:once RootNode
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:ui/locale :ui/react-key])
   Object
   (render [this]
-    (let [{:keys [ui/locale ui/react-key]} (om/props this)]
+    (let [{:keys [ui/locale ui/react-key]} (prim/props this)]
       (dom/div nil
         (dom/h4 nil (tr "Locale Tests. Current locale: ") (name locale))
         (dom/p nil (tr "This is a test."))
-        (mapv (fn [l] (dom/button #js {:key l :onClick #(om/transact! this `[(m/change-locale {:lang ~l})])} l))
+        (mapv (fn [l] (dom/button #js {:key l :onClick #(prim/transact! this `[(m/change-locale {:lang ~l})])} l))
           ["en" "es-MX" "de"])))))
 
 (defcard-doc
@@ -53,7 +53,7 @@
                                   :es-MX       {:output-to \"resources/public/js/demos/es-MX.js\"
                                                 :entries   #{translations.es-MX}}
                                   :main        {:output-to \"resources/public/js/demos/main-ui.js\"
-                                                :entries   #{recipes.dynamic-ui-main}}}
+                                                :entries   #{cards.dynamic-ui-main}}}
                   :optimizations :none}}
   {:id           \"demo-i18n\"
    :source-paths [\"src/main\" \"src/demos\"]

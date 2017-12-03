@@ -1,34 +1,34 @@
 (ns fulcro.client.impl.application-spec
   (:require
-    [fulcro.client.core :as fc]
-    [om.next :as om :refer [defui]]
+    [fulcro.client :as fc]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro-spec.core :refer-macros [specification behavior assertions provided component when-mocking]]
-    [om.dom :as dom]
+    [fulcro.client.dom :as dom]
     [fulcro.i18n :as i18n]
     [fulcro.client.impl.application :as app]
     [cljs.core.async :as async]
     [fulcro.client.impl.data-fetch :as f]
-    [fulcro.client.impl.om-plumbing :as plumbing]
     [fulcro.client.network :as net]
-    [fulcro.client.mutations :as m]))
+    [fulcro.client.mutations :as m]
+    [fulcro.history :as hist]))
 
 (defui ^:once Thing
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:thing/by-id (:id props)])
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:id :name])
   Object
   (render [this] (dom/div nil "")))
 
 (defui ^:once Root
-  static om/IQuery
-  (query [this] [:ui/react-key :ui/locale {:things (om/get-query Thing)}])
+  static prim/IQuery
+  (query [this] [:ui/react-key :ui/locale {:things (prim/get-query Thing)}])
   Object
   (render [this]
     (dom/div nil "")))
 
 (defn reconciler-with-config [config]
-  (-> (app/generate-reconciler {} {} (om/parser {:read identity}) config)
+  (-> (app/generate-reconciler {} {} (prim/parser {:read identity}) config)
     :config))
 
 (specification "generate-reconciler"
@@ -78,7 +78,7 @@
                             :initial-state state
                             :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
         app               (fc/mount unmounted-app Root "application-mount-point")
-        mounted-app-state (om/app-state (:reconciler app))]
+        mounted-app-state (prim/app-state (:reconciler app))]
 
     (assertions
       "is honored by the client"
@@ -95,7 +95,7 @@
                             :started-callback callback
                             :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
         app               (fc/mount unmounted-app Root "application-mount-point")
-        mounted-app-state (om/app-state (:reconciler app))
+        mounted-app-state (prim/app-state (:reconciler app))
         reconciler        (:reconciler app)
         reconciler-config (:config reconciler)
         migrate           (:migrate reconciler-config)]
@@ -107,8 +107,8 @@
           (-> app :send-queues :remote type) => cljs.core.async.impl.channels/ManyToManyChannel
           "a response queue"
           (-> app :response-channels :remote type) => cljs.core.async.impl.channels/ManyToManyChannel
-          "a reconciler"
-          (type reconciler) => om.next/Reconciler
+          ;"a reconciler"
+          ;(type reconciler) => fulcro.client.primitives/Reconciler
           "a parser"
           (type (:parser app)) => js/Function
           "a marker that the app was initialized"
@@ -127,15 +127,15 @@
 
     (component "tempid migration"
       (when-mocking
-        (plumbing/rewrite-tempids-in-request-queue queue remaps) =1x=> (assertions
+        (prim/rewrite-tempids-in-request-queue queue remaps) =1x=> (assertions
                                                                          "Remaps tempids in the requests queue(s)"
-                                                                         remaps => :tempids)
-        (plumbing/resolve-tempids state remaps) =1x=> (assertions
+                                                                         remaps => :mock-tempids)
+        (prim/resolve-tempids state remaps) =1x=> (assertions
                                                         "Remaps tempids in the app state"
                                                         state => :app-state
-                                                        remaps => :tempids)
+                                                        remaps => :mock-tempids)
 
-        (migrate :app-state :query :tempids :id-key)))
+        (migrate :app-state :query :mock-tempids :id-key)))
 
     (component "Remote transactions"
       (when-mocking
@@ -159,7 +159,7 @@
 
         (let [react-key (:ui/react-key @mounted-app-state)]
           (reset! i18n/*current-locale* "en")
-          (om/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
+          (prim/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
           (assertions
             "Changes the i18n locale for translation lookups"
             (deref i18n/*current-locale*) => "es-MX"
@@ -175,7 +175,7 @@
                             :networking {:a (net/mock-network)
                                          :b (net/mock-network)})
         app               (fc/mount unmounted-app Root "application-mount-point")
-        mounted-app-state (om/app-state (:reconciler app))
+        mounted-app-state (prim/app-state (:reconciler app))
         reconciler        (:reconciler app)
         reconciler-config (:config reconciler)
         migrate           (:migrate reconciler-config)
@@ -197,17 +197,19 @@
 
     (component "tempid migration with multiple queues"
       (when-mocking
-        (plumbing/rewrite-tempids-in-request-queue queue remaps) => (swap! queues-remapped conj queue)
-        (plumbing/resolve-tempids state remaps) =1x=> (assertions
+        (prim/rewrite-tempids-in-request-queue queue remaps) => (swap! queues-remapped conj queue)
+        (prim/resolve-tempids state remaps) =1x=> (assertions
                                                         "remaps tempids in state"
                                                         state => :state
-                                                        remaps => :tempids)
+                                                        remaps => :mock-tempids)
 
-        (migrate :state :query :tempids :id-key)
+        (migrate :state :query :mock-tempids :id-key)
 
         (assertions
           "Remaps ids in all queues"
           @queues-remapped => #{a-queue b-queue})))))
+
+(def empty-history (hist/new-history 100))
 
 (specification "Network payload processing (sequential networking)"
   (component "send-payload"
@@ -219,8 +221,8 @@
           send-complete  (fn [] (swap! done inc))
           on-update      (fn [] (swap! update inc))
           reset-test     (fn [] (reset! error 0) (reset! update 0) (reset! done 0))
-          load-payload   {:query query :on-load on-update :on-error on-error :load-descriptors []}
-          mutate-payload {:query query :on-load on-update :on-error on-error}]
+          load-payload   {::prim/query query ::f/on-load on-update ::f/on-error on-error ::f/load-descriptors []}
+          mutate-payload {::prim/query query ::f/on-load on-update ::f/on-error on-error}]
       (behavior "On queries (with load-descriptor payloads)"
         (provided "When real send completes without updates or errors"
           (app/real-send net tx send-done send-error send-update) => (do
@@ -361,88 +363,8 @@
     (app/is-sequential? (MockNetwork-Parallel.)) => false
     (app/is-sequential? (MockNetwork-ExplicitSequential.)) => true))
 
-(specification "Sweep one"
-  (assertions
-    "removes not-found values from maps"
-    (app/sweep-one {:a 1 :b ::plumbing/not-found}) => {:a 1}
-    "is not recursive"
-    (app/sweep-one {:a 1 :b {:c ::plumbing/not-found}}) => {:a 1 :b {:c ::plumbing/not-found}}
-    "maps over vectors not recursive"
-    (app/sweep-one [{:a 1 :b ::plumbing/not-found}]) => [{:a 1}]
-    "retains metadata"
-    (-> (app/sweep-one (with-meta {:a 1 :b ::plumbing/not-found} {:meta :data}))
-      meta) => {:meta :data}
-    (-> (app/sweep-one [(with-meta {:a 1 :b ::plumbing/not-found} {:meta :data})])
-      first meta) => {:meta :data}
-    (-> (app/sweep-one (with-meta [{:a 1 :b ::plumbing/not-found}] {:meta :data}))
-      meta) => {:meta :data}))
-
-(specification "Sweep merge"
-  (assertions
-    "recursively merges maps"
-    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c 5}) => {:a 2 :c 5}
-    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:x 1}}) => {:a 2 :c {:b 2 :x 1}}
-    "stops recursive merging if the source element is marked as a leaf"
-    (app/sweep-merge {:a 1 :c {:d {:x 2} :e 4}} {:a 2 :c (plumbing/as-leaf {:d {:x 1}})}) => {:a 2 :c {:d {:x 1}}}
-    "sweeps values that are marked as not found"
-    (app/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:b ::plumbing/not-found}}) => {:a 2 :c {}}
-    (app/sweep-merge {:a 1 :c 2} {:a 2 :c {:b ::plumbing/not-found}}) => {:a 2 :c {}}
-    (app/sweep-merge {:a 1 :c 2} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
-    (app/sweep-merge {:a 1 :c {:data-fetch :loading}} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
-    (app/sweep-merge {:a 1 :c nil} {:a 2 :c [{:x 1 :b ::plumbing/not-found}]}) => {:a 2 :c [{:x 1}]}
-    (app/sweep-merge {:a 1 :b {:c {:ui/fetch-state {:post-mutation 's}}}} {:a 2 :b {:c [{:x 1 :b ::plumbing/not-found}]}}) => {:a 2 :b {:c [{:x 1}]}}
-    "clears normalized table entries that has an id of not found"
-    (app/sweep-merge {:table {1 {:a 2}}} {:table {::plumbing/not-found {:db/id ::plumbing/not-found}}}) => {:table {1 {:a 2}}}
-    "clears idents whose ids were not found"
-    (app/sweep-merge {} {:table {1 {:db/id 1 :the-thing [:table-1 ::plumbing/not-found]}}
-                         :thing [:table-2 ::plumbing/not-found]}) => {:table {1 {:db/id 1}}}
-    "sweeps not-found values from normalized table merges"
-    (app/sweep-merge {:subpanel  [:dashboard :panel]
-                      :dashboard {:panel {:view-mode :detail :surveys {:ui/fetch-state {:post-mutation 's}}}}
-                      }
-      {:subpanel  [:dashboard :panel]
-       :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
-       :s         {
-                   1 {:db/id 1, :survey/launch-date :fulcro.client.impl.om-plumbing/not-found}
-                   2 {:db/id 2, :survey/launch-date "2012-12-22"}
-                   }}) => {:subpanel  [:dashboard :panel]
-                           :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
-                           :s         {
-                                       1 {:db/id 1}
-                                       2 {:db/id 2 :survey/launch-date "2012-12-22"}
-                                       }}
-    "overwrites target (non-map) value if incoming value is a map"
-    (app/sweep-merge {:a 1 :c 2} {:a 2 :c {:b 1}}) => {:a 2 :c {:b 1}}))
-
-(specification "Merge handler"
-  (let [swept-state                       {:state 1}
-        data-response                     {:v 1}
-        mutation-response                 {'f {:x 1 :tempids {1 2}} 'g {:y 2}}
-        mutation-response-without-tempids (update mutation-response 'f dissoc :tempids)
-        response                          (merge data-response mutation-response)
-        rh                                (fn [state k v]
-                                            (assertions
-                                              "return handler is passed the swept state as a map"
-                                              state => swept-state
-                                              "tempids are stripped from return value before calling handler"
-                                              (:tempids v) => nil)
-                                            (vary-meta state assoc k v))]
-    (when-mocking
-      (app/sweep-merge t s) => (do
-                                 (assertions
-                                   "Passes source, cleaned of symbols, to sweep-merge"
-                                   s => {:v 1})
-                                 swept-state)
-
-      (let [actual (app/merge-handler rh {} response)]
-        (assertions
-          "Returns the swept state reduced over the return handlers"
-          ;; Function under test:
-          actual => swept-state
-          (meta actual) => mutation-response-without-tempids)))))
-
 (specification "split-mutations"
-  (behavior "Takes an Om tx and splits it into a vector of one or more txes that have no duplicate mutation names"
+  (behavior "Takes a tx and splits it into a vector of one or more txes that have no duplicate mutation names"
     (assertions
       "Refuses to split transactions that contain non-mutation entries (with console error)."
       (app/split-mutations '[:a (f) :b (f)]) => ['[:a (f) :b (f)]]
@@ -453,7 +375,10 @@
       "Splits at duplicate mutation"
       (app/split-mutations '[(f) (g) (f) (k)]) => '[[(f) (g)] [(f) (k)]]
       "Resets 'seen mutations' at each split, so prior mutations do not cause extra splitting"
-      (app/split-mutations '[(f) (g) (f) (k) (g)]) => '[[(f) (g)] [(f) (k) (g)]])))
+      (app/split-mutations '[(f) (g) (f) (k) (g)]) => '[[(f) (g)] [(f) (k) (g)]]
+      "Can split mutation joins"
+      (app/split-mutations '[{(f) [:x]} (g) (f) (k) (g)]) => '[[{(f) [:x]} (g)] [(f) (k) (g)]]
+      )))
 
 (specification "enqueue-mutations"
   (behavior "enqueues a payload with query, load, and error callbacks"
@@ -461,10 +386,9 @@
           remote-txs  {:remote '[(f)]}]
       (when-mocking
         (app/fallback-handler app tx) => identity
-        (plumbing/remove-loads-and-fallbacks tx) => tx
-        (app/enqueue q p) => (let [{:keys [query]} p]
+        (prim/remove-loads-and-fallbacks tx) => tx
+        (app/enqueue q p) => (let [{:keys [::prim/query]} p]
                                (assertions
-                                 ""
                                  query => '[(f)]))
 
         (app/enqueue-mutations {:send-queues send-queues} remote-txs identity))))
@@ -473,14 +397,76 @@
           remote-txs  {:remote '[(f) (g) (f)]}]
       (when-mocking
         (app/fallback-handler app tx) => identity
-        (plumbing/remove-loads-and-fallbacks tx) => tx
-        (app/enqueue q p) =1x=> (let [{:keys [query]} p]
+        (prim/remove-loads-and-fallbacks tx) => tx
+        (app/enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
                                   (assertions
-                                    ""
                                     query => '[(f) (g)]))
-        (app/enqueue q p) =1x=> (let [{:keys [query]} p]
+        (app/enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
                                   (assertions
-                                    ""
                                     query => '[(f)]))
 
         (app/enqueue-mutations {:send-queues send-queues} remote-txs identity)))))
+
+(specification "Local read can"
+  (let [state            (atom {:top-level    :top-level-value
+                                :union-join   [:panel :a]
+                                :union-join-2 [:dashboard :b]
+                                :join         {:sub-key-1 [:item/by-id 1]
+                                               :sub-key-2 :sub-value-2}
+                                :item/by-id   {1 {:survey/title "Howdy!" :survey/description "More stuff"}}
+                                :settings     {:tags nil}
+                                :dashboard    {:b {:x 2 :y 1 :z [:dashboard :c]}
+                                               :c {:x 3 :y 7 :z [[:dashboard :d]]}
+                                               :d {:x 5 :y 10}}
+                                :panel        {:a {:x 1 :n 4}}})
+        custom-read      (fn [env k params] (when (= k :custom) {:value 42}))
+        parser           (partial (prim/parser {:read (partial app/read-local (constantly false))}) {:state state})
+        augmented-parser (partial (prim/parser {:read (partial app/read-local custom-read)}) {:state state})]
+
+    (reset! i18n/*current-locale* "en-US")
+
+    (assertions
+      "read top-level properties"
+      (parser [:top-level]) => {:top-level :top-level-value}
+
+      "read nested queries"
+      (parser [{:join [:sub-key-2]}]) => {:join {:sub-key-2 :sub-value-2}}
+
+      "read union queries"
+      (parser [{:union-join {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join {:x 1 :n 4}}
+      (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join-2 {:x 2 :y 1}}
+      (parser [{[:panel :a] {:panel [:x :n] :dashboard [:x :y]}}]) => {[:panel :a] {:x 1 :n 4}}
+
+      "read queries with references"
+      (parser [{:join [{:sub-key-1 [:survey/title :survey/description]}]}]) =>
+      {:join {:sub-key-1 {:survey/title "Howdy!" :survey/description "More stuff"}}}
+
+      "read with recursion"
+      (parser [{:dashboard [{:b [:x :y {:z '...}]}]}]) => {:dashboard {:b {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}}
+
+      "read recursion nested in a union query"
+      (parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y {:z '...}]}}]) => {:union-join-2 {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}
+
+      "still exhibits normal behavior when augmenting with a custom root-level reader function"
+      (augmented-parser [:top-level]) => {:top-level :top-level-value}
+      (augmented-parser [{:join [:sub-key-2]}]) => {:join {:sub-key-2 :sub-value-2}}
+      (augmented-parser [{:union-join {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join {:x 1 :n 4}}
+      (augmented-parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y]}}]) => {:union-join-2 {:x 2 :y 1}}
+      (augmented-parser [{[:panel :a] {:panel [:x :n] :dashboard [:x :y]}}]) => {[:panel :a] {:x 1 :n 4}}
+      (augmented-parser [{:join [{:sub-key-1 [:survey/title :survey/description]}]}]) => {:join {:sub-key-1 {:survey/title "Howdy!" :survey/description "More stuff"}}}
+      (augmented-parser [{:dashboard [{:b [:x :y {:z '...}]}]}]) => {:dashboard {:b {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}}
+      (augmented-parser [{:union-join-2 {:panel [:x :n] :dashboard [:x :y {:z '...}]}}]) => {:union-join-2 {:x 2 :y 1 :z {:x 3 :y 7 :z [{:x 5 :y 10}]}}}
+
+      "supports augmentation from a user-supplied read function"
+      (augmented-parser [:top-level :custom]) => {:top-level :top-level-value :custom 42})
+
+    (let [state  {:curr-view      [:main :view]
+                  :main           {:view {:curr-item [[:sub-item/by-id 2]]}}
+                  :sub-item/by-id {2 {:foo :baz :sub-items [[:sub-item/by-id 4]]}
+                                   4 {:foo :bar}}}
+          parser (partial (prim/parser {:read (partial app/read-local (constantly nil))}) {:state (atom state)})]
+
+      (assertions
+        "read recursion nested in a join underneath a union"
+        (parser '[{:curr-view {:settings [*] :main [{:curr-item [:foo {:sub-items ...}]}]}}]) =>
+        {:curr-view {:curr-item [{:foo :baz :sub-items [{:foo :bar}]}]}}))))

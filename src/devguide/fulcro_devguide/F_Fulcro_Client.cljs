@@ -1,6 +1,6 @@
 (ns fulcro-devguide.F-Fulcro-Client
-(:require [om.next :as om :refer-macros [defui]]
-  [om.dom :as dom]
+(:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  [fulcro.client.dom :as dom]
   [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 ; TODO: In these exercises, probably better to have them make an HTML file, a namespace with make/mount, etc.
@@ -37,10 +37,10 @@
   (ns app.core
     (:require
       app.mutations ; remember to load your add-on mutations
-      [fulcro.client.core :as fc]
+      [fulcro.client :as fc]
       [app.ui :as ui]
       yahoo.intl-messageformat-with-locales ; if using i18n
-      [om.next :as om]))
+      [fulcro.client.primitives :as prim]))
 
   (defonce app (atom (fc/new-fulcro-client :initial-state { :some-data 42 })))
   (reset! app (core/mount @app ui/Root \"app\"))
@@ -82,8 +82,8 @@
   The `:initial-state` option of `new-fulcro-client` can accept a map (which will be assumed to be a TREE of non-normalized data),
   or an `atom` (which will be assumed to be a pre-normalized database).
 
-  If you supply a map, it will be auto-normalized using your UI's query. If you supply an atom it will be used AS the
-  application database.
+  If you supply a map, it will be auto-normalized using your UI's query and ident, but if you supply an atom it will be used AS the
+  normalized application database.
 
   We do *not* recommend initializing your application in *either* of these ways except in extremely simple circumstances,
   instead Fulcro allows you to co-locate your initial app state locally on the components so that

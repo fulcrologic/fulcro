@@ -1,10 +1,10 @@
 (ns fulcro-devguide.ZZ-HTML-to-CLJS
   (:require
-    [om.dom :as dom]
-    [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-    [om.next :as om :refer [defui]]
-    [fulcro.client.cards :refer [fulcro-app]]
-    [fulcro.client.core :as fc]
+    [fulcro.client.dom :as dom]
+    [devcards.core :as dc]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client.cards :refer [defcard-fulcro]]
+    [fulcro.client :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [goog.events :as events]
@@ -36,7 +36,7 @@
     :otherwise "UNKNOWN"))
 
 (defn to-cljs
-  "Convert an HTML fragment (containing just one tag) into a corresponding Om Dom cljs"
+  "Convert an HTML fragment (containing just one tag) into a corresponding Dom cljs"
   [html-fragment]
   (let [hiccup-list (map hc/as-hiccup (hc/parse-fragment html-fragment))]
     (first (map elem-to-cljs hiccup-list))))
@@ -48,39 +48,39 @@
       (swap! state assoc-in [:top :conv :cljs] cljs))))
 
 (defui HTMLConverter
-  static fc/InitialAppState
+  static prim/InitialAppState
   (initial-state [clz params] {:html "<div></div>" :cljs (list)})
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:cljs :html])
-  static om/Ident
+  static prim/Ident
   (ident [this p] [:top :conv])
   Object
   (render [this]
-    (let [{:keys [html cljs]} (om/props this)]
+    (let [{:keys [html cljs]} (prim/props this)]
       (dom/div #js {:className ""}
         (dom/textarea #js {:cols     80 :rows 10
                            :onChange (fn [evt] (m/set-string! this :html :event evt))
                            :value    html})
         (dom/div #js {} (edn/html-edn cljs))
         (dom/button #js {:className "c-button" :onClick (fn [evt]
-                                                          (om/transact! this `[(convert {})]))} "Convert")))))
+                                                          (prim/transact! this `[(convert {})]))} "Convert")))))
 
-(def ui-html-convert (om/factory HTMLConverter))
+(def ui-html-convert (prim/factory HTMLConverter))
 
 (defui HTMLConverterApp
-  static fc/InitialAppState
-  (initial-state [clz params] {:converter (fc/initial-state HTMLConverter {})})
-  static om/IQuery
-  (query [this] [{:converter (om/get-query HTMLConverter)} :react-key])
+  static prim/InitialAppState
+  (initial-state [clz params] {:converter (prim/get-initial-state HTMLConverter {})})
+  static prim/IQuery
+  (query [this] [{:converter (prim/get-query HTMLConverter)} :react-key])
   Object
   (render [this]
-    (let [{:keys [converter ui/react-key]} (om/props this)]
+    (let [{:keys [converter ui/react-key]} (prim/props this)]
       (dom/div
         #js {:key react-key} (ui-html-convert converter)))))
 
-(defcard html-converter
-  "The input below can be used to convert raw HTML into Om DOM code in CLJS. Simply paste in valid HTML and press the button.
+(defcard-fulcro html-converter
+  "The input below can be used to convert raw HTML into DOM code in CLJS. Simply paste in valid HTML and press the button.
   Then copy/paste the result into an editor and reformat. The converter will convert space text nodes into literal
   quoted spaces, but other than that is does a pretty effective job. If there are React attributes that get mis-translated
   then edit this file and add a mapping to the `attr-renames` map."
-  (fulcro-app HTMLConverterApp))
+  HTMLConverterApp)

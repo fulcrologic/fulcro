@@ -1,9 +1,9 @@
 (ns fulcro.websockets.transit-packer
-  (:require [om.transit :as ot]
+  (:require [fulcro.transit :as ot]
             [taoensso.sente.packers.transit :as st]
-            [om.tempid :as tempid #?@(:cljs [:refer [TempId]])])
+            [fulcro.tempid :as tempid #?@(:cljs [:refer [TempId]])])
   #?(:clj (:import [com.cognitect.transit ReadHandler]
-                   [om.tempid TempId])))
+                   [fulcro.tempid TempId])))
 
 
 (defn make-packer
@@ -12,12 +12,12 @@
   #?(:clj (st/->TransitPacker :json
                               {:handlers (cond-> {TempId (ot/->TempIdHandler)}
                                            write (merge write))}
-                              {:handlers (cond-> {"om/id" (reify
+                              {:handlers (cond-> {"fulcro/tempid" (reify
                                                             ReadHandler
                                                             (fromRep [_ id] (TempId. id)))}
                                            read (merge read))})
      :cljs (st/->TransitPacker :json
                                {:handlers (cond-> {TempId (ot/->TempIdHandler)}
                                             write (merge write))}
-                               {:handlers (cond-> {"om/id" (fn [id] (tempid/tempid id))}
+                               {:handlers (cond-> {"fulcro/tempid" (fn [id] (tempid/tempid id))}
                                             read (merge read))})))

@@ -1,9 +1,9 @@
 (ns fulcro-devguide.G-Mutation
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.core :as fc]))
+            [fulcro.client :as fc]))
 
 (defcard-doc
   "
@@ -14,23 +14,24 @@
 
   ## Overview
 
-
-  Mutations are part of the query syntax, except they are invoked with `transact!` and dispath to your top-level
-  mutation function instead of the read function. The mutations are meant to be thought of as top-level transactions
-  which are abstract operations over your application state. The difference between a local mutation and a remote one is
+  Mutations are part of the query syntax and are invoked with `transact!`.
+  The mutations themselves are meant to be thought of as top-level transactions
+  which are abstract operations over your application state that can be serialized for history or even sent across one or
+  more networks to affect remote changes. The difference between a local mutation and a remote one is
   indistinguishable in the UI code itself. So, assume you want to be able to delete something in the UI, you might
   call:
 
   ```
-  (om/transact! this-component '[(app/delete)])
+  (prim/transact! this-component '[(app/delete)])
   ```
 
-  Fulcro reduces the amount of boilerplate you have to write since there is no need for a custom
-  Om parser. As such, to support a new abstract mutation you simply add methods to the
-  `fulcro.client.mutations/mutate` multimethod.
+  Of course, something has to descibe *how* to do this operation. Internally, mutations are dispatched to a multimethod
+  called `fulcro.client.mutations/mutate`. In order to generate a clean overall operational model, there are some rules
+  around how this function must work:
 
-  Your mutate function must be side-effect free so instead of doing the actual action, it must
-  return a map that contain instructions about what to do:
+  Specifically all mutate functions must themselves be side-effect free. This is because they can be called any number
+  of times (to gather up what should happen locally vs. remotely). Instead of doing the actual action, then must
+  *instead* return a map that described what to do:
 
   ```
   (ns my-mutations
@@ -38,7 +39,7 @@
 
   (defmethod m/mutate 'app/delete [{:keys [state ast] :as env} k params]
      {
-       ; A thunk to do the local db modifications/optimistic update
+       ; A thunk to do the *local* db modifications/optimistic update
        :action (fn []
                  (swap! state ...))
 
@@ -46,8 +47,19 @@
        :remote true })
   ```
 
-  It is also possible to change the form of the mutation that is sent to the server (the code above causes
-  the identical mutation to be sent to the server that was initiated by the client code).
+  This unifies server interactions and will be discussed more when we get to that topic.
+
+  Fulcro has a macro that can write this defmethod for you, and it is a little less error prone:
+
+  ```
+  (defmutation app/delete [params]
+    (action [env] ...)
+    (remote [env] ...))
+  ```
+
+  If you don't namespace your symbol, then the macro will auto-namespace it to the current namespace. This has the
+  extremely beneficial effect of enabling Cursive IDE navigation from your mutation transactions to their definition!
+  See this [YouTube video](https://youtu.be/YhAOHo0CScA?t=5m45s) on Fulcro to see an example of that kind of thing in action.
 
   ## Updating an item stored in a map
 
@@ -61,10 +73,11 @@
   would be to invent a top-level transaction that is used like this:
 
   ```
-  (om/transact! this `[(app/set-name { :person 1 :name ~n })])
+  (prim/transact! this `[(app/set-name { :person 1 :name ~n })])
   ```
 
-  note the careful use of syntax quoting and unquote (assuming n is a local binding to the desired new name string).
+  note the careful use of syntax quoting and unquote (assuming n is a local binding to the desired new name string). Remember that the
+  transaction is *data*, but the data is taking a form that the compiler would love a shot at resolving!
 
   The use of parameters means your mutate function will receive parameters, so you can implement this with:
 
@@ -75,17 +88,18 @@
       (swap! state update-in [:people/by-id person] assoc :person/name name))})
   ```
 
+  or
+
+  ```
+  (defmutation app/set-name [{:keys [person name]}]
+    (action [{:keys [state]}]
+      (swap! state update-in [:people/by-id person] assoc :person/name name)))
+  ```
+
   Given that the rest of your database will refer to the table item, there is nothing else to do as far as the
-  mutation goes. To indicate that a transaction affects other components you can tack property names onto
-  the transaction to indicate that any component that queries for the given property will be re-rendered
-  after the update:
-
-  ```
-  (om/transact! this `[(app/set-name { :person 1 :name ~n }) :person])
-  ```
-
-  You should understand that all components that include that property name in their query will be
-  re-rendered. More details can be found below.
+  state goes; however, Fulcro does not do any kind of expensive overhead to figure out what changes need to be
+  made in your UI as a result. The default is to just re-render the thing that *ran* the transaction (or root if
+  the reconciler was used).
 
   ## Adding an item to a list
 
@@ -103,14 +117,14 @@
                     4 { :id 4 :person/name \"May\" }}}
   ```
 
-  You'll need to simply do the data manipulations to make it look right. For example, to add \"Tom\" to your friends,
+  You'll need to do the data manipulations to make it look right. For example, to add \"Tom\" to your friends,
   your mutation action thunk would basically need to do:
 
   ```
   (swap! state update :people/friends conj [:people/by-id 3])
   ```
 
-  ... resulting in the following app database state:
+  resulting in the following app database state:
 
   ```
   { :people/friends [ [:people/by-id 1] [:people/by-id 2] [:people/by-id 3] ]
@@ -129,7 +143,7 @@
   (swap! state update :people/friends conj [:people/by-id 7])
   ```
 
-  ... resulting in the following app database state:
+  resulting in the following app database state:
 
   ```
   { :people/friends [ [:people/by-id 1] [:people/by-id 2] [:people/by-id 3] [:people/by-id 7] ]
@@ -235,54 +249,71 @@
 
   This means that your approach may be to leave the items in the top-level tables to avoid possible bugs when
   removing things, but then it might be necessary to implement some form of garbage collection on your tables. Given
-  the power of data structure tools in cljs, it is simple enough to scan the database for idents, and then remove
-  anything from the tables that are not in this collected set of idents.
+  the power of data structure tools in cljs, it is simple enough to scan the database for idents (e.g. using
+  `clojure.walk/prewalk`), and then remove anything from the tables that are not in this collected set of idents.
 
   ## Returning a Value From a Mutation
 
-  We included this section because it is a common question. The answer is \"you can't\". On the surface this seems like
-  a problem, but if you think about the overall model it becomes quite evident:
+  In general it is not useful to return a value from a mutation. There is nothing you can do with the value. A mutation
+  is already an action on state. So, you just act on state.
 
-  - Which mutation return value do you get (there could be a local AND remote)?
-  - What should the mutation return? The server version has no idea what is on your UI, so how can it decide what updated
-  facts you need?
-  - Where would the return value go? Transact can be reasoned about asynchronously, but you're in browser land. It isn't.
-  You cannot capture it synchronously. We could give you callback madness, but we're here to free you from that. Finally,
-  there is no query, and as you saw in many other places, we cannot merge data to the database correctly without one!
+  Server-side mutations can return a value, and there are a number of ways of dealing with that which will be discussed
+  in the chapters on server interation.
 
-  There is an exception to this rule: mutations the are run remotely can return a value, but it is ignored unless you
-  plug into the merge routines and handle it. This is an advanced option covered in
-  [Server Interactions](#!/fulcro_devguide.H_Server_Interactions).
+  ## Follow-on Reads (non-local UI Refresh)
 
-  ## Details on refreshing components after mutation
-
-  After doing a mutation, you can trigger re-renders by listing query bits after the mutation. Any keywords you list
-  will trigger re-renders of things that queried for those keywords. Any idents (e.g. `[:db/id 4]`) will trigger
-  re-renders of anything that has that Ident. In the example below, anything that has included the prop named
-  `:widget` or has the Ident `[:db/id 4]` will re-render after the operation.
+  Fulcro will refresh the component subtree after doing a mutation from wherever the transaction was run.
+  You may indicate that a transaction affects *other components* by simply adding simple property names onto
+  the end of transaction to indicate what data has changed. Fulcro will find all components that query for those and re-render
+  them after the update:
 
   ```
-     (om/transact! this '[(app/do-thing) :widget [:db/id 4]])
+  (prim/transact! this `[(app/set-name { :person 1 :name ~n }) :person])
   ```
 
-  At first, this might seem like overkill (lots of different components could have mentioned `:widget`. This is
-  part of the motivation behind namespacing property keywords. It is not required, but it helps prevent refreshing
-  components that don't need it.
+  These query keywords are known as *follow-on reads*.
 
-  This mechanism works as follows (basically):
+  Fulcro maintains some internal indexes. One of them, `prop->classes`, is created at application startup and is an
+  index of all of the properties that exist in your query, to the set of classes that have a query for them. Another
+  index is a live-updating index known as `class->components` that is updated as components mount/unmount. Running a given
+  property through the pair of indexes can quickly derive the full list of live components that use a particular bit of
+  data.
 
-  Any keywords mentioned in the transaction are used to look up components (via the internal indexer). Those
-  components are used to transform the keywords requested into full queries to run against the local app state. Those
-  queries are run, the results are focused to the target components, and those components are re-rendered. Of course
-  if the state hasn't changed, then React will optimize away any actual DOM change.
+  The beautiful thing about this is that it is data-model centric: you indicate to Fulcro what data *might* have changed,
+  and it figures out what specific things to refresh in the UI. You may also list idents in the follow-on reads to force refreshes of
+  all live components that have that ident.
+
+  ```
+  (prim/transact! this '[(app/do-thing) :widget [:db/id 4]])
+  ```
+
+  This facility is also why you should namespace your keywords. Indicating that `:name` changed will probably try to refresh
+  a lot of stuff (panel name, person name, employee name) that didn't change.
+
+  ## Relocating Follow-On Reads to the Mutation Itself
+
+  In Fulcro 2.0 support was added to allow the list of things that have changed to go on the mutation itself. This moves the
+  data model closer to the source of the changes, and out of the UI.
+
+  Follow-on reads are still fully-supported, but co-locating the list of data that changed with the operation that changed
+  it is much easier to follow/maintain, and it doesn't pollute the UI with refresh concerns.
+
+  To use the new support, simply include a `refresh` section in your mutation, like so:
+
+  ```
+  (defmutation do-thing [params]
+    (action [env] ...)
+    (refresh [env] [:person/name]))
+  ```
 
   ## Fulcro built-in mutations
 
   ### UI attributes
 
   There is a special use-case in your applications for attributes in a component query: local, UI-only data. For
-  example, is a checkbox checked. Om generally hooks this stuff up to component local state, but that makes
-  debugging more difficult, and it also makes some user interactions invisible to the support VCR viewer. Instead,
+  example, is a checkbox checked. Fulcro hooks this stuff up to component local state for form inputs to maintain
+  stock React behavior, but that makes debugging more difficult, and it also makes some user interactions invisible
+  to the support VCR viewer. Instead,
   if you namespace these UI-only attrubutes to `ui`, they will be elided from server queries (see Server Interactions).
 
   Since UI attributes really don't need very abstract mutations (typical operations are 'set to this string' and 'toggle')
@@ -319,13 +350,13 @@
   For example, if you have required namespace `[x.y.z :as x]`, and `do-thing` is declared in that namespace
   then you can write
   ```
-  (om/transact! this `[(x/do-thing {:param1 1})])
+  (prim/transact! this `[(x/do-thing {:param1 1})])
   ```
 
   and the compiler will expand it to
 
   ```
-  (om/transact! this '[(x.y.z/do-thing {:param1 1})])
+  (prim/transact! this '[(x.y.z/do-thing {:param1 1})])
   ```
 
   Not only is this useful in keeping your mutations from colliding with each other, it saves you typing and also

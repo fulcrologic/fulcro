@@ -4,8 +4,8 @@
             [cognitect.transit :as ct]
             [taoensso.sente :as sente :refer (cb-success?)] ; <--- Add this
             [taoensso.sente.packers.transit :as sente-transit]
-            [om.next :as om]
-            [om.transit :as t]
+            [fulcro.client.primitives :as prim]
+            [fulcro.transit :as t]
             [fulcro.client.network :refer [FulcroNetwork]]
             [fulcro.client.logging :as log]
             [fulcro.websockets.transit-packer :as tp]))

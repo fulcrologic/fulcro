@@ -1,16 +1,15 @@
 (ns fulcro-devguide.N10-Twitter-Bootstrap-CSS
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as prim]
+            [fulcro.client.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
             [cljs.reader :as r]
-            [om.next.impl.parser :as p]
+            [fulcro.client.impl.parser :as p]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.elements :as ele]
-            [fulcro.client.cards :refer [fulcro-app]]
             [fulcro.client.mutations :as m]
             [fulcro.ui.bootstrap3 :as b]
-            [fulcro.client.core :as fc]
+            [fulcro.client :as fc]
             [fulcro.ui.html-entities :as ent]))
 
 (declare render-example sample)
@@ -23,13 +22,13 @@
 
   NOTE: You must include version 3 of Bootstrap's CSS (and optionally theme), but *not* js, in your HTML file.
 
-  The CSS affects many DOM elements, which means you'll see examples that use Om's DOM functions, which
+  The CSS affects many DOM elements, which means you'll see examples that use DOM functions, which
   in turn require a JavaScript object as the first argument (for performance). The helper functions from the
   `bootstrap` namespace need to modify the incoming arguments, so the first argument (if it takes DOM props) is
   a cljs map instead.
 
   ```
-  ; render an Om regular DOM element:
+  ; render a regular DOM element:
   (dom/div #js { :className \"a\" })
   ; render a bootstrap element via one of these functions
   (b/button { :className \"b\"} \"Button label\")
@@ -675,8 +674,8 @@
     (apply dom/div #js {:key "example-frame-key"}
       (dom/style nil ".boxed {border: 1px solid black}")
       #_(dom/link #js {:rel  "stylesheet"
-                     :href "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"})
-      (dom/link #js {:rel  "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+                       :href "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"})
+      (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       children)))
 
 (defn sample [ele description]

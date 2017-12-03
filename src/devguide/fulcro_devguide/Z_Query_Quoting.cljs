@@ -1,10 +1,10 @@
 (ns fulcro-devguide.Z-Query-Quoting
   (:require-macros
     [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.next.impl.parser :as p]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+            [fulcro.client.impl.parser :as p]
             [fulcro-devguide.queries.query-editing :as qe]
-            [om.dom :as dom]
+            [fulcro.client.dom :as dom]
             [cljs.reader :as r]
             [fulcro-devguide.queries.query-demo :as qd]
             [devcards.util.edn-renderer :refer [html-edn]]
@@ -15,7 +15,7 @@
 
   In general you should do a full devguide on macros which will give you a great
   facility with quoting. This appendix to the devguide is to help you see the
-  patterns that are commonly used in Fulcro/Om UI to properly encode
+  patterns that are commonly used in Fulcro UI to properly encode
   queries on the UI.
 
   If you really want to see all of the edges, you might want to read
@@ -35,7 +35,7 @@
   and you'll get back a vector containing a list (which contains a symbol), and two other
   symbols (`_` and `...`).
 
-  Since Om queries use these things in the query notation, this is the most basic tool
+  Since queries use these things in the query notation, this is the most basic tool
   for getting the correct data  structure as a query.
 
   ## Syntax quotes
@@ -46,14 +46,14 @@
   of the expression to actually be evaluated:
 
   ```
-  `[{:prop ~(om/get-query Child)}]    ===>    [{:prop [:id :child-thing]}]
+  `[{:prop ~(prim/get-query Child)}]    ===>    [{:prop [:id :child-thing]}]
   ```
 
   Note, however, that in this case the whole quoting thing is overkill! Nothing *needs* quoted,
   so the plain unquoted form would have evaluated to the same thing:
 
   ```
-  [{:prop (om/get-query Child)}]      ===>    [{:prop [:id :child-thing]}]
+  [{:prop (prim/get-query Child)}]      ===>    [{:prop [:id :child-thing]}]
   ```
 
   Some people choose to always use quoting so that later expansion of the query
@@ -63,7 +63,7 @@
   ### Dealing with symbols in syntax quoting
 
   The automatic namespacing of symbols helps ensure that their use in macros is correct; however, it
-  is at cross purposes to our Om queries.
+  is at cross purposes to our queries.
 
   For example:
 

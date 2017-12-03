@@ -1,16 +1,16 @@
 (ns fulcro-devguide.M10-Advanced-UI
   (:require-macros [cljs.test :refer [is]])
   (:require [cljs.pprint :refer [cl-format]]
-            [cljsjs.victory]
+            cljsjs.victory
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.clip-tool :as ct]
             [fulcro.ui.elements :as ele]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.mutations :as m :refer [defmutation]]
-            [om.dom :as dom]
-            [om.next :as om :refer-macros [defui]]
-            [om.util :as util]
-            [fulcro.client.core :as fc]))
+            [fulcro.client.dom :as dom]
+            [fulcro.client.primitives :as prim :refer [defsc]]
+            [fulcro.util :as util]
+            [fulcro.client :as fc]))
 
 (defn us-dollars [n]
   (str "$" (cl-format nil "~:d" n)))
@@ -38,43 +38,39 @@
 ;; (def vline (js/React.createFactory js/Victory.VictoryLine))
 
 ;; " [ {:year 1991 :value 2345 } ...] "
-(defui ^:once YearlyValueChart
-  Object
-  (render [this]
-    (let [{:keys [label
-                  plot-data
-                  x-step]} (om/props this)
-          start-year (apply min (map :year plot-data))
-          end-year   (apply max (map :year plot-data))
-          years      (range start-year (inc end-year) x-step)
-          dates      (clj->js (mapv #(new js/Date % 1 2) years))
-          {:keys [min-value
-                  max-value]} (reduce (fn [{:keys [min-value max-value] :as acc}
-                                           {:keys [value] :as n}]
-                                        (assoc acc
-                                          :min-value (min min-value value)
-                                          :max-value (max max-value value)))
-                                {}
-                                plot-data)
-          min-value  (int (* 0.8 min-value))
-          max-value  (int (* 1.2 max-value))
-          points     (clj->js (mapv (fn [{:keys [year value]}]
-                                      {:x (new js/Date year 1 2)
-                                       :y value})
-                                plot-data))]
-      (vchart nil
-        (vaxis #js {:label      label
-                    :standalone false
-                    :scale      "time"
-                    :tickFormat (fn [d] (.getFullYear d))
-                    :tickValues dates})
-        (vaxis #js {:dependentAxis true
-                    :standalone    false
-                    :tickFormat    (fn [y] (us-dollars y))
-                    :domain        #js [min-value max-value]})
-        (vline #js {:data points})))))
+(defsc YearlyValueChart [this {:keys [label plot-data x-step]}]
+  {}
+  (let [start-year (apply min (map :year plot-data))
+        end-year   (apply max (map :year plot-data))
+        years      (range start-year (inc end-year) x-step)
+        dates      (clj->js (mapv #(new js/Date % 1 2) years))
+        {:keys [min-value
+                max-value]} (reduce (fn [{:keys [min-value max-value] :as acc}
+                                         {:keys [value] :as n}]
+                                      (assoc acc
+                                        :min-value (min min-value value)
+                                        :max-value (max max-value value)))
+                              {}
+                              plot-data)
+        min-value  (int (* 0.8 min-value))
+        max-value  (int (* 1.2 max-value))
+        points     (clj->js (mapv (fn [{:keys [year value]}]
+                                    {:x (new js/Date year 1 2)
+                                     :y value})
+                              plot-data))]
+    (vchart nil
+      (vaxis #js {:label      label
+                  :standalone false
+                  :scale      "time"
+                  :tickFormat (fn [d] (.getFullYear d))
+                  :tickValues dates})
+      (vaxis #js {:dependentAxis true
+                  :standalone    false
+                  :tickFormat    (fn [y] (us-dollars y))
+                  :domain        #js [min-value max-value]})
+      (vline #js {:data points}))))
 
-(def yearly-value-chart (om/factory YearlyValueChart))
+(def yearly-value-chart (prim/factory YearlyValueChart))
 
 (defcard-doc
   "
@@ -127,14 +123,13 @@
   (dc/mkdn-pprint-source vaxis)
   (dc/mkdn-pprint-source vline)
 
-  "Next, lets build our `Om.next` component using `defui`:"
+  "Next, lets build our component using `defsc` (see M05-More-Concise-UI):"
 
   (dc/mkdn-pprint-source YearlyValueChart)
 
   "You will notice in the above code, that we convert relevant clojure datastructures to JS datastructures via
   `clj->js`. This is important, because a JS library is going to expect that kind of data. Other than that,
-  the code is fairly straight forward.  And the final product:"
-  )
+  the code is fairly straight forward.  And the final product:")
 
 
 (defcard sample-victory-chart
@@ -167,19 +162,15 @@
 
 (def minion-image "https://s-media-cache-ak0.pinimg.com/736x/34/c2/f5/34c2f59284fcdff709217e14df2250a0--film-minions-minions-images.jpg")
 
-(defui ^:once ICRoot
-  static fc/InitialAppState
-  (initial-state [c p] {:ctool (fc/get-initial-state ct/ClipTool {:id        :clipper :aspect-ratio 0.5
-                                                                  :image-url minion-image})})
-  static om/IQuery
-  (query [this] [:ui/react-key :ctool])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key ctool]} (om/props this)]
-      (dom/div #js {:key react-key}
-        (ct/ui-clip-tool (om/computed ctool {:onChange (fn [props] (om/set-state! this props))}))
-        (ct/ui-preview-clip (merge (om/get-state this) {:filename "minions.jpg"
-                                                        :width    100 :height 200}))))))
+(defsc ICRoot [this {:keys [ui/react-key ctool]}]
+  {:initial-state
+          (fn [p] {:ctool (prim/get-initial-state ct/ClipTool {:id        :clipper :aspect-ratio 0.5
+                                                               :image-url minion-image})})
+   :query [:ui/react-key :ctool]}
+  (dom/div #js {:key react-key}
+    (ct/ui-clip-tool (prim/computed ctool {:onChange (fn [props] (prim/set-state! this props))}))
+    (ct/ui-preview-clip (merge (prim/get-state this) {:filename "minions.jpg"
+                                                      :width    100 :height 200}))))
 
 (defcard-doc
   "
@@ -235,58 +226,39 @@
   (action [{:keys [state]}]
     (swap! state update-in [:child/by-id id :n] dec)))
 
-(defui ^:once ListItem
-  static fc/InitialAppState
-  (initial-state [c {:keys [id n]}] {:id id :n n})
-  static om/IQuery
-  (query [this] [:id :n])
-  static om/Ident
-  (ident [this props] [:child/by-id (:id props)])
-  Object
-  (render [this]
-    (let [{:keys [id n]} (om/props this)]
-      (dom/li #js {:className "item"}
-        (dom/span nil "n: " n)
-        (dom/button #js {:onClick #(om/transact! this `[(bump-up {:id ~id})])} "Increment")
-        (dom/button #js {:onClick #(om/transact! this `[(bump-down {:id ~id})])} "Decrement")))))
+(defsc ListItem [this {:keys [id n]}]
+  {:initial-state {:id :param/id :n :param/n}
+   :query         [:id :n]
+   :ident         [:child/by-id :id]}
+  (dom/li #js {:className "item"}
+    (dom/span nil "n: " n)
+    (dom/button #js {:onClick #(prim/transact! this `[(bump-up {:id ~id})])} "Increment")
+    (dom/button #js {:onClick #(prim/transact! this `[(bump-down {:id ~id})])} "Decrement")))
 
-(def ui-list-item (om/factory ListItem {:keyfn :id}))
+(def ui-list-item (prim/factory ListItem {:keyfn :id}))
 
-(defui ^:once ItemList
-  static fc/InitialAppState
-  (initial-state [c p] {:id 1 :title "My List" :min 1 :max 1000 :items [(fc/get-initial-state ListItem {:id 1 :n 2})
-                                                                        (fc/get-initial-state ListItem {:id 2 :n 5})
-                                                                        (fc/get-initial-state ListItem {:id 3 :n 7})]})
-  static om/IQuery
-  (query [this] [:id :title :max :min {:items (om/get-query ListItem)}])
-  static om/Ident
-  (ident [this props] [:list/by-id (:id props)])
-  Object
-  (render [this]
-    (let [{:keys [title min max items] :or {min 0 max 1000000}} (om/props this)]
-      (dom/div #js {:style {:float "left" :width "300px"}}
-        (dom/h4 nil (str title (when (= 0 min) (str " (n <= " max ")"))))
-        (dom/ul nil (->> items
-                      (filter (fn [{:keys [n]}] (<= min n max)))
-                      (map ui-list-item)))))))
+(defsc ItemList [this {:keys [title min max items] :or {min 0 max 1000000}}]
+  {:initial-state {:id 1 :title "My List" :min 1 :max 1000 :items [{:id 1 :n 2} {:id 2 :n 5} {:id 3 :n 7}]}
+   :query         [:id :title :max :min {:items (prim/get-query ListItem)}]
+   :ident         [:list/by-id :id]}
+  (dom/div #js {:style {:float "left" :width "300px"}}
+    (dom/h4 nil (str title (when (= 0 min) (str " (n <= " max ")"))))
+    (dom/ul nil (->> items
+                  (filter (fn [{:keys [n]}] (<= min n max)))
+                  (map ui-list-item)))))
 
-(def ui-list (om/factory ItemList {:keyfn :id}))
+(def ui-list (prim/factory ItemList {:keyfn :id}))
 
-(defui ^:once SDRoot
-  static fc/InitialAppState
-  (initial-state [c p] {:lists [(fc/get-initial-state ItemList {})]})
-  static om/IQuery
-  (query [this] [:ui/react-key {:lists (om/get-query ItemList)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key lists]} (om/props this)]
-      (dom/div nil
-        (dom/style #js {} ".item {font-size: 40pt}")
-        (ele/ui-shadow-dom {:open-boundary? false}
-          (dom/div #js {:key react-key}
-            (dom/style #js {} ".item {color: red}")
-            (map ui-list lists)))
-        (dom/div #js {:className "item"} "sibling")))))
+(defsc SDRoot [this {:keys [ui/react-key lists]}]
+  {:initial-state {:lists [{}]}
+   :query         [:ui/react-key {:lists (prim/get-query ItemList)}]}
+  (dom/div nil
+    (dom/style #js {} ".item {font-size: 40pt}")
+    (ele/ui-shadow-dom {:open-boundary? false}
+      (dom/div #js {:key react-key}
+        (dom/style #js {} ".item {color: red}")
+        (map ui-list lists)))
+    (dom/div #js {:className "item"} "sibling")))
 
 (defcard-fulcro shadow-dom
   "This card is running with shadow dom. There is a top-level CSS style to set the font size

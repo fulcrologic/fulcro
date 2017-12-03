@@ -1,0 +1,107 @@
+= Incremental Update Design
+
+Requirements
+
+* Able to update incrementally, and by depth
+** Requires finding components by prop (follow-on reads)
+** Component must be usable to get query-id and ident (which
+allows us to get the query from state)
+** Failure to find an ident for a component triggers root update
+*** `components` = find all components that need refreshed
+*** IF: `(every? has-ident? components)`
+**** Then: Refresh each
+**** Else: Refresh all
+
+Questions?
+
+* Do we need to update props in parents (om-path)?
+** State changes in parent, parent will have old props, will
+destructure other components props and pass them to children.
+*** What if shouldComponentUpdate always uses props from its
+local store IF the basis time is <= component's time.
+**** A parent updating due to state will cause reconciler
+basis-t to not change, so incoming t will be the same...oops,
+unless a sibling did a transact. Now the other parent has both
+a newer basis-t, but the old props.
+**** Would it be possible to mark basis-t in metadata *during* db->tree,
+so that we can discover the old props by looking at the metadata? This
+still eliminates `path-meta` overhead, and probably doesn't make
+`db->tree` appreciably slower?
+
+[ditaa]
+----
+
++---------------+
+| Reconciler    |
+| time      Rt  |
++---------------+
+
++---------------+   +---------------+
+| child 1       |   | child 2       |
+| time     Ct1  |   | time     Ct2  |
++------------+--+   +--+------------+
+             |         |
+             |         |
+          +--+---------+--+
+          | Parent        |
+          | time      Pt  |
+          +-------+-------+
+                  |
+          +-------+-------+
+          | Root          |
+          | time     Rot  |
+          +---------------+
+
+----
+
+== Scenario 1
+
+=== Step 1: Render from Root
+
+* Rt increments
+* `db->tree` runs, setting Rt into metadata on each data node
+* During render, props deconstruction sents Rt into each
+   component, such that (Rot, Pt, Ct1, Ct2) = Rt = 1
+
+=== Step 2: Child 1 transacts (it's time becomes newer than parents)
+
+* Rt increments (Rt = 2)
+* Child's ident is used to run `db->tree` with Rt, but just on child 1
+* Ct1 = Rt
+
+=== Step 3: Parent uses set-state! (reconciler time does not change, but incoming data has old props)
+
+* Rt does *not* move
+* Parent is force-updated
+* Parent tries to update child 1 by passing old stored props with old Rt = 1
+** shouldComponentUpdate *could* allow a render if computed props were derived
+from parent's changed state; however:
+*** Child's lifecycle wrappers can compare incoming prop time with current
+props time and send the locally cached (newer) props
+
+=== Step 4: Parent transacts (parent's props change, but children props don't)
+
+* NOTE: Parent will be coded to render the children, so lifecycle for them will
+happen.
+* Increment Rt: Rt = 3
+* `db->tree` runs, and puts Rt = 3 onto the props for parent and its children.
+* Pt = 3
+* Does *not* affect either child's props (e.g. shouldComponentUpdate sees no data
+in the children); however, during the check:
+** If incoming t > stored_t, then update local stored_t (avoid triggering cascaded render, though!)
+
+ALTERNATE: We can use an algorightm  like path-meta to add `t` to the nodes of data,
+and we don't even need the query: Just put the time on anything that can be a node
+(e.g. vectors and maps). I'm guessing a Specter precompiled transform could be
+quite fast. Oh wait, we want the query because it allows us to stop early. AH:
+`db->tree` adds placeholder metadata to the tree at leaves, so we know to stop
+early with a simple algorithm? That way we still have API compatibility.
+
+RESEARCH: Can postwalk, prewalk, or specter be easily told when to stop recursion? Answer,
+Specter has nice navigator support, which could probably be used to nav query results
+well.
+
+
+
+
+

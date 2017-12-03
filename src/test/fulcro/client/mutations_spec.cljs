@@ -3,14 +3,16 @@
     [fulcro-spec.core :refer [specification provided behavior assertions component when-mocking]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [goog.debug.Logger.Level :as level]
-    [fulcro.client.impl.om-plumbing :as plumb]
     [fulcro.i18n :as i18n]
     [fulcro.client.impl.data-fetch :as df]
+    [fulcro.client ]
+    [fulcro.client.dom :as dom]
     [goog.log :as glog]
-    [om.next :as om :refer [*logger*]]
+    [fulcro.client.primitives :as prim :refer [defsc]]
     [clojure.test :refer [is]]
-    [fulcro.client.logging :as log]
-    [clojure.string :as str]))
+    [fulcro.client.logging :as log :refer [*logger*]]
+    [clojure.string :as str]
+    [fulcro.client.impl.application :as app]))
 
 (defmutation sample
   "Doc string"
@@ -44,9 +46,9 @@
     (component "set-value!"
       (behavior "can set a raw value"
         (when-mocking
-          (om/transact! _ tx) => (let [tx-key (ffirst tx)
-                                       params (second (first tx))]
-                                   ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
+          (prim/transact! _ tx) => (let [tx-key (ffirst tx)
+                                         params (second (first tx))]
+                                     ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
 
           (let [get-data #(-> @state :baz :1 :2)]
             (is (= 3 (get-data)))
@@ -86,9 +88,9 @@
 
     (component "toggle!"
       (when-mocking
-        (om/transact! _ tx) => (let [tx-key (ffirst tx)
-                                     params (second (first tx))]
-                                 ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
+        (prim/transact! _ tx) => (let [tx-key (ffirst tx)
+                                       params (second (first tx))]
+                                   ((:action (m/mutate {:state state :ref [:baz :1]} tx-key params))))
 
         (behavior "can toggle a boolean value"
           (m/toggle! '[:baz :1] :4)
@@ -98,13 +100,13 @@
 
 (specification "Mutations via transact"
   (let [state      {}
-        parser     (partial (om/parser {:read (partial plumb/read-local (constantly false)) :mutate m/mutate}))
-        reconciler (om/reconciler {:state  state
-                                   :parser parser})]
+        parser     (partial (prim/parser {:read (partial app/read-local (constantly false)) :mutate m/mutate}))
+        reconciler (prim/reconciler {:state  state
+                                     :parser parser})]
     (behavior "report an error if an undefined multi-method is called."
       (when-mocking
         (log/error msg) => (is (re-find #"Unknown app state mutation." msg))
-        (om/transact! reconciler `[(not-a-real-transaction!)])))))
+        (prim/transact! reconciler `[(not-a-real-transaction!)])))))
 
 (specification "Change locale mutation"
   (behavior "accepts a string for locale"
@@ -173,7 +175,7 @@
 (specification "Fallback mutations"
   (try
     (let [called (atom false)
-          parser (om/parser {:read (fn [e k p] nil) :mutate m/mutate})]
+          parser (prim/parser {:read (fn [e k p] nil) :mutate m/mutate})]
       (defmethod m/mutate 'my-undo [e k p]
         (do
           (assertions
@@ -217,3 +219,34 @@
       (assertions
         "is remote"
         (:remote result) => true))))
+
+(defsc Item [this props _ _]
+  {:query [:db/id :x]
+   :ident [:table/id :db/id]}
+  (dom/div nil ""))
+
+(specification "Remote returning (declaring return value for a remote operation)"
+  (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
+    (assertions
+      "Returns an AST with the corresponding query for the type"
+      (m/returning ast {} Item) => {:dispatch-key 'f
+                                    :key          'f
+                                    :params       {:x 1}
+                                    :type         :call
+                                    :query        [:db/id :x]
+                                    :component    fulcro.client.mutations-spec/Item
+                                    :children     [{:type         :prop
+                                                    :dispatch-key :db/id
+                                                    :key          :db/id}
+                                                   {:type         :prop
+                                                    :dispatch-key :x
+                                                    :key          :x}]})))
+
+(specification "Remote with-params (modify remote params)"
+  (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
+    (assertions
+      "Returns an AST with the parameters updated"
+      (m/with-params ast {:y 2}) => {:dispatch-key 'f
+                                     :key          'f
+                                     :params       {:y 2}
+                                     :type         :call})))

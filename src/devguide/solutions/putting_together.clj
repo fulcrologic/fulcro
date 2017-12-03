@@ -1,5 +1,6 @@
 (ns solutions.putting-together
   (:require [fulcro.easy-server :as easy]
+            [fulcro.client.primitives :as prim]
             [fulcro.server :refer [defmutation defquery-root defquery-entity]]
             [taoensso.timbre :as timbre]))
 
@@ -31,7 +32,7 @@
             item   {:item/id new-id :item/label label :item/done false}]
         (swap! items assoc new-id item)
         (timbre/info "Added item: " item)
-        {:tempids {id new-id}})))
+        {::prim/tempids {id new-id}})))
 
   (defmutation todo/toggle-done [{:keys [id done?]}]
     (action [e]

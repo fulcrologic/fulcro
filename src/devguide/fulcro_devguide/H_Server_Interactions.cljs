@@ -1,24 +1,24 @@
 (ns fulcro-devguide.H-Server-Interactions
   (:require-macros [cljs.test :refer [is]])
-  (:require [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+            [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.core :as fc]))
+            [fulcro.client :as fc]))
 
 ; TODO: (advanced) cookies/headers/augmented response
 
 (defui ^:once CategoryQuery
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :category/name])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:categories/by-id (:db/id props)]))
 
 (defui ^:once ItemQuery
-  static om/IQuery
-  (query [this] [:db/id {:item/category (om/get-query CategoryQuery)} :item/name])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [:db/id {:item/category (prim/get-query CategoryQuery)} :item/name])
+  static prim/Ident
   (ident [this props] [:items/by-id (:db/id props)]))
 
 (def sample-server-response
@@ -27,59 +27,59 @@
                {:db/id 7 :item/name "item-32" :item/category {:db/id 1 :category/name "A"}}
                {:db/id 8 :item/name "item-52" :item/category {:db/id 2 :category/name "B"}}]})
 
-(def component-query [{:all-items (om/get-query ItemQuery)}])
+(def component-query [{:all-items (prim/get-query ItemQuery)}])
 
 (def hand-written-query [{:all-items [:db/id :item/name
                                       {:item/category [:db/id :category/name]}]}])
 
 (defui ^:once ToolbarItem
-  static om/IQuery
+  static prim/IQuery
   (query [this] [:db/id :item/name])
-  static om/Ident
+  static prim/Ident
   (ident [this props] [:items/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [item/name]} (om/props this)]
+    (let [{:keys [item/name]} (prim/props this)]
       (dom/li nil name))))
 
-(def ui-toolbar-item (om/factory ToolbarItem {:keyfn :db/id}))
+(def ui-toolbar-item (prim/factory ToolbarItem {:keyfn :db/id}))
 
 (defui ^:once ToolbarCategory
-  static om/IQuery
-  (query [this] [:db/id :category/name {:category/items (om/get-query ToolbarItem)}])
-  static om/Ident
+  static prim/IQuery
+  (query [this] [:db/id :category/name {:category/items (prim/get-query ToolbarItem)}])
+  static prim/Ident
   (ident [this props] [:categories/by-id (:db/id props)])
   Object
   (render [this]
-    (let [{:keys [category/name category/items]} (om/props this)]
+    (let [{:keys [category/name category/items]} (prim/props this)]
       (dom/li nil
         name
         (dom/ul nil
           (map ui-toolbar-item items))))))
 
-(def ui-toolbar-category (om/factory ToolbarCategory {:keyfn :db/id}))
+(def ui-toolbar-category (prim/factory ToolbarCategory {:keyfn :db/id}))
 
 (defui ^:once Toolbar
-  static om/IQuery
-  (query [this] [{:toolbar/categories (om/get-query ToolbarCategory)}])
+  static prim/IQuery
+  (query [this] [{:toolbar/categories (prim/get-query ToolbarCategory)}])
   Object
   (render [this]
-    (let [{:keys [toolbar/categories]} (om/props this)]
+    (let [{:keys [toolbar/categories]} (prim/props this)]
       (dom/div nil
-        (dom/button #js {:onClick #(om/transact! this '[(server-interaction/group-items)])} "Trigger Post Mutation")
-        (dom/button #js {:onClick #(om/transact! this '[(server-interaction/group-items-reset)])} "Reset")
+        (dom/button #js {:onClick #(prim/transact! this '[(server-interaction/group-items)])} "Trigger Post Mutation")
+        (dom/button #js {:onClick #(prim/transact! this '[(server-interaction/group-items-reset)])} "Reset")
         (dom/ul nil
           (map ui-toolbar-category categories))))))
 
 (defmethod m/mutate 'server-interaction/group-items-reset [{:keys [state]} k p]
-  {:action (fn [] (reset! state (om/tree->db component-query sample-server-response true)))})
+  {:action (fn [] (reset! state (prim/tree->db component-query sample-server-response true)))})
 
 (defn add-to-category
   "Returns a new db with the given item added into that item's category."
   [db item]
   (let [category-ident (:item/category item)
         item-location  (conj category-ident :category/items)]
-    (update-in db item-location (fnil conj []) (om/ident ItemQuery item))))
+    (update-in db item-location (fnil conj []) (prim/ident ItemQuery item))))
 
 (defn group-items
   "Returns a new db with all of the items sorted by name and grouped into their categories."
@@ -89,7 +89,7 @@
         clear-items    (fn [db id] (assoc-in db [:categories/by-id id :category/items] []))
         db             (reduce clear-items db category-ids)
         db             (reduce add-to-category db sorted-items)
-        all-categories (->> db :categories/by-id vals (mapv #(om/ident CategoryQuery %)))]
+        all-categories (->> db :categories/by-id vals (mapv #(prim/ident CategoryQuery %)))]
     (assoc db :toolbar/categories all-categories)))
 
 
@@ -102,7 +102,7 @@
 
   Server request processing in Fulcro has the following features:
 
-  - Networking is provided
+  - Networking is provided, including encoding/decoding EDN on the wire (via transit)
   - All network requests (queries and mutations) are processed sequentially (unless you specify otherwise). This allows you
   to reason about optimistic updates (Starting more than one at a time via async calls could
   lead to out-of-order execution, and impossible-to-reason-about recovery from errors).
@@ -123,12 +123,13 @@
 
   In standard Fulcro networking, *all* of the above have the following similarities:
 
-  - A graph query needs to be involved. Even the server push (though in that case the client needs to know what **implied** question the server is sending data about.
+  - A component-based graph query needs to be involved (to enable auto-normalization). Even the server push (though in that case the client needs to know what **implied** question the server is sending data about.
   - The data from the server will be a tree that has the same shape as the query.
   - The data needs to be normalized into the client database.
-  - Any of them *may* desire some post-load transform to shape them form the UI (e.g. perhaps you need to sort or paginate some list of items that came in).
+  - Any of them *may* desire some post-load transformation to shape the result to a form the UI
+  (e.g. perhaps you need to sort or paginate some list of items that came in).
 
-  **IMPORTANT**: Remember what you learned about the graph database and queries. This section cannot possibly be understood
+  **IMPORTANT**: Remember what you learned about the graph database, queries, and idents. This section cannot possibly be understood
   properly if you do not understand those topics!
 
   ## The General Load Mechanism
@@ -145,7 +146,7 @@
   a root-level keyword, `:all-friends`, and join it to the UI query for a `Person`:
 
   ```
-  [{:all-friends (om/get-query Person)}]
+  [{:all-friends (prim/get-query Person)}]
   ```
 
   What we'd like to see then from the server is a return value with the shape of the query:
@@ -154,7 +155,7 @@
   { :all-frields [ {:db/id 1 ...} {:db/id 2 ...} ...] }
   ```
 
-  The internal function `tree->db` can be used to automatically turn this into the following graph database:
+  The internal function `tree->db` is used to automatically turn this into the following graph database:
 
   ```
   { :all-frields [ [:person/by-id 1] [:person/by-id 2] ...]
@@ -188,7 +189,7 @@
     :screens/by-type { :friends { :friends/list [] ... }}} ; (2) where friends *should* be
   ```
 
-  and if we were to just move the \"graph edge\" `:all-frields` into the friends screen, we'd have successfully
+  and if we were to just move the \"graph edge\" `:all-frields` from the root into the friends screen we'd have successfully
   loaded our friends onto the screen (remember, UI updates are a pure rendering of state):
 
   ```
@@ -198,16 +199,16 @@
     :screens/by-type { :friends { :friends/list [ [:person/by-id 1] [:person/by-id 2] ...]  ... }}}
   ```
 
-  Since the graph database is just nodes and edges, there really aren't any more operations to worry about. You've
-  essentially got *normalize a tree*, *merge normalized data*, and *move graph edges*.
+  Since the graph database is just nodes and edges, there really aren't any more operations to worry about!
+  You've essentially got to *normalize a tree*, *merge normalized data*, and *move graph edges*.
 
   Therefore, *all* generalized integration of data into your graph database from *any* external source can be
-  done the same way!
+  done the same way, and all of that is either automatic or trivial!
 
   ## Loading Data: `load` and `load-field`
 
-  The main workhorses of loading in Fulcro are `load` and `load-field`. They also have counterparts that
-  can be used *inside* of your own mutations to compose optimistic updates with load triggering as a
+  The main workhorses of loading in Fulcro are `load` and `load-field`. They also have counterparts (ending in `-action`)
+  that can be used *inside* of your own mutations to compose optimistic updates with load triggering as a
   single abstract operation:
 
   - `load` and `load-action` : API for most loads.
@@ -222,22 +223,21 @@
 
   ### Load vs. Load Field
 
-  The `data-fetch/load` (the function) is meant for most general loading. It can load any sub-graph of your database using
+  The `fulcro.client.data-fetch/load` (the function) is meant for most general loading. It can load any sub-graph of your database using
   an ident or keyword as a \"root\" and an optional component's query to complete a graph query. Load can be passed
   the app, reconciler, or any component as its first argument.
 
   `load-field` is really just a helper for a common use-case: loading a field of some specific thing that you loaded
-   previously. It
-  focuses the component's query to the specified field, associates the component's ident with the query,
+  previously. It focuses the component's query to the specified field, associates the component's ident with the query,
   and asks the UI to re-render all components with the calling component's ident after the load is complete. Since `load-field`
-  requires a component to build the query sent to the server it must be used with a live component that has an ident.
+  requires a component to build the query sent to the server it must be used with a live (mounted) component that has an ident.
 
   ### Using Load
 
   The `fulcro.data-fetch/load` function is your main workhorse. Here are the most commonly used cases:
 
   ```
-  ; Sends [{:server-keyword (om/get-query Component)}]. Data ends up in root node of client db at :server-keyword
+  ; Sends [{:server-keyword (prim/get-query Component)}]. Data ends up in root node of client db at :server-keyword
   (load comp-or-app :server-keyword Component)
 
   ; Same as above, but the resulting root edge :server-keyword will no longer appear in the client database.
@@ -306,10 +306,10 @@
 
   ```
   (defui Blog
-    static om/Ident
+    static prim/Ident
     (ident [this props] [:blog/by-id (:db/id props)])
-    static om/IQuery
-    (query [this] [:db/id :blog/title {:blog/content (om/get-query BlogContent)} {:blog/comments (om/get-query BlogComment)}])
+    static prim/IQuery
+    (query [this] [:db/id :blog/title {:blog/content (prim/get-query BlogContent)} {:blog/comments (prim/get-query BlogComment)}])
     ...
     Object
     (render [this]
@@ -326,7 +326,7 @@
   [{[:table ID] subquery}]
   ```
 
-  where the `[:table ID]` are the ident of the invoking component, and subquery is `(om/get-query invoking-component)`, but
+  where the `[:table ID]` are the ident of the invoking component, and subquery is `(prim/get-query invoking-component)`, but
   focused down to the one field. In the example above, this would end up something like this:
 
   ```
@@ -400,13 +400,13 @@
 
   ```
   (defui Comment
-     static om/IQuery
+     static prim/IQuery
      (query [this] [:author :text]))
 
   (defui Item
-     static om/IQuery
-     (query [this] [:id :value {:comments (om/get-query Comment)}])
-     static om/Ident
+     static prim/IQuery
+     (query [this] [:id :value {:comments (prim/get-query Comment)}])
+     static prim/Ident
      (ident [this props] [:item/by-id (:id props)])
      Object
      (render [this]
@@ -423,9 +423,9 @@
 
   ### Loads From Within Mutations
 
-  `load` and `load-field` will call `om/transact!` under the hood, targeting fulcro's built-in `fulcro/load`
+  `load` and `load-field` will call `prim/transact!` under the hood, targeting fulcro's built-in `fulcro/load`
   mutation, which is responsible for sending your request to the server. By contrast, `load-action` and `load-field-action`
-  **do not** call `om/transact!`, but can be used to initialize a load inside of one of your own
+  **do not** call `prim/transact!`, but can be used to initialize a load inside of one of your own
   client-side mutations.
 
   Let's look at an example of a standard load. Say you want to load a list of people from the server:
@@ -434,16 +434,16 @@
   (require [fulcro.client.data-fetch :as df])
 
   (defui Person
-    static om/IQuery (query [this] [:id :name :ui/fetch-state])
+    static prim/IQuery (query [this] [:id :name :ui/fetch-state])
     ... )
-  (def ui-person (om/factory Person))
+  (def ui-person (prim/factory Person))
 
   (defui PeopleList
-    static om/IQuery (query [this] [:db/id :list-title {:people (om/get-query Person}]
-    static om/Ident (ident [this props] [:people-list/by-id (:db/id props)])
+    static prim/IQuery (query [this] [:db/id :list-title {:people (prim/get-query Person}]
+    static prim/Ident (ident [this props] [:people-list/by-id (:db/id props)])
     Object
     (render [this]
-      (let [{:keys [people]} (om/props this)]
+      (let [{:keys [people]} (prim/props this)]
         ;; people starts out as nil
         (dom/div nil
           (df/lazily-loaded #(map ui-person %) people
@@ -452,7 +452,7 @@
   ```
 
   Since we are in the UI and not inside of a mutation's action thunk, we want to use `load-field` to initialize the
-  call to `om/transact!`. The use of `lazily-loaded` above will show a button to load people when `people` is `nil`
+  call to `prim/transact!`. The use of `lazily-loaded` above will show a button to load people when `people` is `nil`
   (for example, when the app initially loads), and will render each person in the list of people once the button is
   clicked and the data has been loaded. By including `:ui/fetch-state` in the subcomponent's query, `lazily-loaded`
   is able to render different UIs for ready, loading, and failure states as well. See the
@@ -540,27 +540,33 @@
   is a simple helper that is ultimately identical to:
 
   ```
-  (om/transact! reconciler '[(fulcro/load {:query [:prop]}) :ui/loading-data])
+  (prim/transact! reconciler '[(fulcro/load {:query [:prop]}) :ui/loading-data])
   ```
 
   (the follow-on read is to ensure load markers update).
 
   #### Getting a Remote Value after a Mutation
 
-  The most common direct use of `fulcro/load` is doing remote follow-on reads after a mutation (which itself may
-  be remote).
+  There are two multiple techniques for getting values from a remote. The biggest thing to understand is that
+  the mutation itself doesn't include enough information for the system to know how to merge a return value with
+  the application database. Therefore, the return values of mutations, by default, are just discarded.
 
-  Note the difference. The following follow-on read is *always* just a local re-render in Fulcro.
+  One way to fix this uses primitives you already know: `load`.  Fulcro guarantees that mutations and loads that
+  are called in the same sequence (sequential calls while you own the UI thread) are sequenced on the network so
+  that mutations go first.
 
-  If what you want instead is `do-some-thing` and the read `:something` from the *server*, you instead want:
+  This means that you can issue a load after a mutation to specifically read something from the server that you suspect
+  has changed:
 
   ```
-  (om/transact! this '[(app/do-some-thing) (fulcro/load {:query [:something] :refresh [:something})])
+  (transact! this ...)
+  (df/load this ...)  ; as long as you don't use `:parallel true`, this will be delayed until after the remote mutation
   ```
 
-  NOTE: If you use `transact!` and `load` in the same function (e.g. on a single thread of execution), then the mutations
-  that are remote will always be queued first to the server. This means you never really need to hand-code the load
-  into the `transact!`.
+  There are two other ways to handle this kind of case, discussed elsewhere:
+
+  - Declare the return type of a remote mutation so that the result can be merged.
+  - Install a mutation-merge handler on the client to handle the return values of mutations.
 
   #### More About How it Works
 
@@ -570,7 +576,7 @@
 
   - It looks for the special mutations `fulcro/load` and `fulcro.client.data-fetch/fallback` (deprecated name is `tx/fallback`). The latter is part of the unhappy path handling.
      - For each load, it places a state marker in the app state at the target destination for the query data
-     - All loads that are present are combined together into a single Om query
+     - All loads that are present are combined together into a single query
   - It looks for other mutations
   - It puts the 'other mutations' on the send queue (iff they are marked `:remote`)
   - It puts the derived query/queries from the `fulcro/load`s onto the send queue.
@@ -610,8 +616,7 @@
   ### Data merge
 
   Fulcro will automatically merge (and normalize) the result of loads into the application client database.
-  Fulcro overrides the built-in Om shallow merge to a merge that has a number of extension that are useful for
-  simple application reasoning:
+  It that has a number of features that are useful for simple application reasoning:
 
   #### Deep Merge
 
@@ -639,8 +644,8 @@
 
   #### Queries and Normalization
 
-  Loads must use real composed queries from the UI for normalization to work (the om `get-query`
-  function adds info to assit with normalization).
+  Loads must use real composed queries from the UI for normalization to work, since the ident functions are found through
+  metadata of that query.
 
   Therefore, you almost *never* want to use a hand-written query that has not been placed on a `defui`. **It is perfectly
   acceptable to define standalone queries via `defui` (non-rendering components) to ensure normalization will work**,
@@ -667,21 +672,20 @@
   (dc/mkdn-pprint-source component-query)
   "
 
-  The resulting query, if you were to ask for it with `om/get-query` would look the same as this hand-written
+  The resulting query, if you were to ask for it with `prim/get-query` would look the same as this hand-written
   query:
 
   "
   (dc/mkdn-pprint-source hand-written-query)
   "
   However, if you were to use the hand-written query then Fulcro would not know how to normalize the server result
-  into your database because the Ident functions would not be known (the `get-query` function adds metadata to
-  the query to tell Om how to normalize the result`).
+  into your database because the Ident functions would not be known.
 
   The following card demonstrates the difference of merging the following server response: "
   (dc/mkdn-pprint-source sample-server-response))
 
 (defn merge-using-query [state-atom query data]
-  (let [db (om/tree->db query data true)]
+  (let [db (prim/tree->db query data true)]
     (swap! state-atom assoc :resulting-database db)))
 
 (defcard query-response-demo
@@ -753,29 +757,28 @@
   "This card allows you to simulate the post-mutation defined above, and see the resulting UI and database change. The
   Reset button will restore the db to the pre-mutation state, so you can A/B compare the before and after picture."
   Toolbar
-  (om/tree->db component-query sample-server-response true)
+  (prim/tree->db component-query sample-server-response true)
   {:inspect-data true})
 
 (defcard-doc "
   ### Parameterized Reads
 
-  You may add parameters to your remote reads using an optional argument to data fetch:
+  You may add parameters to your remote reads using an optional argument to your loads:
 
   ```
   (defui Article
-    static om/IQuery (query [this] [:id :content {:comments (om/get-query Comments)}])
-    static om/Ident (ident [this props] [:article/by-id (:id props)])
+    static prim/IQuery (query [this] [:id :content {:comments (prim/get-query Comments)}])
+    static prim/Ident (ident [this props] [:article/by-id (:id props)])
     (render [this]
       ;; render article content
       ;; ...
       ;; render a load comments button:
       (dom/button #js {:onClick #(df/load-field this :comments
-                                  :params {:comments {:lowValue 0 :highValue 10}})}
+                                  :params {:lowValue 0 :highValue 10})}
         \"Load Comments\")))
   ```
-  This sample query parameterizes the read to this article's comments with a range, say so that the server only returns
-   the first ten most recent comments. The keys of the params map specify the keywords in the query that should be
-   parameterized, and the values specify the parameter maps for their respective keys.
+  This sample query parameterizes the read to this article's comments with a range, so that the server can know only to return
+  the ten most recent comments.
 
   So, `(load-field this :comments)` above would yield a query of the form:
 
@@ -783,7 +786,7 @@
   [{[:article/by-id 32] [{:comments [:other :props]]}]
   ```
 
-  while `(load-field this :comments :params {:comments {:lowValue 0 :highValue 10}})` would yield a query of the form:
+  while `(load-field this :comments :params {:lowValue 0 :highValue 10})` would yield a query of the form:
 
   ```
   [{[:article/by-id 32] [({:comments [:other :props]} {:lowValue 0 :highValue 10})]}]
@@ -805,7 +808,10 @@
 
   The load functions allow you to elide parts of the query using a `:without` set. This is useful when you have a query
   that would load way more than you need right now. Using the `:without` parameter on a `load` function will cause it
-  to elide the portions of the query (properties/joins) that use the given keywords. See the loading sections below.
+  to elide the portions of the query (properties/joins) that use the given keywords.
+
+  Using `:without` lets you defer some portion of a load, and `load-field` pairs nicely because it loads just
+  one part of a query. The pair give you a nice way to accomplish incremental loading of data.
 
   ## Mutations
 
@@ -857,10 +863,10 @@
 
   #### Mutation Fallbacks
 
-  One of the advantages to using Fulcro is its support for error handling via what are called transaction fallbacks:
+  Fulcro has support for error handling via what are called transaction fallbacks:
 
   ```
-  (om/transact! this `[(some/mutation) (fulcro.client.data-fetch/fallback {:action handle-failure})])
+  (prim/transact! this `[(some/mutation) (fulcro.client.data-fetch/fallback {:action handle-failure})])
   ```
 
   ```
@@ -883,16 +889,37 @@
 
   You can have any number of fallbacks in a tx, and they will run in order if the transaction fails.
 
-  It is not recommended that you rely on this mechanism for user-level errors. Prevent those by coding your UI to validate,
-  authorize, and error check things on the client before sending them to the server. The server should still verify
-  sanity for security reasons, but because an optimistic system like Fulcro is hard to recover, you do not want the
-  server throwing an error unless there is a real hard error (disk failure, network outage, etc.).
+  While the fallback mechanism does make it possible to capture errors, it is also true that errors in an optimisitc UI
+  can be confusing to users (after all, they've already moved on from the operation in question to something else). This
+  is a valid concern, but consider the kinds of errors that are possible:
 
-  In general it can be difficult to recover from real hard failures. This is true for any application, but can be
-  more so for one that does client optimistic updates and allows the user to continue. The overall user experience is better
-  for the happy cases (which hopefully are 99.9999% of them), but it is true that if you're user is 10 steps ahead of
-  the server and the server barfs, you're easiest route to recovery is to throw up an error dialog and reload all questionable state.
-  You probably also need to clear the network queue so that additional failures don't continue to come in.
+  1. The network is down/flaky. This case is rare, and is easy for the user to understand. If you make sure your server
+  interactions are idempotent, then this kind of error can be dealt with by making your network layer auto-retry on
+  recoverable network errors.
+  2. There is a bug. All bets are off. Your user is going to have a bad experience. If you knew what the bug was going to do,
+  you'd have fixed it. This case is not worth worrying about because there is no reliable way to handle it.
+  3. There is a serious problem on the server. If it shows up as a network error, then see (1). Otherwise, it's more like (2).
+  4. Someone is trying to hack your system (security). Throw an exception on the server. Your UI isn't even involved.
+
+  So, if you write your UI in a way that doesn't rely on the server to tell you the user is doing something wrong (e.g.
+  you know what a user is allowed to do, so don't show them illegal operations), then for the most part the only reasonable
+  error to \"handle\" is a temporary network outage.
+
+  As a result it is not recommended that you rely on fallbacks for very much. They are provided for cases where you'd
+  like to code instance-targeted recovery, but we believe this to be a rarely useful feature.
+
+  You're much better off preventing errors by coding your UI to validate,
+  authorize, and error check things on the client before sending them to the server. The server should still verify
+  sanity for security reasons, but optimistic systems like Fulcro put more burden on the client code in order to
+  provide a better experience under normal operation.
+
+  In general it can be difficult to recover from real hard failures, and this is true for any application. The difference
+  for optimistic systems is that the user can be several steps ahead in the UI of the operation that is failing.
+  Fortunately, the overall user experience is better for the happy cases (which hopefully are 99.9999% of them), but
+  it is true that if you're user is 10 steps ahead of the server and the server barfs, your easiest route to recovery
+  is to throw up an error dialog and reload all questionable state.
+
+  You probably also need to clear the network queue so that additional queued operations don't continue to fail.
 
   #### Clearing Network Queue
 
@@ -905,7 +932,7 @@
   `clear-pending-remote-requests!` which will drain all pending network requests.
 
   ```
-  (fulcro.client.core/clear-pending-remote-requests! my-app)
+  (fulcro.client/clear-pending-remote-requests! my-app)
   ```
 
   A common recovery strategy from errors could be to clean the network queue and run a mutation that resets your application
@@ -913,34 +940,28 @@
 
   #### Remote reads after a mutation
 
-  In Om, you can list properties after your mutation to indicate re-renders. You can force them to be remote reads by
-  quoting them. All of this requires complex logic in your parser to compare flags on the AST, process the resulting
-  query in send (e.g. via process-roots), etc. It is more flexible, but the very common case can be made a lot more direct.
+  In earlier sections you learned that you can list properties after your mutation to indicate re-renders.
+  These follow-on read keywords are always local re-render reads, and nothing more:
 
   ```
-  (om/transact! this '[(app/f) ':thing]) ; run mutation and re-read thing on the server...
-  ; BUT YOU implement the logic to make sure it is understood that way!
+  (prim/transact! this '[(app/f) :thing])
+  ; Does mutation, and re-renders anything that has :thing in a query
   ```
 
-  In Fulcro, follow-on keywords are always local re-render reads, and nothing more:
-
-  ```
-  (om/transact! this '[(app/f) :thing])
-  ; Om and Fulcro: Do mutation, and re-render anything that has :thing in a query
-  ```
+TODO: CONTINUE REWRITE HERE...
 
   Instead, we supply access to the internal mutation we use to queue loads, so that remote reads are simple and explicit:
 
   ```
   ; Do mutation, then run a remote read of the given query, along with a post-mutation
   ; to alter app state when the load is complete.
-  (om/transact! this `[(app/f) (fulcro/load {:query ~(om/get-query Thing) :post-mutation after-load-sym}])
+  (prim/transact! this `[(app/f) (fulcro/load {:query ~(prim/get-query Thing) :post-mutation after-load-sym}])
   ```
 
-  Of course, you can (and *should*) use syntax quoting to embed a query from (om/get-query) so that normalization works,
+  Of course, you can (and *should*) use syntax quoting to embed a query from (prim/get-query) so that normalization works,
   and the post-mutation can be used to deal with the fact that other parts of the UI may want to, for example, point
   to this newly-loaded thing. The `after-load-sym` is a symbol (e.g. dispatch key to the mutate multimethod). The multi-method
-  is guaranteed to be called with the app state in the environment, but no other Om environment items are ensured at
+  is guaranteed to be called with the app state in the environment, but no other environment items are ensured at
   the moment.
 
   IMPORTANT: post mutations look like regular mutations, but *only* the `action` is applied. Remotes are not processed
@@ -958,12 +979,12 @@
 
   #### New item creation – Temporary IDs
 
-  Om has a built in function `tempid` that will generate an om-specific temporary ID. This allows the normalization
+  Fulcro has a built in function `tempid` that will generate an om-specific temporary ID. This allows the normalization
   and denormalization of the client side database to continue working while the server processes the new data and returns
   the permanent identifiers.
 
   WARNING: Because om mutations can be called multiple times (at least once and once per each remote),
-   you should take care to not call `om.next/tempid` inside your mutation.
+   you should take care to not call `fulcro.client.primitives/tempid` inside your mutation.
    Instead call it from your UI code that builds the mutation params, thereby solving this problem.
 
   Here are the client-side and server-side implementations of the same mutation:
@@ -990,13 +1011,13 @@
     (action [{:keys [state]}]
       (let [database-tempid (make-database-tempid)
             database-id (add-item-to-database database {:db/id database-tempid :item/text text})]
-        {:tempids {tempid database-id}})))
+        {::prim/tempids {tempid database-id}})))
   ```
 
-  The return value of a mutation may include the special key `:tempids`. This is a mapping from incoming temporary
+  The return value of a mutation may include the special key `::prim/tempids`. This is a mapping from incoming temporary
   IDs to the real IDs they got assigned on the server.
   This will be passed back to the client, where Fulcro will *automatically* do a recursive walk of the client-side
-  database to replace **every instance** of the temporary ID with the database id. Note that the map at the :tempids key can have
+  database to replace **every instance** of the temporary ID with the database id. Note that the map at the ::prim/tempids key can have
   more than one tempid to database-id pair.
 
   #### Dealing with Server Mutation Return Values
@@ -1005,7 +1026,7 @@
   previoiusly discussed, because that is automatically processed:
 
   ```
-  {:tempids {old-id new-id}}
+  {::prim/tempids {old-id new-id}}
   ```
 
   In some cases you'd like to return other details. However, remember back at the beginning of this section we talked
@@ -1048,13 +1069,13 @@
 
   ```
   (defui Item ... )
-  (def ui-item (om/factory Item {:keyfn :id}))
+  (def ui-item (prim/factory Item {:keyfn :id}))
 
   (defui List
-    static om/IQuery (query [this] [:id :title {:items (om/get-query Item)} [:ui/loading-data '_]]
+    static prim/IQuery (query [this] [:id :title {:items (prim/get-query Item)} [:ui/loading-data '_]]
     ...
     (render [this]
-      (let [{:keys [title items ui/loading-data]} (om/props this)]
+      (let [{:keys [title items ui/loading-data]} (prim/props this)]
         (if (and loading-data (empty? items))
           (dom/div nil \"Loading...\")
           (dom/div nil
@@ -1064,7 +1085,7 @@
   Because the global loading marker is at the top level of the application state, do not use the keyword as a follow-on
   read to mutations because it may unnecessarily trigger a re-render of the entire application.
 
-  ## Differences from stock Om (Next)
+  ## Differences from Om Next
 
   For those that are used to Om Next you may be interested in the differences and rationale behind the way Fulcro
   handles server interactions, particularly remote reads. There is no Om parser to do remote reads on the client side.
@@ -1090,6 +1111,7 @@
       - The marker essentially needed to be a state machine kind of state marker (ready to load, loading in progress,
         loading failed, data present). This was a complication that would be repeated over and over.
   - We often wanted a *global* marker to indicate when network activity was going on
+  - We wanted a better way to deal with UI refresh due to abstract data changes.
 
   By eliminating the need for an Om parser to process all of this and centralizing the logic to a core set of functions
   that handle all of these concerns you gain a lot of simplicity.

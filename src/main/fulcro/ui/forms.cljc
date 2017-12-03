@@ -3,15 +3,16 @@
   (:require
     [clojure.set :as set]
     [clojure.string :as str]
-    [om.dom :as dom]
-    [om.next :as om]
-    [om.util :as util]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim]
+    [fulcro.util :as util]
     #?(:clj
     [clojure.future :refer :all])
     [clojure.tools.reader :as reader]
     [clojure.spec.alpha :as s]
-    [fulcro.client.core :as fc]
-    [fulcro.client.util :as uu :refer [conform!]]
+    [fulcro.client :as fc]
+    [fulcro.client.primitives :as prim+]
+    [fulcro.util :as uu :refer [conform!]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]))
@@ -46,7 +47,7 @@
   [x]
   #?(:clj  (if (fn? x)
              (some? (-> x meta :form-spec))
-             (let [class (cond-> x (om/component? x) class)]
+             (let [class (cond-> x (prim/component? x) class)]
                (extends? IForm class)))
      :cljs (implements? IForm x)))
 
@@ -106,7 +107,7 @@
   affects how a diff is reported when calculated for submission."
   ([field form-class cardinality & {:keys [isComponent]}]
    (assert (contains? #{:one :many} cardinality) "subform-element requires a cardinality of :one or :many")
-   (assert ((every-pred #(fc/iident? %) #(iform? %) #(om/iquery? %)) form-class)
+   (assert ((every-pred #(prim/has-ident? %) #(iform? %) #(prim/has-query? %)) form-class)
      (str "Subform element " field " MUST implement IForm, IQuery, and Ident."))
    (with-meta {:input/name          field
                :input/is-form?      true
@@ -340,7 +341,7 @@
 (defn dirty-field? [form field]
   (let [cfg  (field-config form field)
         curr (?normalize cfg (current-value form field))]
-    (or (om/tempid? curr)                                   ;;TODO FIXME ??? how does this work if its an ident? or not normalized?
+    (or (prim/tempid? curr)                                   ;;TODO FIXME ??? how does this work if its an ident? or not normalized?
       (not= curr (?normalize cfg (get-original-data form field))))))
 
 (declare validator)
@@ -368,7 +369,7 @@
    Use get-forms to obtain the current state of active forms. It is a gathering mechanism only."
   ([form-class] (subforms* form-class []))
   ([form-class current-path]
-   (let [ast            (om/query->ast (om/get-query form-class))
+   (let [ast            (prim/query->ast (prim/get-query form-class))
          elements       (:elements (get-form-spec* form-class))
          subform-fields (set (keep #(when (is-subform? %) (:input/name %)) elements))
          get-class      (fn [ast-node] (let [subquery (:query ast-node)]
@@ -386,12 +387,12 @@
                               (fail! "Subforms cannot be on union queries. You will have to manually group your subforms if you use unions."
                                 {:ast-node ast-node}))
                             (when (and wants-to-be?
-                                    (not (and (fc/iident? form-class) (iform? form-class) (om/iquery? form-class))))
+                                    (not (and (prim/has-ident? form-class) (iform? form-class) (prim/has-query? form-class))))
                               (fail! (str "Declared subform for property " prop
                                        " does not implement IForm, IQuery, and Ident.")
                                 {:ast-node ast-node}))
-                            (and form-class wants-to-be? join? (not union?) (om/iquery? form-class)
-                              (fc/iident? form-class) (iform? form-class))))
+                            (and form-class wants-to-be? join? (not union?) (prim/has-query? form-class)
+                              (prim/has-ident? form-class) (iform? form-class))))
          sub-forms      (->> ast :children
                           (keep (fn [ast-node]
                                   (when (is-form-node? ast-node)
@@ -491,7 +492,7 @@
       (element-names form))))
 
 (defn form-reduce
-  "Reduces over a `form` acquired via `om/props` on a component,
+  "Reduces over a `form` acquired via `prim/props` on a component,
    at each step calls `F` with each form.
    `init` is the initial value for the reduce.
 
@@ -514,7 +515,7 @@
         (fn [f]
           (merge f
             (if (= ::identity (:input/type f))
-              {:value (om/tempid) :valid :valid}
+              {:value (prim/tempid) :valid :valid}
               {:value (:input/default-value f) :valid :unchecked})))]
     (transduce (map parse-field)
       (completing
@@ -558,7 +559,7 @@
              (-> form
                (merge
                  {:elements/by-name    elements-by-name
-                  :ident               (uu/get-ident form-class final-state)
+                  :ident               (prim/get-ident form-class final-state)
                   :original-form-state (into {}
                                          (map (fn [[k v]]
                                                 [k (if (and (is-subform? (elements-by-name k))
@@ -667,7 +668,7 @@
 
   ```
   (defui ^:once PhoneForm
-    static fc/InitialAppState
+    static prim/InitialAppState
     (initial-state [this params] (f/build-form this (or params {})))
     static f/IForm
     (form-spec [this] [(f/id-field :db/id)
@@ -703,13 +704,13 @@
   Returns a valid symbolic data structure that can be used inside of transact:
 
   ```
-  (om/transact! `[~@(get-on-form-change-mutation form :f :blur)])
+  (prim/transact! `[~@(get-on-form-change-mutation form :f :blur)])
   ```
 
   will convert to something like:
 
   ```
-  (om/transact! `[(your-change-handler-symbol {:form-id [:form 1] :field :f :kind :blur})])
+  (prim/transact! `[(your-change-handler-symbol {:form-id [:form 1] :field :f :kind :blur})])
   ```
 
   This function returns a list of mutations expressions to run (which will contain zero or one).
@@ -857,7 +858,7 @@
     form (validatable-fields form)))
 
 (defn would-be-valid?
-  "Checks (recursively on this form and subforms from om/props) if the values on the given form would be
+  "Checks (recursively on this form and subforms from prim/props) if the values on the given form would be
   considered valid if full validation were to be run on the form. Returns true/false."
   [form-props]
   (letfn [(non-recursive-valid? [form]
@@ -911,7 +912,7 @@
    own transaction (so your mutation can see the validated form), you may use the underlying
    `(f/validate-form {:form-id fident})` mutation in your own call to `transact!`."
   [comp-or-reconciler form & {:as opts}]
-  (om/transact! comp-or-reconciler
+  (prim/transact! comp-or-reconciler
     `[(validate-form ~(merge opts {:form-id (form-ident form)}))
       ~form-root-key]))
 
@@ -960,7 +961,7 @@
                                 :value       input-value
                                 :placeholder (placeholder form field-name)
                                 :onBlur      (fn [_]
-                                               (om/transact! component
+                                               (prim/transact! component
                                                  `[(validate-field
                                                      ~{:form-id id :field field-name})
                                                    ~@(get-on-form-change-mutation form field-name :blur)
@@ -970,7 +971,7 @@
                                                      field-info {:form-id id
                                                                  :field   field-name
                                                                  :value   value}]
-                                                 (om/transact! component
+                                                 (prim/transact! component
                                                    `[(set-field ~field-info)
                                                      ~@(get-on-form-change-mutation form field-name :edit)
                                                      ~form-root-key])))}))]
@@ -1028,7 +1029,7 @@
                             field-info {:form-id form-id
                                         :field   field-name
                                         :value   value}]
-                        (om/transact! component
+                        (prim/transact! component
                           `[(select-option ~field-info)
                             ~@(get-on-form-change-mutation form field-name :edit)
                             ~form-root-key])
@@ -1057,7 +1058,7 @@
                                      field-info {:form-id form-id
                                                  :field   field-name
                                                  :value   value}]
-                                 (om/transact! component
+                                 (prim/transact! component
                                    `[(toggle-field ~field-info)
                                      ~@(get-on-form-change-mutation form field-name :edit)
                                      ~form-root-key])))})))))
@@ -1085,7 +1086,7 @@
                               field-info {:form-id id
                                           :field   field-name
                                           :value   (reader/read-string value)}]
-                          (om/transact! component
+                          (prim/transact! component
                             `[(set-field ~field-info)
                               ~@(get-on-form-change-mutation form field-name :edit)
                               ~form-root-key])))})
@@ -1101,7 +1102,7 @@
                             :className cls
                             :value     value
                             :onBlur    (fn [_]
-                                         (om/transact! component
+                                         (prim/transact! component
                                            `[(validate-field ~{:form-id form-id :field field-name})
                                              ~@(get-on-form-change-mutation form field-name :blur)
                                              ~form-root-key]))
@@ -1110,7 +1111,7 @@
                                                field-info {:form-id form-id
                                                            :field   field-name
                                                            :value   value}]
-                                           (om/transact! component
+                                           (prim/transact! component
                                              `[(set-field ~field-info)
                                                ~@(get-on-form-change-mutation form field-name :edit)
                                                ~form-root-key])))}))]
@@ -1170,7 +1171,7 @@
     (fn [diff form]
       (let [[_ id :as ident] (form-ident form)
             fields (element-names form)]
-        (if (om/tempid? id)
+        (if (prim/tempid? id)
           (reduce
             (partial field-diff form)
             (assoc-in diff [:form/new-entities ident] (select-keys form (into [] (comp (remove (partial ui-field? form))
@@ -1190,7 +1191,7 @@
     (comp xf :form)))
 
 #?(:cljs (defmutation commit-to-entity
-           "Om Mutation: Commit the changes on the form. This will cause the state of the pristine cache to match what you see on the
+           "Mutation: Commit the changes on the form. This will cause the state of the pristine cache to match what you see on the
            form. Note, until tempids are rewritten a form will appear modified (unsaved changes).
 
            `form` is the COMPLETE PROPS of a form. NOT AN IDENT.
@@ -1211,7 +1212,7 @@
       (assoc ast :params (diff-form form)))))
 
 #?(:cljs (defmutation reset-from-entity
-           "Om Mutation: Reset the entity back to its original state before editing. This will be the last state that
+           "Mutation: Reset the entity back to its original state before editing. This will be the last state that
            the entity had just following initialization or the last commit.
 
            `form-id` is the ident of the entity acting as a form.
@@ -1220,11 +1221,11 @@
            (action [{:keys [state]}] (swap! state entity-xform form-id reset-entity))))
 
 (defn reset-from-entity!
-  "Reset the form from a given entity in your application database using an Om transaction and update the validation state.
-   You may compose your own Om transactions and use `(f/reset-from-entity {:form-id [:entity id]})` directly."
+  "Reset the form from a given entity in your application database using a transaction and update the validation state.
+   You may compose your own transactions and use `(f/reset-from-entity {:form-id [:entity id]})` directly."
   [comp-or-reconciler form]
   (let [form-id (form-ident form)]
-    (om/transact! comp-or-reconciler
+    (prim/transact! comp-or-reconciler
       `[(reset-from-entity ~{:form-id form-id})
         ~form-root-key])))
 
@@ -1261,7 +1262,7 @@
    a way to gather more information about the commit result. E.g. you could re-read the entire entity after your update by triggering the load *with*
    the commit. "
   [component & {:keys [remote rerender fallback fallback-params] :or {fallback-params {} remote false}}]
-  (let [form          (om/props component)
+  (let [form          (prim/props component)
         fallback-call (list `df/fallback (merge fallback-params {:action fallback}))]
     (let [is-valid? (valid? (validate-fields form))
           tx        (cond-> []
@@ -1270,5 +1271,5 @@
                       (not is-valid?) (conj `(validate-form ~{:form-id (form-ident form)}))
                       (seq rerender) (into rerender)
                       :always (conj form-root-key))]
-      (om/transact! component tx))))
+      (prim/transact! component tx))))
 

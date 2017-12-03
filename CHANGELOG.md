@@ -1,3 +1,68 @@
+2.0.0
+-----
+- Removed dependency on Om Next. See README-fulcro-2.0.adoc for upgrade instructions.
+- Imported and refined the useful Om Next abstractions.
+- Dropped indexer support for data path, and class path.
+- Made post-processing path-meta obsolete (internal change)
+- Fixed factory to use `apply` to prevent React warnings when using children.
+- Revamped all of the documentation. Made many improvements to Dev Guide
+- Added code to support React 16 (optional, defaults to 15)
+- Rewrote how dynamic queries work. They are now 100% part of state and history.
+- Changed DynamicRouter to use new dynamic query support
+- Refined how UI refreshes work. Should be a bit faster that Om Next in general.
+- Improved load marker implementation. You may now give markers a name and have them normalize instead of overwriting your data
+- Improved `:target` support in all variants of load. You can now target multiple locations, including append/prepend to existing
+to-many collections (see the doc string).
+- Improved start-up failure messages for server related to configuration files.
+- BREAKING CHANGE: load-action and load-field-action require the env (they used to allow env or just the state atom).
+- Added a new history system with the following improvements
+    - The history sequence is now a unidirectional list of nodes that are annotated with the action
+    that affected the change, db-before, db-after, and also with live tracking of network activity relating
+    to state changes. This improves debugging abilities dramatically, and also enables better internal
+    automated error recovery.
+    - Added support for compressible history edges. This allows adjacent history entries to auto-compress into the most recent.
+    - Added a better API for accessing and navigating history
+- Added support for client mutations to declare a refresh set so that UI follow-on reads are no longer necessary.
+- Added more examples in demos
+- Added pessimistic transaction support with ptransact!
+- Added compressible transaction support with compressible-transact!
+- Both of the above use support functions to rewrite the transaction, so you can still use transact! if you like.
+- Mutations can now be interned. This enables docstrings and navigation to work for things like nREPL, and also allows you
+to use devcards mkdn-pprint-source with mutations in your devcards. See the docstring of defmutation for more details.
+- Demos compressed into fewer source files.
+- Websockets demo moved to external project
+- Expanded and cleaned up many portions of the developer's guide
+- Expanded defsc.
+   - It can now take a method body for `initial-state`, `ident`, and `query` in
+     addition to a simpler template. Using the method forms loosens verification logic.
+   - Parameters to the lambda forms get `this` and `props` from main args, so you don't list them.
+     (e.g. `:ident (fn [] ...use this and props from defsc args...)`
+   - BREAKING CHANGE: IF you use `:css`, then the children argument shifts right one, and
+     the 4th argument is now the css classnames.
+   - Defsc now considers all arguments *after* props to be optional, so you don't need to list underscores
+- Removed deprecated fulcro.client.cards/fulcro-app. Please port to `defcard-fulcro` instead (trivial port).
+- Moved defsc from fulcro.client.core to fulcro.client.primitives namespace
+- Renamed fulcro.client.core to fulcro.client
+- Code motion (old names refer to new ones, so no action needed on 1.x apps)
+  - iinitial-app-state (now has-initial-app-state?), iident (now has-ident?),
+    integrate-ident, integrate-ident!, merge-component, merge-state!
+    (now merge-component!), component-merge-query,
+    merge-alternate-unions, merge-alternate-union-elements!, and
+    merge-alternate-union-elements moved to primitives.
+- Removed log-app-state utility. Will reduce production deploy size. (thanks @thheller)
+  - Added code for log-app-state to Guide's F_DevEnv documentation, along with a note about fulcro-inspect
+
+1.2.2
+-----
+- Back-ported improvements to defsc to 1.x dev line. Supports lambdas
+for options as well as the original templates. See docstring.
+
+1.2.1
+-----
+- Expanded tool registry support
+- Expanded websocket support a bit
+- Fixed elements/ui-iframe in Firefox
+
 1.2.0
 -----
 - Added support for tools to be notified when a Fulcro app starts so they
