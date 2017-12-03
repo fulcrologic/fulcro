@@ -58,6 +58,20 @@
                 ::time 10}
         ::time 10}
 
+    "Out of query data is kept entirely"
+    (prim/add-basis-time [{:hello [{:world [:item]}
+                                   {:multi [:x]}]}]
+      {:hello {:world {:data 2
+                       :item [{:nested {:deep "bar"}}]}
+               :so    {:long {:and "more"}}
+               :foo   :bar
+               :multi [{:x 1} {:x 2}]}} 10)
+    => {:hello {:world {:data 2
+                        :item [{:nested {:deep "bar"}}]}
+                :so    {:long {:and "more"}}
+                :foo   :bar
+                :multi [{:x 1} {:x 2}]}}
+
     "Handle unions"
     (-> (prim/add-basis-time [{:hello [{:union {:ua [:x]
                                                 :ub [:y]}}]}]

@@ -118,7 +118,7 @@
       (let [children (if (= :union (-> children first :type))
                        (apply concat (->> children first :children (map :children)))
                        children)]
-        (-> (into {}
+        (-> (into props
                   (map (fn [{:keys [key query] :as ast}]
                          (let [x (get props key)
                                ast (cond-> ast
@@ -136,7 +136,7 @@
                               (mapv #(add-basis-time* ast % time) x)
                               (add-basis-time* ast x time))])))
                   children)
-            (with-meta (assoc (meta props) ::time time))))
+            (vary-meta assoc ::time time)))
       (vary-meta props assoc ::time time))
     props))
 
