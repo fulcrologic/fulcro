@@ -122,8 +122,15 @@
                   (map (fn [{:keys [key query] :as ast}]
                          (let [x (get props key)
                                ast (cond-> ast
+                                     ; add children on recursive query
                                      (= '... query)
-                                     (assoc :children children))]
+                                     (assoc :children children)
+
+                                     (pos-int? query)
+                                     (assoc :children (mapv #(cond-> %
+                                                               (pos-int? (:query %))
+                                                               (update :query dec))
+                                                        children)))]
                            [key
                             (if (sequential? x)
                               (mapv #(add-basis-time* ast % time) x)

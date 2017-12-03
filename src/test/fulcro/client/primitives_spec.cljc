@@ -81,6 +81,19 @@
                 ::time  10}
         ::time 10}
 
+    "Handle recursive queries with limit"
+    (-> (prim/add-basis-time [{:hello [{:parent 1}
+                                       :name]}]
+          {:hello {:name   "bla"
+                   :parent {:name   "meh"
+                            :parent {:name "other"
+                                     :parent {:name "one more"}}}}} 10)
+        (read-times))
+    => {:hello {:parent {:parent {::time 10}
+                         ::time  10}
+                ::time  10}
+        ::time 10}
+
     "Meta data is preserved"
     (-> (prim/add-basis-time [{:hello [{:world [:item]}
                                        {:multi [:x]}]}]
@@ -900,7 +913,7 @@
   (behavior "Maintain their backward-compatible functionality" :manual-test))
 
 #?(:clj
-   (specification "defsc helpers" :focused
+   (specification "defsc helpers"
      (component "build-query-forms"
        (assertions
          "Support a method form"
@@ -1130,7 +1143,7 @@
              {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
-   (specification "defsc" :focused
+   (specification "defsc"
      (component "css"
        (assertions
          "allows optional use of include"
@@ -1760,7 +1773,7 @@
   static prim/IQuery
   (query [this] [{:reports (prim/get-query Reports)}]))
 
-(specification "merge-alternate-union-elements" :focused
+(specification "merge-alternate-union-elements"
   (let [initial-state (merge (prim/get-initial-state MRRoot nil) {:a 1})
         state-map     (prim/tree->db MRRoot initial-state true)
         new-state     (prim/merge-alternate-union-elements state-map MRRoot)]
@@ -1777,7 +1790,7 @@
 (defsc AState [this props] {:initial-state (fn [params] {})} (dom/div nil "TODO"))
 (defsc AIdent [this props] {:ident (fn [] [:x 1])} (dom/div nil "TODO"))
 
-(specification "Detection of static protocols" :focused
+(specification "Detection of static protocols"
   (assertions
     #?(:cljs "works on client" :clj "works on server")
     (prim/has-query? A) => false
