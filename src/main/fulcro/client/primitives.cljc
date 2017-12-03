@@ -112,15 +112,45 @@
   (when reconciler
     (p/get-history reconciler)))
 
+(defn add-basis-time* [{:keys [children]} props time]
+  (if (map? props)
+    (if (seq children)
+      (let [children (if (= :union (-> children first :type))
+                       (apply concat (->> children first :children (map :children)))
+                       children)]
+        (-> (into props
+                  (map (fn [{:keys [key query] :as ast}]
+                         (let [x (get props key)
+                               ast (cond-> ast
+                                     ; add children on recursive query
+                                     (= '... query)
+                                     (assoc :children children)
+
+                                     (pos-int? query)
+                                     (assoc :children (mapv #(cond-> %
+                                                               (pos-int? (:query %))
+                                                               (update :query dec))
+                                                        children)))]
+                           [key
+                            (if (sequential? x)
+                              (mapv #(add-basis-time* ast % time) x)
+                              (add-basis-time* ast x time))])))
+                  children)
+            (vary-meta assoc ::time time)))
+      (vary-meta props assoc ::time time))
+    props))
+
 (defn add-basis-time
   "Recursively add the given basis time to all of the maps in the props. This is part of the UI refresh optimization
   algorithm. Children that refresh in isolation could be mis-drawn if a parent subsequently does a re-render without
   a query (e.g. local state change). The basis times allow us to detect and avoid that."
-  [props time]
-  (prewalk (fn [ele]
-             (if (map? ele)
-               (vary-meta ele assoc ::time time)
-               ele)) props))
+  ([props time]
+   (prewalk (fn [ele]
+              (if (map? ele)
+                (vary-meta ele assoc ::time time)
+                ele)) props))
+  ([q props time]
+   (add-basis-time* (query->ast q) props time)))
 
 (defn get-basis-time
   "Returns the basis time from the given props, or ::unset if not available."
@@ -2116,7 +2146,7 @@
                           (let [env          (to-env config)
                                 raw-props    ((:parser config) env sel)
                                 current-time (get-current-time this)
-                                v            (add-basis-time raw-props current-time)]
+                                v            (add-basis-time sel raw-props current-time)]
                             (when-not (empty? v)
                               (renderf v)))
                           (renderf @(:state config)))))]
@@ -2228,7 +2258,9 @@
                      props-change?  (> current-time component-time)]
                  (when (mounted? c)
                    (let [computed       (get-computed (props c))
-                         next-raw-props (add-basis-time (fulcro-ui->props env c) current-time)
+                         next-raw-props (if (has-query? c)
+                                          (add-basis-time (get-query c @state) (fulcro-ui->props env c) current-time)
+                                          (add-basis-time (fulcro-ui->props env c) current-time))
                          force-root?    (= ::no-ident next-raw-props) ; screw focused query...
                          next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
                      (if force-root?

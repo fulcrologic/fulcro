@@ -16,9 +16,108 @@
             [clojure.test :refer [is are]]
     #?@(:cljs [[goog.object :as gobj]])
             [fulcro.client.impl.protocols :as p]
-            [fulcro.util :as util])
+            [fulcro.util :as util]
+            [clojure.walk :as walk])
   #?(:clj
      (:import (clojure.lang ExceptionInfo))))
+
+(defn read-times [m]
+  (walk/postwalk
+    (fn [x]
+      (if-let [time (some-> x meta ::prim/time)]
+        (-> (into {} (filter (fn [[_ v]] (or (vector? v)
+                                             (and (map? v) (contains? v ::time))))) x)
+            (assoc ::time time))
+        x))
+    m))
+
+(specification "Add basis time" :focused
+  (assertions
+    "Add time information recursively"
+    (-> (prim/add-basis-time {:hello {:world {:data 2}
+                                      :foo   :bar
+                                      :multi [{:x 1} {:x 2}]}} 10)
+        (read-times))
+    => {:hello {:world {::time 10}
+                :multi [{::time 10} {::time 10}]
+                ::time 10}
+        ::time 10}
+
+    "Limit the reach when query is provided"
+    (-> (prim/add-basis-time [{:hello [{:world [:item]}
+                                       {:multi [:x]}]}]
+          {:hello {:world {:data 2
+                           :item [{:nested {:deep "bar"}}]}
+                   :so    {:long {:and "more"}}
+                   :foo   :bar
+                   :multi [{:x 1} {:x 2}]}} 10)
+        (read-times))
+    => {:hello {:world {:item  [{::time 10}]
+                        ::time 10}
+                :multi [{::time 10} {::time 10}]
+                ::time 10}
+        ::time 10}
+
+    "Out of query data is kept entirely"
+    (prim/add-basis-time [{:hello [{:world [:item]}
+                                   {:multi [:x]}]}]
+      {:hello {:world {:data 2
+                       :item [{:nested {:deep "bar"}}]}
+               :so    {:long {:and "more"}}
+               :foo   :bar
+               :multi [{:x 1} {:x 2}]}} 10)
+    => {:hello {:world {:data 2
+                        :item [{:nested {:deep "bar"}}]}
+                :so    {:long {:and "more"}}
+                :foo   :bar
+                :multi [{:x 1} {:x 2}]}}
+
+    "Handle unions"
+    (-> (prim/add-basis-time [{:hello [{:union {:ua [:x]
+                                                :ub [:y]}}]}]
+          {:hello {:union {:x    {:content "bar"}
+                           :type :ua}}} 10)
+        (read-times))
+    => {:hello {:union {:x     {::time 10}
+                        ::time 10}
+                ::time 10}
+        ::time 10}
+
+    "Handle recursive queries"
+    (-> (prim/add-basis-time [{:hello [{:parent '...}
+                                       :name]}]
+          {:hello {:name   "bla"
+                   :parent {:name   "meh"
+                            :parent {:name "other"}}}} 10)
+        (read-times))
+    => {:hello {:parent {:parent {::time 10}
+                         ::time  10}
+                ::time  10}
+        ::time 10}
+
+    "Handle recursive queries with limit"
+    (-> (prim/add-basis-time [{:hello [{:parent 1}
+                                       :name]}]
+          {:hello {:name   "bla"
+                   :parent {:name   "meh"
+                            :parent {:name "other"
+                                     :parent {:name "one more"}}}}} 10)
+        (read-times))
+    => {:hello {:parent {:parent {::time 10}
+                         ::time  10}
+                ::time  10}
+        ::time 10}
+
+    "Meta data is preserved"
+    (-> (prim/add-basis-time [{:hello [{:world [:item]}
+                                       {:multi [:x]}]}]
+          ^::info {:hello {:world {:data 2
+                                   :item [{:nested {:deep "bar"}}]}
+                           :so    {:long {:and "more"}}
+                           :foo   :bar
+                           :multi [{:x 1} {:x 2}]}} 10)
+        (meta))
+    => {::prim/time 10 ::info true}))
 
 (defui A)
 
