@@ -412,22 +412,22 @@
 (specification "remove-loads-and-fallbacks"
   (behavior "Removes top-level mutations that use the fulcro/load or tx/fallback symbols"
     (are [q q2] (= (prim/remove-loads-and-fallbacks q) q2)
-      '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[:a {:j [:a]} (f) (app/l)]
-      '[(fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[(app/l)]
-      '[(fulcro/load {:x 1}) (tx/fallback {:a 3})] '[]
-      '[(boo {:x 1}) (fulcro.client.data-fetch/fallback {:a 3})] '[(boo {:x 1})]
-      '[:a {:j [:a]}] '[:a {:j [:a]}])))
+                '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[:a {:j [:a]} (f) (app/l)]
+                '[(fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})] '[(app/l)]
+                '[(fulcro/load {:x 1}) (tx/fallback {:a 3})] '[]
+                '[(boo {:x 1}) (fulcro.client.data-fetch/fallback {:a 3})] '[(boo {:x 1})]
+                '[:a {:j [:a]}] '[:a {:j [:a]}])))
 
 (specification "fallback-query"
   (behavior "extracts the fallback expressions of a query, adds execute flags, and includes errors in params"
     (are [q q2] (= (prim/fallback-query q {:error 42}) q2)
-      '[:a :b] nil
+                '[:a :b] nil
 
-      '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})]
-      '[(tx/fallback {:a 3 :execute true :error {:error 42}})]
+                '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})]
+                '[(tx/fallback {:a 3 :execute true :error {:error 42}})]
 
-      '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (fulcro/load {:x 1}) (app/l) (fulcro.client.data-fetch/fallback {:a 3})]
-      '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (fulcro.client.data-fetch/fallback {:a 3 :execute true :error {:error 42}})])))
+                '[:a {:j [:a]} (tx/fallback {:b 4}) (f) (fulcro/load {:x 1}) (app/l) (fulcro.client.data-fetch/fallback {:a 3})]
+                '[(tx/fallback {:b 4 :execute true :error {:error 42}}) (fulcro.client.data-fetch/fallback {:a 3 :execute true :error {:error 42}})])))
 
 (specification "tempid handling"
 
@@ -463,7 +463,7 @@
         tid2           (prim/tempid)
         rid            1
         state          {:thing  {tid  {:id tid}
-                                 tid2 {:id tid2}} ; this one isn't in the remap, and should not be touched
+                                 tid2 {:id tid2}}           ; this one isn't in the remap, and should not be touched
                         :things [[:thing tid]]}
         expected-state {:thing  {rid  {:id rid}
                                  tid2 {:id tid2}}
@@ -692,11 +692,11 @@
     (prim/sweep-one [{:a 1 :b ::prim/not-found}]) => [{:a 1}]
     "retains metadata"
     (-> (prim/sweep-one (with-meta {:a 1 :b ::prim/not-found} {:meta :data}))
-        meta) => {:meta :data}
+      meta) => {:meta :data}
     (-> (prim/sweep-one [(with-meta {:a 1 :b ::prim/not-found} {:meta :data})])
-        first meta) => {:meta :data}
+      first meta) => {:meta :data}
     (-> (prim/sweep-one (with-meta [{:a 1 :b ::prim/not-found}] {:meta :data}))
-        meta) => {:meta :data}))
+      meta) => {:meta :data}))
 
 (specification "Sweep merge"
   (assertions
@@ -757,8 +757,8 @@
         data-response                     {:v 1}
         mutation-response                 {'f {:x 1 ::prim/tempids {1 2}} 'g {:tempids {3 4} :y 2}}
         mutation-response-without-tempids (-> mutation-response
-                                              (update 'f dissoc ::prim/tempids)
-                                              (update 'g dissoc :tempids))
+                                            (update 'f dissoc ::prim/tempids)
+                                            (update 'g dissoc :tempids))
         response                          (merge data-response mutation-response)
         rh                                (fn [state k v]
                                             (assertions
@@ -877,7 +877,7 @@
   (s/def ::plain-query-expr (s/or :keyword om-keyword? :ident om-ident? :join ::join-expr))
   (s/def ::query-expr (s/or :query ::plain-query-expr :parameterized ::param-expr))
   (s/def ::query-root (s/with-gen (s/and vector?
-                                         (s/every ::query-expr :min-count 1))
+                                    (s/every ::query-expr :min-count 1))
                         #(gen/fmap (fn [v] (with-meta v {:queryid (futil/unique-key)})) (gen/vector (s/gen ::query-expr)))))
 
   (prim/defui A)
@@ -896,9 +896,9 @@
   (check/check (normalize-query {} (gen/generate (s/gen ::query-root))))
   (let [expr (gen/generate (s/gen ::union-expr))]
     (and (-> expr meta :queryid)
-         (every? (fn [[k v]]
-                   (-> v meta :queryid)
-                   ) expr)))
+      (every? (fn [[k v]]
+                (-> v meta :queryid)
+                ) expr)))
 
   (gen/sample (s/gen ::query-root))
   (gen/generate (s/gen ::join-expr))
@@ -913,7 +913,7 @@
   (behavior "Maintain their backward-compatible functionality" :manual-test))
 
 #?(:clj
-   (specification "defsc helpers"
+   (specification "defsc helpers" :focused
      (component "build-query-forms"
        (assertions
          "Support a method form"
@@ -1143,7 +1143,7 @@
              {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
-   (specification "defsc"
+   (specification "defsc" :focused
      (component "css"
        (assertions
          "allows optional use of include"
@@ -1480,317 +1480,317 @@
 
          (prim/merge-component! :reconciler MergeTestChild data :append [:children] :replace [:items 0])))))
 
-(specification "integrate-ident!"
-  (let [state (atom {:a    {:path [[:table 2]]}
-                     :b    {:path [[:table 2]]}
-                     :d    [:table 6]
-                     :many {:path [[:table 99] [:table 88] [:table 77]]}})]
-    (behavior "Can append to an existing vector"
-      (prim/integrate-ident! state [:table 3] :append [:a :path])
+  (specification "integrate-ident!"
+    (let [state (atom {:a    {:path [[:table 2]]}
+                       :b    {:path [[:table 2]]}
+                       :d    [:table 6]
+                       :many {:path [[:table 99] [:table 88] [:table 77]]}})]
+      (behavior "Can append to an existing vector"
+        (prim/integrate-ident! state [:table 3] :append [:a :path])
+        (assertions
+          (get-in @state [:a :path]) => [[:table 2] [:table 3]])
+        (prim/integrate-ident! state [:table 3] :append [:a :path])
+        (assertions
+          "(is a no-op if the ident is already there)"
+          (get-in @state [:a :path]) => [[:table 2] [:table 3]]))
+      (behavior "Can prepend to an existing vector"
+        (prim/integrate-ident! state [:table 3] :prepend [:b :path])
+        (assertions
+          (get-in @state [:b :path]) => [[:table 3] [:table 2]])
+        (prim/integrate-ident! state [:table 3] :prepend [:b :path])
+        (assertions
+          "(is a no-op if already there)"
+          (get-in @state [:b :path]) => [[:table 3] [:table 2]]))
+      (behavior "Can create/replace a to-one ident"
+        (prim/integrate-ident! state [:table 3] :replace [:c :path])
+        (prim/integrate-ident! state [:table 3] :replace [:d])
+        (assertions
+          (get-in @state [:d]) => [:table 3]
+          (get-in @state [:c :path]) => [:table 3]
+          ))
+      (behavior "Can replace an existing to-many element in a vector"
+        (prim/integrate-ident! state [:table 3] :replace [:many :path 1])
+        (assertions
+          (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
+
+  (specification "integrate-ident"
+    (let [state {:a    {:path [[:table 2]]}
+                 :b    {:path [[:table 2]]}
+                 :d    [:table 6]
+                 :many {:path [[:table 99] [:table 88] [:table 77]]}}]
       (assertions
-        (get-in @state [:a :path]) => [[:table 2] [:table 3]])
-      (prim/integrate-ident! state [:table 3] :append [:a :path])
-      (assertions
+        "Can append to an existing vector"
+        (-> state
+          (prim/integrate-ident [:table 3] :append [:a :path])
+          (get-in [:a :path]))
+        => [[:table 2] [:table 3]]
+
         "(is a no-op if the ident is already there)"
-        (get-in @state [:a :path]) => [[:table 2] [:table 3]]))
-    (behavior "Can prepend to an existing vector"
-      (prim/integrate-ident! state [:table 3] :prepend [:b :path])
-      (assertions
-        (get-in @state [:b :path]) => [[:table 3] [:table 2]])
-      (prim/integrate-ident! state [:table 3] :prepend [:b :path])
-      (assertions
+        (-> state
+          (prim/integrate-ident [:table 3] :append [:a :path])
+          (get-in [:a :path]))
+        => [[:table 2] [:table 3]]
+
+        "Can prepend to an existing vector"
+        (-> state
+          (prim/integrate-ident [:table 3] :prepend [:b :path])
+          (get-in [:b :path]))
+        => [[:table 3] [:table 2]]
+
         "(is a no-op if already there)"
-        (get-in @state [:b :path]) => [[:table 3] [:table 2]]))
-    (behavior "Can create/replace a to-one ident"
-      (prim/integrate-ident! state [:table 3] :replace [:c :path])
-      (prim/integrate-ident! state [:table 3] :replace [:d])
-      (assertions
-        (get-in @state [:d]) => [:table 3]
-        (get-in @state [:c :path]) => [:table 3]
-        ))
-    (behavior "Can replace an existing to-many element in a vector"
-      (prim/integrate-ident! state [:table 3] :replace [:many :path 1])
-      (assertions
-        (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
-
-(specification "integrate-ident"
-  (let [state {:a    {:path [[:table 2]]}
-               :b    {:path [[:table 2]]}
-               :d    [:table 6]
-               :many {:path [[:table 99] [:table 88] [:table 77]]}}]
-    (assertions
-      "Can append to an existing vector"
-      (-> state
-          (prim/integrate-ident [:table 3] :append [:a :path])
-          (get-in [:a :path]))
-      => [[:table 2] [:table 3]]
-
-      "(is a no-op if the ident is already there)"
-      (-> state
-          (prim/integrate-ident [:table 3] :append [:a :path])
-          (get-in [:a :path]))
-      => [[:table 2] [:table 3]]
-
-      "Can prepend to an existing vector"
-      (-> state
+        (-> state
           (prim/integrate-ident [:table 3] :prepend [:b :path])
           (get-in [:b :path]))
-      => [[:table 3] [:table 2]]
+        => [[:table 3] [:table 2]]
 
-      "(is a no-op if already there)"
-      (-> state
-          (prim/integrate-ident [:table 3] :prepend [:b :path])
-          (get-in [:b :path]))
-      => [[:table 3] [:table 2]]
-
-      "Can create/replace a to-one ident"
-      (-> state
+        "Can create/replace a to-one ident"
+        (-> state
           (prim/integrate-ident [:table 3] :replace [:d])
           (get-in [:d]))
-      => [:table 3]
-      (-> state
+        => [:table 3]
+        (-> state
           (prim/integrate-ident [:table 3] :replace [:c :path])
           (get-in [:c :path]))
-      => [:table 3]
+        => [:table 3]
 
-      "Can replace an existing to-many element in a vector"
-      (-> state
+        "Can replace an existing to-many element in a vector"
+        (-> state
           (prim/integrate-ident [:table 3] :replace [:many :path 1])
           (get-in [:many :path]))
-      => [[:table 99] [:table 3] [:table 77]])))
+        => [[:table 99] [:table 3] [:table 77]])))
 
-(defui ^:once MergeX
-  static prim/InitialAppState
-  (initial-state [this params] {:type :x :n :x})
-  static prim/IQuery
-  (query [this] [:n :type]))
+  (defui ^:once MergeX
+    static prim/InitialAppState
+    (initial-state [this params] {:type :x :n :x})
+    static prim/IQuery
+    (query [this] [:n :type]))
 
-(defui ^:once MergeY
-  static prim/InitialAppState
-  (initial-state [this params] {:type :y :n :y})
-  static prim/IQuery
-  (query [this] [:n :type]))
-
-
-(defui ^:once MergeAChild
-  static prim/InitialAppState
-  (initial-state [this params] {:child :merge-a})
-  static prim/Ident
-  (ident [this props] [:mergea :child])
-  static prim/IQuery
-  (query [this] [:child]))
-
-(defui ^:once MergeA
-  static prim/InitialAppState
-  (initial-state [this params] {:type :a :n :a :child (prim/get-initial-state MergeAChild nil)})
-  static prim/IQuery
-  (query [this] [:type :n {:child (prim/get-query MergeAChild)}]))
-
-(defui ^:once MergeB
-  static prim/InitialAppState
-  (initial-state [this params] {:type :b :n :b})
-  static prim/IQuery
-  (query [this] [:n]))
-
-(defui ^:once MergeUnion
-  static prim/InitialAppState
-  (initial-state [this params] (prim/get-initial-state MergeA {}))
-  static prim/Ident
-  (ident [this props] [:mergea-or-b :at-union])
-  static prim/IQuery
-  (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
-
-(defui ^:once MergeRoot
-  static prim/InitialAppState
-  (initial-state [this params] {:a 1 :b (prim/get-initial-state MergeUnion {})})
-  static prim/IQuery
-  (query [this] [:a {:b (prim/get-query MergeUnion)}]))
-
-;; Nested routing tree
-;; NestedRoot
-;;     |
-;;     U1
-;;    /  B    A = MergeRoot B = MergeB
-;;    R2
-;;   U2       A2
-;;  X  Y
-
-(defui ^:once U2
-  static prim/InitialAppState
-  (initial-state [this params] (prim/get-initial-state MergeX {}))
-  static prim/IQuery
-  (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
-
-(defui ^:once R2
-  static prim/InitialAppState
-  (initial-state [this params] {:id 1 :u2 (prim/get-initial-state U2 {})})
-  static prim/IQuery
-  (query [this] [:id {:u2 (prim/get-query U2)}]))
-
-(defui ^:once U1
-  static prim/InitialAppState
-  (initial-state [this params] (prim/get-initial-state MergeB {}))
-  static prim/IQuery
-  (query [this] {:r2 (prim/get-query R2) :b (prim/get-query MergeB)}))
-
-(defui ^:once NestedRoot
-  static prim/InitialAppState
-  (initial-state [this params] {:u1 (prim/get-initial-state U1 {})})
-  static prim/IQuery
-  (query [this] [{:u1 (prim/get-query U1)}]))
-
-;; Sibling routing tree
-;; SiblingRoot
-;;     |   \
-;;   SU1   SU2
-;;  A   B  X  Y
-
-(defui ^:once SU1
-  static prim/InitialAppState
-  (initial-state [this params] (prim/get-initial-state MergeB {}))
-  static prim/Ident
-  (ident [this props] [(:type props) 1])
-  static prim/IQuery
-  (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
-
-(defui ^:once SU2
-  static prim/InitialAppState
-  (initial-state [this params] (prim/get-initial-state MergeX {}))
-  static prim/Ident
-  (ident [this props] [(:type props) 2])
-  static prim/IQuery
-  (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
+  (defui ^:once MergeY
+    static prim/InitialAppState
+    (initial-state [this params] {:type :y :n :y})
+    static prim/IQuery
+    (query [this] [:n :type]))
 
 
-(defui ^:once SiblingRoot
-  static prim/InitialAppState
-  (initial-state [this params] {:su1 (prim/get-initial-state SU1 {}) :su2 (prim/get-initial-state SU2 {})})
-  static prim/IQuery
-  (query [this] [{:su1 (prim/get-query SU1)} {:su2 (prim/get-query SU2)}]))
+  (defui ^:once MergeAChild
+    static prim/InitialAppState
+    (initial-state [this params] {:child :merge-a})
+    static prim/Ident
+    (ident [this props] [:mergea :child])
+    static prim/IQuery
+    (query [this] [:child]))
 
-(specification "merge-alternate-union-elements!"
-  (behavior "For applications with sibling unions"
-    (when-mocking
-      (prim/merge-component! app comp state) =1x=> (do
-                                                     (assertions
-                                                       "Merges level one elements"
-                                                       comp => SU1
-                                                       state => (prim/get-initial-state MergeA {})))
-      (prim/merge-component! app comp state) =1x=> (do
-                                                     (assertions
-                                                       "Merges only the state of branches that are not already initialized"
-                                                       comp => SU2
-                                                       state => (prim/get-initial-state MergeY {})))
+  (defui ^:once MergeA
+    static prim/InitialAppState
+    (initial-state [this params] {:type :a :n :a :child (prim/get-initial-state MergeAChild nil)})
+    static prim/IQuery
+    (query [this] [:type :n {:child (prim/get-query MergeAChild)}]))
 
-      (prim/merge-alternate-union-elements! :app SiblingRoot)))
+  (defui ^:once MergeB
+    static prim/InitialAppState
+    (initial-state [this params] {:type :b :n :b})
+    static prim/IQuery
+    (query [this] [:n]))
 
-  (behavior "For applications with nested unions"
-    (when-mocking
-      (prim/merge-component! app comp state) =1x=> (do
-                                                     (assertions
-                                                       "Merges level one elements"
-                                                       comp => U1
-                                                       state => (prim/get-initial-state R2 {})))
-      (prim/merge-component! app comp state) =1x=> (do
-                                                     (assertions
-                                                       "Merges only the state of branches that are not already initialized"
-                                                       comp => U2
-                                                       state => (prim/get-initial-state MergeY {})))
+  (defui ^:once MergeUnion
+    static prim/InitialAppState
+    (initial-state [this params] (prim/get-initial-state MergeA {}))
+    static prim/Ident
+    (ident [this props] [:mergea-or-b :at-union])
+    static prim/IQuery
+    (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
 
-      (prim/merge-alternate-union-elements! :app NestedRoot)))
-  (behavior "For applications with non-nested unions"
-    (when-mocking
-      (prim/merge-component! app comp state) => (do
-                                                  (assertions
-                                                    "Merges only the state of branches that are not already initialized"
-                                                    comp => MergeUnion
-                                                    state => (prim/get-initial-state MergeB {})))
+  (defui ^:once MergeRoot
+    static prim/InitialAppState
+    (initial-state [this params] {:a 1 :b (prim/get-initial-state MergeUnion {})})
+    static prim/IQuery
+    (query [this] [:a {:b (prim/get-query MergeUnion)}]))
 
-      (prim/merge-alternate-union-elements! :app MergeRoot))))
+  ;; Nested routing tree
+  ;; NestedRoot
+  ;;     |
+  ;;     U1
+  ;;    /  B    A = MergeRoot B = MergeB
+  ;;    R2
+  ;;   U2       A2
+  ;;  X  Y
 
-(defn phone-number [id n] {:id id :number n})
-(defn person [id name numbers] {:id id :name name :numbers numbers})
+  (defui ^:once U2
+    static prim/InitialAppState
+    (initial-state [this params] (prim/get-initial-state MergeX {}))
+    static prim/IQuery
+    (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
 
-(defui MPhone
-  static prim/IQuery
-  (query [this] [:id :number])
-  static prim/Ident
-  (ident [this props] [:phone/by-id (:id props)]))
+  (defui ^:once R2
+    static prim/InitialAppState
+    (initial-state [this params] {:id 1 :u2 (prim/get-initial-state U2 {})})
+    static prim/IQuery
+    (query [this] [:id {:u2 (prim/get-query U2)}]))
 
-(defui MPerson
-  static prim/IQuery
-  (query [this] [:id :name {:numbers (prim/get-query MPhone)}])
-  static prim/Ident
-  (ident [this props] [:person/by-id (:id props)]))
+  (defui ^:once U1
+    static prim/InitialAppState
+    (initial-state [this params] (prim/get-initial-state MergeB {}))
+    static prim/IQuery
+    (query [this] {:r2 (prim/get-query R2) :b (prim/get-query MergeB)}))
 
-(specification "merge-component"
-  (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
-        sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
-        phone-3          {:id 3 :number "111-2222"}
-        state-map        {:people       [[:person/by-id :sally]]
-                          :phone/by-id  {3 phone-3}
-                          :person/by-id {:sally sally}}
-        new-state-map    (prim/merge-component state-map MPerson component-tree)
-        expected-person  {:id :tony :name "Tony" :numbers [[:phone/by-id 1] [:phone/by-id 2]]}
-        expected-phone-1 {:id 1 :number "555-1212"}
-        expected-phone-2 {:id 2 :number "123-4555"}]
-    (assertions
-      "merges the top-level component with normalized links to children"
-      (get-in new-state-map [:person/by-id :tony]) => expected-person
-      "merges the normalized children"
-      (get-in new-state-map [:phone/by-id 1]) => expected-phone-1
-      (get-in new-state-map [:phone/by-id 2]) => expected-phone-2
-      "leaves the original state untouched"
-      (contains? new-state-map :people) => true
-      (get-in new-state-map [:person/by-id :sally]) => sally
-      (get-in new-state-map [:phone/by-id 3]) => phone-3)))
+  (defui ^:once NestedRoot
+    static prim/InitialAppState
+    (initial-state [this params] {:u1 (prim/get-initial-state U1 {})})
+    static prim/IQuery
+    (query [this] [{:u1 (prim/get-query U1)}]))
 
-(def table-1 {:type :table :id 1 :rows [1 2 3]})
-(defui Table
-  static prim/InitialAppState
-  (initial-state [c p] table-1)
-  static prim/IQuery
-  (query [this] [:type :id :rows]))
+  ;; Sibling routing tree
+  ;; SiblingRoot
+  ;;     |   \
+  ;;   SU1   SU2
+  ;;  A   B  X  Y
 
-(def graph-1 {:type :graph :id 1 :data [1 2 3]})
-(defui Graph
-  static prim/InitialAppState
-  (initial-state [c p] graph-1)
-  static prim/IQuery
-  (query [this] [:type :id :data]))
+  (defui ^:once SU1
+    static prim/InitialAppState
+    (initial-state [this params] (prim/get-initial-state MergeB {}))
+    static prim/Ident
+    (ident [this props] [(:type props) 1])
+    static prim/IQuery
+    (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
 
-(defui Reports
-  static prim/InitialAppState
-  (initial-state [c p] (prim/get-initial-state Graph nil)) ; initial state will already include Graph
-  static prim/Ident
-  (ident [this props] [(:type props) (:id props)])
-  static prim/IQuery
-  (query [this] {:graph (prim/get-query Graph) :table (prim/get-query Table)}))
+  (defui ^:once SU2
+    static prim/InitialAppState
+    (initial-state [this params] (prim/get-initial-state MergeX {}))
+    static prim/Ident
+    (ident [this props] [(:type props) 2])
+    static prim/IQuery
+    (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
 
-(defui MRRoot
-  static prim/InitialAppState
-  (initial-state [c p] {:reports (prim/get-initial-state Reports nil)})
-  static prim/IQuery
-  (query [this] [{:reports (prim/get-query Reports)}]))
 
-(specification "merge-alternate-union-elements"
-  (let [initial-state (merge (prim/get-initial-state MRRoot nil) {:a 1})
-        state-map     (prim/tree->db MRRoot initial-state true)
-        new-state     (prim/merge-alternate-union-elements state-map MRRoot)]
-    (assertions
-      "can be used to merge alternate union elements to raw state"
-      (get-in new-state [:table 1]) => table-1
-      "(existing state isn't touched)"
-      (get new-state :a) => 1
-      (get new-state :reports) => [:graph 1]
-      (get-in new-state [:graph 1]) => graph-1)))
+  (defui ^:once SiblingRoot
+    static prim/InitialAppState
+    (initial-state [this params] {:su1 (prim/get-initial-state SU1 {}) :su2 (prim/get-initial-state SU2 {})})
+    static prim/IQuery
+    (query [this] [{:su1 (prim/get-query SU1)} {:su2 (prim/get-query SU2)}]))
+
+  (specification "merge-alternate-union-elements!"
+    (behavior "For applications with sibling unions"
+      (when-mocking
+        (prim/merge-component! app comp state) =1x=> (do
+                                                       (assertions
+                                                         "Merges level one elements"
+                                                         comp => SU1
+                                                         state => (prim/get-initial-state MergeA {})))
+        (prim/merge-component! app comp state) =1x=> (do
+                                                       (assertions
+                                                         "Merges only the state of branches that are not already initialized"
+                                                         comp => SU2
+                                                         state => (prim/get-initial-state MergeY {})))
+
+        (prim/merge-alternate-union-elements! :app SiblingRoot)))
+
+    (behavior "For applications with nested unions"
+      (when-mocking
+        (prim/merge-component! app comp state) =1x=> (do
+                                                       (assertions
+                                                         "Merges level one elements"
+                                                         comp => U1
+                                                         state => (prim/get-initial-state R2 {})))
+        (prim/merge-component! app comp state) =1x=> (do
+                                                       (assertions
+                                                         "Merges only the state of branches that are not already initialized"
+                                                         comp => U2
+                                                         state => (prim/get-initial-state MergeY {})))
+
+        (prim/merge-alternate-union-elements! :app NestedRoot)))
+    (behavior "For applications with non-nested unions"
+      (when-mocking
+        (prim/merge-component! app comp state) => (do
+                                                    (assertions
+                                                      "Merges only the state of branches that are not already initialized"
+                                                      comp => MergeUnion
+                                                      state => (prim/get-initial-state MergeB {})))
+
+        (prim/merge-alternate-union-elements! :app MergeRoot))))
+
+  (defn phone-number [id n] {:id id :number n})
+  (defn person [id name numbers] {:id id :name name :numbers numbers})
+
+  (defui MPhone
+    static prim/IQuery
+    (query [this] [:id :number])
+    static prim/Ident
+    (ident [this props] [:phone/by-id (:id props)]))
+
+  (defui MPerson
+    static prim/IQuery
+    (query [this] [:id :name {:numbers (prim/get-query MPhone)}])
+    static prim/Ident
+    (ident [this props] [:person/by-id (:id props)]))
+
+  (specification "merge-component"
+    (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
+          sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
+          phone-3          {:id 3 :number "111-2222"}
+          state-map        {:people       [[:person/by-id :sally]]
+                            :phone/by-id  {3 phone-3}
+                            :person/by-id {:sally sally}}
+          new-state-map    (prim/merge-component state-map MPerson component-tree)
+          expected-person  {:id :tony :name "Tony" :numbers [[:phone/by-id 1] [:phone/by-id 2]]}
+          expected-phone-1 {:id 1 :number "555-1212"}
+          expected-phone-2 {:id 2 :number "123-4555"}]
+      (assertions
+        "merges the top-level component with normalized links to children"
+        (get-in new-state-map [:person/by-id :tony]) => expected-person
+        "merges the normalized children"
+        (get-in new-state-map [:phone/by-id 1]) => expected-phone-1
+        (get-in new-state-map [:phone/by-id 2]) => expected-phone-2
+        "leaves the original state untouched"
+        (contains? new-state-map :people) => true
+        (get-in new-state-map [:person/by-id :sally]) => sally
+        (get-in new-state-map [:phone/by-id 3]) => phone-3)))
+
+  (def table-1 {:type :table :id 1 :rows [1 2 3]})
+  (defui Table
+    static prim/InitialAppState
+    (initial-state [c p] table-1)
+    static prim/IQuery
+    (query [this] [:type :id :rows]))
+
+  (def graph-1 {:type :graph :id 1 :data [1 2 3]})
+  (defui Graph
+    static prim/InitialAppState
+    (initial-state [c p] graph-1)
+    static prim/IQuery
+    (query [this] [:type :id :data]))
+
+  (defui Reports
+    static prim/InitialAppState
+    (initial-state [c p] (prim/get-initial-state Graph nil)) ; initial state will already include Graph
+    static prim/Ident
+    (ident [this props] [(:type props) (:id props)])
+    static prim/IQuery
+    (query [this] {:graph (prim/get-query Graph) :table (prim/get-query Table)}))
+
+  (defui MRRoot
+    static prim/InitialAppState
+    (initial-state [c p] {:reports (prim/get-initial-state Reports nil)})
+    static prim/IQuery
+    (query [this] [{:reports (prim/get-query Reports)}]))
+
+  (specification "merge-alternate-union-elements" :focused
+    (let [initial-state (merge (prim/get-initial-state MRRoot nil) {:a 1})
+          state-map     (prim/tree->db MRRoot initial-state true)
+          new-state     (prim/merge-alternate-union-elements state-map MRRoot)]
+      (assertions
+        "can be used to merge alternate union elements to raw state"
+        (get-in new-state [:table 1]) => table-1
+        "(existing state isn't touched)"
+        (get new-state :a) => 1
+        (get new-state :reports) => [:graph 1]
+        (get-in new-state [:graph 1]) => graph-1)))
 
 (defsc A [this props] {} (dom/div nil "TODO"))
 (defsc AQuery [this props] {:query [:x]} (dom/div nil "TODO"))
 (defsc AState [this props] {:initial-state (fn [params] {})} (dom/div nil "TODO"))
 (defsc AIdent [this props] {:ident (fn [] [:x 1])} (dom/div nil "TODO"))
 
-(specification "Detection of static protocols"
+(specification "Detection of static protocols" :focused
   (assertions
     #?(:cljs "works on client" :clj "works on server")
     (prim/has-query? A) => false
