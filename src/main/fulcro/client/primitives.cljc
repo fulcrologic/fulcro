@@ -2413,6 +2413,7 @@
                                (not (nil? ref)) (conj ref))
           history-step       {::hist/tx          tx
                               ::hist/client-time #?(:cljs (js/Date.) :clj (java.util.Date.))
+                              ::hist/network-sends snds
                               ::hist/db-before   old-state
                               ::hist/db-after    new-state}]
       ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
