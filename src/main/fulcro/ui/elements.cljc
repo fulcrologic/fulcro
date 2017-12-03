@@ -1,5 +1,5 @@
 (ns fulcro.ui.elements
-  (:require [fulcro.client.primitives :as prim :refer [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]
             #?(:cljs [goog.object :as gobj])))
 
@@ -43,7 +43,11 @@
          (update-frame-content this child)))
 
      (render [this]
-       (dom/iframe (-> (prim/props this) (dissoc :child)(assoc :onLoad #(start-frame this)) clj->js)))))
+       (dom/iframe
+         (-> (prim/props this)
+             (dissoc :child)
+             (assoc :onLoad #(start-frame this))
+             clj->js)))))
 
 #?(:cljs
    (let [factory (prim/factory IFrame)]

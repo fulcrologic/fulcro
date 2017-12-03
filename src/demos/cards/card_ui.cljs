@@ -5,6 +5,7 @@
     cards.UI_router_as_editor_with_type_selection
     cards.UI_router_as_list_with_item_editor
     cards.autocomplete
+    cards.cascading-dropdowns
     cards.component_local_state
     cards.component_localized_css
     cards.declarative_mutation_refresh

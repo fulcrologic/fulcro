@@ -3,6 +3,7 @@
             [taoensso.timbre :as timbre]
             cards.autocomplete
             cards.card_utils
+            cards.cascading-dropdowns
             cards.declarative_mutation_refresh
             cards.legacy_loading_indicators
             cards.loading_data_basics

@@ -52,16 +52,16 @@ to use devcards mkdn-pprint-source with mutations in your devcards. See the docs
 - Removed log-app-state utility. Will reduce production deploy size. (thanks @thheller)
   - Added code for log-app-state to Guide's F_DevEnv documentation, along with a note about fulcro-inspect
 
+1.2.2
+-----
+- Back-ported improvements to defsc to 1.x dev line. Supports lambdas
+for options as well as the original templates. See docstring.
+
 1.2.1
 -----
 - Expanded tool registry support
 - Expanded websocket support a bit
 - Fixed elements/ui-iframe in Firefox
-
-1.2.2
------
-- Back-ported improvements to defsc to 1.x dev line. Supports lambdas
-for options as well as the original templates. See docstring.
 
 1.2.0
 -----

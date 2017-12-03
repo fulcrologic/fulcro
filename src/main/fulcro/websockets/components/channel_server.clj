@@ -304,8 +304,6 @@
 
 (defn simple-channel-server
   "
-  UNTESTED: This should create a component that can be used with any server (assuming you give the correct sente adapter).
-
   Creates a channel server that uses the default server parser (you can use defmutation, defquery-root, etc.) for
   incoming requests.  Any dependencies you need in the parsing environment will be injected into the :ws-net entry
   in the parsing env. In other words: this function makes the channel server depend on your stated dependencies,
