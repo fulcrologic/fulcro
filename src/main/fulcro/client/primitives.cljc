@@ -115,15 +115,18 @@
 (defn add-basis-time* [{:keys [children]} props time]
   (if (map? props)
     (if (seq children)
-      (-> (into {}
-                (map (fn [{:keys [key] :as ast}]
-                       (let [x (get props key)]
-                         [key
-                          (if (sequential? x)
-                            (mapv #(add-basis-time* ast % time) x)
-                            (add-basis-time* ast x time))])))
-                children)
-          (with-meta (assoc (meta props) ::time time)))
+      (let [children (if (= :union (-> children first :type))
+                       (apply concat (->> children first :children (map :children)))
+                       children)]
+        (-> (into {}
+                  (map (fn [{:keys [key] :as ast}]
+                         (let [x (get props key)]
+                           [key
+                            (if (sequential? x)
+                              (mapv #(add-basis-time* ast % time) x)
+                              (add-basis-time* ast x time))])))
+                  children)
+            (with-meta (assoc (meta props) ::time time))))
       (vary-meta props assoc ::time time))
     props))
 
