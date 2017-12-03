@@ -26,7 +26,7 @@
    (defn value-message
      "Include a pretty-printed cljs value as a string with the given text message."
      [msg val]
-     (str msg ":\n" (with-out-str (pr-str val))))
+     (str msg ":\n" (pr-str val)))
    :clj
    (defn value-message [msg val] (str msg val)))
 
