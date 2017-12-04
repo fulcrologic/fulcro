@@ -6,7 +6,7 @@
   {% for post in site.posts %}
     <div class="clearfix">
       <div class="col col-4"> {{post.date | date_to_long_string}} </div>
-      <div class="col col-8"> <a href="/fulcro{{ post.url }}">{{ post.title }}</a> </div>
+      <div class="col col-8"> <a href="{{ post.url }}">{{ post.title }}</a> </div>
     </div>
     <div class="clearfix">
       <div class="col col-4">&nbsp;</div>
