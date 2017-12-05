@@ -34,32 +34,20 @@
   [state _ {:keys [new-volume]}]
   (assoc-in state [:child/by-id 0 :volume] new-volume))
 
-(defui ^:once Child
-  static InitialAppState
-  (initial-state [cls params] {:id 0 :volume 5})
-  static prim/IQuery
-  (query [this] [:id :volume])
-  static prim/Ident
-  (ident [this props] [:child/by-id (:id props)])
-  Object
-  (render [this]
-    (let [{:keys [id volume]} (prim/props this)]
-      (dom/div nil
-        (dom/p nil "Current volume: " volume)
-        (dom/button #js {:onClick #(prim/transact! this `[(crank-it-up ~{:value volume})])} "+")))))
+(defsc Child [this {:keys [id volume]}]
+  {:initial-state (fn [params] {:id 0 :volume 5})
+   :query         [:id :volume]
+   :ident         [:child/by-id :id]}
+  (dom/div nil
+    (dom/p nil "Current volume: " volume)
+    (dom/button #js {:onClick #(prim/transact! this `[(crank-it-up ~{:value volume})])} "+")))
 
 (def ui-child (prim/factory Child))
 
-(defui ^:once Root
-  static InitialAppState
-  (initial-state [cls params]
-    {:child (initial-state Child {})})
-  static prim/IQuery
-  (query [this] [:ui/react-key {:child (prim/get-query Child)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key child]} (prim/props this)]
-      (dom/div #js {:key react-key} (ui-child child)))))
+(defsc Root [this {:keys [ui/react-key child]}]
+  {:initial-state (fn [params] {:child (prim/get-initial-state Child {})})
+   :query         [:ui/react-key {:child (prim/get-query Child)}]}
+  (dom/div #js {:key react-key} (ui-child child)))
 
 #?(:cljs
    (defcard-fulcro mutation-return-value-card

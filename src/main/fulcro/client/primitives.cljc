@@ -117,24 +117,24 @@
                        (apply concat (->> children first :children (map :children)))
                        children)]
         (-> (into props
-                  (map (fn [{:keys [key query] :as ast}]
-                         (let [x (get props key)
-                               ast (cond-> ast
-                                     ; add children on recursive query
-                                     (= '... query)
-                                     (assoc :children children)
+              (map (fn [{:keys [key query] :as ast}]
+                     (let [x   (get props key)
+                           ast (cond-> ast
+                                 ; add children on recursive query
+                                 (= '... query)
+                                 (assoc :children children)
 
-                                     (pos-int? query)
-                                     (assoc :children (mapv #(cond-> %
-                                                               (pos-int? (:query %))
-                                                               (update :query dec))
-                                                        children)))]
-                           [key
-                            (if (sequential? x)
-                              (mapv #(add-basis-time* ast % time) x)
-                              (add-basis-time* ast x time))])))
-                  children)
-            (vary-meta assoc ::time time)))
+                                 (pos-int? query)
+                                 (assoc :children (mapv #(cond-> %
+                                                           (pos-int? (:query %))
+                                                           (update :query dec))
+                                                    children)))]
+                       [key
+                        (if (sequential? x)
+                          (mapv #(add-basis-time* ast % time) x)
+                          (add-basis-time* ast x time))])))
+              children)
+          (vary-meta assoc ::time time)))
       (vary-meta props assoc ::time time))
     props))
 
@@ -149,7 +149,7 @@
                 ele)) props))
   ([q props time]
    (add-basis-time props time)
-   #_(add-basis-time* (query->ast q) props time)))
+    #_(add-basis-time* (query->ast q) props time)))
 
 (defn get-basis-time
   "Returns the basis time from the given props, or ::unset if not available."
@@ -2410,11 +2410,11 @@
           xs                 (cond-> declared-refreshes
                                (not (nil? c)) (conj c)
                                (not (nil? ref)) (conj ref))
-          history-step       {::hist/tx          tx
-                              ::hist/client-time #?(:cljs (js/Date.) :clj (java.util.Date.))
+          history-step       {::hist/tx            tx
+                              ::hist/client-time   #?(:cljs (js/Date.) :clj (java.util.Date.))
                               ::hist/network-sends snds
-                              ::hist/db-before   old-state
-                              ::hist/db-after    new-state}]
+                              ::hist/db-before     old-state
+                              ::hist/db-after      new-state}]
       ; TODO: transact! should have access to some kind of UI hook on the reconciler that user's install to block UI when history is too full (due to network queue)
       (when history
         (swap! history hist/record-history-step tx-time history-step))
@@ -2915,17 +2915,30 @@
                     :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
 
 #?(:clj
-   (defn- build-render [classsym thissym propsym compsym csssym childrensym body]
+   (defn- build-render [classsym thissym propsym compsym csssym body]
      (let [css-bindings      (when csssym `[~csssym (fulcro-css.css/get-classnames ~classsym)])
-           computed-bindings (when compsym `[~compsym (fulcro.client.primitives/get-computed ~thissym)])
-           children-bindings (when childrensym `[~childrensym (fulcro.client.primitives/children ~thissym)])]
+           computed-bindings (when compsym `[~compsym (fulcro.client.primitives/get-computed ~thissym)])]
        `(~'Object
           (~'render [~thissym]
             (let [~propsym (fulcro.client.primitives/props ~thissym)
                   ~@computed-bindings
-                  ~@css-bindings
-                  ~@children-bindings]
+                  ~@css-bindings]
               ~@body))))))
+
+#?(:clj
+   (defn- make-lifecycle [thissym options]
+     (let [possible-methods  (-> options keys set)
+           lifecycle-kws     (->> lifecycle-sigs keys (map (comp keyword name)) set)
+           methods-to-define (set/intersection lifecycle-kws possible-methods)
+           get-signature     (fn [sym] (drop 1 (get lifecycle-sigs sym)))]
+       (mapv (fn [method-kw]
+               (let [sym       (symbol (name method-kw))
+                     lambda    (get options method-kw)
+                     signature (get-signature sym)
+                     arity     (count signature)
+                     method    (replace-and-validate-fn sym [thissym] arity lambda)]
+                 method))
+         methods-to-define))))
 
 (defn make-state-map
   "Build a component's initial state using the defsc initial-state-data from
@@ -3023,7 +3036,7 @@
                                                       :sym symbol?
                                                       :doc (s/? string?)
                                                       :arglist (s/and vector? #(<= 2 (count %) 5))
-                                                      :options :fulcro.client.primitives.defsc/options
+                                                      :options (s/? :fulcro.client.primitives.defsc/options)
                                                       :body (s/+ (constantly true)))))
 #?(:clj (s/def :fulcro.client.primitives.defsc/static #{'static}))
 #?(:clj (s/def :fulcro.client.primitives.defsc/protocol-method list?))
@@ -3055,10 +3068,9 @@
             ~local-form
             ~include-form)))))
 
-
 #?(:clj
    (defn defsc*
-     [args]
+     [is-cljs? args]
      (if-not (s/valid? :fulcro.client.primitives.defsc/args args)
        (throw (ex-info "Invalid arguments"
                 {:reason (str (-> (s/explain-data :fulcro.client.primitives.defsc/args args)
@@ -3066,16 +3078,14 @@
                                 first
                                 :path) " is invalid.")})))
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
-           [thissym propsym computedsym opt-css childrensym] arglist
+           [thissym propsym computedsym csssym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
-           has-css?                         (boolean css)
-           csssym                           (if has-css? opt-css nil)
-           childrensym                      (if has-css? childrensym opt-css)
            ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
            initial-state-template-or-method (into {} [initial-state])
            query-template-or-method         (into {} [query])
            css-template-or-method           (into {} [css])
            css-include-template-or-method   (into {} [css-include])
+           has-css?                         (or css css-include)
            ; TODO: validate-css?                    (and (map? csssym) (:template css))
            validate-query?                  (:template query-template-or-method)
            legal-key-cheker                 (if validate-query?
@@ -3091,12 +3101,15 @@
                                                        (concat [(:protocol v)] (:methods v)))))
                                               (mapcat identity))
            ident-forms                      (build-ident thissym propsym ident-template-or-method legal-key-cheker)
+           has-ident?                       (seq ident-forms)
            state-forms                      (build-initial-state sym thissym initial-state-template-or-method legal-key-cheker query-template-or-method (boolean (seq form-fields)))
            query-forms                      (build-query-forms sym thissym propsym query-template-or-method)
            form-forms                       (build-form form-fields)
            css-forms                        (build-css thissym css-template-or-method css-include-template-or-method)
-           render-forms                     (build-render sym thissym propsym computedsym csssym childrensym body)]
+           render-forms                     (build-render sym thissym propsym computedsym csssym body)]
        (assert (or (nil? protocols) (s/valid? :fulcro.client.primitives.defsc/protocols protocols)) "Protocols must be valid protocol declarations")
+       (when (and csssym (not (seq css-forms)))
+         (throw (ex-info "You included a CSS argument, but there is no CSS localized to the component." {})))
        ;; TODO: Add CSS destructuring validation here? Must use dynamic loading of fulcro CSS IFF css is used, so that we
        ; don't have a hard dependency on it.
        ; You're at *compile time* in *Clojure*...you *cannot rely on components* that are defined because they might be only
@@ -3113,29 +3126,50 @@
           ~@object-methods))))
 
 #?(:clj
-   (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI component with a query,
-   optional ident (if :ident is specified in options), optional initial state, optional css,
-   optional forms, and a render method. It can also emit additional protocols  that you specify. Destructuring is
-   supported in the argument list, and made available in the body and lambda versions of the options.
+   (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI class with a query,
+   optional ident (if :ident is specified in options), optional initial state, optional css, lifecycle methods,
+   and a render method. It can also cause the class to implement additional protocols that you specify. Destructuring is
+   supported in the argument list.
+
+   The template (data-only) versions do not have any arguments in scope
+   The lambda versions have arguments in scope that make sense for those lambdas, as listed below:
 
    ```
-   (defsc Component [this {:keys [db/id x] :as props} {:keys [onSelect] :as computed} children]
-     {:query [:db/id :x] ; OR (fn [] [:db/id :x])
-      :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id])
-      :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)})
-      :protocols [Object
-                  (shouldComponentUpdate ...)]}
+   (defsc Component [this {:keys [db/id x] :as props} {:keys [onSelect] :as computed}]
+     {
+      ;; stateful component options
+      ;; query template is literal. Use the lambda if you have ident-joins or unions.
+      :query [:db/id :x] ; OR (fn [] [:db/id :x]) ; this in scope
+      ;; ident template is table name and ID property name
+      :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id]) ; this and props in scope
+      ;; initial-state template is magic..see dev guide. Lambda version is normal.
+      :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; this in scope
+
+      ; React Lifecycle Methods (this in scope)
+      :initLocalState            (fn [] ...)
+      :shouldComponentUpdate     (fn [next-props next-state] ...)
+      :componentWillReceiveProps (fn [next-props] ...)
+      :componentWillUpdate       (fn [next-props next-state] ...)
+      :componentDidUpdate        (fn [prev-props prev-state] ...)
+      :componentWillMount        (fn [] ...)
+      :componentDidMount         (fn [] ...)
+      :componentWillUnmount      (fn [] ...)
+
+      ; Custom literal protocols (Object ok, too, to add arbitrary methods. Nothing automatically in scope.)
+      :protocols [YourProtocol
+                  (method [this] ...)]} ; nothing is automatically in scope
       (dom/div #js {:onClick onSelect} x))
    ```
 
-   To use with Fulcro CSS, be sure to require `fulcro-css.css`, and modify the argument list (only when used) to:
+   To use with Fulcro CSS, be sure to require `fulcro-css.css`, and add an the argument (only when used):
 
    ```
    (ns ui
      (require fulcro-css.css))
 
-   (defsc Component [this props computed {:keys [my-classname]} children]
+   (defsc Component [this props computed {:keys [my-classname] :as classnames}]
      {:css [[:.my-classname]] ; OR (fn [] [[:my-classname]])
+      :css-include [] ; list of children from which CSS should also be pulled
       ... }
       (dom/div #js {:className my-classname} ...))
    ```
@@ -3143,18 +3177,14 @@
    Only the first two arguments are required (this and props).
 
    See section M05-More-Concise-UI of the Developer's Guide for more details.
-
-   NOTE: `defsc` automatically declares your component with `:once` metadata for correct operation with hot code reload.
    "
                :arglists '([this dbprops computedprops]
-                            [this dbprops computedprops children]
-                            [this dbprops computedprops local-css-classes]
-                            [this dbprops computedprops local-css-classes children])}
+                            [this dbprops computedprops local-css-classes])}
    defsc
      [& args]
      (let [location (str *ns* ":" (:line (meta &form)))]
        (try
-         (defsc* args)
+         (defsc* (boolean (:ns &env)) args)
          (catch Exception e
            (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
 
@@ -3301,7 +3331,7 @@
   (if-not (has-ident? component)
     (log/error "merge-component!: component must implement Ident. Merge skipped.")
     (let [ident          (get-ident component object-data)
-          reconciler     (if (contains? reconciler :reconciler) (:reconciler reconciler))
+          reconciler     (if (contains? reconciler :reconciler) (:reconciler reconciler) reconciler)
           state          (app-state reconciler)
           data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
           {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
@@ -3360,4 +3390,5 @@
         _              (merge-alternate-unions merge-to-state root-component)
         new-state      @state-map-atom]
     new-state))
+
 

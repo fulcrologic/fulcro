@@ -7,7 +7,7 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.server :as server]
     [fulcro.client.dom :as dom]))
 
@@ -40,38 +40,27 @@
 (defmutation log-read-error [{:keys [error]}]
   (action [env] (log/warn "Read specific fallback: " error)))
 
-(defui ^:once Child
-  static prim/InitialAppState
-  (initial-state [c params] {})
-  static prim/IQuery
+(defsc Child [this {:keys [fulcro/server-error ui/button-disabled]}]
   ;; you can query for the server-error using a link from any component that composes to root
-  (query [_] [[:fulcro/server-error '_] :ui/button-disabled :fulcro/read-error])
-  static prim/Ident
-  (ident [_ _] [:error.child/by-id :singleton])
-  Object
-  (render [this]
-    (let [{:keys [fulcro/server-error ui/button-disabled]} (prim/props this)]
-      (dom/div nil
-        ;; declare a tx/fallback in the same transact call as the mutation
-        ;; if the mutation fails, the fallback will be called
-        (dom/button #js {:onClick  #(prim/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
-                         :disabled button-disabled}
-          "Click me for error!")
-        (dom/button #js {:onClick #(df/load-field this :fulcro/read-error)}
-          "Click me for other error!")
-        (dom/div nil (str server-error))))))
+  {:initial-state (fn [p] {})
+   :query         (fn [] [[:fulcro/server-error '_] :ui/button-disabled :fulcro/read-error])
+   :ident         (fn [] [:error.child/by-id :singleton])}  ; lambda so we get a *literal* ident
+  (dom/div nil
+    ;; declare a tx/fallback in the same transact call as the mutation
+    ;; if the mutation fails, the fallback will be called
+    (dom/button #js {:onClick  #(prim/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
+                     :disabled button-disabled}
+      "Click me for error!")
+    (dom/button #js {:onClick #(df/load-field this :fulcro/read-error)}
+      "Click me for other error!")
+    (dom/div nil (str server-error))))
 
 (def ui-child (prim/factory Child))
 
-(defui ^:once Root
-  static prim/InitialAppState
-  (initial-state [c params] {:child (prim/get-initial-state Child {})})
-  static prim/IQuery
-  (query [_] [:ui/react-key {:child (prim/get-query Child)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key child] :or {ui/react-key "ROOT"}} (prim/props this)]
-      (dom/div #js {:key react-key} (ui-child child)))))
+(defsc Root [this {:keys [ui/react-key child] :or {ui/react-key "ROOT"}}]
+  {:initial-state (fn [params] {:child (prim/get-initial-state Child {})})
+   :query         [:ui/react-key {:child (prim/get-query Child)}]}
+  (dom/div #js {:key react-key} (ui-child child)))
 
 #?(:cljs
    (dc/defcard-doc

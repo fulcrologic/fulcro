@@ -19,7 +19,7 @@
   routes so that code splitting your application can be a fairly simple exercise. Here are the basic steps:
 
   1. Pick a keyword for the name of a given screen. Say `:main`
-  2. Write the `defui` for that screen, and design it so that the TYPE (first element) of the ident is the keyword from (1).
+  2. Write the `defsc` for that screen, and design it so that the TYPE (first element) of the ident is the keyword from (1).
       - The initial state must be defined, and it must have the name (1) under the key r/dynamic-route-key
       - The bottom of the file that defines the target screen *must* include a `defmethod` that associates the keyword (1) with the component (2). This
         is how the dynamic router finds the initial state of the screen, and the query to route to.
@@ -34,21 +34,15 @@
   Trigger routing via the `route-to` mutation. That's it! The module rooted at the screen in (2) will be automatically loaded
   when needed.
 
-  The defui and defmethod needed for step 2 look like this:
+  The defsc and defmethod needed for step 2 look like this:
 
   ```
-  (prim/defui ^:once Main
-    static prim/InitialAppState
-    (initial-state [clz params] {r/dynamic-route-key :main :label \"MAIN\"})
-    static prim/Ident
-    (ident [this props] [:main :singleton])
-    static prim/IQuery
-    (query [this] [r/dynamic-route-key :label])
-    Object
-    (render [this]
-      (let [{:keys [label]} (prim/props this)]
-        (dom/div #js {:style #js {:backgroundColor \"red\"}}
-          label))))
+  (prim/defsc Main [this {:keys [label]}]
+    {:initial-state (fn [params] {r/dynamic-route-key :main :label \"MAIN\"})
+     :ident (fn [] [:main :singleton])
+     :query [r/dynamic-route-key :label]}
+    (dom/div #js {:style #js {:backgroundColor \"red\"}}
+          label))
 
   (defmethod r/get-dynamic-router-target :main [k] Main)
   (cljs.loader/set-loaded! :main)

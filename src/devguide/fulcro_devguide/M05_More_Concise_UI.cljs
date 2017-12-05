@@ -10,7 +10,7 @@
 
 (defsc Job
   "A job component"
-  [this {:keys [db/id job/name]} computed children]
+  [this {:keys [db/id job/name]}]
   {:ident         [:JOB/by-id :db/id]
    :query         [:db/id :job/name]
    ; expects to be called as `(get-initial-state Job {:id i :name n})`
@@ -155,15 +155,12 @@
 (defsc DestructuredExample [this
                             {:keys [db/id] :as props}
                             {:keys [onClick] :as computed :or {onClick identity}}
-                            {:keys [my-css-class] :as css-name-map}
-                            [first-child second-child :as children]]
+                            {:keys [my-css-class] :as css-name-map}]
   {:query         [:db/id]
    :initial-state {:db/id 22}
    :css           [[:.my-css-class {:color :black}]]}
   (dom/div #js {:className my-css-class}
-    (str "Component: " id)
-    first-child
-    second-child))
+    (str "Component: " id)))
 
 (dc/defcard-doc "# The defsc Macro
 
@@ -175,12 +172,15 @@
 
   ## Argument List
 
-  The primary argument list contains the common elements you might need to use in the body of you
+  The primary argument list contains the common elements you might need to use in the body:
+
   ```
-  (defsc [this props computed children]
+  (defsc [this props <optional-computed> <optional-css-map-if-using-css>]
    { ...options... }
    (dom/div #js {:onClick (:onClick computed)} (:db/id props)))
   ```
+
+  The last parameter will let you destructure fulcro-css names, if and only if you're using that library.
 
   Only the first two parameters are required, so you can even write:
 
@@ -190,21 +190,9 @@
    (dom/div nil (:db/id props)))
   ```
 
-  It has direct support for the `fulcro-css` library. When you use it with CSS rules, the argument list changes
-  slightly:
-
-  ```
-  (defsc [this props computed css-name-map children] ; NOTE: children slides over iff `:css` is present in options
-   { :css [[:.name {:color :red}]] }
-   (dom/div nil ...))
-  ```
-
-  and all parameters except the first two continue to be optional. (Side note: As far as `children` sliding over: This was a matter of debate in design. This was chosen over other options
-  because `children` are much less frequently used (when using fulcro-css) than CSS.)
-
   ## Argument Destructuring
 
-  The parameter list fully supports Clojure destructuring on the props, computed, css-name-map, and children without
+  The parameter list fully supports Clojure destructuring on the props, computed, and css-name-map without
   having to write a separate `let`:
 
   "
@@ -403,8 +391,7 @@
   combined with the generated `render`:
 
   ```
-  (defsc MyComponent
-     [this props computed children]
+  (defsc MyComponent [this props]
      {:protocols (Object
                   (shouldComponentUpdate [this next-props next-state] true)
                   static css/CSS

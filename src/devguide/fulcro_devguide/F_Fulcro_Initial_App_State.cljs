@@ -1,6 +1,6 @@
 (ns fulcro-devguide.F-Fulcro-Initial-App-State
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
@@ -8,31 +8,20 @@
             [cljs.reader :as r]
             [fulcro.client.mutations :as m]))
 
-(defui Child
-  static prim/InitialAppState
-  (initial-state [this params] {:id 1 :x 1})
-  static prim/IQuery
-  (query [this] [:id :x])
-  static prim/Ident
-  (ident [this props] [:child/by-id (:id props)])
-  Object
-  (render [this]
-    (let [{:keys [x]} (prim/props this)]
-      (dom/p nil (str "Child x: " x)))))
+(defsc Child [this {:keys [x]}]
+  {:initial-state (fn [params] {:id 1 :x 1})
+   :query         [:id :x]
+   :ident         [:child/by-id :id]}
+  (dom/p nil (str "Child x: " x)))
 
 (def ui-child (prim/factory Child))
 
-(defui Root
-  static prim/InitialAppState
-  (initial-state [this params] {:root-prop 42 :child (prim/get-initial-state Child {})})
-  static prim/IQuery
-  (query [this] [:ui/react-key :root-prop {:child (prim/get-query Child)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key root-prop child]} (prim/props this)]
-      (dom/div #js {:style #js {:border "1px solid black"} :key react-key}
-        (str "Root prop: " root-prop)
-        (ui-child child)))))
+(defsc Root [this {:keys [ui/react-key root-prop child]}]
+  {:query         [:ui/react-key :root-prop {:child (prim/get-query Child)}]
+   :initial-state (fn [params] {:root-prop 42 :child (prim/get-initial-state Child {})})}
+  (dom/div #js {:style #js {:border "1px solid black"} :key react-key}
+    (str "Root prop: " root-prop)
+    (ui-child child)))
 
 (defcard-doc
   "
@@ -207,40 +196,28 @@
 ")
 
 
-(defui ^:once AQueryRoot
-  static prim/InitialAppState
-  (initial-state [c p] {})                                  ; empty, but present initial state
-  static prim/IQuery
-  (query [this] [[:root-prop '_]])                          ; A asks for something from root, but has no local props (empty map)
-  Object
-  (render [this]
-    (let [{:keys [root-prop]} (prim/props this)]
-      (dom/p nil "A got " (if root-prop root-prop "Nothing!")))))
+(defsc AQueryRoot [this {:keys [root-prop]}]
+  {:initial-state (fn [p] {})                               ; empty, but present initial state
+   :query         (fn [] [[:root-prop '_]])}                ; A asks for something from root, but has no local props (empty map)
+  (dom/p nil "A got " (if root-prop root-prop "Nothing!")))
 
 (def ui-a (prim/factory AQueryRoot))
 
-(defui ^:once BQueryRoot
+(defsc BQueryRoot [this {:keys [root-prop]}]
   ; no initial state
-  static prim/IQuery
-  (query [this] [[:root-prop '_]])                          ; B asks for something from root, no local props (nil for state)
-  Object
-  (render [this]
-    (let [{:keys [root-prop]} (prim/props this)]
-      (dom/p nil "B got " (if root-prop root-prop "Nothing!")))))
+  {:query (fn [] [[:root-prop '_]])}                        ; B asks for something from root, no local props (nil for state)
+  (dom/p nil "B got " (if root-prop root-prop "Nothing!")))
 
 (def ui-b (prim/factory BQueryRoot))
 
-(defui ^:once RootQueryRoot
-  static prim/InitialAppState
-  (initial-state [c p] {:root-prop 42 :a (prim/get-initial-state AQueryRoot {}) :b nil}) ; b has no state
-  static prim/IQuery
-  (query [this] [{:a (prim/get-query AQueryRoot) :b (prim/get-query BQueryRoot)}])
-  Object
-  (render [this]
-    (let [{:keys [a b]} (prim/props this)]
-      (dom/div nil
-        (ui-a a)
-        (ui-b b)))))
+(defsc RootQueryRoot [this {:keys [a b]}]
+  {:initial-state (fn [p] {:root-prop 42
+                           :a         (prim/get-initial-state AQueryRoot {})}) ; b has no state
+   :query         [{:a (prim/get-query AQueryRoot)}
+                   {:b (prim/get-query BQueryRoot)}]}
+  (dom/div nil
+    (ui-a a)
+    (ui-b b)))
 
 (defcard-doc "
 
@@ -279,7 +256,9 @@
 (defcard-fulcro root-prop-query-gotcha
   "The live version of the code showing a root prop query problem. B has no state at all, so it's query isn't processed
   even though we could technically find the data needed. Queries and state are walked together by the query processing,
-  so missing state for a component will keep its query from being processed."
+  so missing state for a component will keep its query from being processed.
+
+  If you see data for b, it means we've fixed this, and the docs are out of date :)"
   RootQueryRoot {} {:inspect-data true})
 
 (defcard-doc "

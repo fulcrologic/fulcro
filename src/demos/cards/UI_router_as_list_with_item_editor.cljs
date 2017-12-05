@@ -1,6 +1,6 @@
 (ns cards.UI-router-as-list-with-item-editor
   (:require [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defui defsc]]
+            [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
@@ -9,13 +9,14 @@
             [fulcro.client.mutations :refer [defmutation]]
             [fulcro.ui.bootstrap3 :as b]
             [fulcro.ui.elements :as ele]
-            [fulcro.ui.forms :as f]))
+            [fulcro.ui.forms :as f]
+            [fulcro.client.logging :as log]))
 
 (defn person-ident
   "Generate an ident from a person."
   [id-or-props]
   (if (map? id-or-props)
-    (person-ident (:db/id id-or-props))
+    [:person/by-id (:db/id id-or-props)]
     [:person/by-id id-or-props]))
 
 (declare PersonForm)
@@ -57,59 +58,41 @@
 
 (defn make-person [id n] {:db/id id :person/name n})
 
-(defui ^:once PersonForm
-  static prim/Ident
-  (ident [this props] (person-ident props))
-  static prim/IQuery
-  (query [this] [:db/id :person/name f/form-key f/form-root-key])
-  static f/IForm
-  (form-spec [this] [(f/id-field :db/id)
-                     (f/text-input :person/name)])
-  Object
-  (render [this]
-    (let [{:keys [db/id person/name] :as form-props} (prim/props this)]
-      (b/form-horizontal nil
-        (b/labeled-input {:split           4
-                          :input-generator (fn [_] (f/form-field this form-props :person/name))} "Name:")
-        (b/labeled-input {:split           4
-                          :input-generator (fn [_]
-                                             (dom/div nil
-                                               ; the follow-on read of :root/router ensures re-render from the router level
-                                               (b/button {:onClick #(prim/transact! this `[(cancel-edit {}) :root/router])} "Cancel")
-                                               (b/button {:onClick #(prim/transact! this `[(submit-person {:form form-props}) :root/router])} "Save")))} "")))))
+(defsc PersonForm [this {:keys [db/id person/name] :as form-props}]
+  {:ident     (fn [] (person-ident form-props))
+   :query     [:db/id :person/name f/form-key f/form-root-key]
+   :protocols [static f/IForm
+               (form-spec [this] [(f/id-field :db/id)
+                                  (f/text-input :person/name)])]}
+  (b/form-horizontal nil
+    (b/labeled-input {:split           4
+                      :input-generator (fn [_] (f/form-field this form-props :person/name))} "Name:")
+    (b/labeled-input {:split           4
+                      :input-generator (fn [_]
+                                         (dom/div nil
+                                           ; the follow-on read of :root/router ensures re-render from the router level
+                                           (b/button {:onClick #(prim/transact! this `[(cancel-edit {}) :root/router])} "Cancel")
+                                           (b/button {:onClick #(prim/transact! this `[(submit-person {:form form-props}) :root/router])} "Save")))} "")))
 
-(defui ^:once PersonListItem
-  static prim/Ident
-  (ident [this props] (person-ident props))
-  static prim/IQuery
-  (query [this] [:db/id :person/name])
-  Object
-  (render [this]
-    (let [{:keys [db/id person/name] :as props} (prim/props this)
-          onSelect (prim/get-computed this :onSelect)]
-      ; the follow-on read of :root/router ensures re-render from the router level
-      (dom/li #js {:onClick #(prim/transact! this `[(edit-person {:id ~id}) :root/router])}
-        (dom/a #js {:href "javascript:void(0)"} name)))))
+(defsc PersonListItem [this {:keys [db/id person/name] :as props}]
+  {:ident (fn [] (person-ident props))
+   :query [:db/id :person/name]}
+  ; the follow-on read of :root/router ensures re-render from the router level
+  (dom/li #js {:onClick #(prim/transact! this `[(edit-person {:id ~id}) :root/router])}
+    (dom/a #js {:href "javascript:void(0)"} name)))
 
 (def ui-person (prim/factory PersonListItem {:keyfn :db/id}))
 
 (def person-list-ident [:person-list/table :singleton])
 
-(defui ^:once PersonList
-  static prim/InitialAppState
-  (initial-state [c p] {:people []})
-  static prim/Ident
-  (ident [this props] person-list-ident)
-  static prim/IQuery
-  (query [this] [{:people (prim/get-query PersonListItem)}])
-  Object
-  (render [this]
-    (let [{:keys [people]} (prim/props this)
-          onSelect (prim/get-computed this :onSelect)]
-      (dom/div nil
-        (dom/h4 nil "People")
-        (dom/ul nil
-          (map (fn [i] (ui-person (prim/computed i {:onSelect onSelect}))) people))))))
+(defsc PersonList [this {:keys [people]}]
+  {:initial-state (fn [p] {:people []})
+   :query         [{:people (prim/get-query PersonListItem)}]
+   :ident         (fn [] person-list-ident)}
+  (dom/div nil
+    (dom/h4 nil "People")
+    (dom/ul nil
+      (map (fn [i] (ui-person i)) people))))
 
 (defrouter PersonListOrForm :listform-router
   (ident [this props]
@@ -123,26 +106,21 @@
 
 (def ui-person-list-or-form (prim/factory PersonListOrForm))
 
-(defui ^:once DemoRoot
-  static prim/IQuery
-  (query [this] [:ui/react-key {:root/router (prim/get-query PersonListOrForm)}])
-  static prim/InitialAppState
-  (initial-state [c p] (merge
-                         (r/routing-tree
-                           (r/make-route :people [(r/router-instruction :listform-router person-list-ident)])
-                           ; configure the editor route to be able to point to any person via a route parameter
-                           (r/make-route :editor [(r/router-instruction :listform-router (person-ident :param/id))]))
-                         {:root/router (prim/get-initial-state PersonListOrForm nil)}))
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key root/router]} (prim/props this)]
-      ; devcards, embed in iframe so we can use bootstrap css easily
-      (ele/ui-iframe {:frameBorder 0 :height "300px" :width "100%"}
-        (dom/div #js {:key react-key}
-          (dom/style nil ".boxed {border: 1px solid black}")
-          (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
-          (b/container-fluid {}
-            (ui-person-list-or-form router)))))))
+(defsc DemoRoot [this {:keys [ui/react-key root/router]}]
+  {:query         [:ui/react-key {:root/router (prim/get-query PersonListOrForm)}]
+   :initial-state (fn [p] (merge
+                            (r/routing-tree
+                              (r/make-route :people [(r/router-instruction :listform-router person-list-ident)])
+                              ; configure the editor route to be able to point to any person via a route parameter
+                              (r/make-route :editor [(r/router-instruction :listform-router (person-ident :param/id))]))
+                            {:root/router (prim/get-initial-state PersonListOrForm nil)}))}
+  ; devcards, embed in iframe so we can use bootstrap css easily
+  (ele/ui-iframe {:frameBorder 0 :height "300px" :width "100%"}
+    (dom/div #js {:key react-key}
+      (dom/style nil ".boxed {border: 1px solid black}")
+      (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+      (b/container-fluid {}
+        (ui-person-list-or-form router)))))
 
 (defcard-doc
   "# Routing Between a List and an Editor
@@ -205,7 +183,7 @@
 (defcard-fulcro list-and-editor
   DemoRoot
   {}
-  {:inspect-data false
+  {:inspect-data true
    :fulcro       {:started-callback
                   (fn [app]
                     ; simulate a load of people via a simple integration of some tree data

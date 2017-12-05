@@ -5,7 +5,7 @@
                [fulcro.client.cards :refer [defcard-fulcro]]])
                [fulcro.client.data-fetch :as df]
                [fulcro.client.mutations :as m]
-               [fulcro.client.primitives :as prim :refer [defui defsc]]
+               [fulcro.client.primitives :as prim :refer [defsc]]
                [com.rpl.specter :as s]
                [clojure.set :as set]
                [fulcro.client.dom :as dom]
@@ -101,32 +101,24 @@
                        ; TODO
                        ))))
 
-(defui ^:once Person
-  static prim/IQuery
-  (query [this] [:ui/fetch-state :name :address :cc-number])
-  Object
-  (render [this]
-    (let [{:keys [name address cc-number]} (prim/props this)]
-      (dom/div nil
-        (dom/ul nil
-          (dom/li nil (str "name: " name))
-          (dom/li nil (str "address: " address))
-          (dom/li nil (str "cc-number: " cc-number)))))))
+(defsc Person [this {:keys [name address cc-number]}]
+  {:query [:ui/fetch-state :name :address :cc-number]}
+  (dom/div nil
+    (dom/ul nil
+      (dom/li nil (str "name: " name))
+      (dom/li nil (str "address: " address))
+      (dom/li nil (str "cc-number: " cc-number)))))
 
 (def ui-person (prim/factory Person))
 
-(defui ^:once Root
-  static prim/IQuery
-  (query [this] [:ui/react-key {:person (prim/get-query Person)} :fulcro/server-error])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key person server-error] :or {ui/react-key "ROOT"} :as props} (prim/props this)]
-      (dom/div #js {:key react-key}
-        (when server-error
-          (dom/p nil (pr-str "SERVER ERROR: " server-error)))
-        (dom/button #js {:onClick #(df/load this :person Person {:refresh [:person]})} "Query for person with credit card")
-        (dom/button #js {:onClick #(df/load this :person Person {:refresh [:person] :without #{:cc-number}})} "Query for person WITHOUT credit card")
-        (df/lazily-loaded ui-person person)))))
+(defsc Root [this {:keys [ui/react-key person fulcro/server-error] :or {ui/react-key "ROOT"} :as props}]
+  {:query [:ui/react-key {:person (prim/get-query Person)} :fulcro/server-error]}
+  (dom/div #js {:key react-key}
+    (when server-error
+      (dom/p nil (pr-str "SERVER ERROR: " server-error)))
+    (dom/button #js {:onClick #(df/load this :person Person {:refresh [:person]})} "Query for person with credit card")
+    (dom/button #js {:onClick #(df/load this :person Person {:refresh [:person] :without #{:cc-number}})} "Query for person WITHOUT credit card")
+    (df/lazily-loaded ui-person person)))
 
 #?(:cljs
    (dc/defcard-doc

@@ -1,6 +1,6 @@
 (ns fulcro-devguide.B-UI-Exercises
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
@@ -13,7 +13,7 @@
   NOTE - Namespace aliases used in this document:
 
 ```clojure
-(require '[fulcro.client.primitives :as prim :refer-macros [defui]]
+(require '[fulcro.client.primitives :as prim :refer [defsc]]
          '[fulcro.client.dom :as dom])
 ```
 
@@ -47,7 +47,7 @@
 (defcard overall-goal
   "## Overall goal
 
-  In the following exercises we'll build a UI using `defui`.
+  In the following exercises we'll build a UI using `defsc`.
   Once the UI is built, we'll add in a little component local state and callback handling.
 
   The UI will show a list of people and their partners.
@@ -72,23 +72,20 @@
 
 (declare ui-person)
 
-(defui Person
-  Object
-  (initLocalState [this] {})                                ; TODO (ex 3): Add initial local state here
-
-  (render [this]
-    ;; TODO: (ex 4) Obtain the 'computed' onDelete handler
-    (let [name "What's my :person/name?"                    ; TODO (ex 1): Get the Fulcro properties from this for `name` and `mate`
-          mate nil
-          checked false]                                    ; TODO (ex 3): Component local state
-      (dom/li nil
-        (dom/input #js {:type    "checkbox"
-                        :onClick (fn [e] (println "TODO ex 3"))
-                        :checked false                      ; TODO (ex 3): Modify local state
-                        })
-        (dom/span nil name)                                 ; TODO (ex 3): Make name bold when checked
-        (dom/button nil "X")                                ; TODO (ex 4): Call onDelete handler, if present
-        (when mate (dom/ul nil (ui-person mate)))))))
+;; TODO: (ex 4) Obtain the 'computed' onDelete handler
+(defsc Person [this props computed]
+  {:initLocalState (fn [] {})}                              ; TODO (ex 3): Add initial local state here
+  (let [name    "What's my :person/name?"                   ; TODO (ex 1): Get the Fulcro properties from this for `name` and `mate`
+        mate    nil
+        checked false]                                      ; TODO (ex 3): Component local state
+    (dom/li nil
+      (dom/input #js {:type    "checkbox"
+                      :onClick (fn [e] (println "TODO ex 3"))
+                      :checked false                        ; TODO (ex 3): Modify local state
+                      })
+      (dom/span nil name)                                   ; TODO (ex 3): Make name bold when checked
+      (dom/button nil "X")                                  ; TODO (ex 4): Call onDelete handler, if present
+      (when mate (dom/ul nil (ui-person mate))))))
 
 (def ui-person (prim/factory Person))
 
@@ -108,34 +105,30 @@
   {:db/id 1 :person/name "Joe" :person/mate {:db/id 2 :person/name "Sally"}}
   {:inspect-data true})
 
-(defui PeopleWidget
-  Object
-  (render [this]
-    ;; TODO (ex 4): Create a deletePerson function
-    (let [people []]                                        ; TODO (ex 2): `people` should come from the props
-      (dom/div nil
-        (if (= nil people)
-          (dom/span nil "Loading...")
-          (dom/div nil
-            (dom/button #js {} "Save")
-            (dom/button #js {} "Refresh List")
-            ;; TODO (ex 4): Pass deletePerson as the onDelete handler to person element
-            (dom/ul nil (map #(ui-person %) people))))))))
+(defsc PeopleWidget [this props]
+  ;; TODO (ex 4): Create a deletePerson function
+  (let [people []]                                          ; TODO (ex 2): `people` should come from the props
+    (dom/div nil
+      (if (= nil people)
+        (dom/span nil "Loading...")
+        (dom/div nil
+          (dom/button #js {} "Save")
+          (dom/button #js {} "Refresh List")
+          ;; TODO (ex 4): Pass deletePerson as the onDelete handler to person element
+          (dom/ul nil (map #(ui-person %) people)))))))
 
 (def ui-people (prim/factory PeopleWidget))
 
-(defui Root
-  Object
-  (render [this]
-    (let [widget nil
-          new-person nil
-          last-error nil]                                   ; TODO (ex 2): Extract the proper props for each var.
+(defsc Root [this props]
+  (let [widget     nil
+        new-person nil
+        last-error nil]                                     ; TODO (ex 2): Extract the proper props for each var.
+    (dom/div nil
+      (dom/div nil (when (not= "" last-error) (str "Error " last-error)))
       (dom/div nil
-        (dom/div nil (when (not= "" last-error) (str "Error " last-error)))
-        (dom/div nil
-          (ui-people widget)
-          (dom/input #js {:type "text"})
-          (dom/button #js {} "Add Person"))))))
+        (ui-people widget)
+        (dom/input #js {:type "text"})
+        (dom/button #js {} "Add Person")))))
 
 (def ui-root (prim/factory Root))
 
@@ -145,7 +138,7 @@
   Continue and build out two more components as seen in the source just above this card.
 
   NOTE: If you look in the
-  data below, you'll see our desired UI tree in data form. Use `prim/props` to pull out the
+  data below, you'll see our desired UI tree in data form. Use `props` to pull out the
   correct pieces at each level of the rendered UI. When you do this correctly, the
   card should render properly. Be careful around the `:widget` nesting.
   "
@@ -163,10 +156,12 @@
   ## Exercise 3 - Component local state
 
   Components can store local information without using the global app state managed by Fulcro. It is initialized with
-  this method in the `Object` section of your `defui`:
+  this method in the options section of your `defsc`:
 
   ```
-  (initLocalState [this] { map-of-data-to-store })
+  (defsc Component [this props]
+   {:initLocalState (fn [] { map-of-data-to-store })}
+   ...
   ```
 
   Then use `prim/get-state`, `prim/update-state!`, and `prim/set-state!` to work with the state.
@@ -194,8 +189,7 @@
   (ui-component-factory (prim/computed props { :computed-thing 4 }))
   ```
 
-  They may be retrieved using `prim/get-computed` on either the `props` or `this`
-  passed to render.
+  They may be retrieved from the 3rd argument to `defsc` (or by using `prim/get-computed` on either the `props` or `this`)
 
   In Fulcro you should manage the modification of lists from the owner
   of the list (because the list is, after all, rendered by that component); however, in our UI the delete button for

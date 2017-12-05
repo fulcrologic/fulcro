@@ -1,6 +1,6 @@
 (ns fulcro-devguide.E-UI-Queries-and-State
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim]
             [fulcro.client.impl.parser :as p]
             [fulcro-devguide.queries.query-editing :as qe]
             [fulcro.client.dom :as dom]
@@ -176,10 +176,9 @@
   Beginners often make the mistake:
 
   ```
-  (defui Widget
-       static prim/IQuery
-       (query [this] (prim/get-query OtherWidget))
-       ...)
+  (defsc Widget [this props]
+    {:query (fn [] (prim/get-query OtherWidget))
+     ...)
   ```
 
   because they think \"this component just needs what the child needs\". If that is truly the case, then
@@ -190,18 +189,15 @@
   using a join, and then pick it apart via code and manually pass those props down:
 
   ```
-  (defui RootWidget
-       static prim/IQuery
-       (query [this] [{:other (prim/get-query OtherWidget)}])
-       Object
-       (render [this]
-          (let [{:keys [other]} (prim/props this)] (other-element other)))
+  (defsc RootWidget [this {:keys [other] :as props}]
+    {:query [{:other (prim/get-query OtherWidget)}]}
+    (other-element other))
   ```
 
   ### Making a component when a function would do
 
   Sometimes you're just trying to clean up code and factor bits out. Don't feel like you have to wrap UI code in
-  `defui` if it doesn't need any support from React or Fulcro. Just write a function! `PeopleWidget` earlier in this
+  `defsc` if it doesn't need any support from React or Fulcro. Just write a function! `PeopleWidget` earlier in this
   document is a great example of this.
   ")
 
@@ -223,26 +219,19 @@
   The code is rather simple:
 
   ```
-  (defui Person
-    static prim/IQuery
-    (query [this] [:db/id :person/name])
-    static prim/Ident
-    (ident [this props] [:person/by-id (:db/id props)])
-    Object
-    (render [this] ...))
+  (defsc Person [this {:keys [db/id person/name]}]
+    {:query [:db/id :person/name] ; or in lambda form (fn [] [:db/id :person/name])
+     :ident (fn [this props] [:person/by-id id]) ; or in template form: [:person/by-id :db/id]
+    ...)
   ```
 
   Some critical notes:
 
-  1. Your query must query for the data that `ident` needs. If you need `:db/id` to make the ident, then be sure to ask
+  - Your query must query for the data that `ident` needs. If you need `:db/id` to make the ident, then be sure to ask
   for it!
-  2. The table names (first element of the ident) are just keywords. Using the type/index style makes them easier to
+  - The template format will throw an error if you screw up. The lambda format disables error checking.
+  - The table names (first element of the ident) are just keywords. Using the type/index style makes them easier to
   spot and understand.
-  3. Both query and ident are marked as `static`. This is *not* a clojurescript language keyword. `defui` is a macro with
-  invented syntax. When you specify a protocol prefixed by `static` the macro will put those methods on the class instead
-  of the instances. There is no equivalent true syntax in most OO languages (e.g. you cannot say `class Class<Person> implements Ident` in Java).
-  The static modifier makes the code available even if there are not instances, which is important during startup and server
-  interactions.
 
   ### Choosing Table Names
 
@@ -253,7 +242,7 @@
   ## Leveraging Identity
 
   Now comes the sweet stuff. Once a component has a query *and* an ident, Fulcro can *auto-normalize* a tree of data into
-  a graph database format (using `tree->db`)!
+  a graph database format (using `prim/tree->db`)!
 
   ```
   Graph Query + Tree of Data === tree->db ===> Normalized app database
@@ -270,6 +259,5 @@
 
   But first we need to show you how to
   [make a client](#!/fulcro_devguide.F_Fulcro_Client) so we can start to put it all together!
-  "
-  )
+  ")
 

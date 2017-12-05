@@ -2,48 +2,35 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [fulcro.client :as fc ]
+    [fulcro.client :as fc]
     [fulcro-css.css :as css]
-    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
+    [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
     [fulcro.client.dom :as dom]))
 
 (defonce theme-color (atom :blue))
 
-(defui ^:once Child
-  static css/CSS
-  ; define local rules via garden. Defined names will be auto-localized
-  (local-rules [this] [[:.thing {:color @theme-color}]])
-  (include-children [this] [])
-  Object
-  (render [this]
-    (let [{:keys [label]} (prim/props this)
-          ; use destructuring against the name you invented to get the localized classname
-          {:keys [thing]} (css/get-classnames Child)]
-      (dom/div #js {:className thing} label))))
+(defsc Child [this {:keys [label]} _ {:keys [thing]}]       ;; css destructuring on 4th argument, or use css/get-classnames
+  {; define local rules via garden. Defined names will be auto-localized
+   :css [[:.thing {:color @theme-color}]]}
+  (dom/div #js {:className thing} label))
 
 (def ui-child (prim/factory Child))
 
 (declare change-color)
-(defui ^:once Root
-  static css/CSS
-  (local-rules [this] [])
-  ; Compose children with local reasoning. Dedupe is automatic if two UI paths cause re-inclusion.
-  (include-children [this] [Child])
-  static prim/IQuery
-  (query [this] [:ui/react-key])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key child]} (prim/props this)]
-      (dom/div #js {:key react-key}
-        (dom/button #js {:onClick (fn [e]
-                                    ; change the atom, and re-upsert the CSS. Look at the elements in your dev console.
-                                    ; Figwheel and Closure push SCRIPT tags too, so it may be hard to find on
-                                    ; initial load. You might try clicking one of these
-                                    ; to make it easier to find (the STYLE will pop to the bottom).
-                                    (change-color "blue"))} "Use Blue Theme")
-        (dom/button #js {:onClick (fn [e]
-                                    (change-color "red"))} "Use Red Theme")
-        (ui-child {:label "Hello World"})))))
+(defsc Root [this {:keys [ui/react-key]}]
+  {; Compose children with local reasoning. Dedupe is automatic if two UI paths cause re-inclusion.
+   :css-include [Child]
+   :query       [:ui/react-key]}
+  (dom/div #js {:key react-key}
+    (dom/button #js {:onClick (fn [e]
+                                ; change the atom, and re-upsert the CSS. Look at the elements in your dev console.
+                                ; Figwheel and Closure push SCRIPT tags too, so it may be hard to find on
+                                ; initial load. You might try clicking one of these
+                                ; to make it easier to find (the STYLE will pop to the bottom).
+                                (change-color "blue"))} "Use Blue Theme")
+    (dom/button #js {:onClick (fn [e]
+                                (change-color "red"))} "Use Red Theme")
+    (ui-child {:label "Hello World"})))
 
 (defn change-color [c]
   (reset! theme-color c)
