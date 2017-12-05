@@ -20,8 +20,6 @@
                [fulcro.client.impl.protocols :as p]
                [fulcro.client.impl.parser :as parser]
                [fulcro.util :as util]
-               [cljs.analyzer :as ana]
-               [cljs.analyzer.api :as ana-api]
                [clojure.walk :as walk :refer [prewalk]]
                [clojure.string :as str]
                [clojure.spec.alpha :as s]
@@ -562,8 +560,8 @@
                               docstring rest)
            {:keys [dt statics]} (collect-statics forms)
            _                (validate-statics dt)
-           rname            (if env
-                              (:name (ana/resolve-var (dissoc env :locals) name))
+           fqn              (if env
+                              (symbol (-> env :ns :name str) (str name))
                               name)
            ctor             `(defn ~(with-meta name
                                       (merge {:jsdoc ["@constructor"]}
@@ -600,11 +598,11 @@
             ~@(mapv #(cond-> %
                        (symbol? %) (vary-meta assoc :static true)) (:protocols statics)))
           (specify! (. ~name ~'-prototype) ~@(:protocols statics))
-          (set! (.-cljs$lang$type ~rname) true)
-          (set! (.-cljs$lang$ctorStr ~rname) ~(str rname))
-          (set! (.-cljs$lang$ctorPrWriter ~rname)
+          (set! (.-cljs$lang$type ~name) true)
+          (set! (.-cljs$lang$ctorStr ~name) ~(str fqn))
+          (set! (.-cljs$lang$ctorPrWriter ~name)
             (fn [this# writer# opt#]
-              (cljs.core/-write writer# ~(str rname))))
+              (cljs.core/-write writer# ~(str fqn))))
           ;; TODO: here is where we could emit uses of the statics in a try/catch so the Closure will not collapse them
           )))))
 
