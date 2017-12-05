@@ -3,6 +3,7 @@
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client :as fc]
+            [fulcro.server :as server]
             [fulcro.client.network :as fcn]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
@@ -10,13 +11,14 @@
             [fulcro.client.logging :as log]
             [fulcro.client.data-fetch :as df]))
 
-(defsc Counter [this {:keys [counter/id counter/n] :as props}
-                {:keys [onClick] :as computed}]
+(defsc Counter [this                                        ; the react component itself
+                {:keys [counter/id counter/n] :as props}    ; What did the query find in the database?
+                {:keys [onClick] :as computed}]             ; What came in from the parent as a generated things? (e.g. callbacks)
   {:initial-state (fn [{:keys [id start]
                         :or   {id 1 start 1}
-                        :as   params}] {:counter/id id :counter/n start})
-   :query         [:counter/id :counter/n]
-   :ident         [:counter/by-id :counter/id]}
+                        :as   params}] {:counter/id id :counter/n start}) ; What should go in the database on application start-up?
+   :query         [:counter/id :counter/n]                  ; What does this component need from the database (relative to its entity)
+   :ident         [:counter/by-id :counter/id]}             ; Where is it stored in the database (table and ID)?
   (dom/div #js {:className "counter"}
     (dom/span #js {:className "counter-label"}
       (str "Current count for counter " id ":  "))
@@ -25,7 +27,7 @@
 
 (def ui-counter (prim/factory Counter {:keyfn :counter/id}))
 
-(defn increment-counter
+(defn abstract-increment-counter
   "Increment a counter abstraction as a plain informational map."
   [counter]
   (update counter :counter/n inc))
@@ -36,37 +38,43 @@
   (update-in database [:counter/by-id counter-id :counter/n] inc))
 
 (defmutation ^:intern increment-counter [{:keys [id] :as params}]
-  (action {:keys [state] :as env}
+  ; The local thing to do
+  (action [{:keys [state] :as env}]
     (swap! state increment-counter* id))
+  ; The remote thing to do. True means "the same (abstract) thing". False (or omitting it) means "nothing"
   (remote [env] true))
 
 (defsc CounterPanel [this {:keys [counters]}]
-  {:initial-state (fn [params] {:counters [(prim/get-initial-state Counter {:id 1 :start 1})]})
-   :query         [{:counters (prim/get-query Counter)}]
-   :ident         (fn [] [:panels/by-kw :counter])}
+  {:initial-state (fn [params] {:counters [(prim/get-initial-state Counter {:id 1 :start 1})]}) ;start out with 1 counter. Compose state from Counter
+   :query         [{:counters (prim/get-query Counter)}]    ; Ask for counters, relative to CounterPanel
+   :ident         (fn [] [:panels/by-kw :counter])}         ; Using a lambda, so we can "calculate" our database location (and make it constant)
   (let [click-callback (fn [id] (prim/transact! this
-                                  `[(increment-counter {:id ~id}) :counter-sum]))]
+                                  `[(increment-counter {:id ~id}) :counter/by-id]))]
     (dom/div nil
       ; embedded style: kind of silly in a real app, but doable
       (dom/style nil ".counter { width: 400px; padding-bottom: 20px; }
                         button { margin-left: 10px; }")
+      ; computed lets us pass calculated data to our component's 3rd argument. It has to be
+      ; combined into a single argument or the factory would not be React-compatible (not would it be able to handle
+      ; children).
       (map #(ui-counter (prim/computed % {:onClick click-callback})) counters))))
 
 (def ui-counter-panel (prim/factory CounterPanel))
 
-(defsc CounterSum [this {:keys [counter/by-id]}]
-  {
-   :initial-state (fn [params] {})
-   :query         (fn [this] [[:counter/by-id '_]])}
-  (let [total (reduce (fn [total c] (+ total (:counter/n c))) 0 (vals by-id))]
+(defsc CounterSum [this {counter-table :counter/by-id}]     ; destructure the result into a nice name
+  {:initial-state (fn [params] {})                          ; components have to have some state in the database, or queries cannot run against them
+   :query         (fn [] [[:counter/by-id '_]])}            ; query against the "root" node. Get's the entire table of counters.
+  (let [total (reduce (fn [total c] (+ total (:counter/n c))) 0 (vals counter-table))]
     (dom/div nil
       (str "Grand total: " total))))
 
 (def ui-counter-sum (prim/factory CounterSum))
 
 (defsc Root [this {:keys [ui/loading-data counter-sum panel]}]
-  {:initial-state (fn [params] {:panel (prim/get-initial-state CounterPanel {})})
-   :query         [:ui/loading-data {:panel (prim/get-query CounterPanel)} {:counter-sum (prim/get-query CounterSum)}]}
+  {:initial-state (fn [params] {:panel (prim/get-initial-state CounterPanel {})}) ; compose in the initial state for the counter panel
+   :query         [:ui/loading-data                         ; this is auto-populated with a network activity indicator
+                   {:panel (prim/get-query CounterPanel)}   ; compose in our child
+                   {:counter-sum (prim/get-query CounterSum)}]} ; described soon...
   (dom/div nil
     (when loading-data
       (dom/span #js {:style #js {:float "right"}} "Loading..."))
@@ -83,27 +91,19 @@
 
 ; The server queries are handled by returning a map with a :value key, which will be placed in the appropriate
 ; response format
-(defn read-handler [{:keys [ast state]} k p]
-  (log/info "SERVER query for " k)
-  (case k
-    ; When querying for :all-counters, return the complete set of values in our server counter db (atom in RAM)
-    :all-counters {:value (-> (get @state :counters) vals vec)}
-    nil))
+(server/defquery-root :all-counters
+  (value [env params]
+    (log/info "SERVER query for all-counters")
+    (-> (get @server-state :counters) vals vec)))
 
-; The server mutations are handled by returning a map with a :action key whose value is the function that will
-; cause the change on the server
-(defn write-handler [env k p]
-  (log/info "SERVER mutation for " k " with params " p)
-  (case k
-    ; When asked to increment a counter on the server, do so by updating in-memory atom database
-    `increment-couter (let [{:keys [id]} p]
-                        {:action (fn []
-                                   (swap! server-state update-in [:counters id :counter/n] inc)
-                                   nil)})
+(server/defmutation ^{:intern increment-counter-on-server} increment-counter [{:keys [id]}]
+  (action [env]
+    (log/info "SERVER mutation increment-counter " id)
+    (swap! server-state update-in [:counters id :counter/n] inc)
     nil))
 
 ; query parser. Calls read/write handlers with keywords from the query
-(def server-parser (prim/parser {:read read-handler :mutate write-handler}))
+(def server-parser (server/fulcro-parser))
 
 ; Simulated server. You'd never write this part
 (defn server [env tx]
@@ -195,21 +195,27 @@
   The model manipulation thus maintains the desired local reasoning model (of entries in database tables). You write
   functions that know how to manipulate specific 'kinds' of things in the database, and think nothing of the UI.
 
-  For example, say we have a counter that we'd like to represent with this data structure:
+  ### Entities are just Maps
+
+  The first central fact is that entities in your graph database are just maps.
+  For example, we might choose to represent a counter with this data structure:
 
   ```
   { :counter/id 1 :counter/n 22 }
   ```
 
-  We could write simple functions to manipulate counters:
+  which means we can write simple functions to manipulate counters:
 
   "
-  (dc/mkdn-pprint-source increment-couter)
+  (dc/mkdn-pprint-source abstract-increment-counter)
   "
 
   and think about that counter as a complete abstract thing. This gives us pretty good local reasoning.
 
-  The Fulcro database table for counters would then look something like this:
+  ### Entities go in Tables
+
+  Entities should have an ID of some sort, at which point they are normalized into \"tables\" in the graph database. The
+  database itself is just a map, and the tables are *top-level* keys in that map:
 
   ```
   ; KIND/INDEXED-BY  K          VALUE
@@ -222,6 +228,8 @@
   the *kind* of thing in the table, and whose name indicates how it is indexed. The k-v pairs in the table are the keys
   (of the implied index) and the values of the actual data.
 
+  ### Changing any Entity is a Swap/Update-In
+
   The general app state is held in a top-level atom. So, updating any object in the database generally takes the
   form:
 
@@ -230,19 +238,21 @@
   ```
 
   Since we probably know the table name we chose with respect to the abstraction, it makes a bit more sense
-  to define our object manipulations in terms of the database as opposed to the object:
+  to define our object manipulations in terms of the database as opposed to the object, so our abstract
+  increment becomes this:
 
   "
-  (dc/mkdn-pprint-source increment-couter*)
+  (dc/mkdn-pprint-source increment-counter*)
   "
 
-  which lets us write a much more concise operation:
+  which lets us write a much more concise (but equivalent) operation:
 
   ```
   (swap! app-state-atom increment-counter* 1)
   ```
 
-  NOTE: You still need to know *where* to put this code, and how to find/access the `app-state-atom`.
+  We were careful to augment the name with an asterisk because this will end up being an internal detail that the UI
+  should not be aware of. Modifications to application state happen through a general transaction mechanism.
 
   ## Mutations as Abstract Transactions
 
@@ -252,6 +262,7 @@
   - It generally pays not to mix your low-level logic with the UI.
   - The concept of an abstract mutation can isolate the UI from networking, server interactions, and async thinking.
   - Abstract mutations give nice auditing and comprehension on both client and server.
+  - It turns the operation into *data*, which is easy to serialize, store, transmit, etc. This has a lot of practical applications.
 
   The main UI entry point for affecting a change is the `prim/transact!` function. This function lets you submit
   an abstract sequence of operations that you'd like to accomplish, and isolates the UI author from the details of
@@ -264,74 +275,44 @@
   (prim/transact! this `[(increment-counter {:id ~id})])
   ```
 
-  in the above transaction, we must use Clojure syntax quoting so that we can list an abstract mutation (which looks like
+  in the above transaction, we must use Clojure syntax quoting so that we can list an abstract mutation (which *looks like*
   a function call, but is not) and parameters that themselves are derived from the environment (in this case
-  an id). If you're not a Clojure(script) programmer, we understand that the above expression looks a little scary. The
+  an id). If you're not a Clojure(script) programmer, we understand that the above expression might look a little scary. The
   '&grave;' means 'treat the following thing literally', and the '~' means 'don't treat this thing literally'. It's a way of
-  keeping the compiler from treating the increment as a function while still being able to embed `id` from the local
+  keeping the compiler from treating the increment as a real function while still being able to embed `id` from the local
   execution environment. Our goal is to be able to *record* what is going on, thus we want mutations to start out as
   *pure data*.
 
-  The concrete implementation of the mutation on the model side looks like this:
+  Mutation handlers are created with `defmutation` (ignore the `^:intern` bit, it simply enables us to embed it in this document from source code):
 
-  ```
-  (defmethod m/mutate 'increment-counter [{:keys [state] :as env} k {:keys [id] :as params}]
-    { :action
-        (fn []
-          (swap! state update-in [:counter/by-id id] increment-counter))})
-  ```
+  "
+  (dc/mkdn-pprint-source increment-counter)
+  "
 
-  This looks a little hairy at first until you notice the primary guts are just what we talked about earlier in
-  the model manipulation: it's just an `update-in`.
+  That's it! You just tell it what to do locally against an atom that is passed to you, and can optionally tell it what
+  to do with respect to one or more remote servers.
 
-  The wrapping is a pretty consistent pattern: the app state and parameters are passed into a multimethod, which is
-  dispatched on the symbol mentioned in the `transact!`. The basics are:
+  Notice that interacting with your server is typically just the inclusion of a boolean true on the remote section,
+  and then write a similar function on the server that has an `action` to affect the change on the server!
 
-  - You key on a symbol instead of writing a function with that symbol name (this is what gives an abstraction that
-  is already 'network ready' by being **just** data)
-  - You return a map
-  - The `:action` key of that map specifies a function to run to accomplish the optimistic update to the browser database. The
-  use of a thunk (function) here is what helps isolate asynchronous internals and networking from synchronous abstract reasoning.
+  Note: mutations are namespaced. So you must use namespaces on the mutations when you invoke them via transact.
 
-  There's even some syntactic sugar to make it a little nicer to read:
+  ### Why the Indirection???
 
-  ```
-  ; Identical to defmethod (defmutation is a macro that emits a defmethod(, but less error-prone and shorter to type
-  (defmutation 'increment-counter [{:keys [id] :as params}]
-    (action [{:keys [state] :as env}]
-      (swap! state update-in [:counter/by-id id] increment-counter)))
-  ```
-
-
-  When you want to interact with a server, you need merely change it to:
-
-  ```
-  (defmethod m/mutate 'increment-counter [{:keys [state] :as env} k {:keys [id] :as params}]
-    { :remote true ; <---- this is all!!!
-      :action
-        (fn []
-          (swap! state update-in [:counter/by-id id] increment-counter))})
-
-  ; OR, with sugar
-  (defmutation 'increment-counter [{:keys [id] :as params}]
-    (action [{:keys [state] :as env}]
-      (swap! state update-in [:counter/by-id id] increment-counter))
-    (remote [env] true))
-  ```
-
-  and then write a similar function on the server that has an `:action` to affect the change on the server!
-
-  At first this seems like a bit of overkill on the boilerplate until you realize that there are a number of things
-  being handled here:
+  At first this seems like a bit of overkill on the boilerplate (why not just use a function???) until you realize that
+  there are a number of things being handled here:
 
   - Sychronous *reasoning* about most aspects of the application.
-  - Local optimistic (immediate) updates (through `:action`)
+  - Local optimistic (immediate) updates (through `action`)
   - Automatically plumbed server interactions (triggered through `:remote` at transaction time)
   - Use of the same abstract symbol for the operation on the client and server. The UI need not know what is local vs remote.
   - Operations in the UI and on the server are identical in appearance.
   - Consistent implementation pattern for model manipulations on the client and server.
   - The operations 'on the wire' read like abstract function calls, and lead to easy auditing and reasoning, or
   even easy-to-implement CQRS architectures. They can also be persisted in any way you please.
+
+  NOTE: Mutations are actually implemented with a multimethod. You can work with the multimethod directly, but
+  in general we recommend `defmutation`.
 
   ## An Example
 
@@ -345,33 +326,39 @@
   (dc/mkdn-pprint-source Counter)
   "
 
-  (the `^:once` is helper metadata that ensures correct operation of development-time hot code reload)
+  The `defsc` macro means \"Define a Stateful Component\". Its syntax is intentionally patterned after function notation
+  in order to get nice integration with the Cursive IDE (which can do nice processing of macros that match existing forms).
 
-  It looks a bit like a `defrecord` implementing protocols. Here is a description of the parts:
+  The macro defines a React class, and augments it with Fulcro's special abilities. Technically the resulting class is
+  100% compatible with plain React, but the extra information lets it function within Fulcro's data-driven infrastructure.
 
-  - InitialAppState : Represents how to make an instance of the counter in the browser database. Parameters are supported
-  for making more than one on the UI. This function should return a map that matches the properties asked for in the query.
-  - IQuery : Represents what data is needed for the UI. In this case, a list of properties that exist (keys of the
-  map that represents counters in the database). Note we can tune this up/down depending on the needs of the UI. Counters
-  could have labels, owners, purposes, etc.
-  - Ident : Represents the table/ID of the database data for the component. This is a function that, given an example
-  of a counter, will return a vector that has two elements: the table and the ID of the entry. This is used
-  to assist in auto-normalization of the browser database, and also with UI refreshes of components that display the
-  same data.
-  - Object/render : This is the (pure) function that outputs what a Counter should look like on the DOM
+  The parameter list after the class name is a set of options. It is optional, but these describe how the component
+  will work with respect to the database.
 
-  The incoming data from the database comes in via `prim/props`, and things like callbacks come in via a mechanism known
-  as the 'computed' data (e.g. stuff that isn't in the database, but is generated by the UI, such as callbacks).
+  - `:initial-state` - A lambda or map. If a lambda it receives parameters (you define). Must return a map of data in the correct
+  format for the entity.
+  - `:query` - A lambda or vector. This is a query, *relative* to the entity in the database. E.g. it is a list of things
+  that are in the entity that you have interest in. This is where data-driven happens. The entity might have 100's of props, but you
+  only need 2.
+  - `:ident` - This tells Fulcro where the entity should live in the database. It is a vector of `KIND` and `ID`. `KIND` MUST be
+  a keyword.
 
-  A `defsc` generates a React Component (class). In order to render an instance of a Counter, we must make an element
+  The body of the `defsc` should end with a single React element (which can have children). This is a normal React rule. You
+  should think of this as pure rendering logic, which is based on the properties of the entity itself.
+
+  The database data comes in through the second argument (at the top), and any parent-calculated values (like callbacks) come
+  in through the third.
+
+  Since `defsc` generates a React Component (class). In order to render an instance of a Counter, we must make a React element
   factory:
+
   "
   (dc/mkdn-pprint-source ui-counter)
   "
-  If more than one of something can appear in the UI as siblings, you must specify a `:keyfn` that helps React
-  distinguish the DOM elements.
 
-  The most important point is that you can reason about `Counter` in a totally local way.
+  If more than one of something can appear in the UI as siblings, you must specify a `:keyfn` that helps React
+  distinguish the DOM elements. This is just a function from database props (that you've queried for) to a distinct value. Typically
+  this can just be the keyword that goes with the ID of your entity.
 
   ### Combining Counters into a Panel
 
@@ -383,19 +370,19 @@
   (dc/mkdn-pprint-source ui-counter-panel)
   "
 
-  Note the mirroring again between the initial state and the query. The initial state provides an initial model
-  of what should be in the database *for the component at hand*, and the query indicates which bits of that state are
-  required for that same local component. (we're using `get-initial-state`. Technically you could call the protocol `initial-state`,
-  but this helper function makes sure the composition can happen in server-side code as well for server-side rendering).
+  This time the query contains a map.
+  You can read this query as 'Query for :counters, which is a JOIN on Counter'. Note that since initial state is setting up a vector
+  of counters, the implied result will be a to-many JOIN. The cardinality of JOINS is always derived from the structure
+  of the live database, NOT the query.
 
-  In this case the query contains a map, which is the query syntax for a JOIN. You can read this query as
-  'Query for :counters, which is a JOIN on Counter'. Note that since initial state is setting up a vector
-  of counters, the implied result will be a to-many JOIN. The cardinality of JOINS is derived from the structure
-  of the actual database, NOT the query.
+  Note the *composition* of initial state and the query. The initial state provides an initial model
+  of what should be in the database *for the component at hand*, and the query indicates which bits of that state are
+  required for that same local component. Things are assembled by joining them together from level to level of the
+  UI tree.
 
   The join is necessary because this component will be rendering Counter components. The panel should not need to
   know anything concrete about the implementation of Counter: only that it has a query, initial state, and a way
-  to render.
+  to render. Thus, the composition uses `get-*` functions to pull that information for the child.
 
   The render is very similar to Counter's. The queried data will appear in props: pull it out, and
   then render it. Note the use of `ui-counter`, which is the DOM element factory for `Counter`.
@@ -403,7 +390,7 @@
   Finally, we include a callback. The counter has the 'Increment' button, but we've connected that from the
   counter UI back through to an implementation of a callback via 'computed' properties. This is a common pattern. In
   this simple example the callback structure was added to demonstrate what it looks like. One could argue that the
-  counter could update itself (while maintaining local reasoning).
+  counter could update itself (while maintaining local reasoning). We'll have more to say about that later.
 
   The implementation of the `increment-counter` mutation was shown earlier.
 
@@ -413,7 +400,7 @@
 
   A simple pattern of updating an abstraction in a database is all you need.
 
-  There is one exception: That weird inclusion of `:counter-sum` in the transaction. We'll explain that shortly.
+  There is one exception: That weird inclusion of `:counter/by-id` in the transaction. We'll explain that shortly.
 
   ### Adding the Panel to a Root element
 
@@ -426,19 +413,19 @@
   (dc/mkdn-pprint-source Root)
   "
 
-  The initial state is a composition from the nested panel, as is the query. We add in two additional things here:
+  The initial state is a composition again, as is the query. We add in two additional things here:
 
   - `:ui/loading-data` is a special key, available at the root, that is true when data is loading over the network
   - We compose in another component we've yet to discuss (which sums all counters). We'll talk more about that shortly
 
-  There should be no surprises here. It is the same pattern all over again, except Root does cannot have an `Ident`, since
+  There should be no surprises here. It is the same pattern all over again, except Root does cannot have an `ident`, since
   it represents the root node of the database itself. The data for root can just be a standalone entries at the top of the
   database.
 
   ### Starting up the App
 
   Normally you create a Fulcro application and mount it on a DIV in your real HTML DOM. We'll cover that later in the
-  Guide. Here we're in devcards and we have a helper to do that. It accepts the same basic parameters as
+  guide. Here we're in devcards and we have a helper to do that. It accepts the same basic parameters as
   `new-fulcro-client`, but mounts the resulting application in a devcard:
 
   ```
@@ -463,7 +450,7 @@
 
   You'll need to understand a bit more about the structure of the database to completely understand this code, but you
   see it is really quite simple: pull `:all-counters` from the server-side database, and put them on the panel according to the
-  location (known via Ident) of the panel data in the database.
+  location (known via ident) of the panel data in the database.
 
   ### Server Implementation
 
@@ -475,22 +462,32 @@
 
   #### Server Queries
 
-  To respond to the `:all-counters` query, we simply write a function that returns the correct data and hook it into
-  the server engine. In real server code this is commonly done with a multimethod (your choice). The take-away here
-  is that you write very little 'plumbing'...just the logic to get the data, and return it in a map with a
-  `:value` key:
+  To respond to the `:all-counters` query, we can use a server macro that defines handlers for top-level query properties.
+  In this case we're querying from the root, so we use:
 
-  "
-  (dc/mkdn-pprint-source read-handler)
-  "
+  ```
+  (server/defquery-root :all-counters
+    (value [env params]
+      (log/info \"SERVER query for all-counters\")
+      (-> server-state deref :counters vals vec)))
+  ```
+
+  That's it! No plumbing. Just return the data that was asked for. The real query is in `env`, so in a real server you
+  would do the right data-driven thing and parse it to return just what the client wants.
+
   #### Server Mutations
 
   We mentioned earlier that turning a client mutation into something that also happens on the server is as simple as
-  adding a `:remote true` to the response of the mutation function.
+  adding a `(remote [env] true)` section to the mutation.
 
-  The server code is equally trivial (again, in a real server you'd typically use a multimethod):
+  The server code is equally trivial (again ignore the `:intern` stuff):
+
   "
-  (dc/mkdn-pprint-source write-handler))
+  (dc/mkdn-pprint-source increment-counter-on-server)
+  "
+
+  The full-stack app is running in the card below:
+  ")
 
 (defcard mock-server-state
   (dom/div nil "The state shown below is the active state of the mock server for the FinalResult card.")
@@ -537,8 +534,8 @@
   a pure function that recreates the DOM, it is in fact optimized to only refresh the bits that are known to have changed. Since the
   data that changed wasn't a counter, we (accidentally) short-circuit the sum for efficiency.
 
-  This is the point of the earlier mysterious `:counter-sum` in the `transact!`. Any keyword that appears in a transaction
-  will cause a re-render of any component that *queried* for that property (in our case this is the Root UI component). These
+  This is the point of the earlier mysterious `:counter/by-id` in the `transact!`. Any keyword (or ident) that appears in a transaction
+  will cause a re-render of any component that *queried* for that data (in our case this is the CounterSum itself). These
   are called 'follow-on reads', to imply that 'anything that reads the given property should be asked to re-read it
   (and implicitly, this means it will re-render if the value has changed)'.
 
