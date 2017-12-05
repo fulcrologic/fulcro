@@ -31,7 +31,7 @@
         x))
     m))
 
-(specification "Add basis time" :focused
+#_(specification "Add basis time" :focused
   (assertions
     "Add time information recursively"
     (-> (prim/add-basis-time {:hello {:world {:data 2}
