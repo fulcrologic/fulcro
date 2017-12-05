@@ -31,7 +31,7 @@
         x))
     m))
 
-#_(specification "Add basis time" :focused
+(specification "Add basis time"
   (assertions
     "Add time information recursively"
     (-> (prim/add-basis-time {:hello {:world {:data 2}
@@ -58,8 +58,9 @@
                 ::time 10}
         ::time 10}
 
-    "Out of query data is kept entirely"
+    "Out of query data is kept as is"
     (prim/add-basis-time [{:hello [{:world [:item]}
+                                   :query-only
                                    {:multi [:x]}]}]
       {:hello {:world {:data 2
                        :item [{:nested {:deep "bar"}}]}
