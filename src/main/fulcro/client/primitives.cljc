@@ -2837,15 +2837,23 @@
 #?(:clj
    (defn- is-link? [query-element] (and (vector? query-element)
                                      (keyword? (first query-element))
-                                     (= '_ (second query-element)))))
+                                     ; need the double-quote because when in a macro we'll get the literal quote.
+                                     (#{''_ '_} (second query-element)))))
+
 #?(:clj
-   (defn- legal-keys [query]
-     (set (keep #(cond
-                   (keyword? %) %
-                   (is-link? %) (first %)
-                   (and (map? %) (keyword? (ffirst %))) (ffirst %)
-                   (and (map? %) (is-link? (ffirst %))) (first (ffirst %))
-                   :else nil) query))))
+   (defn- legal-keys
+     "Find the legal keys in a query. NOTE: This is at compile time, so the get-query calls are still embedded (thus cannot
+     use the AST)"
+     [query]
+     (letfn [(keeper [ele]
+               (cond
+                 (list? ele) (recur (first ele))
+                 (keyword? ele) ele
+                 (is-link? ele) (first ele)
+                 (and (map? ele) (keyword? (ffirst ele))) (ffirst ele)
+                 (and (map? ele) (is-link? (ffirst ele))) (first (ffirst ele))
+                 :else nil))]
+       (set (keep keeper query)))))
 
 #?(:clj
    (defn- children-by-prop [query]
@@ -3177,6 +3185,7 @@
       ; Custom literal protocols (Object ok, too, to add arbitrary methods. Nothing automatically in scope.)
       :protocols [YourProtocol
                   (method [this] ...)]} ; nothing is automatically in scope
+      ; BODY forms. May be omitted IFF there is an options map, in order to generate a component that is used only for queries/normalization.
       (dom/div #js {:onClick onSelect} x))
    ```
 

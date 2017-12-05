@@ -929,6 +929,22 @@
 
 #?(:clj
    (specification "defsc helpers" :focused
+     (component "legal-keys"
+       (assertions
+         "Finds all of the top-level props in a query"
+         (#'prim/legal-keys [:a :b]) => #{:a :b}
+         "Finds all of the top-level join keys"
+         (#'prim/legal-keys [{:a [:x]} {:b [:y]}]) => #{:a :b}
+         "Finds all of the unique ident (links to root) when used as props"
+         (#'prim/legal-keys [[:x ''_] [:y ''_]]) => #{:x :y}
+         "Finds all of the unique ident (links to root) when used as anchor of joins"
+         (#'prim/legal-keys [{[:x ''_] [:a]} {[:y ''_] [:b]}]) => #{:x :y}
+         "Finds keys that are parameterized"
+         (#'prim/legal-keys '[(:a {:n 1})]) => #{:a}
+         (#'prim/legal-keys '[({:a [:x]} {:n 1})]) => #{:a}
+         (#'prim/legal-keys '[([:x '_] {:n 1})]) => #{:x}
+         (#'prim/legal-keys '[({[:x '_] [:a]} {:n 1})]) => #{:x}
+         ))
      (component "build-query-forms"
        (assertions
          "Support a method form"
