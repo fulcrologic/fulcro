@@ -2836,15 +2836,23 @@
 #?(:clj
    (defn- is-link? [query-element] (and (vector? query-element)
                                      (keyword? (first query-element))
-                                     (= '_ (second query-element)))))
+                                     ; need the double-quote because when in a macro we'll get the literal quote.
+                                     (#{''_ '_} (second query-element)))))
+
 #?(:clj
-   (defn- legal-keys [query]
-     (set (keep #(cond
-                   (keyword? %) %
-                   (is-link? %) (first %)
-                   (and (map? %) (keyword? (ffirst %))) (ffirst %)
-                   (and (map? %) (is-link? (ffirst %))) (first (ffirst %))
-                   :else nil) query))))
+   (defn- legal-keys
+     "Find the legal keys in a query. NOTE: This is at compile time, so the get-query calls are still embedded (thus cannot
+     use the AST)"
+     [query]
+     (letfn [(keeper [ele]
+               (cond
+                 (list? ele) (recur (first ele))
+                 (keyword? ele) ele
+                 (is-link? ele) (first ele)
+                 (and (map? ele) (keyword? (ffirst ele))) (ffirst ele)
+                 (and (map? ele) (is-link? (ffirst ele))) (first (ffirst ele))
+                 :else nil))]
+       (set (keep keeper query)))))
 
 #?(:clj
    (defn- children-by-prop [query]
@@ -2868,7 +2876,7 @@
   ([sym external-args user-arity fn-form] (replace-and-validate-fn sym external-args user-arity fn-form sym))
   ([sym external-args user-arity fn-form user-known-sym]
    (when-not (= user-arity (count (second fn-form)))
-     (throw (ex-info (str "Invalid arity for " user-known-sym) {})))
+     (throw (ex-info (str "Invalid arity for " user-known-sym) {:expected user-arity :got (count (second fn-form))})))
    (let [user-args    (second fn-form)
          updated-args (into (vec (or external-args [])) user-args)
          body-forms   (drop 2 fn-form)]
@@ -3070,8 +3078,22 @@
             ~include-form)))))
 
 #?(:clj
+   (defn detect-missing-body
+     "Detect if the user passed options but no body, and it got mis-parsed. Since the options can look like the beginning of body, we have to be careful
+     that if the user forgets (or does not want) body, that the options map gets repositioned."
+     [options body]
+     (let [options-detected-as-body? (and (nil? options) (map? (first body)))
+           placeholder-body          ['(fulcro.client.dom/div nil "THIS COMPONENT HAS NO DECLARED UI")]
+           new-options               (if options-detected-as-body? (first body) options)
+           new-body                  (cond
+                                       (and options-detected-as-body? (empty? (rest body))) placeholder-body
+                                       options-detected-as-body? (rest body)
+                                       :else body)]
+       [new-options new-body])))
+
+#?(:clj
    (defn defsc*
-     [is-cljs? args]
+     [args]
      (if-not (s/valid? :fulcro.client.primitives.defsc/args args)
        (throw (ex-info "Invalid arguments"
                 {:reason (str (-> (s/explain-data :fulcro.client.primitives.defsc/args args)
@@ -3079,6 +3101,7 @@
                                 first
                                 :path) " is invalid.")})))
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
+           [options body] (detect-missing-body options body)
            [thissym propsym computedsym csssym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
            ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
@@ -3094,6 +3117,7 @@
                                               (complement #{}))
            parsed-protocols                 (when protocols (group-by :protocol (s/conform :fulcro.client.primitives.defsc/protocols protocols)))
            object-methods                   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
+           lifecycle-methods                (make-lifecycle thissym options)
            addl-protocols                   (some->> (dissoc parsed-protocols 'Object)
                                               vals
                                               (map (fn [[v]]
@@ -3124,6 +3148,7 @@
           ~@query-forms
           ~@form-forms
           ~@render-forms
+          ~@lifecycle-methods
           ~@object-methods))))
 
 #?(:clj
@@ -3159,6 +3184,7 @@
       ; Custom literal protocols (Object ok, too, to add arbitrary methods. Nothing automatically in scope.)
       :protocols [YourProtocol
                   (method [this] ...)]} ; nothing is automatically in scope
+      ; BODY forms. May be omitted IFF there is an options map, in order to generate a component that is used only for queries/normalization.
       (dom/div #js {:onClick onSelect} x))
    ```
 
@@ -3185,7 +3211,7 @@
      [& args]
      (let [location (str *ns* ":" (:line (meta &form)))]
        (try
-         (defsc* (boolean (:ns &env)) args)
+         (defsc* args)
          (catch Exception e
            (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
 
