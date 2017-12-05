@@ -117,22 +117,24 @@
                        (apply concat (->> children first :children (map :children)))
                        children)]
         (-> (into props
-              (map (fn [{:keys [key query] :as ast}]
-                     (let [x   (get props key)
-                           ast (cond-> ast
-                                 ; add children on recursive query
-                                 (= '... query)
-                                 (assoc :children children)
+              (comp
+                (filter #(contains? props (:key %)))
+                (map (fn [{:keys [key query] :as ast}]
+                       (let [x   (get props key)
+                             ast (cond-> ast
 
-                                 (pos-int? query)
-                                 (assoc :children (mapv #(cond-> %
-                                                           (pos-int? (:query %))
-                                                           (update :query dec))
-                                                    children)))]
-                       [key
-                        (if (sequential? x)
-                          (mapv #(add-basis-time* ast % time) x)
-                          (add-basis-time* ast x time))])))
+                                   (= '... query)
+                                   (assoc :children children)
+
+                                   (pos-int? query)
+                                   (assoc :children (mapv #(cond-> %
+                                                             (pos-int? (:query %))
+                                                             (update :query dec))
+                                                      children)))]
+                         [key
+                          (if (sequential? x)
+                            (mapv #(add-basis-time* ast % time) x)
+                            (add-basis-time* ast x time))]))))
               children)
           (vary-meta assoc ::time time)))
       (vary-meta props assoc ::time time))
@@ -148,8 +150,7 @@
                 (vary-meta ele assoc ::time time)
                 ele)) props))
   ([q props time]
-   (add-basis-time props time)
-    #_(add-basis-time* (query->ast q) props time)))
+   (add-basis-time* (query->ast q) props time)))
 
 (defn get-basis-time
   "Returns the basis time from the given props, or ::unset if not available."
