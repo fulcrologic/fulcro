@@ -2,17 +2,20 @@
 
 == Common Namespaces
 
-- `[fulcro.client :as fc]`: Primary Fulcro namespace
-- `[fulcro.client.data-fetch :as df]`: Fulcro functions for loading data from remotes.
-- `[fulcro.client.mutations :as m]`: Fulcro mutations and mutation definition macro.
-- `[fulcro.client.util :as fu]`: Some helper functions
 - `[fulcro.client.primitives :as prim]`: Primary namespace for base constructs
 - `[fulcro.client.dom :as dom]`: HTML5 React factories
-- `[fulcro.server :as server]`: Fulcro server primitives.
+- `[fulcro.client :as fc]`: Functions for constructing/starting applications.
 - `[fulcro.easy-server :as easy]`: Fulcro's one-step web server.
+- `[fulcro.server :as server]`: Fulcro server primitives.
+- `[fulcro.client.data-fetch :as df]`: Fulcro functions for loading data from remotes.
+- `[fulcro.client.mutations :as m]`: Fulcro mutations and mutation definition macro.
+- `[fulcro.client.util :as futil]`: Some helper functions
 - `[com.stuartsierra.component :as component]`: Component control and dependency injection
 
 == Defining Components
+
+In 1.x, the primary mechanism for defining components was defui. In 2.x+ it is still fully-supported, but see
+defsc for a more concise syntax.
 
 ```
 (prim/defui ComponentName
@@ -51,9 +54,9 @@
 (ui-component-name (prim/computed raw-props {:onSelect (fn [] ...)))
 ```
 
-==== Shortcut Macro for Stateful Components
+==== Components with `defsc`
 
-The `defsc` macro builds a `defui` with a query, ident (optional), initial state (optional), forms support (optional),
+The `defsc` macro builds a `defui` with a query, ident (optional), initial state (optional)
 arbitrary additional protocols (optional), co-located css (optional),
 and an argument list that gives you access to destructured props, computed data, and react children.
 All this in one very compact form. It also looks like a `defn` (for IDE integration) and checks for common errors:
@@ -63,11 +66,12 @@ Method form (this and props taken from main args lists):
 ```
 (defsc Person
   "Docstring"
-  [this {:keys [person/id person/name] :as props} {:keys [onSelect] :as computed-props} children]
+  ; IMPORTANT: The css-classnames-map should only be used if using :css or :css-include. Otherwise drop that parameter.
+  [this {:keys [person/id person/name] :as props} {:keys [onSelect] :as computed-props} css-classnames-map children]
   { :query (fn [] [:person/id :person/name {:person/job (prim/get-query Job)}])
     :ident (fn [] [:PERSON/by-id id] ; id comes from destructured props
-    :css (fn []) ; garden css
-    :css-include (fn []) ;see fulcro-css
+    :css (fn [rules...]) ; garden css
+    :css-include (fn [children...]) ;see fulcro-css
     :protocols [Object  ; arbitrary additional protocols
                 (my-method [this] ...)]
     :initial-state (fn [{:keys [id name] :as params}]
@@ -83,7 +87,8 @@ common rules (if you destructure something from props that isn't in the query):
 ```
 (defsc Person
   "Docstring"
-  [this {:keys [person/name] :as props} {:keys [onSelect] :as computed-props} children]
+  ; IMPORTANT: The css-classnames-map should only be used if using :css or :css-include. Otherwise drop that parameter.
+  [this {:keys [person/name] :as props} {:keys [onSelect] :as computed-props} css-classnames-map children]
   { :query [:person/id :person/name {:person/job (prim/get-query Job)}]
     :ident [:PERSON/by-id :person/id] ; it pulls the second one from props itself
     :form-fields [(f/id-field :person/id) ...] ; See forms support
@@ -111,8 +116,8 @@ especially if you intend to use children.
 ==== React Children
 
 - `(prim/children this)` - Returns a (possibly empty) sequence of child elements sent to the React factory.
-- `(fu/react-instance? Component child)` - Returns true if child is a react element of the given type.
-- `(fu/first-node Component children)` - Returns the first react child of class Component, or nil.
+- `(futil/react-instance? Component child)` - Returns true if child is a react element of the given type.
+- `(futil/first-node Component children)` - Returns the first react child of class Component, or nil.
 
 ```
 (defui Heading
@@ -265,8 +270,23 @@ Other interesting options (placed in the 4th argument option map):
 
 - `:parallel true` - Skip the sequential queue and load as soon as possible
 - `:marker false` - Don't put a load marker into state
+- `:marker :kword` - Normalize the load marker into `[df/marker-table :kword]`. Allows for you to query for the load markers.
 - `:post-mutation-params {}` - Include some parameters for the post mutation when it runs
 - `:remote :remote-name` - Target a specific remote for handling the load (defaults to a remote name of `:remote`).
+
+=== Advanced Load Targets
+
+You can target the given load for linking into a to-many relation, and also into multiple points in the graph
+(requires that the component has Ident). You may have any one of these as a single target, or combined them into
+a multi-target:
+
+```
+(df/load ...
+  { :target (df/multiple-targets
+              (df/append-to [:table 3 :col])
+              (df/prepend-to [:table 4 :col])
+              (df/replace-at [:root/thing]))}) ; replace-at works on to-one or to-many edges
+```
 
 === Data Fetch within Mutations
 
@@ -335,4 +355,22 @@ starting/stopping the server:
 (swap! my-server component/start)
 (swap! my-server component/stop)
 ```
+
+== Hand-rolled Server
+
+Handle transit-based requests to `/api` by calling `server/handle-api-request`:
+
+```
+(server/handle-api-request parser env request-edn)
+```
+
+For example:
+
+```
+(def parser (server/fulcro-parser)
+
+;... ring stack with transit and such, calls (with a parsing environment containing whatever interests you):
+(server/handle-api-request parser {:database a-database-connection} edn)
+```
+
 
