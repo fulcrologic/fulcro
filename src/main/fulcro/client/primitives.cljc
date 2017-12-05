@@ -3303,7 +3303,7 @@
   (if-not (has-ident? component)
     (log/error "merge-component!: component must implement Ident. Merge skipped.")
     (let [ident          (get-ident component object-data)
-          reconciler     (if (contains? reconciler :reconciler) (:reconciler reconciler))
+          reconciler     (if (contains? reconciler :reconciler) (:reconciler reconciler) reconciler)
           state          (app-state reconciler)
           data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
           {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
