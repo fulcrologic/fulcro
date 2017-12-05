@@ -1,93 +1,77 @@
 (ns fulcro-devguide.A-Quick-Tour
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client :as fc]
             [fulcro.client.network :as fcn]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.mutations :as m]
+            [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.logging :as log]
             [fulcro.client.data-fetch :as df]))
 
-(defn increment-counter [counter] (update counter :counter/n inc))
-
-(defui ^:once Counter
-  static prim/InitialAppState
-  (initial-state [this {:keys [id start]
+(defsc Counter [this {:keys [counter/id counter/n] :as props}
+                {:keys [onClick] :as computed}]
+  {:initial-state (fn [{:keys [id start]
                         :or   {id 1 start 1}
                         :as   params}] {:counter/id id :counter/n start})
-  static prim/IQuery
-  (query [this] [:counter/id :counter/n])
-  static prim/Ident
-  (ident [this props] [:counter/by-id (:counter/id props)])
-  Object
-  (render [this]
-    (let [{:keys [counter/id counter/n]} (prim/props this)
-          onClick (prim/get-computed this :onClick)]
-      (dom/div #js {:className "counter"}
-        (dom/span #js {:className "counter-label"}
-          (str "Current count for counter " id ":  "))
-        (dom/span #js {:className "counter-value"} n)
-        (dom/button #js {:onClick #(onClick id)} "Increment")))))
+   :query         [:counter/id :counter/n]
+   :ident         [:counter/by-id :counter/id]}
+  (dom/div #js {:className "counter"}
+    (dom/span #js {:className "counter-label"}
+      (str "Current count for counter " id ":  "))
+    (dom/span #js {:className "counter-value"} n)
+    (dom/button #js {:onClick #(onClick id)} "Increment")))
 
 (def ui-counter (prim/factory Counter {:keyfn :counter/id}))
 
-(defmethod m/mutate 'counter/inc [{:keys [state] :as env} k {:keys [id] :as params}]
-  {:remote true
-   :action (fn [] (swap! state update-in [:counter/by-id id] increment-counter))})
+(defn increment-counter
+  "Increment a counter abstraction as a plain informational map."
+  [counter]
+  (update counter :counter/n inc))
 
-(defui ^:once CounterPanel
-  static prim/InitialAppState
-  (initial-state [this params]
-    {:counters [(prim/get-initial-state Counter {:id 1 :start 1})]})
-  static prim/IQuery
-  (query [this] [{:counters (prim/get-query Counter)}])
-  static prim/Ident
-  (ident [this props] [:panels/by-kw :counter])
-  Object
-  (render [this]
-    (let [{:keys [counters]} (prim/props this)
-          click-callback (fn [id] (prim/transact! this
-                                    `[(counter/inc {:id ~id}) :counter-sum]))]
-      (dom/div nil
-        ; embedded style: kind of silly in a real app, but doable
-        (dom/style nil ".counter { width: 400px; padding-bottom: 20px; }
+(defn increment-counter*
+  "Increment a counter with ID counter-id in a Fulcro database."
+  [database counter-id]
+  (update-in database [:counter/by-id counter-id :counter/n] inc))
+
+(defmutation ^:intern increment-counter [{:keys [id] :as params}]
+  (action {:keys [state] :as env}
+    (swap! state increment-counter* id))
+  (remote [env] true))
+
+(defsc CounterPanel [this {:keys [counters]}]
+  {:initial-state (fn [params] {:counters [(prim/get-initial-state Counter {:id 1 :start 1})]})
+   :query         [{:counters (prim/get-query Counter)}]
+   :ident         (fn [] [:panels/by-kw :counter])}
+  (let [click-callback (fn [id] (prim/transact! this
+                                  `[(increment-counter {:id ~id}) :counter-sum]))]
+    (dom/div nil
+      ; embedded style: kind of silly in a real app, but doable
+      (dom/style nil ".counter { width: 400px; padding-bottom: 20px; }
                         button { margin-left: 10px; }")
-        (map #(ui-counter (prim/computed % {:onClick click-callback})) counters)))))
+      (map #(ui-counter (prim/computed % {:onClick click-callback})) counters))))
 
 (def ui-counter-panel (prim/factory CounterPanel))
 
-(defui ^:once CounterSum
-  static prim/InitialAppState
-  (initial-state [this params] {})
-  static prim/IQuery
-  (query [this] [[:counter/by-id '_]])
-  Object
-  (render [this]
-    (let [{:keys [counter/by-id]} (prim/props this)
-          total (reduce (fn [total c] (+ total (:counter/n c))) 0 (vals by-id))]
-      (dom/div nil
-        (str "Grand total: " total)))))
+(defsc CounterSum [this {:keys [counter/by-id]}]
+  {
+   :initial-state (fn [params] {})
+   :query         (fn [this] [[:counter/by-id '_]])}
+  (let [total (reduce (fn [total c] (+ total (:counter/n c))) 0 (vals by-id))]
+    (dom/div nil
+      (str "Grand total: " total))))
 
 (def ui-counter-sum (prim/factory CounterSum))
 
-(defui ^:once Root
-  static prim/InitialAppState
-  (initial-state [this params]
-    {:panel (prim/get-initial-state CounterPanel {})})
-  static prim/IQuery
-  (query [this] [:ui/loading-data
-                 {:panel (prim/get-query CounterPanel)}
-                 {:counter-sum (prim/get-query CounterSum)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/loading-data counter-sum panel]} (prim/props this)]
-      (dom/div nil
-        (when loading-data
-          (dom/span #js {:style #js {:float "right"}} "Loading..."))
-        (ui-counter-panel panel)
-        (ui-counter-sum counter-sum)))))
+(defsc Root [this {:keys [ui/loading-data counter-sum panel]}]
+  {:initial-state (fn [params] {:panel (prim/get-initial-state CounterPanel {})})
+   :query         [:ui/loading-data {:panel (prim/get-query CounterPanel)} {:counter-sum (prim/get-query CounterSum)}]}
+  (dom/div nil
+    (when loading-data
+      (dom/span #js {:style #js {:float "right"}} "Loading..."))
+    (ui-counter-panel panel)
+    (ui-counter-sum counter-sum)))
 
 ;; Simulated Server
 
@@ -112,10 +96,10 @@
   (log/info "SERVER mutation for " k " with params " p)
   (case k
     ; When asked to increment a counter on the server, do so by updating in-memory atom database
-    'counter/inc (let [{:keys [id]} p]
-                   {:action (fn []
-                              (swap! server-state update-in [:counters id :counter/n] inc)
-                              nil)})
+    `increment-couter (let [{:keys [id]} p]
+                        {:action (fn []
+                                   (swap! server-state update-in [:counters id :counter/n] inc)
+                                   nil)})
     nil))
 
 ; query parser. Calls read/write handlers with keywords from the query
@@ -217,37 +201,45 @@
   { :counter/id 1 :counter/n 22 }
   ```
 
-  We can write simple functions to manipulate counters:
+  We could write simple functions to manipulate counters:
 
   "
-  (dc/mkdn-pprint-source increment-counter)
+  (dc/mkdn-pprint-source increment-couter)
   "
 
-  and think about that counter as a complete abstract thing (and write tests and clojure specs for it, etc.).
+  and think about that counter as a complete abstract thing. This gives us pretty good local reasoning.
 
-  The Fulcro database table for counters might look something like this:
+  The Fulcro database table for counters would then look something like this:
 
   ```
+  ; KIND/INDEXED-BY  K          VALUE
   { :counter/by-id { 1 { :counter/id 1 :counter/n 1 }
                      2 { :counter/id 2 :counter/n 9 }
                      ...}}
   ```
 
   A table is just an entry in the database (map) that, by convention, is keyed with a keyword whose namespace indicates
-  the kind of thing in the table, and whose name indicates how it is indexed. The k-v pairs in the table are the keys
+  the *kind* of thing in the table, and whose name indicates how it is indexed. The k-v pairs in the table are the keys
   (of the implied index) and the values of the actual data.
 
   The general app state is held in a top-level atom. So, updating any object in the database generally takes the
   form:
 
   ```
-  (swap! app-state-atom update-in [:table/key id] operation)
+  (swap! app-state-atom update-in [:table/key id] increment-counter)
   ```
 
-  or in our example case:
+  Since we probably know the table name we chose with respect to the abstraction, it makes a bit more sense
+  to define our object manipulations in terms of the database as opposed to the object:
+
+  "
+  (dc/mkdn-pprint-source increment-couter*)
+  "
+
+  which lets us write a much more concise operation:
 
   ```
-  (swap! app-state-atom update-in [:counter/by-id 1] increment-counter)
+  (swap! app-state-atom increment-counter* 1)
   ```
 
   NOTE: You still need to know *where* to put this code, and how to find/access the `app-state-atom`.
@@ -269,7 +261,7 @@
   of the operations listed in the transaction:
 
   ```
-  (prim/transact! this `[(counter/inc {:id ~id})])
+  (prim/transact! this `[(increment-counter {:id ~id})])
   ```
 
   in the above transaction, we must use Clojure syntax quoting so that we can list an abstract mutation (which looks like
@@ -283,7 +275,7 @@
   The concrete implementation of the mutation on the model side looks like this:
 
   ```
-  (defmethod m/mutate 'counter/inc [{:keys [state] :as env} k {:keys [id] :as params}]
+  (defmethod m/mutate 'increment-counter [{:keys [state] :as env} k {:keys [id] :as params}]
     { :action
         (fn []
           (swap! state update-in [:counter/by-id id] increment-counter))})
@@ -305,7 +297,7 @@
 
   ```
   ; Identical to defmethod (defmutation is a macro that emits a defmethod(, but less error-prone and shorter to type
-  (defmutation 'counter/inc [{:keys [id] :as params}]
+  (defmutation 'increment-counter [{:keys [id] :as params}]
     (action [{:keys [state] :as env}]
       (swap! state update-in [:counter/by-id id] increment-counter)))
   ```
@@ -314,14 +306,14 @@
   When you want to interact with a server, you need merely change it to:
 
   ```
-  (defmethod m/mutate 'counter/inc [{:keys [state] :as env} k {:keys [id] :as params}]
+  (defmethod m/mutate 'increment-counter [{:keys [state] :as env} k {:keys [id] :as params}]
     { :remote true ; <---- this is all!!!
       :action
         (fn []
           (swap! state update-in [:counter/by-id id] increment-counter))})
 
   ; OR, with sugar
-  (defmutation 'counter/inc [{:keys [id] :as params}]
+  (defmutation 'increment-counter [{:keys [id] :as params}]
     (action [{:keys [state] :as env}]
       (swap! state update-in [:counter/by-id id] increment-counter))
     (remote [env] true))
@@ -371,7 +363,7 @@
   The incoming data from the database comes in via `prim/props`, and things like callbacks come in via a mechanism known
   as the 'computed' data (e.g. stuff that isn't in the database, but is generated by the UI, such as callbacks).
 
-  A `defui` generates a React Component (class). In order to render an instance of a Counter, we must make an element
+  A `defsc` generates a React Component (class). In order to render an instance of a Counter, we must make an element
   factory:
   "
   (dc/mkdn-pprint-source ui-counter)
@@ -413,7 +405,7 @@
   this simple example the callback structure was added to demonstrate what it looks like. One could argue that the
   counter could update itself (while maintaining local reasoning).
 
-  The implementation of the `counter/inc` mutation was shown earlier.
+  The implementation of the `increment-counter` mutation was shown earlier.
 
   There are many important points to make here, but we would like to stress the fact that the UI has no idea
   *how* counters are implemented, *if* that logic includes server interactions, etc. There are no nested callbacks

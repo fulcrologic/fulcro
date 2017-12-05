@@ -11,7 +11,7 @@
                [fulcro.client.logging :as log]
                [fulcro.client :as fc]
                [fulcro.ui.bootstrap3 :as b]
-               [fulcro.client.primitives :as prim :refer [defui defsc]]))
+               [fulcro.client.primitives :as prim :refer [defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -41,65 +41,44 @@
 ;; CLIENT:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defui ^:once Settings
-  static prim/IQuery
-  (query [this] [:db/id :settings/auto-open? :settings/keyboard-shortcuts?])
-  static prim/Ident
-  (ident [this props] [:settings/by-id (:db/id props)])
-  Object
-  (render [this]
-    (let [{:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]} (prim/props this)]
-      (dom/ul nil
-        (dom/li nil (str "Auto open? " auto-open?))
-        (dom/li nil (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))))
+(defsc Settings [this {:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]}]
+  {:query [:db/id :settings/auto-open? :settings/keyboard-shortcuts?]
+   :ident [:settings/by-id :db/id]}
+  (dom/ul nil
+    (dom/li nil (str "Auto open? " auto-open?))
+    (dom/li nil (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))
 
 (def ui-settings (prim/factory Settings {:keyfn :db/id}))
 
-(defui ^:once Member
-  static prim/IQuery
-  (query [this] [:db/id :member/name])
-  static prim/Ident
-  (ident [this props] [:member/by-id (:db/id props)])
-  Object
-  (render [this]
-    (let [{:keys [db/id member/name]} (prim/props this)]
-      (dom/div nil
-        "Member: " name))))
+(defsc Member [this {:keys [db/id member/name]}]
+  {:query [:db/id :member/name]
+   :ident [:member/by-id :db/id]}
+  (dom/div nil
+    "Member: " name))
 
 (def ui-member (prim/factory Member {:keyfn :db/id}))
 
-(defui ^:once Account
-  static prim/IQuery
-  (query [this] [:db/id :account/name
-                 {:account/members (prim/get-query Member)}
-                 {:account/settings (prim/get-query Settings)}])
-  static prim/Ident
-  (ident [this props] [:account/by-id (:db/id props)])
-  Object
-  (render [this]
-    (let [{:keys [db/id account/name account/members account/settings]} (prim/props this)]
-      (dom/div nil
-        (dom/h3 nil (str "Account for " name))
-        (dom/ul nil
-          (when (seq settings)
-            (dom/li nil
-              (dom/h3 nil "Settings")
-              (ui-settings settings)))
-          (dom/li nil
-            (dom/h3 nil "Members in the account")
-            (map ui-member members)))))))
+(defsc Account [this {:keys [db/id account/name account/members account/settings]}]
+  {:query [:db/id :account/name {:account/members (prim/get-query Member)} {:account/settings (prim/get-query Settings)}]
+   :ident [:account/by-id :db/id]}
+  (dom/div nil
+    (dom/h3 nil (str "Account for " name))
+    (dom/ul nil
+      (when (seq settings)
+        (dom/li nil
+          (dom/h3 nil "Settings")
+          (ui-settings settings)))
+      (dom/li nil
+        (dom/h3 nil "Members in the account")
+        (map ui-member members)))))
 
 (def ui-account (prim/factory Account {:keyfn :db/id}))
 
-(defui ^:once Root
-  static prim/IQuery
-  (query [this] [:ui/react-key {:accounts (prim/get-query Account)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key db/id accounts]} (prim/props this)]
-      (dom/div #js {:key react-key}
-        (dom/h3 nil "Accounts with settings and users")
-        (map ui-account accounts)))))
+(defsc Root [this {:keys [ui/react-key accounts]}]
+  {:query [:ui/react-key {:accounts (prim/get-query Account)}]}
+  (dom/div #js {:key react-key}
+    (dom/h3 nil "Accounts with settings and users")
+    (map ui-account accounts)))
 
 #?(:cljs
    (dc/defcard-doc

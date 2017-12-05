@@ -1,29 +1,23 @@
 (ns fulcro-devguide.queries.query-demo
   (:require
-    [fulcro.client.primitives :as prim :refer-macros [defui]]
+    [fulcro.client.primitives :as prim :refer [defsc defui]]
     [cljs.pprint :refer [pprint]]
     [fulcro.client.dom :as dom]))
 
-(defui Person
-  static prim/IQuery
-  (query [this] [:person/name])
-  Object
-  (render [this] (let [{:keys [person/name]} (prim/props this)] (dom/li nil name))))
+(defsc Person [this {:keys [person/name]}]
+  {:query [:person/name]}
+  (dom/li nil name))
 
 (def person (prim/factory Person {:keyfn :db/id}))
 
-(defui PeopleWidget
-  Object
-  (render [this] (let [people (prim/props this)] (dom/ul nil (map person people)))))
+(defsc PeopleWidget [this people]
+  (dom/ul nil (map person people)))
 
 (def people-list (prim/factory PeopleWidget))
 
-(defui Root
-  static prim/IQuery
-  (query [this] [{:people (prim/get-query Person)}])
-  Object
-  (render [this]
-    (let [{:keys [people]} (prim/props this)] (dom/div nil (people-list people)))))
+(defsc Root [this {:keys [people]}]
+  {:query [{:people (prim/get-query Person)}]}
+  (dom/div nil (people-list people)))
 
 (def root (prim/factory Root))
 
@@ -34,6 +28,7 @@
               :thing-widget {:display-mode :detailed
                              :things       [{:id 1 :name "Boo"} {:id 2 :name "Bah"}]}}})
 
+; defui is about the same as defsc for defining stand-alone queries
 (defui Thing
   static prim/IQuery
   (query [this] [:ui/checked :id :name])
@@ -57,7 +52,7 @@
   (query [this] [{:dashboard (prim/get-query Dashboard)}]))
 
 (comment
-  ; NOTE TO SELF: Good example of converting an entire app state database tree into norm form
+  ; NOTE: Good example of converting an entire app state database tree into norm form
   istate
   (prim/get-query DRoot)
   (pprint (prim/tree->db DRoot istate true)))

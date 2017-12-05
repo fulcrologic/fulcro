@@ -3,6 +3,7 @@
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
             [fulcro.client.dom :as dom]
+            [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
             fulcro.client
@@ -26,8 +27,8 @@
     (fn [x]
       (if-let [time (some-> x meta ::prim/time)]
         (-> (into {} (filter (fn [[_ v]] (or (vector? v)
-                                             (and (map? v) (contains? v ::time))))) x)
-            (assoc ::time time))
+                                           (and (map? v) (contains? v ::time))))) x)
+          (assoc ::time time))
         x))
     m))
 
@@ -37,7 +38,7 @@
     (-> (prim/add-basis-time {:hello {:world {:data 2}
                                       :foo   :bar
                                       :multi [{:x 1} {:x 2}]}} 10)
-        (read-times))
+      (read-times))
     => {:hello {:world {::time 10}
                 :multi [{::time 10} {::time 10}]
                 ::time 10}
@@ -51,7 +52,7 @@
                    :so    {:long {:and "more"}}
                    :foo   :bar
                    :multi [{:x 1} {:x 2}]}} 10)
-        (read-times))
+      (read-times))
     => {:hello {:world {:item  [{::time 10}]
                         ::time 10}
                 :multi [{::time 10} {::time 10}]
@@ -77,7 +78,7 @@
                                                 :ub [:y]}}]}]
           {:hello {:union {:x    {:content "bar"}
                            :type :ua}}} 10)
-        (read-times))
+      (read-times))
     => {:hello {:union {:x     {::time 10}
                         ::time 10}
                 ::time 10}
@@ -89,7 +90,7 @@
           {:hello {:name   "bla"
                    :parent {:name   "meh"
                             :parent {:name "other"}}}} 10)
-        (read-times))
+      (read-times))
     => {:hello {:parent {:parent {::time 10}
                          ::time  10}
                 ::time  10}
@@ -100,9 +101,9 @@
                                        :name]}]
           {:hello {:name   "bla"
                    :parent {:name   "meh"
-                            :parent {:name "other"
+                            :parent {:name   "other"
                                      :parent {:name "one more"}}}}} 10)
-        (read-times))
+      (read-times))
     => {:hello {:parent {:parent {::time 10}
                          ::time  10}
                 ::time  10}
@@ -116,7 +117,7 @@
                            :so    {:long {:and "more"}}
                            :foo   :bar
                            :multi [{:x 1} {:x 2}]}} 10)
-        (meta))
+      (meta))
     => {::prim/time 10 ::info true}))
 
 (defui A)
@@ -796,12 +797,12 @@
           actual => swept-state
           (meta actual) => mutation-response-without-tempids)))))
 
-(defsc Item [this {:keys [db/id item/value]} _ _]
+(defsc Item [this {:keys [db/id item/value]}]
   {:query [:db/id :item/value]
    :ident [:item/by-id :db/id]}
   (dom/li nil value))
 
-(defsc ItemList [this {:keys [db/id list/title list/items] :as props} _ _]
+(defsc ItemList [this {:keys [db/id list/title list/items] :as props}]
   {:query [:db/id :list/title {:list/items (prim/get-query Item)}]
    :ident [:list/by-id :db/id]}
   (dom/div nil (dom/h3 nil title)))
@@ -1022,43 +1023,25 @@
      (component "build-render"
        (assertions
          "emits a list of forms for the render itself"
-         (#'prim/build-render 'Boo 'this {:keys ['a]} {:keys ['onSelect]} nil 'c '((dom/div nil "Hello")))
+         (#'prim/build-render 'Boo 'this {:keys ['a]} {:keys ['onSelect]} nil '((dom/div nil "Hello")))
          => `(~'Object
                (~'render [~'this]
                  (let [{:keys [~'a]} (fulcro.client.primitives/props ~'this)
-                       {:keys [~'onSelect]} (fulcro.client.primitives/get-computed ~'this)
-                       ~'c (fulcro.client.primitives/children ~'this)]
-                   (~'dom/div nil "Hello"))))
-         "shifts the children argument down one if you include css rules"
-         (#'prim/build-render 'Boo 'this {:keys ['a]} {:keys ['onSelect]} 'css 'children '((dom/div nil "Hello")))
-         => `(~'Object
-               (~'render [~'this]
-                 (let [{:keys [~'a]} (fulcro.client.primitives/props ~'this)
-                       {:keys [~'onSelect]} (fulcro.client.primitives/get-computed ~'this)
-                       ~'css (fulcro-css.css/get-classnames ~'Boo)
-                       ~'children (fulcro.client.primitives/children ~'this)]
+                       {:keys [~'onSelect]} (fulcro.client.primitives/get-computed ~'this)]
                    (~'dom/div nil "Hello"))))
          "all arguments after props are optional"
-         (#'prim/build-render 'Boo 'this {:keys ['a]} {:keys ['onSelect]} 'css nil '((dom/div nil "Hello")))
-         => `(~'Object
-               (~'render [~'this]
-                 (let [{:keys [~'a]} (fulcro.client.primitives/props ~'this)
-                       {:keys [~'onSelect]} (fulcro.client.primitives/get-computed ~'this)
-                       ~'css (fulcro-css.css/get-classnames ~'Boo)]
-                   (~'dom/div nil "Hello"))))
-         (#'prim/build-render 'Boo 'this {:keys ['a]} nil nil nil '((dom/div nil "Hello")))
+         (#'prim/build-render 'Boo 'this {:keys ['a]} nil nil '((dom/div nil "Hello")))
          => `(~'Object
                (~'render [~'this]
                  (let [{:keys [~'a]} (fulcro.client.primitives/props ~'this)]
                    (~'dom/div nil "Hello"))))
          "destructuring of css is allowed"
-         (#'prim/build-render 'Boo 'this {:keys ['a]} {:keys ['onSelect]} '{:keys [my-class]} 'children '((dom/div nil "Hello")))
+         (#'prim/build-render 'Boo 'this {:keys ['a]} {:keys ['onSelect]} '{:keys [my-class]} '((dom/div nil "Hello")))
          => `(~'Object
                (~'render [~'this]
                  (let [{:keys [~'a]} (fulcro.client.primitives/props ~'this)
                        {:keys [~'onSelect]} (fulcro.client.primitives/get-computed ~'this)
-                       ~'{:keys [my-class]} (fulcro-css.css/get-classnames ~'Boo)
-                       ~'children (fulcro.client.primitives/children ~'this)]
+                       ~'{:keys [my-class]} (fulcro-css.css/get-classnames ~'Boo)]
                    (~'dom/div nil "Hello"))))))
      (component "make-state-map"
        (assertions
@@ -1160,10 +1143,20 @@
    (specification "defsc" :focused
      (component "css"
        (assertions
-         "allows optional use of include"
-         (prim/defsc* '(Person [this {:keys [db/id]}]
-                         {:css [:rule]}
-                         (dom/div nil "Boo")))
+         "warns if the css destructuring is included, but no css option has been"
+         (prim/defsc* false '(Person [this {:keys [some-prop]} computed css] (dom/div nil "Boo")))
+         =throws=> (ExceptionInfo #"You included a CSS argument, but there is no CSS localized to the component.")
+         "allows one to define a simple component without options"
+         (prim/defsc* false '(Person [this {:keys [some-prop]}] (dom/div nil "Boo")))
+         => '(fulcro.client.primitives/defui Person
+               Object
+               (render [this]
+                 (clojure.core/let [{:keys [some-prop]} (fulcro.client.primitives/props this)]
+                   (dom/div nil "Boo"))))
+         "allows optional use of include when using CSS"
+         (prim/defsc* false '(Person [this {:keys [db/id]}]
+                               {:css [:rule]}
+                               (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css/CSS
@@ -1173,84 +1166,33 @@
                (render [this]
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
-         "allows dropping unused arguments (1)"
-         (prim/defsc* '(Job
-                         "A job component"
-                         [this props]
-                         {}
-                         (dom/span nil "TODO")))
+         "allows dropping 2 unused arguments"
+         (prim/defsc* false '(Job
+                               "A job component"
+                               [this props]
+                               {}
+                               (dom/span nil "TODO")))
          => '(fulcro.client.primitives/defui Job
                Object
                (render [this]
                  (clojure.core/let
                    [props (fulcro.client.primitives/props this)]
                    (dom/span nil "TODO"))))
-         "allows dropping unused arguments (2)"
-         (prim/defsc* '(Person [this {:keys [db/id]} computed css]
-                         {:css [:rule]}
-                         (dom/div nil "Boo")))
-         => '(fulcro.client.primitives/defui Person
-               static
-               fulcro-css.css/CSS
-               (local-rules [_] [:rule])
-               (include-children [_] [])
-               Object
-               (render [this]
-                 (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)
-                                    computed (fulcro.client.primitives/get-computed this)
-                                    css      (fulcro-css.css/get-classnames Person)]
-                   (dom/div nil "Boo"))))
-         "allows dropping unused arguments (3)"
-         (prim/defsc* '(Person [this {:keys [db/id]} computed css children]
-                         {:css [:rule]}
-                         (dom/div nil "Boo")))
-         => '(fulcro.client.primitives/defui Person
-               static
-               fulcro-css.css/CSS
-               (local-rules [_] [:rule])
-               (include-children [_] [])
-               Object
-               (render [this]
-                 (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)
-                                    computed (fulcro.client.primitives/get-computed this)
-                                    css      (fulcro-css.css/get-classnames Person)
-                                    children (fulcro.client.primitives/children this)]
-                   (dom/div nil "Boo"))))
-         "allows dropping unused arguments (4)"
-         (prim/defsc* '(Person [this {:keys [db/id]} computed children]
-                         {}
-                         (dom/div nil "Boo")))
-         => '(fulcro.client.primitives/defui Person
-               Object
-               (render [this]
-                 (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)
-                                    computed (fulcro.client.primitives/get-computed this)
-                                    children (fulcro.client.primitives/children this)]
-                   (dom/div nil "Boo"))))
-         "allows dropping unused arguments (5)"
-         (prim/defsc* '(Person [this {:keys [db/id]} computed]
-                         {}
-                         (dom/div nil "Boo")))
+         "allows dropping 1 unused argument"
+         (prim/defsc* false '(Person [this {:keys [db/id]} computed]
+                               {}
+                               (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                Object
                (render [this]
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)
                                     computed (fulcro.client.primitives/get-computed this)]
                    (dom/div nil "Boo"))))
-         "allows dropping unused arguments (6)"
-         (prim/defsc* '(Person [this {:keys [db/id]}]
-                         {}
-                         (dom/div nil "Boo")))
-         => '(fulcro.client.primitives/defui Person
-               Object
-               (render [this]
-                 (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
-                   (dom/div nil "Boo"))))
          "allows optional use of css"
-         (prim/defsc* '(Person [this {:keys [db/id]}]
-                         {:query       [:db/id]
-                          :css-include [A]}
-                         (dom/div nil "Boo")))
+         (prim/defsc* false '(Person [this {:keys [db/id]}]
+                               {:query       [:db/id]
+                                :css-include [A]}
+                               (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css/CSS
@@ -1264,25 +1206,25 @@
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
          "checks method arity on css"
-         (prim/defsc* '(Person
-                         [this {:keys [db/id]} _ _]
-                         {:query [:db/id]
-                          :css   (fn [a b] [])}
-                         (dom/div nil "Boo")))
+         (prim/defsc* false '(Person
+                               [this {:keys [db/id]}]
+                               {:query [:db/id]
+                                :css   (fn [a b] [])}
+                               (dom/div nil "Boo")))
          =throws=> (ExceptionInfo #"Invalid arity for css")
          "checks method arity on css-include"
-         (prim/defsc* '(Person
-                         [this {:keys [db/id]} _ _]
-                         {:css-include (fn [a b] [])}
-                         (dom/div nil "Boo")))
+         (prim/defsc* false '(Person
+                               [this {:keys [db/id]}]
+                               {:css-include (fn [a b] [])}
+                               (dom/div nil "Boo")))
          =throws=> (ExceptionInfo #"Invalid arity for css-include")
          "allows method bodies"
-         (prim/defsc* '(Person
-                         [this {:keys [db/id]}]
-                         {:query       [:db/id]
-                          :css         (fn [] [:rule])
-                          :css-include (fn [] [A])}
-                         (dom/div nil "Boo")))
+         (prim/defsc* false '(Person
+                               [this {:keys [db/id]}]
+                               {:query       [:db/id]
+                                :css         (fn [] [:rule])
+                                :css-include (fn [] [A])}
+                               (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css/CSS
@@ -1295,12 +1237,12 @@
                (render [this]
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
-         (prim/defsc* '(Person
-                         [this {:keys [db/id]}]
-                         {:query       [:db/id]
-                          :css         (some-random-name [] [:rule]) ; doesn't really care what sym you use
-                          :css-include (craptastic! [] [A])}
-                         (dom/div nil "Boo")))
+         (prim/defsc* false '(Person
+                               [this {:keys [db/id]}]
+                               {:query       [:db/id]
+                                :css         (some-random-name [] [:rule]) ; doesn't really care what sym you use
+                                :css-include (craptastic! [] [A])}
+                               (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css/CSS
@@ -1315,13 +1257,13 @@
                    (dom/div nil "Boo"))))))
      (assertions
        "works with initial state"
-       (#'prim/defsc* '(Person
-                         [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                         {:query         [:db/id {:person/job (prim/get-query Job)}]
-                          :initial-state {:person/job {:x 1}
-                                          :db/id      42}
-                          :ident         [:PERSON/by-id :db/id]}
-                         (dom/div nil "Boo")))
+       (#'prim/defsc* false '(Person
+                               [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                               {:query         [:db/id {:person/job (prim/get-query Job)}]
+                                :initial-state {:person/job {:x 1}
+                                                :db/id      42}
+                                :ident         [:PERSON/by-id :db/id]}
+                               (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/InitialAppState
              (~'initial-state [~'c ~'params]
@@ -1337,16 +1279,15 @@
              ~'Object
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
-                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)
-                     ~'children (fulcro.client.primitives/children ~'this)]
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
        "allows an initial state method body"
-       (prim/defsc* '(Person
-                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                       {:query         [:db/id {:person/job (prim/get-query Job)}]
-                        :initial-state (initial-state [params] {:x 1})
-                        :ident         [:PERSON/by-id :db/id]}
-                       (dom/div nil "Boo")))
+       (prim/defsc* false '(Person
+                             [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                             {:query         [:db/id {:person/job (prim/get-query Job)}]
+                              :initial-state (initial-state [params] {:x 1})
+                              :ident         [:PERSON/by-id :db/id]}
+                             (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/InitialAppState
              (~'initial-state [~'this ~'params] {:x 1})
@@ -1357,15 +1298,14 @@
              ~'Object
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
-                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)
-                     ~'children (fulcro.client.primitives/children ~'this)]
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
        "works without initial state"
-       (prim/defsc* '(Person
-                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                       {:query [:db/id {:person/job (prim/get-query Job)}]
-                        :ident [:PERSON/by-id :db/id]}
-                       (dom/div nil "Boo")))
+       (prim/defsc* false '(Person
+                             [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                             {:query [:db/id {:person/job (prim/get-query Job)}]
+                              :ident [:PERSON/by-id :db/id]}
+                             (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
@@ -1374,35 +1314,33 @@
              ~'Object
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
-                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)
-                     ~'children (fulcro.client.primitives/children ~'this)]
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
        "allows Object protocol"
-       (prim/defsc* '(Person
-                       [this props computed children]
-                       {:query     [:db/id]
-                        :protocols (Object (shouldComponentUpdate [this p s] false))}
-                       (dom/div nil "Boo")))
+       (prim/defsc* false '(Person
+                             [this props computed]
+                             {:query     [:db/id]
+                              :protocols (Object (shouldComponentUpdate [this p s] false))}
+                             (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/IQuery
              (~'query [~'this] [:db/id])
              ~'Object
              (~'render [~'this]
                (let [~'props (fulcro.client.primitives/props ~'this)
-                     ~'computed (fulcro.client.primitives/get-computed ~'this)
-                     ~'children (fulcro.client.primitives/children ~'this)]
+                     ~'computed (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))
              (~'shouldComponentUpdate [~'this ~'p ~'s] false))
        "allows other protocols"
-       (prim/defsc* '(Person
-                       [this props computed children]
-                       {:query     [:db/id]
-                        :protocols (static css/CSS
-                                     (local-rules [_] [])
-                                     (include-children [_] [])
-                                     Object
-                                     (shouldComponentUpdate [this p s] false))}
-                       (dom/div nil "Boo")))
+       (prim/defsc* false '(Person
+                             [this props computed]
+                             {:query     [:db/id]
+                              :protocols (static css/CSS
+                                           (local-rules [_] [])
+                                           (include-children [_] [])
+                                           Object
+                                           (shouldComponentUpdate [this p s] false))}
+                             (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static ~'css/CSS
              (~'local-rules [~'_] [])
@@ -1412,23 +1350,21 @@
              ~'Object
              (~'render [~'this]
                (let [~'props (fulcro.client.primitives/props ~'this)
-                     ~'computed (fulcro.client.primitives/get-computed ~'this)
-                     ~'children (fulcro.client.primitives/children ~'this)]
+                     ~'computed (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))
              (~'shouldComponentUpdate [~'this ~'p ~'s] false))
        "works without an ident"
-       (prim/defsc* '(Person
-                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed} children]
-                       {:query [:db/id {:person/job (prim/get-query Job)}]}
-                       (dom/div nil "Boo")))
+       (prim/defsc* false '(Person
+                             [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                             {:query [:db/id {:person/job (prim/get-query Job)}]}
+                             (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/IQuery
              (~'query [~'this] [:db/id {:person/job (~'prim/get-query ~'Job)}])
              ~'Object
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
-                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)
-                     ~'children (fulcro.client.primitives/children ~'this)]
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))))))
 
 (defui ^:once MergeTestChild
@@ -1494,312 +1430,312 @@
 
          (prim/merge-component! :reconciler MergeTestChild data :append [:children] :replace [:items 0])))))
 
-  (specification "integrate-ident!"
-    (let [state (atom {:a    {:path [[:table 2]]}
-                       :b    {:path [[:table 2]]}
-                       :d    [:table 6]
-                       :many {:path [[:table 99] [:table 88] [:table 77]]}})]
-      (behavior "Can append to an existing vector"
-        (prim/integrate-ident! state [:table 3] :append [:a :path])
-        (assertions
-          (get-in @state [:a :path]) => [[:table 2] [:table 3]])
-        (prim/integrate-ident! state [:table 3] :append [:a :path])
-        (assertions
-          "(is a no-op if the ident is already there)"
-          (get-in @state [:a :path]) => [[:table 2] [:table 3]]))
-      (behavior "Can prepend to an existing vector"
-        (prim/integrate-ident! state [:table 3] :prepend [:b :path])
-        (assertions
-          (get-in @state [:b :path]) => [[:table 3] [:table 2]])
-        (prim/integrate-ident! state [:table 3] :prepend [:b :path])
-        (assertions
-          "(is a no-op if already there)"
-          (get-in @state [:b :path]) => [[:table 3] [:table 2]]))
-      (behavior "Can create/replace a to-one ident"
-        (prim/integrate-ident! state [:table 3] :replace [:c :path])
-        (prim/integrate-ident! state [:table 3] :replace [:d])
-        (assertions
-          (get-in @state [:d]) => [:table 3]
-          (get-in @state [:c :path]) => [:table 3]
-          ))
-      (behavior "Can replace an existing to-many element in a vector"
-        (prim/integrate-ident! state [:table 3] :replace [:many :path 1])
-        (assertions
-          (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
-
-  (specification "integrate-ident"
-    (let [state {:a    {:path [[:table 2]]}
-                 :b    {:path [[:table 2]]}
-                 :d    [:table 6]
-                 :many {:path [[:table 99] [:table 88] [:table 77]]}}]
+(specification "integrate-ident!"
+  (let [state (atom {:a    {:path [[:table 2]]}
+                     :b    {:path [[:table 2]]}
+                     :d    [:table 6]
+                     :many {:path [[:table 99] [:table 88] [:table 77]]}})]
+    (behavior "Can append to an existing vector"
+      (prim/integrate-ident! state [:table 3] :append [:a :path])
       (assertions
-        "Can append to an existing vector"
-        (-> state
-          (prim/integrate-ident [:table 3] :append [:a :path])
-          (get-in [:a :path]))
-        => [[:table 2] [:table 3]]
-
+        (get-in @state [:a :path]) => [[:table 2] [:table 3]])
+      (prim/integrate-ident! state [:table 3] :append [:a :path])
+      (assertions
         "(is a no-op if the ident is already there)"
-        (-> state
-          (prim/integrate-ident [:table 3] :append [:a :path])
-          (get-in [:a :path]))
-        => [[:table 2] [:table 3]]
-
-        "Can prepend to an existing vector"
-        (-> state
-          (prim/integrate-ident [:table 3] :prepend [:b :path])
-          (get-in [:b :path]))
-        => [[:table 3] [:table 2]]
-
+        (get-in @state [:a :path]) => [[:table 2] [:table 3]]))
+    (behavior "Can prepend to an existing vector"
+      (prim/integrate-ident! state [:table 3] :prepend [:b :path])
+      (assertions
+        (get-in @state [:b :path]) => [[:table 3] [:table 2]])
+      (prim/integrate-ident! state [:table 3] :prepend [:b :path])
+      (assertions
         "(is a no-op if already there)"
-        (-> state
-          (prim/integrate-ident [:table 3] :prepend [:b :path])
-          (get-in [:b :path]))
-        => [[:table 3] [:table 2]]
-
-        "Can create/replace a to-one ident"
-        (-> state
-          (prim/integrate-ident [:table 3] :replace [:d])
-          (get-in [:d]))
-        => [:table 3]
-        (-> state
-          (prim/integrate-ident [:table 3] :replace [:c :path])
-          (get-in [:c :path]))
-        => [:table 3]
-
-        "Can replace an existing to-many element in a vector"
-        (-> state
-          (prim/integrate-ident [:table 3] :replace [:many :path 1])
-          (get-in [:many :path]))
-        => [[:table 99] [:table 3] [:table 77]])))
-
-  (defui ^:once MergeX
-    static prim/InitialAppState
-    (initial-state [this params] {:type :x :n :x})
-    static prim/IQuery
-    (query [this] [:n :type]))
-
-  (defui ^:once MergeY
-    static prim/InitialAppState
-    (initial-state [this params] {:type :y :n :y})
-    static prim/IQuery
-    (query [this] [:n :type]))
-
-
-  (defui ^:once MergeAChild
-    static prim/InitialAppState
-    (initial-state [this params] {:child :merge-a})
-    static prim/Ident
-    (ident [this props] [:mergea :child])
-    static prim/IQuery
-    (query [this] [:child]))
-
-  (defui ^:once MergeA
-    static prim/InitialAppState
-    (initial-state [this params] {:type :a :n :a :child (prim/get-initial-state MergeAChild nil)})
-    static prim/IQuery
-    (query [this] [:type :n {:child (prim/get-query MergeAChild)}]))
-
-  (defui ^:once MergeB
-    static prim/InitialAppState
-    (initial-state [this params] {:type :b :n :b})
-    static prim/IQuery
-    (query [this] [:n]))
-
-  (defui ^:once MergeUnion
-    static prim/InitialAppState
-    (initial-state [this params] (prim/get-initial-state MergeA {}))
-    static prim/Ident
-    (ident [this props] [:mergea-or-b :at-union])
-    static prim/IQuery
-    (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
-
-  (defui ^:once MergeRoot
-    static prim/InitialAppState
-    (initial-state [this params] {:a 1 :b (prim/get-initial-state MergeUnion {})})
-    static prim/IQuery
-    (query [this] [:a {:b (prim/get-query MergeUnion)}]))
-
-  ;; Nested routing tree
-  ;; NestedRoot
-  ;;     |
-  ;;     U1
-  ;;    /  B    A = MergeRoot B = MergeB
-  ;;    R2
-  ;;   U2       A2
-  ;;  X  Y
-
-  (defui ^:once U2
-    static prim/InitialAppState
-    (initial-state [this params] (prim/get-initial-state MergeX {}))
-    static prim/IQuery
-    (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
-
-  (defui ^:once R2
-    static prim/InitialAppState
-    (initial-state [this params] {:id 1 :u2 (prim/get-initial-state U2 {})})
-    static prim/IQuery
-    (query [this] [:id {:u2 (prim/get-query U2)}]))
-
-  (defui ^:once U1
-    static prim/InitialAppState
-    (initial-state [this params] (prim/get-initial-state MergeB {}))
-    static prim/IQuery
-    (query [this] {:r2 (prim/get-query R2) :b (prim/get-query MergeB)}))
-
-  (defui ^:once NestedRoot
-    static prim/InitialAppState
-    (initial-state [this params] {:u1 (prim/get-initial-state U1 {})})
-    static prim/IQuery
-    (query [this] [{:u1 (prim/get-query U1)}]))
-
-  ;; Sibling routing tree
-  ;; SiblingRoot
-  ;;     |   \
-  ;;   SU1   SU2
-  ;;  A   B  X  Y
-
-  (defui ^:once SU1
-    static prim/InitialAppState
-    (initial-state [this params] (prim/get-initial-state MergeB {}))
-    static prim/Ident
-    (ident [this props] [(:type props) 1])
-    static prim/IQuery
-    (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
-
-  (defui ^:once SU2
-    static prim/InitialAppState
-    (initial-state [this params] (prim/get-initial-state MergeX {}))
-    static prim/Ident
-    (ident [this props] [(:type props) 2])
-    static prim/IQuery
-    (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
-
-
-  (defui ^:once SiblingRoot
-    static prim/InitialAppState
-    (initial-state [this params] {:su1 (prim/get-initial-state SU1 {}) :su2 (prim/get-initial-state SU2 {})})
-    static prim/IQuery
-    (query [this] [{:su1 (prim/get-query SU1)} {:su2 (prim/get-query SU2)}]))
-
-  (specification "merge-alternate-union-elements!"
-    (behavior "For applications with sibling unions"
-      (when-mocking
-        (prim/merge-component! app comp state) =1x=> (do
-                                                       (assertions
-                                                         "Merges level one elements"
-                                                         comp => SU1
-                                                         state => (prim/get-initial-state MergeA {})))
-        (prim/merge-component! app comp state) =1x=> (do
-                                                       (assertions
-                                                         "Merges only the state of branches that are not already initialized"
-                                                         comp => SU2
-                                                         state => (prim/get-initial-state MergeY {})))
-
-        (prim/merge-alternate-union-elements! :app SiblingRoot)))
-
-    (behavior "For applications with nested unions"
-      (when-mocking
-        (prim/merge-component! app comp state) =1x=> (do
-                                                       (assertions
-                                                         "Merges level one elements"
-                                                         comp => U1
-                                                         state => (prim/get-initial-state R2 {})))
-        (prim/merge-component! app comp state) =1x=> (do
-                                                       (assertions
-                                                         "Merges only the state of branches that are not already initialized"
-                                                         comp => U2
-                                                         state => (prim/get-initial-state MergeY {})))
-
-        (prim/merge-alternate-union-elements! :app NestedRoot)))
-    (behavior "For applications with non-nested unions"
-      (when-mocking
-        (prim/merge-component! app comp state) => (do
-                                                    (assertions
-                                                      "Merges only the state of branches that are not already initialized"
-                                                      comp => MergeUnion
-                                                      state => (prim/get-initial-state MergeB {})))
-
-        (prim/merge-alternate-union-elements! :app MergeRoot))))
-
-  (defn phone-number [id n] {:id id :number n})
-  (defn person [id name numbers] {:id id :name name :numbers numbers})
-
-  (defui MPhone
-    static prim/IQuery
-    (query [this] [:id :number])
-    static prim/Ident
-    (ident [this props] [:phone/by-id (:id props)]))
-
-  (defui MPerson
-    static prim/IQuery
-    (query [this] [:id :name {:numbers (prim/get-query MPhone)}])
-    static prim/Ident
-    (ident [this props] [:person/by-id (:id props)]))
-
-  (specification "merge-component"
-    (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
-          sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
-          phone-3          {:id 3 :number "111-2222"}
-          state-map        {:people       [[:person/by-id :sally]]
-                            :phone/by-id  {3 phone-3}
-                            :person/by-id {:sally sally}}
-          new-state-map    (prim/merge-component state-map MPerson component-tree)
-          expected-person  {:id :tony :name "Tony" :numbers [[:phone/by-id 1] [:phone/by-id 2]]}
-          expected-phone-1 {:id 1 :number "555-1212"}
-          expected-phone-2 {:id 2 :number "123-4555"}]
+        (get-in @state [:b :path]) => [[:table 3] [:table 2]]))
+    (behavior "Can create/replace a to-one ident"
+      (prim/integrate-ident! state [:table 3] :replace [:c :path])
+      (prim/integrate-ident! state [:table 3] :replace [:d])
       (assertions
-        "merges the top-level component with normalized links to children"
-        (get-in new-state-map [:person/by-id :tony]) => expected-person
-        "merges the normalized children"
-        (get-in new-state-map [:phone/by-id 1]) => expected-phone-1
-        (get-in new-state-map [:phone/by-id 2]) => expected-phone-2
-        "leaves the original state untouched"
-        (contains? new-state-map :people) => true
-        (get-in new-state-map [:person/by-id :sally]) => sally
-        (get-in new-state-map [:phone/by-id 3]) => phone-3)))
-
-  (def table-1 {:type :table :id 1 :rows [1 2 3]})
-  (defui Table
-    static prim/InitialAppState
-    (initial-state [c p] table-1)
-    static prim/IQuery
-    (query [this] [:type :id :rows]))
-
-  (def graph-1 {:type :graph :id 1 :data [1 2 3]})
-  (defui Graph
-    static prim/InitialAppState
-    (initial-state [c p] graph-1)
-    static prim/IQuery
-    (query [this] [:type :id :data]))
-
-  (defui Reports
-    static prim/InitialAppState
-    (initial-state [c p] (prim/get-initial-state Graph nil)) ; initial state will already include Graph
-    static prim/Ident
-    (ident [this props] [(:type props) (:id props)])
-    static prim/IQuery
-    (query [this] {:graph (prim/get-query Graph) :table (prim/get-query Table)}))
-
-  (defui MRRoot
-    static prim/InitialAppState
-    (initial-state [c p] {:reports (prim/get-initial-state Reports nil)})
-    static prim/IQuery
-    (query [this] [{:reports (prim/get-query Reports)}]))
-
-  (specification "merge-alternate-union-elements" :focused
-    (let [initial-state (merge (prim/get-initial-state MRRoot nil) {:a 1})
-          state-map     (prim/tree->db MRRoot initial-state true)
-          new-state     (prim/merge-alternate-union-elements state-map MRRoot)]
+        (get-in @state [:d]) => [:table 3]
+        (get-in @state [:c :path]) => [:table 3]
+        ))
+    (behavior "Can replace an existing to-many element in a vector"
+      (prim/integrate-ident! state [:table 3] :replace [:many :path 1])
       (assertions
-        "can be used to merge alternate union elements to raw state"
-        (get-in new-state [:table 1]) => table-1
-        "(existing state isn't touched)"
-        (get new-state :a) => 1
-        (get new-state :reports) => [:graph 1]
-        (get-in new-state [:graph 1]) => graph-1)))
+        (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
 
-(defsc A [this props] {} (dom/div nil "TODO"))
+(specification "integrate-ident"
+  (let [state {:a    {:path [[:table 2]]}
+               :b    {:path [[:table 2]]}
+               :d    [:table 6]
+               :many {:path [[:table 99] [:table 88] [:table 77]]}}]
+    (assertions
+      "Can append to an existing vector"
+      (-> state
+        (prim/integrate-ident [:table 3] :append [:a :path])
+        (get-in [:a :path]))
+      => [[:table 2] [:table 3]]
+
+      "(is a no-op if the ident is already there)"
+      (-> state
+        (prim/integrate-ident [:table 3] :append [:a :path])
+        (get-in [:a :path]))
+      => [[:table 2] [:table 3]]
+
+      "Can prepend to an existing vector"
+      (-> state
+        (prim/integrate-ident [:table 3] :prepend [:b :path])
+        (get-in [:b :path]))
+      => [[:table 3] [:table 2]]
+
+      "(is a no-op if already there)"
+      (-> state
+        (prim/integrate-ident [:table 3] :prepend [:b :path])
+        (get-in [:b :path]))
+      => [[:table 3] [:table 2]]
+
+      "Can create/replace a to-one ident"
+      (-> state
+        (prim/integrate-ident [:table 3] :replace [:d])
+        (get-in [:d]))
+      => [:table 3]
+      (-> state
+        (prim/integrate-ident [:table 3] :replace [:c :path])
+        (get-in [:c :path]))
+      => [:table 3]
+
+      "Can replace an existing to-many element in a vector"
+      (-> state
+        (prim/integrate-ident [:table 3] :replace [:many :path 1])
+        (get-in [:many :path]))
+      => [[:table 99] [:table 3] [:table 77]])))
+
+(defui ^:once MergeX
+  static prim/InitialAppState
+  (initial-state [this params] {:type :x :n :x})
+  static prim/IQuery
+  (query [this] [:n :type]))
+
+(defui ^:once MergeY
+  static prim/InitialAppState
+  (initial-state [this params] {:type :y :n :y})
+  static prim/IQuery
+  (query [this] [:n :type]))
+
+
+(defui ^:once MergeAChild
+  static prim/InitialAppState
+  (initial-state [this params] {:child :merge-a})
+  static prim/Ident
+  (ident [this props] [:mergea :child])
+  static prim/IQuery
+  (query [this] [:child]))
+
+(defui ^:once MergeA
+  static prim/InitialAppState
+  (initial-state [this params] {:type :a :n :a :child (prim/get-initial-state MergeAChild nil)})
+  static prim/IQuery
+  (query [this] [:type :n {:child (prim/get-query MergeAChild)}]))
+
+(defui ^:once MergeB
+  static prim/InitialAppState
+  (initial-state [this params] {:type :b :n :b})
+  static prim/IQuery
+  (query [this] [:n]))
+
+(defui ^:once MergeUnion
+  static prim/InitialAppState
+  (initial-state [this params] (prim/get-initial-state MergeA {}))
+  static prim/Ident
+  (ident [this props] [:mergea-or-b :at-union])
+  static prim/IQuery
+  (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
+
+(defui ^:once MergeRoot
+  static prim/InitialAppState
+  (initial-state [this params] {:a 1 :b (prim/get-initial-state MergeUnion {})})
+  static prim/IQuery
+  (query [this] [:a {:b (prim/get-query MergeUnion)}]))
+
+;; Nested routing tree
+;; NestedRoot
+;;     |
+;;     U1
+;;    /  B    A = MergeRoot B = MergeB
+;;    R2
+;;   U2       A2
+;;  X  Y
+
+(defui ^:once U2
+  static prim/InitialAppState
+  (initial-state [this params] (prim/get-initial-state MergeX {}))
+  static prim/IQuery
+  (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
+
+(defui ^:once R2
+  static prim/InitialAppState
+  (initial-state [this params] {:id 1 :u2 (prim/get-initial-state U2 {})})
+  static prim/IQuery
+  (query [this] [:id {:u2 (prim/get-query U2)}]))
+
+(defui ^:once U1
+  static prim/InitialAppState
+  (initial-state [this params] (prim/get-initial-state MergeB {}))
+  static prim/IQuery
+  (query [this] {:r2 (prim/get-query R2) :b (prim/get-query MergeB)}))
+
+(defui ^:once NestedRoot
+  static prim/InitialAppState
+  (initial-state [this params] {:u1 (prim/get-initial-state U1 {})})
+  static prim/IQuery
+  (query [this] [{:u1 (prim/get-query U1)}]))
+
+;; Sibling routing tree
+;; SiblingRoot
+;;     |   \
+;;   SU1   SU2
+;;  A   B  X  Y
+
+(defui ^:once SU1
+  static prim/InitialAppState
+  (initial-state [this params] (prim/get-initial-state MergeB {}))
+  static prim/Ident
+  (ident [this props] [(:type props) 1])
+  static prim/IQuery
+  (query [this] {:a (prim/get-query MergeA) :b (prim/get-query MergeB)}))
+
+(defui ^:once SU2
+  static prim/InitialAppState
+  (initial-state [this params] (prim/get-initial-state MergeX {}))
+  static prim/Ident
+  (ident [this props] [(:type props) 2])
+  static prim/IQuery
+  (query [this] {:x (prim/get-query MergeX) :y (prim/get-query MergeY)}))
+
+
+(defui ^:once SiblingRoot
+  static prim/InitialAppState
+  (initial-state [this params] {:su1 (prim/get-initial-state SU1 {}) :su2 (prim/get-initial-state SU2 {})})
+  static prim/IQuery
+  (query [this] [{:su1 (prim/get-query SU1)} {:su2 (prim/get-query SU2)}]))
+
+(specification "merge-alternate-union-elements!"
+  (behavior "For applications with sibling unions"
+    (when-mocking
+      (prim/merge-component! app comp state) =1x=> (do
+                                                     (assertions
+                                                       "Merges level one elements"
+                                                       comp => SU1
+                                                       state => (prim/get-initial-state MergeA {})))
+      (prim/merge-component! app comp state) =1x=> (do
+                                                     (assertions
+                                                       "Merges only the state of branches that are not already initialized"
+                                                       comp => SU2
+                                                       state => (prim/get-initial-state MergeY {})))
+
+      (prim/merge-alternate-union-elements! :app SiblingRoot)))
+
+  (behavior "For applications with nested unions"
+    (when-mocking
+      (prim/merge-component! app comp state) =1x=> (do
+                                                     (assertions
+                                                       "Merges level one elements"
+                                                       comp => U1
+                                                       state => (prim/get-initial-state R2 {})))
+      (prim/merge-component! app comp state) =1x=> (do
+                                                     (assertions
+                                                       "Merges only the state of branches that are not already initialized"
+                                                       comp => U2
+                                                       state => (prim/get-initial-state MergeY {})))
+
+      (prim/merge-alternate-union-elements! :app NestedRoot)))
+  (behavior "For applications with non-nested unions"
+    (when-mocking
+      (prim/merge-component! app comp state) => (do
+                                                  (assertions
+                                                    "Merges only the state of branches that are not already initialized"
+                                                    comp => MergeUnion
+                                                    state => (prim/get-initial-state MergeB {})))
+
+      (prim/merge-alternate-union-elements! :app MergeRoot))))
+
+(defn phone-number [id n] {:id id :number n})
+(defn person [id name numbers] {:id id :name name :numbers numbers})
+
+(defui MPhone
+  static prim/IQuery
+  (query [this] [:id :number])
+  static prim/Ident
+  (ident [this props] [:phone/by-id (:id props)]))
+
+(defui MPerson
+  static prim/IQuery
+  (query [this] [:id :name {:numbers (prim/get-query MPhone)}])
+  static prim/Ident
+  (ident [this props] [:person/by-id (:id props)]))
+
+(specification "merge-component"
+  (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
+        sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
+        phone-3          {:id 3 :number "111-2222"}
+        state-map        {:people       [[:person/by-id :sally]]
+                          :phone/by-id  {3 phone-3}
+                          :person/by-id {:sally sally}}
+        new-state-map    (prim/merge-component state-map MPerson component-tree)
+        expected-person  {:id :tony :name "Tony" :numbers [[:phone/by-id 1] [:phone/by-id 2]]}
+        expected-phone-1 {:id 1 :number "555-1212"}
+        expected-phone-2 {:id 2 :number "123-4555"}]
+    (assertions
+      "merges the top-level component with normalized links to children"
+      (get-in new-state-map [:person/by-id :tony]) => expected-person
+      "merges the normalized children"
+      (get-in new-state-map [:phone/by-id 1]) => expected-phone-1
+      (get-in new-state-map [:phone/by-id 2]) => expected-phone-2
+      "leaves the original state untouched"
+      (contains? new-state-map :people) => true
+      (get-in new-state-map [:person/by-id :sally]) => sally
+      (get-in new-state-map [:phone/by-id 3]) => phone-3)))
+
+(def table-1 {:type :table :id 1 :rows [1 2 3]})
+(defui Table
+  static prim/InitialAppState
+  (initial-state [c p] table-1)
+  static prim/IQuery
+  (query [this] [:type :id :rows]))
+
+(def graph-1 {:type :graph :id 1 :data [1 2 3]})
+(defui Graph
+  static prim/InitialAppState
+  (initial-state [c p] graph-1)
+  static prim/IQuery
+  (query [this] [:type :id :data]))
+
+(defui Reports
+  static prim/InitialAppState
+  (initial-state [c p] (prim/get-initial-state Graph nil))  ; initial state will already include Graph
+  static prim/Ident
+  (ident [this props] [(:type props) (:id props)])
+  static prim/IQuery
+  (query [this] {:graph (prim/get-query Graph) :table (prim/get-query Table)}))
+
+(defui MRRoot
+  static prim/InitialAppState
+  (initial-state [c p] {:reports (prim/get-initial-state Reports nil)})
+  static prim/IQuery
+  (query [this] [{:reports (prim/get-query Reports)}]))
+
+(specification "merge-alternate-union-elements" :focused
+  (let [initial-state (merge (prim/get-initial-state MRRoot nil) {:a 1})
+        state-map     (prim/tree->db MRRoot initial-state true)
+        new-state     (prim/merge-alternate-union-elements state-map MRRoot)]
+    (assertions
+      "can be used to merge alternate union elements to raw state"
+      (get-in new-state [:table 1]) => table-1
+      "(existing state isn't touched)"
+      (get new-state :a) => 1
+      (get new-state :reports) => [:graph 1]
+      (get-in new-state [:graph 1]) => graph-1)))
+
+(defsc A [this props] (dom/div nil "TODO"))
 (defsc AQuery [this props] {:query [:x]} (dom/div nil "TODO"))
 (defsc AState [this props] {:initial-state (fn [params] {})} (dom/div nil "TODO"))
 (defsc AIdent [this props] {:ident (fn [] [:x 1])} (dom/div nil "TODO"))

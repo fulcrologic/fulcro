@@ -3,7 +3,7 @@
     #?@(:cljs [[devcards.core :as dc :include-macros true]
                [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client.mutations :as m]
-    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.server :as server]
     [fulcro.client.data-fetch :as df]
@@ -85,60 +85,39 @@
     (when (not (page-exists? @state page-number))
       (df/remote-load env))))
 
-(defui ^:once ListItem
-  static prim/IQuery
-  (query [this] [:item/id :ui/fetch-state])
-  static prim/Ident
-  (ident [this props] [:items/by-id (:item/id props)])
-  Object
-  (render [this]
-    (dom/li nil (str "Item " (-> this prim/props :item/id)))))
+(defsc ListItem [this {:keys [item/id]}]
+  {:query [:item/id :ui/fetch-state]
+   :ident [:items/by-id :item/id]}
+  (dom/li nil (str "Item " id)))
 
 (def ui-list-item (prim/factory ListItem {:keyfn :item/id}))
 
-(defui ^:once ListPage
-  static prim/InitialAppState
-  (initial-state [c p] {:page/number 1 :page/items []})
-  static prim/IQuery
-  (query [this] [:page/number {:page/items (prim/get-query ListItem)}])
-  static prim/Ident
-  (ident [this props] [:page/by-number (:page/number props)])
-  Object
-  (render [this]
-    (let [{:keys [page/number page/items]} (prim/props this)]
-      (dom/div nil
-        (dom/p nil "Page number " number)
-        (df/lazily-loaded #(dom/ul nil (mapv ui-list-item %)) items)))))
+(defsc ListPage [this {:keys [page/number page/items]}]
+  {:initial-state {:page/number 1 :page/items []}
+   :query         [:page/number {:page/items (prim/get-query ListItem)}]
+   :ident         [:page/by-number :page/number]}
+  (dom/div nil
+    (dom/p nil "Page number " number)
+    (df/lazily-loaded #(dom/ul nil (mapv ui-list-item %)) items)))
 
 (def ui-list-page (prim/factory ListPage {:keyfn :page/number}))
 
-(defui ^:once LargeList
-  static prim/InitialAppState
-  (initial-state [c params] {:list/current-page (prim/get-initial-state ListPage {})})
-  static prim/IQuery
-  (query [this] [{:list/current-page (prim/get-query ListPage)}])
-  static prim/Ident
-  (ident [this props] [:list/by-id 1])
-  Object
-  (render [this]
-    (let [{:keys [list/current-page]} (prim/props this)
-          {:keys [page/number]} current-page]
-      (dom/div nil
-        (dom/button #js {:disabled (= 1 number) :onClick #(prim/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
-        (dom/button #js {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])} "Next Page")
-        (ui-list-page current-page)))))
+(defsc LargeList [this {:keys [list/current-page]}]
+  {:initial-state (fn [params] {:list/current-page (prim/get-initial-state ListPage {})})
+   :query         [{:list/current-page (prim/get-query ListPage)}]
+   :ident         (fn [] [:list/by-id 1])}
+  (let [{:keys [page/number]} current-page]
+    (dom/div nil
+      (dom/button #js {:disabled (= 1 number) :onClick #(prim/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
+      (dom/button #js {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])} "Next Page")
+      (ui-list-page current-page))))
 
 (def ui-list (prim/factory LargeList))
 
-(defui ^:once Root
-  static prim/InitialAppState
-  (initial-state [c params] {:pagination/list (prim/get-initial-state LargeList {})})
-  static prim/IQuery
-  (query [this] [:ui/react-key {:pagination/list (prim/get-query LargeList)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key pagination/list] :or {ui/react-key "ROOT"}} (prim/props this)]
-      (dom/div #js {:key react-key} (ui-list list)))))
+(defsc Root [this {:keys [ui/react-key pagination/list] :or {ui/react-key "ROOT"}}]
+  {:initial-state (fn [params] {:pagination/list (prim/get-initial-state LargeList {})})
+   :query         [:ui/react-key {:pagination/list (prim/get-query LargeList)}]}
+  (dom/div #js {:key react-key} (ui-list list)))
 
 
 #?(:cljs

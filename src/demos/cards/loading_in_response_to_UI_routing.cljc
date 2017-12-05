@@ -5,9 +5,9 @@
     [fulcro.client.routing :as r]
     [cards.card-utils :refer [sleep]]
     [fulcro.client.mutations :as m]
-    [fulcro.client :as fc ]
+    [fulcro.client :as fc]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
+    [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client :as fc]
@@ -29,46 +29,31 @@
 ;; CLIENT:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defui ^:once SomeSetting
-  static prim/IQuery
-  (query [this] [:ui/fetch-state :id :value])
-  static prim/Ident
-  (ident [this props] [:setting/by-id (:id props)])
-  Object
-  (render [this]
-    (let [{:keys [id value]} (prim/props this)]
-      (dom/p nil "Setting " id " from server has value: " value))))
+(defsc SomeSetting [this {:keys [id value]}]
+  {:query [:ui/fetch-state :id :value]
+   :ident [:setting/by-id :id]}
+  (dom/p nil "Setting " id " from server has value: " value))
 
 (def ui-setting (prim/factory SomeSetting {:keyfn :id}))
 
-(defui ^:once SettingsTab
-  static InitialAppState
-  (initial-state [clz params] {:kind             :settings
-                               :settings-content "Settings Tab"
-                               :settings         []})
-  static prim/IQuery
-  ; This query uses a "link"...a special ident with '_ as the ID. This indicates the item is at the database
-  ; root, not inside of the "settings" database object. This is not needed as a matter of course...it is only used
-  ; for convenience (since it is trivial to load something into the root of the database)
-  (query [this] [:kind :settings-content {:settings (prim/get-query SomeSetting)}])
-  Object
-  (render [this]
-    (let [{:keys [settings-content settings]} (prim/props this)]
-      (dom/div nil
-        settings-content
-        (df/lazily-loaded (fn [] (map ui-setting settings)) settings)))))
+(defsc SettingsTab [this {:keys [settings-content settings]}]
+  {:initial-state {:kind             :settings
+                   :settings-content "Settings Tab"
+                   :settings         []}
+   ; This query uses a "link"...a special ident with '_ as the ID. This indicates the item is at the database
+   ; root, not inside of the "settings" database object. This is not needed as a matter of course...it is only used
+   ; for convenience (since it is trivial to load something into the root of the database)
+   :query         [:kind :settings-content {:settings (prim/get-query SomeSetting)}]}
+  (dom/div nil
+    settings-content
+    (df/lazily-loaded (fn [] (map ui-setting settings)) settings)))
 
 (def ui-settings-tab (prim/factory SettingsTab))
 
-(defui ^:once MainTab
-  static InitialAppState
-  (initial-state [clz params] {:kind :main :main-content "Main Tab"})
-  static prim/IQuery
-  (query [this] [:kind :main-content])
-  Object
-  (render [this]
-    (let [{:keys [main-content]} (prim/props this)]
-      (dom/div nil main-content))))
+(defsc MainTab [this {:keys [main-content]}]
+  {:initial-state {:kind :main :main-content "Main Tab"}
+   :query         [:kind :main-content]}
+  (dom/div nil main-content))
 
 (def ui-main-tab (prim/factory MainTab))
 
@@ -108,24 +93,19 @@
   (remote [{:keys [state] :as env}]
     (df/remote-load env)))
 
-(defui ^:once Root
+(defsc Root [this {:keys [ui/react-key current-tab] :as props}]
   ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the
   ; app state graph database.
-  static InitialAppState
-  (initial-state [clz params] {:ui/react-key "initial" :current-tab (initial-state UITabs nil)})
-  static prim/IQuery
-  (query [this] [:ui/react-key {:current-tab (prim/get-query UITabs)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key current-tab] :as props} (prim/props this)]
-      (dom/div #js {:key react-key}
-        ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
-        ; ensure proper re-render of the tab body). See prim/computed for passing callbacks.
-        (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
-        (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
-                                                          ; extra mutation: sample of what you would do to lazy load the tab content
-                                                          (lazy-load-tab {:tab :settings})])} "Settings")
-        (ui-tabs current-tab)))))
+  {:initial-state (fn [params] {:ui/react-key "initial" :current-tab (prim/get-initial-state UITabs nil)})
+   :query         [:ui/react-key {:current-tab (prim/get-query UITabs)}]}
+  (dom/div #js {:key react-key}
+    ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
+    ; ensure proper re-render of the tab body). See prim/computed for passing callbacks.
+    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
+    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
+                                                      ; extra mutation: sample of what you would do to lazy load the tab content
+                                                      (lazy-load-tab {:tab :settings})])} "Settings")
+    (ui-tabs current-tab)))
 
 
 #?(:cljs

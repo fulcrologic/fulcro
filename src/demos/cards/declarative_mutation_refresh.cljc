@@ -1,6 +1,6 @@
 (ns cards.declarative-mutation-refresh
   (:require [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defui defsc]]
+            [fulcro.client.primitives :as prim :refer [defsc]]
             [cards.card-utils :refer [sleep]]
             [fulcro.client.dom :as dom]
             [fulcro.client.mutations :as m :refer [defmutation]]
@@ -36,7 +36,7 @@
 
 #?(:clj (def clj->js identity))
 
-(defsc Left [this {:keys [db/id left/value]} _ _]
+(defsc Left [this {:keys [db/id left/value]}]
   {:query         [:db/id :left/value]
    :initial-state {:db/id 5 :left/value 42}
    :ident         [:left/by-id :db/id]}
@@ -46,7 +46,7 @@
 
 (def ui-left (prim/factory Left {:keyfn :db/id}))
 
-(defsc Right [this {:keys [db/id right/value]} _ _]
+(defsc Right [this {:keys [db/id right/value]}]
   {:query         [:db/id :right/value]
    :initial-state {:db/id 1 :right/value 99}
    :ident         [:right/by-id :db/id]}
@@ -56,7 +56,7 @@
 
 (def ui-right (prim/factory Right {:keyfn :db/id}))
 
-(defsc Root [this {:keys [ui/react-key left right]} _ _]
+(defsc Root [this {:keys [ui/react-key left right]}]
   {:query         [{:left (prim/get-query Left)}
                    :ui/react-key
                    {:right (prim/get-query Right)}]

@@ -63,7 +63,7 @@ Method form (this and props taken from main args lists):
 ```
 (defsc Person
   "Docstring"
-  [this {:keys [person/id person/name] :as props} {:keys [onSelect] :as computed-props} children]
+  [this {:keys [person/id person/name] :as props} {:keys [onSelect] :as computed-props} <optional-css-destructuring>]
   { :query (fn [] [:person/id :person/name {:person/job (prim/get-query Job)}])
     :ident (fn [] [:PERSON/by-id id] ; id comes from destructured props
     :css (fn []) ; garden css
@@ -86,7 +86,6 @@ common rules (if you destructure something from props that isn't in the query):
   [this {:keys [person/name] :as props} {:keys [onSelect] :as computed-props} children]
   { :query [:person/id :person/name {:person/job (prim/get-query Job)}]
     :ident [:PERSON/by-id :person/id] ; it pulls the second one from props itself
-    :form-fields [(f/id-field :person/id) ...] ; See forms support
     :css [] ; garden css
     :css-include [] ;see fulcro-css
     :protocols [Object  ; arbitrary additional protocols
