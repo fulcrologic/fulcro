@@ -2,6 +2,7 @@
   (:require-macros [cljs.test :refer [is]])
   (:require [fulcro.client.primitives :as prim]
             [fulcro.client.dom :as dom]
+            [fulcro.client.mutations :as m :refer [defmutation]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client :as fc]))
 
@@ -441,7 +442,17 @@
   enables the IDE to see the mutation as a jump target. To enable this, click on any `defmutation` (the macro name itself) and wait
   for a light-bulb to appear, then click on it and select \"Resolve defmutation as defn\" and the IDE will start treating your
   mutations as if they were real functions (even though they are just add-ins to a multimethod).
+")
 
+(defmutation sample-1 [params]
+  (action [{:keys [state]}]
+    (swap! state assoc :n 1)))
+
+(defmutation ^:intern sample-2 [params]
+  (action [{:keys [state]}]
+    (swap! state assoc :n 1)))
+
+(defcard-doc "
   ## Interning the Mutation
 
   You can also ask the macro to *actually* intern a symbol into the namespace:
@@ -464,7 +475,7 @@
 
   ```
   (reset! test-state-atom {:n 2})
-  (boo {:state test-state-atom} {:id 1})
+  (api/boo {:state test-state-atom} {:id 1})
 
   (is (= 3 (test-state-atom deref :n)))
   ```
@@ -473,17 +484,37 @@
 
   ```
   (reset! test-state-atom {:n 2})
-  (fulcro.client.mutations/mutate {:state test-state-atom} `boo {:id 1})
+  (fulcro.client.mutations/mutate {:state test-state-atom} `api/boo {:id 1})
 
   (is (= 3 (test-state-atom deref :n)))
   ```
 
   The other benefit of this is that the source of the `defmutation` has a real var, which in turn has real metadata. This
   means that tools like devcards can find the source of them for pretty-printing in documentation, and is why you
-  see a lot of our mutations using the notation in the Guide!
+  see a lot of our mutations using the notation in this Guide!
+
+  For example: You can embed source in devcards using `devcards.core/mkdn-pprint-source`. This function uses the metadata on symbols
+  to find, read, and output the source code directly from the source file into the browser page:
+
+  ```
+  (dc/mkdn-pprint-source sample-1)
+  (dc/mkdn-pprint-source sample-2)
+  ```
+
+  The output looks like the following:
+
+  "
+  (dc/mkdn-pprint-source sample-1)
+  (dc/mkdn-pprint-source sample-2)
+  "
+
+  As you might have guessed: `sample-1` is not marked for `^:intern`. The second one is. If you write documentation like
+  this developer's guide, this is particularly useful for keeping your documentation correct by basing it on real running
+  code.
 
   The intern support also allows you to give the generated function an alternate name. This is rarely needed, but is again
-  convenient when you want to put your client and server mutations into the same file, want to find them for extraction
-  by tools, but cannot use the same name for both. This is again mainly a devcards documentation kind of concern.
+  convenient when you want to put your client and server mutations into the same (`cljc`) file, but want to find them for extraction
+  by tools like this. In that case you will need to name the mutations the same for client and server, but they cannot use the same
+  names for the real definitions in the namespace! This is again mainly a devcards documentation kind of concern.
   ")
 
