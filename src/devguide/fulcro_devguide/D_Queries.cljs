@@ -1,7 +1,7 @@
 (ns fulcro-devguide.D-Queries
   (:require-macros
     [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim]
             [fulcro.client.impl.parser :as p]
             [fulcro-devguide.queries.query-editing :as qe]
             [fulcro.client.dom :as dom]
@@ -292,10 +292,10 @@
   qe/query-editor
   {:query        "[{:main-menu [:title {[:chart _] [:name]}]}]"
    :query-result {}
-   :db           {:main-menu { :title "My Title" }
+   :db           {:main-menu  {:title "My Title"}
                   :chart      {:name "Combined Graph" :data [:statistics :performance]}
                   :statistics {:performance {
-                                             :cpu-usage        [45 15 32 11 66 44]
+                                             :cpu-usage [45 15 32 11 66 44]
                                              }}}
    :id           "query-example-links"}
   {:inspect-data false})

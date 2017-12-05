@@ -32,93 +32,93 @@
         x))
     m))
 
-(specification "Add basis time" :focused
-  (assertions
-    "Add time information recursively"
-    (-> (prim/add-basis-time {:hello {:world {:data 2}
-                                      :foo   :bar
-                                      :multi [{:x 1} {:x 2}]}} 10)
-      (read-times))
-    => {:hello {:world {::time 10}
-                :multi [{::time 10} {::time 10}]
-                ::time 10}
-        ::time 10}
+#_(specification "Add basis time" :focused
+    (assertions
+      "Add time information recursively"
+      (-> (prim/add-basis-time {:hello {:world {:data 2}
+                                        :foo   :bar
+                                        :multi [{:x 1} {:x 2}]}} 10)
+        (read-times))
+      => {:hello {:world {::time 10}
+                  :multi [{::time 10} {::time 10}]
+                  ::time 10}
+          ::time 10}
 
-    "Limit the reach when query is provided"
-    (-> (prim/add-basis-time [{:hello [{:world [:item]}
-                                       {:multi [:x]}]}]
-          {:hello {:world {:data 2
-                           :item [{:nested {:deep "bar"}}]}
-                   :so    {:long {:and "more"}}
-                   :foo   :bar
-                   :multi [{:x 1} {:x 2}]}} 10)
-      (read-times))
-    => {:hello {:world {:item  [{::time 10}]
-                        ::time 10}
-                :multi [{::time 10} {::time 10}]
-                ::time 10}
-        ::time 10}
+      "Limit the reach when query is provided"
+      (-> (prim/add-basis-time [{:hello [{:world [:item]}
+                                         {:multi [:x]}]}]
+            {:hello {:world {:data 2
+                             :item [{:nested {:deep "bar"}}]}
+                     :so    {:long {:and "more"}}
+                     :foo   :bar
+                     :multi [{:x 1} {:x 2}]}} 10)
+        (read-times))
+      => {:hello {:world {:item  [{::time 10}]
+                          ::time 10}
+                  :multi [{::time 10} {::time 10}]
+                  ::time 10}
+          ::time 10}
 
-    "Out of query data is kept entirely"
-    (prim/add-basis-time [{:hello [{:world [:item]}
-                                   {:multi [:x]}]}]
-      {:hello {:world {:data 2
-                       :item [{:nested {:deep "bar"}}]}
-               :so    {:long {:and "more"}}
-               :foo   :bar
-               :multi [{:x 1} {:x 2}]}} 10)
-    => {:hello {:world {:data 2
-                        :item [{:nested {:deep "bar"}}]}
-                :so    {:long {:and "more"}}
-                :foo   :bar
-                :multi [{:x 1} {:x 2}]}}
+      "Out of query data is kept entirely"
+      (prim/add-basis-time [{:hello [{:world [:item]}
+                                     {:multi [:x]}]}]
+        {:hello {:world {:data 2
+                         :item [{:nested {:deep "bar"}}]}
+                 :so    {:long {:and "more"}}
+                 :foo   :bar
+                 :multi [{:x 1} {:x 2}]}} 10)
+      => {:hello {:world {:data 2
+                          :item [{:nested {:deep "bar"}}]}
+                  :so    {:long {:and "more"}}
+                  :foo   :bar
+                  :multi [{:x 1} {:x 2}]}}
 
-    "Handle unions"
-    (-> (prim/add-basis-time [{:hello [{:union {:ua [:x]
-                                                :ub [:y]}}]}]
-          {:hello {:union {:x    {:content "bar"}
-                           :type :ua}}} 10)
-      (read-times))
-    => {:hello {:union {:x     {::time 10}
-                        ::time 10}
-                ::time 10}
-        ::time 10}
+      "Handle unions"
+      (-> (prim/add-basis-time [{:hello [{:union {:ua [:x]
+                                                  :ub [:y]}}]}]
+            {:hello {:union {:x    {:content "bar"}
+                             :type :ua}}} 10)
+        (read-times))
+      => {:hello {:union {:x     {::time 10}
+                          ::time 10}
+                  ::time 10}
+          ::time 10}
 
-    "Handle recursive queries"
-    (-> (prim/add-basis-time [{:hello [{:parent '...}
-                                       :name]}]
-          {:hello {:name   "bla"
-                   :parent {:name   "meh"
-                            :parent {:name "other"}}}} 10)
-      (read-times))
-    => {:hello {:parent {:parent {::time 10}
-                         ::time  10}
-                ::time  10}
-        ::time 10}
+      "Handle recursive queries"
+      (-> (prim/add-basis-time [{:hello [{:parent '...}
+                                         :name]}]
+            {:hello {:name   "bla"
+                     :parent {:name   "meh"
+                              :parent {:name "other"}}}} 10)
+        (read-times))
+      => {:hello {:parent {:parent {::time 10}
+                           ::time  10}
+                  ::time  10}
+          ::time 10}
 
-    "Handle recursive queries with limit"
-    (-> (prim/add-basis-time [{:hello [{:parent 1}
-                                       :name]}]
-          {:hello {:name   "bla"
-                   :parent {:name   "meh"
-                            :parent {:name   "other"
-                                     :parent {:name "one more"}}}}} 10)
-      (read-times))
-    => {:hello {:parent {:parent {::time 10}
-                         ::time  10}
-                ::time  10}
-        ::time 10}
+      "Handle recursive queries with limit"
+      (-> (prim/add-basis-time [{:hello [{:parent 1}
+                                         :name]}]
+            {:hello {:name   "bla"
+                     :parent {:name   "meh"
+                              :parent {:name   "other"
+                                       :parent {:name "one more"}}}}} 10)
+        (read-times))
+      => {:hello {:parent {:parent {::time 10}
+                           ::time  10}
+                  ::time  10}
+          ::time 10}
 
-    "Meta data is preserved"
-    (-> (prim/add-basis-time [{:hello [{:world [:item]}
-                                       {:multi [:x]}]}]
-          ^::info {:hello {:world {:data 2
-                                   :item [{:nested {:deep "bar"}}]}
-                           :so    {:long {:and "more"}}
-                           :foo   :bar
-                           :multi [{:x 1} {:x 2}]}} 10)
-      (meta))
-    => {::prim/time 10 ::info true}))
+      "Meta data is preserved"
+      (-> (prim/add-basis-time [{:hello [{:world [:item]}
+                                         {:multi [:x]}]}]
+            ^::info {:hello {:world {:data 2
+                                     :item [{:nested {:deep "bar"}}]}
+                             :so    {:long {:and "more"}}
+                             :foo   :bar
+                             :multi [{:x 1} {:x 2}]}} 10)
+        (meta))
+      => {::prim/time 10 ::info true}))
 
 (defui A)
 
@@ -1043,6 +1043,35 @@
                        {:keys [~'onSelect]} (fulcro.client.primitives/get-computed ~'this)
                        ~'{:keys [my-class]} (fulcro-css.css/get-classnames ~'Boo)]
                    (~'dom/div nil "Hello"))))))
+     (component "make-lifecycle"
+       (assertions
+         "Can convert :initLocalState"
+         (#'prim/make-lifecycle 'this {:initLocalState '(fn [] {:x 1})})
+         => ['(initLocalState [this] {:x 1})]
+         "Can convert :shouldComponentUpdate"
+         (#'prim/make-lifecycle 'this {:shouldComponentUpdate '(fn [next-props next-state] false)})
+         => ['(shouldComponentUpdate [this next-props next-state] false)]
+         "Can convert :componentWillReceiveProps"
+         (#'prim/make-lifecycle 'this {:componentWillReceiveProps '(fn [next-props] false)})
+         => ['(componentWillReceiveProps [this next-props] false)]
+         "Can convert :componentWillUpdate"
+         (#'prim/make-lifecycle 'this {:componentWillUpdate '(fn [next-props next-state] false)})
+         => ['(componentWillUpdate [this next-props next-state] false)]
+         "Can convert :componentDidUpdate"
+         (#'prim/make-lifecycle 'this {:componentDidUpdate '(fn [pprops pstate] false)})
+         => ['(componentDidUpdate [this pprops pstate] false)]
+         "Can convert :componentWillMount"
+         (#'prim/make-lifecycle 'this {:componentWillMount '(fn [] false)})
+         => ['(componentWillMount [this] false)]
+         "Can convert :componentWillUnmount"
+         (#'prim/make-lifecycle 'this {:componentWillUnmount '(fn [] false)})
+         => ['(componentWillUnmount [this] false)]
+         "Can convert :componentDidMount"
+         (#'prim/make-lifecycle 'this {:componentDidMount '(fn [] false)})
+         => ['(componentDidMount [this] false)]
+         "Ignores non-lifecycle methods"
+         (#'prim/make-lifecycle 'this {:goobers '(fn [] false)})
+         => []))
      (component "make-state-map"
        (assertions
          "Can initialize plain state from scalar values"

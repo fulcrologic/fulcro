@@ -151,7 +151,7 @@
                 ele)) props))
   ([q props time]
    (add-basis-time props time)
-   #_(add-basis-time* (query->ast q) props time)))
+    #_(add-basis-time* (query->ast q) props time)))
 
 (defn get-basis-time
   "Returns the basis time from the given props, or ::unset if not available."
@@ -2927,6 +2927,21 @@
                   ~@css-bindings]
               ~@body))))))
 
+#?(:clj
+   (defn- make-lifecycle [thissym options]
+     (let [possible-methods  (-> options keys set)
+           lifecycle-kws     (->> lifecycle-sigs keys (map (comp keyword name)) set)
+           methods-to-define (set/intersection lifecycle-kws possible-methods)
+           get-signature     (fn [sym] (drop 1 (get lifecycle-sigs sym)))]
+       (mapv (fn [method-kw]
+               (let [sym       (symbol (name method-kw))
+                     lambda    (get options method-kw)
+                     signature (get-signature sym)
+                     arity     (count signature)
+                     method    (replace-and-validate-fn sym [thissym] arity lambda)]
+                 method))
+         methods-to-define))))
+
 (defn make-state-map
   "Build a component's initial state using the defsc initial-state-data from
   options, the children from options, and the params from the invocation of get-initial-state."
@@ -3113,29 +3128,50 @@
           ~@object-methods))))
 
 #?(:clj
-   (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI component with a query,
-   optional ident (if :ident is specified in options), optional initial state, optional css,
-   optional forms, and a render method. It can also emit additional protocols  that you specify. Destructuring is
-   supported in the argument list, and made available in the body and lambda versions of the options.
+   (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI class with a query,
+   optional ident (if :ident is specified in options), optional initial state, optional css, lifecycle methods,
+   and a render method. It can also cause the class to implement additional protocols that you specify. Destructuring is
+   supported in the argument list.
+
+   The template (data-only) versions do not have any arguments in scope
+   The lambda versions have arguments in scope that make sense for those lambdas, as listed below:
 
    ```
    (defsc Component [this {:keys [db/id x] :as props} {:keys [onSelect] :as computed}]
-     {:query [:db/id :x] ; OR (fn [] [:db/id :x])
-      :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id])
-      :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)})
-      :protocols [Object
-                  (shouldComponentUpdate ...)]}
+     {
+      ;; stateful component options
+      ;; query template is literal. Use the lambda if you have ident-joins or unions.
+      :query [:db/id :x] ; OR (fn [] [:db/id :x]) ; this in scope
+      ;; ident template is table name and ID property name
+      :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id]) ; this and props in scope
+      ;; initial-state template is magic..see dev guide. Lambda version is normal.
+      :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; this in scope
+
+      ; React Lifecycle Methods (this in scope)
+      :initLocalState            (fn [] ...)
+      :shouldComponentUpdate     (fn [next-props next-state] ...)
+      :componentWillReceiveProps (fn [next-props] ...)
+      :componentWillUpdate       (fn [next-props next-state] ...)
+      :componentDidUpdate        (fn [prev-props prev-state] ...)
+      :componentWillMount        (fn [] ...)
+      :componentDidMount         (fn [] ...)
+      :componentWillUnmount      (fn [] ...)
+
+      ; Custom literal protocols (Object ok, too, to add arbitrary methods. Nothing automatically in scope.)
+      :protocols [YourProtocol
+                  (method [this] ...)]} ; nothing is automatically in scope
       (dom/div #js {:onClick onSelect} x))
    ```
 
-   To use with Fulcro CSS, be sure to require `fulcro-css.css`, and modify the argument list (only when used) to:
+   To use with Fulcro CSS, be sure to require `fulcro-css.css`, and add an the argument (only when used):
 
    ```
    (ns ui
      (require fulcro-css.css))
 
-   (defsc Component [this props computed {:keys [my-classname]}]
+   (defsc Component [this props computed {:keys [my-classname] :as classnames}]
      {:css [[:.my-classname]] ; OR (fn [] [[:my-classname]])
+      :css-include [] ; list of children from which CSS should also be pulled
       ... }
       (dom/div #js {:className my-classname} ...))
    ```
@@ -3143,8 +3179,6 @@
    Only the first two arguments are required (this and props).
 
    See section M05-More-Concise-UI of the Developer's Guide for more details.
-
-   NOTE: `defsc` automatically declares your component with `:once` metadata for correct operation with hot code reload.
    "
                :arglists '([this dbprops computedprops]
                             [this dbprops computedprops local-css-classes])}
@@ -3358,4 +3392,5 @@
         _              (merge-alternate-unions merge-to-state root-component)
         new-state      @state-map-atom]
     new-state))
+
 

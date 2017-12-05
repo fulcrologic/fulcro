@@ -1,6 +1,6 @@
 (ns fulcro-devguide.queries.query-demo
   (:require
-    [fulcro.client.primitives :as prim :refer [defsc defui]]
+    [fulcro.client.primitives :as prim :refer [defsc]]
     [cljs.pprint :refer [pprint]]
     [fulcro.client.dom :as dom]))
 
@@ -29,27 +29,26 @@
                              :things       [{:id 1 :name "Boo"} {:id 2 :name "Bah"}]}}})
 
 ; defui is about the same as defsc for defining stand-alone queries
-(defui Thing
-  static prim/IQuery
-  (query [this] [:ui/checked :id :name])
-  static prim/Ident
-  (ident [this props] [:things/by-id (:id props)]))
+(defsc Thing [this props]
+  {:query [:ui/checked :id :name]
+   :ident [:things/by-id :id]}
+  nil)
 
-(defui Things
-  static prim/IQuery
-  (query [this] [:display-mode {:things (prim/get-query Thing)}])
-  static prim/Ident
-  (ident [this props] [:widget :thing-list]))
+(defsc Things [this props]
+  {:query [:display-mode {:things (prim/get-query Thing)}]
+   ; ident needs to be constant...so we use lambda form
+   :ident (fn [] [:widget :thing-list])}
+  nil)
 
-(defui Dashboard
-  static prim/IQuery
-  (query [this] [:sidebar-open {:thing-widget (prim/get-query Things)}])
-  static prim/Ident
-  (ident [this props] [:widget :dashboard]))
+(defsc Dashboard [this props]
+  {:query [:sidebar-open {:thing-widget (prim/get-query Things)}]
+   ; ident needs to be constant...so we use lambda form
+   :ident (fn [] [:widget :dashboard])}
+  nil)
 
-(defui DRoot
-  static prim/IQuery
-  (query [this] [{:dashboard (prim/get-query Dashboard)}]))
+(defsc DRoot [this props]
+  {:query [{:dashboard (prim/get-query Dashboard)}]}
+  nil)
 
 (comment
   ; NOTE: Good example of converting an entire app state database tree into norm form

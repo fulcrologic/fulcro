@@ -524,20 +524,43 @@
   (dc/mkdn-pprint-source CounterSum)
   "
   The query is interesting. Queries are vectors of things you want. When one of those things is a two-element vector
-  it knows you want an entry in a table (e.g. [:counter/by-id 3]). If you use the special symbol `'_`, then you're asking
-  for an entire top-level entry (in this case a whole table).
+  it knows you want an entry in a table (e.g. [:counter/by-id 3]). If you use the special symbol `'_` for the ID part
+  then you're asking for an entire top-level entry (in this case a whole table).
 
   Thus we can easily use that to calculate our desired UI.
 
-  However, it turns out that we have a problem: Nothing in Fulcro will trigger this component to refresh
+  ### UI Refresh
+
+  It turns out that we have a problem: Nothing in Fulcro will trigger the `CounterSum` component to refresh
   when an individual counter changes! The mutations are abstract, and even though you can imagine that the UI refresh is
   a pure function that recreates the DOM, it is in fact optimized to only refresh the bits that are known to have changed. Since the
   data that changed wasn't a counter, we (accidentally) short-circuit the sum for efficiency.
 
+  But this is where we can again leverage the data-driven model. From a local-reasoning standpoint, it would make little
+  sense if you had to say which components on the UI had to refresh. What you'd rather have is something data-centric:
+  \"please refresh anything that is using X\".
+
   This is the point of the earlier mysterious `:counter/by-id` in the `transact!`. Any keyword (or ident) that appears in a transaction
-  will cause a re-render of any component that *queried* for that data (in our case this is the CounterSum itself). These
-  are called 'follow-on reads', to imply that 'anything that reads the given property should be asked to re-read it
-  (and implicitly, this means it will re-render if the value has changed)'.
+  will cause a re-render of any component that *queried* for that data (in our case `CounterSum`). These
+  are called 'follow-on reads', to imply that 'anything on the screen that queries for the given property should be
+  asked to re-read it (and implicitly, this means it will re-render if the value has changed)'.
+
+  The explicit rules of refresh are:
+
+  - Re-render the subtree that runs a transaction (short circuiting any render where data has not changed)
+  - Re-render any components that queried for data that was mentioned in follow-on reads
+  - Re-render any components that queried for data that is known to have changed in a mutation (declarative refresh)
+
+  You've seen the first two. The latter one lets you declare the list of things that have changed on the mutation itself.
+  Follow-on reads work in all cases, even when there is some derived data that was contrived into the UI (by reading
+  a table, for example). The declarative refresh is useful in ensuring UI refresh is mostly automatic. It looks like
+  this:
+
+  ```
+  (defmutation do-something [{:keys [id]}] ; id is in scope for all sections
+    (action [env] ...local action...) ; as before
+    (refresh [env] [:some-prop [:table/by-id id])) ; refresh any UI component that queries for :some-prop or has the given identity
+  ```
 
   You can, of course, play with the source code of this example in the devcards.
 

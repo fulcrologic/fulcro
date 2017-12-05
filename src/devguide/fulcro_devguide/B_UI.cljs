@@ -1,32 +1,24 @@
 (ns fulcro-devguide.B-UI
   (:require-macros
     [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             cljsjs.d3
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
-(defui Widget
-  Object
-  (render [this]
-    (dom/div nil "Hello world")))
+(defsc Widget [this props]
+  (dom/div nil "Hello world"))
 
-(defui WidgetWithHook
-  Object
-  (componentWillUpdate [this nextprops nextstate] (println "Component will update"))
-  (render [this]
-    (dom/div nil "Hello world")))
+(defsc WidgetWithHook [this props]
+  {:componentWillUpdate (fn [nextprops nextstate] (println "Component will update"))}
+  (dom/div nil "Hello world"))
 
-(def widget (prim/factory Widget))
+(def ui-widget (prim/factory Widget))
 
-(defui WidgetWithProperties
-  Object
-  (render [this]
-    (let [{:keys [name]} (prim/props this)]
-      (dom/div nil (str "Hello " name)))))
+(defsc WidgetWithProperties [this {:keys [name]}]
+  (dom/div nil (str "Hello " name)))
 
-(def prop-widget (prim/factory WidgetWithProperties))
-
+(def ui-prop-widget (prim/factory WidgetWithProperties))
 
 (defcard-doc
   "
@@ -35,33 +27,25 @@
   NOTE - Namespace aliases used in this document:
 
 ```clojure
-(require '[fulcro.client.primitives :as prim :refer-macros [defui]]
+(require '[fulcro.client.primitives :as prim :refer [defsc]]
          '[fulcro.client.dom :as dom])
 ```
 
   Fulcro uses <a href=\"https://facebook.github.io/react/index.html\" target=\"_blank\">React</a> underneath.
-  The primary mechanism for creating components is the `defui` macro:"
+  The primary mechanism for creating components is the `defsc` macro:"
   (dc/mkdn-pprint-source Widget)
   "This macro generates a React class as a plain JavaScript class, so it is completely compatible with the
   React ecosystem.
 
-  Notice the use of `Object`. It indicates that the following method bodies (like in <a
-  href=\"http://clojure.org/reference/protocols\" target=\"_blank\">protocols</a>) are being added to the
-  generated class. From an OO perspective, this is like saying \"my widget extends Object\". The `render`
-  method is the only method you need, but you can also add in your own methods or React lifecycle
-  methods.
-
-  NOTE - When implementing the render function, the last top level element will be returned.
+  NOTE - When implementing the body the last top level element will be returned.
 
   ```clojure
-  (render [this]
+  (defsc Widget [this props]
     (dom/div ...)  ;; <- This will not be returned.
     (dom/div ...)) ;; <- This will.
   ```
 
-  So make sure that you only have one top level element per component
-
-  The render method should be a pure function whenever possible (avoiding component
+  The render body should be a pure function whenever possible (avoiding component
   local state). Pure rendering is one of the secrets to simplicity.
   Making your rendering pure means that if you ever feel the need to write
   tests around how the UI works (say, for acceptance testing) then you can do so very easily. The lack
@@ -71,12 +55,13 @@
   ## React lifecycle methods
 
   If you wish to provide <a href=\"https://facebook.github.io/react/docs/component-specs.html#lifecycle-methods\"
-  target=\"_blank\">lifecycle methods</a>, you can define them under the Object section of the UI:
+  target=\"_blank\">lifecycle methods</a>, you can include those in an options map that immediately follows the argument
+  list:
   "
   (dc/mkdn-pprint-source WidgetWithHook)
   "
 
-  The method signatures can be found in the [cheat sheet](https://github.com/fulcrologic/fulcro/blob/develop/docs/CheatSheet.adoc).
+  The complete list of method signatures can be found in the [cheat sheet](https://github.com/fulcrologic/fulcro/blob/develop/docs/CheatSheet.adoc).
 
   ## ClojureScript and React – HTML differences
 
@@ -92,14 +77,15 @@
     - As an example - CSS class names are specified with `:className` instead of `:class`.
   - Any time there are adjacent elements of the same type in the DOM, they should each have a unique `:key`
   attribute. If the elements are in an array, React requires it.
+  - You can convert cljs data structures (recursively) to js types with `(clj->js {:x {y 1}})`
 
   ## Element factory
 
   In order to render components on the screen you need an element factory.
   You generate a factory with `prim/factory`, which will then
-  act like a new 'tag' for your DOM:"
+  act like a new 'tag' for your DOM (we prefer to prefix our factories with `ui-` to avoid name collisions):"
 
-  (dc/mkdn-pprint-source widget)
+  (dc/mkdn-pprint-source ui-widget)
 
   "Since they are plain React components you can render them in a <a href=\"https://github.com/bhauman/devcards#devcards\"
   target=\"_blank\">devcard</a>, which makes fine tuning them as pure UI dead simple:
@@ -108,53 +94,45 @@
   (defcard widget-card (widget {}))
   ```
 
-  The resulting card looks like this:"
-  )
+  The resulting card looks like this:")
 
-(defcard widget-card (widget {}))
+(defcard widget-card (ui-widget {}))
 
 (defcard-doc
-  "Such components are known as \"stateless components\" because they do not expliticly ask for data. Later,
+  "Components can be passed props, which appear as props in their arguments. Later,
   when we learn about colocated queries you'll see it is possible for a component to ask for the data it needs in
   a declarative fashion.
 
   For now, understand that you *can* give data to a stateless component via a simple edn map, and pull it out
-  using `prim/props`:"
+  with destructuring on `defsc`'s second argument:"
   (dc/mkdn-pprint-source WidgetWithProperties)
-  (dc/mkdn-pprint-source prop-widget)
+  (dc/mkdn-pprint-source ui-prop-widget)
   "
+
+  Again, you can drop this into a devcard and see it in action:
   ```
   (defcard props-card (prop-widget {:name \"Sam\"}))
   ```
   ")
 
-(defcard props-card (prop-widget {:name "Sam"}))
+(defcard props-card (ui-prop-widget {:name "Sam"}))
 
-(defui Person
-  Object
-  (render [this]
-    (let [{:keys [name]} (prim/props this)]
-      (dom/li nil name))))
+(defsc Person [this {:keys [name]}]
+  (dom/li nil name))
 
-(def person (prim/factory Person {:keyfn :name}))
+(def ui-person (prim/factory Person {:keyfn :name}))
 
-(defui PeopleList
-  Object
-  (render [this]
-    (let [people (prim/props this)]
-      (dom/ul nil (map person people)))))
+(defsc PeopleList [this people]
+  (dom/ul nil (map ui-person people)))
 
-(def people-list (prim/factory PeopleList))
+(def ui-people-list (prim/factory PeopleList))
 
-(defui Root
-  Object
-  (render [this]
-    (let [{:keys [people number]} (prim/props this)]
-      (dom/div nil
-               (dom/span nil (str "My lucky number is " number " and I have the following friends:"))
-               (people-list people)))))
+(defsc Root [this {:keys [people number]}]
+  (dom/div nil
+    (dom/span nil (str "My lucky number is " number " and I have the following friends:"))
+    (ui-people-list people)))
 
-(def root (prim/factory Root))
+(def ui-root (prim/factory Root))
 
 (defcard-doc
   "
@@ -165,10 +143,12 @@
   (dc/mkdn-pprint-source Person)
   (dc/mkdn-pprint-source PeopleList)
   (dc/mkdn-pprint-source Root)
-  (dc/mkdn-pprint-source people-list)
-  (dc/mkdn-pprint-source person)
-  (dc/mkdn-pprint-source root)
+  (dc/mkdn-pprint-source ui-people-list)
+  (dc/mkdn-pprint-source ui-person)
+  (dc/mkdn-pprint-source ui-root)
   "
+
+  Dropping this into a devcard with a tree of data will render what you would expect:
 
   ```
   (defcard root-render (root {:number 52 :people [{:name \"Sam\"} {:name \"Joe\"}]}))
@@ -176,7 +156,7 @@
 
   It is important to note that _this is exactly how the composition of UI components always happens_, independent of
   whether or not you use the rest of the features of Fulcro. A root component calls the factory functions of subcomponents
-  with an edn map as the first argument. That map is accessed using `prim/props` on `this` within the subcomponent. Data
+  with an edn map as the first argument. That map is accessed using `props` within the subcomponent. Data
   is passed from component to component through `props`. All data originates from the root.
 
   ### Don't forget the React DOM key!
@@ -187,8 +167,8 @@
   from component props (here it's using `:name` as a function, which means \"look up :name in props\").
 
   The key is critical, as it helps React figure out the DOM diff. If you see warning about elements missing
-  keys (or having the same key) it means you have adjacent elements in the DOM of the same type, and React cannot
-  figure out what to do to make sure they are properly updated.
+  keys (or having the same key) it means you have adjacent elements in the DOM of the same type (technically in a collection),
+  and React cannot figure out what to do to make sure they are properly updated.
 
   ## Play with it
 
@@ -197,30 +177,29 @@
   and also try playing with editing/adding to the DOM.
   ")
 
-(defcard root-render (root {:number 52 :people [{:name "Sam"} {:name "Joe"}]}))
+(defcard root-render (ui-root {:number 52 :people [{:name "Sam"} {:name "Joe"}]}))
 
-(defui Root-computed
-  Object
-  (render [this]
-    (let [{:keys [people number b]} (prim/props this)
-          {:keys [incHandler boolHandler]} (prim/get-computed this)]
-      (dom/div nil
-               (dom/button #js {:onClick #(boolHandler)} "Toggle Luck")
-               (dom/button #js {:onClick #(incHandler)} "Increment Number")
-               (dom/span nil (str "My " (if b "" "un") "lucky number is " number
-                                  " and I have the following friends:"))
-               (people-list people)))))
+(defsc Root-computed [this
+                      {:keys [people number b]}
+                      {:keys [incHandler boolHandler]}]
+  (dom/div nil
+    (dom/button #js {:onClick #(boolHandler)} "Toggle Luck")
+    (dom/button #js {:onClick #(incHandler)} "Increment Number")
+    (dom/span nil (str "My " (if b "" "un") "lucky number is " number
+                    " and I have the following friends:"))
+    (ui-people-list people)))
 
-(def root-computed (prim/factory Root-computed))
+(def ui-root-computed (prim/factory Root-computed))
 
 (defcard-doc
   "
   ## Out-of-band data: Callbacks and such
 
   In plain React, you (optionally) store component-local state and pass data from the parent to the child through props.
-  Fulcro is no different, though component-local state is discourages for everything except transient things like tracking animations.
-  In React, you also pass your callbacks through props. In Fulcro, we need a slight variation of
-  this.
+  Fulcro is no different, though component-local state is discouraged for everything except high-performance transient
+  things like tracking animations.
+
+  In React, you pass your callbacks through props. In Fulcro, we need a slight variation of this.
 
   In Fulcro, a component can have a [query](/index.html#!/fulcro_devguide.D_Queries) that asks
   the underlying system for data. If you complect callbacks and such with this queried data then Fulcro cannot correctly
@@ -235,7 +214,7 @@
   "
 
   (dc/mkdn-pprint-source Root-computed)
-  (dc/mkdn-pprint-source root-computed)
+  (dc/mkdn-pprint-source ui-root-computed)
 
   "
   ## Play with it!
@@ -245,62 +224,58 @@
   ")
 
 (defcard passing-callbacks-via-computed
-         (fn [data-atom-from-devcards _]
-           (let [prop-data @data-atom-from-devcards
-                 sideband-data {:incHandler  (fn [] (swap! data-atom-from-devcards update-in [:number] inc))
-                                :boolHandler (fn [] (swap! data-atom-from-devcards update-in [:b] not))}
-                 ]
-             (root-computed (prim/computed prop-data sideband-data))))
-         {:number 42 :people [{:name "Sally"}] :b false}
-         {:inspect-data true
-          :history      true})
+  "This card is backing the React system with it's own atom-based state. By passing in callbacks that modify the
+  card state, the UI updates. This is similar to the mechanism used by many other React systems. Fulcro has a different idea. "
+  (fn [data-atom-from-devcards _]
+    (let [prop-data     @data-atom-from-devcards
+          sideband-data {:incHandler  (fn [] (swap! data-atom-from-devcards update-in [:number] inc))
+                         :boolHandler (fn [] (swap! data-atom-from-devcards update-in [:b] not))}]
+      (ui-root-computed (prim/computed prop-data sideband-data))))
+  {:number 42 :people [{:name "Sally"}] :b false}
+  {:inspect-data true
+   :history      true})
 
-(defui SimpleCounter
-  Object
-  (initLocalState [this]
-                  {:counter 0})
-  (render [this]
-     (dom/div nil
-              (dom/button #js {:onClick #(prim/update-state! this update :counter inc)}
-                          "Increment me!")
-              (dom/span nil
-                        (prim/get-state this :counter)))))
+(defsc SimpleCounter [this props]
+  {:initLocalState (fn [] {:counter 0})}
+  (dom/div nil
+    (dom/button #js {:onClick #(prim/update-state! this update :counter inc)}
+      "Increment me!")
+    (dom/span nil
+      (prim/get-state this :counter))))
 
 (def simple-counter (prim/factory SimpleCounter))
 
 (defn render-squares [component props]
-  (let [svg (-> js/d3 (.select (dom/node component)))
-        data (clj->js (:squares props))
+  (let [svg       (-> js/d3 (.select (dom/node component)))
+        data      (clj->js (:squares props))
         selection (-> svg
-                      (.selectAll "rect")
-                      (.data data (fn [d] (.-id d))))]
+                    (.selectAll "rect")
+                    (.data data (fn [d] (.-id d))))]
     (-> selection
-        .enter
-        (.append "rect")
-        (.style "fill" (fn [d] (.-color d)))
-        (.attr "x" "0")
-        (.attr "y" "0")
-        .transition
-        (.attr "x" (fn [d] (.-x d)))
-        (.attr "y" (fn [d] (.-y d)))
-        (.attr "width" (fn [d] (.-size d)))
-        (.attr "height" (fn [d] (.-size d))))
+      .enter
+      (.append "rect")
+      (.style "fill" (fn [d] (.-color d)))
+      (.attr "x" "0")
+      (.attr "y" "0")
+      .transition
+      (.attr "x" (fn [d] (.-x d)))
+      (.attr "y" (fn [d] (.-y d)))
+      (.attr "width" (fn [d] (.-size d)))
+      (.attr "height" (fn [d] (.-size d))))
     (-> selection
-        .exit
-        .transition
-        (.style "opacity" "0")
-        .remove)
+      .exit
+      .transition
+      (.style "opacity" "0")
+      .remove)
     false))
 
-(defui D3Thing
-  Object
-  (componentDidMount [this] (render-squares this (prim/props this)))
-  (shouldComponentUpdate [this next-props next-state] false)
-  (componentWillReceiveProps [this props] (render-squares this props))
-  (render [this]
-    (dom/svg #js {:style   #js {:backgroundColor "rgb(240,240,240)"}
-                  :width   200 :height 200
-                  :viewBox "0 0 1000 1000"})))
+(defsc D3Thing [this props]
+  {:componentDidMount         (fn [] (render-squares this (prim/props this)))
+   :shouldComponentUpdate     (fn [next-props next-state] false)
+   :componentWillReceiveProps (fn [props] (render-squares this props))}
+  (dom/svg #js {:style   #js {:backgroundColor "rgb(240,240,240)"}
+                :width   200 :height 200
+                :viewBox "0 0 1000 1000"}))
 
 (def d3-thing (prim/factory D3Thing))
 
@@ -316,11 +291,11 @@
   Since component local state and props both have a place in the picture, it is important to understand the
   distinction. Props come from \"above\" (eventually from your central application state database).
   Component local state is encapsulated within a component and is completely transient (lost when the component unmounts).
-  Mutating component local state will force a rerender of that component, and has very low overhead, so it is great
+  Mutating component local state will force a refresh of that component, and has lower overhead, so it is great
   for things like drag-and-drop, animation tracking, etc.
   But component local state opens the door to mutation in-place, and is therefore much harder to reason about when
   debugging and building an application, is invisible to the support viewer, and isn't normalized (sharing it
-  involves manual coordination).
+  involves external manual coordination).
 
   As you will see later in the guide, a normalized global app state database can be combined with component-local
   queries to actually boost local reasoning beyond what you get with embedded state.
@@ -360,9 +335,10 @@
   (dc/mkdn-pprint-source simple-counter))
 
 (defcard simple-counter-component
+  "This card shows a component that changes state known only to the component itself"
   (fn [state-atom _]
     (dom/div nil
-             (simple-counter @state-atom))))
+      (simple-counter @state-atom))))
 
 (defcard-doc
   "
@@ -401,15 +377,15 @@
 (defn add-square [state] (swap! state update :squares conj (random-square)))
 
 (defcard sample-d3-component
-         (fn [state-atom _]
-           (dom/div nil
-                    (dom/button #js {:onClick #(add-square state-atom)} "Add Random Square")
-                    (dom/button #js {:onClick #(reset! state-atom {:squares []})} "Clear")
-                    (dom/br nil)
-                    (dom/br nil)
-                    (d3-thing @state-atom)))
-         {:squares []}
-         {:inspect-data true})
+  (fn [state-atom _]
+    (dom/div nil
+      (dom/button #js {:onClick #(add-square state-atom)} "Add Random Square")
+      (dom/button #js {:onClick #(reset! state-atom {:squares []})} "Clear")
+      (dom/br nil)
+      (dom/br nil)
+      (d3-thing @state-atom)))
+  {:squares []}
+  {:inspect-data true})
 
 (defcard-doc
   "
@@ -421,6 +397,28 @@
   - We override `componentWillReceiveProps` and `componentDidMount` to do the actual D3 render/update. The former will
    get incoming data changes, and the latter is called on initial mount. Our render method
    delegates all of the hard work to D3.
+
+  ## Om Next Compatibility
+
+  Fulcro has an older macro that is still supported called `defui`. It is identical in syntax to Om Next's `defui`.
+
+  ```
+  (prim/defui Component
+    static prim/IQuery
+    (query [this] [:x])
+    static prim/Ident
+    (ident [this props] [:TABLE (:id props)])
+    static prim/InitialAppState
+    (initial-state [this params] {:x 1})
+    Object
+    (render [this]
+      (let [{:keys [x]} (prim/props this)]
+        (dom/div nil \"Hello\"))))
+  ```
+
+  In general we recommend using `defsc` because it has better error checking and is more concise, but the `defui`
+  macro is not going anywhere anytime soon.
+
 
   ## Important notes and further reading
 
