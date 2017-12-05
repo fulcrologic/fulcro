@@ -150,7 +150,8 @@
                 (vary-meta ele assoc ::time time)
                 ele)) props))
   ([q props time]
-   (add-basis-time* (query->ast q) props time)))
+   (add-basis-time props time)
+   #_(add-basis-time* (query->ast q) props time)))
 
 (defn get-basis-time
   "Returns the basis time from the given props, or ::unset if not available."
