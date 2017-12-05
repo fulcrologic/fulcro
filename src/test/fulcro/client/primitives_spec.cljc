@@ -1173,19 +1173,19 @@
      (component "css"
        (assertions
          "warns if the css destructuring is included, but no css option has been"
-         (prim/defsc* false '(Person [this {:keys [some-prop]} computed css] (dom/div nil "Boo")))
+         (prim/defsc* '(Person [this {:keys [some-prop]} computed css] (dom/div nil "Boo")))
          =throws=> (ExceptionInfo #"You included a CSS argument, but there is no CSS localized to the component.")
          "allows one to define a simple component without options"
-         (prim/defsc* false '(Person [this {:keys [some-prop]}] (dom/div nil "Boo")))
+         (prim/defsc* '(Person [this {:keys [some-prop]}] (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                Object
                (render [this]
                  (clojure.core/let [{:keys [some-prop]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
          "allows optional use of include when using CSS"
-         (prim/defsc* false '(Person [this {:keys [db/id]}]
-                               {:css [:rule]}
-                               (dom/div nil "Boo")))
+         (prim/defsc* '(Person [this {:keys [db/id]}]
+                         {:css [:rule]}
+                         (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css/CSS
@@ -1196,11 +1196,11 @@
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
          "allows dropping 2 unused arguments"
-         (prim/defsc* false '(Job
-                               "A job component"
-                               [this props]
-                               {}
-                               (dom/span nil "TODO")))
+         (prim/defsc* '(Job
+                         "A job component"
+                         [this props]
+                         {}
+                         (dom/span nil "TODO")))
          => '(fulcro.client.primitives/defui Job
                Object
                (render [this]
@@ -1208,9 +1208,9 @@
                    [props (fulcro.client.primitives/props this)]
                    (dom/span nil "TODO"))))
          "allows dropping 1 unused argument"
-         (prim/defsc* false '(Person [this {:keys [db/id]} computed]
-                               {}
-                               (dom/div nil "Boo")))
+         (prim/defsc* '(Person [this {:keys [db/id]} computed]
+                         {}
+                         (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                Object
                (render [this]
@@ -1218,10 +1218,10 @@
                                     computed (fulcro.client.primitives/get-computed this)]
                    (dom/div nil "Boo"))))
          "allows optional use of css"
-         (prim/defsc* false '(Person [this {:keys [db/id]}]
-                               {:query       [:db/id]
-                                :css-include [A]}
-                               (dom/div nil "Boo")))
+         (prim/defsc* '(Person [this {:keys [db/id]}]
+                         {:query       [:db/id]
+                          :css-include [A]}
+                         (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css/CSS
@@ -1235,25 +1235,25 @@
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
          "checks method arity on css"
-         (prim/defsc* false '(Person
-                               [this {:keys [db/id]}]
-                               {:query [:db/id]
-                                :css   (fn [a b] [])}
-                               (dom/div nil "Boo")))
+         (prim/defsc* '(Person
+                         [this {:keys [db/id]}]
+                         {:query [:db/id]
+                          :css   (fn [a b] [])}
+                         (dom/div nil "Boo")))
          =throws=> (ExceptionInfo #"Invalid arity for css")
          "checks method arity on css-include"
-         (prim/defsc* false '(Person
-                               [this {:keys [db/id]}]
-                               {:css-include (fn [a b] [])}
-                               (dom/div nil "Boo")))
+         (prim/defsc* '(Person
+                         [this {:keys [db/id]}]
+                         {:css-include (fn [a b] [])}
+                         (dom/div nil "Boo")))
          =throws=> (ExceptionInfo #"Invalid arity for css-include")
          "allows method bodies"
-         (prim/defsc* false '(Person
-                               [this {:keys [db/id]}]
-                               {:query       [:db/id]
-                                :css         (fn [] [:rule])
-                                :css-include (fn [] [A])}
-                               (dom/div nil "Boo")))
+         (prim/defsc* '(Person
+                         [this {:keys [db/id]}]
+                         {:query       [:db/id]
+                          :css         (fn [] [:rule])
+                          :css-include (fn [] [A])}
+                         (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css/CSS
@@ -1266,12 +1266,12 @@
                (render [this]
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
-         (prim/defsc* false '(Person
-                               [this {:keys [db/id]}]
-                               {:query       [:db/id]
-                                :css         (some-random-name [] [:rule]) ; doesn't really care what sym you use
-                                :css-include (craptastic! [] [A])}
-                               (dom/div nil "Boo")))
+         (prim/defsc* '(Person
+                         [this {:keys [db/id]}]
+                         {:query       [:db/id]
+                          :css         (some-random-name [] [:rule]) ; doesn't really care what sym you use
+                          :css-include (craptastic! [] [A])}
+                         (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css/CSS
@@ -1286,13 +1286,13 @@
                    (dom/div nil "Boo"))))))
      (assertions
        "works with initial state"
-       (#'prim/defsc* false '(Person
-                               [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
-                               {:query         [:db/id {:person/job (prim/get-query Job)}]
-                                :initial-state {:person/job {:x 1}
-                                                :db/id      42}
-                                :ident         [:PERSON/by-id :db/id]}
-                               (dom/div nil "Boo")))
+       (#'prim/defsc* '(Person
+                         [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                         {:query         [:db/id {:person/job (prim/get-query Job)}]
+                          :initial-state {:person/job {:x 1}
+                                          :db/id      42}
+                          :ident         [:PERSON/by-id :db/id]}
+                         (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/InitialAppState
              (~'initial-state [~'c ~'params]
@@ -1311,12 +1311,12 @@
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
        "allows an initial state method body"
-       (prim/defsc* false '(Person
-                             [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
-                             {:query         [:db/id {:person/job (prim/get-query Job)}]
-                              :initial-state (initial-state [params] {:x 1})
-                              :ident         [:PERSON/by-id :db/id]}
-                             (dom/div nil "Boo")))
+       (prim/defsc* '(Person
+                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                       {:query         [:db/id {:person/job (prim/get-query Job)}]
+                        :initial-state (initial-state [params] {:x 1})
+                        :ident         [:PERSON/by-id :db/id]}
+                       (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/InitialAppState
              (~'initial-state [~'this ~'params] {:x 1})
@@ -1330,11 +1330,11 @@
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
        "works without initial state"
-       (prim/defsc* false '(Person
-                             [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
-                             {:query [:db/id {:person/job (prim/get-query Job)}]
-                              :ident [:PERSON/by-id :db/id]}
-                             (dom/div nil "Boo")))
+       (prim/defsc* '(Person
+                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                       {:query [:db/id {:person/job (prim/get-query Job)}]
+                        :ident [:PERSON/by-id :db/id]}
+                       (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
@@ -1346,11 +1346,11 @@
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
        "allows Object protocol"
-       (prim/defsc* false '(Person
-                             [this props computed]
-                             {:query     [:db/id]
-                              :protocols (Object (shouldComponentUpdate [this p s] false))}
-                             (dom/div nil "Boo")))
+       (prim/defsc* '(Person
+                       [this props computed]
+                       {:query     [:db/id]
+                        :protocols (Object (shouldComponentUpdate [this p s] false))}
+                       (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/IQuery
              (~'query [~'this] [:db/id])
@@ -1360,16 +1360,34 @@
                      ~'computed (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))
              (~'shouldComponentUpdate [~'this ~'p ~'s] false))
+       "Places lifecycle signatures under the Object protocol"
+       (prim/defsc* '(Person [this props] {:shouldComponentUpdate (fn [next-props next-state] false)} (dom/div nil "Boo")))
+       => '(fulcro.client.primitives/defui Person
+             Object
+             (render [this]
+               (clojure.core/let
+                 [props (fulcro.client.primitives/props this)]
+                 (dom/div nil "Boo")))
+             (shouldComponentUpdate [this next-props next-state] false))
+       "Emits a placeholder body if you forget to give a body"
+       (prim/defsc* '(Person [this props] {:shouldComponentUpdate (fn [props state] false)}))
+       => '(fulcro.client.primitives/defui Person
+             Object
+             (render [this]
+               (clojure.core/let
+                 [props (fulcro.client.primitives/props this)]
+                 (fulcro.client.dom/div nil "THIS COMPONENT HAS NO DECLARED UI")))
+             (shouldComponentUpdate [this props state] false))
        "allows other protocols"
-       (prim/defsc* false '(Person
-                             [this props computed]
-                             {:query     [:db/id]
-                              :protocols (static css/CSS
-                                           (local-rules [_] [])
-                                           (include-children [_] [])
-                                           Object
-                                           (shouldComponentUpdate [this p s] false))}
-                             (dom/div nil "Boo")))
+       (prim/defsc* '(Person
+                       [this props computed]
+                       {:query     [:db/id]
+                        :protocols (static css/CSS
+                                     (local-rules [_] [])
+                                     (include-children [_] [])
+                                     Object
+                                     (shouldComponentUpdate [this p s] false))}
+                       (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static ~'css/CSS
              (~'local-rules [~'_] [])
@@ -1383,10 +1401,10 @@
                  (~'dom/div nil "Boo")))
              (~'shouldComponentUpdate [~'this ~'p ~'s] false))
        "works without an ident"
-       (prim/defsc* false '(Person
-                             [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
-                             {:query [:db/id {:person/job (prim/get-query Job)}]}
-                             (dom/div nil "Boo")))
+       (prim/defsc* '(Person
+                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                       {:query [:db/id {:person/job (prim/get-query Job)}]}
+                       (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/IQuery
              (~'query [~'this] [:db/id {:person/job (~'prim/get-query ~'Job)}])
