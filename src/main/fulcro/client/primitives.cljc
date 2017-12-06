@@ -2900,9 +2900,10 @@
                                                         (keyword nspc nm))))
                destructured-keys (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
                queried-keywords  (legal-keys template)
+               has-wildcard?     (some #{'*} template)
                to-sym            (fn [k] (symbol (namespace k) (name k)))
                illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
-           (when (seq illegal-syms)
+           (when (and (not has-wildcard?) (seq illegal-syms))
              (throw (ex-info (str "defsc " class ": " illegal-syms " destructured in props but do(es) not appear in your query!") {:offending-symbols illegal-syms})))
            `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
        method
@@ -2981,7 +2982,7 @@
    (defn- build-and-validate-initial-state-map [sym initial-state legal-keys children-by-query-key is-a-form?]
      (let [join-keys     (set (keys children-by-query-key))
            init-keys     (set (keys initial-state))
-           illegal-keys  (set/difference init-keys legal-keys)
+           illegal-keys  (if (set? legal-keys) (set/difference init-keys legal-keys) #{})
            is-child?     (fn [k] (contains? join-keys k))
            param-expr    (fn [v]
                            (if-let [kw (and (keyword? v) (= "param" (namespace v))
@@ -3097,7 +3098,7 @@
            css-include-template-or-method   (into {} [css-include])
            has-css?                         (or css css-include)
            ; TODO: validate-css?                    (and (map? csssym) (:template css))
-           validate-query?                  (:template query-template-or-method)
+           validate-query?                  (and (:template query-template-or-method) (not (some #{'*} (:template query-template-or-method))))
            legal-key-cheker                 (if validate-query?
                                               (or (legal-keys (:template query-template-or-method)) #{})
                                               (complement #{}))
