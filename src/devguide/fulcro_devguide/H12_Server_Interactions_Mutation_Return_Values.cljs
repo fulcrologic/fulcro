@@ -1,11 +1,5 @@
 (ns fulcro-devguide.H12-Server-Interactions-Mutation-Return-Values
-  (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
-            [fulcro.client.dom :as dom]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.mutations :as m]
-            [fulcro.client :as fc]))
+  (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc "
   # Server Mutation Return Values
@@ -31,9 +25,11 @@
   If you want to make use of the returned values from the server then you need to add code into the stage of remote
   processing that is normally used to merge incoming data (that has a query).
 
-  There are two primary ways to accompish this.
+  There are two primary ways to accompish this (both are demonstrated with live examples in `src/demos` of Fulcro on github).
 
   ## Augmenting the Merge
+
+  We'll talk about the sledge-hammer approach first: plug into Fulcro merge routines.
 
   Fulcro gives a hook for a `mutation-merge` function that you can install when you're creating the application. If you
   use a multi-method, then it will make it easier to co-locate your return value logic near the client-local mutation itself:
@@ -60,6 +56,9 @@
   This technique is fully general in terms of handling arbitrary return values, but is limited in that your only recourse
   is to merge the data into you app state. Of course, since your rendering is a pure function of app state this means you
   can, at the very least, visualize the result.
+
+  This works, but is not the recommended approach because it is very easy to make mistakes that affect your entire
+  application.
 
   ## Using Mutation Joins
 
@@ -97,11 +96,11 @@
 
   ### Simpler Notation
 
-  The remote side of client mutations can return a boolean or an AST. Fulcro comes with two helper functions that can
-  rewrite the AST of the mutation to modify the parameters or convert it to a mutation join. This can simplify how the
+  Since the remote side of mutations can return a boolean *or an AST*. Fulcro comes with two helper functions that can
+  rewrite the AST of the mutation to modify the parameters or convert it to a mutation join! This can simplify how the
   mutations look in the UI.
 
-  Here's the difference. With the technique we just described your UI and client mutation would look something like this:
+  Here's the difference. With the manual syntactic technique we just described your UI and client mutation would look something like this:
 
   ```
   ; in the UI
@@ -128,7 +127,7 @@
     (remote [{:keys [ast state]}] (returning ast state Item))
   ```
 
-  This makes the mutation join an artifact of the protocol, and less for you to manually code (and read).
+  This makes the mutation join an artifact of the protocol, and less for you to manually code (and read) in the UI.
 
   The server-side code is the same for both: just return a proper graph value!
 

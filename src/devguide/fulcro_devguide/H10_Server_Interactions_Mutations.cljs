@@ -1,11 +1,5 @@
 (ns fulcro-devguide.H10-Server-Interactions-Mutations
-  (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
-            [fulcro.client.dom :as dom]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.mutations :as m]
-            [fulcro.client :as fc]))
+  (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc
   "
@@ -20,7 +14,7 @@
 
   ## Full-Stack Mutations
 
-  The multi-method in Fulcro client (which can be manipualted with `defmutation`) can indicate that a given mutation
+  The multi-method in Fulcro client (which is manipualted with `defmutation`) can indicate that a given mutation
   should be sent to any number of remotes. The default remote is named `:remote`, but you can define new ones or even
   rename the default one.
 
@@ -35,7 +29,7 @@
      :action (fn[] ... )})
   ```
 
-  or
+  or preferably using the `defmutation` macro:
 
   ```
   (defmutation do-thing [params]
@@ -43,7 +37,12 @@
     (remote [env] true))
   ```
 
-  or
+  Basically, you use the *name* of the remote as an indicator of which remote you want to replicate the mutation to. From
+  there you either return `true` (which means send the mutation as-is), or you may return an expression AST that represents
+  the mutation you'd like to send instead. The `fulcro.client.primitives` namespace includes `ast->query` and `query-ast`
+  for arbitrary generation of ASTs, but the original AST of the mutation is also available in the mutation's environment.
+
+  Therefore, you can alter a mutation simply by altering and returning the `ast` given in `env`:
 
   ```
   (defmutation do-thing [params]
@@ -58,28 +57,13 @@
     (remote [{:keys [ast]}] (m/with-params ast {:x 1})) ; change the param list for the remote
   ```
 
-  or
+  or even change which mutation the server sees:
 
   ```clojure
-  (defmethod mutate 'some/mutation [{:keys [ast] :as env} k params]
-    ;; Changes the mutation from the incoming client-side (some/mutation) to (server/mutation)
-    {:remote (assoc ast :key 'server/mutation :dispatch-key 'server/mutation)
-     :action (fn[] ...)}))
+  (defmutation some-mutation [ params]
+    ;; Changes the mutation from the incoming client-side some-mutation to server-mutation
+    (remote [{:keys [ast] :as env}] (assoc ast :key 'server-mutation :dispatch-key 'server-mutation)))
   ```
-
-  You could even go as far as using the functions in the `parser` namespace to generate a completely new AST node that
-  has nothing to do with the UI mutation.
-
-  We generally recommend using the `defmutation` macro because it integrated nicely with IDEs and also prevents some kinds
-  of mistakes (like making changes outside of the action).
-
-  Basically, you use the name of the remote as an indicator of which remote you want to replicate the mutation to. From
-  there you either return `true` (which means send the mutation as-is), or you may return an expression AST that represents
-  the mutation you'd like to send instead. The `fulcro.client.primitives` namespace includes `ast->query` and `query-ast`
-  for arbitrary generation of ASTs, but the original AST of the mutation is also available in the mutation's environment.
-
-  Therefore, you can alter a mutation simply by altering and returning the `ast` given in `env`, as shown in the parameter
-  and dispatch alterations above.
 
   **Note:** The action is executed **before** the remote, and the processing is done in multiple passes (your mutation
   handler is invoked for each pass).
@@ -94,8 +78,8 @@
   parameter on the server can contain anything you like (for example database access interfaces), and you'll see how
   to configure that when you study the `I_Building_A_Server` section.
 
-  The recommended approach to writing a server is to use the pre-written server-side parser and multimethods, which allow you
-  to mimic that code structure of the client (there is a `defmutation` in `fulcro.server` for this).
+  The recommended approach to writing a server mutation is to use the pre-written server-side parser and multimethods, which allow you
+  to mimic the same code structure of the client (there is a `defmutation` in `fulcro.server` for this).
 
   If you're using this approach (which is the default in the easy server), then here are the client-side and server-side
   implementations of the same mutation:
@@ -141,14 +125,17 @@
   ```
   (ns my-app.api
     (:require
-      #?(:clj [fulcro.server :refer [defmutation]]
+      #?(:clj [fulcro.server :as server]
          :cljs [fulcro.client.mutations :refer [defmutation]])))
 
-  #?(:clj (defmutation do-thing [params]
+  #?(:clj (server/defmutation do-thing [params]
             (action [server-env] ...))
       :cljs (defmutation do-thing [params]
               (remote [env] true)))
   ```
+
+  NOTE: The server namespace includes support for defining a server mutation in the browser. This allows you to simulate a server
+  in the browser instead of having to have a real server.
 
   Please see I_Building_A_Server for more information about setting up a server with injected components in the mutation
   environment.
@@ -157,7 +144,7 @@
 
   Fulcro has a built in function `prim/tempid` that will generate a unique temporary ID. This allows the normalization
   and denormalization of the client side database to continue working while the server processes the new data and returns
-  the permanent identifiers.
+  the permanent identifier(s).
 
   The idea is that these temporary IDs can be safely placed in your client database (and network queues), and will be
   automatically rewritten to their real ID when the server has managed to create the real persistent entity. Of course, since
@@ -242,16 +229,40 @@
 
   Thus, one way you can implement a sequence of mutation followed by learning a result is to run a mutation and a load.
 
+  ## Pessimistic Transactions
+
+  There are scenarios where the above behavior is not what you want. In particular are cases like form submission where
+  you might want to wait until the server completes, so that the user can be kept in the form until you've confirmed
+  the server isn't down or something.
+
+  Fulcro 2.0+ has support for pessimistic transactions that enable exactly this sort of behavior:
+
+  ```
+  (prim/ptransact! this `[(a) (b)])
+  ```
+
+  Will run `a`'s action, `a`'s remote, *then* `b`'s action and `b`'s remote. See Server Interactions - Error Handling
+  a more detailed example.
+
+  This can be combined with mutation return values to allow you to follow a remote operation with a UI one:
+
+  ```
+  ; assume submit-my-form blocks the UI, and leave-form-if-ok checks app state and moves on.
+  (prim/ptransact! this `[(submit-my-form) (leave-form-if-ok)])
+  ```
+
   ## Using Loads as Mutations
 
-  There is technically nothing wrong with issuing a load that has side-effects on the server. For example, one way to
+  There is technically nothing wrong with issuing a load that has side-effects on the server (though one could argue that
+  this is a bit sketchy from a design perspective). For example, one way to
   implement login is to issue a load with the user's credentials:
 
   ```
   (df/load :current-user User {:params {:username u :password p}})
   ```
 
-  The server query response can validate the credentials, set a cookie, and return the user info all at once!
+  The server query response can validate the credentials, set a cookie, and return the user info all at once! Your UI can
+  simply base rendering on the values in `:current-user`. If they're valid, you're logged in.
 
   If you remember from the General Operations section, you can modify the low-level Ring response by associating a lambda
   with your return value. If you were using Ring Session, then this might be how the query would be implemented on the server:
@@ -264,7 +275,7 @@
 
   (defquery-root :current-user
     (value [env params]
-      (if-let [{:keys [db/id] :as user} (authenticate params)]
+      (if-let [{:keys [db/id] :as user} (authenticate params)] ; look up the user, return nil if bad
         (server/augment-response user (fn [resp] (assoc-in resp [:session :uid] id)))
         bad-user)))
   ```
@@ -279,7 +290,8 @@
 
   then the transaction will run as-if it were executed in the context of any live component on the screen that currently has
   that ident. This will make the ident available in the mutation's environment as `:ref`, and will focus refresh at that
-  component sub-tree(s). This can be useful when you have out-of-band data that you're running using the reconciler.
+  component sub-tree(s). This can be useful when you have out-of-band data that causes you to want to run a
+  transaction outside of the UI using the reconciler.
 
   ## What's Next?
 

@@ -1,23 +1,18 @@
 (ns fulcro-devguide.H08-Server-Interactions-Morphing-Loaded-Data
-  (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.mutations :as m]
+            [fulcro.client.mutations :refer [defmutation]]
             [fulcro.client :as fc]))
 
-(defui ^:once CategoryQuery
-  static prim/IQuery
-  (query [this] [:db/id :category/name])
-  static prim/Ident
-  (ident [this props] [:categories/by-id (:db/id props)]))
+(defsc CategoryQuery [this props]
+  {:query [:db/id :category/name]
+   :ident [:categories/by-id :db/id]})
 
-(defui ^:once ItemQuery
-  static prim/IQuery
-  (query [this] [:db/id {:item/category (prim/get-query CategoryQuery)} :item/name])
-  static prim/Ident
-  (ident [this props] [:items/by-id (:db/id props)]))
+(defsc ItemQuery [this props]
+  {:query [:db/id :item/name {:item/category (prim/get-query CategoryQuery)}]
+   :ident [:items/by-id :db/id]})
 
 (def sample-server-response
   {:all-items [{:db/id 5 :item/name "item-42" :item/category {:db/id 1 :category/name "A"}}
@@ -30,47 +25,26 @@
 (def hand-written-query [{:all-items [:db/id :item/name
                                       {:item/category [:db/id :category/name]}]}])
 
-(defui ^:once ToolbarItem
-  static prim/IQuery
-  (query [this] [:db/id :item/name])
-  static prim/Ident
-  (ident [this props] [:items/by-id (:db/id props)])
-  Object
-  (render [this]
-    (let [{:keys [item/name]} (prim/props this)]
-      (dom/li nil name))))
+(defsc ToolbarItem [this {:keys [item/name]}]
+  {:query [:db/id :item/name]
+   :ident [:items/by-id :db/id]}
+  (dom/li nil name))
 
 (def ui-toolbar-item (prim/factory ToolbarItem {:keyfn :db/id}))
 
-(defui ^:once ToolbarCategory
-  static prim/IQuery
-  (query [this] [:db/id :category/name {:category/items (prim/get-query ToolbarItem)}])
-  static prim/Ident
-  (ident [this props] [:categories/by-id (:db/id props)])
-  Object
-  (render [this]
-    (let [{:keys [category/name category/items]} (prim/props this)]
-      (dom/li nil
-        name
-        (dom/ul nil
-          (map ui-toolbar-item items))))))
+(defsc ToolbarCategory [this {:keys [category/name category/items]}]
+  {:query [:db/id :category/name {:category/items (prim/get-query ToolbarItem)}]
+   :ident [:categories/by-id :db/id]}
+  (dom/li nil
+    name
+    (dom/ul nil
+      (map ui-toolbar-item items))))
 
 (def ui-toolbar-category (prim/factory ToolbarCategory {:keyfn :db/id}))
 
-(defui ^:once Toolbar
-  static prim/IQuery
-  (query [this] [{:toolbar/categories (prim/get-query ToolbarCategory)}])
-  Object
-  (render [this]
-    (let [{:keys [toolbar/categories]} (prim/props this)]
-      (dom/div nil
-        (dom/button #js {:onClick #(prim/transact! this '[(server-interaction/group-items)])} "Trigger Post Mutation")
-        (dom/button #js {:onClick #(prim/transact! this '[(server-interaction/group-items-reset)])} "Reset")
-        (dom/ul nil
-          (map ui-toolbar-category categories))))))
-
-(defmethod m/mutate 'server-interaction/group-items-reset [{:keys [state]} k p]
-  {:action (fn [] (reset! state (prim/tree->db component-query sample-server-response true)))})
+(defmutation group-items-reset [params]
+  (action [{:keys [state]}]
+    (reset! state (prim/tree->db component-query sample-server-response true))))
 
 (defn add-to-category
   "Returns a new db with the given item added into that item's category."
@@ -79,7 +53,7 @@
         item-location  (conj category-ident :category/items)]
     (update-in db item-location (fnil conj []) (prim/ident ItemQuery item))))
 
-(defn group-items
+(defn group-items*
   "Returns a new db with all of the items sorted by name and grouped into their categories."
   [db]
   (let [sorted-items   (->> db :items/by-id vals (sort-by :item/name))
@@ -90,9 +64,17 @@
         all-categories (->> db :categories/by-id vals (mapv #(prim/ident CategoryQuery %)))]
     (assoc db :toolbar/categories all-categories)))
 
+(defmutation ^:intern group-items [params]
+  (action [{:keys [state]}]
+    (swap! state group-items*)))
 
-(defmethod m/mutate 'server-interaction/group-items [{:keys [state]} k p]
-  {:action (fn [] (swap! state group-items))})
+(defsc Toolbar [this {:keys [toolbar/categories]}]
+  {:query [{:toolbar/categories (prim/get-query ToolbarCategory)}]}
+  (dom/div nil
+    (dom/button #js {:onClick #(prim/transact! this `[(group-items {})])} "Trigger Post Mutation")
+    (dom/button #js {:onClick #(prim/transact! this `[(group-items-reset {})])} "Reset")
+    (dom/ul nil
+      (map ui-toolbar-category categories))))
 
 (defcard-doc
   "
@@ -145,26 +127,25 @@
   complete. The API is trivial:
 
   ```
-  (df/load this :items Item {:post-mutation 'server-interaction/group-items})
+  (df/load this :items Item {:post-mutation `group-items})
   ```
 
   and you can include parameters with `:post-mutation-params`.
 
   The post-mutation is defined as you might expect:
 
-  ```clojure
-  (defmutation server-interaction/group-items [p]
-    (action [{:keys [state]}] (swap! state group-items)))
-  ```
+  "
+  (dc/mkdn-pprint-source add-to-category)
+  (dc/mkdn-pprint-source group-items*)
+  (dc/mkdn-pprint-source group-items)
+  "
 
-  Where the UI components and helper functions are:
+  and the UI components are:
 
   "
   (dc/mkdn-pprint-source ToolbarItem)
   (dc/mkdn-pprint-source ToolbarCategory)
-  (dc/mkdn-pprint-source Toolbar)
-  (dc/mkdn-pprint-source add-to-category)
-  (dc/mkdn-pprint-source group-items))
+  (dc/mkdn-pprint-source Toolbar))
 
 (defcard-fulcro toolbar-with-items-by-category
   "This card allows you to simulate the post-mutation defined above, and see the resulting UI and database change. The
@@ -176,39 +157,22 @@
 
 (defcard-doc
   "
-  ## Using `defui` For Server Queries
+  ## Using `defsc` For Server Queries
 
-  It is perfectly legal to use `defui` to define an graph query (and normalization) for something like this that doesn't exactly
+  It is perfectly legal to use `defsc` to define an graph query (and normalization) for something like this that doesn't exactly
   exist on your UI. This can be quite useful in the presence of post mutations that can re-shape the data.
 
-  Simply code your (nested) queries using `defui`, and skip writing the `Object` section and `render`:
+  Simply code your (nested) queries using `defsc`, and skip writing the body:
+
+  "
+  (dc/mkdn-pprint-source ItemQuery)
+  "
 
   ```
-  (defui ServerItem
-    static prim/Ident
-    (ident [this props] ...)
-    static prim/IQuery
-    (query [this] ...))
-
-  ...
-
-  (df/load this :all-items ServerItem {:post-mutation `group-all-items-by-category})
+  (df/load this :all-items ItemQuery {:post-mutation `group-items})
   ```
 
-  NOTE: We know that the name `defui` seems a bit of a misnomer for this, so feel free to create an alias for it.
-
-  WARNING: Do *not* try to steal queries! Remember that `get-query` adds component metadata to the query. So this is an error:
-
-  ```
-  ; NEVER DO THIS
-  (defui ServerItem
-     static prim/IQuery
-     (query [this] (prim/get-query Item)) ; Bad news
-     ...)
-  ```
-
-  Subqueries must always be *joined* in another component's query, never just re-used. This rule helps ensure you don't
-  end up with surprises around normalization.
+  NOTE: We know that the name `defsc` seems a bit of a misnomer for this, so feel free to create an alias for it.
 
   ## What's Next?
 

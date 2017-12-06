@@ -70,6 +70,16 @@
        :fulcro {:started-callback (fn [app] ...) }) ; fulcro client options
   ```
 
+  ## The Reconciler
+
+  The reconciler is a central component of the primitives in Fulcro. It is responsible for reconciling the state of your
+  database with the UI. Many function in the `primitives` namespace require it. It is held on the application at
+  the `:reconciler` key, and is passed to you inside of your mutation `env` under that same key.
+
+  If you're expecting to have data changes that happen outside of the UI (e.g. web workers), you'll want to save the
+  reconciler so you can get to it. If you've saved your top-level application in an atom, you can obviously
+  get it from there, otherwise you might want to put it somewhere on startup.
+
   ## Initial Application State
 
   The `:initial-state` option of `new-fulcro-client` can accept a map (which will be assumed to be a TREE of non-normalized data),

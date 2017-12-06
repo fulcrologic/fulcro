@@ -31,24 +31,20 @@
 ; defui is about the same as defsc for defining stand-alone queries
 (defsc Thing [this props]
   {:query [:ui/checked :id :name]
-   :ident [:things/by-id :id]}
-  nil)
+   :ident [:things/by-id :id]})
 
 (defsc Things [this props]
   {:query [:display-mode {:things (prim/get-query Thing)}]
    ; ident needs to be constant...so we use lambda form
-   :ident (fn [] [:widget :thing-list])}
-  nil)
+   :ident (fn [] [:widget :thing-list])})
 
 (defsc Dashboard [this props]
   {:query [:sidebar-open {:thing-widget (prim/get-query Things)}]
    ; ident needs to be constant...so we use lambda form
-   :ident (fn [] [:widget :dashboard])}
-  nil)
+   :ident (fn [] [:widget :dashboard])})
 
 (defsc DRoot [this props]
-  {:query [{:dashboard (prim/get-query Dashboard)}]}
-  nil)
+  {:query [{:dashboard (prim/get-query Dashboard)}]})
 
 (comment
   ; NOTE: Good example of converting an entire app state database tree into norm form

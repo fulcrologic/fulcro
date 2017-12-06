@@ -10,13 +10,11 @@
 
 (defsc SubQuery [t p]
   {:ident [:sub/by-id :id]
-   :query [:id :data]}
-  nil)
+   :query [:id :data]})
 
 (defsc TopQuery [t p]
   {:ident [:top/by-id :id]
-   :query [:id {:subs (prim/get-query SubQuery)}]}
-  nil)
+   :query [:id {:subs (prim/get-query SubQuery)}]})
 
 (defcard-doc
   "

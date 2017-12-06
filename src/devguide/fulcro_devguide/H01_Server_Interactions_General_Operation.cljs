@@ -1,11 +1,5 @@
 (ns fulcro-devguide.H01-Server-Interactions-General-Operation
-  (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
-            [fulcro.client.dom :as dom]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.mutations :as m]
-            [fulcro.client :as fc]))
+  (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc
   "
