@@ -8,7 +8,7 @@
             [cljs.reader :as r]
             [fulcro.client.impl.parser :as p]
             [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defui defsc]]
+            [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.mutations :as m]))
 
 (reset! ic/*loaded-translations* {"es" {"|This is a test" "Spanish for 'this is a test'"
@@ -19,17 +19,13 @@
     (dom/button #js {:onClick #(prim/transact! comp `[(m/change-locale {:lang "en"}) :ui/locale])} "en")
     (dom/button #js {:onClick #(prim/transact! comp `[(m/change-locale {:lang "es"}) :ui/locale])} "es")))
 
-(defui Test
-  static prim/IQuery
-  (query [this] [:ui/react-key :ui/locale])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key ui/locale]} (prim/props this)]
-      (dom/div #js {:key react-key}
-        (locale-switcher this)
-        (dom/span nil (str "Locale: " locale))
-        (dom/br nil)
-        (tr "This is a test")))))
+(defsc Test [this {:keys [ui/react-key ui/locale]}]
+  {:query [:ui/react-key :ui/locale]}
+  (dom/div #js {:key react-key}
+    (locale-switcher this)
+    (dom/span nil (str "Locale: " locale))
+    (dom/br nil)
+    (tr "This is a test")))
 
 (defcard-doc
   "# Internationalization
@@ -118,39 +114,27 @@
   See the formatJS documentation for further details.
 ")
 
-(defui Format
-  static prim/InitialAppState
-  (initial-state [clz p] {:ui/label "Your Name"})
-  static prim/Ident
-  (ident [this props] [:components :ui])
-  static prim/IQuery
-  (query [this] [:ui/label])
-  Object
-  (render [this]
-    (let [{:keys [ui/label]} (prim/props this)]
-      (dom/div nil
-        (locale-switcher this)
-        (dom/input #js {:value label :onChange #(m/set-string! this :ui/label :event %)})
-        (trf "Hi, {name}" :name label)
-        (dom/br nil)
-        (trf "N: {n, number} ({m, date, long})" :n 10229 :m (new js/Date))
-        (dom/br nil)))))
+(defsc Format [this {:keys [ui/label]}]
+  {:initial-state {:ui/label "Your Name"}
+   :ident         (fn [] [:components :ui])
+   :query         [:ui/label]}
+  (dom/div nil
+    (locale-switcher this)
+    (dom/input #js {:value label :onChange #(m/set-string! this :ui/label :event %)})
+    (trf "Hi, {name}" :name label)
+    (dom/br nil)
+    (trf "N: {n, number} ({m, date, long})" :n 10229 :m (new js/Date))
+    (dom/br nil)))
 
 (def ui-format (prim/factory Format))
 
-(defui Root2
-  static prim/InitialAppState
-  (initial-state [clz p] {:format (prim/get-initial-state Format {})})
-  static prim/IQuery
-  (query [this] [:ui/react-key :ui/locale {:format (prim/get-query Format)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key ui/locale format]} (prim/props this)]
-      (dom/div #js {:key react-key}
-        (dom/span nil (str "Locale: " locale))
-        (dom/br nil)
-        (ui-format format)))))
-
+(defsc Root2 [this {:keys [ui/react-key ui/locale format]}]
+  {:initial-state (fn [p] {:format (prim/get-initial-state Format {})})
+   :query         [:ui/react-key :ui/locale {:format (prim/get-query Format)}]}
+  (dom/div #js {:key react-key}
+    (dom/span nil (str "Locale: " locale))
+    (dom/br nil)
+    (ui-format format)))
 
 (defcard-fulcro formatted-examples
   "This card shows the results of some formatted and translated strings"

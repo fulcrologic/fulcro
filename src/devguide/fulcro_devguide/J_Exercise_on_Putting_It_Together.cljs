@@ -1,6 +1,6 @@
 (ns fulcro-devguide.J-Exercise-on-Putting-It-Together
   (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer-macros [defsc]]
             [fulcro.client.dom :as dom]
             [solutions.putting-together.soln-ex-1 :as soln1]
             [solutions.putting-together.soln-ex-2 :as soln2]
@@ -65,19 +65,14 @@
 
   ")
 
-(defui ^:once CheckSetupRoot
-  static prim/InitialAppState
-  (initial-state [this params] {})
-  static prim/IQuery
-  (query [this] [:ui/react-key :something])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key something]} (prim/props this)]
-      (dom/div #js {:key react-key :style #js {:border "1px solid black"}}
-        (dom/button #js {:onClick #(df/load this :something nil)} "Load")
-        (if (pos? something)
-          (dom/p nil (str "OK! SERVER RESPONDED WITH " something))
-          (dom/p nil "No response from server. Are you on port 9000? Is the server running? Have you pressed Load?"))))))
+(defsc CheckSetupRoot [this {:keys [ui/react-key something]}]
+  {:initial-state {}
+   :query         [:ui/react-key :something]}
+  (dom/div #js {:key react-key :style #js {:border "1px solid black"}}
+    (dom/button #js {:onClick #(df/load this :something nil)} "Load")
+    (if (pos? something)
+      (dom/p nil (str "OK! SERVER RESPONDED WITH " something))
+      (dom/p nil "No response from server. Are you on port 9000? Is the server running? Have you pressed Load?"))))
 
 (defcard-fulcro check-setup CheckSetupRoot)
 
@@ -85,7 +80,7 @@
   ## The Project
 
   We're going to write a simple TODO list, with a very simple UI. Use what you've learned to lay out the following
-  DOM (via defui). The HTML comments indicate the use of a `defui` to make a component:
+  DOM (via defsc). The HTML comments indicate the use of a `defsc` to make a component:
 
   ```html
   <div>  <!-- TodoList -->
@@ -121,17 +116,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; EX1-3: Code a todo list
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#_(defui ^:once TodoItem
-    Object
-    (render [this]))
+#_(defsc TodoItem [this props]
+    )
 
-#_(defui ^:once ItemList
-    Object
-    (render [this]))
+#_(defsc ItemList [this props]
+    )
 
-(defui ^:once TodoList
-  Object
-  (render [this] (dom/div nil "TODO")))
+(defsc TodoList [this props]
+  (dom/div nil "TODO"))
 
 (defcard-fulcro todo-list-application
   "This card can be used to show your application.
@@ -222,6 +214,6 @@
   ## Further Reading
 
   There are many examples of client-only and full-stack applications in the
-  [Fulcro Demos](https://github.com/fulcrologic/fulcro/tree/develop/src/demos).
+  [Fulcro Demos](https://github.com/fulcrologic/fulcro/tree/master/src/demos).
   ")
 

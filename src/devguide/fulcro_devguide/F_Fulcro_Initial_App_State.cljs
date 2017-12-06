@@ -41,8 +41,6 @@
   it much easier to find/fix problems with your application's startup. It also makes it trivial when you refactor your
   UI and move things around: the normalized graph self-heals!
 
-  You can see it in action in this [online getting started video](https://youtu.be/vzIrgR9iXOw?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R).
-
   ## The Basics
 
   There is a built-in normalization mechanism called `prim/tree->db`. It takes a UI query and some data and turns it
@@ -60,14 +58,14 @@
   has this `:component` metadata entry. This is the magic behind the curtains that allows auto-normalization to work,
   and is also one of the reasons you call `(get-query Root)` instead of the method *you* defined called `query`.
 
-  ## Fulcro and InitialAppState
+  ## Adding Initial Application State
 
-  If your root component implements the `InitialAppState` protocol, then Fulcro will detect that and use the query to
+  If your root component has initial state then Fulcro will detect that and use the query to
   auto-normalize it using `tree->db`. This will then become your initial normalized graph database for your application.
 
   The steps are as follows:
 
-  1. Implement the `InitialAppState` protocol
+  1. Add `:initial-state` to options (or in `defui` implement the `InitialAppState` protocol)
      - Return a map of data that matches the query of the component
      - Make sure all of the joins in the query are also represented by composed initial state from the joined component(s)
   2. Repeat for all children that need to be part of your *initial* application state.
@@ -89,10 +87,11 @@
   any component with an ident also has the data in its initial state needed by that `ident` function, or things won't normalize
   correctly!
 
-  Note also that we use `prim/get-initial-state` instead of calling the protocol `initial-state` directly. The latter will work
-  in cljs, but if you ever want to use your components with server-side rendering then you'll have a problem. This is because the JVM
-  doesn't support any way of doing `Class<Component> implements InitialAppState` (which is what the `static` qualifier implies).
-  So, for server-sider rendering we have to do a bit of behind-the-scenes magic that we've wrapped in `get-initial-state`.
+  A `defui` NOTE: If you use `defui` instead of `defsc` beware that you want `prim/get-initial-state` instead of calling the protocol
+  `initial-state` directly. The latter will work in cljs, but if you ever want to use your components with server-side rendering
+  then you'll have a problem. This is because the JVM doesn't support any way of doing `Class<Component> implements
+  InitialAppState` (which is what the `static` qualifier implies). So, for server-sider rendering we have to do a
+  bit of behind-the-scenes magic that we've wrapped in `get-initial-state`.
 
   Your top-level creation of the client now becomes *much* simpler, because you no longer have to worry about some external
   data structure matching your UI! Fulcro will sense initial state (if it exists in the
@@ -109,7 +108,63 @@
   {}
   {:inspect-data true})
 
-(defcard-doc "
+(defcard-doc ["
+  ## Error Checking Initial App State
+
+  The `defsc` macro supports the template and lambda form for initial state, much like it does for query and ident; however,
+  since initial state can take parameters it is a bit more complicated and the support is considered experimental.
+
+  We generally recommend using the lambda form for most initialization, though if you need just a simple map of simple values,
+  know that you can specify initial state as:
+
+  ```
+  (defsc Component [this props]
+   {:initial-state {:id :mine
+                    :x 1}
+    :query [:id :x]
+    :ident [:component/by-id :id]}
+    ...)
+  ```
+
+  You can obtain parameters that were given when another component asks for initial state using `:param/name` keywords
+  as data placeholders (EXPERIMENTAL):
+
+  ```
+  (defsc Component [this props]
+   {:initial-state {:id :mine
+                    :x :param/x}
+    :query [:id :x]
+    :ident [:component/by-id :id]}
+    ...)
+
+  ...
+
+  (get-initial-state Component {:x 3}) ; => {:id :min :x 3}
+  ```
+
+  If the query joins in a component, then the template form requires that you just specify the desired parameters
+  (not call `get-initial-state` yourself). This is intended to eliminate boilerplate, but is again an experimental
+  feature:
+
+  ```
+  (defsc Component [this props]
+   {:query [{:child (prim/get-query Child)}]
+    :initial-state {:child {}} ; means {:child (prim/get-initial-state Child {})}
+    ...)
+  ```
+
+  This feature supports to-one and to-many initialization:
+
+  ```
+  (defsc Component [this props]
+   {:query [{:children (prim/get-query Child)}]
+    :initial-state {:children [{:a 1} {:a 2}]} ; means {:children [(prim/get-initial-state Child {:a 1}) (prim/get-initial-state Child {:a 1})]}
+    ...)
+  ```
+
+  Parameter keywords can be nested anywhere in the template form, but realize that they are always evaluated in the context of the
+  initial state they are in (not passed to children as param keywords).
+
   ## Union Initialization
 
   The last step mentioned in the prior section is particularly handy, especially if you use Unions for UI routing and need all of the
@@ -160,27 +215,21 @@
   The to-many case works without any post-step since you can put the *actual* initial state of multiple things into the
   resulting initial vector of tree state.
 
-  See this [YouTube getting started video](https://youtu.be/Rj6ll6bNXn0?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R) for an in-depth demonstration.
-
-  You can also clone [https://github.com/fulcrologic/getting-started-video](https://github.com/fulcrologic/getting-started-video)
-  and check out the `tabs-union` tag (`git checkout tabs-union`) to explore a working application using this technique. NOTE: This
-  still uses the legacy Untangled lib and naming.
-
   ## Additional Helpers
 
   If there is some portion of app state that you'd like to manipulate outside of the provided mechanism, then you can of
   course use the `started-callback` of fulcro client. The callback will run *after* initial app state is complete.
 
-  There are two useful methods in the core namespace that can help you manipulate application state:
+  There are two useful methods that can help you manipulate application state:
 
   ```
-  (merge-state! [app component-class data & ident-merges])
-  (integrate-ident! [state-atom ident & ident-merges])
+  (prim/merge-component! [app component-class data & ident-merges])
+  (prim/integrate-ident! [state-atom ident & ident-merges])
   ```
 
   where `ident-merges` are pairs (named parameters) that indicate where to place the ident of the resulting data.
 
-  The `merge-state!` function uses the query and ident of a component to take a single (possibly recursive) component's
+  The `merge-component!` function uses the query and ident of a component to take a single (possibly recursive) component's
   raw data and merge it with the app database. This is exactly what is used in the post-step to merge singleton union
   elements. It is also useful for things like merging server push data or arbitrary AJAX results (e.g. autocomplete)
   at arbitrary times.
@@ -193,7 +242,7 @@
 
   These helpers are descibed in more detail in the doc strings and in [Advanced Server Topics](#!/fulcro_devguide.M40_Advanced_Server_Topics).
 
-")
+"])
 
 
 (defsc AQueryRoot [this {:keys [root-prop]}]
@@ -221,7 +270,7 @@
 
 (defcard-doc "
 
-  ## Comments on InitialAppState
+  ## Comments on Initial State
 
   The benefits of this mechanism are huge:
 

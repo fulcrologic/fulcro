@@ -165,12 +165,6 @@
   queries when working on your render functions. E.g. you can build your UI, pick apart a pretend
   result that you hand-generate, and then later add queries and populate the database and everything should work.
 
-  ### Putting an Ident on your root
-
-  Your root component is just that: The root of the tree and graph. Placing an Ident on it means you want the root
-  itself to be placed within a table, but root is supposed to *hold* the tables. So, strange things will happen. Don't
-  do it :)
-
   ### Declaring a query that is not your own
 
   Beginners often make the mistake:
@@ -199,6 +193,19 @@
   Sometimes you're just trying to clean up code and factor bits out. Don't feel like you have to wrap UI code in
   `defsc` if it doesn't need any support from React or Fulcro. Just write a function! `PeopleWidget` earlier in this
   document is a great example of this.
+
+  ### Using a lambda for the query
+
+  You can choose to code your query as a lambda:
+
+  ```
+  (defsc Component [this props]
+    {:query (fn [] [:x])}
+    ...)
+  ```
+
+  Doing so will disable a number of the error checks that `defsc` performs, and allows you to write logic within your
+  query. However, you should understand more of the internals of Fulcro before attempting the latter.
   ")
 
 (defcard-doc
@@ -221,8 +228,25 @@
   ```
   (defsc Person [this {:keys [db/id person/name]}]
     {:query [:db/id :person/name] ; or in lambda form (fn [] [:db/id :person/name])
-     :ident (fn [this props] [:person/by-id id]) ; or in template form: [:person/by-id :db/id]
+     :ident [:person/by-id :db/id] ; or in lambda form (fn [] [:person/by-id id])
     ...)
+  ```
+
+  There are two ways to write it: As a template, and as a lambda.
+
+  In template form, you write what looks like an ident, but the second element is the name of the property that holds
+  the entity's ID: `[:person/by-id :db/id]` means `[:person/by-id (get props :db/id)]`.
+
+  You may find it useful to have the ident use code instead (e.g. you might want to code your idents in a reusable
+  function). In that case you can use a lambda, which will have the (possibly destructured) props from the `defsc` in
+  scope:
+
+  ```
+  (defn person-ident [id] [:person/by-id id])
+
+  (defsc Person [this {:keys [db/id]}]
+    {:ident (fn [] [:person/by-id (person-ident id)])
+    ...
   ```
 
   Some critical notes:
@@ -232,6 +256,9 @@
   - The template format will throw an error if you screw up. The lambda format disables error checking.
   - The table names (first element of the ident) are just keywords. Using the type/index style makes them easier to
   spot and understand.
+  - Your root component is just that: The root of the tree and graph. Placing an Ident on it means you want the root
+  itself to be placed within a table, but root is supposed to *hold* the tables. So, strange things will happen. Don't
+  do it :)
 
   ### Choosing Table Names
 

@@ -23,11 +23,30 @@
 
   ## Storing the Support Request
 
-  TODO...for now, see todomvc
+  Basically you just have to write something to handle the `fulcro.client.mutations/send-history` mutation, save the
+  data, and return a tempid remapping (optional, since the client itself won't care):
+
+  ```
+  (server/defmutation fulcro.client.mutations/send-history [params]
+    (action [env]
+       ...save the history from params...
+       ...send an email to a developer with the saved id?...))
+  ```
+
+  See Fulcro TodoMVC for an example.
 
   ## Using the Support Viewer
 
-  TODO...for now, see todomvc
+  The support viewer is a simple UI that is pre-programmed in the `fulcro.support-viewer` namespace. When started, it
+  will issue a load in order to obtain the history you saved in the prior step. It will then run the application
+  (which you also have to point to) with that history in a DVR-style playback.
+
+  See Fulcro TodoMVC for an example.
+
+  You can see how simple the
+  [client setup](https://github.com/fulcrologic/fulcro-todomvc/blob/master/src/main/fulcro_todomvc/support_viewer.cljs) is here, and
+  look at the defmutation for the `send-history` and query for `:support-request` in this file:
+  [Server API](https://github.com/fulcrologic/fulcro-todomvc/blob/master/src/main/fulcro_todomvc/api.clj)
 
   ## Compressible Transactions
 
