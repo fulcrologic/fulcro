@@ -22,6 +22,13 @@ Latest version on Clojars: image:https://img.shields.io/clojars/v/fulcrologic/fu
 Latest Release: image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"]
 Development Snapshot: image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"]
 
+## IMPORTANT NOTE: Documentation Update In Progress
+
+Fulcro documentation is undergoing an update for 2.0. YouTube videos and other documentation on this website may still refer to 1.0 things.
+. You can find consistent 1.x documentation here:
+http://fulcro.fulcrologic.com/guide-v1.html. The 2.0 guide at http://fulcro.fulcrologic.com/guide.html is correct, but is
+being simplified and may appear in an slightly inconsistent state. YouTube videos all refer to version 1.x, as do most
+of the existing demos and such. We expect this to normalize again by December 12th or so.
 
 ## Writing Applications with Fulcro
 
