@@ -38,88 +38,88 @@
     (-> (prim/add-basis-time {:hello {:world {:data 2}
                                       :foo   :bar
                                       :multi [{:x 1} {:x 2}]}} 10)
-        (read-times))
-      => {:hello {:world {::time 10}
-                  :multi [{::time 10} {::time 10}]
-                  ::time 10}
-          ::time 10}
+      (read-times))
+    => {:hello {:world {::time 10}
+                :multi [{::time 10} {::time 10}]
+                ::time 10}
+        ::time 10}
 
-      "Limit the reach when query is provided"
-      (-> (prim/add-basis-time [{:hello [{:world [:item]}
-                                         {:multi [:x]}]}]
-            {:hello {:world {:data 2
-                             :item [{:nested {:deep "bar"}}]}
-                     :so    {:long {:and "more"}}
-                     :foo   :bar
-                     :multi [{:x 1} {:x 2}]}} 10)
-        (read-times))
-      => {:hello {:world {:item  [{::time 10}]
-                          ::time 10}
-                  :multi [{::time 10} {::time 10}]
-                  ::time 10}
-          ::time 10}
+    "Limit the reach when query is provided"
+    (-> (prim/add-basis-time [{:hello [{:world [:item]}
+                                       {:multi [:x]}]}]
+          {:hello {:world {:data 2
+                           :item [{:nested {:deep "bar"}}]}
+                   :so    {:long {:and "more"}}
+                   :foo   :bar
+                   :multi [{:x 1} {:x 2}]}} 10)
+      (read-times))
+    => {:hello {:world {:item  [{::time 10}]
+                        ::time 10}
+                :multi [{::time 10} {::time 10}]
+                ::time 10}
+        ::time 10}
 
-      "Out of query data is kept as is"
-      (prim/add-basis-time [{:hello [{:world [:item]}
+    "Out of query data is kept as is"
+    (prim/add-basis-time [{:hello [{:world [:item]}
                                    :query-only
-                                     {:multi [:x]}]}]
-        {:hello {:world {:data 2
-                         :item [{:nested {:deep "bar"}}]}
-                 :so    {:long {:and "more"}}
-                 :foo   :bar
-                 :multi [{:x 1} {:x 2}]}} 10)
-      => {:hello {:world {:data 2
-                          :item [{:nested {:deep "bar"}}]}
-                  :so    {:long {:and "more"}}
-                  :foo   :bar
-                  :multi [{:x 1} {:x 2}]}}
+                                   {:multi [:x]}]}]
+      {:hello {:world {:data 2
+                       :item [{:nested {:deep "bar"}}]}
+               :so    {:long {:and "more"}}
+               :foo   :bar
+               :multi [{:x 1} {:x 2}]}} 10)
+    => {:hello {:world {:data 2
+                        :item [{:nested {:deep "bar"}}]}
+                :so    {:long {:and "more"}}
+                :foo   :bar
+                :multi [{:x 1} {:x 2}]}}
 
-      "Handle unions"
-      (-> (prim/add-basis-time [{:hello [{:union {:ua [:x]
-                                                  :ub [:y]}}]}]
-            {:hello {:union {:x    {:content "bar"}
-                             :type :ua}}} 10)
-        (read-times))
-      => {:hello {:union {:x     {::time 10}
-                          ::time 10}
-                  ::time 10}
-          ::time 10}
+    "Handle unions"
+    (-> (prim/add-basis-time [{:hello [{:union {:ua [:x]
+                                                :ub [:y]}}]}]
+          {:hello {:union {:x    {:content "bar"}
+                           :type :ua}}} 10)
+      (read-times))
+    => {:hello {:union {:x     {::time 10}
+                        ::time 10}
+                ::time 10}
+        ::time 10}
 
-      "Handle recursive queries"
-      (-> (prim/add-basis-time [{:hello [{:parent '...}
-                                         :name]}]
-            {:hello {:name   "bla"
-                     :parent {:name   "meh"
-                              :parent {:name "other"}}}} 10)
-        (read-times))
-      => {:hello {:parent {:parent {::time 10}
-                           ::time  10}
-                  ::time  10}
-          ::time 10}
+    "Handle recursive queries"
+    (-> (prim/add-basis-time [{:hello [{:parent '...}
+                                       :name]}]
+          {:hello {:name   "bla"
+                   :parent {:name   "meh"
+                            :parent {:name "other"}}}} 10)
+      (read-times))
+    => {:hello {:parent {:parent {::time 10}
+                         ::time  10}
+                ::time  10}
+        ::time 10}
 
-      "Handle recursive queries with limit"
-      (-> (prim/add-basis-time [{:hello [{:parent 1}
-                                         :name]}]
-            {:hello {:name   "bla"
-                     :parent {:name   "meh"
-                              :parent {:name   "other"
-                                       :parent {:name "one more"}}}}} 10)
-        (read-times))
-      => {:hello {:parent {:parent {::time 10}
-                           ::time  10}
-                  ::time  10}
-          ::time 10}
+    "Handle recursive queries with limit"
+    (-> (prim/add-basis-time [{:hello [{:parent 1}
+                                       :name]}]
+          {:hello {:name   "bla"
+                   :parent {:name   "meh"
+                            :parent {:name   "other"
+                                     :parent {:name "one more"}}}}} 10)
+      (read-times))
+    => {:hello {:parent {:parent {::time 10}
+                         ::time  10}
+                ::time  10}
+        ::time 10}
 
-      "Meta data is preserved"
-      (-> (prim/add-basis-time [{:hello [{:world [:item]}
-                                         {:multi [:x]}]}]
-            ^::info {:hello {:world {:data 2
-                                     :item [{:nested {:deep "bar"}}]}
-                             :so    {:long {:and "more"}}
-                             :foo   :bar
-                             :multi [{:x 1} {:x 2}]}} 10)
-        (meta))
-      => {::prim/time 10 ::info true}))
+    "Meta data is preserved"
+    (-> (prim/add-basis-time [{:hello [{:world [:item]}
+                                       {:multi [:x]}]}]
+          ^::info {:hello {:world {:data 2
+                                   :item [{:nested {:deep "bar"}}]}
+                           :so    {:long {:and "more"}}
+                           :foo   :bar
+                           :multi [{:x 1} {:x 2}]}} 10)
+      (meta))
+    => {::prim/time 10 ::info true}))
 
 (defui A)
 
@@ -1302,6 +1302,14 @@
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))))
      (assertions
+       "Disables sanity checks when the query contains '*"
+       (#'prim/defsc* '(Person
+                         [this {:keys [x y z] :as props}]
+                         {:query         [*]
+                          :initial-state {:a 1}
+                          :ident         [:PERSON/by-id :db/id]}
+                         (dom/div nil "Boo")))
+       =fn=> (constantly true) ; just expect it not to throw
        "works with initial state"
        (#'prim/defsc* '(Person
                          [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
