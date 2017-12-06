@@ -5,7 +5,7 @@
             [fulcro.client :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.data-fetch :as df]
-            [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
+            [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.mutations :as m]))
 
 (defsc Main [this {:keys [label]}]
@@ -157,7 +157,7 @@
   "
 
   - Compose your top-level router into your root, and place the routing tree into the top-level app state (e.g.
-  using InitialAppState). The routing tree is considered singleton data and is not needed in the query.
+  using initial-state). The routing tree is considered singleton data and is not needed in the query.
   "
   (dc/mkdn-pprint-source Root)
   "
