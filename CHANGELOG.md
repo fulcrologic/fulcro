@@ -1,4 +1,19 @@
-2.0.0
+2.0.0-beta4
+-----------
+- Expanded defsc
+  - Now supports lifecylcle methods first-class
+- Fixed a bug in defsc query validation
+- Documentation improvements
+
+2.0.0-beta3
+-----------
+- Bug fixes and doc improvements
+
+2.0.0-beta2
+-----------
+- Bug fixes and doc improvements
+
+2.0.0-beta1
 -----
 - Removed dependency on Om Next. See README-fulcro-2.0.adoc for upgrade instructions.
 - Imported and refined the useful Om Next abstractions.
