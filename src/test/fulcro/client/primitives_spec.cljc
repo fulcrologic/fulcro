@@ -1386,7 +1386,7 @@
                  [props (fulcro.client.primitives/props this)]
                  (dom/div nil "Boo")))
              (shouldComponentUpdate [this next-props next-state] false))
-       "Emits a placeholder body if you forget to give a body"
+       "Emits a placeholder body if you do not give a body"
        (prim/defsc* '(Person [this props] {:shouldComponentUpdate (fn [props state] false)}))
        => '(fulcro.client.primitives/defui Person
              Object

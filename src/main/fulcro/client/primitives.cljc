@@ -3046,7 +3046,7 @@
                                                       :doc (s/? string?)
                                                       :arglist (s/and vector? #(<= 2 (count %) 5))
                                                       :options (s/? :fulcro.client.primitives.defsc/options)
-                                                      :body (s/+ (constantly true)))))
+                                                      :body (s/* list?))))
 #?(:clj (s/def :fulcro.client.primitives.defsc/static #{'static}))
 #?(:clj (s/def :fulcro.client.primitives.defsc/protocol-method list?))
 
@@ -3078,20 +3078,6 @@
             ~include-form)))))
 
 #?(:clj
-   (defn detect-missing-body
-     "Detect if the user passed options but no body, and it got mis-parsed. Since the options can look like the beginning of body, we have to be careful
-     that if the user forgets (or does not want) body, that the options map gets repositioned."
-     [options body]
-     (let [options-detected-as-body? (and (nil? options) (map? (first body)))
-           placeholder-body          ['(fulcro.client.dom/div nil "THIS COMPONENT HAS NO DECLARED UI")]
-           new-options               (if options-detected-as-body? (first body) options)
-           new-body                  (cond
-                                       (and options-detected-as-body? (empty? (rest body))) placeholder-body
-                                       options-detected-as-body? (rest body)
-                                       :else body)]
-       [new-options new-body])))
-
-#?(:clj
    (defn defsc*
      [args]
      (if-not (s/valid? :fulcro.client.primitives.defsc/args args)
@@ -3101,9 +3087,9 @@
                                 first
                                 :path) " is invalid.")})))
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
-           [options body] (detect-missing-body options body)
            [thissym propsym computedsym csssym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
+           body                             (or body ['(fulcro.client.dom/div nil "THIS COMPONENT HAS NO DECLARED UI")])
            ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
            initial-state-template-or-method (into {} [initial-state])
            query-template-or-method         (into {} [query])
