@@ -1,23 +1,19 @@
 (ns cards.dynamic-i18n-locale-cards
   (:require [fulcro.client.dom :as dom]
             [fulcro.i18n :as i18n :refer [tr]]
-            [fulcro.client.primitives :as prim :refer [defui defsc]]
+            [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.mutations :as m]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]))
 
-(defui ^:once RootNode
-  static prim/IQuery
-  (query [this] [:ui/locale :ui/react-key])
-  Object
-  (render [this]
-    (let [{:keys [ui/locale ui/react-key]} (prim/props this)]
-      (dom/div nil
-        (dom/h4 nil (tr "Locale Tests. Current locale: ") (name locale))
-        (dom/p nil (tr "This is a test."))
-        (mapv (fn [l] (dom/button #js {:key l :onClick #(prim/transact! this `[(m/change-locale {:lang ~l})])} l))
-          ["en" "es-MX" "de"])))))
+(defsc RootNode [this {:keys [ui/locale ui/react-key]}]
+  {:query [:ui/locale :ui/react-key]}
+  (dom/div nil
+    (dom/h4 nil (tr "Locale Tests. Current locale: ") (name locale))
+    (dom/p nil (tr "This is a test."))
+    (mapv (fn [l] (dom/button #js {:key l :onClick #(prim/transact! this `[(m/change-locale {:lang ~l})])} l))
+      ["en" "es-MX" "de"])))
 
 (defcard-doc
   "# Dynamically Loaded Locales

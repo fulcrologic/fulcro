@@ -67,7 +67,7 @@
   (map->LocalStorageRemote {:current-state (atom {})
                             :parser        (prim/parser {:read ls-read :mutate ls-mutate})}))
 
-(defsc Root [this {:keys [some-key ui/react-key ui/stale?]} comp children]
+(defsc Root [this {:keys [some-key ui/react-key ui/stale?]}]
   {:query         [:ui/react-key :some-key :ui/stale?]
    :initial-state {:some-key :unset :ui/stale? false}}
   (dom/div #js {:key react-key}

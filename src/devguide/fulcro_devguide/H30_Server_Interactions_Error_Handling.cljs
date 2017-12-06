@@ -46,7 +46,7 @@
                        (ok resp)) 2000)))
   (start [this] this))
 
-(defsc BlockingOverlay [this {:keys [ui/active? ui/message]} _ _]
+(defsc BlockingOverlay [this {:keys [ui/active? ui/message]}]
   {:query         [:ui/active? :ui/message]
    :initial-state {:ui/active? false :ui/message "Please wait..."}}
   (dom/div (clj->js {:style {:position        :absolute
@@ -89,7 +89,7 @@
         (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) " (Retrying...)"))
         (prim/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})])))))
 
-(defsc Root [this {:keys [ui/name ui/react-key overlay]} _ _]
+(defsc Root [this {:keys [ui/name ui/react-key overlay]}]
   {:query         [:ui/react-key :ui/name {:overlay (prim/get-query BlockingOverlay)}]
    :initial-state {:overlay {} :ui/name "Alicia"}}
   (dom/div #js {:key react-key :style (clj->js {:width "400px" :height "100px"})}

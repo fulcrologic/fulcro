@@ -3,11 +3,6 @@
   [fulcro.client.dom :as dom]
   [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
-; TODO: In these exercises, probably better to have them make an HTML file, a namespace with make/mount, etc.
-; See DIV in index.html (have it render over top of tutorial)
-; NOTE: in exercises you'll have them MAKE (by hand) initial app state
-; TODO: Note diff of atom vs map on I.App State (auto-norm). Exercise?
-
 (defcard-doc
   "
   # Building a Fulcro client
@@ -26,8 +21,8 @@
 
   ```html
   <body>
-     <div id=\"app\"></div>
-     <script src=\"js/my-app.js\"></script>
+     <div id=\"app\"></div> <!-- Your app will mount on this div -->
+     <script src=\"js/my-app.js\"></script> <!-- this will load your app's generated js -->
   </body>
   ```
 
@@ -36,10 +31,8 @@
   ```clojure
   (ns app.core
     (:require
-      app.mutations ; remember to load your add-on mutations
       [fulcro.client :as fc]
       [app.ui :as ui]
-      yahoo.intl-messageformat-with-locales ; if using i18n
       [fulcro.client.primitives :as prim]))
 
   (defonce app (atom (fc/new-fulcro-client :initial-state { :some-data 42 })))
@@ -91,6 +84,5 @@
 
   You should definitely read the next section about [the InitialAppState mechanism](#!/fulcro_devguide.F_Fulcro_Initial_App_State). It
   will make your life easier.
-
   ")
 

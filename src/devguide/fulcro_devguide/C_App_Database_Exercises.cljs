@@ -96,5 +96,5 @@
                                      {:canvas [{:data [:x :y]}]}]}] ex3-uidb ex3-uidb))))
 
 (defcard-doc
-  "The solutions are in `src/guide/fulcro_devguide/app_database/solutions.cljs`. Now you're ready
+  "The solutions are in `src/devguide/solutions/app_database/solutions.cljs`. Now you're ready
   to see how to get the data out using [queries](#!/fulcro_devguide.D_Queries)")

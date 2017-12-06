@@ -313,6 +313,7 @@
 (def integrate-ident "DEPRECATED: Now defined in fulcro.client.primitives" prim/integrate-ident)
 (def integrate-ident! "DEPRECATED: Now defined in fulcro.client.primitives" prim/integrate-ident!)
 (defn merge-state! "See primitives/merge-component!" [app-or-reconciler component object-data & named-params]
+  (log/info app-or-reconciler)
   (let [reconciler (if #?(:cljs (implements? FulcroApplication app-or-reconciler)
                           :clj  (satisfies? FulcroApplication app-or-reconciler))
                      (:reconciler app-or-reconciler)

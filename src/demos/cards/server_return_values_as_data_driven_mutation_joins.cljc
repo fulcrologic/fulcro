@@ -3,7 +3,7 @@
     #?@(:cljs [[devcards.core :as dc :refer-macros [defcard defcard-doc]]
                [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.dom :as dom]
     [cards.card-utils :refer [sleep]]
     [fulcro.client.mutations :as m :refer [defmutation]]
@@ -67,7 +67,7 @@
   (remote [{:keys [state ast]}]
     (m/returning ast state Item)))
 
-(defsc Item [this {:keys [db/id item/value]} _ _]
+(defsc Item [this {:keys [db/id item/value]}]
   {:query [:db/id :item/value]
    :ident [:item/by-id :db/id]}
   (dom/li #js {:onClick (fn [evt]
@@ -77,7 +77,7 @@
 
 (def example-height "400px")
 
-(defsc ItemList [this {:keys [db/id list/title list/items] :as props} _ _]
+(defsc ItemList [this {:keys [db/id list/title list/items] :as props}]
   {:query         [:db/id :list/title {:list/items (prim/get-query Item)}]
    :initial-state {}
    :ident         [:list/by-id :db/id]}
@@ -91,7 +91,7 @@
 
 (def ui-list (prim/factory ItemList {:keyfn :db/id}))
 
-(defsc Overlay [this {:keys [:visible?] :as props} computed children]
+(defsc Overlay [this {:keys [:visible?] :as props}]
   {:query         [:db/id :visible?]
    :initial-state {:visible? false}}
   (dom/div (clj->js {:onClick #(.stopPropagation %)
@@ -105,7 +105,7 @@
 
 (def ui-overlay (prim/factory Overlay {:keyfn :db/id}))
 
-(defsc Root [this {:keys [ui/react-key overlay mutation-join-list]} _ _]
+(defsc Root [this {:keys [ui/react-key overlay mutation-join-list]}]
   {:query         [:ui/react-key {:overlay (prim/get-query Overlay)} {:mutation-join-list (prim/get-query ItemList)}]
    :initial-state {:overlay {} :mutation-join-list {}}}
   (dom/div (clj->js {:key react-key :style {:position "relative"}})

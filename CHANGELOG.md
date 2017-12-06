@@ -1,4 +1,19 @@
-2.0.0
+2.0.0-beta4
+-----------
+- Expanded defsc
+  - Now supports lifecylcle methods first-class
+- Fixed a bug in defsc query validation
+- Documentation improvements
+
+2.0.0-beta3
+-----------
+- Bug fixes and doc improvements
+
+2.0.0-beta2
+-----------
+- Bug fixes and doc improvements
+
+2.0.0-beta1
 -----
 - Removed dependency on Om Next. See README-fulcro-2.0.adoc for upgrade instructions.
 - Imported and refined the useful Om Next abstractions.
@@ -35,10 +50,12 @@ to use devcards mkdn-pprint-source with mutations in your devcards. See the docs
 - Expanded defsc.
    - It can now take a method body for `initial-state`, `ident`, and `query` in
      addition to a simpler template. Using the method forms loosens verification logic.
+   - Options are optional, so you can generate a plain react component
    - Parameters to the lambda forms get `this` and `props` from main args, so you don't list them.
      (e.g. `:ident (fn [] ...use this and props from defsc args...)`
-   - BREAKING CHANGE: IF you use `:css`, then the children argument shifts right one, and
-     the 4th argument is now the css classnames.
+   - BREAKING CHANGE:
+     - The 4th argument is now children IF you use `:css`.
+     - The 4th argument is now an error if there are no CSS rules.
    - Defsc now considers all arguments *after* props to be optional, so you don't need to list underscores
 - Removed deprecated fulcro.client.cards/fulcro-app. Please port to `defcard-fulcro` instead (trivial port).
 - Moved defsc from fulcro.client.core to fulcro.client.primitives namespace

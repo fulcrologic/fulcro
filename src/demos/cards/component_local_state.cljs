@@ -2,11 +2,11 @@
   (:require
     [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [fulcro.client :as fc ]
+    [fulcro.client :as fc]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
+    [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
     [fulcro.client.dom :as dom]
     yahoo.intl-messageformat-with-locales))
 
@@ -97,50 +97,39 @@
     (prim/set-state! child new-state)
     (render-hover-and-marker (prim/props child) new-state)))
 
-(defui ^:once Child
-  static InitialAppState
-  (initial-state [cls _] {:id 0 :size 50 :marker [0.5 0.5]})
-  static prim/IQuery
-  (query [this] [:id :size :marker])
-  static prim/Ident
-  (ident [this props] [:child/by-id (:id props)])
-  Object
-  (initLocalState [this] {:coords [-50 -50]})
+(defsc Child [this {:keys [id size]}]
+  {:query         [:id :size :marker]
+   :initial-state (fn [_] {:id 0 :size 50 :marker [0.5 0.5]})
+   :ident         (fn [] [:child/by-id id])
+   :protocols     [Object
+                   (initLocalState [this] {:coords [-50 -50]})]}
   ; Remember that this "render" just renders the DOM (e.g. the canvas DOM element). The graphical
   ; rendering within the canvas is done during event handling.
-  (render [this]
-    (let [{:keys [size]} (prim/props this)]
-      ; size comes from props. Transactions on size will cause the canvas to resize in the DOM
-      (dom/canvas #js {:width       (str size "px")
-                       :height      (str size "px")
-                       :onMouseDown (fn [evt] (place-marker this evt))
-                       :onMouseMove (fn [evt] (hover-marker this evt))
-                       ; This is a pure React mechanism for getting the underlying DOM element.
-                       ; Note: when the DOM element changes this fn gets called with nil
-                       ; (to help you manage memory leaks), then the new element
-                       :ref         (fn [r]
-                                      (when r
-                                        (prim/update-state! this assoc :canvas r)
-                                        (render-hover-and-marker (prim/props this) (prim/get-state this))))
-                       :style       #js {:border "1px solid black"}}))))
+  ; size comes from props. Transactions on size will cause the canvas to resize in the DOM
+  (dom/canvas #js {:width       (str size "px")
+                   :height      (str size "px")
+                   :onMouseDown (fn [evt] (place-marker this evt))
+                   :onMouseMove (fn [evt] (hover-marker this evt))
+                   ; This is a pure React mechanism for getting the underlying DOM element.
+                   ; Note: when the DOM element changes this fn gets called with nil
+                   ; (to help you manage memory leaks), then the new element
+                   :ref         (fn [r]
+                                  (when r
+                                    (prim/update-state! this assoc :canvas r)
+                                    (render-hover-and-marker (prim/props this) (prim/get-state this))))
+                   :style       #js {:border "1px solid black"}}))
 
 (def ui-child (prim/factory Child))
 
-(defui ^:once Root
-  static InitialAppState
-  (initial-state [cls params]
-    {:ui/react-key "K" :child (initial-state Child nil)})
-  static prim/IQuery
-  (query [this] [:ui/react-key {:child (prim/get-query Child)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key child]} (prim/props this)]
-      (dom/div #js {:key react-key}
-        (dom/button #js {:onClick #(prim/transact! this `[(make-bigger {})])} "Bigger!")
-        (dom/button #js {:onClick #(prim/transact! this `[(make-smaller {})])} "Smaller!")
-        (dom/br nil)
-        (dom/br nil)
-        (ui-child child)))))
+(defsc Root [this {:keys [ui/react-key child]}]
+  {:query         [:ui/react-key {:child (prim/get-query Child)}]
+   :initial-state (fn [params] {:ui/react-key "K" :child (initial-state Child nil)})}
+  (dom/div #js {:key react-key}
+    (dom/button #js {:onClick #(prim/transact! this `[(make-bigger {})])} "Bigger!")
+    (dom/button #js {:onClick #(prim/transact! this `[(make-smaller {})])} "Smaller!")
+    (dom/br nil)
+    (dom/br nil)
+    (ui-child child)))
 
 (defonce app (atom (fc/new-fulcro-client)))
 

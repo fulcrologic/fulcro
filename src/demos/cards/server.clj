@@ -5,7 +5,8 @@
             cards.card_utils
             cards.cascading-dropdowns
             cards.declarative_mutation_refresh
-            cards.legacy_loading_indicators
+            cards.legacy-load-indicators
+            cards.loading-indicators
             cards.loading_data_basics
             cards.loading_in_response_to_UI_routing
             cards.paginating_large_lists_from_server

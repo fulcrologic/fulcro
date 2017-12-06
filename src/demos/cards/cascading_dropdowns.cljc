@@ -9,7 +9,7 @@
     [fulcro.ui.bootstrap3 :as bs]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui]]
+    [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.server :as server]
     [fulcro.ui.elements :as ele]))
 
@@ -47,39 +47,34 @@
       [:bootstrap.dropdown/by-id id :fulcro.ui.bootstrap3/items]
       [(assoc (bs/dropdown-item :loading "Loading...") :fulcro.ui.bootstrap3/disabled? true)])))
 
-(defui ^:once Root
-  static prim/InitialAppState
-  (initial-state [this props]
-    {:make-dropdown  (bs/dropdown :make "Make" [(bs/dropdown-item :ford "Ford")
-                                                (bs/dropdown-item :honda "Honda")])
-     ; leave the model items empty
-     :model-dropdown (bs/dropdown :model "Model" [])})
-  static prim/IQuery
-  (query [this] [:ui/react-key
-                 ; initial state for two Bootstrap dropdowns
-                 {:make-dropdown (prim/get-query bs/Dropdown)}
-                 {:model-dropdown (prim/get-query bs/Dropdown)}])
-  Object
-  (render [this]
-    (let [{:keys [:ui/react-key make-dropdown model-dropdown]} (prim/props this)
-          {:keys [:fulcro.ui.bootstrap3/items]} model-dropdown]
-      (render-example "200px" "200px"
-        (dom/div #js {:key react-key}
-          (bs/ui-dropdown make-dropdown
-            :onSelect (fn [item]
-                        ; Update the state of the model dropdown to show a loading indicator
-                        (prim/transact! this `[(show-list-loading {:id :model})])
-                        ; Issue the remote load. Note the use of DropdownItem as the query, so we get proper normalization
-                        ; The targeting is used to make sure we hit the correct dropdown's items
-                        (df/load this :models bs/DropdownItem {:target [:bootstrap.dropdown/by-id :model :fulcro.ui.bootstrap3/items]
-                                                               ; don't overwrite state with loading markers...we're doing that manually to structure it specially
-                                                               :marker false
-                                                               ; A server parameter on the query
-                                                               :params {:make item}}))
-            :stateful? true)
-          (bs/ui-dropdown model-dropdown
-            :onSelect (fn [item] (log/info item))
-            :stateful? true))))))
+(defsc Root [this {:keys [:ui/react-key make-dropdown model-dropdown]}]
+  {:initial-state (fn [params]
+                    {:make-dropdown  (bs/dropdown :make "Make" [(bs/dropdown-item :ford "Ford")
+                                                                (bs/dropdown-item :honda "Honda")])
+                     ; leave the model items empty
+                     :model-dropdown (bs/dropdown :model "Model" [])})
+   :query         [:ui/react-key
+                   ; initial state for two Bootstrap dropdowns
+                   {:make-dropdown (prim/get-query bs/Dropdown)}
+                   {:model-dropdown (prim/get-query bs/Dropdown)}]}
+  (let [{:keys [:fulcro.ui.bootstrap3/items]} model-dropdown]
+    (render-example "200px" "200px"
+      (dom/div #js {:key react-key}
+        (bs/ui-dropdown make-dropdown
+          :onSelect (fn [item]
+                      ; Update the state of the model dropdown to show a loading indicator
+                      (prim/transact! this `[(show-list-loading {:id :model})])
+                      ; Issue the remote load. Note the use of DropdownItem as the query, so we get proper normalization
+                      ; The targeting is used to make sure we hit the correct dropdown's items
+                      (df/load this :models bs/DropdownItem {:target [:bootstrap.dropdown/by-id :model :fulcro.ui.bootstrap3/items]
+                                                             ; don't overwrite state with loading markers...we're doing that manually to structure it specially
+                                                             :marker false
+                                                             ; A server parameter on the query
+                                                             :params {:make item}}))
+          :stateful? true)
+        (bs/ui-dropdown model-dropdown
+          :onSelect (fn [item] (log/info item))
+          :stateful? true)))))
 
 #?(:cljs
    (defcard-doc

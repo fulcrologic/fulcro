@@ -9,7 +9,7 @@
 
 (declare ui-leaf)
 
-(defsc Leaf [this {:keys [x y]} _ _]
+(defsc Leaf [this {:keys [x y]}]
   {:initial-state (fn [params] {:x 1 :y 42})
    :query         (fn [] [:x])
    :ident         (fn [] [:LEAF :ID])}
@@ -24,7 +24,7 @@
 
 (def ui-leaf (prim/factory Leaf {:qualifier :x}))
 
-(defsc Root [this {:keys [ui/react-key root/leaf] :as props} _ _]
+(defsc Root [this {:keys [ui/react-key root/leaf] :as props}]
   {:initial-state (fn [p] {:ui/react-key "A" :root/leaf (prim/get-initial-state Leaf {})})
    :query         (fn [] [{:root/leaf (prim/get-query ui-leaf)} :ui/react-key])}
   (dom/div #js {:key (or react-key)}

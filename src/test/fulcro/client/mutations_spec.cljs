@@ -220,7 +220,7 @@
         "is remote"
         (:remote result) => true))))
 
-(defsc Item [this props _ _]
+(defsc Item [this props]
   {:query [:db/id :x]
    :ident [:table/id :db/id]}
   (dom/div nil ""))

@@ -5,9 +5,9 @@
     [fulcro.client.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
-    [fulcro.client :as fc ]
+    [fulcro.client :as fc]
     [fulcro.client.mutations :as m]
-    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]))
+    [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]))
 
 (defonce app (atom (fc/new-fulcro-client)))
 
@@ -17,140 +17,97 @@
 (defmethod m/mutate 'nav/main [{:keys [state]} sym params]
   {:action (fn [] (swap! state assoc :panes [:main :singleton]))})
 
-(defui ItemLabel
-  static InitialAppState
-  (initial-state [clz {:keys [value]}] {:value value})
-  static prim/IQuery
-  (query [this] [:value])
-  static prim/Ident
-  (ident [this {:keys [value]}] [:labels/by-value value])
-  Object
-  (render [this]
-    (let [{:keys [value]} (prim/props this)]
-      (dom/p nil value))))
+(defsc ItemLabel [this {:keys [value]}]
+  {:initial-state (fn [{:keys [value]}] {:value value})
+   :query         [:value]
+   :ident         (fn [] [:labels/by-value value])}
+  (dom/p nil value))
 
 (def ui-label (prim/factory ItemLabel {:keyfn :value}))
 
 ;; Foo and Bar are elements of a mutli-type to-many union relation (each leaf can be a Foo or a Bar). We use params to
 ;; allow initial state to put more than one in place and have them be unique.
-(defui Foo
-  static InitialAppState
-  (initial-state [clz {:keys [id label]}] {:id id :type :foo :label (initial-state ItemLabel {:value label})})
-  static prim/IQuery
-  (query [this] [:type :id {:label (prim/get-query ItemLabel)}])
-  Object
-  (render [this]
-    (let [{:keys [label]} (prim/props this)]
-      (dom/div nil
-        (dom/h2 nil "Foo")
-        (ui-label label)))))
+(defsc Foo [this {:keys [label]}]
+  {:query         [:type :id {:label (prim/get-query ItemLabel)}]
+   :initial-state (fn [{:keys [id label]}] {:id id :type :foo :label (prim/get-initial-state ItemLabel {:value label})})}
+  (dom/div nil
+    (dom/h2 nil "Foo")
+    (ui-label label)))
 
 (def ui-foo (prim/factory Foo {:keyfn :id}))
 
-(defui Bar
-  static InitialAppState
-  (initial-state [clz {:keys [id label]}] {:id id :type :bar :label (initial-state ItemLabel {:value label})})
-  static prim/IQuery
-  (query [this] [:type :id {:label (prim/get-query ItemLabel)}])
-  Object
-  (render [this]
-    (let [{:keys [label]} (prim/props this)]
-      (dom/div nil
-        (dom/h2 nil "Bar")
-        (ui-label label)))))
+(defsc Bar [this {:keys [label]}]
+  {:query         [:type :id {:label (prim/get-query ItemLabel)}]
+   :initial-state (fn [{:keys [id label]}] {:id id :type :bar :label (prim/get-initial-state ItemLabel {:value label})})}
+  (dom/div nil
+    (dom/h2 nil "Bar")
+    (ui-label label)))
 
 (def ui-bar (prim/factory Bar {:keyfn :id}))
 
 ;; This is the to-many union component. It is the decision maker (it has no state or rendering of it's own)
 ;; The initial state of this component is the to-many (vector) value of various children
 ;; The render just determines which thing it is, and passes on the that renderer
-(defui ListItem
-  static InitialAppState
-  (initial-state [clz params] [(initial-state Bar {:id 1 :label "A"}) (initial-state Foo {:id 2 :label "B"}) (initial-state Bar {:id 3 :label "C"})])
-  static prim/IQuery
-  (query [this] {:foo (prim/get-query Foo) :bar (prim/get-query Bar)})
-  static prim/Ident
-  (ident [this props] [(:type props) (:id props)])
-  Object
-  (render [this]
-    (let [{:keys [type] :as props} (prim/props this)]
-      (case type
-        :foo (ui-foo props)
-        :bar (ui-bar props)
-        (dom/p nil "No Item renderer!")))))
+(defsc ListItem [this {:keys [id type] :as props}]
+  {:initial-state (fn [params] [(prim/get-initial-state Bar {:id 1 :label "A"}) (prim/get-initial-state Foo {:id 2 :label "B"}) (prim/get-initial-state Bar {:id 3 :label "C"})])
+   :query         (fn [] {:foo (prim/get-query Foo) :bar (prim/get-query Bar)}) ; use lambda for unions
+   :ident         (fn [] [type id])}                        ; lambda for unions
+  (case type
+    :foo (ui-foo props)
+    :bar (ui-bar props)
+    (dom/p nil "No Item renderer!")))
 
 (def ui-list-item (prim/factory ListItem {:keyfn :id}))
 
 ;; Settings and Main are the target "Panes" of a to-one union (e.g. imagine tabs...we use buttons as the tab switching in
 ;; this example). The initial state looks very much like any other component, as does the rendering.
-(defui ^:once Settings
-  static InitialAppState
-  (initial-state [clz params] {:type :settings :id :singleton :label (initial-state ItemLabel {:value "Settings"})})
-  static prim/IQuery
-  (query [this] [:type :id {:label (prim/get-query ItemLabel)}])
-  Object
-  (render [this]
-    (let [{:keys [label]} (prim/props this)]
-      (ui-label label))))
+(defsc Settings [this {:keys [label]}]
+  {:initial-state (fn [params] {:type :settings :id :singleton :label (prim/get-initial-state ItemLabel {:value "Settings"})})
+   :query         [:type :id {:label (prim/get-query ItemLabel)}]}
+  (ui-label label))
 
 (def ui-settings (prim/factory Settings {:keyfn :type}))
 
-(defui ^:once Main
-  static InitialAppState
-  (initial-state [clz params] {:type :main :id :singleton :label (initial-state ItemLabel {:value "Main"})})
-  static prim/IQuery
-  (query [this] [:type :id {:label (prim/get-query ItemLabel)}])
-  Object
-  (render [this]
-    (let [{:keys [label]} (prim/props this)]
-      (ui-label label))))
+(defsc Main [this {:keys [label]}]
+  {:initial-state (fn [params] {:type :main :id :singleton :label (prim/get-initial-state ItemLabel {:value "Main"})})
+   :query         [:type :id {:label (prim/get-query ItemLabel)}]}
+  (ui-label label))
 
 (def ui-main (prim/factory Main {:keyfn :type}))
 
 ;; This is a to-one union component. Again, it has no state of its own or rendering. The initial state is the single
 ;; child that should appear. Fulcro (during startup) will detect this component, and then use the query to figure out
 ;; what other children (the ones that have initial-state defined) should be placed into app state.
-(defui ^:once PaneSwitcher
-  static InitialAppState
-  (initial-state [clz params] (initial-state Main nil))
-  static prim/IQuery
-  (query [this] {:settings (prim/get-query Settings) :main (prim/get-query Main)})
-  static prim/Ident
-  (ident [this props] [(:type props) (:id props)])
-  Object
-  (render [this]
-    (let [{:keys [type] :as props} (prim/props this)]
-      (case type
-        :settings (ui-settings props)
-        :main (ui-main props)
-        (dom/p nil "NO PANE!")))))
+(defsc PaneSwitcher [this {:keys [id type] :as props}]
+  {:initial-state (fn [params] (prim/get-initial-state Main nil))
+   :query         (fn [] {:settings (prim/get-query Settings) :main (prim/get-query Main)})
+   :ident         (fn [] [type id])}
+  (case type
+    :settings (ui-settings props)
+    :main (ui-main props)
+    (dom/p nil "NO PANE!")))
 
 (def ui-panes (prim/factory PaneSwitcher {:keyfn :type}))
 
 ;; The root. Everything just composes to here (state and query)
 ;; Note, in core (where we create the app) there is no need to say anything about initial state!
-(defui ^:once Root
-  static InitialAppState
-  (initial-state [clz params] {:ui/react-key "abc"
-                               :panes        (initial-state PaneSwitcher nil)
-                               :items        (initial-state ListItem nil)})
-  static prim/IQuery
-  (query [this] [:ui/react-key
-                 {:items (prim/get-query ListItem)}
-                 {:panes (prim/get-query PaneSwitcher)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key panes items]} (prim/props this)]
-      (dom/div #js {:key react-key}
-        (dom/button #js {:onClick (fn [evt] (prim/transact! this '[(nav/settings)]))} "Go to settings")
-        (dom/button #js {:onClick (fn [evt] (prim/transact! this '[(nav/main)]))} "Go to main")
+(defsc Root [this {:keys [ui/react-key panes items]}]
+  {:initial-state (fn [params] {:ui/react-key "abc"
+                                :panes        (prim/get-initial-state PaneSwitcher nil)
+                                :items        (prim/get-initial-state ListItem nil)})
+   :query         [:ui/react-key
+                   {:items (prim/get-query ListItem)}
+                   {:panes (prim/get-query PaneSwitcher)}]}
+  (dom/div #js {:key react-key}
+    (dom/button #js {:onClick (fn [evt] (prim/transact! this '[(nav/settings)]))} "Go to settings")
+    (dom/button #js {:onClick (fn [evt] (prim/transact! this '[(nav/main)]))} "Go to main")
 
-        (ui-panes panes)
+    (ui-panes panes)
 
-        (dom/h1 nil "Heterogenous list:")
+    (dom/h1 nil "Heterogenous list:")
 
-        (dom/ul nil
-          (mapv ui-list-item items))))))
+    (dom/ul nil
+      (mapv ui-list-item items))))
 
 (dc/defcard-doc
   "# Initial State

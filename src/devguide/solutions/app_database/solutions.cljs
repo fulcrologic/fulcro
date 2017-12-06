@@ -1,4 +1,4 @@
-(ns fulcro-devguide.app-database.solutions)
+(ns solutions.app-database.solutions)
 
 (def cars-table
   {:cars/by-id {

@@ -7,7 +7,7 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client :as fc]
-    [fulcro.client.primitives :as prim :refer [defui defsc]]))
+    [fulcro.client.primitives :as prim :refer [defsc]]))
 
 ; Not using an atom, so use a tree for app state (will auto-normalize via ident functions)
 (def initial-state {:ui/react-key "abc"
@@ -29,54 +29,36 @@
             (update :items dissoc id)
             (update-in [:lists 1 :list/items] filter-item)))))))
 
-(defui ^:once Item
-  static prim/InitialAppState
-  (initial-state [c {:keys [id label]}] {:item/id id :item/label label})
-  static prim/IQuery
-  (query [this] [:item/id :item/label])
-  static prim/Ident
-  (ident [this props] [:items (:item/id props)])
-  Object
-  (render [this]
-    (let [{:keys [on-delete]} (prim/get-computed this)
-          {:keys [item/id item/label]} (prim/props this)]
-      (dom/li nil
-        label
-        (dom/button #js {:onClick #(on-delete id)} "X")))))
+(defsc Item [this
+             {:keys [item/id item/label] :as props}
+             {:keys [on-delete] :as computed}]
+  {:initial-state (fn [{:keys [id label]}] {:item/id id :item/label label})
+   :query         [:item/id :item/label]
+   :ident         [:items :item/id]}
+  (dom/li nil label (dom/button #js {:onClick #(on-delete id)} "X")))
 
 (def ui-list-item (prim/factory Item {:keyfn :item/id}))
 
-(defui ^:once ItemList
-  static prim/InitialAppState
-  (initial-state [c p] {:list/id    1
-                        :list/name  "List 1"
-                        :list/items [(prim/get-initial-state Item {:id 1 :label "A"})
-                                     (prim/get-initial-state Item {:id 2 :label "B"})]})
-  static prim/IQuery
-  (query [this] [:list/id :list/name {:list/items (prim/get-query Item)}])
-  static prim/Ident
-  (ident [this props] [:lists (:list/id props)])
-  Object
-  (render [this]
-    (let [{:keys [list/name list/items]} (prim/props this)
-          ; pass the operation through computed so that it is executed in the context of the parent.
-          item-props (fn [i] (prim/computed i {:on-delete #(prim/transact! this `[(delete-item {:id ~(:item/id i)})])}))]
-      (dom/div nil
-        (dom/h4 nil name)
-        (dom/ul nil
-          (map #(ui-list-item (item-props %)) items))))))
+(defsc ItemList [this {:keys [list/name list/items]}]
+  {:initial-state (fn [p] {:list/id    1
+                           :list/name  "List 1"
+                           :list/items [(prim/get-initial-state Item {:id 1 :label "A"})
+                                        (prim/get-initial-state Item {:id 2 :label "B"})]})
+   :query         [:list/id :list/name {:list/items (prim/get-query Item)}]
+   :ident         [:lists :list/id]}
+  (let [; pass the operation through computed so that it is executed in the context of the parent.
+        item-props (fn [i] (prim/computed i {:on-delete #(prim/transact! this `[(delete-item {:id ~(:item/id i)})])}))]
+    (dom/div nil
+      (dom/h4 nil name)
+      (dom/ul nil
+        (map #(ui-list-item (item-props %)) items)))))
 
 (def ui-list (prim/factory ItemList))
 
-(defui ^:once Root
-  static prim/InitialAppState
-  (initial-state [c p] {:main-list (prim/get-initial-state ItemList {})})
-  static prim/IQuery
-  (query [this] [:ui/react-key {:main-list (prim/get-query ItemList)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key main-list] :or {ui/react-key "ROOT"}} (prim/props this)]
-      (dom/div #js {:key react-key} (ui-list main-list)))))
+(defsc Root [this {:keys [ui/react-key main-list] :or {ui/react-key "ROOT"}}]
+  {:initial-state (fn [p] {:main-list (prim/get-initial-state ItemList {})})
+   :query         [:ui/react-key {:main-list (prim/get-query ItemList)}]}
+  (dom/div #js {:key react-key} (ui-list main-list)))
 
 
 (dc/defcard-doc
