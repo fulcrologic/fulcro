@@ -1,30 +1,24 @@
 (ns fulcro-devguide.H30-Server-Interactions-Error-Handling
-  (:require-macros [cljs.test :refer [is]])
-  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m]
             [fulcro-devguide.A-Quick-Tour :as qt]
             [fulcro.client :as fc]
+            [fulcro.server :as server]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.data-fetch :as df]
             [fulcro.client.network :as fcn]
             [fulcro.client.logging :as log]))
 
-(defmulti server-read prim/dispatch)
-(defmulti server-mutate prim/dispatch)
-(def parser (prim/parser {:read server-read :mutate server-mutate}))
-(defmethod server-read :default [env k p] (log/info "Unknown server read of " k))
-(defmethod server-mutate :default [env k p] (log/info "Unknown server mutate of " k))
-
-(defmethod server-mutate `submit-form [env k params]
-  {:action (fn []
-             (if (> 0.5 (rand))
-               {:message "Everything went swell!"
-                :result  0}
-               {:message "There was an error!"
-                :result  1}))})
+(server/defmutation ^{:intern submit-form-server} submit-form [params]
+  (action [env]
+    (if (> 0.5 (rand))
+      {:message "Everything went swell!"
+       :result  0}
+      {:message "There was an error!"
+       :result  1})))
 
 ;; from fulcro.server namespace...this is how a real fulcro server behaves, it raises the results for you from mutations
 (defn raise-response
@@ -35,6 +29,8 @@
               (assoc acc k (:result v))
               (assoc acc k v)))
     {} resp))
+
+(def parser (server/fulcro-parser))
 
 (defrecord MockNetwork []
   fcn/FulcroNetwork
@@ -65,20 +61,18 @@
 (defn set-overlay-visible* [state tf] (assoc-in state [:overlay :ui/active?] tf))
 (defn set-overlay-message* [state message] (assoc-in state [:overlay :ui/message] message))
 
-(defui MutationStatus
-  static prim/Ident
-  (ident [t p] [:remote-mutation :status])
-  static prim/IQuery
-  (query [this] [:message :result]))
+(defsc MutationStatus [this props]
+  {:ident (fn [] [:remote-mutation :status])
+   :query [:message :result]})
 
-(defmutation submit-form [params]
+(defmutation ^:intern submit-form [params]
   (action [{:keys [state]}] (swap! state set-overlay-visible* true))
   (remote [{:keys [state ast] :as env}]
     (m/returning ast state MutationStatus)))
 
 (defn submit-ok? [env] (= 0 (some-> env :state deref :remote-mutation :status :result)))
 
-(defmutation retry-or-hide-overlay [params]
+(defmutation ^:intern retry-or-hide-overlay [params]
   (action [{:keys [reconciler state] :as env}]
     (if (submit-ok? env)
       (swap! state (fn [s]
@@ -97,8 +91,6 @@
     (dom/p nil "Name: " (dom/input #js {:value name}))
     (dom/button #js {:onClick #(prim/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
       "Submit")))
-
-
 
 (defcard-doc
   "
@@ -121,7 +113,7 @@
 
   Fulcro defaults to optimistic updates, which in turn encourages you to write a UI that is very responsive. However,
   as soon as you start writing remote mutations you start worrying about the fact that your user submitted some data
-  and Fulcro encourages you to let them go off and do other things (like leave the screen they're on) before the server has responded.
+  but you to let them go off and do other things (like leave the screen they're on) before the server has responded.
   In effect, we've told the user \"success\", but we know we're kind of lying to them.
 
   Another way of looking at it is: we're letting them leave the *visual context* of the information, but we know that if a
@@ -132,7 +124,7 @@
   email input box\".
 
   There is nothing in Fulcro that prevents you from writing a blocking UI. You just have to remember that the UI is a
-  pure rendering of application state: meaning that if you want to block the UI, then you need a way to put a block-the-ui
+  pure rendering of application state: meaning that if you want to block the UI, then you need a way to put a \"block the ui\"
   marker in state (that renders in a way that prevents navigation), and remove that marker when the operation is complete.
 
   Fulcro has a number of ways that you can accomplish this, but we'll cover the simplest and most obvious.
@@ -155,7 +147,8 @@
   To show how this all works we'll use an in-browser server emulation and show you a working example.
 
   First, we need something to block our UI (which in the card measures 400x100 px). It is a simple div with some style
-  that will overlay the main UI and prevent further interactions while also showing some kind of feedback message.
+  that will overlay the main UI and prevent further interactions while also showing some kind of feedback message. The CSS
+  sucks, but let's ignore that for now.
 
   We define it, along with some helper functions that can manipulate its state. It does not have an ident, and we
   plan to just place it in root at `:overlay`:
@@ -169,52 +162,36 @@
   check the result and run whatever in response to it.
   "
   (dc/mkdn-pprint-source Root)
-  "Now a bit of information about our \"server\". It has the following definition of the remote mutation:
+  "
+  Now a bit of information about our \"server\". It has the following definition of the remote mutation:
 
-  ```
-  (defmethod server-mutate `submit-form [env k params]
-    {:action (fn []
-               (if (> 0.5 (rand))
-                 {:message \"Everything went swell!\"
-                  :result  0}
-                 {:message \"There was an error!\"
-                  :result  1}))})
-  ```
+  "
+  (dc/mkdn-pprint-source submit-form-server)
+  "
 
   As you can see it's just a stub that randomly responds with success or error. The client mutation looks like this:
 
-  ```
-  (defmutation submit-form [params]
-    (action [{:keys [state]}] (swap! state set-overlay-visible* true))
-    (remote [{:keys [state ast] :as env}]
-      (m/returning ast state MutationStatus)))
-  ```
+  "
+  (dc/mkdn-pprint-source submit-form)
+  "
 
   It just shows the overlay, and goes remote. Notice the remote part is  using `returning` from the mutations namespace
   to indicate a merge of the result value of the mutation. For that we've defined a singleton component (for its query only):
   "
   (dc/mkdn-pprint-source MutationStatus)
   "This means that when this remote mutation is done, we should see a the return value of the server mutation
-  at `[:remote-mutation :status]` (the ident (table/id) of `MutationStatus`).
+  at `[:remote-mutation :status]` (which is the constant ident of `MutationStatus`).
 
-  Now for our second client mutation:
+  Now for our second client mutation. First, we need a function that can look in state and see if the mutation
+  status looks ok:
 
   "
   (dc/mkdn-pprint-source submit-ok?)
   "
-
-  ```
-  (defmutation retry-or-hide-overlay [params]
-    (action [{:keys [reconciler state] :as env}]
-      (if (submit-ok? env)
-        (swap! state (fn [s]
-                       (-> s
-                         (set-overlay-message* \"Please wait...\") ; reset the overlay message for the next appearance
-                         (set-overlay-visible* false))))
-        (do
-          (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) \" (Retrying...)\"))
-          (prim/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})])))))
-  ```
+  Then we can leverage that to make something that reads well:
+  "
+  (dc/mkdn-pprint-source retry-or-hide-overlay)
+  "
 
   It's the real work-horse. The optimistic side can assume the result is updated, so it looks for the result code via
   `submit-ok?`. If things are OK, then it resets the overlay message and hides it.
@@ -228,6 +205,8 @@
   ")
 
 (defcard-fulcro pessimistic-ui-card
+  "The submit can fail (50-50 chance). If it does so, it will retry. You could add a retry limit just by tracking the
+   retries in app state."
   Root
   {}
   {:inspect-data true
@@ -235,12 +214,12 @@
 
 (defcard-doc
   "
+  ### Fulcro 1.x Fallbacks
 
-
-
-
-
-
+  NOTE: Fulcro 1.x inherited fallbacks from when it was known as Untangled. These turned out to not be very easy to
+  work with because they require you to put error handling code with each transaction. They are still supported,
+  but probably should not be used and may be removed in a future version. Use pessimistic transactions, global error
+  handling, or history-based recovery (coming soon) instead.
 
   If you're running a mutation that has likely server errors, then you can explicitly encode a fallback with the mutation.
   Fallbacks are triggered *if and only if* the mutation on the server throws an error that is detectable as a non-network
@@ -256,18 +235,15 @@
   ```
   (require [fulcro.client.mutations :refer [mutate]])
 
-  (defmethod mutate 'some/mutation [{:keys [state] :as env} k params]
-    {:remote true
-     :action (fn [] (swap! state do-stuff)})
-
-  (defmethod mutate 'handle-failure [{:keys [state] :as env} k {:keys [error] :as params}]
+  (defmutation handle-failure [{:keys [error] :as params}]
     ;; fallback mutations are designed to recover the client-side app state from server failures
-    ;; so, no need to send to the server
-    {:action (fn [] (swap! state undo-stuff error)))
+    ;; THEY DO NOT CHECK FOR REMOTE. You cannot chain a remote interaction in a fallback.
+    (action [{:keys [state]}]
+      (swap! state undo-stuff error)))
   ```
 
-  Assuming that `some/mutation` returns `{:remote true}` (or `{:remote AST}`)  this sends `some/mutation` to the server.
-  If the server throws an error then the fallback action's mutation symbol (a dispatch key for mutate) is invoked on the
+  Assuming that `some-mutation` is remote, then if the server throws a hard error (e.g. status code not 200)
+  then the fallback action's mutation symbol (a dispatch key for mutate) is invoked on the
   client with params that include an `:error` key that includes the details of the server exception (error type, message,
   and ex-info's data). Be sure to only include serializable data in the server exception!
 
@@ -306,23 +282,6 @@
   A common recovery strategy from errors could be to clean the network queue and run a mutation that resets your application
   to a known state, possibly loading sane state from the server.
 
-
-
-  #### Technique 1: Read status via a separate load
-
-  The steps are rather simple:
-
-  1. During the optimistic update of the full-stack mutation: make your local change, and include a state change that
-  will prevent UI progress (e.g. a property like `:ui/disabled?` that disables next/close/progress buttons, or causes
-  an overlay div to pop up that blocks all events from the DOM).
-  2. Issue a load (from within the mutation is fine) and include a post-mutation that examines state for errors and unblocks the UI.
-
-  Fulcro guarantees that loads will be issued after mutations. So, use the load to read some kind of confirmation. The load
-  itself doesn't even have to read anything useful (in fact you could make a custom networking handler that doesn't even
-  issue it over the network).
-
-
-
   ## A New Approach to Errors
 
   The first thing I want to challenge you to think about is this: why do errors happen, and what can we do about them?
@@ -357,7 +316,7 @@
   So, I would assert that the only full-stack error handling *worth* doing in *any detail* is for case (3). If communications
   are down, you can retry. But in a distributed system this can be a little nuanced.
 
-  The good news is that Fulcro has a story that we believe is, as of 2017, a novel and quite compelling error handling story!
+  The good news is that Fulcro will soon have a story that we believe is a novel and quite compelling error handling story! Coming soon!
 
   ## What's Next?
 

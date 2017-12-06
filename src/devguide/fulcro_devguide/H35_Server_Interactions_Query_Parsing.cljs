@@ -15,11 +15,30 @@
   "
   # Query Parsing
 
-  All incoming client communication will be in the form of Query/Mutation expressions. You've
-  already seen that your `defquery-root` and `defquery-entity` are called for each separate element
-  of a query or mutation; however, there is no built-in recursive processing, but the UI might
-  prune the query (using `:without` or `load-field`) and the server should really only respond
-  with that is requested; otherwise, you aren't being very data driven!
+  In the Basic Loading section we showed you the central entry points for responding to server queries:
+  `defquery-root` and `defquery-entity`. These are fine for simple examples and for getting into your
+  processing; however, to be truly data-driven you need to change how the server responds based
+  on what the client actually *asked* for (in detail).
+
+  So far, we've sort of been spewing entire entities back from the server without pruning them down
+  to the actual query.
+
+  All incoming client communication will be in the form of Query/Mutation expressions.
+  There is no built-in recursive processing, but there is a parsing mechanism that you
+  can use to process it, and there are a number of libraries that can also help.
+
+  ## Avoiding Parsing
+
+  If you're lucky, you can make use of a library to do this stuff for you. Here are some options we know about:
+
+  - Fulcro SQL : A library that knows how to convert graph queries into SQL
+  - Datomic : If you're lucky enough to be using Datomic, Fulcro's graph query syntax will run in their `pull` API
+  - Pathom : A library by Wilker Lucio that can be used to build parsers on Fulcro's query syntax.
+
+  Of these, Pathom is the most general, and allows you to easily process a query in a more abstract way. However, it
+  really isn't that hard to parse the queries yourself.
+
+  ## Doing the Parsing Yourself
 
   The most important item in the query processing is the received environment (`env`). On
   the server it contains:
@@ -30,17 +49,9 @@
   - `parser`: The query expression parser itself (which allows you to do recursive calls)
   - `request`: The full incoming Ring request, which will contain things like the headers, cookies, session, user agent info, etc.
 
-  ## The super-easy case: Datomic
+  ### The server's parser is in `env`
 
-  If your database is Datomic, then you're most of the way done, since the query grammar is a subset of Datomic's pull
-  syntax. Just find the correct starting point, and run the `query` against Datomic itself.
-
-  If you're not using Datomic, then read on.
-
-  ## There is a Parser in your `env`
-
-  Parser is exactly what it sounds like: a parser for the query grammar. You
-  get one in the query/mutation `env` that already hooked into your dispatch mechanism (e.g. defquery-root).
+  You get the server's parser in the query/mutation `env` that already hooked into your dispatch mechanism (e.g. defquery-root).
 
   Thus, if you run `(parser env [:x])` you should see a dispatch to your `defquery-root` on `:x`.
 
@@ -50,7 +61,10 @@
   If you understand that, you can probably already write a simple recursive parse of a query. If
   you need a bit more hand-holding, then read on.
 
-  First, let's get a feeling for the parser in general:
+  NOTE: *You do not have to use the supplied parser*. Parsers are cheap. If you want to make one to deal with a particular
+  graph, go for it! The `fulcro.client.primitives/parser` can make one.
+
+  Now, let's get a feeling for the parser in general:
 
   ")
 
