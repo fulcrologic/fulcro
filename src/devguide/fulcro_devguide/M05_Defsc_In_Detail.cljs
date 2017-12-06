@@ -1,4 +1,4 @@
-(ns fulcro-devguide.M05-More-Concise-UI
+(ns fulcro-devguide.M05-Defsc-In-Detail
   (:require
     [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
@@ -164,7 +164,9 @@
 
 (dc/defcard-doc "# The defsc Macro
 
-  Fulcro includes a macro, `defsc`, that can build a `defui` that is sanity-checked for the most common elements:
+  If you're new to Fulcro and started with version 2.0, you can safely ignore most comments about `defui`.
+
+  Fulcro's `defsc` is a front-end to the legacy `defui` macro. It is sanity-checked for the most common elements:
   ident (optional), query, render, and initial state (optional). The sanity checking prevents a lot of the most
   common errors when writing a component, and the concise syntax reduces boilerplate to the essential novelty.
   The name means \"define stateful component\" and is intended to be used with components that have queries (though
@@ -383,6 +385,28 @@
 
   See [Fulcro CSS](https://github.com/fulcrologic/fulcro-css) for more information.
 
+  ## React Lifecycle Methods
+
+  The options of defsc allow for React Lifecylcle methods to be defined (as lambdas). The `this` parameter of
+  defsc is in scope for all of them, but *not* props or computed. You can obtain computed using `prim/get-computed`.
+
+  The options are:
+
+  ```
+  (defsc Component [this props]
+      ; remember that 'this' is in scope for lifecycle
+      :initLocalState            (fn [] ...)
+      :shouldComponentUpdate     (fn [next-props next-state] ...)
+      :componentWillReceiveProps (fn [next-props] ...)
+      :componentWillUpdate       (fn [next-props next-state] ...)
+      :componentDidUpdate        (fn [prev-props prev-state] ...)
+      :componentWillMount        (fn [] ...)
+      :componentDidMount         (fn [] ...)
+      :componentWillUnmount      (fn [] ...)
+  ```
+
+  See the React documentation for more details on how these work.
+
   ## Additional Protocol Support
 
   The main options covers all of the common built-in protocols that you would include on `defui`. If you need
@@ -393,7 +417,6 @@
   ```
   (defsc MyComponent [this props]
      {:protocols (Object
-                  (shouldComponentUpdate [this next-props next-state] true)
                   static css/CSS
                   (local-rules [_] [])
                   (include-children [_] []))
