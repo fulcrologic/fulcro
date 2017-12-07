@@ -1,3 +1,11 @@
+2.0.0-beta5
+-----------
+- Massive documentation update
+- Converted most demos and docs to use `defsc`
+- Added support to `defsc` for `*` to work right in query template form
+- Removed devguide Glossary
+- Renamed a bunch of server dev guide sections
+
 2.0.0-beta4
 -----------
 - Expanded defsc
