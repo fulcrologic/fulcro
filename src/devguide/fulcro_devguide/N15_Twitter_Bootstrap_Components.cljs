@@ -1,5 +1,5 @@
 (ns fulcro-devguide.N15-Twitter-Bootstrap-Components
-  (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
             [fulcro.client.routing :as routing :refer [defrouter]]
@@ -15,24 +15,19 @@
             [fulcro.client :as fc]
             [devcards.core :as dc]))
 
-(defui ^:once DropdownRoot
-  static prim/InitialAppState
-  (initial-state [this props] {:dropdown   (b/dropdown :file "File" [(b/dropdown-item :open "Open")
-                                                                     (b/dropdown-item :close "Close")
-                                                                     (b/dropdown-divider :divider-1)
-                                                                     (b/dropdown-item :quit "Quit")])
-                               :dropdown-2 (b/dropdown :select "Select One" [(b/dropdown-item :a "A")
-                                                                             (b/dropdown-item :b "B")])})
-  static prim/IQuery
-  (query [this] [{:dropdown (prim/get-query b/Dropdown)} {:dropdown-2 (prim/get-query b/Dropdown)}])
-  Object
-  (render [this]
-    (let [{:keys [dropdown dropdown-2]} (prim/props this)]
-      (render-example "100%" "150px"
-        (let [select (fn [id] (js/alert (str "Selected: " id)))]
-          (dom/div #js {:height "100%" :onClick #(prim/transact! this `[(b/close-all-dropdowns {})])}
-            (b/ui-dropdown dropdown :onSelect select :kind :success)
-            (b/ui-dropdown dropdown-2 :onSelect select :kind :success :stateful? true)))))))
+(defsc DropdownRoot [this {:keys [dropdown dropdown-2]}]
+  {:initial-state (fn [params] {:dropdown   (b/dropdown :file "File" [(b/dropdown-item :open "Open")
+                                                                      (b/dropdown-item :close "Close")
+                                                                      (b/dropdown-divider :divider-1)
+                                                                      (b/dropdown-item :quit "Quit")])
+                                :dropdown-2 (b/dropdown :select "Select One" [(b/dropdown-item :a "A")
+                                                                              (b/dropdown-item :b "B")])})
+   :query         [{:dropdown (prim/get-query b/Dropdown)} {:dropdown-2 (prim/get-query b/Dropdown)}]}
+  (render-example "100%" "150px"
+    (let [select (fn [id] (js/alert (str "Selected: " id)))]
+      (dom/div #js {:height "100%" :onClick #(prim/transact! this `[(b/close-all-dropdowns {})])}
+        (b/ui-dropdown dropdown :onSelect select :kind :success)
+        (b/ui-dropdown dropdown-2 :onSelect select :kind :success :stateful? true)))))
 
 (defcard-doc
   "
@@ -68,22 +63,11 @@
   (prim/transact! component `[(b/set-dropdown-item-active {:id :item-id :active? true})])
   ```
 
-  An example usage:
+  An example usage (embedded in an example renderer that includes the bootstrap css):
 
-  ```
-  (defui DropdownRoot
-    static prim/InitialAppState
-    (initial-state [this props] {:dropdown (b/dropdown :file \"File\" [(b/dropdown-item :open \"Open\")
-                                                                     (b/dropdown-item :close \"Close\")
-                                                                     (b/dropdown-divider)
-                                                                     (b/dropdown-item :quit \"Quit\")])})
-    static prim/IQuery
-    (query [this] [{:dropdown (prim/get-query b/Dropdown)}])
-    Object
-    (render [this]
-      (let [{:keys [dropdown]} (prim/props this)]
-        (b/ui-dropdown dropdown :kind :success :onSelect (fn [id] (js/alert (str \"Selected: \" id)))))))
-  ```
+  "
+  (dc/mkdn-pprint-source DropdownRoot)
+  "
 
   generates the dropdown in the card below.
   ")
@@ -93,9 +77,9 @@
 (m/defmutation nav-to [{:keys [page]}]
   (action [{:keys [state]}] (swap! state assoc :current-page page)))
 
-(defui ^:once NavRoot
-  static prim/InitialAppState
-  (initial-state [this props] {:current-page :home
+(defsc NavRoot [this {:keys [nav current-page]}]
+  {
+   :initial-state (fn [props] {:current-page :home
                                ; Embed the nav in app state as a child of this component
                                :nav          (b/nav :main-nav :tabs :normal
                                                :home
@@ -104,21 +88,17 @@
                                                 (b/dropdown :reports "Reports"
                                                   [(b/dropdown-item :report-1 "Report 1")
                                                    (b/dropdown-item :report-2 "Report 2")])])})
-  static prim/IQuery
-  ; make sure to add the join on the same keyword (:nav)
-  (query [this] [:current-page {:nav (prim/get-query b/Nav)}])
-  Object
-  (render [this]
-    (let [{:keys [nav current-page]} (prim/props this)]     ; pull the props for nav
-      (render-example "100%" "150px"
-        (b/container-fluid {}
-          (b/row {}
-            (b/col {:xs 12}
-              ; render it, use onSelect to be notified when nav changes. Note: `nav-to` is just part of this demo.
-              (b/ui-nav nav :onSelect (fn [id] (prim/transact! this `[(nav-to ~{:page id})])))))
-          (b/row {}
-            (b/col {:xs 12}
-              (dom/p #js {} (str "Current page: " current-page)))))))))
+   ; make sure to add the join on the same keyword (:nav)
+   :query         [:current-page {:nav (prim/get-query b/Nav)}]}
+  (render-example "100%" "150px"
+    (b/container-fluid {}
+      (b/row {}
+        (b/col {:xs 12}
+          ; render it, use onSelect to be notified when nav changes. Note: `nav-to` is just part of this demo.
+          (b/ui-nav nav :onSelect (fn [id] (prim/transact! this `[(nav-to ~{:page id})])))))
+      (b/row {}
+        (b/col {:xs 12}
+          (dom/p #js {} (str "Current page: " current-page)))))))
 
 (defcard-doc
   "# Nav Elements
@@ -144,23 +124,15 @@
 
 (defcard-fulcro nav-tabs NavRoot {} {:inspect-data false})
 
-(defui ^:once HomeScreen
-  static prim/InitialAppState
-  (initial-state [c p] {:screen-type :home})
-  static prim/IQuery
-  (query [this] [:screen-type])
-  Object
-  (render [this]
-    (dom/div nil "HOME SCREEN")))
+(defsc HomeScreen [this props]
+  {:initial-state {:screen-type :home}
+   :query         [:screen-type]}
+  (dom/div nil "HOME SCREEN"))
 
-(defui ^:once OtherScreen
-  static prim/InitialAppState
-  (initial-state [c p] {:screen-type :other})
-  static prim/IQuery
-  (query [this] [:screen-type])
-  Object
-  (render [this]
-    (dom/div nil "OTHER SCREEN")))
+(defsc OtherScreen [this props]
+  {:initial-state {:screen-type :other}
+   :query         [:screen-type]}
+  (dom/div nil "OTHER SCREEN"))
 
 (defrouter MainRouter :main-router
   (ident [this props] [(:screen-type props) :singleton])
@@ -178,24 +150,19 @@
                      (routing/set-route :main-router [tab :singleton])
                      (b/set-active-nav-link* :main-nav tab))))))
 
-(defui ^:once RouterRoot
-  static prim/InitialAppState
-  (initial-state [c p] {
-                        :nav    (b/nav :main-nav :tabs :normal
-                                  :home
-                                  [(b/nav-link :home "Home" false) (b/nav-link :other "Other" false)])
-                        :router (prim/get-initial-state MainRouter {})})
-  static prim/IQuery
-  (query [this] [{:router (prim/get-query MainRouter)} {:nav (prim/get-query b/Nav)}])
-  Object
-  (render [this]
-    (let [{:keys [router nav]} (prim/props this)]
-      (render-example "100%" "150px"
-        (b/container-fluid {}
-          (b/row {}
-            (b/col {:xs 12} (b/ui-nav nav :onSelect #(prim/transact! this `[(select-tab ~{:tab %})]))))
-          (b/row {}
-            (b/col {:xs 12} (ui-router router))))))))
+(defsc RouterRoot [this {:keys [router nav]}]
+  {:initial-state (fn [p] {
+                           :nav    (b/nav :main-nav :tabs :normal
+                                     :home
+                                     [(b/nav-link :home "Home" false) (b/nav-link :other "Other" false)])
+                           :router (prim/get-initial-state MainRouter {})})
+   :query         [{:router (prim/get-query MainRouter)} {:nav (prim/get-query b/Nav)}]}
+  (render-example "100%" "150px"
+    (b/container-fluid {}
+      (b/row {}
+        (b/col {:xs 12} (b/ui-nav nav :onSelect #(prim/transact! this `[(select-tab ~{:tab %})]))))
+      (b/row {}
+        (b/col {:xs 12} (ui-router router))))))
 
 (defcard-doc
   "## Combining with Fulcro's UI routing
@@ -289,40 +256,30 @@
     [:person/by-id (:db/id id-or-props)]
     [:person/by-id id-or-props]))
 
-(defui ^:once DemoPerson
-  static prim/Ident
-  (ident [this props] (person-ident props))
-  static prim/IQuery
-  (query [this] [:db/id :person/name])
-  static prim/InitialAppState
-  (initial-state [c {:keys [id name]}] {:db/id id :person/name name})
+(defsc DemoPerson [this {:keys [db/id person/name]}]
+  {
+   :ident         (fn [] (person-ident id))
+   :query         [:db/id :person/name]
+   :initial-state (fn [{:keys [id name]}] {:db/id id :person/name name})}
   ;; Just a simple component to display a person
-  Object
-  (render [this]
-    (let [{:keys [db/id person/name]} (prim/props this)]
-      (b/container nil
-        (b/row nil
-          (b/col {:xs 4} "Name: ")
-          (b/col {:xs 4} name))))))
+  (b/container nil
+    (b/row nil
+      (b/col {:xs 4} "Name: ")
+      (b/col {:xs 4} name))))
 
 (def ui-demoperson (prim/factory DemoPerson))
 
-(defui ^:once PersonEditor
-  ; share the ident of a person, so we overlay the editor state on a person entity
-  static prim/Ident
-  (ident [this props] (person-ident props))
-  ; :ui/edited-name is a temporary place to put what the user is typing in the editor. saving will copy this to :person/name
-  static prim/IQuery
-  (query [this] [:db/id :person/name :ui/edited-name])
-  Object
-  (render [this]
-    (let [{:keys [db/id person/name ui/edited-name]} (prim/props this)]
-      (b/container nil
-        (b/row nil
-          (b/col {:xs 4} "Name: ")
-          (b/col {:xs 4} (dom/input #js {:value    edited-name
-                                         ; leverage helper transact that uses our ident to update data
-                                         :onChange #(m/set-string! this :ui/edited-name :event %)})))))))
+(defsc PersonEditor [this {:keys [db/id person/name ui/edited-name]}]
+  {; share the ident of a person, so we overlay the editor state on a person entity
+   :ident (fn [] (person-ident id))
+   ; :ui/edited-name is a temporary place to put what the user is typing in the editor. saving will copy this to :person/name
+   :query [:db/id :person/name :ui/edited-name]}
+  (b/container nil
+    (b/row nil
+      (b/col {:xs 4} "Name: ")
+      (b/col {:xs 4} (dom/input #js {:value    edited-name
+                                     ; leverage helper transact that uses our ident to update data
+                                     :onChange #(m/set-string! this :ui/edited-name :event %)})))))
 
 (def ui-person-editor (prim/factory PersonEditor {:keyfn :db/id}))
 
@@ -358,52 +315,43 @@
                            (set-person-to-edit* id)
                            (initialize-edited-name* id))))))
 
-(defui ^:once PersonModal
-  ; We're storing both the real modal and the person-editor's state in this custom modal (which combines the two).
-  ; The person-editor field will eventually need to point to the person to edit (by ident in the normalized db)
-  ; When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
-  static prim/InitialAppState
-  (initial-state [t p] {:person-editor nil :modal (prim/get-initial-state b/Modal {:id :edit-modal :backdrop true :keyboard false})})
-  ; ident will come from UI router
-  static prim/IQuery
-  (query [this] [{:person-editor (prim/get-query PersonEditor)} {:modal (prim/get-query b/Modal)}])
-  Object
-  (render [this]
-    (let [{:keys [person-editor modal]} (prim/props this)]
-      ; The modal container
-      (b/ui-modal modal
-        (b/ui-modal-title nil
-          (dom/b #js {:key "title"} "Person Editor"))
-        (b/ui-modal-body nil
-          ; NOTE: The person editor is embedded into the body. This gives us parallel data model of two concepts that
-          ; have more of a tree relation in the UI.
-          (ui-person-editor person-editor))
-        (b/ui-modal-footer nil
-          (b/button {:key "cancel" :onClick #(prim/transact! this `[(b/hide-modal {:id :edit-modal})])} "Cancel")
-          ; Save can be implemented with respect to the person data. Note, though, that the person-editor
-          ; itself may be a stale copy (since the editor can refresh without re-rendering the modal)
-          ; Thus, we use the ID from the person editor, which is stable in the context of an editing pop.
-          (b/button {:key "save" :onClick #(prim/transact! this `[(save-person {:id ~(:db/id person-editor)})
-                                                                  (b/hide-modal {:id :edit-modal})
-                                                                  :person/name]) :kind :primary} "Save"))))))
+(defsc PersonModal [this {:keys [person-editor modal]}]
+  {; We're storing both the real modal and the person-editor's state in this custom modal (which combines the two).
+   ; The person-editor field will eventually need to point to the person to edit (by ident in the normalized db)
+   ; When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
+   :initial-state (fn [p] {:person-editor nil :modal (prim/get-initial-state b/Modal {:id :edit-modal :backdrop true :keyboard false})})
+   ; ident will come from UI router
+   :query         [{:person-editor (prim/get-query PersonEditor)} {:modal (prim/get-query b/Modal)}]}
+  ; The modal container
+  (b/ui-modal modal
+    (b/ui-modal-title nil
+      (dom/b #js {:key "title"} "Person Editor"))
+    (b/ui-modal-body nil
+      ; NOTE: The person editor is embedded into the body. This gives us parallel data model of two concepts that
+      ; have more of a tree relation in the UI.
+      (ui-person-editor person-editor))
+    (b/ui-modal-footer nil
+      (b/button {:key "cancel" :onClick #(prim/transact! this `[(b/hide-modal {:id :edit-modal})])} "Cancel")
+      ; Save can be implemented with respect to the person data. Note, though, that the person-editor
+      ; itself may be a stale copy (since the editor can refresh without re-rendering the modal)
+      ; Thus, we use the ID from the person editor, which is stable in the context of an editing pop.
+      (b/button {:key "save" :onClick #(prim/transact! this `[(save-person {:id ~(:db/id person-editor)})
+                                                              (b/hide-modal {:id :edit-modal})
+                                                              :person/name]) :kind :primary} "Save"))))
 
-(defui ^:once WarningModal
-  ; NOTE: When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
-  static prim/InitialAppState
-  (initial-state [t p] {:message "Stuff broke" :modal (prim/get-initial-state b/Modal {:id :warning-modal :backdrop true})})
-  ; ident will come from UI router
-  static prim/IQuery
-  (query [this] [:message {:modal (prim/get-query b/Modal)}]) ; so a mutation can change the message, in this case.
-  Object
-  (render [this]
-    (let [{:keys [message modal]} (prim/props this)]
-      (b/ui-modal modal
-        (b/ui-modal-title nil
-          (dom/b #js {:key "warning"} " WARNING!"))
-        (b/ui-modal-body nil
-          (dom/p #js {:key "message" :className b/text-danger} message))
-        (b/ui-modal-footer nil
-          (b/button {:key "ok-button" :onClick #(prim/transact! this `[(b/hide-modal {:id :warning-modal})])} "Bummer!"))))))
+(defsc WarningModal [this {:keys [message modal]}]
+  {
+   ; NOTE: When we get to routing, the :id of the modal will be what we use as the type of thing to route to...
+   :initial-state (fn [p] {:message "Stuff broke" :modal (prim/get-initial-state b/Modal {:id :warning-modal :backdrop true})})
+   ; ident will come from UI router
+   :query         [:message {:modal (prim/get-query b/Modal)}]} ; so a mutation can change the message, in this case.
+  (b/ui-modal modal
+    (b/ui-modal-title nil
+      (dom/b #js {:key "warning"} " WARNING!"))
+    (b/ui-modal-body nil
+      (dom/p #js {:key "message" :className b/text-danger} message))
+    (b/ui-modal-footer nil
+      (b/button {:key "ok-button" :onClick #(prim/transact! this `[(b/hide-modal {:id :warning-modal})])} "Bummer!"))))
 
 (def ui-warning-modal (prim/factory WarningModal {:keyfn :id}))
 
@@ -435,29 +383,24 @@
                          ; follow-on read ensures re-render at root
                          :modal-router]))
 
-(defui ^:once ModalRoot
-  static prim/InitialAppState
-  (initial-state [c p] (merge
-                         ; make a routing tree for the two modals and merge it in the app state
-                         (routing/routing-tree
-                           (routing/make-route :edit [(routing/router-instruction :modal-router [:edit-modal :singleton])])
-                           (routing/make-route :warning [(routing/router-instruction :modal-router [:warning-modal :singleton])]))
-                         ; general initial state
-                         {:person       (prim/get-initial-state DemoPerson {:id 1 :name "Sam"})
-                          :modal-router (prim/get-initial-state ModalRouter {})}))
-  static prim/IQuery
-  (query [this] [:ui/react-key {:person (prim/get-query DemoPerson)} {:modal-router (prim/get-query ModalRouter)}])
-  Object
-  (render [this]
-    (let [{:keys [:ui/react-key person modal-router]} (prim/props this)]
-      (render-example "100%" "500px"
-        (dom/div #js {:key react-key}
-          ; show the current value of the person
-          (ui-demoperson person)
-          (b/button {:onClick #(start-person-editor this (:db/id person))} "Edit Person")
-          (b/button {:onClick #(show-warning this)} "Show Warning")
-          ; let the router render just the modal we need
-          (ui-modal-router modal-router))))))
+(defsc ModalRoot [this {:keys [:ui/react-key person modal-router]}]
+  {:initial-state (fn [p] (merge
+                            ; make a routing tree for the two modals and merge it in the app state
+                            (routing/routing-tree
+                              (routing/make-route :edit [(routing/router-instruction :modal-router [:edit-modal :singleton])])
+                              (routing/make-route :warning [(routing/router-instruction :modal-router [:warning-modal :singleton])]))
+                            ; general initial state
+                            {:person       (prim/get-initial-state DemoPerson {:id 1 :name "Sam"})
+                             :modal-router (prim/get-initial-state ModalRouter {})}))
+   :query         [:ui/react-key {:person (prim/get-query DemoPerson)} {:modal-router (prim/get-query ModalRouter)}]}
+  (render-example "100%" "500px"
+    (dom/div #js {:key react-key}
+      ; show the current value of the person
+      (ui-demoperson person)
+      (b/button {:onClick #(start-person-editor this (:db/id person))} "Edit Person")
+      (b/button {:onClick #(show-warning this)} "Show Warning")
+      ; let the router render just the modal we need
+      (ui-modal-router modal-router))))
 
 (defcard-doc
   "# Modals
@@ -559,22 +502,20 @@
       (ui-warning-modal {:message "This is a large modal."
                          :modal   {:id :large :modal/active true :modal/visible true :modal/size :lg :backdrop false}}))))
 
-(defui ^:once GridModal
-  Object
-  (render [this]
-    (b/ui-modal (prim/props this)
-      (b/ui-modal-title {:key "title"} "A Modal Using a Grid")
-      (b/ui-modal-body {:key "my-body"}
-        "body"
-        (b/row {:key "row"}
-          (b/col {:xs 3}
-            "Column 1 xs 3")
-          (b/col {:xs 3}
-            "Column 2 xs 3")
-          (b/col {:xs 3}
-            "Column 3 xs 3")
-          (b/col {:xs 3}
-            "Column 4 xs 3"))))))
+(defsc GridModal [this props]
+  (b/ui-modal (prim/props this)
+    (b/ui-modal-title {:key "title"} "A Modal Using a Grid")
+    (b/ui-modal-body {:key "my-body"}
+      "body"
+      (b/row {:key "row"}
+        (b/col {:xs 3}
+          "Column 1 xs 3")
+        (b/col {:xs 3}
+          "Column 2 xs 3")
+        (b/col {:xs 3}
+          "Column 3 xs 3")
+        (b/col {:xs 3}
+          "Column 4 xs 3")))))
 
 (def ui-grid-modal (prim/factory GridModal {:keyfn :id}))
 
@@ -586,23 +527,18 @@
   (render-example "100%" "200px"
     (ui-grid-modal {:id :my-modal :modal/visible true :modal/active true})))
 
-(defui ^:once CollapseRoot
-  ; Use the initial state of b/Collapse to make the proper state for one
-  static prim/InitialAppState
-  (initial-state [c p] {:collapse-1 (prim/get-initial-state b/Collapse {:id 1 :start-open false})})
-  ; Join it into your query
-  static prim/IQuery
-  (query [this] [{:collapse-1 (prim/get-query b/Collapse)}])
-  Object
-  (render [this]
-    (let [{:keys [collapse-1]} (prim/props this)]           ; pull it out of props
-      (render-example "100%" "200px"
-        (dom/div nil
-          (b/button {:onClick (fn [] (prim/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
-          ; Wrap the elements to be hidden as children
-          ; NOTE: if the children need props they could be queried for above and passed in here.
-          (b/ui-collapse collapse-1
-            (dom/div #js {:className "well"} "This is some content that can be collapsed.")))))))
+(defsc CollapseRoot [this {:keys [collapse-1]}]
+  {; Use the initial state of b/Collapse to make the proper state for one
+   :initial-state (fn [p] {:collapse-1 (prim/get-initial-state b/Collapse {:id 1 :start-open false})})
+   ; Join it into your query
+   :query         [{:collapse-1 (prim/get-query b/Collapse)}]}
+  (render-example "100%" "200px"
+    (dom/div nil
+      (b/button {:onClick (fn [] (prim/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
+      ; Wrap the elements to be hidden as children
+      ; NOTE: if the children need props they could be queried for above and passed in here.
+      (b/ui-collapse collapse-1
+        (dom/div #js {:className "well"} "This is some content that can be collapsed.")))))
 
 (defcard-doc
   "# Collapse
@@ -634,24 +570,19 @@
         (b/panel-body nil
           "This is some content that can be collapsed.")))))
 
-(defui ^:once CollapseGroupRoot
-  ; Create a to-many list of collapse items in app state (or you could do them one by one)
-  static prim/InitialAppState
-  (initial-state [c p] {:collapses [(prim/get-initial-state b/Collapse {:id 1 :start-open false})
-                                    (prim/get-initial-state b/Collapse {:id 2 :start-open false})
-                                    (prim/get-initial-state b/Collapse {:id 3 :start-open false})
-                                    (prim/get-initial-state b/Collapse {:id 4 :start-open false})]})
-  ; join it into the query
-  static prim/IQuery
-  (query [this] [:ui/react-key {:collapses (prim/get-query b/Collapse)}])
-  Object
-  (render [this]
-    (let [{:keys [ui/react-key collapses]} (prim/props this) ; pull from db
-          all-ids [1 2 3 4]]                                ; convenience for all ids
-      (render-example "100%" "300px"
-        ; map over our helper function
-        (b/panel-group {:key react-key}
-          (mapv (fn [c] (accordian-section this all-ids c)) collapses))))))
+(defsc CollapseGroupRoot [this {:keys [ui/react-key collapses]}]
+  {; Create a to-many list of collapse items in app state (or you could do them one by one)
+   :initial-state (fn [p] {:collapses [(prim/get-initial-state b/Collapse {:id 1 :start-open false})
+                                       (prim/get-initial-state b/Collapse {:id 2 :start-open false})
+                                       (prim/get-initial-state b/Collapse {:id 3 :start-open false})
+                                       (prim/get-initial-state b/Collapse {:id 4 :start-open false})]})
+   ; join it into the query
+   :query         [:ui/react-key {:collapses (prim/get-query b/Collapse)}]}
+  (let [all-ids [1 2 3 4]]                                  ; convenience for all ids
+    (render-example "100%" "300px"
+      ; map over our helper function
+      (b/panel-group {:key react-key}
+        (mapv (fn [c] (accordian-section this all-ids c)) collapses)))))
 
 (defcard-doc
   "# Accordian (group of collapse)
@@ -681,22 +612,15 @@
   "Live Accordian"
   CollapseGroupRoot)
 
-(defui ^:once CarouselExample
-  static prim/InitialAppState
-  (initial-state [c p] {:carousel (prim/get-initial-state b/Carousel {:id :sample :interval 2000})})
-  static prim/IQuery
-  (query [this] [{:carousel (prim/get-query b/Carousel)}])
-  Object
-  (render [this]
-    (let [{:keys [carousel]} (prim/props this)]
-      (render-example "100%" "400px"
-        (b/ui-carousel carousel
-
-          (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNzc3OiM1NTUvdGV4dDpGaXJzdCBzbGlkZQpDcmVhdGVkIHdpdGggSG9sZGVyLmpzIDIuNi4wLgpMZWFybiBtb3JlIGF0IGh0dHA6Ly9ob2xkZXJqcy5jb20KKGMpIDIwMTItMjAxNSBJdmFuIE1hbG9waW5za3kgLSBodHRwOi8vaW1za3kuY28KLS0+PGRlZnM+PHN0eWxlIHR5cGU9InRleHQvY3NzIj48IVtDREFUQVsjaG9sZGVyXzE1Y2QxZTI2YzkxIHRleHQgeyBmaWxsOiM1NTU7Zm9udC13ZWlnaHQ6Ym9sZDtmb250LWZhbWlseTpBcmlhbCwgSGVsdmV0aWNhLCBPcGVuIFNhbnMsIHNhbnMtc2VyaWYsIG1vbm9zcGFjZTtmb250LXNpemU6NDVwdCB9IF1dPjwvc3R5bGU+PC9kZWZzPjxnIGlkPSJob2xkZXJfMTVjZDFlMjZjOTEiPjxyZWN0IHdpZHRoPSI5MDAiIGhlaWdodD0iNTAwIiBmaWxsPSIjNzc3Ii8+PGc+PHRleHQgeD0iMzA4LjI5Njg3NSIgeT0iMjcwLjEiPkZpcnN0IHNsaWRlPC90ZXh0PjwvZz48L2c+PC9zdmc+" :alt "1"})
-          (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNjY2OiM0NDQvdGV4dDpTZWNvbmQgc2xpZGUKQ3JlYXRlZCB3aXRoIEhvbGRlci5qcyAyLjYuMC4KTGVhcm4gbW9yZSBhdCBodHRwOi8vaG9sZGVyanMuY29tCihjKSAyMDEyLTIwMTUgSXZhbiBNYWxvcGluc2t5IC0gaHR0cDovL2ltc2t5LmNvCi0tPjxkZWZzPjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+PCFbQ0RBVEFbI2hvbGRlcl8xNWNkMWUyODg2NSB0ZXh0IHsgZmlsbDojNDQ0O2ZvbnQtd2VpZ2h0OmJvbGQ7Zm9udC1mYW1pbHk6QXJpYWwsIEhlbHZldGljYSwgT3BlbiBTYW5zLCBzYW5zLXNlcmlmLCBtb25vc3BhY2U7Zm9udC1zaXplOjQ1cHQgfSBdXT48L3N0eWxlPjwvZGVmcz48ZyBpZD0iaG9sZGVyXzE1Y2QxZTI4ODY1Ij48cmVjdCB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgZmlsbD0iIzY2NiIvPjxnPjx0ZXh0IHg9IjI2NC45NTMxMjUiIHk9IjI3MC4xIj5TZWNvbmQgc2xpZGU8L3RleHQ+PC9nPjwvZz48L3N2Zz4=" :alt "2"})
-          (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNTU1OiMzMzMvdGV4dDpUaGlyZCBzbGlkZQpDcmVhdGVkIHdpdGggSG9sZGVyLmpzIDIuNi4wLgpMZWFybiBtb3JlIGF0IGh0dHA6Ly9ob2xkZXJqcy5jb20KKGMpIDIwMTItMjAxNSBJdmFuIE1hbG9waW5za3kgLSBodHRwOi8vaW1za3kuY28KLS0+PGRlZnM+PHN0eWxlIHR5cGU9InRleHQvY3NzIj48IVtDREFUQVsjaG9sZGVyXzE1Y2QxZTI3MmM4IHRleHQgeyBmaWxsOiMzMzM7Zm9udC13ZWlnaHQ6Ym9sZDtmb250LWZhbWlseTpBcmlhbCwgSGVsdmV0aWNhLCBPcGVuIFNhbnMsIHNhbnMtc2VyaWYsIG1vbm9zcGFjZTtmb250LXNpemU6NDVwdCB9IF1dPjwvc3R5bGU+PC9kZWZzPjxnIGlkPSJob2xkZXJfMTVjZDFlMjcyYzgiPjxyZWN0IHdpZHRoPSI5MDAiIGhlaWdodD0iNTAwIiBmaWxsPSIjNTU1Ii8+PGc+PHRleHQgeD0iMjk4LjMyMDMxMjUiIHk9IjI3MC4xIj5UaGlyZCBzbGlkZTwvdGV4dD48L2c+PC9nPjwvc3ZnPg==" :alt "3"}))))))
-
-
+(defsc CarouselExample [this {:keys [carousel]}]
+  {
+   :initial-state (fn [p] {:carousel (prim/get-initial-state b/Carousel {:id :sample :interval 2000})})
+   :query         [{:carousel (prim/get-query b/Carousel)}]}
+  (render-example "100%" "400px"
+    (b/ui-carousel carousel
+      (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNzc3OiM1NTUvdGV4dDpGaXJzdCBzbGlkZQpDcmVhdGVkIHdpdGggSG9sZGVyLmpzIDIuNi4wLgpMZWFybiBtb3JlIGF0IGh0dHA6Ly9ob2xkZXJqcy5jb20KKGMpIDIwMTItMjAxNSBJdmFuIE1hbG9waW5za3kgLSBodHRwOi8vaW1za3kuY28KLS0+PGRlZnM+PHN0eWxlIHR5cGU9InRleHQvY3NzIj48IVtDREFUQVsjaG9sZGVyXzE1Y2QxZTI2YzkxIHRleHQgeyBmaWxsOiM1NTU7Zm9udC13ZWlnaHQ6Ym9sZDtmb250LWZhbWlseTpBcmlhbCwgSGVsdmV0aWNhLCBPcGVuIFNhbnMsIHNhbnMtc2VyaWYsIG1vbm9zcGFjZTtmb250LXNpemU6NDVwdCB9IF1dPjwvc3R5bGU+PC9kZWZzPjxnIGlkPSJob2xkZXJfMTVjZDFlMjZjOTEiPjxyZWN0IHdpZHRoPSI5MDAiIGhlaWdodD0iNTAwIiBmaWxsPSIjNzc3Ii8+PGc+PHRleHQgeD0iMzA4LjI5Njg3NSIgeT0iMjcwLjEiPkZpcnN0IHNsaWRlPC90ZXh0PjwvZz48L2c+PC9zdmc+" :alt "1"})
+      (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNjY2OiM0NDQvdGV4dDpTZWNvbmQgc2xpZGUKQ3JlYXRlZCB3aXRoIEhvbGRlci5qcyAyLjYuMC4KTGVhcm4gbW9yZSBhdCBodHRwOi8vaG9sZGVyanMuY29tCihjKSAyMDEyLTIwMTUgSXZhbiBNYWxvcGluc2t5IC0gaHR0cDovL2ltc2t5LmNvCi0tPjxkZWZzPjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+PCFbQ0RBVEFbI2hvbGRlcl8xNWNkMWUyODg2NSB0ZXh0IHsgZmlsbDojNDQ0O2ZvbnQtd2VpZ2h0OmJvbGQ7Zm9udC1mYW1pbHk6QXJpYWwsIEhlbHZldGljYSwgT3BlbiBTYW5zLCBzYW5zLXNlcmlmLCBtb25vc3BhY2U7Zm9udC1zaXplOjQ1cHQgfSBdXT48L3N0eWxlPjwvZGVmcz48ZyBpZD0iaG9sZGVyXzE1Y2QxZTI4ODY1Ij48cmVjdCB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgZmlsbD0iIzY2NiIvPjxnPjx0ZXh0IHg9IjI2NC45NTMxMjUiIHk9IjI3MC4xIj5TZWNvbmQgc2xpZGU8L3RleHQ+PC9nPjwvZz48L3N2Zz4=" :alt "2"})
+      (b/ui-carousel-item {:src "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iOTAwIiBoZWlnaHQ9IjUwMCIgdmlld0JveD0iMCAwIDkwMCA1MDAiIHByZXNlcnZlQXNwZWN0UmF0aW89Im5vbmUiPjwhLS0KU291cmNlIFVSTDogaG9sZGVyLmpzLzkwMHg1MDAvYXV0by8jNTU1OiMzMzMvdGV4dDpUaGlyZCBzbGlkZQpDcmVhdGVkIHdpdGggSG9sZGVyLmpzIDIuNi4wLgpMZWFybiBtb3JlIGF0IGh0dHA6Ly9ob2xkZXJqcy5jb20KKGMpIDIwMTItMjAxNSBJdmFuIE1hbG9waW5za3kgLSBodHRwOi8vaW1za3kuY28KLS0+PGRlZnM+PHN0eWxlIHR5cGU9InRleHQvY3NzIj48IVtDREFUQVsjaG9sZGVyXzE1Y2QxZTI3MmM4IHRleHQgeyBmaWxsOiMzMzM7Zm9udC13ZWlnaHQ6Ym9sZDtmb250LWZhbWlseTpBcmlhbCwgSGVsdmV0aWNhLCBPcGVuIFNhbnMsIHNhbnMtc2VyaWYsIG1vbm9zcGFjZTtmb250LXNpemU6NDVwdCB9IF1dPjwvc3R5bGU+PC9kZWZzPjxnIGlkPSJob2xkZXJfMTVjZDFlMjcyYzgiPjxyZWN0IHdpZHRoPSI5MDAiIGhlaWdodD0iNTAwIiBmaWxsPSIjNTU1Ii8+PGc+PHRleHQgeD0iMjk4LjMyMDMxMjUiIHk9IjI3MC4xIj5UaGlyZCBzbGlkZTwvdGV4dD48L2c+PC9nPjwvc3ZnPg==" :alt "3"}))))
 
 #_(defcard-doc
     "# Carousel

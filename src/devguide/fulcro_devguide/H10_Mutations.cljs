@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H10-Server-Interactions-Mutations
+(ns fulcro-devguide.H10-Mutations
   (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc
@@ -296,5 +296,5 @@
   ## What's Next?
 
   Now that we have the basics of server interaction programming under our belt, let's
-  [show the user that we're talking to the server.](#!/fulcro_devguide.H11_Server_Interactions_Network_Activity_Indicators)
+  [show the user that we're talking to the server.](#!/fulcro_devguide.H11_Network_Activity_Indicators)
   ")

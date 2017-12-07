@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H08-Server-Interactions-Morphing-Loaded-Data
+(ns fulcro-devguide.H08-Morphing-Loaded-Data
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]

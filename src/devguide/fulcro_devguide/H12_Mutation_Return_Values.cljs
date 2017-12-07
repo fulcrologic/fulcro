@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H12-Server-Interactions-Mutation-Return-Values
+(ns fulcro-devguide.H12-Mutation-Return-Values
   (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc "
@@ -134,5 +134,5 @@
   ## What's Next?
 
   Now that we know how to get values back from mutations, let's talk about
-  [triggering loads from within a mutation](#!/fulcro_devguide.H15_Server_Interactions_Triggering_Loads_from_Mutations).
+  [triggering loads from within a mutation](#!/fulcro_devguide.H15_Triggering_Loads_from_Mutations).
   ")

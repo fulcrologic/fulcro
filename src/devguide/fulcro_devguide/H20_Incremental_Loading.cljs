@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H20-Server-Interactions-Incremental-Loading
+(ns fulcro-devguide.H20-Incremental-Loading
   (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc
@@ -82,5 +82,5 @@
   ## What's Next?
 
   Now that you know how to load a graph over time, you might also want to know what to do when
-  [there are errors](#!/fulcro_devguide.H30_Server_Interactions_Error_Handling).
+  [there are errors](#!/fulcro_devguide.H30_Network_Error_Handling).
   ")

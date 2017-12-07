@@ -84,6 +84,11 @@
 (defcard-doc
   "# Forms – The Basics
 
+  NOTE: The Forms support described in section O is still described with `defui`. There is ongoing work to add a simpler
+  method of forms support to 2.0. Once that evaluation is complete these sections will either be updated or replaced
+  with the new mechanism. There is no plan to remove this form support, but the advent of Clojure spec is leading us
+  to what we think might be a better way of doing it.
+
   Generic form support is a primary rapid appliation development feature. Fortunately, the overall structure of
   Fulcro makes it relatively simple to write form support in a general-purpose, composeable manner. This library
   defines form support that has:

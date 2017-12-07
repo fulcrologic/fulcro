@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H30-Server-Interactions-Error-Handling
+(ns fulcro-devguide.H30-Network-Error-Handling
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]

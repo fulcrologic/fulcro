@@ -15,8 +15,8 @@ these optimizations easier and hopefully more reliable.
 === Porting From Fulcro 1.0
 
 1. Remove Om Next from your dependencies, if present
-2. Update to Fulcro-spec 2.0+ (if using it)
-3. Update to Fulcro 2.0+
+2. Update to Fulcro 2.0+
+3. Update to Fulcro-spec 2.0+ (if using it)
 4. Rename all of the Om namespaces to use the new ones in Fulcro, which are mostly API-compatible:
 +
 In Linux and OSX (assuming your project is in git), this `rename-ns` script is useful:
@@ -48,7 +48,7 @@ rename-ns fulcro.client.core fulcro.client
 ```
 +
 5. Fix your use of `util` namespaces. There are now two util namespaces. This is an unfortunate consequence of the
-forking process.
+forking import process.
 ** `get-ident` is now just part of the `primitives` namespace
 ** The following functions that were in `fulcro.client.util` were moved to `fulcro.util`:
 `unique-key`, `atom?`, `deep-merge`, and `conform!`
@@ -110,20 +110,27 @@ set, then setting a query on the given class will affect all instances on the sc
 
 If you just want to be able to change the query class-wide, then there are no source changes to your components. If
 you'd like to be able to change the queries for specific instances, then you'll have to involve factories in your
-query functions.
+query functions. This also means you need to use the lambda form of the new defsc macro. In `defui`, nothing changes
+except the use of factories:
 
 
 ```
 (ns ui
-  (:require [fulcro.client.primitives :as prim :refer [defui defsc]]))
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]))
 
 (declare ui-thing-a)
 
+(defsc Thing [this props]
+  {:query (fn [] [:prop {:join (prim/get-query ui-thing-a state)}]) }
+  ...
+  )
+
+; OR
+
 (defui Thing
   static prim/IQuery
-  (dynamic-query [this] [:prop {:join (prim/get-query ui-thing-a state)}])
-  ; nothing else changes...
-  )
+  (query [this] [:prop {:join (prim/get-query ui-thing-a state)}])
+  ...)
 
 (def ui-thing-a (fulcro.client.primitives/factory Thing {:qualifier :a}))
 ```
@@ -141,10 +148,12 @@ a mutation version you can call directly from `transact!`: `fulcro.client.mutati
 
 * Om Next is no longer a dependency. The relevant code has been imported, and simplified internally. A lot of this
 was to fix dynamic queries, and make the rendering refresh a bit simpler.
+* Fulcro's `defsc` macro was expanded and is now the recommended way to build components
+* `defui` still exists, and is 100% API-compatible with Om Next's
 * Advanced optimization works. It has been tested.
 * Dynamic queries work.
 ** Query parameters (e.g. IQueryParams) is as-yet untested, but it wasn't changed much.
-* Other than the renames and a few minor function moves (from util), it should be API compatible with existing Fulcro apps
+* Other than the renames and a few minor function moves (from util), it should be API-compatible with existing Fulcro apps
 * Rendering should should be at least as fast as stock Om Next in most circumstances. It should be faster in many, but there
 are some circumstances where it could be slower.
 * New history recording and viewer work (tested against todo mvc)
@@ -159,6 +168,6 @@ are some circumstances where it could be slower.
 ** Compressible transactions. You can now ask the history to elide steps of history, like side-by-side keystrokes.
 ** Every change to app state (except your raw swaps) is now a transaction internally (`set-query!`, `merge!`, and `transact!`). This
 means that all strucutured progression of your app is properly recorded in history!
-** Should work with React 16 and Clojure 1.9. Not heavily used in either yet, though. There are some React 16 things that could
+** Should work with React 16 and Clojure 1.9. Not heavily tested in either yet, though. There are some React 16 things that could
 break your apps if you use deprecated things. Many existing React libraries have yet to port.
 

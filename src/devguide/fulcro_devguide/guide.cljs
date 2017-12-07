@@ -16,15 +16,15 @@
     fulcro-devguide.G-Mutation-Solutions
     fulcro-devguide.H01-Server-Interactions-General-Operation
     fulcro-devguide.H02-Making-An-Easy-Server
-    fulcro-devguide.H05-Server-Interactions-Basic-Loading
-    fulcro-devguide.H08-Server-Interactions-Morphing-Loaded-Data
-    fulcro-devguide.H10-Server-Interactions-Mutations
-    fulcro-devguide.H11-Server-Interactions-Network-Activity-Indicators
-    fulcro-devguide.H12-Server-Interactions-Mutation-Return-Values
-    fulcro-devguide.H15-Server-Interactions-Triggering-Loads-from-Mutations
-    fulcro-devguide.H20-Server-Interactions-Incremental-Loading
-    fulcro-devguide.H30-Server-Interactions-Error-Handling
-    fulcro-devguide.H35-Server-Interactions-Query-Parsing
+    fulcro-devguide.H05-Basic-Loading
+    fulcro-devguide.H08-Morphing-Loaded-Data
+    fulcro-devguide.H10-Mutations
+    fulcro-devguide.H11-Network-Activity-Indicators
+    fulcro-devguide.H12-Mutation-Return-Values
+    fulcro-devguide.H15-Triggering-Loads-from-Mutations
+    fulcro-devguide.H20-Incremental-Loading
+    fulcro-devguide.H30-Network-Error-Handling
+    fulcro-devguide.H35-Query-Parsing
     fulcro-devguide.H40-Server-Interactions-As-An-Abstraction
     fulcro-devguide.I-Building-A-Server
     fulcro-devguide.J-Exercise-on-Putting-It-Together
@@ -35,7 +35,7 @@
     fulcro-devguide.M10-Advanced-UI
     fulcro-devguide.M15-Routing-UI
     fulcro-devguide.M30-Advanced-Mutation
-    fulcro-devguide.M40-Advanced-Server-Topics
+    fulcro-devguide.H45-Customizing-Easy-Server
     fulcro-devguide.M50-Server-Side-Rendering
     fulcro-devguide.N10-Twitter-Bootstrap-CSS
     fulcro-devguide.N15-Twitter-Bootstrap-Components
@@ -47,7 +47,6 @@
     fulcro-devguide.O10-Forms-Full-Stack-Demo
     fulcro-devguide.O15-Forms-File-Upload
     fulcro-devguide.Z-Deploying-To-Heroku
-    fulcro-devguide.Z-Glossary
     fulcro-devguide.Z-Query-Quoting
     fulcro-devguide.ZZ-HTML-to-CLJS
     devcards.core))

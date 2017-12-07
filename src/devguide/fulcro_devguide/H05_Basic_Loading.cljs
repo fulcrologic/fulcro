@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H05-Server-Interactions-Basic-Loading
+(ns fulcro-devguide.H05-Basic-Loading
   (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc
@@ -191,5 +191,5 @@
 
   ## What's Next?
 
-  Now that we know how to get stuff from the server, let's [talk about reshaping it](#!/fulcro_devguide.H08_Server_Interactions_Morphing_Loaded_Data)
+  Now that we know how to get stuff from the server, let's [talk about reshaping it](#!/fulcro_devguide.H08_Morphing_Loaded_Data)
   ")

@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H15-Server-Interactions-Triggering-Loads-from-Mutations
+(ns fulcro-devguide.H15-Triggering-Loads-from-Mutations
   (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc
@@ -114,5 +114,5 @@
   ## What's Next?
 
   Now that we know how to make loads happen behind the scenes.  You might be interested in knowing how to accomplish
-  [incremental loading](#!/fulcro_devguide.H20_Server_Interactions_Incremental_Loading).
+  [incremental loading](#!/fulcro_devguide.H20_Incremental_Loading).
   ")
