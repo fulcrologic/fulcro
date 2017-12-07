@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.0.0-beta5"
+(defproject fulcrologic/fulcro "2.0.0-beta6-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -10,19 +10,21 @@
                  [cljsjs/react-dom "15.6.2-0"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.243"]
+                 [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
+                 [com.ibm.icu/icu4j "59.1"]                 ; needed for i18n on server-side rendering
 
                  [clojure-future-spec "1.9.0-beta4"]
+
+                 ;; easy-server and server
                  [http-kit "2.2.0"]
                  [ring/ring-core "1.6.2" :exclusions [commons-codec]]
                  [bk/ring-gzip "0.2.1"]
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.10.0"]
-                 [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
-                 [com.ibm.icu/icu4j "59.1"]                 ; needed for i18n on server-side rendering
-                 [bidi "2.1.2"]
-                 [com.taoensso/sente "1.11.0"]
-                 [garden "1.3.3"]
+                 [bidi "2.1.2"]                             ; needed by easy-server
+                 [com.taoensso/sente "1.11.0"]              ; websockets
 
+                 ;; test deps
                  [fulcrologic/fulcro-spec "2.0.0-beta2" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.7" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
