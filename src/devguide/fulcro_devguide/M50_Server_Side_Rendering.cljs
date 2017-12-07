@@ -9,7 +9,7 @@
    The first is size. It is not unusual for a SPA to be several megabytes in size. This means that users on
    slow networks may wait a while before they see anything useful. Network speeds are continually on the rise
    (from less than 1kbps in the 80's to an average of about 10Mbps today). This is becoming less and less of an issue,
-   and if this is your only concern, then it might be poor accounting to complicate you application just to shave
+   and if this is your only concern, then it might be poor accounting to complicate your application just to shave
    a few ms off the initial load. After all, with proper serving you can get their browser to cache the js file
    for all but the first load of your site.
 
@@ -18,7 +18,7 @@
 
    Fortunately, Fulcro has you covered! Server-side rendering not only works well in Fulcro, the central mechanisms of
    Fulcro (a client-side database with mutations) and the fact that you're writing in one language actually make
-   server-side rendering shockingly simple, even for pages that require data from a server-side store. After all,
+   server-side rendering shockingly simple, even for pages that require data from a server-side store! After all,
    all of the functions and UI component queries needed to normalize the tree that you already know how to generate on
    your server can be in CLJC files and can be used without writing anything new!
 
@@ -28,15 +28,16 @@
    about how to write you application. These are pretty much what we recommend for all applications, but they're particularly
    important for SSR:
 
-   ### Use InitialAppState
+   ### Use Initial State on Components That Appear on Client Start
 
    This is true for every application. We always encourage it. It helps with refactoring, initial startup, etc. When
    doing server-side rendering you won't need this initial state on the client (the server will push a built-up state);
    however, the server does need the base minimum database on which it will build the state for the page that will
    be rendered.
 
-   IMPORTANT: For SSR you will *move* InitialAppState from *just* your `Root` node to a function. The reason for this
-   is that Fulcro ignores explicit application state at startup if it can find InitialAppState on the root node.
+   IMPORTANT: For SSR you will *move* initial state from *just* your `Root` node to a function. The reason for this
+   is that Fulcro ignores explicit application state at startup if it can find initial state on the root node, and
+   we want to force state into the client.
 
    This will become clearer when we get to examples.
 
@@ -73,8 +74,11 @@
                                 ...))))
    ```
 
-   Of course composition is re-use, but now that your client db mutation implementation is available in clj and cljs, you
+   Of course composition is re-use, but now that your client db mutation implementation is available in clj and cljs you
    can use it to initialize state for your server-side render!
+
+   NOTE: The new mutation `^:intern` support also gives you a way to get a function that applies the mutations actions
+   on a state atom.
 
    ### Use HTML5 Routing
 
@@ -86,7 +90,7 @@
    Here's how to structure your application to support SSR:
 
    1. Follow the above recommendations for the base code
-   2. The server will use the client initial app state plus mutation implementations to build a normalized database
+   2. The server will use the client initial app state plus a sequence of mutation implementations to build a normalized database
    3. The server will serve the same basic HTML page (from code) that has the following:
        - The CSS and other head-related stuff and the div on which your app will mount.
        - A div with the ID of your SPA's target mount, which will contain the HTML of the server-rendered application state
@@ -99,8 +103,9 @@
 
    The `fulcro.server-render` namespace has a function called `build-initial-state` that takes the root component
    and an initial state tree. It normalizes this and plugs in any union branch data that was not in the tree itself
-   (by walking the query and looking for components that have InitialAppState and are union branches). It returns
-   a *normalized* client application db that would be what you'd have on the client at initial startup.
+   (by walking the query and looking for components that have initial state and are union branches). It returns
+   a *normalized* client application db that would be what you'd have on the client at initial startup if you'd
+   started the client normally.
 
    So, now all you need to do is run any combination of operations on that map to bring it to the proper state. Here's the
    super-cool thing: your renderer is pure! It will render exactly what the state says the application is in!
@@ -115,11 +120,12 @@
         (assoc-in user-ident user)))
    ```
 
-   So now you've got the client-side db on the server. Now all you need to do is get it to the client!
+   So now you've got the client-side db on the server. Now all you need to do is pre-render it, and also
+   get this generated state to the client!
 
    ### Rendering with Initial State
 
-   Of course, the whole point is to pre-render the page. Now that you have a complete client database, this is
+   Of course, the whole point is to pre-render the page. Now that you have a complete client database this is
    trivial:
 
    ```
@@ -132,7 +138,7 @@
 
    ### Send The Completed Package!
 
-   Now, while you have the correct initial look, you will still need to get this database to the client.
+   Now, while you have the correct initial look, you will still need to get this database state into the client.
    While you could technically try loading your UI's initial state, it would make the UI flicker because when React
    mounts it needs to see the exact DOM that is already there. So, you must pass the server-side generated-database
    as initial-state to your client.
@@ -192,13 +198,11 @@
 
   ## True Isomorphic Support with Nashorn
 
-  If you use external Javascript libraries of React components, then you'll probably want to work just a little
-  bit harder. The techniques described above work perfectly if you're writing all of your own UI, but as soon as there
-  are some pure js components you have to stub them out with placeholders. Doing so can still be a good idea if you
-  can quickly make static versions of them with the proper CSS, but sometimes you'd just like to get a more accurate
-  initial rendering.
+  If you use external Javascript libraries of React components then you have two choices. One: write wrappers in cljs
+  that can output something reasonable for them in SSR, and them make cljc wrappers that use the JS when on the client,
+  and your placeholder dom on the server. This can work very well, and is the recommended approach.
 
-  If you're willing to work just a little bit harder, then you can maintain a true isomorphic application using Java
+  If you're willing to work just a little bit harder then you can maintain a true isomorphic application using Java
   8 and the Nashorn ECMA scripting engine.
 
   Some notes:

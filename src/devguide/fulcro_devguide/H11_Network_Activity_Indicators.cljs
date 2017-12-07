@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H11-Server-Interactions-Network-Activity-Indicators
+(ns fulcro-devguide.H11-Network-Activity-Indicators
   (:require-macros [cljs.test :refer [is]])
   (:require
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
@@ -138,5 +138,5 @@
   ## What's Next?
 
   Now that the user can see what is going on, let's talk about more advanced topics. What if we need to
-  [return a value from a mutation](#!/fulcro_devguide.H12_Server_Interactions_Mutation_Return_Values).
+  [return a value from a mutation](#!/fulcro_devguide.H12_Mutation_Return_Values).
 ")

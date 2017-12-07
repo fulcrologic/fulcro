@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H35-Server-Interactions-Query-Parsing
+(ns fulcro-devguide.H35-Query-Parsing
   (:require-macros [cljs.test :refer [is]])
   (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]

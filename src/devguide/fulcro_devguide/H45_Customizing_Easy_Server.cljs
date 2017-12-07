@@ -1,4 +1,4 @@
-(ns fulcro-devguide.M40-Advanced-Server-Topics
+(ns fulcro-devguide.H45-Customizing-Easy-Server
   (:require-macros [cljs.test :refer [is]])
   (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]

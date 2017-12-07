@@ -52,7 +52,7 @@
 ; BIG GOTCHA: Make sure you query for the prop (in this case :page) that the union needs in order to decide. It won't pull it itself!
 (defsc ReportsMain [this {:keys [report-router]}]
   ; nest the router under any arbitrary key, just be consistent in your query and props extraction.
-  {:initial-state {:page :report :report-router {}}
+  {:initial-state (fn [params] {:page :report :report-router (prim/get-initial-state ReportRouter {})})
    :query         [:page {:report-router (prim/get-query ReportRouter)}]}
   (dom/div #js {:style #js {:backgroundColor "grey"}}
     ; Screen-specific content to be shown "around" or "above" the subscreen
@@ -185,7 +185,7 @@
   to switch to a screen whose data might not yet exist:
 
   ```
-  (prim/transact! `[(app/ensure-report-loaded {:report-id :a}) (r/route-to {:graph :a})])
+  (prim/transact! `[(ensure-report-loaded {:report-id :a}) (r/route-to {:graph :a})])
   ```
 
   here we're assuming that `ensure-report-loaded` is a mutation that ensures that there is at least placeholder data in
@@ -193,18 +193,18 @@
   loads that will fufill the graph's needs, something like this:
 
   ```
-  (defmethod m/mutate 'app/ensure-report-loaded [{:keys [state] :as env} k {:keys [report-id]}]
-    (let [when-loaded (get-in @state [:reports/by-id report-id :load-time-ms] 0)
-          is-missing? (= 0 when-loaded)
-          now-ms (.getTime (js/Date.))
-          age-ms (- now-ms when-loaded)
-          should-be-loaded? (or (too-old? age-ms) is-missing?)]
-      ; if missing, put placeholder
-      ; if too old, add remote load to Fulcro queue (see data-fetch for remote-load and load-action)
-      {:remote (when should-be-loaded? (df/remote-load env))
-       :action (fn []
-                 (when is-missing? (swap! state add-report-placeholder report-id))
-                 (when should-be-loaded? (df/load-action env [:reports/by-id report-id] StatusReport)))}))
+  (defmutation ensure-report-loaded [{:keys [report-id]}]
+    (action [{:keys [state] :as env}]
+      (let [when-loaded (get-in @state [:reports/by-id report-id :load-time-ms] 0)
+            is-missing? (= 0 when-loaded)
+            now-ms (.getTime (js/Date.))
+            age-ms (- now-ms when-loaded)
+            should-be-loaded? (or (too-old? age-ms) is-missing?)]
+        ; if missing, put placeholder
+        ; if too old, add remote load to Fulcro queue (see data-fetch for remote-load and load-action)
+        (when is-missing? (swap! state add-report-placeholder report-id))
+        (when should-be-loaded? (df/load-action env [:reports/by-id report-id] StatusReport)))})
+    (remote [env] (df/load-action env)))
   ```
 
   Additional mutations might do things like garbage collect old data that is not in the view. You may also need to
@@ -215,9 +215,9 @@
   (defn show-report!
     [component report-id]
     (prim/transact! component `[(app/clear-old-reports)
-                              (app/ensure-report-loaded {:report-id ~report-id})
-                              (r/route-to {:graph ~report-id})
-                              :top-level-key]))
+                                (app/ensure-report-loaded {:report-id ~report-id})
+                                (r/route-to {:graph ~report-id})
+                                :top-level-key]))
   ```
 
   which can then be used more cleanly in the UI:
@@ -236,9 +236,12 @@
   There is nothing special about this technique. There are several functions in the `routing` namespace
   that can be used easily within your own mutations:
 
-  - `update-routing-links` - For standard union-based `defrouter`: Takes the state map and a route match (i.e. handler/params) and returns a new state map with the routes updated.
-  - `route-to-impl!` - For all kinds of routers (including dynamic): Takes the mutation `env` and a bidi-style match. Works with dynamic routes. Does swaps against app state.
-  - `set-route` - Changes the current route on a specific `defrouter` instance. Takes a state map, router ID, and target ident. Used if not using routing trees or dynamic routers.
+  - `update-routing-links` - For standard union-based `defrouter` (does not support dynamic code loading routers): Takes
+  the state map and a route match (map with :handler and :route-params) and returns a new state map with the routes updated.
+  - `route-to-impl!` - For all kinds of routers (including dynamic): Takes the mutation `env` and a bidi-style match {:handler/:params}.
+   Works with dynamic routes. Does swaps against app state, but is safe to use within a mutation.
+  - `set-route` - Changes the current route on a *specific* `defrouter` instance. Takes a state map, router ID, and a target ident.
+  Used if *not* using routing trees or dynamic routers.
 
   # HTML5 Routing
 
@@ -259,11 +262,13 @@
   such a composition:
 
   ```
-  ; in some defmethod m/mutate
+  ; in some defmutation
   (swap! state (fn [m]
                   (-> m
                       (r/update-routing-links { :handler :h :route-params p })
                       (app/your-state-updates)))
   (pushy/set-token! your-uri-interpretation-of-h)
   ```
+
+  See the fulcro-template on github. It supports HTML5 routing with a demo tree.
   ")
