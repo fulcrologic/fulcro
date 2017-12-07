@@ -31,7 +31,7 @@ There is also a plain `git-flow` package, but the AVH version is better maintain
 
 ## Github Instructions
 
-Basically gollow the instructions here:
+Basically follow the instructions here:
 
 https://help.github.com/categories/collaborating-with-issues-and-pull-requests/
 

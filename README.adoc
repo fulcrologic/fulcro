@@ -8,9 +8,9 @@
 
 image:docs/logo.png[]
 
-Fulcro 2.0 is a library for building data-driven full-stack applications for the web. Is uses React, is written in
-Clojure and Clojurescript (so it has first-class functional abilities with immutible data) which leads to a very clean
-syncrhonous story for the UI. The result is a stack that dramatically reduces the amount of boilerplate and incidental complexity
+Fulcro 2.0 is a library for building data-driven full-stack applications for the web. It uses React, is written in
+Clojure and Clojurescript (so it has first-class functional abilities with immutable data) which leads to a very clean
+synchronous story for the UI. The result is a stack that dramatically reduces the amount of boilerplate and incidental complexity
 in your software.
 
 Fulcro 1.0 is still supported but is only getting bug fix releases at this point. Version 1.0 was an
