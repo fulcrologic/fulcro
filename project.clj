@@ -166,7 +166,7 @@
                                          [cljsjs/d3 "3.5.7-1"]
                                          [cljsjs/victory "0.9.0-0"]
                                          [hickory "0.7.1"]
-                                         [fulcrologic/fulcro-css "2.0.0-SNAPSHOT"] ; demos
+                                         [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
                                          [com.rpl/specter "1.0.5"] ; only used in demos
                                          [org.flywaydb/flyway-core "4.2.0"]
                                          [org.clojure/tools.namespace "0.3.0-alpha4"]
@@ -177,10 +177,10 @@
                           :uberjar-name   "fulcro-demos.jar"
                           :jar-exclusions ^:replace []
                           :dependencies   [[devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
-                                           [fulcrologic/fulcro-css "2.0.0-SNAPSHOT"] ; demos
+                                           [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
                                            [com.rpl/specter "1.0.5"] ; only used in demos
                                            [org.flywaydb/flyway-core "4.2.0"]
-                                           [fulcrologic/fulcro-sql "0.3.0-SNAPSHOT"] ; demos
+                                           [fulcrologic/fulcro-sql "0.3.0"] ; demos
                                            [org.clojure/java.jdbc "0.7.3"] ; pinned dependency
                                            [org.postgresql/postgresql "42.1.4"] ; demos
                                            [org.clojure/tools.namespace "0.3.0-alpha4"]
@@ -192,8 +192,8 @@
                           :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                           :dependencies [[binaryage/devtools "0.9.7"]
                                          [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                         [fulcrologic/fulcro-css "2.0.0-SNAPSHOT"] ; demos
-                                         [fulcrologic/fulcro-sql "0.3.0-SNAPSHOT"] ; demos
+                                         [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
+                                         [fulcrologic/fulcro-sql "0.3.0"] ; demos
                                          [org.clojure/java.jdbc "0.7.3"] ; pinned dependency
                                          [org.postgresql/postgresql "42.1.4"] ; demos
                                          [com.cemerick/piggieback "0.2.2"]
