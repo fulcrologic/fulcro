@@ -1,5 +1,8 @@
 2.0.0-beta6
 -----------
+- website updates
+- load-field and load-field-action now accept a parameters map. Maintained
+  named parameter support so it does not break existing code.
 
 
 2.0.0-beta5
