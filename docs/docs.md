@@ -22,7 +22,7 @@ in the [Cheat Sheet](https://github.com/fulcrologic/fulcro/blob/develop/docs/Che
 
 There is a playlist of videos for different topics. This playlist is expanding, so check back often:
 
-<iframe width="560" height="315" src="https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE" frameborder="0" allowfullscreen></iframe>
+<iframe width="853" height="480" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE" frameborder="0" gesture="media" allow="encrypted-media" allowfullscreen></iframe>
 
 ## Talks About Untangled
 
