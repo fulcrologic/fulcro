@@ -115,7 +115,7 @@ their initial state composes locally, and loads are not tied to UI structure. If
 in a devcard you just compose it into a new Root and drop it in place! The only thing
 that (typically) fails to work is navigation to UI stuff that you didn't bring along!
 
-There is a video on YouTube that gives you a taste for [this in action](https://youtu.be/uxI2XVgdDBU?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R).
+There is an older Untangled video on YouTube that gives you a taste for [this in action](https://youtu.be/uxI2XVgdDBU?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R).
 
 Code conflicts become a lot less frequent as well since co-development is now almost completely isolated.
 

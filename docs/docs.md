@@ -20,19 +20,14 @@ in the [Cheat Sheet](https://github.com/fulcrologic/fulcro/blob/develop/docs/Che
 
 ## Video Guides
 
-There are a number of helpful videos on Fulcro:
+There is a playlist of videos for different topics. This playlist is expanding, so check back often:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE" frameborder="0" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE" frameborder="0" allowfullscreen></iframe>
 
-More new videos are being built and added, but there are some old videos from when the tools
-were named Untangled. These older videos are a little outdated, but contain useful 
-information:
+## Talks About Untangled
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R" frameborder="0" allowfullscreen></iframe>
-
-## Talks About Fulcro (a.k.a. "Untangled")
-
-I've given a few talks on Fulcro (when it was named Untangled). Again, use the playlist control at
+I've given a few talks on Untangled, which was the root project of Fulcro. The names are out of date, but
+the concepts are still the same. Use the playlist control at
 the top-left of the video to choose what you want to watch.
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLVi9lDx-4C_Qsgm8JC1VyMevV9DVj-dCh" frameborder="0" allowfullscreen></iframe>

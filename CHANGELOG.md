@@ -1,3 +1,7 @@
+2.0.0-beta6
+-----------
+
+
 2.0.0-beta5
 -----------
 - Massive documentation update
