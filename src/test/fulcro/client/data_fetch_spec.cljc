@@ -143,6 +143,11 @@
       "Adds the load-key keyword to refresh (non-duplicate, when there is no target)"
       (set (#'df/computed-refresh [:a] :b nil)) => #{:a :b}
       (set (#'df/computed-refresh [:a :b] :b nil)) => #{:a :b}
+      "Allows a multi-target target"
+      (set (#'df/computed-refresh [:x] [:c 3]
+             (df/multiple-targets
+               (df/append-to [:a 1 :f])
+               (df/prepend-to [:b 2 :g])))) => #{[:a 1] [:b 2] [:c 3] :x}
       "Adds the target's first two elements as an ident to refresh (when target has 2+ elements)"
       (set (#'df/computed-refresh [:a] :b [:x 3 :boo])) => #{:a [:x 3]}
       (set (#'df/computed-refresh [:a] :b [:x 3])) => #{:a [:x 3]}
@@ -279,17 +284,17 @@
             "includes the focused query"
             (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]))))
     (behavior "accepts parameter map"
-     (let [app-state (atom {})]
-       (df/load-field-action app-state Item [:item/by-id 3] :comments {:marker :x :without #{:author}})
+      (let [app-state (atom {})]
+        (df/load-field-action app-state Item [:item/by-id 3] :comments {:marker :x :without #{:author}})
 
-       (let [marker (first (get-in @app-state [:fulcro/ready-to-load]))]
-         (assertions
-           "includes the custom load marker name"
-           (::dfi/marker marker) => :x
-           "places a ready marker in the load queue"
-           marker =fn=> (fn [marker] (df/ready? marker))
-           "includes the focused query"
-           (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]))))))
+        (let [marker (first (get-in @app-state [:fulcro/ready-to-load]))]
+          (assertions
+            "includes the custom load marker name"
+            (::dfi/marker marker) => :x
+            "places a ready marker in the load queue"
+            marker =fn=> (fn [marker] (df/ready? marker))
+            "includes the focused query"
+            (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]))))))
 
 (specification "full-query"
   (let [item-ready-markers [(dfi/ready-state {:ident [:db/id 1] :field :author :query [{:author [:name]}]})

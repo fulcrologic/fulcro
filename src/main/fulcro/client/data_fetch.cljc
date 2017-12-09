@@ -21,21 +21,6 @@
   "The name of the table in which fulcro load markers are stored"
   impl/marker-table)
 
-(defn- computed-refresh
-  "Computes the refresh for the load by ensuring the loaded data is on the
-  list of things to re-render."
-  [explicit-refresh load-key target]
-  (let [to-refresh       (set explicit-refresh)
-        truncated-target (vec (take 2 target))
-        target-ident     (when (util/ident? truncated-target) truncated-target)]
-    (vec (cond
-           (or
-             (util/ident? load-key)
-             (and (keyword? load-key) (nil? target))) (conj to-refresh load-key)
-           target-ident (conj to-refresh target-ident)
-           (= 1 (count truncated-target)) (conj to-refresh (first target))
-           :else to-refresh))))
-
 (defn multiple-targets [& targets]
   (with-meta (vec targets) {::impl/multiple-targets true}))
 
@@ -47,6 +32,24 @@
 
 (defn replace-at [target]
   (with-meta target {::impl/replace-target true}))
+
+(defn- computed-refresh
+  "Computes the refresh for the load by ensuring the loaded data is on the
+  list of things to re-render."
+  [explicit-refresh load-key target]
+  (vec (let [result     (conj (set explicit-refresh))
+             result     (if (or (nil? target) (util/ident? load-key))
+                          (conj result load-key)
+                          result)
+             add-target (fn [r t]
+                          (cond
+                            (and (vector? t) (>= (count t) 2)) (conj r (vec (take 2 t)))
+                            (vector? t) (conj r (first t))
+                            :else (conj r t)))]
+         (cond
+           (impl/multiple-targets? target) (reduce (fn [refresh t] (add-target refresh t)) result target)
+           target (add-target result target)
+           :else result))))
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
@@ -110,9 +113,10 @@
   - `config` : A map of load configuration parameters.
 
   Config (all optional):
-  - `target` - An assoc-in path at which to put the result of the Subquery. If supplied, the data AND load marker will appear
-    at this path. If not supplied the data and marker will appear at `server-property` in the top-level of the client app state
-    database. Ignored if you're loading via ident (the ident is your target).
+  - `target` - An assoc-in path at which to put the result of the Subquery (as an edge (normalized) or value (not normalized)).
+    Can also be special targets (multiple-targets, append-to,
+    prepend-to, or replace-at). If you are loading by keyword (into root), then this relocates the result (ident or value) after load.
+    When loading an entity (by ident), then this option will place additional idents at the target path(s) that point to that entity.
   - `remote` - Optional. Keyword name of the remote that this load should come from.
   - `params` - Optional parameters to add to the generated query
   - `marker` - Boolean to determine if you want a fetch-state marker in your app state. Defaults to true. Add `:ui/fetch-state` to the
@@ -181,14 +185,6 @@
       (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
         (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :env env))))))
 
-(comment
-
-  (do
-    (defn f [& params]
-      (let [params (if (map? (first params)) (first params) params)
-            {:keys [a]} params]
-        (println :a a :p params)))
-    (f :a :b)))
 (defn load-field
   "Load a field of the current component. Runs `prim/transact!`.
 
