@@ -562,6 +562,7 @@
       (relocate-targeted-results! app-state loading-items)
       (run-post-mutations!)
       (set-global-loading! reconciler)
+      (p/tick! reconciler)
       (if (contains? refresh-set :fulcro/force-root)
         (prim/force-root-render! reconciler)
         (force-render reconciler to-refresh)))))
@@ -615,6 +616,7 @@
       (run-fallbacks)
       (set-global-loading! reconciler)
       (clear-history-activity! history loading-items)
+      (p/tick! reconciler)
       (prim/force-root-render! reconciler))))
 
 (defn is-deferred-transaction?

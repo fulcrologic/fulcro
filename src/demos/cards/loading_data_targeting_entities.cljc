@@ -1,4 +1,4 @@
-(ns cards.targeting-an-entity-load
+(ns cards.loading-data-targeting-entities
   (:require
     #?@(:cljs [[devcards.core :as dc :include-macros true]
                [fulcro.client.cards :refer [defcard-fulcro]]])
@@ -21,9 +21,6 @@
   (dom/div nil (str "Hi, I'm " name)))
 
 (def ui-person (prim/factory Person {:keyfn :db/id}))
-
-; TODO: Write tests around refresh of mult targets
-; TODO: Basis time fixes with respect to targeted refresh
 
 (defsc Pane [this {:keys [db/id pane/person] :as props}]
   {:query         [:db/id {:pane/person (prim/get-query Person)}]
@@ -57,7 +54,7 @@
                                [:pane/by-id :left :pane/person]
                                [:pane/by-id :right :pane/person]))
         person-ident [:person/by-id (rand-int 100)]]
-    (df/load component person-ident Person {:target load-target})))
+    (df/load component person-ident Person {:target load-target :marker false})))
 
 (defsc Root [this {:keys [root/panel ui/react-key] :as props}]
   {:query         [:ui/react-key {:root/panel (prim/get-query Panel)}]
@@ -78,10 +75,31 @@
      - There must be a component that has a query and ident (for normalization)
      - Your server must be able to respond to a query for that kind of entity
 
+     If you load entities with load like this:
+
+     ```
+     (df/load this [:person/by-id 3] Person)
+     ```
+
+     then by default that is just a refresh of that entity (components that have that ident will refresh).
+
+     Another thing you might be doing is loading an entity for the first time, in which case you might want to link
+     it into the graph in multiple places using `:target`. This is fully supported:
+
+     ```
+     (df/load this [:person/by-id 3] Person {:target (df/multiple-targets [:x :b :fld] [:y c :fld])})
+     ```
+
      In the example code below, you'll see we've set up two panes in a panel, and each pane can render a person.
 
      Initially, there are no people loaded (none in initial state). The load buttons in the root component
      let you see entity loads targeted at one or both of them.
+
+     The main loader looks like this (and is called from root):
+
+     "
+     (dc/mkdn-pprint-source load-random-person)
+     "
 
      The server is rather simple. It just makes up a person for any given ID:
 
@@ -105,7 +123,7 @@
    (defcard-fulcro targeted-entity
      "# Live Demo
 
-     This card is running the code above.
+     This card is running the code above. Make sure you're running the demo server.
      "
      Root
      {}
