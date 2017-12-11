@@ -36,6 +36,8 @@
     (assertions
       "trims the history to the max-size most recent items  "
       (-> new-history ::hist/history-steps keys set) => #{2 3 4 5 6}
+      "retains the ::max-size entry in history"
+      (-> new-history ::hist/max-size) => 5
       "does not trim history steps that are still needed by active remotes"
       (-> new-history-with-active-remotes ::hist/history-steps keys set) => #{3 4 5 6})))
 

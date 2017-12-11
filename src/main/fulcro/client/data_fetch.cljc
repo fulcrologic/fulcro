@@ -21,21 +21,6 @@
   "The name of the table in which fulcro load markers are stored"
   impl/marker-table)
 
-(defn- computed-refresh
-  "Computes the refresh for the load by ensuring the loaded data is on the
-  list of things to re-render."
-  [explicit-refresh load-key target]
-  (let [to-refresh       (set explicit-refresh)
-        truncated-target (vec (take 2 target))
-        target-ident     (when (util/ident? truncated-target) truncated-target)]
-    (vec (cond
-           (or
-             (util/ident? load-key)
-             (and (keyword? load-key) (nil? target))) (conj to-refresh load-key)
-           target-ident (conj to-refresh target-ident)
-           (= 1 (count truncated-target)) (conj to-refresh (first target))
-           :else to-refresh))))
-
 (defn multiple-targets [& targets]
   (with-meta (vec targets) {::impl/multiple-targets true}))
 
@@ -47,6 +32,24 @@
 
 (defn replace-at [target]
   (with-meta target {::impl/replace-target true}))
+
+(defn- computed-refresh
+  "Computes the refresh for the load by ensuring the loaded data is on the
+  list of things to re-render."
+  [explicit-refresh load-key target]
+  (vec (let [result     (conj (set explicit-refresh))
+             result     (if (or (nil? target) (util/ident? load-key))
+                          (conj result load-key)
+                          result)
+             add-target (fn [r t]
+                          (cond
+                            (and (vector? t) (>= (count t) 2)) (conj r (vec (take 2 t)))
+                            (vector? t) (conj r (first t))
+                            :else (conj r t)))]
+         (cond
+           (impl/multiple-targets? target) (reduce (fn [refresh t] (add-target refresh t)) result target)
+           target (add-target result target)
+           :else result))))
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
@@ -110,9 +113,10 @@
   - `config` : A map of load configuration parameters.
 
   Config (all optional):
-  - `target` - An assoc-in path at which to put the result of the Subquery. If supplied, the data AND load marker will appear
-    at this path. If not supplied the data and marker will appear at `server-property` in the top-level of the client app state
-    database. Ignored if you're loading via ident (the ident is your target).
+  - `target` - An assoc-in path at which to put the result of the Subquery (as an edge (normalized) or value (not normalized)).
+    Can also be special targets (multiple-targets, append-to,
+    prepend-to, or replace-at). If you are loading by keyword (into root), then this relocates the result (ident or value) after load.
+    When loading an entity (by ident), then this option will place additional idents at the target path(s) that point to that entity.
   - `remote` - Optional. Keyword name of the remote that this load should come from.
   - `params` - Optional parameters to add to the generated query
   - `marker` - Boolean to determine if you want a fetch-state marker in your app state. Defaults to true. Add `:ui/fetch-state` to the
@@ -187,46 +191,49 @@
   Parameters
   - `component`: The component (**instance**, not class). This component MUST have an Ident.
   - `field`: A field on the component's query that you wish to load.
+  - `parameters` : A map of: (will also accept as named parameters)
 
-  Named Parameters:
-  - `without`: See `load`
-  - `params`: See `load`
-  - `post-mutation`: See `load`
-  - `post-mutation-params`: See `load`
-  - `parallel`: See `load`
-  - `fallback`: See `load`
-  - `marker`: See `load`
-  - `remote`: See `load`
-  - `refresh`: See `load`
+    - `without`: See `load`
+    - `params`: See `load`
+    - `post-mutation`: See `load`
+    - `post-mutation-params`: See `load`
+    - `parallel`: See `load`
+    - `fallback`: See `load`
+    - `marker`: See `load`
+    - `remote`: See `load`
+    - `refresh`: See `load`
 
   NOTE: The :ui/loading-data attribute is always included in refresh. This means you probably don't want to
   query for that attribute near the root of your UI. Instead, create some leaf component with an ident that queries for :ui/loading-data
   using a link  query (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
   improve your frame rate because we will not have to run a full root query.
   "
-  [component field & {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
-                      :or   {remote :remote refresh [] marker true}}]
-  {:pre [(or (nil? marker) (bool? marker) (keyword? marker))]}
-  (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
-  (prim/transact! component (into [(list 'fulcro/load
-                                     {:ident                (prim/get-ident component)
-                                      :field                field
-                                      :query                (prim/focus-query (prim/get-query component) [field])
-                                      :params               params
-                                      :without              without
-                                      :remote               remote
-                                      :post-mutation        post-mutation
-                                      :post-mutation-params post-mutation-params
-                                      :parallel             parallel
-                                      :marker               marker
-                                      :refresh              refresh
-                                      :fallback             fallback}) :ui/loading-data :ui.fulcro.client.data-fetch.load-markers/by-id (prim/get-ident component)] refresh)))
+  [component field & params]
+  (let [params (if (map? (first params)) (first params) params)
+        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
+         :or   {remote :remote refresh [] marker true}} params]
+    (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
+    (prim/transact! component (into [(list 'fulcro/load
+                                       {:ident                (prim/get-ident component)
+                                        :field                field
+                                        :query                (prim/focus-query (prim/get-query component) [field])
+                                        :params               params
+                                        :without              without
+                                        :remote               remote
+                                        :post-mutation        post-mutation
+                                        :post-mutation-params post-mutation-params
+                                        :parallel             parallel
+                                        :marker               marker
+                                        :refresh              refresh
+                                        :fallback             fallback}) :ui/loading-data :ui.fulcro.client.data-fetch.load-markers/by-id (prim/get-ident component)] refresh))))
 
 (defn load-field-action
   "Queue up a remote load of a component's field from within an already-running mutation. Similar to `load-field`
   but usable from within a mutation. Note the `:refresh` parameter is supported, and defaults to nothing, even for
   fields, in actions. If you want anything to refresh other than the targeted component you will want to use the
   :refresh parameter.
+
+  `params` can be a map or named parameters, just like in `load-field`.
 
   To use this function make sure your mutation specifies a return value with a remote. The remote
   should use the helper function `remote-load` as it's value:
@@ -239,26 +246,28 @@
        ; other optimistic updates/state changes)}
 
   It is preferable that you use `env` instead of `app-state` for the first argument, as this allows more details to
-  be available for post mutations and fallbacks."
-  [env-or-app-state component-class ident field & {:keys [without remote params post-mutation post-mutation-params fallback parallel refresh marker]
-                                                   :or   {remote :remote refresh [] marker true}}]
-  {:pre [(or (nil? marker) (bool? marker) (keyword? marker))]}
-  (impl/mark-ready
-    {:env                  (if (and (map? env-or-app-state) (contains? env-or-app-state :state))
-                             env-or-app-state
-                             {:state env-or-app-state})
-     :field                field
-     :ident                ident
-     :query                (prim/focus-query (prim/get-query component-class) [field])
-     :params               params
-     :remote               remote
-     :without              without
-     :parallel             parallel
-     :refresh              refresh
-     :marker               marker
-     :post-mutation        post-mutation
-     :post-mutation-params post-mutation-params
-     :fallback             fallback}))
+  be available for post mutations and fallbacks.
+  "
+  [env-or-app-state component-class ident field & params]
+  (let [params (if (map? (first params)) (first params) params)
+        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
+         :or   {remote :remote refresh [] marker true}} params]
+    (impl/mark-ready
+      {:env                  (if (and (map? env-or-app-state) (contains? env-or-app-state :state))
+                               env-or-app-state
+                               {:state env-or-app-state})
+       :field                field
+       :ident                ident
+       :query                (prim/focus-query (prim/get-query component-class) [field])
+       :params               params
+       :remote               remote
+       :without              without
+       :parallel             parallel
+       :refresh              refresh
+       :marker               marker
+       :post-mutation        post-mutation
+       :post-mutation-params post-mutation-params
+       :fallback             fallback})))
 
 (defn remote-load
   "Returns the correct value for the `:remote` side of a mutation that should act as a

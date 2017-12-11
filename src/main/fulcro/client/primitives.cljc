@@ -234,6 +234,7 @@
        (fn [[name [this :as args] & body]]
          `(~name [this#]
             (let [~this this#
+                  reconciler# (fulcro.client.primitives/get-reconciler this#)
                   indexer# (get-in reconciler# [:config :indexer])]
               (when-not (nil? indexer#)
                 (fulcro.client.impl.protocols/index-component! indexer# this#))
@@ -2351,7 +2352,7 @@
            history]
     :or   {merge-sends  #(merge-with into %1 %2)
            remotes      [:remote]
-           history      100
+           history      200
            lifecycle    nil
            optimize     (fn depth-sorter [cs] (sort-by depth cs))
            root-render  #?(:clj  (fn clj-root-render [c target] c)

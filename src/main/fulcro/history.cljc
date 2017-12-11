@@ -44,7 +44,7 @@
 
 (defn gc-history
   "Returns a new history that has been reduced in size to target levels."
-  [{:keys [::active-remotes ::max-size ::history-steps] :as history}]
+  [{:keys [::max-size ::history-steps] :as history}]
   (if (> (count history-steps) max-size)
     (let [oldest-required-history-step (oldest-active-network-request history)
           current-size                 (count history-steps)
@@ -55,9 +55,7 @@
                                          (do
                                            (log/info "WARNING: History has grown beyond max size due to network congestion.")
                                            (drop-while (fn [t] (< t oldest-required-history-step)) ordered-steps))
-                                         (do
-                                           (log/debug (str "Expired " overage " history entries."))
-                                           proposed-keepers))]
+                                         proposed-keepers)]
       (update history ::history-steps select-keys real-keepers))
     history))
 
@@ -88,8 +86,8 @@
 
 (defn record-history-step
   "Record a history step in the reconciler. "
-  [{:keys [::active-remotes ::max-size ::history-steps] :as history} tx-time
-   {:keys [::tx ::network-result ::network-sends ::db-before ::db-after] :as step}]
+  [{:keys [::history-steps] :as history} tx-time
+   {:keys [::tx] :as step}]
   (let [last-time     (last-tx-time history)
         gc?           (= 0 (mod tx-time 10))
         last-tx       (get-in history-steps [last-time ::tx] [])
@@ -106,7 +104,6 @@
 (s/fdef record-history-step
   :args (s/cat :hist ::history :time ::tx-time :step ::history-step)
   :ret ::history)
-
 
 (defn new-history [size]
   {::max-size size ::history-steps {} ::active-remotes {}})

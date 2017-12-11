@@ -1,6 +1,10 @@
 2.0.0-beta6
 -----------
-
+- website updates
+- load-field and load-field-action now accept a parameters map. Maintained
+  named parameter support so it does not break existing code.
+- Fixed a bug in SSR lifecycle handling
+- Fixed a bug in refresh related to the new multiple-target support in load
 
 2.0.0-beta5
 -----------

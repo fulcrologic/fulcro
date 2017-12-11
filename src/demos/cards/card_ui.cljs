@@ -16,6 +16,7 @@
     cards.loading-indicators
     cards.loading-data-basics
     cards.loading-in-response-to-UI-routing
+    cards.loading-data-targeting-entities
     cards.paginating-large-lists-from-server
     cards.parallel-vs-sequential-loading
     cards.parent-child-ownership-relations

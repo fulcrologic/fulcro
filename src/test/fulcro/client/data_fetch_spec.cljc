@@ -14,7 +14,9 @@
     [fulcro.client.impl.protocols :as omp]
     [fulcro.client :as fc]
     [fulcro.client.impl.data-fetch :as f]
-    [fulcro.history :as hist]))
+    [fulcro.history :as hist]
+    [fulcro.client.impl.protocols :as p]))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -143,6 +145,11 @@
       "Adds the load-key keyword to refresh (non-duplicate, when there is no target)"
       (set (#'df/computed-refresh [:a] :b nil)) => #{:a :b}
       (set (#'df/computed-refresh [:a :b] :b nil)) => #{:a :b}
+      "Allows a multi-target target"
+      (set (#'df/computed-refresh [:x] [:c 3]
+             (df/multiple-targets
+               (df/append-to [:a 1 :f])
+               (df/prepend-to [:b 2 :g])))) => #{[:a 1] [:b 2] [:c 3] :x}
       "Adds the target's first two elements as an ident to refresh (when target has 2+ elements)"
       (set (#'df/computed-refresh [:a] :b [:x 3 :boo])) => #{:a [:x 3]}
       (set (#'df/computed-refresh [:a] :b [:x 3])) => #{:a [:x 3]}
@@ -195,49 +202,101 @@
              query => [:x]))))))
 
 (specification "Lazy loading"
-  (component "Loading a field within a component"
-    (let [query (prim/get-query Item)]
-      (provided "properly calls transact"
-        (prim/get-ident c) =2x=> [:item/by-id 10]
-        (prim/get-query c) =1x=> query
-        (prim/transact! c tx) =1x=> (let [params          (-> tx first second)
-                                          follow-on-reads (set (-> tx rest))]
-                                      (assertions
-                                        "includes :ui/loading-data in the follow-on reads"
-                                        (contains? follow-on-reads :ui/loading-data) => true
-                                        "includes ident of component in the follow-on reads"
-                                        (contains? follow-on-reads [:item/by-id 10]) => true
-                                        "does the transact on the component"
-                                        c => 'component
-                                        "includes the component's ident in the marker."
-                                        (:ident params) => [:item/by-id 10]
-                                        "focuses the query to the specified field."
-                                        (:query params) => [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
-                                        "includes the parameters."
-                                        (:params params) => {:sort :by-name}
-                                        "includes the subquery exclusions."
-                                        (:without params) => #{:excluded-attr}
-                                        "includes the post-processing callback."
-                                        (:post-mutation params) => 'foo
-                                        "includes the error fallback"
-                                        (:fallback params) => 'bar))
+  (component "load-field"
+    (behavior "Accepts named parameters"
+      (let [query (prim/get-query Item)]
+        (provided "properly calls transact"
+          (prim/get-ident c) =2x=> [:item/by-id 10]
+          (prim/get-query c) =1x=> query
+          (prim/transact! c tx) =1x=> (let [params          (-> tx first second)
+                                            follow-on-reads (set (-> tx rest))]
+                                        (assertions
+                                          "includes :ui/loading-data in the follow-on reads"
+                                          (contains? follow-on-reads :ui/loading-data) => true
+                                          "includes ident of component in the follow-on reads"
+                                          (contains? follow-on-reads [:item/by-id 10]) => true
+                                          "does the transact on the component"
+                                          c => 'component
+                                          "includes the component's ident in the marker."
+                                          (:ident params) => [:item/by-id 10]
+                                          "focuses the query to the specified field."
+                                          (:query params) => [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
+                                          "includes the parameters."
+                                          (:params params) => {:sort :by-name}
+                                          "includes the subquery exclusions."
+                                          (:without params) => #{:excluded-attr}
+                                          "includes the post-processing callback."
+                                          (:post-mutation params) => 'foo
+                                          "includes the error fallback"
+                                          (:fallback params) => 'bar))
 
-        (df/load-field 'component :comments
-          :without #{:excluded-attr}
-          :params {:sort :by-name}
-          :post-mutation 'foo
-          :fallback 'bar))))
+          (df/load-field 'component :comments
+            :without #{:excluded-attr}
+            :params {:sort :by-name}
+            :post-mutation 'foo
+            :fallback 'bar))))
 
-  (component "Loading a field from within another mutation"
-    (let [app-state (atom {})]
-      (df/load-field-action app-state Item [:item/by-id 3] :comments :without #{:author})
+    (behavior "Accepts parameters as a map"
+      (let [query (prim/get-query Item)]
+        (provided "properly calls transact"
+          (prim/get-ident c) =2x=> [:item/by-id 10]
+          (prim/get-query c) =1x=> query
+          (prim/transact! c tx) =1x=> (let [params          (-> tx first second)
+                                            follow-on-reads (set (-> tx rest))]
+                                        (assertions
+                                          "includes :ui/loading-data in the follow-on reads"
+                                          (contains? follow-on-reads :ui/loading-data) => true
+                                          "includes ident of component in the follow-on reads"
+                                          (contains? follow-on-reads [:item/by-id 10]) => true
+                                          "does the transact on the component"
+                                          c => 'component
+                                          "includes the component's ident in the marker."
+                                          (:ident params) => [:item/by-id 10]
+                                          "focuses the query to the specified field."
+                                          (:query params) => [{:comments [:db/id :title {:author [:db/id :username :name]}]}]
+                                          "includes the parameters."
+                                          (:params params) => {:sort :by-name}
+                                          "includes the subquery exclusions."
+                                          (:without params) => #{:excluded-attr}
+                                          "includes custom marker"
+                                          (:marker params) => :my-marker
+                                          "includes the post-processing callback."
+                                          (:post-mutation params) => 'foo
+                                          "includes the error fallback"
+                                          (:fallback params) => 'bar))
 
-      (let [marker (first (get-in @app-state [:fulcro/ready-to-load]))]
-        (assertions
-          "places a ready marker in the app state"
-          marker =fn=> (fn [marker] (df/ready? marker))
-          "includes the focused query"
-          (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}])))))
+          (df/load-field 'component :comments
+            {:without       #{:excluded-attr}
+             :params        {:sort :by-name}
+             :marker        :my-marker
+             :post-mutation 'foo
+             :fallback      'bar})))))
+
+  (component "load-field-action"
+    (behavior "accepts named parameters"
+      (let [app-state (atom {})]
+        (df/load-field-action app-state Item [:item/by-id 3] :comments :without #{:author} :marker :x)
+
+        (let [marker (first (get-in @app-state [:fulcro/ready-to-load]))]
+          (assertions
+            "includes the custom load marker name"
+            (::dfi/marker marker) => :x
+            "places a ready marker in the load queue"
+            marker =fn=> (fn [marker] (df/ready? marker))
+            "includes the focused query"
+            (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]))))
+    (behavior "accepts parameter map"
+      (let [app-state (atom {})]
+        (df/load-field-action app-state Item [:item/by-id 3] :comments {:marker :x :without #{:author}})
+
+        (let [marker (first (get-in @app-state [:fulcro/ready-to-load]))]
+          (assertions
+            "includes the custom load marker name"
+            (::dfi/marker marker) => :x
+            "places a ready marker in the load queue"
+            marker =fn=> (fn [marker] (df/ready? marker))
+            "includes the focused query"
+            (dfi/data-query marker) => [{[:item/by-id 3] [{:comments [:db/id :title]}]}]))))))
 
 (specification "full-query"
   (let [item-ready-markers [(dfi/ready-state {:ident [:db/id 1] :field :author :query [{:author [:name]}]})
@@ -366,6 +425,7 @@
          (prim/get-history r) => (atom empty-history)
          (prim/merge! r resp query) => (reset! merged true)
          (util/force-render r ks) => (reset! rendered ks)
+         (dfi/tick! r) => nil
          (dfi/set-global-loading! r) => (reset! globally-marked true)
 
          (loaded-cb response items)
@@ -397,6 +457,7 @@
            response        {:id 2}]
        (when-mocking
          (prim/app-state r) => state
+         (dfi/tick! r) => nil
          (prim/merge! r resp query) => (reset! merged true)
          (prim/get-history r) => (atom empty-history)
          (util/force-render r items) => (reset! queued (set items))
@@ -438,6 +499,7 @@
          (prim/get-history r) => (atom empty-history)
          (prim/app-state r) => state
          (dfi/record-network-error! r i e) => nil
+         (dfi/tick! r) => nil
          (dfi/set-global-loading! r) => (reset! globally-marked true)
          (prim/force-root-render! r) => (assertions
                                           "Triggers render at root"
