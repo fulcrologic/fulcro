@@ -520,6 +520,10 @@
                                     (log/debug (str "Clearing remote load activity on " remote " for tx-time " tx-time))
                                     (hist/remote-activity-finished hist (or remote :remote) tx-time)) load-markers)))))
 
+(defn- tick! "Ability to mock in tests"
+  [r]
+  (p/tick! r))
+
 (defn- loaded-callback
   "Generates a callback that processes all of the post-processing steps once a remote ***load*** has completed. This includes:
 
@@ -562,7 +566,7 @@
       (relocate-targeted-results! app-state loading-items)
       (run-post-mutations!)
       (set-global-loading! reconciler)
-      (p/tick! reconciler)
+      (tick! reconciler)
       (if (contains? refresh-set :fulcro/force-root)
         (prim/force-root-render! reconciler)
         (force-render reconciler to-refresh)))))
@@ -571,7 +575,7 @@
   "Record a network error in history"
   [reconciler items error]
   (when-let [history (prim/get-history reconciler)]
-    (p/tick! reconciler)
+    (tick! reconciler)
     (swap! history hist/record-history-step (p/basis-t reconciler) {::hist/db-before      @(prim/app-state reconciler)
                                                                     ::hist/network-result {::load-descriptors items
                                                                                            ::network-error    error}
@@ -616,7 +620,7 @@
       (run-fallbacks)
       (set-global-loading! reconciler)
       (clear-history-activity! history loading-items)
-      (p/tick! reconciler)
+      (tick! reconciler)
       (prim/force-root-render! reconciler))))
 
 (defn is-deferred-transaction?

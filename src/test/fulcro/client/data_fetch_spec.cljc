@@ -14,7 +14,9 @@
     [fulcro.client.impl.protocols :as omp]
     [fulcro.client :as fc]
     [fulcro.client.impl.data-fetch :as f]
-    [fulcro.history :as hist]))
+    [fulcro.history :as hist]
+    [fulcro.client.impl.protocols :as p]))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -423,6 +425,7 @@
          (prim/get-history r) => (atom empty-history)
          (prim/merge! r resp query) => (reset! merged true)
          (util/force-render r ks) => (reset! rendered ks)
+         (dfi/tick! r) => nil
          (dfi/set-global-loading! r) => (reset! globally-marked true)
 
          (loaded-cb response items)
@@ -454,6 +457,7 @@
            response        {:id 2}]
        (when-mocking
          (prim/app-state r) => state
+         (dfi/tick! r) => nil
          (prim/merge! r resp query) => (reset! merged true)
          (prim/get-history r) => (atom empty-history)
          (util/force-render r items) => (reset! queued (set items))
@@ -495,6 +499,7 @@
          (prim/get-history r) => (atom empty-history)
          (prim/app-state r) => state
          (dfi/record-network-error! r i e) => nil
+         (dfi/tick! r) => nil
          (dfi/set-global-loading! r) => (reset! globally-marked true)
          (prim/force-root-render! r) => (assertions
                                           "Triggers render at root"
