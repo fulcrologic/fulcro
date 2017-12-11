@@ -2352,7 +2352,7 @@
            history]
     :or   {merge-sends  #(merge-with into %1 %2)
            remotes      [:remote]
-           history      100
+           history      200
            lifecycle    nil
            optimize     (fn depth-sorter [cs] (sort-by depth cs))
            root-render  #?(:clj  (fn clj-root-render [c target] c)
