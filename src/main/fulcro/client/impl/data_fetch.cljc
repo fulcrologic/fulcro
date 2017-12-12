@@ -1,7 +1,6 @@
 (ns fulcro.client.impl.data-fetch
-  (:require [fulcro.client.impl.parser :as op]
-            [fulcro.client.primitives :as prim :refer [integrate-ident]]
-            [fulcro.client.impl.protocols :as omp]
+  (:require [fulcro.client.primitives :as prim :refer [integrate-ident]]
+            [fulcro.client.impl.data-targeting :as targeting]
             [fulcro.util :as util]
             [fulcro.client.util :refer [force-render]]
             [clojure.walk :refer [prewalk]]
@@ -426,47 +425,13 @@
         loading?   (boolean (seq (get @state-atom :fulcro/loads-in-progress)))]
     (swap! state-atom assoc :ui/loading-data loading?)))
 
-(defn replacement-target? [t] (-> t meta ::replace-target boolean))
-(defn prepend-target? [t] (-> t meta ::prepend-target boolean))
-(defn append-target? [t] (-> t meta ::append-target boolean))
-(defn multiple-targets? [t] (-> t meta ::multiple-targets boolean))
+(defn replacement-target? [t] (targeting/replacement-target? t))
+(defn prepend-target? [t] (targeting/prepend-target? t))
+(defn append-target? [t] (targeting/append-target? t))
+(defn multiple-targets? [t] (targeting/multiple-targets? t))
+(defn special-target? [t] (targeting/special-target? t))
 
-(defn special-target? [target]
-  (boolean (seq (set/intersection (-> target meta keys) #{::replace-target ::append-target ::prepend-target ::multiple-targets}))))
-
-(defn process-target
-  ([state source-path target] (process-target state source-path target true))
-  ([state source-path target remove-ok?]
-   {:pre [(vector? target)]}
-   (let [ident-to-place (cond (util/ident? source-path) source-path
-                              (keyword? source-path) (get state source-path)
-                              :else (get-in state source-path))
-         many-idents?   (every? util/ident? ident-to-place)]
-     (cond
-       (and (util/ident? source-path)
-         (not (special-target? target))) (-> state
-                                           (assoc-in target ident-to-place))
-       (not (special-target? target)) (cond->
-                                        (assoc-in state target ident-to-place)
-                                        remove-ok? (dissoc source-path))
-       (multiple-targets? target) (cond-> (reduce (fn [s t] (process-target s source-path t false)) state target)
-                                    (and (not (util/ident? source-path)) remove-ok?) (dissoc source-path))
-       (and many-idents? (special-target? target)) (let [state            (if remove-ok?
-                                                                            (dissoc state source-path)
-                                                                            state)
-                                                         target-has-many? (vector? (get-in state target))]
-                                                     (if target-has-many?
-                                                       (cond
-                                                         (prepend-target? target) (update-in state target (fn [v] (vec (concat ident-to-place v))))
-                                                         (append-target? target) (update-in state target (fn [v] (vec (concat v ident-to-place))))
-                                                         :else state)
-                                                       (assoc-in state target ident-to-place)))
-       (special-target? target) (cond-> (dissoc state source-path)
-                                  (prepend-target? target) (integrate-ident ident-to-place :prepend target)
-                                  (append-target? target) (integrate-ident ident-to-place :append target)
-                                  (replacement-target? target) (integrate-ident ident-to-place :replace target))
-       :else state))))
-
+(def process-target targeting/process-target)
 
 (defn relocate-targeted-results!
   "For items that are manually targeted, move them in app state from their result location to their target location."

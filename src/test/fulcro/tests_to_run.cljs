@@ -1,6 +1,7 @@
 (ns fulcro.tests-to-run
   (:require
     fulcro.client.impl.application-spec
+    fulcro.client.impl.data-targeting-spec
     fulcro.client.impl.parser-spec
     fulcro.client-spec
     fulcro.client.data-fetch-spec
