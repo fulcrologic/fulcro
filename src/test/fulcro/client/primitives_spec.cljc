@@ -879,16 +879,27 @@
 (specification "pessimistic-transaction->transaction"
   (assertions
     "Returns the transaction if it only contains a single call"
-    (prim/pessimistic-transaction->transaction `[(f {:x 1})]) => `[(f {:x 1})]
+    (prim/pessimistic-transaction->transaction nil `[(f {:x 1})]) => `[(f {:x 1})]
     "Includes the follow-on reads in a single-call"
-    (prim/pessimistic-transaction->transaction `[(f {:y 2}) :read]) => `[(f {:y 2}) :read]
+    (prim/pessimistic-transaction->transaction nil `[(f {:y 2}) :read]) => `[(f {:y 2}) :read]
     "Converts a sequence of calls to the proper nested structure, deferring against the correct remotes"
-    (prim/pessimistic-transaction->transaction `[(f) (g) (h)]) => `[(f)
-                                                                    (df/deferred-transaction {:remote :remote
-                                                                                              :tx     [(g) (df/deferred-transaction
-                                                                                                             {:remote :rest-remote
-                                                                                                              :tx     [(h)]})]})]))
-
+    (prim/pessimistic-transaction->transaction nil `[(f) (g) (h)])
+    => `[(f)
+         (df/deferred-transaction {:remote :remote
+                                   :ref    nil
+                                   :tx     [(g) (df/deferred-transaction
+                                                  {:remote :rest-remote
+                                                   :ref    nil
+                                                   :tx     [(h)]})]})]
+    "Spread the ref across the calls"
+    (prim/pessimistic-transaction->transaction [:id 123] `[(f) (g) (h)])
+    => `[(f)
+         (df/deferred-transaction {:remote :remote
+                                   :ref    [:id 123]
+                                   :tx     [(g) (df/deferred-transaction
+                                                  {:remote :rest-remote
+                                                   :ref    [:id 123]
+                                                   :tx     [(h)]})]})]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; query spec, with generators for property-based tests
