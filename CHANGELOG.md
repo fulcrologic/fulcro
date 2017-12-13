@@ -1,7 +1,6 @@
 2.0.0-beta7
 -----------
 - Added support for targeting return values from mutations
-- 
 
 2.0.0-beta6
 -----------
