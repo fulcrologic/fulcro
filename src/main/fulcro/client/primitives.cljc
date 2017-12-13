@@ -17,6 +17,7 @@
                [fulcro.tempid :as tempid]
                [fulcro.transit :as transit]
                [clojure.zip :as zip]
+               [fulcro.client.impl.data-targeting :as targeting]
                [fulcro.client.impl.protocols :as p]
                [fulcro.client.impl.parser :as parser]
                [fulcro.util :as util]
@@ -30,7 +31,8 @@
            (:import [java.io Writer])
      :cljs (:import [goog.debug Console])))
 
-(declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root! component?)
+(declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root! component?
+  integrate-ident)
 
 (defprotocol Ident
   (ident [this props] "Return the ident for this component"))
@@ -1819,12 +1821,15 @@
                     subtree (get data-tree k)]
                 (if (and k subtree)
                   (let [subquery         (util/join-value query-element)
+                        target           (-> (meta subquery) :fulcro.client.impl.data-fetch/target)
                         idnt             ::temporary-key
                         norm-query       [{idnt subquery}]
                         norm-tree        {idnt subtree}
                         norm-tree-marked (mark-missing norm-tree norm-query)
-                        db-fragment      (dissoc (tree->db norm-query norm-tree-marked true) idnt)]
-                    (sweep-merge updated-state db-fragment))
+                        db               (tree->db norm-query norm-tree-marked true)]
+                    (cond-> (sweep-merge updated-state db)
+                      target (targeting/process-target idnt target)
+                      (not target) (dissoc db idnt)))
                   updated-state))) state query)
     state))
 
@@ -2568,6 +2573,11 @@
   "Given a query expression convert it into an AST."
   [query-expr]
   (parser/query->ast query-expr))
+
+(defn query->ast1
+  "Call query->ast and return the first children."
+  [query-expr]
+  (-> (query->ast query-expr) :children first))
 
 (defn ast->query [query-ast]
   "Given an AST convert it back into a query expression."

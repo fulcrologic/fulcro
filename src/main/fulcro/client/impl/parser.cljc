@@ -47,6 +47,10 @@
 
 (declare expr->ast)
 
+(defn- mark-meta [source target]
+  (cond-> target
+    (meta source) (assoc :meta (meta source))))
+
 (defn symbol->ast [k]
   {:dispatch-key k
    :key          k})
@@ -75,7 +79,7 @@
   (if (= 'quote f)
     (assoc (expr->ast args) :target (or (-> call meta :target) :remote))
     (let [ast (update-in (expr->ast f) [:params] merge (or args {}))]
-      (cond-> ast
+      (cond-> (mark-meta call ast)
         (symbol? (:dispatch-key ast)) (assoc :type :call)))))
 
 (defn query->ast
@@ -83,8 +87,9 @@
   [query]
   (let [component (-> query meta :component)]
     (merge
-      {:type     :root
-       :children (into [] (map expr->ast) query)}
+      (mark-meta query
+        {:type     :root
+         :children (into [] (map expr->ast) query)})
       (when-not (nil? component)
         {:component component}))))
 
@@ -95,7 +100,7 @@
         type        (if (= :call (:type ast)) :call :join)
         component   (-> v meta :component)]
     (merge ast
-      {:type type :query v}
+      (mark-meta join {:type type :query v})
       (when-not (nil? component)
         {:component component})
       (when query-root?
@@ -142,10 +147,10 @@
   "Given a query expression AST convert it back into a query expression."
   ([ast]
    (ast->expr ast false))
-  ([{:keys [type component] :as ast} unparse?]
+  ([{:keys [type component] ast-meta :meta :as ast} unparse?]
    (if (= :root type)
-     (cond-> (into [] (map #(ast->expr % unparse?)) (:children ast))
-       (not (nil? component)) (with-meta {:component component}))
+     (cond-> (into (with-meta [] ast-meta) (map #(ast->expr % unparse?)) (:children ast))
+       (not (nil? component)) (vary-meta assoc :component component))
      (let [{:keys [key query query-root params]} ast]
        (wrap-expr query-root
          (if (and params (not= :call type))
@@ -153,23 +158,28 @@
              (parameterize expr params))
            (let [key (if (= :call type) (parameterize key params) key)]
              (if (or (= :join type)
-                   (and (= :call type) (:children ast)))
+                     (and (= :call type) (:children ast)))
                (if (and (not= '... query) (not (number? query))
-                     (or (true? unparse?)
-                       (= :call type)))
-                 (let [{:keys [children]} ast]
+                        (or (true? unparse?)
+                            (= :call type)))
+                 (let [{:keys [children]} ast
+                       query-meta (meta query)]
                    (if (and (== 1 (count children))
-                         (= :union (:type (first children)))) ;; UNION
-                     {key (into (cond-> {}
-                                  component (with-meta {:component component}))
-                            (map (fn [{:keys [union-key children component]}]
-                                   [union-key
-                                    (cond-> (into [] (map #(ast->expr % unparse?)) children)
-                                      (not (nil? component)) (with-meta {:component component}))]))
-                            (:children (first children)))}
-                     {key (cond-> (into [] (map #(ast->expr % unparse?)) children)
-                            (not (nil? component)) (with-meta {:component component}))}))
-                 {key query})
+                            (= :union (:type (first children)))) ;; UNION
+                     (with-meta
+                       {key (into (cond-> (with-meta {} ast-meta)
+                                    component (vary-meta assoc :component component))
+                                  (map (fn [{:keys [union-key children component]}]
+                                         [union-key
+                                          (cond-> (into [] (map #(ast->expr % unparse?)) children)
+                                            (not (nil? component)) (vary-meta assoc :component component))]))
+                                  (:children (first children)))}
+                       ast-meta)
+                     (with-meta
+                       {key (cond-> (into (with-meta [] query-meta) (map #(ast->expr % unparse?)) children)
+                              (not (nil? component)) (vary-meta assoc :component component))}
+                       ast-meta)))
+                 (with-meta {key query} ast-meta))
                key))))))))
 
 (defn path-meta

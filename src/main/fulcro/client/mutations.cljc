@@ -277,10 +277,21 @@
   may be nil if you use only static queries."
   [ast state class]
   {:pre [(symbol? (-> ast :key))]}
-  (let [{:keys [key params]} ast]
-    (-> (prim/query->ast `[{(~key ~params) ~(prim/get-query class state)}])
-      :children
-      first)))
+  (let [{:keys [key params query]} ast]
+    (let [query' (cond-> (prim/get-query class state)
+                   query (vary-meta #(merge (meta query) %)))]
+      (prim/query->ast1 `[{(~key ~params) ~query'}]))))
+
+(defn with-target
+  "Set's a target for the return value from the mutation to be merged into. This can be combined with returning to define
+  a path to insert the new entry."
+  [ast target]
+  {:pre [(symbol? (-> ast :key))]}
+  (let [{:keys [key params query]} ast
+        query' (if query
+                 (vary-meta query assoc :fulcro.client.impl.data-fetch/target target)
+                 (with-meta '[*] {:fulcro.client.impl.data-fetch/target target}))]
+    (prim/query->ast1 `[{(~key ~params) ~query'}])))
 
 (defn with-params
   "Modify an AST containing a single mutation, changing it's parameters to those given as an argument."

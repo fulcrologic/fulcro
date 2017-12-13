@@ -831,7 +831,39 @@
       "give the correct join key for mutation joins"
       (util/join-key mj) => 'f
       "give the correct join value for mutation joins"
-      (util/join-value mj) => [:a])))
+      (util/join-value mj) => [:a]))
+
+  (let [q            [{'(f {:p 1}) (vary-meta (prim/get-query ItemList) assoc :fulcro.client.impl.data-fetch/target [:ui/root])}]
+        d            {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1 :item/value "1"}]}}
+        result       (prim/merge-mutation-joins {:top-key 1} q d)]
+    (assertions
+      "mutation responses are merged and placed on target"
+      result => {:top-key    1
+                 :ui/root    [:list/by-id 1]
+                 :list/by-id {1 {:db/id 1 :list/title "A" :list/items [[:item/by-id 1]]}}
+                 :item/by-id {1 {:db/id 1 :item/value "1"}}}))
+
+  (let [q            [{'(f {:p 1}) ^{:fulcro.client.impl.data-fetch/target [:ui/root]} ['*]}]
+        d            {'f {:response "data"}}
+        result       (prim/merge-mutation-joins {:top-key 1} q d)
+
+        q-2            [{'(f {:p 1}) ^{:fulcro.client.impl.data-fetch/target
+                                       (df/multiple-targets [:ui/new-root]
+                                         (df/append-to [:ui/list])
+                                         (df/prepend-to [:ui/list2]))} ['*]}]
+
+        result-2       (prim/merge-mutation-joins {:top-key 1
+                                                   :ui/list [:x :y]
+                                                   :ui/list2 [:a :b]} q-2 d)]
+    (assertions
+      "result is placed on target"
+      result => {:top-key    1
+                 :ui/root {:response "data"}}
+      "uses the process target algorithm"
+      result-2 => {:top-key    1
+                   :ui/new-root {:response "data"}
+                   :ui/list [:x :y {:response "data"}]
+                   :ui/list2 [{:response "data"} :a :b]})))
 
 (defmutation f [params]
   (action [env] true)
