@@ -5,14 +5,15 @@
     [goog.debug.Logger.Level :as level]
     [fulcro.i18n :as i18n]
     [fulcro.client.impl.data-fetch :as df]
-    [fulcro.client ]
+    [fulcro.client]
     [fulcro.client.dom :as dom]
     [goog.log :as glog]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [clojure.test :refer [is]]
     [fulcro.client.logging :as log :refer [*logger*]]
     [clojure.string :as str]
-    [fulcro.client.impl.application :as app]))
+    [fulcro.client.impl.application :as app]
+    [fulcro.test-helpers :as th]))
 
 (defmutation sample
   "Doc string"
@@ -226,7 +227,7 @@
   (dom/div nil ""))
 
 (specification "Remote returning (declaring return value for a remote operation)"
-  (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
+  (let [ast (prim/query->ast1 '[(f {:x 1})])]
     (assertions
       "Returns an AST with the corresponding query for the type"
       (m/returning ast {} Item) => {:dispatch-key 'f
@@ -240,10 +241,66 @@
                                                     :key          :db/id}
                                                    {:type         :prop
                                                     :dispatch-key :x
-                                                    :key          :x}]})))
+                                                    :key          :x}]}))
+
+  (let [ast (-> (prim/query->ast1 '[(f {:x 1})])
+                (m/with-target [:foo 123])
+                (m/returning {} Item))]
+    (assertions
+      "Override query but keep meta from previous query"
+      (th/expand-meta ast)
+      => {:dispatch-key 'f
+          :key          'f
+          :params       {:x 1}
+          :type         :call
+          :query        (th/expand-meta ^{:component  Item
+                                          :queryid    "fulcro$client$mutations_spec$Item"
+                                          ::df/target [:foo 123]} [:db/id :x])
+          :component    Item
+          :children     [{:type         :prop
+                          :dispatch-key :db/id
+                          :key          :db/id}
+                         {:type         :prop
+                          :dispatch-key :x
+                          :key          :x}]})))
+
+(specification "Remote with-target (add target meta data)"
+  (let [ast (-> (prim/query->ast1 '[(f {:x 1})])
+                (m/with-target [:foo 123]))]
+    (assertions
+      "Return an AST with a wildcard query and target meta data"
+      (th/expand-meta ast)
+      => {:dispatch-key 'f
+          :key          'f
+          :params       {:x 1}
+          :type         :call
+          :query        (th/expand-meta ^{::df/target [:foo 123]} ['*])
+          :children     [{:dispatch-key '*
+                          :key          '*}]}))
+
+  (let [ast (-> (prim/query->ast1 '[(f {:x 1})])
+                (m/returning {} Item)
+                (m/with-target [:foo 123]))]
+    (assertions
+      "Adds target meta data when call already has a query"
+      (th/expand-meta ast)
+      => {:dispatch-key 'f
+          :key          'f
+          :params       {:x 1}
+          :type         :call
+          :query        (th/expand-meta ^{:component  Item
+                                          :queryid    "fulcro$client$mutations_spec$Item"
+                                          ::df/target [:foo 123]} [:db/id :x])
+          :component    Item
+          :children     [{:type         :prop
+                          :dispatch-key :db/id
+                          :key          :db/id}
+                         {:type         :prop
+                          :dispatch-key :x
+                          :key          :x}]})))
 
 (specification "Remote with-params (modify remote params)"
-  (let [ast (-> (prim/query->ast '[(f {:x 1})]) :children first)]
+  (let [ast (prim/query->ast1 '[(f {:x 1})])]
     (assertions
       "Returns an AST with the parameters updated"
       (m/with-params ast {:y 2}) => {:dispatch-key 'f
