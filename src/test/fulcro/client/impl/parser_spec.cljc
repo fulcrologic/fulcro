@@ -65,9 +65,8 @@
       (meta-round-trip [(with-meta '(call {:x "y"}) {:marked true})])
       => (th/expand-meta [(with-meta '(call {:x "y"}) {:marked true})])
 
-      "on call joins"
-      (meta-round-trip [{'(call {:x "y"}) ^:mark ['*]}])
-      => (th/expand-meta [{'(call {:x "y"}) ^:mark ['*]}])
+      ;"on call joins"
+      (meta-round-trip [{'(call {:x "y"}) ^:mark ['*]}]) => (th/expand-meta [{'(call {:x "y"}) ^:mark ['*]}])
 
       "on unions"
       (meta-round-trip [^:marked {:union ^:marked {:a [:x] :b [:y]}}])
