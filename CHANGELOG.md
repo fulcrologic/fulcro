@@ -1,8 +1,11 @@
 2.0.0-beta8
 -----------
-- Fixed bug in `ptransact!` where non-remove calls would not be called if the earlier ones were 
-not remote. 
+- Fixed bug in `ptransact!` where non-remote calls would not be called if
+  the earlier ones were not remote. New behavior is to cluster
+  non-remote mutations together in front of the "next" remote one, then
+  defer the rest and repeat.
 - Added ref to env of mutations that run through `ptransact!`
+- `ptransact!` API now identical to `transact!` (added ref support)
 
 2.0.0-beta7
 -----------
