@@ -2816,7 +2816,7 @@
   "Converts a sequence of calls as if each call should run in sequence (deferring even the optimistic side until
   the prior calls have completed in a full-stack manner), and returns a tx that can be submitted via the normal
   `transact!`."
-  [tx]
+  [ref tx]
   (let [ast-nodes     (:children (query->ast tx))
         {calls true reads false} (group-by #(= :call (:type %)) ast-nodes)
         first-call    (first calls)
@@ -2824,12 +2824,13 @@
         get-remote    (or (some-> (resolve 'fulcro.client.data-fetch/get-remote) deref) (fn [sym]
                                                                                           (log/error "FAILED TO FIND MUTATE. CANNOT DERIVE REMOTES FOR ptransact!")
                                                                                           :remote))
-        remote        (get-remote dispatch-key)
+        remote        (or (get-remote dispatch-key) :remote)
         tx-to-run-now (into [(ast->query first-call)] (ast->query {:type :root :children reads}))]
     (if (seq (rest calls))
       (let [remaining-tx (ast->query {:type :root :children (into (vec (rest calls)) reads)})]
         (into tx-to-run-now `[(fulcro.client.data-fetch/deferred-transaction {:remote ~remote
-                                                                              :tx     ~(pessimistic-transaction->transaction remaining-tx)})]))
+                                                                              :ref    ~ref
+                                                                              :tx     ~(pessimistic-transaction->transaction ref remaining-tx)})]))
       tx-to-run-now)))
 
 (defn ptransact!
@@ -2841,8 +2842,9 @@
 
   NOTE: `ptransact!` *is* safe to use from within mutations (e.g. for retry behavior)."
   [comp-or-reconciler tx]
-  #?(:clj  (transact! comp-or-reconciler (pessimistic-transaction->transaction tx))
-     :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler (pessimistic-transaction->transaction tx))) 0)))
+  (let [ref (if (component? comp-or-reconciler) (get-ident comp-or-reconciler))]
+    #?(:clj  (transact! comp-or-reconciler (pessimistic-transaction->transaction ref tx))
+       :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler (pessimistic-transaction->transaction ref tx))) 0))))
 
 #?(:clj
    (defn- is-link? [query-element] (and (vector? query-element)

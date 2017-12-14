@@ -359,13 +359,13 @@
 (defmethod mutate 'fulcro/load [env _ params] (load* env params))
 (defmethod mutate `load [env _ params] (load* env params))
 
-(defmutation run-deferred-transaction [{:keys [tx reconciler]}]
+(defmutation run-deferred-transaction [{:keys [tx ref reconciler]}]
   (action [env]
     (let [reconciler (-> reconciler meta :reconciler)]
-      #?(:clj  (prim/transact! reconciler tx)
-         :cljs (js/setTimeout (fn [] (prim/transact! reconciler tx)) 1)))))
+      #?(:clj  (prim/transact! reconciler ref tx)
+         :cljs (js/setTimeout (fn [] (prim/transact! reconciler ref tx)) 1)))))
 
-(defmutation deferred-transaction [{:keys [tx remote]}]
+(defmutation deferred-transaction [{:keys [tx remote ref]}]
   (action [env]
     (let [{:keys [reconciler component] :as env} env
           reconciler (cond
@@ -377,6 +377,7 @@
                                                           :remote               remote
                                                           :marker               false
                                                           :post-mutation-params {:tx         tx
+                                                                                 :ref        ref
                                                                                  :reconciler (with-meta {} {:reconciler reconciler})}})
         (log/error (str "Cannot defer transaction. Reconciler was not available. Tx = " tx)))))
   (remote [env] (remote-load env)))

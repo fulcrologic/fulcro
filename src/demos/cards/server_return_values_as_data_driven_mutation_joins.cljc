@@ -87,7 +87,8 @@
     (dom/button #js {:onClick #(prim/ptransact! this `[(add-item {:list-id ~id
                                                                   :id      ~(prim/tempid)
                                                                   :value   "A New Value"})
-                                                       (set-overlay {:visible? false})])} "Add item")))
+                                                       (set-overlay {:visible? false})
+                                                       :overlay])} "Add item")))
 
 (def ui-list (prim/factory ItemList {:keyfn :db/id}))
 
