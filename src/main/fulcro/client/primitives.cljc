@@ -3237,7 +3237,7 @@
 
    Only the first two arguments are required (this and props).
 
-   See section M05-More-Concise-UI of the Developer's Guide for more details.
+   See section M05-Defsc-In-Detail of the Developer's Guide for more details.
    "
                :arglists '([this dbprops computedprops]
                             [this dbprops computedprops local-css-classes])}
