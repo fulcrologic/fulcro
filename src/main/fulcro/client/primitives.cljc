@@ -2824,7 +2824,7 @@
         get-remote    (or (some-> (resolve 'fulcro.client.data-fetch/get-remote) deref) (fn [sym]
                                                                                           (log/error "FAILED TO FIND MUTATE. CANNOT DERIVE REMOTES FOR ptransact!")
                                                                                           :remote))
-        remote        (get-remote dispatch-key)
+        remote        (or (get-remote dispatch-key) :remote)
         tx-to-run-now (into [(ast->query first-call)] (ast->query {:type :root :children reads}))]
     (if (seq (rest calls))
       (let [remaining-tx (ast->query {:type :root :children (into (vec (rest calls)) reads)})]
