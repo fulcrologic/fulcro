@@ -833,9 +833,9 @@
       "give the correct join value for mutation joins"
       (util/join-value mj) => [:a]))
 
-  (let [q            [{'(f {:p 1}) (vary-meta (prim/get-query ItemList) assoc :fulcro.client.impl.data-fetch/target [:ui/root])}]
-        d            {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1 :item/value "1"}]}}
-        result       (prim/merge-mutation-joins {:top-key 1} q d)]
+  (let [q      [{'(f {:p 1}) (vary-meta (prim/get-query ItemList) assoc :fulcro.client.impl.data-fetch/target [:ui/root])}]
+        d      {'f {:db/id 1 :list/title "A" :list/items [{:db/id 1 :item/value "1"}]}}
+        result (prim/merge-mutation-joins {:top-key 1} q d)]
     (assertions
       "mutation responses are merged and placed on target"
       result => {:top-key    1
@@ -843,27 +843,27 @@
                  :list/by-id {1 {:db/id 1 :list/title "A" :list/items [[:item/by-id 1]]}}
                  :item/by-id {1 {:db/id 1 :item/value "1"}}}))
 
-  (let [q            [{'(f {:p 1}) ^{:fulcro.client.impl.data-fetch/target [:ui/root]} ['*]}]
-        d            {'f {:response "data"}}
-        result       (prim/merge-mutation-joins {:top-key 1} q d)
+  (let [q        [{'(f {:p 1}) ^{:fulcro.client.impl.data-fetch/target [:ui/root]} ['*]}]
+        d        {'f {:response "data"}}
+        result   (prim/merge-mutation-joins {:top-key 1} q d)
 
-        q-2            [{'(f {:p 1}) ^{:fulcro.client.impl.data-fetch/target
-                                       (df/multiple-targets [:ui/new-root]
-                                         (df/append-to [:ui/list])
-                                         (df/prepend-to [:ui/list2]))} ['*]}]
+        q-2      [{'(f {:p 1}) ^{:fulcro.client.impl.data-fetch/target
+                                 (df/multiple-targets [:ui/new-root]
+                                   (df/append-to [:ui/list])
+                                   (df/prepend-to [:ui/list2]))} ['*]}]
 
-        result-2       (prim/merge-mutation-joins {:top-key 1
-                                                   :ui/list [:x :y]
-                                                   :ui/list2 [:a :b]} q-2 d)]
+        result-2 (prim/merge-mutation-joins {:top-key  1
+                                             :ui/list  [:x :y]
+                                             :ui/list2 [:a :b]} q-2 d)]
     (assertions
       "result is placed on target"
-      result => {:top-key    1
+      result => {:top-key 1
                  :ui/root {:response "data"}}
       "uses the process target algorithm"
-      result-2 => {:top-key    1
+      result-2 => {:top-key     1
                    :ui/new-root {:response "data"}
-                   :ui/list [:x :y {:response "data"}]
-                   :ui/list2 [{:response "data"} :a :b]})))
+                   :ui/list     [:x :y {:response "data"}]
+                   :ui/list2    [{:response "data"} :a :b]})))
 
 (defmutation f [params]
   (action [env] true)
@@ -876,30 +876,55 @@
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "pessimistic-transaction->transaction"
+(specification "pessimistic-transaction->transaction" :focused
   (assertions
     "Returns the transaction if it only contains a single call"
-    (prim/pessimistic-transaction->transaction nil `[(f {:x 1})]) => `[(f {:x 1})]
+    (prim/pessimistic-transaction->transaction `[(f {:x 1})]) => `[(f {:x 1})]
     "Includes the follow-on reads in a single-call"
-    (prim/pessimistic-transaction->transaction nil `[(f {:y 2}) :read]) => `[(f {:y 2}) :read]
+    (prim/pessimistic-transaction->transaction `[(f {:y 2}) :read]) => `[(f {:y 2}) :read]
     "Converts a sequence of calls to the proper nested structure, deferring against the correct remotes"
-    (prim/pessimistic-transaction->transaction nil `[(f) (g) (h)])
+    (prim/pessimistic-transaction->transaction `[(f) (g) (h)])
     => `[(f)
          (df/deferred-transaction {:remote :remote
-                                   :ref    nil
                                    :tx     [(g) (df/deferred-transaction
                                                   {:remote :rest-remote
-                                                   :ref    nil
                                                    :tx     [(h)]})]})]
-    "Spread the ref across the calls"
-    (prim/pessimistic-transaction->transaction [:id 123] `[(f) (g) (h)])
+    "Is identity if all calls are local"
+    (prim/pessimistic-transaction->transaction `[(h) (h) (h)]) => `[(h) (h) (h)]
+
+    "Queues all local calls in clusters of non-deferred calls"
+    (prim/pessimistic-transaction->transaction `[(h) (h) (f) (h) (g) (h) (h)])
+    =>
+    `[(h) (h) (f)
+      (fulcro.client.data-fetch/deferred-transaction {:remote :remote
+                                                      :tx     [(h) (g)
+                                                               (fulcro.client.data-fetch/deferred-transaction
+                                                                 {:remote :rest-remote :tx [(h) (h)]})]})]
+
+
+    (prim/pessimistic-transaction->transaction `[(h) (h) (h)]) => `[(h) (h) (h)]
+    "Spreads anything in env across the calls"
+    (prim/pessimistic-transaction->transaction `[(f) (g) (h)] {:valid-remotes #{:remote :rest-remote}
+                                                               :env           {:x   1
+                                                                               :ref [:id 123]}})
     => `[(f)
          (df/deferred-transaction {:remote :remote
+                                   :x      1
                                    :ref    [:id 123]
                                    :tx     [(g) (df/deferred-transaction
                                                   {:remote :rest-remote
+                                                   :x      1
                                                    :ref    [:id 123]
-                                                   :tx     [(h)]})]})]))
+                                                   :tx     [(h)]})]})]
+    "Generated deferred parameters take precedence over env"
+    (prim/pessimistic-transaction->transaction `[(f) (g) (h)] {:valid-remotes #{:remote :rest-remote}
+                                                               :env           {:remote :CRAP}})
+    => `[(f)
+         (df/deferred-transaction {:remote :remote
+                                   :tx     [(g) (df/deferred-transaction
+                                                  {:remote :rest-remote
+                                                   :tx     [(h)]})]})]
+    ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; query spec, with generators for property-based tests
@@ -972,7 +997,7 @@
   (behavior "Maintain their backward-compatible functionality" :manual-test))
 
 #?(:clj
-   (specification "defsc helpers" :focused
+   (specification "defsc helpers"
      (component "legal-keys"
        (assertions
          "Finds all of the top-level props in a query"
@@ -1229,7 +1254,7 @@
              {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
-   (specification "defsc" :focused
+   (specification "defsc"
      (component "css"
        (assertions
          "warns if the css destructuring is included, but no css option has been"
@@ -1352,7 +1377,7 @@
                           :initial-state {:a 1}
                           :ident         [:PERSON/by-id :db/id]}
                          (dom/div nil "Boo")))
-       =fn=> (constantly true) ; just expect it not to throw
+       =fn=> (constantly true)                              ; just expect it not to throw
        "works with initial state"
        (#'prim/defsc* '(Person
                          [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -1838,7 +1863,7 @@
   static prim/IQuery
   (query [this] [{:reports (prim/get-query Reports)}]))
 
-(specification "merge-alternate-union-elements" :focused
+(specification "merge-alternate-union-elements"
   (let [initial-state (merge (prim/get-initial-state MRRoot nil) {:a 1})
         state-map     (prim/tree->db MRRoot initial-state true)
         new-state     (prim/merge-alternate-union-elements state-map MRRoot)]
@@ -1855,7 +1880,7 @@
 (defsc AState [this props] {:initial-state (fn [params] {})} (dom/div nil "TODO"))
 (defsc AIdent [this props] {:ident (fn [] [:x 1])} (dom/div nil "TODO"))
 
-(specification "Detection of static protocols" :focused
+(specification "Detection of static protocols"
   (assertions
     #?(:cljs "works on client" :clj "works on server")
     (prim/has-query? A) => false

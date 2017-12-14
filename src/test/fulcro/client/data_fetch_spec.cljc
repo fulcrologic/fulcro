@@ -718,16 +718,34 @@
   (rest-remote [env] true))
 (defmutation h [params]
   (action [env] true))
+(defmutation i [params]
+  (action [env] true)
+  (remote [env] true)
+  (rest-remote [env] true))
+
+(defmethod m/mutate `j [{:keys [target]} _ params]
+  (cond
+    (= target :remote) {:remote true}
+    (= target :rest-remote) {:rest-remote true}
+    :otherwise {}))
+
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "get-remote"
-  (assertions
-    "Returns the correct remote for a given mutation"
-    (df/get-remote `f) => :remote
-    (df/get-remote `g) => :rest-remote
-    "Returns :remote if the mutation throws an exception"
-    (df/get-remote `unhappy-mutation) => nil
-    "Returns nil if the mutation is not remote"
-    (df/get-remote `h) => nil))
+(specification "get-remotes" :focused
+  (when-mocking
+    (log/error & m) => nil                                  ; suppress logging during test
+
+    (assertions
+      "Returns the correct remote for a given mutation"
+      (df/get-remotes `f) => #{:remote}
+      (df/get-remotes `g) => #{:rest-remote}
+      "Returns all remotes that are active for the given mutation"
+      (df/get-remotes `i) => #{:remote :rest-remote}
+      "Returns all remotes that are active even if the mutation responds via target (as long as legal remotes list is passed in)"
+      (df/get-remotes `j #{:remote :rest-remote}) => #{:remote :rest-remote}
+      "Returns #{:remote} if the mutation throws an exception"
+      (df/get-remotes `unhappy-mutation) => #{:remote}
+      "Returns an empty set if the mutation is not remote"
+      (df/get-remotes `h) => #{})))
 

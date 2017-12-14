@@ -16,7 +16,7 @@
             cards.server_query_security
             cards.server_return_values_as_data_driven_mutation_joins
             cards.server_return_values_manually_merging
-            cards.server-return-values-targeting
+            cards.server-targeting-return-values-into-app-state
             cards.loading-data-targeting-entities
             [fulcro.client.impl.parser :as op]
             [fulcro.easy-server :as core]

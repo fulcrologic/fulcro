@@ -2815,23 +2815,46 @@
 (defn pessimistic-transaction->transaction
   "Converts a sequence of calls as if each call should run in sequence (deferring even the optimistic side until
   the prior calls have completed in a full-stack manner), and returns a tx that can be submitted via the normal
-  `transact!`."
-  [ref tx]
-  (let [ast-nodes     (:children (query->ast tx))
-        {calls true reads false} (group-by #(= :call (:type %)) ast-nodes)
-        first-call    (first calls)
-        dispatch-key  (:dispatch-key first-call)
-        get-remote    (or (some-> (resolve 'fulcro.client.data-fetch/get-remote) deref) (fn [sym]
-                                                                                          (log/error "FAILED TO FIND MUTATE. CANNOT DERIVE REMOTES FOR ptransact!")
-                                                                                          :remote))
-        remote        (or (get-remote dispatch-key) :remote)
-        tx-to-run-now (into [(ast->query first-call)] (ast->query {:type :root :children reads}))]
-    (if (seq (rest calls))
-      (let [remaining-tx (ast->query {:type :root :children (into (vec (rest calls)) reads)})]
-        (into tx-to-run-now `[(fulcro.client.data-fetch/deferred-transaction {:remote ~remote
-                                                                              :ref    ~ref
-                                                                              :tx     ~(pessimistic-transaction->transaction ref remaining-tx)})]))
-      tx-to-run-now)))
+  `transact!`.
+
+  The options map can contain:
+  `valid-remotes` is a set of remote names in your application. Defaults to `#{:remote}`
+  `env` is a map that is merged into the deferred transaction's `env`
+
+  WARNING: If a mutation tries to interact with more than one simultaneous remote, the current implementation will wait
+  until the *first* one of them completes (selected in a non-deterministic fashion), not all."
+  ([tx] (pessimistic-transaction->transaction tx #{:remote}))
+  ([tx {:keys [valid-remotes env]
+        :or   {valid-remotes #{:remote} env {}}
+        :as   options}]
+   (let [ast-nodes         (:children (query->ast tx))
+         {calls true reads false} (group-by #(= :call (:type %)) ast-nodes)
+         follow-on-reads   (ast->query {:type :root :children reads})
+         remote-for-call   (fn [c] (let [dispatch-key (:dispatch-key c)
+                                         get-remotes  (or (some-> (resolve 'fulcro.client.data-fetch/get-remotes) deref)
+                                                        (fn [sym]
+                                                          (log/error "FAILED TO FIND MUTATE. CANNOT DERIVE REMOTES FOR ptransact!")
+                                                          #{:remote}))
+                                         remotes      (get-remotes dispatch-key)]
+                                     (when (seq remotes)
+                                       (first remotes))))
+         is-local?         (fn [c] (not (remote-for-call c)))
+         [local-calls remaining-calls] (split-with is-local? calls)
+         first-remote-call (some-> remaining-calls (first))
+         remote            (some-> first-remote-call remote-for-call)
+         unprocessed-calls (vec (rest remaining-calls))
+         unprocessed-tx    (ast->query {:type :root :children unprocessed-calls})
+         calls-to-run-now  (keep identity (conj (vec local-calls) first-remote-call))
+         tx-for-calls      (ast->query {:type :root :children calls-to-run-now})
+         tx-to-run-now     (into tx-for-calls follow-on-reads)
+         tx-to-defer       (into unprocessed-tx follow-on-reads)
+         defer?            (seq unprocessed-calls)
+         deferred-params   (when defer?
+                             (merge (get options :env {})
+                               {:remote remote :tx (pessimistic-transaction->transaction tx-to-defer options)}))]
+     (if defer?
+       (into tx-to-run-now `[(fulcro.client.data-fetch/deferred-transaction ~deferred-params)])
+       tx-to-run-now))))
 
 (defn ptransact!
   "Like `transact!`, but ensures each call completes (in a full-stack, pessimistic manner) before the next call starts
@@ -2840,11 +2863,22 @@
   pessimistically (one at a time) in the order given. Follow-on reads in the given transaction will be repeated after each remote
   interaction.
 
-  NOTE: `ptransact!` *is* safe to use from within mutations (e.g. for retry behavior)."
-  [comp-or-reconciler tx]
-  (let [ref (if (component? comp-or-reconciler) (get-ident comp-or-reconciler))]
-    #?(:clj  (transact! comp-or-reconciler (pessimistic-transaction->transaction ref tx))
-       :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler (pessimistic-transaction->transaction ref tx))) 0))))
+  `comp-or-reconciler` a mounted component or reconciler
+  `tx` the tx to run
+  `ref` the ident (ref context) in which to run the transaction (including all deferrals)
+
+  NOTE: `ptransact!` *is* safe to use from within mutations (e.g. for retry behavior).
+  WARNING: Mutations that interact with more than one remote *at the same time* will only wait for one of the remotes to finish."
+  ([comp-or-reconciler tx]
+   (let [ref (when (component? comp-or-reconciler) (get-ident comp-or-reconciler))]
+     (ptransact! comp-or-reconciler ref tx)))
+  ([comp-or-reconciler ref tx]
+   (let [reconciler (if (reconciler? comp-or-reconciler) comp-or-reconciler (get-reconciler comp-or-reconciler))
+         remotes    (some-> reconciler :config :remotes set)
+         ptx        (pessimistic-transaction->transaction tx (cond-> {:valid-remotes remotes}
+                                                               ref (assoc :env {:ref ref})))]
+     #?(:clj  (transact! comp-or-reconciler ptx)
+        :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler ptx)) 0)))))
 
 #?(:clj
    (defn- is-link? [query-element] (and (vector? query-element)
