@@ -1,3 +1,9 @@
+2.0.0-beta8
+-----------
+- Fixed bug in `ptransact!` where non-remove calls would not be called if the earlier ones were 
+not remote. 
+- Added ref to env of mutations that run through `ptransact!`
+
 2.0.0-beta7
 -----------
 - Added support for targeting return values from mutations
