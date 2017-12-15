@@ -6,7 +6,8 @@
             [fulcro.ui.html-entities :as ent]
             [fulcro.i18n :refer [tr tr-unsafe]]
             [fulcro.client.mutations :as m :refer [defmutation]]
-    #?(:clj [clojure.future :refer :all])
+    #?(:clj
+            [clojure.future :refer :all])
             [clojure.string :as str]
             [clojure.set :as set]
             [fulcro.client :as fc]
@@ -14,8 +15,6 @@
             [fulcro.client.util :as util]))
 
 #?(:clj (defn- clj->js [m] m))
-
-
 
 ;; Bootstrap CSS and Components for Fulcro
 
@@ -88,16 +87,11 @@
   "Formats an address"
   [name & {:keys [street street2 city-state phone email]}]
   (let [brs      (repeatedly #(dom/br nil))
-        children (filter identity
-                   (list
-                     street
-                     street2
-                     city-state
-                     (when phone
-                       (list (dom/abbr #js {:title "Phone"} "P:") phone))))]
+        children (cond-> (vec (keep identity (list street street2 city-state)))
+                   phone (conj (dom/span nil (dom/abbr #js {:title "Phone"} "P:") phone)))]
     (apply dom/address nil
       (dom/strong nil name) (dom/br nil)
-      (interleave children brs))))
+      (vec (interleave children brs)))))
 
 (defn quotation
   "Render a block quotation with optional citation and source.
@@ -402,7 +396,7 @@
                   size (str " pagination-" (name size)))
         attrs   (assoc props :className classes)]
     (dom/nav #js {:aria-label "Page Navigation"}
-      (dom/ul (clj->js attrs) pagination-entries))))
+      (apply dom/ul (clj->js attrs) pagination-entries))))
 
 (defn pagination-entry
   "Create an entry in a pagination control. Forward and back buttons can be rendered at either end with any label, but
@@ -808,48 +802,56 @@
 
 (def ui-render-in-body (prim/factory RenderInBody {:keyfn :key}))
 
-(defui ^:once PopOver
-  Object
-  (componentWillUpdate [this new-props ns]
-    (let [old-props        (prim/props this)
-          becoming-active? (and (:active new-props) (not (:active old-props)))]
-      (when becoming-active? (prim/update-state! this update :render-for-size inc))))
-  (render [this]
-    (let [{:keys [active orientation] :or {orientation :top}} (prim/props this)
-          target     (.-target-ref this)
-          popup      (.-popup-ref this)
-          popup-box  (if popup (get-abs-position popup) {})
-          target-box (if target (get-abs-position target) {})
-          deltaY     (case orientation
-                       :bottom (:height target-box)
-                       :left (-> (:height target-box)
-                               (- (:height popup-box))
-                               (/ 2))
-                       :right (-> (:height target-box)
-                                (- (:height popup-box))
-                                (/ 2))
-                       (- (:height popup-box)))
-          deltaX     (case orientation
-                       :left (- (:width popup-box))
-                       :right (:width target-box)
-                       (/ (- (:width target-box) (:width popup-box)) 2))
-          popupTop   (if active (+ (:top target-box) deltaY) -1000)
-          popupLeft  (if active (+ (:left target-box) deltaX) -1000)]
-      (dom/span #js {:style #js {:display "inline-block"} :ref (fn [r] (set! (.-target-ref this) r))}
-        (ui-render-in-body {}
-          (dom/div #js {:className (str "popover fade " (name orientation) (when active " in"))
-                        :ref       (fn [r] (set! (.-popup-ref this) r))
-                        :style     #js {:position "absolute"
-                                        :top      (str popupTop "px")
-                                        :left     (str popupLeft "px")
-                                        :display  "block"}}
-            (dom/div #js {:className "arrow" :style #js {:left (case orientation
-                                                                 :left "100%"
-                                                                 :right "-11px"
-                                                                 "50%")}})
-            (dom/h3 #js {:className "popover-title"} "Title")
-            (dom/div #js {:className "popover-content"} "This is a test of a popover")))
-        (prim/children this)))))
+(defsc PopOverContent [this props] (dom-with-class dom/div "popover-content" props (prim/children this)))
+(def ui-popover-content (prim/factory PopOverContent))
+(defsc PopOverTitle [this props] (dom-with-class dom/h3 "popover-title" props (prim/children this)))
+(def ui-popover-title (prim/factory PopOverTitle))
+(defsc PopOverTarget [this props] (dom-with-class dom/span "" props (prim/children this)))
+(def ui-popover-target (prim/factory PopOverTarget))
+
+(defsc PopOver [this {:keys [active orientation] :or {orientation :top}}]
+  {:componentWillUpdate (fn [new-props new-state]
+                          (let [old-props        (prim/props this)
+                                becoming-active? (and (:active new-props) (not (:active old-props)))]
+                            (when becoming-active? (prim/update-state! this update :render-for-size inc))))}
+  (let [target     (.-target-ref this)
+        popup      (.-popup-ref this)
+        popup-box  (if popup (get-abs-position popup) {})
+        target-box (if target (get-abs-position target) {})
+        deltaY     (case orientation
+                     :bottom (:height target-box)
+                     :left (-> (:height target-box)
+                             (- (:height popup-box))
+                             (/ 2))
+                     :right (-> (:height target-box)
+                              (- (:height popup-box))
+                              (/ 2))
+                     (- (:height popup-box)))
+        deltaX     (case orientation
+                     :left (- (:width popup-box))
+                     :right (:width target-box)
+                     (/ (- (:width target-box) (:width popup-box)) 2))
+        popupTop   (if active (+ (:top target-box) deltaY) -1000)
+        popupLeft  (if active (+ (:left target-box) deltaX) -1000)
+        children   (prim/children this)
+        content    (util/first-node PopOverContent children)
+        title      (util/first-node PopOverTitle children)
+        target     (util/first-node PopOverTarget children)]
+    (dom/span #js {:style #js {:display "inline-block"} :ref (fn [r] (set! (.-target-ref this) r))}
+      (ui-render-in-body {}
+        (dom/div #js {:className (str "popover fade " (name orientation) (when active " in"))
+                      :ref       (fn [r] (set! (.-popup-ref this) r))
+                      :style     #js {:position "absolute"
+                                      :top      (str popupTop "px")
+                                      :left     (str popupLeft "px")
+                                      :display  "block"}}
+          (dom/div #js {:className "arrow" :style #js {:left (case orientation
+                                                               :left "100%"
+                                                               :right "-11px"
+                                                               "50%")}})
+          (when title) title
+          (when content) content))
+      target)))
 
 (def ui-popover (prim/factory PopOver))
 
@@ -1160,7 +1162,6 @@
                     :onKeyDown (fn [e]
                                  (.preventDefault e)        ; TODO: not getting key evts
                                  (.stopPropagation e)
-                                 (log/info (.-keyCode e))
                                  (cond
                                    (evt/left-arrow? e) (goto prior-index)
                                    (evt/right-arrow? e) (goto next-index))
