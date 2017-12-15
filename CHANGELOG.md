@@ -6,6 +6,8 @@
   defer the rest and repeat.
 - Added ref to env of mutations that run through `ptransact!`
 - `ptransact!` API now identical to `transact!` (added ref support)
+- Better error checking in defsc for improper use of initial-state template mode
+- Added support for routers to pass computed through
 
 2.0.0-beta7
 -----------
