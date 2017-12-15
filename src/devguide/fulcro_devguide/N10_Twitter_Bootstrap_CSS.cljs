@@ -651,17 +651,24 @@
         (b/row nil
           (b/col {:xs-offset 2 :xs 2}
             (b/ui-popover {:active (:active @state) :orientation :left}
-              (b/button {} "Left")))
+              (b/ui-popover-title {} (dom/b nil "Some ") (dom/i nil "Title"))
+              (b/ui-popover-content {} "Left Bubble")
+              (b/ui-popover-target {} (b/button {} "Left"))))
           (b/col {:xs 2}
             (b/ui-popover {:active (:active @state) :orientation :top}
-              (b/glyphicon {} :question-sign)))
+              (b/ui-popover-title {:className "extra-class" :style {:color :red}} "Some title")
+              (b/ui-popover-content {} "Top Bubble")
+              (b/ui-popover-target {} (b/glyphicon {} :question-sign))))
           (b/col {:xs 2}
             (b/ui-popover {:active (:active @state) :orientation :bottom}
-              (b/button {} "Bottom")))
+              (b/ui-popover-title {} "Some title")
+              (b/ui-popover-content {} "Bottom Bubble")
+              (b/ui-popover-target {} (b/button {} "Bottom"))))
           (b/col {:xs 2}
             (b/ui-popover {:active (:active @state) :orientation :right}
-              (b/glyphicon {:size "33pt"} :question-sign)
-              ))))))
+              (b/ui-popover-title {} "Some title")
+              (b/ui-popover-content {} "Right Bubble")
+              (b/ui-popover-target {} (b/glyphicon {:size "33pt"} :question-sign))))))))
   {:active false})
 
 

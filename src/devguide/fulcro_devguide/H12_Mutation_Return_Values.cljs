@@ -60,6 +60,9 @@
   This works, but is not the recommended approach because it is very easy to make mistakes that affect your entire
   application.
 
+  NOTE: Mutation merge happens after server return values have been merged; however, it does happen *before* tempid remapping.
+  Just work with the tempids, and they will be rewritten once your merge is complete.
+
   ## Using Mutation Joins
 
   There is a more congruent way to get your return value into the app state. When I say congruent, I mean that the mechanism

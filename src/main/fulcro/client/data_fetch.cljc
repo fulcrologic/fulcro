@@ -359,13 +359,13 @@
 (defmethod mutate 'fulcro/load [env _ params] (load* env params))
 (defmethod mutate `load [env _ params] (load* env params))
 
-(defmutation run-deferred-transaction [{:keys [tx reconciler]}]
+(defmutation run-deferred-transaction [{:keys [tx ref reconciler]}]
   (action [env]
     (let [reconciler (-> reconciler meta :reconciler)]
-      #?(:clj  (prim/transact! reconciler tx)
-         :cljs (js/setTimeout (fn [] (prim/transact! reconciler tx)) 1)))))
+      #?(:clj  (prim/transact! reconciler ref tx)
+         :cljs (js/setTimeout (fn [] (prim/transact! reconciler ref tx)) 1)))))
 
-(defmutation deferred-transaction [{:keys [tx remote]}]
+(defmutation deferred-transaction [{:keys [tx remote ref]}]
   (action [env]
     (let [{:keys [reconciler component] :as env} env
           reconciler (cond
@@ -377,6 +377,7 @@
                                                           :remote               remote
                                                           :marker               false
                                                           :post-mutation-params {:tx         tx
+                                                                                 :ref        ref
                                                                                  :reconciler (with-meta {} {:reconciler reconciler})}})
         (log/error (str "Cannot defer transaction. Reconciler was not available. Tx = " tx)))))
   (remote [env] (remote-load env)))
@@ -402,19 +403,27 @@
   (action [env] (when (:execute params) (fallback-action* env params)))
   (remote [env] (not (:execute params))))
 
-(defn get-remote
-  "Returns the remote against which the given mutation will try to execute. Returns nil if it is not a remote mutation"
-  [dispatch-symbol]
-  (try
-    (let [mutation-map (mutate {:ast    (-> (prim/query->ast `[(~dispatch-symbol)]) :children first)
-                                :parser (constantly nil)
-                                :state  (atom {})} dispatch-symbol {})
-          ks           (set (keys mutation-map))
-          remotes      (set/difference ks #{:action :refresh :keys :value})
-          remote       (first remotes)]
-      (if (and remote (get mutation-map remote false))
-        remote
-        nil))
-    (catch #?(:clj Throwable :cljs :default) e
-      (log/error (str "Attempting to get the declared remote for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!"))
-      nil)))
+(defn get-remotes
+  "Returns the remote against which the given mutation will try to execute. Returns nil if it is not a remote mutation.
+  `legal-remotes` is a set of legal remote names. Defaults to `#{:remote}`.
+
+  Returns a set of the remotes that will be triggered for this mutation, which may be empty.
+  "
+  ([dispatch-symbol] (get-remotes dispatch-symbol #{:remote}))
+  ([dispatch-symbol legal-remotes]
+   (letfn [(run-mutation [remote]
+             (mutate {:ast    (prim/query->ast1 `[(~dispatch-symbol)])
+                      :parser (constantly nil)
+                      :target remote
+                      :state  (atom {})} dispatch-symbol {}))]
+     (reduce (fn [remotes r]
+               (try
+                 (let [mutation-map     (run-mutation r)
+                       ks               (set (keys mutation-map))
+                       possible-remotes (set/difference ks #{:action :refresh :keys :value})
+                       active-now?      #(get mutation-map % false)]
+                   (into remotes (filter active-now? possible-remotes)))
+                 (catch #?(:clj Throwable :cljs :default) e
+                   (log/error (str "Attempting to get the remotes for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!") e)
+                   (reduced (if (seq remotes) remotes #{:remote})))))
+       #{} legal-remotes))))

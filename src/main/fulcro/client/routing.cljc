@@ -54,7 +54,10 @@
         (~'query [~'this] [::id {::current-route (fulcro.client.primitives/get-query ~union-sym)}])
         ~'Object
         (~'render [~'this]
-          ((fulcro.client.primitives/factory ~union-sym) (::current-route (fulcro.client.primitives/props ~'this)))))))
+          (let [computed# (fulcro.client.primitives/get-computed ~'this)
+                props# (::current-route (fulcro.client.primitives/props ~'this))
+                props-with-computed# (fulcro.client.primitives/computed props# computed#)]
+            ((fulcro.client.primitives/factory ~union-sym) props-with-computed#))))))
 
 #?(:clj
    (s/def ::router-args (s/cat

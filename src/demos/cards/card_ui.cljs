@@ -25,7 +25,7 @@
     cards.server-query-security
     cards.server-return-values-as-data-driven-mutation-joins
     cards.server-return-values-manually-merging
-    cards.server-return-values-targeting
+    cards.server-targeting-return-values-into-app-state
     [fulcro.client.logging :as log]))
 
 (log/set-level :debug)
