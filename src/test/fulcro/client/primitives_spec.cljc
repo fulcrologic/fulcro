@@ -1034,6 +1034,10 @@
                                                                             (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
      (component "build-initial-state"
        (assertions
+         "Throws an error in template mode if any of the values are calls to get-initial-state"
+         (#'prim/build-initial-state 'S 'this {:template {:child '(get-initial-state P {})}} #{}
+           '{:template [{:child (prim/get-query S)}]} false)
+         =throws=> (ExceptionInfo #"defsc S: Illegal call \(get-initial-state P \{\}\).*See Developer.*")
          "Generates nothing when there is entry"
          (#'prim/build-initial-state 'S 'this nil #{} {:template []} false) => nil
          "Can build initial state from a method"

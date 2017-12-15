@@ -1811,7 +1811,6 @@
                     acc))
                 acc)) merged-state source)))
 
-
 (defn merge-mutation-joins
   "Merge all of the mutations that were joined with a query"
   [state query data-tree]
@@ -3041,8 +3040,12 @@
                            (let [state-params    (get initial-state k)
                                  to-one?         (map? state-params)
                                  to-many?        (and (vector? state-params) (every? map? state-params))
+                                 code?           (list? state-params)
                                  from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
                                  child-class     (get children-by-query-key k)]
+                             (when code?
+                               (throw (ex-info (str "defsc " sym ": Illegal call " state-params ". Use a lambda to write code for initial state. Template mode for initial state requires simple maps (or vectors of maps) as parameters to children. See Developer's Guide.")
+                                        {})))
                              (cond
                                (not (or from-parameter? to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
                                to-one? `(fulcro.client.primitives/get-initial-state ~child-class ~(parameterized state-params))
