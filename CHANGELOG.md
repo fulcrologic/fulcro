@@ -8,6 +8,7 @@
 - `ptransact!` API now identical to `transact!` (added ref support)
 - Better error checking in defsc for improper use of initial-state template mode
 - Added support for routers to pass computed through
+- A few fixes to bootstrap support
 
 2.0.0-beta7
 -----------
