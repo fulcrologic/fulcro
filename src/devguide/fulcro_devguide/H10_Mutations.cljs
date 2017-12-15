@@ -251,6 +251,17 @@
   (prim/ptransact! this `[(submit-my-form) (leave-form-if-ok)])
   ```
 
+  ### Pessimistic Transaction Fallbacks
+
+  The fallback mechanism described for error handling works in `ptransact!`. Fallbacks are clustered to the remote they follow
+  up until the next remote mutation (with one exception: fallbacks at the beginning of the entire tx are clustered to the first remote mutation):
+
+  ```
+  (ptransact! this `[(L) (df/fallback {...}) (L) (R) (df/fallback {...}) (L2) (R2) (L3) (df/fallback {...}) ])
+  ```
+
+  will associate the first two fallbacks with remote call `R`, and the last one with `R2`.
+
   ## Using Loads as Mutations
 
   There is technically nothing wrong with issuing a load that has side-effects on the server (though one could argue that
