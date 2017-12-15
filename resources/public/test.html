@@ -6,6 +6,11 @@
               href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAIElEQVQ4T2NMS0v7z0ABYBw1gGE0DBhGwwCYh4ZBOgAAcQUjIUXh8RYAAAAASUVORK5CYII="/>
         <link href="css/fulcro-spec-styles.css" rel="stylesheet" type="text/css">
         <link href="css/fulcro-ui.css" rel="stylesheet" type="text/css">
+        <!-- This is so you can see the entire heads up error in figwheel. Not needed in production.
+           Sent as PR 630 to Figwheel.-->
+        <style>
+            #figwheel-heads-up-content-area pre { white-space: pre-wrap; }
+        </style>
     </head>
     <body>
         <div id="application-mount-point"></div> <!-- Used for tests that need to mount test apps on the DOM during tests-->
