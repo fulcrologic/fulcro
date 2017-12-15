@@ -2,6 +2,7 @@
 ---------
 - History bug fixes: network activity completion was corrupting history
 - I18N bug fix: missing locale causing missing messages
+- Added support for fallbacks in `ptransact!`
 
 2.0.0-RC1
 ---------
