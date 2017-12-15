@@ -865,65 +865,84 @@
                    :ui/list     [:x :y {:response "data"}]
                    :ui/list2    [{:response "data"} :a :b]})))
 
-(defmutation f [params]
+(defmutation r1 [params]
   (action [env] true)
   (remote [env] true))
-(defmutation g [params]
+(defmutation r2 [params]
   (action [env] true)
   (rest-remote [env] true))
-(defmutation h [params]
+(defmutation L [params]
+  (action [env] true))
+(defmutation L2 [params]
   (action [env] true))
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "pessimistic-transaction->transaction" :focused
+(specification "pessimistic-transaction->transaction"
   (assertions
     "Returns the transaction if it only contains a single call"
-    (prim/pessimistic-transaction->transaction `[(f {:x 1})]) => `[(f {:x 1})]
+    (prim/pessimistic-transaction->transaction `[(r1 {:x 1})]) => `[(r1 {:x 1})]
     "Includes the follow-on reads in a single-call"
-    (prim/pessimistic-transaction->transaction `[(f {:y 2}) :read]) => `[(f {:y 2}) :read]
+    (prim/pessimistic-transaction->transaction `[(r1 {:y 2}) :read]) => `[(r1 {:y 2}) :read]
     "Converts a sequence of calls to the proper nested structure, deferring against the correct remotes"
-    (prim/pessimistic-transaction->transaction `[(f) (g) (h)])
-    => `[(f)
+    (prim/pessimistic-transaction->transaction `[(r1) (r2) (L)])
+    => `[(r1)
          (df/deferred-transaction {:remote :remote
-                                   :tx     [(g) (df/deferred-transaction
-                                                  {:remote :rest-remote
-                                                   :tx     [(h)]})]})]
+                                   :tx     [(r2) (df/deferred-transaction
+                                                   {:remote :rest-remote
+                                                    :tx     [(L)]})]})]
     "Is identity if all calls are local"
-    (prim/pessimistic-transaction->transaction `[(h) (h) (h)]) => `[(h) (h) (h)]
+    (prim/pessimistic-transaction->transaction `[(L) (L) (L)]) => `[(L) (L) (L)]
+
+    "Clusters prefixed fallbacks with following remote op"
+    (prim/pessimistic-transaction->transaction `[(fulcro.client.data-fetch/fallback {:x 1}) (r1 {:x 1})])
+    => `[(fulcro.client.data-fetch/fallback {:x 1}) (r1 {:x 1})]
+
+    "Clusters postfixed fallbacks with closest prior remote op"
+    (prim/pessimistic-transaction->transaction `[(r1 {:x 1}) (L)
+                                                 (tx/fallback {:x 1})
+                                                 (L2) (r2)
+                                                 (fulcro.client.data-fetch/fallback {:x 2})
+                                                 (L2) (L)])
+    => `[(r1 {:x 1}) (tx/fallback {:x 1})
+         (fulcro.client.data-fetch/deferred-transaction
+           {:remote :remote
+            :tx     [(L) (L2) (r2) (fulcro.client.data-fetch/fallback {:x 2})
+                     (fulcro.client.data-fetch/deferred-transaction {:remote :rest-remote
+                                                                     :tx     [(L2) (L)]})]})]
 
     "Queues all local calls in clusters of non-deferred calls"
-    (prim/pessimistic-transaction->transaction `[(h) (h) (f) (h) (g) (h) (h)])
+    (prim/pessimistic-transaction->transaction `[(L) (L) (r1) (L) (r2) (L) (L)])
     =>
-    `[(h) (h) (f)
+    `[(L) (L) (r1)
       (fulcro.client.data-fetch/deferred-transaction {:remote :remote
-                                                      :tx     [(h) (g)
+                                                      :tx     [(L) (r2)
                                                                (fulcro.client.data-fetch/deferred-transaction
-                                                                 {:remote :rest-remote :tx [(h) (h)]})]})]
+                                                                 {:remote :rest-remote :tx [(L) (L)]})]})]
 
 
-    (prim/pessimistic-transaction->transaction `[(h) (h) (h)]) => `[(h) (h) (h)]
+    (prim/pessimistic-transaction->transaction `[(L) (L) (L)]) => `[(L) (L) (L)]
     "Spreads anything in env across the calls"
-    (prim/pessimistic-transaction->transaction `[(f) (g) (h)] {:valid-remotes #{:remote :rest-remote}
-                                                               :env           {:x   1
-                                                                               :ref [:id 123]}})
-    => `[(f)
+    (prim/pessimistic-transaction->transaction `[(r1) (r2) (L)] {:valid-remotes #{:remote :rest-remote}
+                                                                 :env           {:x   1
+                                                                                 :ref [:id 123]}})
+    => `[(r1)
          (df/deferred-transaction {:remote :remote
                                    :x      1
                                    :ref    [:id 123]
-                                   :tx     [(g) (df/deferred-transaction
-                                                  {:remote :rest-remote
-                                                   :x      1
-                                                   :ref    [:id 123]
-                                                   :tx     [(h)]})]})]
+                                   :tx     [(r2) (df/deferred-transaction
+                                                   {:remote :rest-remote
+                                                    :x      1
+                                                    :ref    [:id 123]
+                                                    :tx     [(L)]})]})]
     "Generated deferred parameters take precedence over env"
-    (prim/pessimistic-transaction->transaction `[(f) (g) (h)] {:valid-remotes #{:remote :rest-remote}
-                                                               :env           {:remote :CRAP}})
-    => `[(f)
+    (prim/pessimistic-transaction->transaction `[(r1) (r2) (L)] {:valid-remotes #{:remote :rest-remote}
+                                                                 :env           {:remote :CRAP}})
+    => `[(r1)
          (df/deferred-transaction {:remote :remote
-                                   :tx     [(g) (df/deferred-transaction
-                                                  {:remote :rest-remote
-                                                   :tx     [(h)]})]})]
+                                   :tx     [(r2) (df/deferred-transaction
+                                                   {:remote :rest-remote
+                                                    :tx     [(L)]})]})]
     ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -965,7 +984,7 @@
                         #(gen/fmap (fn [v] (with-meta v {:queryid (futil/unique-key)})) (gen/vector (s/gen ::query-expr)))))
 
   (prim/defui A)
-  (def f (factory A))
+  (def r1 (factory A))
 
   ; This property isn't holding, but I don't know if it is the spec generators not adding metadata correctly, or what
   (def prop-marshall

@@ -11,7 +11,7 @@
 (def ^:dynamic *current-locale* (atom "en-US"))
 (def ^:dynamic *loaded-translations* (atom {}))
 (def ^:dynamic *custom-formats* (atom nil))
-(defn current-locale [] @*current-locale*)
+(defn current-locale [] (or @*current-locale* "en-US"))
 (defn translations-for-locale [] (get @*loaded-translations* (current-locale)))
 
 #?(:clj
@@ -39,10 +39,6 @@
 ;; consideration for ensuring that translations can be extracted. The `tr-unsafe` macro exists
 ;; for cases where you must have logic invoved, but lets you know that you must have some other
 ;; way of ensuring those translations make it into your final product.
-
-(defmacro if-cljs
-  [then else]
-  (if (:ns &env) then else))
 
 (letfn [(real-tr [msg]
           (let [msg-key      (str "|" msg)
@@ -77,7 +73,9 @@
              translation  (get translations msg-key fmt)
              formatter    (new MessageFormat translation (Locale/forLanguageTag (current-locale)))]
          (.format formatter argmap))
-       (catch Exception e "???")))
+       (catch Exception e
+         (log/error "Formatting failed!" e)
+         "???")))
    :cljs
    (set! js/trf
      (fn trf [fmt & args]
@@ -93,7 +91,9 @@
                                 (js/IntlMessageFormat. translation (current-locale) custom-formats)
                                 (js/IntlMessageFormat. translation (current-locale)))]
            (.format formatter (clj->js argmap)))
-         (catch :default e "???")))))
+         (catch :default e
+           (log/error "Unable to format trf output " e)
+           "???")))))
 
 #?(:clj
    (defmacro tr-unsafe
@@ -101,7 +101,7 @@
      happen for you. This means you have to use some other mechanism to make sure the string ends up in translation
      files (such as manually calling tr on the various raw string values elsewhere in your program)"
      [msg]
-     `(if-cljs (js/tr ~msg) (tr-ssr ~msg))))
+     (if (:ns &env) `(js/tr ~msg) `(tr-ssr ~msg))))
 
 #?(:clj
    (defmacro trlambda
@@ -114,7 +114,9 @@
            msg (if (string? msg)
                  msg
                  (str "ERROR: tr-lambda requires a literal string on line " line " in " (str *ns*)))]
-       `(fn [] (if-cljs (js/tr ~msg) (tr-ssr ~msg))))))
+       (if (:ns &env)
+         `(fn [] (js/tr ~msg))
+         `(fn [] (tr-ssr ~msg))))))
 
 #?(:clj
    (defmacro tr
@@ -127,7 +129,7 @@
            msg (if (string? msg)
                  msg
                  (str "ERROR: tr requires a literal string on line " line " in " (str *ns*)))]
-       `(if-cljs (js/tr ~msg) (tr-ssr ~msg)))))
+       (if (:ns &env) `(js/tr ~msg) `(tr-ssr ~msg)))))
 
 #?(:clj
    (defmacro trc
@@ -151,7 +153,7 @@
            [context msg] (if (and (string? context) (string? msg))
                            [context msg]
                            ["" (str "ERROR: trc requires literal strings on line " line " in " (str *ns*))])]
-       `(if-cljs (js/trc ~context ~msg) (trc-ssr ~context ~msg)))))
+       (if (:ns &env) `(js/trc ~context ~msg) `(trc-ssr ~context ~msg)))))
 
 #?(:clj
    (defmacro trf
@@ -168,4 +170,4 @@
            [format args] (if (string? format)
                            [format args]
                            ["ERROR: trf requires a literal string on line {line} in {file}" [:line line :file (str *ns*)]])]
-       `(if-cljs (js/trf ~format ~@args) (trf-ssr ~format ~@args)))))
+       (if (:ns &env) `(js/trf ~format ~@args) `(trf-ssr ~format ~@args)))))

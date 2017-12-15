@@ -115,3 +115,16 @@
      (assertions
        "works for cljs trf"
        (trf "Test: {amount,number,USD}" :amount 44.55543) => "Test: $44.56")))
+
+(specification "An undefined locale" :focused
+  (reset! i18n/*current-locale* nil)
+  (behavior "uses the in-code translation"
+    (assertions
+      "tr"
+      (tr "Hello") => "Hello"
+      "trc"
+      (trc "context" "Hello") => "Hello"
+      "trf"
+      (trf "Hi, {name}" :name "Tony") => "Hi, Tony"
+      "trf map-based"
+      (trf "Hi, {name}" {:name "Tony"}) => "Hi, Tony")))

@@ -60,7 +60,7 @@
           [index frames] (hist/nav-position history-nav)
           {:keys [::hist/client-time ::hist/network-result ::hist/tx ::hist/tx-result] :as step} (hist/current-step history-nav)]
       (dom/div (clj->js {:key       react-key
-                         :style     {:max-width "300px"}
+                         :style     {:maxWidth "300px"}
                          :className (str "history-controls " (or (some-> position name) "controls-left"))})
         (dom/button #js {:className "toggle-position"
                          :onClick   #(prim/transact! this `[(toggle-position {})])} (tr "<= Reposition =>"))

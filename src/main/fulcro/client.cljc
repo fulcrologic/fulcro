@@ -232,7 +232,6 @@
     (let [uses-initial-app-state? (prim/has-initial-app-state? root-component)
           ui-declared-state       (and uses-initial-app-state? (fulcro.client.primitives/initial-state root-component nil))
           explicit-state?         (or (util/atom? initial-state) (and (seq initial-state) (map? initial-state)))
-          init-conflict?          (and explicit-state? (prim/has-initial-app-state? root-component))
           state                   (cond
                                     explicit-state? (if initial-state initial-state {})
                                     ui-declared-state ui-declared-state
