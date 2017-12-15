@@ -732,7 +732,7 @@
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "get-remotes" :focused
+(specification "get-remotes"
   (when-mocking
     (log/error & m) => nil                                  ; suppress logging during test
 

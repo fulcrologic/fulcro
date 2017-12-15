@@ -2803,14 +2803,6 @@
 
 #?(:clj (intern 'cljs.core 'proto-assign-impls proto-assign-impls))
 
-(comment
-  "ptransact! transactions are converted as follows:"
-  [(f) (g) (h)] -> [(f) (deferred-transaction {:remote remote-of-f
-                                               :tx     [(g) (deferred-transaction {:remote  remote-of-g
-                                                                                   :post-tx [(h)]})]})]
-  "And the deffered transaction triggers a mock load that runs the given tx through the post-mutatio mechanism. There
-  is a short-circuit bit of logic in the actual send to networking to keep it uninvolved (no net traffic).")
-
 (defn pessimistic-transaction->transaction
   "Converts a sequence of calls as if each call should run in sequence (deferring even the optimistic side until
   the prior calls have completed in a full-stack manner), and returns a tx that can be submitted via the normal
@@ -2826,31 +2818,35 @@
   ([tx {:keys [valid-remotes env]
         :or   {valid-remotes #{:remote} env {}}
         :as   options}]
-   (let [ast-nodes         (:children (query->ast tx))
-         {calls true reads false} (group-by #(= :call (:type %)) ast-nodes)
-         follow-on-reads   (ast->query {:type :root :children reads})
-         remote-for-call   (fn [c] (let [dispatch-key (:dispatch-key c)
-                                         get-remotes  (or (some-> (resolve 'fulcro.client.data-fetch/get-remotes) deref)
-                                                        (fn [sym]
-                                                          (log/error "FAILED TO FIND MUTATE. CANNOT DERIVE REMOTES FOR ptransact!")
-                                                          #{:remote}))
-                                         remotes      (get-remotes dispatch-key)]
-                                     (when (seq remotes)
-                                       (first remotes))))
-         is-local?         (fn [c] (not (remote-for-call c)))
-         [local-calls remaining-calls] (split-with is-local? calls)
-         first-remote-call (some-> remaining-calls (first))
-         remote            (some-> first-remote-call remote-for-call)
-         unprocessed-calls (vec (rest remaining-calls))
-         unprocessed-tx    (ast->query {:type :root :children unprocessed-calls})
-         calls-to-run-now  (keep identity (conj (vec local-calls) first-remote-call))
-         tx-for-calls      (ast->query {:type :root :children calls-to-run-now})
-         tx-to-run-now     (into tx-for-calls follow-on-reads)
-         tx-to-defer       (into unprocessed-tx follow-on-reads)
-         defer?            (seq unprocessed-calls)
-         deferred-params   (when defer?
-                             (merge (get options :env {})
-                               {:remote remote :tx (pessimistic-transaction->transaction tx-to-defer options)}))]
+   (let [ast-nodes             (:children (query->ast tx))
+         {ast-calls true ast-reads false} (group-by #(= :call (:type %)) ast-nodes)
+         ast-follow-on-reads   (ast->query {:type :root :children ast-reads})
+         remote-for-ast-call   (fn [c] (let [dispatch-key (:dispatch-key c)
+                                             get-remotes  (or (some-> (resolve 'fulcro.client.data-fetch/get-remotes) deref)
+                                                            (fn [sym]
+                                                              (log/error "FAILED TO FIND MUTATE. CANNOT DERIVE REMOTES FOR ptransact!")
+                                                              #{:remote}))
+                                             remotes      (if (= "fallback" (name dispatch-key)) ; fallbacks are a special case
+                                                            #{}
+                                                            (get-remotes dispatch-key))]
+                                         (when (seq remotes)
+                                           (first remotes))))
+         is-local?             (fn [c] (not (remote-for-ast-call c)))
+         [ast-local-calls ast-remaining-calls] (split-with is-local? ast-calls)
+         ast-first-remote-call (some-> ast-remaining-calls (first))
+         remote                (some-> ast-first-remote-call remote-for-ast-call)
+         unprocessed-call-asts (vec (rest ast-remaining-calls))
+         [possible-fallback-asts distant-call-asts] (split-with is-local? unprocessed-call-asts)
+         {fallback-asts true following-call-asts false} (group-by #(= "fallback" (-> % :dispatch-key (name))) possible-fallback-asts)
+         unprocessed-tx        (ast->query {:type :root :children (concat following-call-asts distant-call-asts)})
+         calls-to-run-now      (keep identity (concat ast-local-calls [ast-first-remote-call] fallback-asts))
+         tx-for-calls          (ast->query {:type :root :children calls-to-run-now})
+         tx-to-run-now         (into tx-for-calls ast-follow-on-reads)
+         tx-to-defer           (into unprocessed-tx ast-follow-on-reads)
+         defer?                (seq unprocessed-call-asts)
+         deferred-params       (when defer?
+                                 (merge (get options :env {})
+                                   {:remote remote :tx (pessimistic-transaction->transaction tx-to-defer options)}))]
      (if defer?
        (into tx-to-run-now `[(fulcro.client.data-fetch/deferred-transaction ~deferred-params)])
        tx-to-run-now))))
