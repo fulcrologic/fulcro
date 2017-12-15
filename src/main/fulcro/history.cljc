@@ -13,6 +13,7 @@
 (s/def ::db-after map?)
 (s/def ::client-time is-timestamp?)
 (s/def ::tx vector?)
+(s/def ::tx-time int?)
 (s/def ::tx-result (s/or :nil nil? :map map?))
 (s/def ::network-sends (s/map-of keyword? vector?))         ; map of sends that became active due to this tx
 (s/def ::history-step (s/keys :req [::db-after ::db-before] :opt [::tx ::tx-result :fulcro.client.impl.data-fetch/network-result ::network-sends ::client-time]))
@@ -26,12 +27,24 @@
 (defn remote-activity-started
   "Record that remote activity started for the given remote at the given tx-time. Returns a new history."
   [history remote tx-time]
-  (update-in history [::active-remotes remote] (fnil conj #{}) tx-time))
+  (if (and remote tx-time)
+    (update-in history [::active-remotes remote] (fnil conj #{}) tx-time)
+    history))
+
+(s/fdef remote-activity-started
+  :args (s/cat :hist ::history :remote (s/or :missing nil? :remote keyword?) :time ::tx-time)
+  :ret ::history)
 
 (defn remote-activity-finished
   "Record that remote activity finished for the given remote at the given tx-time. Returns a new history."
   [history remote tx-time]
-  (update-in history [::active-remotes remote] disj tx-time))
+  (if (and remote tx-time)
+    (update-in history [::active-remotes remote] disj tx-time)
+    history))
+
+(s/fdef remote-activity-finished
+  :args (s/cat :hist ::history :remote (s/or :missing nil? :remote keyword?) :time ::tx-time)
+  :ret ::history)
 
 (defn oldest-active-network-request
   "Returns the tx time for the oldest in-flight send that is active. Returns Long/MAX_VALUE if none are active."
@@ -40,23 +53,28 @@
 
 (s/fdef oldest-active-network-request
   :args (s/cat :hist ::history)
+  :ret int?)
+
+(s/fdef oldest-active-network-request
+  :args (s/cat :hist ::history)
   :ref int?)
 
 (defn gc-history
   "Returns a new history that has been reduced in size to target levels."
   [{:keys [::max-size ::history-steps] :as history}]
-  (if (> (count history-steps) max-size)
+  (if (and (pos-int? max-size) (> (count history-steps) max-size))
     (let [oldest-required-history-step (oldest-active-network-request history)
           current-size                 (count history-steps)
           overage                      (- current-size max-size) ; guaranteed positive by `if` above
-          ordered-steps                (sort (keys history-steps))
-          proposed-keepers             (drop overage ordered-steps)
-          real-keepers                 (if (> (first proposed-keepers) oldest-required-history-step)
+          ordered-step-keys            (sort (keys history-steps))
+          proposed-keeper-keys         (drop overage ordered-step-keys)
+          real-keeper-keys             (if (> (first proposed-keeper-keys) oldest-required-history-step)
                                          (do
                                            (log/info "WARNING: History has grown beyond max size due to network congestion.")
-                                           (drop-while (fn [t] (< t oldest-required-history-step)) ordered-steps))
-                                         proposed-keepers)]
-      (update history ::history-steps select-keys real-keepers))
+                                           (drop-while (fn [t] (< t oldest-required-history-step)) ordered-step-keys))
+                                         proposed-keeper-keys)]
+      (log/debug (str "Compressing history from " (count history-steps) " steps to " (count real-keeper-keys) ". Max size is " max-size))
+      (update history ::history-steps select-keys real-keeper-keys))
     history))
 
 (s/fdef gc-history
@@ -66,9 +84,8 @@
 (defn compressible-tx [tx] (vary-meta tx assoc ::compressible? true))
 
 (s/fdef compressible-tx
-  :args (s/cat :tx vector?)
-  :ret vector?
-  :fn #(= (-> % :args :tx) (:ret %)))
+  :args (s/cat :tx (s/or :missing nil? :tx vector?))
+  :ret (s/or :missing nil? :tx vector?))
 
 (defn compressible-tx?
   "Returns true if the given transaction is marked as compressible."
@@ -76,13 +93,17 @@
   (boolean (some-> tx meta ::compressible?)))
 
 (s/fdef compressible-tx?
-  :args (s/cat :tx vector?)
+  :args (s/cat :tx (s/or :missing nil? :tx vector?))
   :ret boolean?)
 
 (defn last-tx-time
   "Returns the most recent transition edge time recorded in the given history."
   [{:keys [::history-steps] :as history}]
   (reduce max 0 (keys history-steps)))
+
+(s/fdef last-tx-time
+  :args (s/cat :hist ::history)
+  :ret int?)
 
 (defn record-history-step
   "Record a history step in the reconciler. "
@@ -108,7 +129,7 @@
 (defn new-history [size]
   {::max-size size ::history-steps {} ::active-remotes {}})
 
-(s/fdef record-history-step
+(s/fdef new-history
   :args (s/cat :size pos-int?)
   :ret ::history)
 
@@ -119,7 +140,7 @@
 
 (s/fdef ordered-steps
   :args (s/cat :hist ::history)
-  :ret (s/or :v vector? :nothing nil?))
+  :ret (s/or :v (s/every int? :kind vector?) :nothing nil?))
 
 (defn get-step
   "Returns a step from the given history that has the given tx-time. If tx-time specifies a spot where there is a gap in the history

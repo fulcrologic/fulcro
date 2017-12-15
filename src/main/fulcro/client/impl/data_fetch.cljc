@@ -482,8 +482,7 @@
   (when history-atom
     (swap! history-atom (fn [h]
                           (reduce (fn [hist {:keys [::prim/remote ::hist/tx-time]}]
-                                    (log/debug (str "Clearing remote load activity on " remote " for tx-time " tx-time))
-                                    (hist/remote-activity-finished hist (or remote :remote) tx-time)) load-markers)))))
+                                    (hist/remote-activity-finished hist (or remote :remote) tx-time)) h load-markers)))))
 
 (defn- tick! "Ability to mock in tests"
   [r]

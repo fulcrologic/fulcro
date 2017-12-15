@@ -1,5 +1,10 @@
-2.0.0-beta8
------------
+2.0.0-RC2
+---------
+- History bug fixes: network activity completion was corrupting history
+- I18N bug fix: missing locale causing missing messages
+
+2.0.0-RC1
+---------
 - Fixed bug in `ptransact!` where non-remote calls would not be called if
   the earlier ones were not remote. New behavior is to cluster
   non-remote mutations together in front of the "next" remote one, then

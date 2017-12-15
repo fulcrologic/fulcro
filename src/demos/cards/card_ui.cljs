@@ -1,6 +1,7 @@
 (ns cards.card-ui
   (:require
     devcards.core
+    [clojure.spec.test.alpha :as st]
     cards.A-Introduction
     cards.UI-router-as-editor-with-type-selection
     cards.UI-router-as-list-with-item-editor
@@ -29,5 +30,7 @@
     [fulcro.client.logging :as log]))
 
 (log/set-level :debug)
+
+(st/instrument) ; for debugging unexpected states in main library
 
 (devcards.core/start-devcard-ui!)

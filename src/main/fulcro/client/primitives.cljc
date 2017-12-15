@@ -98,7 +98,7 @@
              (initial-state class params))))
 
 (s/def ::remote keyword?)
-(s/def ::ident util/ident?)
+(s/def ::ident (s/or :missing nil? :ident util/ident?))
 (s/def ::query vector?)
 (s/def ::transaction (s/every #(or (keyword? %) (util/mutation? %))
                        :kind vector?))

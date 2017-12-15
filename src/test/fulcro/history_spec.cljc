@@ -27,15 +27,17 @@
     "is the smalled tx time from the active remotes"
     (hist/oldest-active-network-request (assoc empty-history ::hist/active-remotes {:a #{5 7} :b #{3 42}})) => 3))
 
-(specification "Garbage collecting history"
+(specification "Garbage collecting history" :focused
   (let [steps                           {1 mock-step 2 mock-step 3 mock-step 4 mock-step 5 mock-step 6 mock-step}
         history                         (assoc empty-history ::hist/history-steps steps)
         history-with-active-remotes     (assoc history ::hist/max-size 3 ::hist/active-remotes {:a #{3 6}})
         new-history                     (hist/gc-history history)
-        new-history-with-active-remotes (hist/gc-history history-with-active-remotes)]
+        new-history-with-active-remotes (hist/gc-history history-with-active-remotes) ]
     (assertions
       "trims the history to the max-size most recent items  "
       (-> new-history ::hist/history-steps keys set) => #{2 3 4 5 6}
+      "Multiple applicatiosn of gc does not affect history"
+      (-> history hist/gc-history hist/gc-history hist/gc-history) => new-history
       "retains the ::max-size entry in history"
       (-> new-history ::hist/max-size) => 5
       "does not trim history steps that are still needed by active remotes"
@@ -64,7 +66,7 @@
       "Is the largest of the recorded tx time in history"
       (hist/last-tx-time history) => 5)))
 
-(specification "Recording history steps"
+(specification "Recording history steps" :focused
   (let [time      14
         history   (hist/record-history-step empty-history time mock-step)
         history-1 (hist/record-history-step (assoc empty-history ::hist/max-size 100) time mock-step)
