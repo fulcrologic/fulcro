@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.0.0-beta8-SNAPSHOT"
+(defproject fulcrologic/fulcro "2.0.0-RC1"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -6,8 +6,8 @@
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
                  [org.clojure/clojurescript "1.9.946" :scope "provided"]
 
-                 [cljsjs/react "15.6.2-0"]
-                 [cljsjs/react-dom "15.6.2-0"]
+                 [cljsjs/react "15.6.2-1"]
+                 [cljsjs/react-dom "15.6.2-1"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.243"]
                  [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
@@ -25,7 +25,7 @@
                  [com.taoensso/sente "1.11.0"]              ; websockets
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.0.0-beta2" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "2.0.0-beta3" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.7" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
