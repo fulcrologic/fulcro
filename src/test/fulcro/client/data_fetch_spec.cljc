@@ -337,14 +337,7 @@
       "can add parameters to a top-level join property"
       (prim/ast->query (dfi/inject-query-params join-ast join-params)) => '[:a ({:things [:name]} {:start 1})]
       "merges new parameters over existing ones"
-      (prim/ast->query (dfi/inject-query-params existing-params-ast existing-params-overwrite)) => '[(:a {:x 2})])
-    (behavior "Warns about parameters that cannot be joined to the query"
-      (let [ast    (prim/query->ast [:a :b])
-            params {:c {:x 1}}]
-        (when-mocking
-          (log/error msg) => (is (= "Error: You attempted to add parameters for #{:c} to top-level key(s) of [:a :b]" msg))
-
-          (dfi/inject-query-params ast params))))))
+      (prim/ast->query (dfi/inject-query-params existing-params-ast existing-params-overwrite)) => '[(:a {:x 2})])))
 
 (specification "set-global-loading"
   (let [loading-state     (atom {:ui/loading-data          true
