@@ -742,3 +742,19 @@
       "Returns an empty set if the mutation is not remote"
       (df/get-remotes `h) => #{})))
 
+(specification "fallback (the mutation)" :focused
+  (behavior "On parse (run of `transact!`)"
+    (let [fake-ast (prim/query->ast1 '[(f {:x 1})])]
+      (assertions
+        "Returns the ast"
+        (-> (m/mutate {:ref [:a 1] :target :remote :ast fake-ast} 'tx/fallback {:action 'do-thing}) :remote :dispatch-key) => 'f
+        "the AST parameters are augmented with the ref of the caller"
+        (-> (m/mutate {:ref [:a 1] :target :remote :ast fake-ast} 'tx/fallback {:action 'do-thing}) :remote :params) => {:x 1 ::prim/ref [:a 1]}
+        "Uses the remote based on target (leading to fallbacks appearing for *all* defined remotes, to be filtered at a later stage)"
+        (-> (m/mutate {:ref [:a 1] :target :rest :ast fake-ast} 'tx/fallback {:action 'do-thing}) keys set) => #{:rest}
+        "Can be invoked as `fulcro.client.data-fetch/fallback`"
+        (-> (m/mutate {:ref [:a 1] :target :remote :ast fake-ast} `df/fallback {:action 'do-thing}) :remote :dispatch-key) => 'f)))
+  (behavior "On network error (fallback trigger via :execute true)"
+    (assertions
+      "Returns an action to run"
+      (-> (m/mutate {} `df/fallback {:execute true}) keys set) => #{:action})))

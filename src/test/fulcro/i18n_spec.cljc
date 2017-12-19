@@ -116,7 +116,7 @@
        "works for cljs trf"
        (trf "Test: {amount,number,USD}" :amount 44.55543) => "Test: $44.56")))
 
-(specification "An undefined locale" :focused
+(specification "An undefined locale"
   (reset! i18n/*current-locale* nil)
   (behavior "uses the in-code translation"
     (assertions

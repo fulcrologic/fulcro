@@ -60,7 +60,7 @@
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
-                               ;:parallel-build       true
+                               :parallel-build       true
                                ;:verbose              true
                                ;:compiler-stats       true
                                :preloads             [devtools.preload]

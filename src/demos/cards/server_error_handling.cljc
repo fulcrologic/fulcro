@@ -32,9 +32,9 @@
   (remote [env] true))
 
 ;; an :error key is injected into the fallback mutation's params argument
-(defmutation disable-button [{:keys [error] :as params}]
+(defmutation disable-button [{:keys [error ::prim/ref] :as params}]
   (action [{:keys [state]}]
-    (log/warn "Mutation specific fallback -- disabling button")
+    (log/warn "Mutation specific fallback -- disabling button due to error from mutation invoked at " ref)
     (swap! state assoc-in [:error.child/by-id :singleton :ui/button-disabled] true)))
 
 (defmutation log-read-error [{:keys [error]}]

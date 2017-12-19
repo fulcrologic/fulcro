@@ -5,7 +5,7 @@
     [fulcro.client.primitives :as prim]
     [fulcro.client.impl.data-fetch :as impl]
     [fulcro.client.impl.data-targeting :as targeting]
-    [fulcro.client.mutations :refer [mutate defmutation]]
+    [fulcro.client.mutations :as m :refer [mutate defmutation]]
     [fulcro.client.logging :as log]
     [fulcro.client.dom :as dom]
     [fulcro.client :as fc]
@@ -389,19 +389,21 @@
 ; A mutation that requests the installation of a fallback mutation on a transaction that should run if that transaction
 ; fails in a 'hard' way (e.g. network/server error). Data-related error handling should either be implemented as causing
 ; such a hard error, or as a post-mutation step.
-(defmethod mutate 'tx/fallback [env _ {:keys [execute] :as params}]
-  (if execute
-    {:action #(fallback-action* env params)}
-    {:remote true}))
+(defmethod mutate 'tx/fallback [{:keys [target ast ref] :as env} _ {:keys [execute action] :as params}]
+  (cond
+    execute {:action #(fallback-action* env params)}
+    target {target (update ast :params assoc ::prim/ref ref)}
+    :else nil))
 
-(defmutation fallback
-  "mutation: Add a fallback for network failures to the transaction.
+(defmethod mutate `fallback [env _ params] (mutate env 'tx/fallback params))
 
-  Parameters:
-  `action` - The symbol of the mutation to run on error."
-  [{:keys [action] :as params}]
-  (action [env] (when (:execute params) (fallback-action* env params)))
-  (remote [env] (not (:execute params))))
+(defn fallback
+  "Mutation: Add a fallback to the current tx. `action` is the symbol of the mutation to run if this tx fails due to
+  network or server errors (bad status codes)."
+  [{:keys [action]}]
+  ; placeholder...this function is never actually used. It is here for docstring support only. See the defmethod above
+  ; for actual implementation. Cannot use `defmutation`, because we have to derive the remote to target.
+  )
 
 (defn get-remotes
   "Returns the remote against which the given mutation will try to execute. Returns nil if it is not a remote mutation.
