@@ -90,11 +90,11 @@
   ; server-side
   (defmutation f [params]
     (action [env]
-       {:db/id 1 :item/value 42}))
+       {:db/id 1 :item/value 42})) ; ok to return one (a map) OR many (as a vector of maps)
   ```
 
   NOTE: At the time of this writing the query must come from a UI component that *has an ident*. Thus, mutations joins
-  essentially normalize something into a specific entity in your database (determined by the ID of the return
+  essentially normalize things into a specific table in your database (determined by the ID(s) of the return
   value and the ident on the query's component).
 
   ### Simpler Notation
