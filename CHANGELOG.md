@@ -1,3 +1,9 @@
+2.0.0-RC4
+---------
+- Added support for ::prim/ref in fallbacks
+- Refactored a bit of internal fallback logic
+- Tweaks to docs and demos
+
 2.0.0-RC3
 ---------
 - Documentation updates.
