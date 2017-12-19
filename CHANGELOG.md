@@ -1,3 +1,8 @@
+2.0.0-RC3
+---------
+- Documentation updates.
+- Removed old sanity check for load parameters.
+
 2.0.0-RC2
 ---------
 - History bug fixes: network activity completion was corrupting history
