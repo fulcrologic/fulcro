@@ -2055,6 +2055,10 @@ be changed to this:
 
 ==== Requesting Data from the Alternate Remote
 
+IMPORTANT NOTE: If you're using the dev cards, you might want to change `:inspect-data true` to `false`. Devcards get
+a bit slow if you put a lot of data in the app and ask the card to format it all in the inspector. In those cases
+it can be better to use Fulcro Inspect instead).
+
 All the hard stuff is done. Loading is now triggered just like you would have before, except with a `:remote` option
 to specify which network to talk over:
 
@@ -2089,3 +2093,4 @@ the mutation to be sent to that network handler.
 == The Complete Source
 
 For your convenince this complete application is at https://github.com/fulcrologic/fulcro-getting-started
+
