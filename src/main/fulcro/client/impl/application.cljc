@@ -24,7 +24,7 @@
   [{:keys [reconciler]} query]
   (fn [error]
     (swap! (prim/app-state reconciler) assoc :fulcro/server-error error)
-    (if-let [q (prim/fallback-query query error)]
+    (if-let [q (prim/fallback-tx query error)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
           (prim/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))

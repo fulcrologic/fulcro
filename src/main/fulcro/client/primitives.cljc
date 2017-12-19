@@ -1615,19 +1615,24 @@
         new-ast           (assoc ast :children new-children)]
     (ast->query new-ast)))
 
-(defn fallback-query [query resp]
-  "Filters out everything from the query that is not a fallback mutation.
-  Returns nil if the resulting expression is empty."
+(defn fallback-tx [tx resp]
+  "Filters out everything from the tx that is not a fallback mutation, and adds the given server
+  response to the parameters of the remaining fallbacks.
+
+  Returns the fallback tx, or nil if the resulting expression is empty.
+
+  tx is the original transaction.
+  resp is the response from the server."
   (let [symbols-to-find #{'tx/fallback 'fulcro.client.data-fetch/fallback}
-        ast             (query->ast query)
+        ast             (query->ast tx)
         children        (:children ast)
         new-children    (->> children
                           (filter (fn [child] (contains? symbols-to-find (:dispatch-key child))))
                           (map (fn [ast] (update ast :params assoc :execute true :error resp))))
         new-ast         (assoc ast :children new-children)
-        fallback-query  (ast->query new-ast)]
-    (when (not-empty fallback-query)
-      fallback-query)))
+        fallback-tx     (ast->query new-ast)]
+    (when (not-empty fallback-tx)
+      fallback-tx)))
 
 (defn- is-ui-query-fragment?
   "Check the given keyword to see if it is in the :ui namespace."

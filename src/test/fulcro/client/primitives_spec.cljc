@@ -436,7 +436,7 @@
 
 (specification "fallback-query"
   (behavior "extracts the fallback expressions of a query, adds execute flags, and includes errors in params"
-    (are [q q2] (= (prim/fallback-query q {:error 42}) q2)
+    (are [q q2] (= (prim/fallback-tx q {:error 42}) q2)
                 '[:a :b] nil
 
                 '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})]
