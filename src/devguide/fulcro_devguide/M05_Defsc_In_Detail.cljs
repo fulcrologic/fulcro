@@ -378,8 +378,8 @@
 
   The keys in the options map are:
 
-  - `:css` - The items to put in protocol method `css/local-rules`
-  - `:css-include` - The items to put in protocol method `css/include-children`
+  - `:css` - The items to put in protocol method `css/local-rules`. Can be pure garden data, or `(fn [] ...)`
+  - `:css-include` - The items to put in protocol method `css/include-children`. Can be a vector of classes, or `(fn [] ...)`
 
   Both are optional. If you use neither, then your code will not incur a dependency on the fulcro-css library.
 

@@ -280,14 +280,9 @@
   ```
   "
   [ast params]
-  (let [top-level-keys (set (map :dispatch-key (:children ast)))
-        param-keys     (set (keys params))
-        unknown-keys   (set/difference param-keys top-level-keys)]
-    (when (not (empty? unknown-keys))
-      (log/error (str "Error: You attempted to add parameters for " (pr-str unknown-keys) " to top-level key(s) of " (pr-str (prim/ast->query ast)))))
-    (update-in ast [:children] #(map (fn [c] (if-let [new-params (get params (:dispatch-key c))]
-                                               (update c :params merge new-params)
-                                               c)) %))))
+  (update-in ast [:children] #(map (fn [c] (if-let [new-params (get params (:dispatch-key c))]
+                                             (update c :params merge new-params)
+                                             c)) %)))
 
 
 (defn ready-state
