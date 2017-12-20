@@ -392,7 +392,9 @@
 (defmethod mutate 'tx/fallback [{:keys [target ast ref] :as env} _ {:keys [execute action] :as params}]
   (cond
     execute {:action #(fallback-action* env params)}
-    target {target (update ast :params assoc ::prim/ref ref)}
+    target {target (if ref
+                     (update ast :params assoc ::prim/ref ref)
+                     true)}
     :else nil))
 
 (defmethod mutate `fallback [env _ params] (mutate env 'tx/fallback params))

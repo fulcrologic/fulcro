@@ -6,8 +6,6 @@
             [fulcro.client.util :as util]
             [goog.object :as gobj]))
 
-(dom/gen-react-dom-fns)
-
 (defn- update-state
   "Updates the state of the wrapped input element."
   [component next-props value]
@@ -60,13 +58,7 @@
         (js/React.createElement element (.-state this))))
     (js/React.createFactory ctor)))
 
-(def input (wrap-form-element "input"))
-
-(def textarea (wrap-form-element "textarea"))
-
-(def option (wrap-form-element "option"))
-
-(def select (wrap-form-element "select"))
+(dom/gen-react-dom-fns)
 
 (defn render
   "Equivalent to React.render"
