@@ -288,7 +288,7 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [{:keys [ident field params remote without query post-mutation post-mutation-params fallback parallel refresh marker target env]
+  [{:keys [ident field params remote without query post-mutation post-mutation-params fallback parallel refresh marker target env initialize]
     :or   {remote :remote without #{} refresh [] marker true}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
@@ -311,6 +311,7 @@
      ::prim/query           query'                          ; query, relative to root of db OR component
      ::post-mutation        post-mutation
      ::post-mutation-params post-mutation-params
+     ::initialize           initialize
      ::refresh              refresh
      ::marker               marker
      ::parallel             parallel
@@ -498,6 +499,10 @@
   [reconciler]
   (fn [response items]
     (let [query               (full-query items)
+          ; each load marker could be marked with `::initialize true`, meaning we should use initial app state for the target
+          ; component to generate a base on which to merge response.
+          ; TODO: figure out if that is cleanly doable here, and if so, do it:
+          base-merge          {}
           loading-items       (into #{} (map set-loading! items))
           refresh-set         (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           marked-response     (prim/mark-missing response query)
