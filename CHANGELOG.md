@@ -3,8 +3,9 @@
 - Added support for ::prim/ref in fallbacks
 - Refactored a bit of internal fallback logic
 - Tweaks to docs and demos
-- DOM inputs (input, textarea, select, option) are now raw React elements
-  - Use JVM option `-DwrappedInputs` on compile/figwheel JVM to get Legacy Om Next wrapped inputs.
+- DOM inputs (input, textarea, select, option) have a raw mode with
+  JVM option `-DrawInputs`. This removes the legacy Om next-style wrappers
+  around the inputs. Opt-in for now. Will become the default in future versions.
 
 2.0.0-RC3
 ---------

@@ -155,15 +155,15 @@
          (cons ~(name tag) (cons opts# (cljs.core/map fulcro.util/force-children children#)))))))
 
 (defmacro ^:private gen-react-dom-fns []
-  (let [wrapped-inputs? (boolean (System/getProperty "wrappedInputs" nil))
-        tags            (if wrapped-inputs?
-                          tags
-                          (concat tags '[input textarea select option]))
-        extra-inputs    (when wrapped-inputs?
-                          '[(def input (wrap-form-element "input"))
-                            (def textarea (wrap-form-element "textarea"))
-                            (def option (wrap-form-element "option"))
-                            (def select (wrap-form-element "select"))])]
+  (let [raw-inputs?  (boolean (System/getProperty "rawInputs" nil))
+        tags         (if raw-inputs?
+                       (concat tags '[input textarea select option])
+                       tags)
+        extra-inputs (when-not raw-inputs?
+                       '[(def input (wrap-form-element "input"))
+                         (def textarea (wrap-form-element "textarea"))
+                         (def option (wrap-form-element "option"))
+                         (def select (wrap-form-element "select"))])]
     `(do
        ~@(clojure.core/map gen-react-dom-fn tags)
        ~@extra-inputs)))
