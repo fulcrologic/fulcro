@@ -553,44 +553,80 @@
                         :component-name ~(str name)}
                   ~class-methods))))))))
 
+(defn- gather-namespaced-protocol-calls
+  "Gather the protocol calls (with the correct namespace) from the static protocols on a defui."
+  [statics]
+  (:calls
+    (reduce (fn [{:keys [current-ns] :as acc} entry]
+              (cond
+                (and current-ns
+                  (list? entry)) (update acc :calls conj
+                                   (list (symbol current-ns (-> entry first name))
+                                     (rest entry)))
+                (list? entry) (update acc :calls conj entry)
+                (symbol? entry) (assoc acc :current-ns (namespace entry))
+                :else acc)) {:current-ns nil :calls []} (:protocols statics))))
+
+(defn- build-noop-static-calls
+  "Builds a list of calls to defui static protocol methods to prevent Closure adv compile from removing them"
+  [className static-methods]
+  (map (fn [call]
+         (let [multi-arity? (list? (second call))
+               nm           (first call)
+               args         (if multi-arity?
+                              (-> call second first)
+                              (second call))
+               arity        (count args)
+               extra-args   (repeat (dec arity) nil)
+               args         (cons className extra-args)
+               noop-call    (cons nm args)]
+           noop-call)) static-methods))
+
 (defn defui*
   ([name form] (defui* name form nil))
   ([name forms env]
    (letfn [(field-set! [obj [field value]]
              `(set! (. ~obj ~(symbol (str "-" field))) ~value))]
-     (let [docstring        (when (string? (first forms))
-                              (first forms))
-           forms            (cond-> forms
-                              docstring rest)
+     (let [docstring         (when (string? (first forms))
+                               (first forms))
+           forms             (cond-> forms
+                               docstring rest)
            {:keys [dt statics]} (collect-statics forms)
-           _                (validate-statics dt)
-           fqn              (if env
-                              (symbol (-> env :ns :name str) (str name))
-                              name)
-           ctor             `(defn ~(with-meta name
-                                      (merge {:jsdoc ["@constructor"]}
-                                        (meta name)
-                                        (when docstring
-                                          {:doc docstring})))
-                               []
-                               (this-as this#
-                                 (.apply js/React.Component this# (js-arguments))
-                                 (if-not (nil? (.-initLocalState this#))
-                                   (set! (.-state this#) (.initLocalState this#))
-                                   (set! (.-state this#) (cljs.core/js-obj)))
-                                 this#))
-           set-react-proto! `(set! (.-prototype ~name)
-                               (goog.object/clone js/React.Component.prototype))
-           ctor             (if (-> name meta :once)
-                              `(when-not (cljs.core/exists? ~name)
-                                 ~ctor
-                                 ~set-react-proto!)
-                              `(do
-                                 ~ctor
-                                 ~set-react-proto!))
-           display-name     (if env
-                              (str (-> env :ns :name) "/" name)
-                              'js/undefined)]
+           _                 (validate-statics dt)
+           fqn               (if env
+                               (symbol (-> env :ns :name str) (str name))
+                               name)
+           ctor              `(defn ~(with-meta name
+                                       (merge {:jsdoc ["@constructor"]}
+                                         (meta name)
+                                         (when docstring
+                                           {:doc docstring})))
+                                []
+                                (this-as this#
+                                  (.apply js/React.Component this# (js-arguments))
+                                  (if-not (nil? (.-initLocalState this#))
+                                    (set! (.-state this#) (.initLocalState this#))
+                                    (set! (.-state this#) (cljs.core/js-obj)))
+                                  this#))
+           set-react-proto!  `(set! (.-prototype ~name)
+                                (goog.object/clone js/React.Component.prototype))
+           ctor              (if (-> name meta :once)
+                               `(when-not (cljs.core/exists? ~name)
+                                  ~ctor
+                                  ~set-react-proto!)
+                               `(do
+                                  ~ctor
+                                  ~set-react-proto!))
+           display-name      (if env
+                               (str (-> env :ns :name) "/" name)
+                               'js/undefined)
+           static-methods    (gather-namespaced-protocol-calls statics)
+           noop-static-calls (build-noop-static-calls name static-methods)
+           closure-fix       (if (seq noop-static-calls)
+                               [`(try
+                                   ~@noop-static-calls
+                                   (catch :default ~'e))]
+                               [])]
        `(do
           ~ctor
           (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
@@ -607,8 +643,7 @@
           (set! (.-cljs$lang$ctorPrWriter ~name)
             (fn [this# writer# opt#]
               (cljs.core/-write writer# ~(str fqn))))
-          ;; TODO: here is where we could emit uses of the statics in a try/catch so the Closure will not collapse them
-          )))))
+          ~@closure-fix)))))
 
 (defmacro defui [name & forms]
   (if (boolean (:ns &env))
@@ -619,7 +654,6 @@
   [& forms]
   (let [t (with-meta (gensym "ui_") {:anonymous true})]
     `(do (defui ~t ~@forms) ~t)))
-
 
 ;; =============================================================================
 ;; Globals & Dynamics
@@ -2749,64 +2783,6 @@
         (transact! reconciler tx)                           ; against reconciler, because we need to re-render from root
         (p/reindex! reconciler))
       (log/error "Unable to set query. Invalid arguments."))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; DRAGONS BE HERE: The following code HACKS the cljs compiler to add an annotation so that
-; statics do not get removed from the defui components.
-; FIXME: It would be nice to figure out how to get this to work without the hack.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#?(:clj
-   (defn- add-proto-methods* [pprefix type type-sym [f & meths :as form]]
-     (let [pf          (str pprefix (name f))
-           emit-static (when (-> type-sym meta :static)
-                         `(~'js* "/** @nocollapse */"))]
-       (if (vector? (first meths))
-         ;; single method case
-         (let [meth meths]
-           [`(do
-               ~emit-static
-               (set! ~(#'cljs.core/extend-prefix type-sym (str pf "$arity$" (count (first meth))))
-                 ~(with-meta `(fn ~@(#'cljs.core/adapt-proto-params type meth)) (meta form))))])
-         (map (fn [[sig & body :as meth]]
-                `(do
-                   ~emit-static
-                   (set! ~(#'cljs.core/extend-prefix type-sym (str pf "$arity$" (count sig)))
-                     ~(with-meta `(fn ~(#'cljs.core/adapt-proto-params type meth)) (meta form)))))
-           meths)))))
-
-#?(:clj (intern 'cljs.core 'add-proto-methods* add-proto-methods*))
-
-#?(:clj
-   (defn- proto-assign-impls [env resolve type-sym type [p sigs]]
-     (#'cljs.core/warn-and-update-protocol p type env)
-     (let [psym        (resolve p)
-           pprefix     (#'cljs.core/protocol-prefix psym)
-           skip-flag   (set (-> type-sym meta :skip-protocol-flag))
-           static?     (-> p meta :static)
-           type-sym    (cond-> type-sym
-                         static? (vary-meta assoc :static true))
-           emit-static (when static?
-                         `(~'js* "/** @nocollapse */"))]
-       (if (= p 'Object)
-         (#'cljs.core/add-obj-methods type type-sym sigs)
-         (concat
-           (when-not (skip-flag psym)
-             (let [{:keys [major minor qualifier]} cljs.util/*clojurescript-version*]
-               (if (and (== major 1) (== minor 9) (>= qualifier 293))
-                 [`(do
-                     ~emit-static
-                     (set! ~(#'cljs.core/extend-prefix type-sym pprefix) cljs.core/PROTOCOL_SENTINEL))]
-                 [`(do
-                     ~emit-static
-                     (set! ~(#'cljs.core/extend-prefix type-sym pprefix) true))])))
-           (mapcat
-             (fn [sig]
-               (if (= psym 'cljs.core/IFn)
-                 (#'cljs.core/add-ifn-methods type type-sym sig)
-                 (#'cljs.core/add-proto-methods* pprefix type type-sym sig)))
-             sigs))))))
-
-#?(:clj (intern 'cljs.core 'proto-assign-impls proto-assign-impls))
 
 (defn pessimistic-transaction->transaction
   "Converts a sequence of calls as if each call should run in sequence (deferring even the optimistic side until

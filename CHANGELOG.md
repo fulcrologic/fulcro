@@ -6,6 +6,9 @@
 - DOM inputs (input, textarea, select, option) have a raw mode with
   JVM option `-DrawInputs`. This removes the legacy Om next-style wrappers
   around the inputs. Opt-in for now. Will become the default in future versions.
+- Removed the cljs compiler hack for adv optimization. Fixed it in a way that is localized to Fulcro. This
+fixes the madness with needing a production profile to build adv builds!
+- Added support for `:initialize` option to load. Not documented yet.
 
 2.0.0-RC3
 ---------
