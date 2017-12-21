@@ -22,6 +22,8 @@ Latest version on Clojars: image:https://img.shields.io/clojars/v/fulcrologic/fu
 Latest Release: image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"]
 Development Snapshot: image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"]
 
+*NOTE*: If you are using Java 9, you may need to include "--add-modules java.xml.bind" to your JVM.
+
 ## Writing Applications with Fulcro
 
 The https://fulcrologic.github.io/fulcro[website] is a great place to read about
