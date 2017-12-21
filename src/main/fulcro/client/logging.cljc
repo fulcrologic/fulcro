@@ -66,5 +66,3 @@
           [& data]
           (glog/error *logger* (apply str (interpose " " data))))
    :clj (defn error [& data] (timbre/error (apply str (interpose " " data)))))
-
-

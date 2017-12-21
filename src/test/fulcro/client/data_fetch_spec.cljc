@@ -100,9 +100,18 @@
           #{:console}))
       => [{:current-tab {:panel [:data] :dashboard [:data]}}])))
 
+(defsc InitTestChild [this props]
+  {:query         [:y]
+   :ident         [:child/by-id :y]
+   :initial-state {:y 2}})
+
+(defsc InitTestComponent [this props]
+  {:initial-state {:x 1 :z :param/z :child {}}
+   :ident         [:parent/by-id :x]
+   :query         [:x :z {:child (prim/get-query InitTestChild)}]})
 
 #?(:cljs
-   (specification "Load parameters"
+   (specification "Load parameters" :focused
      (let [query-with-params       (:query (df/load-params* :prop Person {:params {:n 1}}))
            ident-query-with-params (:query (df/load-params* [:person/by-id 1] Person {:params {:n 1}}))]
        (assertions
@@ -134,7 +143,15 @@
          "Honors legacy way of specifying parameters"
          (-> state-marker-legacy ::prim/query) => '[({:x [:a]} {:p 2})]
          "Honors simpler way of specifying parameters"
-         (-> state-marker-new ::prim/query) => '[({:x [:a]} {:p 2})]))))
+         (-> state-marker-new ::prim/query) => '[({:x [:a]} {:p 2})]))
+     (behavior "When initialize is:"
+       (let [params                  (df/load-params* :root/comp InitTestComponent {:initialize true})
+             params-with-init-params (df/load-params* :root/comp InitTestComponent {:initialize {:z 42}})]
+         (assertions
+           "true: load params get initial state for component"
+           (:initialize params) => {:root/comp {:x 1 :child {:y 2}}}
+           "a map: load params get that map as the initial state of the component"
+           (:initialize params-with-init-params) => {:root/comp {:z 42}})))))
 
 (specification "Load auto-refresh"
   (component "computed-refresh"
@@ -435,6 +452,26 @@
            (get-in @state (dfi/data-path item) :fail) => nil
            "Updates the global loading marker"
            @globally-marked => true)))))
+
+#?(:cljs
+   (specification "Query Response with :initialize (load ... {:initialize true})" :focused
+     (let [item      (dfi/set-loading! (dfi/ready-state (df/load-params* :root/comp InitTestComponent {:initialize true})))
+           state     (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}})
+           items     [item]
+           loaded-cb (#'dfi/loaded-callback :reconciler)
+           response  {:root/comp {:z 55 :child {:y 77}}}]
+       (when-mocking
+         (prim/app-state r) => state
+         (prim/get-history r) => (atom empty-history)
+         (prim/merge! r resp query) => (do
+                                         (assertions
+                                           "Response is deep merged with initialized data before being merged with app state"
+                                           resp => {:root/comp {:x 1 :z 55 :child {:y 77}}}))
+         (util/force-render r ks) => nil
+         (dfi/tick! r) => nil
+         (dfi/set-global-loading! r) => nil
+
+         (loaded-cb response items)))))
 
 #?(:cljs
    (specification "Query response processing (loaded-callback with no post-mutations)"
