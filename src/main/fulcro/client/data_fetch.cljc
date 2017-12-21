@@ -56,7 +56,7 @@
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation post-mutation-params
                                                   fallback remote without initialize]
-                                           :or   {remote :remote marker true parallel false refresh [] without #{}
+                                           :or   {remote     :remote marker true parallel false refresh [] without #{}
                                                   initialize false}}]
   {:pre [(or (nil? target) (vector? target))
          (or (nil? marker) (bool? marker) (keyword? marker))
@@ -80,7 +80,8 @@
      :without              without
      :post-mutation        post-mutation
      :post-mutation-params post-mutation-params
-     :initialize           initialize
+     :initialize           (when (and initialize SubqueryClass server-property-or-ident (prim/has-initial-app-state? SubqueryClass))
+                             {server-property-or-ident (prim/get-initial-state SubqueryClass (if (map? initialize) initialize {}))})
      :refresh              (computed-refresh refresh server-property-or-ident target)
      :marker               marker
      :parallel             parallel

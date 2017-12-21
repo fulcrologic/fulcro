@@ -499,10 +499,11 @@
   [reconciler]
   (fn [response items]
     (let [query               (full-query items)
-          ; each load marker could be marked with `::initialize true`, meaning we should use initial app state for the target
-          ; component to generate a base on which to merge response.
-          ; TODO: figure out if that is cleanly doable here, and if so, do it:
-          base-merge          {}
+          base-merge          (reduce (fn [initial-state item]
+                                        (if-let [item-tree (::initialize item)]
+                                          (merge initial-state item-tree)
+                                          initial-state)) {} items)
+          response            (util/deep-merge base-merge response)
           loading-items       (into #{} (map set-loading! items))
           refresh-set         (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           marked-response     (prim/mark-missing response query)
