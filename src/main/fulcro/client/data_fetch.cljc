@@ -80,8 +80,11 @@
      :without              without
      :post-mutation        post-mutation
      :post-mutation-params post-mutation-params
-     :initialize           (when (and initialize SubqueryClass server-property-or-ident (prim/has-initial-app-state? SubqueryClass))
-                             {server-property-or-ident (prim/get-initial-state SubqueryClass (if (map? initialize) initialize {}))})
+     :initialize           (when (and initialize SubqueryClass server-property-or-ident)
+                             {server-property-or-ident (cond
+                                                         (map? initialize) initialize
+                                                         (and initialize (prim/has-initial-app-state? SubqueryClass)) (prim/get-initial-state SubqueryClass {})
+                                                         :else {})})
      :refresh              (computed-refresh refresh server-property-or-ident target)
      :marker               marker
      :parallel             parallel

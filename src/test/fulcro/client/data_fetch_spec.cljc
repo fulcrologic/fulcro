@@ -150,8 +150,8 @@
          (assertions
            "true: load params get initial state for component"
            (:initialize params) => {:root/comp {:x 1 :child {:y 2}}}
-           "a map: load params get initial state for component using the map as params"
-           (:initialize params-with-init-params) => {:root/comp {:x 1 :z 42 :child {:y 2}}})))))
+           "a map: load params get that map as the initial state of the component"
+           (:initialize params-with-init-params) => {:root/comp {:z 42}})))))
 
 (specification "Load auto-refresh"
   (component "computed-refresh"
