@@ -587,41 +587,45 @@
   ([name forms env]
    (letfn [(field-set! [obj [field value]]
              `(set! (. ~obj ~(symbol (str "-" field))) ~value))]
-     (let [docstring        (when (string? (first forms))
-                              (first forms))
-           forms            (cond-> forms
-                              docstring rest)
+     (let [docstring         (when (string? (first forms))
+                               (first forms))
+           forms             (cond-> forms
+                               docstring rest)
            {:keys [dt statics]} (collect-statics forms)
-           _                (validate-statics dt)
-           fqn              (if env
-                              (symbol (-> env :ns :name str) (str name))
-                              name)
-           ctor             `(defn ~(with-meta name
-                                      (merge {:jsdoc ["@constructor"]}
-                                        (meta name)
-                                        (when docstring
-                                          {:doc docstring})))
-                               []
-                               (this-as this#
-                                 (.apply js/React.Component this# (js-arguments))
-                                 (if-not (nil? (.-initLocalState this#))
-                                   (set! (.-state this#) (.initLocalState this#))
-                                   (set! (.-state this#) (cljs.core/js-obj)))
-                                 this#))
-           set-react-proto! `(set! (.-prototype ~name)
-                               (goog.object/clone js/React.Component.prototype))
-           ctor             (if (-> name meta :once)
-                              `(when-not (cljs.core/exists? ~name)
-                                 ~ctor
-                                 ~set-react-proto!)
-                              `(do
-                                 ~ctor
-                                 ~set-react-proto!))
-           display-name     (if env
-                              (str (-> env :ns :name) "/" name)
-                                       'js/undefined)
-           static-methods   (gather-namespaced-protocol-calls statics)
-           noop-static-calls (build-noop-static-calls name static-methods)]
+           _                 (validate-statics dt)
+           fqn               (if env
+                               (symbol (-> env :ns :name str) (str name))
+                               name)
+           ctor              `(defn ~(with-meta name
+                                       (merge {:jsdoc ["@constructor"]}
+                                         (meta name)
+                                         (when docstring
+                                           {:doc docstring})))
+                                []
+                                (this-as this#
+                                  (.apply js/React.Component this# (js-arguments))
+                                  (if-not (nil? (.-initLocalState this#))
+                                    (set! (.-state this#) (.initLocalState this#))
+                                    (set! (.-state this#) (cljs.core/js-obj)))
+                                  this#))
+           set-react-proto!  `(set! (.-prototype ~name)
+                                (goog.object/clone js/React.Component.prototype))
+           ctor              (if (-> name meta :once)
+                               `(when-not (cljs.core/exists? ~name)
+                                  ~ctor
+                                  ~set-react-proto!)
+                               `(do
+                                  ~ctor
+                                  ~set-react-proto!))
+           display-name      (if env
+                               (str (-> env :ns :name) "/" name)
+                               'js/undefined)
+           static-methods    (gather-namespaced-protocol-calls statics)
+           noop-static-calls (build-noop-static-calls name static-methods)
+           closure-fix       (when (seq noop-static-calls)
+                               `(try
+                                  ~@noop-static-calls
+                                  (catch :default ~'e)))]
        `(do
           ~ctor
           (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
@@ -638,10 +642,7 @@
           (set! (.-cljs$lang$ctorPrWriter ~name)
             (fn [this# writer# opt#]
               (cljs.core/-write writer# ~(str fqn))))
-          ;; TODO: here is where we could emit uses of the statics in a try/catch so the Closure will not collapse them
-          (try
-            ~@noop-static-calls
-            (catch :default ~'e)))))))
+          ~closure-fix)))))
 
 (defmacro defui [name & forms]
   (if (boolean (:ns &env))
