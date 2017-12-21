@@ -5,6 +5,9 @@
 - Tweaks to docs and demos
 - DOM inputs (input, textarea, select, option) are now raw React elements
   - Use JVM option `-DwrappedInputs` on compile/figwheel JVM to get Legacy Om Next wrapped inputs.
+- Removed the cljs compiler hack for adv optimization. Fixed it in a way that is localized to Fulcro. This
+fixes the madness with needing a production profile to build adv builds!
+- Added support for `:initialize` option to load. Not documented yet.
 
 2.0.0-RC3
 ---------
