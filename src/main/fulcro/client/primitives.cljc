@@ -553,6 +553,35 @@
                         :component-name ~(str name)}
                   ~class-methods))))))))
 
+(defn- gather-namespaced-protocol-calls
+  "Gather the protocol calls (with the correct namespace) from the static protocols on a defui."
+  [statics]
+  (:calls
+    (reduce (fn [{:keys [current-ns] :as acc} entry]
+              (cond
+                (and current-ns
+                  (list? entry)) (update acc :calls conj
+                                   (list (symbol current-ns (-> entry first name))
+                                     (rest entry)))
+                (list? entry) (update acc :calls conj entry)
+                (symbol? entry) (assoc acc :current-ns (namespace entry))
+                :else acc)) {:current-ns nil :calls []} (:protocols statics))))
+
+(defn- build-noop-static-calls
+  "Builds a list of calls to defui static protocol methods to prevent Closure adv compile from removing them"
+  [className static-methods]
+  (map (fn [call]
+         (let [multi-arity? (list? (second call))
+               nm           (first call)
+               args         (if multi-arity?
+                              (-> call second first)
+                              (second call))
+               arity        (count args)
+               extra-args   (repeat (dec arity) nil)
+               args         (cons className extra-args)
+               noop-call    (cons nm args)]
+           noop-call)) static-methods))
+
 (defn defui*
   ([name form] (defui* name form nil))
   ([name forms env]
@@ -591,26 +620,8 @@
            display-name     (if env
                               (str (-> env :ns :name) "/" name)
                                        'js/undefined)
-           {static-methods :calls} (reduce (fn [{:keys [current-ns] :as acc} entry]
-                                             (cond
-                                               (and current-ns
-                                                 (list? entry)) (update acc :calls conj
-                                                                  (list (symbol current-ns (-> entry first clojure.core/name))
-                                                                    (rest entry)))
-                                               (list? entry) (update acc :calls conj entry)
-                                               (symbol? entry) (assoc acc :current-ns (namespace entry))
-                                               :else acc)) {:current-ns nil :calls []} (:protocols statics))
-           no-op-static-method-calls (map (fn [call]
-                                            (let [multi-arity? (list? (second call))
-                                                  nm           (first call)
-                                                  args         (if multi-arity?
-                                                                 (-> call second first)
-                                                                 (second call))
-                                                  arity        (count args)
-                                                  extra-args   (repeat (dec arity) nil)
-                                                  args         (cons name extra-args)
-                                                  noop-call    (cons nm args)]
-                                              noop-call)) static-methods)]
+           static-methods   (gather-namespaced-protocol-calls statics)
+           noop-static-calls (build-noop-static-calls name static-methods)]
        `(do
           ~ctor
           (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
@@ -629,7 +640,7 @@
               (cljs.core/-write writer# ~(str fqn))))
           ;; TODO: here is where we could emit uses of the statics in a try/catch so the Closure will not collapse them
           (try
-            ~@no-op-static-method-calls
+            ~@noop-static-calls
             (catch :default ~'e)))))))
 
 (defmacro defui [name & forms]
