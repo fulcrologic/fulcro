@@ -622,10 +622,11 @@
                                'js/undefined)
            static-methods    (gather-namespaced-protocol-calls statics)
            noop-static-calls (build-noop-static-calls name static-methods)
-           closure-fix       (when (seq noop-static-calls)
-                               `(try
-                                  ~@noop-static-calls
-                                  (catch :default ~'e)))]
+           closure-fix       (if (seq noop-static-calls)
+                               [`(try
+                                   ~@noop-static-calls
+                                   (catch :default ~'e))]
+                               [])]
        `(do
           ~ctor
           (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
@@ -642,7 +643,7 @@
           (set! (.-cljs$lang$ctorPrWriter ~name)
             (fn [this# writer# opt#]
               (cljs.core/-write writer# ~(str fqn))))
-          ~closure-fix)))))
+          ~@closure-fix)))))
 
 (defmacro defui [name & forms]
   (if (boolean (:ns &env))

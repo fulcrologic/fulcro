@@ -1915,7 +1915,8 @@
     (prim/has-ident? AIdent) => true))
 
 #?(:clj (specification "defui advanced compile"
-          (assertions "Avoids removal of statics by calling all arities of them via the class"
+          (assertions
+            "Avoids removal of statics by calling all arities of them via the class"
             (last (prim/defui* 'Boo '(static prim/IQuery
                                        (query [this] [:a])
                                        (query [this arg] [:b])
@@ -1928,4 +1929,9 @@
                   (prim/query Boo nil)
                   (bah Boo nil nil)
                   (prim/ident Boo nil)
-                  (catch :default e)))))
+                  (catch :default e))
+
+            "Elides the try/catch where there are no static protocols"
+            (not= 'try (first (last (prim/defui* 'Boo '(Object
+                                                         (render [this] [:x 1])) nil))))
+            => true)))
