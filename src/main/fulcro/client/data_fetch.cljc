@@ -5,7 +5,7 @@
     [fulcro.client.primitives :as prim]
     [fulcro.client.impl.data-fetch :as impl]
     [fulcro.client.impl.data-targeting :as targeting]
-    [fulcro.client.mutations :refer [mutate defmutation]]
+    [fulcro.client.mutations :as m :refer [mutate defmutation]]
     [fulcro.client.logging :as log]
     [fulcro.client.dom :as dom]
     [fulcro.client :as fc]
@@ -55,8 +55,9 @@
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation post-mutation-params
-                                                  fallback remote without]
-                                           :or   {remote :remote marker true parallel false refresh [] without #{}}}]
+                                                  fallback remote without initialize]
+                                           :or   {remote     :remote marker true parallel false refresh [] without #{}
+                                                  initialize false}}]
   {:pre [(or (nil? target) (vector? target))
          (or (nil? marker) (bool? marker) (keyword? marker))
          (or (nil? post-mutation) (symbol? post-mutation))
@@ -79,6 +80,11 @@
      :without              without
      :post-mutation        post-mutation
      :post-mutation-params post-mutation-params
+     :initialize           (when (and initialize SubqueryClass server-property-or-ident)
+                             {server-property-or-ident (cond
+                                                         (map? initialize) initialize
+                                                         (and initialize (prim/has-initial-app-state? SubqueryClass)) (prim/get-initial-state SubqueryClass {})
+                                                         :else {})})
      :refresh              (computed-refresh refresh server-property-or-ident target)
      :marker               marker
      :parallel             parallel
@@ -118,6 +124,9 @@
     Can also be special targets (multiple-targets, append-to,
     prepend-to, or replace-at). If you are loading by keyword (into root), then this relocates the result (ident or value) after load.
     When loading an entity (by ident), then this option will place additional idents at the target path(s) that point to that entity.
+  - `initialize` - Optional. If `true`, uses `get-initial-state` on SubqueryClass to  get a basis for merge of the result. This allows you
+    to use initial state to pre-populate loads with things like UI concerns. If `:initialize` is passed a map, then it uses that as
+    the base target merge value for SubqueryClass instead.
   - `remote` - Optional. Keyword name of the remote that this load should come from.
   - `params` - Optional parameters to add to the generated query
   - `marker` - Boolean to determine if you want a fetch-state marker in your app state. Defaults to true. Add `:ui/fetch-state` to the
@@ -389,19 +398,23 @@
 ; A mutation that requests the installation of a fallback mutation on a transaction that should run if that transaction
 ; fails in a 'hard' way (e.g. network/server error). Data-related error handling should either be implemented as causing
 ; such a hard error, or as a post-mutation step.
-(defmethod mutate 'tx/fallback [env _ {:keys [execute] :as params}]
-  (if execute
-    {:action #(fallback-action* env params)}
-    {:remote true}))
+(defmethod mutate 'tx/fallback [{:keys [target ast ref] :as env} _ {:keys [execute action] :as params}]
+  (cond
+    execute {:action #(fallback-action* env params)}
+    target {target (if ref
+                     (update ast :params assoc ::prim/ref ref)
+                     true)}
+    :else nil))
 
-(defmutation fallback
-  "mutation: Add a fallback for network failures to the transaction.
+(defmethod mutate `fallback [env _ params] (mutate env 'tx/fallback params))
 
-  Parameters:
-  `action` - The symbol of the mutation to run on error."
-  [{:keys [action] :as params}]
-  (action [env] (when (:execute params) (fallback-action* env params)))
-  (remote [env] (not (:execute params))))
+(defn fallback
+  "Mutation: Add a fallback to the current tx. `action` is the symbol of the mutation to run if this tx fails due to
+  network or server errors (bad status codes)."
+  [{:keys [action]}]
+  ; placeholder...this function is never actually used. It is here for docstring support only. See the defmethod above
+  ; for actual implementation. Cannot use `defmutation`, because we have to derive the remote to target.
+  )
 
 (defn get-remotes
   "Returns the remote against which the given mutation will try to execute. Returns nil if it is not a remote mutation.

@@ -90,11 +90,11 @@
   ; server-side
   (defmutation f [params]
     (action [env]
-       {:db/id 1 :item/value 42}))
+       {:db/id 1 :item/value 42})) ; ok to return one (a map) OR many (as a vector of maps)
   ```
 
   NOTE: At the time of this writing the query must come from a UI component that *has an ident*. Thus, mutations joins
-  essentially normalize something into a specific entity in your database (determined by the ID of the return
+  essentially normalize things into a specific table in your database (determined by the ID(s) of the return
   value and the ident on the query's component).
 
   ### Simpler Notation
@@ -133,6 +133,42 @@
   This makes the mutation join an artifact of the protocol, and less for you to manually code (and read) in the UI.
 
   The server-side code is the same for both: just return a proper graph value!
+
+  ### Targeting Return Values From Mutation Joins
+
+  There is an additional helper you can use in your mutation to indicate that the given mutation return value
+  should be further integrated into your app state. By default, you're just returning an entity. The data gets
+  normalized, but there is no further linkage into your app state.
+
+  You will commonly want to pepper idents around your app state as a result of the return. You can add this
+  kind of targeting through the AST in the remote (not available at the UI layer):
+
+  ```
+  (defmutation f [params]
+    (action [env] ...)
+    (remote [{:keys [ast state]}]
+      (-> ast
+        (m/returning state Item)
+        (m/with-target [:path :to :field])))
+  ```
+
+  Special targets are also supported:
+
+  ```
+  (defmutation f [params]
+    (action [env] ...)
+    (remote [{:keys [ast state]}]
+      (-> ast
+        (m/returning state Item) ; Returns something of type Item, will merge/normalize
+        (m/with-target           ; Place the ident pointing to the loaded item in app state at additional locations
+          (df/multiple-targets
+            (df/append-to [:table 3 :field])
+            (df/prepend-to [:table-2 4 :field]))))))
+  ```
+
+  See [Basic Loading](#!/fulcro_devguide.H05_Basic_Loading) for more details on targeting.
+
+  There are also [demos in the main Fulcro github repository](https://github.com/fulcrologic/fulcro/blob/2.0.0-RC3/src/demos/cards/server_targeting_return_values_into_app_state.cljc#L55).
 
   ## What's Next?
 

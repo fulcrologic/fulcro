@@ -27,7 +27,7 @@
     "is the smalled tx time from the active remotes"
     (hist/oldest-active-network-request (assoc empty-history ::hist/active-remotes {:a #{5 7} :b #{3 42}})) => 3))
 
-(specification "Garbage collecting history" :focused
+(specification "Garbage collecting history"
   (let [steps                           {1 mock-step 2 mock-step 3 mock-step 4 mock-step 5 mock-step 6 mock-step}
         history                         (assoc empty-history ::hist/history-steps steps)
         history-with-active-remotes     (assoc history ::hist/max-size 3 ::hist/active-remotes {:a #{3 6}})
@@ -66,7 +66,7 @@
       "Is the largest of the recorded tx time in history"
       (hist/last-tx-time history) => 5)))
 
-(specification "Recording history steps" :focused
+(specification "Recording history steps"
   (let [time      14
         history   (hist/record-history-step empty-history time mock-step)
         history-1 (hist/record-history-step (assoc empty-history ::hist/max-size 100) time mock-step)

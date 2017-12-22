@@ -24,7 +24,7 @@
   [{:keys [reconciler]} query]
   (fn [error]
     (swap! (prim/app-state reconciler) assoc :fulcro/server-error error)
-    (if-let [q (prim/fallback-query query error)]
+    (if-let [q (prim/fallback-tx query error)]
       (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
           (prim/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
@@ -92,6 +92,10 @@
             full-remote-transaction  (get remote-tx-map remote)
             refresh-set              (or (some-> full-remote-transaction meta ::prim/refresh vec) [])
             tx-time                  (some-> full-remote-transaction meta ::hist/tx-time)
+            ; IMPORTANT: fallbacks claim to be on every remote (otherwise we have to make much more complicated logic about
+            ; the tx submission in transact and parsing). So, you will get a fallback handler for every **defined** remote.
+            ; The remove-loads-and-fallbacks will return an empty list if all there are is fallbacks, keeping us from submitting
+            ; a tx that contains only fallbacks.
             fallback                 (fallback-handler app full-remote-transaction)
             desired-remote-mutations (prim/remove-loads-and-fallbacks full-remote-transaction)
             tx-list                  (split-mutations desired-remote-mutations)

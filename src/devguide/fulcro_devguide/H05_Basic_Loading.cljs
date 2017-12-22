@@ -188,6 +188,27 @@
   - `:fallback` - A mutation to run if the server throws an error during the load.
   - `:without` - A set of keywords to elide from the query. Covered in Incremental Loading.
   - `:params` - A map. If supplied the params will appear as the params of the query on the server.
+  - `:initialize bool|map` - If true, uses component's initial state as a basis for incoming merge.
+    If a map, uses the map as the basis for incoming merge.
+
+  ### Initializing Loaded Items
+
+  On occasion you may find that your entities have `:ui/???` attributes that you would like to
+  default to something on a loaded entity. This is the purpose of the `:initialize` option to load.
+  If it is set to `true`, then `load` will call `get-initial-state` on the component of the
+  load, and merge the return value from the server into that before merging it to app state.
+
+  Alternatively, you can pass `:initialize` a map, and that will be used as the target for
+  the server response merge before normalizing the result into app state.
+
+  NOTE: The value of `:initialize` must either be `true` or a map *that matches the correct
+  shape of the component's sub-tree of data*. It must *not* be a normalized database fragment.
+
+  The steps are:
+
+  1. Send the request
+  2. Merge the response into the basis defined by `:initialize`.
+  3. Merge the result of (2) into the database using the component's query (auto-normalize)
 
   ## What's Next?
 

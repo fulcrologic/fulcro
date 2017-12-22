@@ -25,7 +25,7 @@
 (server/defmutation ^{:intern server-create-entity} create-entity [{:keys [db/id]}]
   (action [env]
     (let [real-id (swap! ids inc)]
-      {:db/id        (swap! ids inc)
+      {:db/id        real-id
        :entity/label (str "Entity " real-id)
        :tempids      {id real-id}})))
 
@@ -73,10 +73,10 @@
   {:query         [:db/id :error-message {:children (prim/get-query Entity)}]
    :initial-state {:db/id :param/id :children []}
    :ident         [:item/by-id :db/id]}
-  (dom/div (clj->js {:style {:float   :left
-                             :width "200px"
+  (dom/div (clj->js {:style {:float  :left
+                             :width  "200px"
                              :margin "5px"
-                             :border  "1px solid black"}})
+                             :border "1px solid black"}})
     (dom/h4 nil (str "Item " id))
     (when error-message
       (dom/div nil "The generated error was: " (pr-str error-message)))

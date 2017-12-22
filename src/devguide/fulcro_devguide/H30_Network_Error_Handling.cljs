@@ -233,9 +233,10 @@
   ```
 
   ```
-  (require [fulcro.client.mutations :refer [mutate]])
+  (require [fulcro.client.mutations :refer [mutate]]
+           [fulcro.client.primitives :as prim)
 
-  (defmutation handle-failure [{:keys [error] :as params}]
+  (defmutation handle-failure [{:keys [error ::prim/ref] :as params}]
     ;; fallback mutations are designed to recover the client-side app state from server failures
     ;; THEY DO NOT CHECK FOR REMOTE. You cannot chain a remote interaction in a fallback.
     (action [{:keys [state]}]
@@ -246,6 +247,9 @@
   then the fallback action's mutation symbol (a dispatch key for mutate) is invoked on the
   client with params that include an `:error` key that includes the details of the server exception (error type, message,
   and ex-info's data). Be sure to only include serializable data in the server exception!
+
+  If triggered due to a *mutation* fallback (not load), then the fallback will also receive the ident of the component
+  that invoked the original transaction in parameters under the key `fulcro.client.primitives/ref`.
 
   You can have any number of fallbacks in a tx, and they will run in order if the transaction fails.
 

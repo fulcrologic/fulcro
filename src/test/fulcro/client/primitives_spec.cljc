@@ -421,9 +421,7 @@
       (count (get @index-atom :u2)) => 1
       (count (get @index-atom :L)) => 1
       (count (get @index-atom :M)) => 1
-      (count (get @index-atom :union)) => 1
-
-      )))
+      (count (get @index-atom :union)) => 1)))
 
 (specification "remove-loads-and-fallbacks"
   (behavior "Removes top-level mutations that use the fulcro/load or tx/fallback symbols"
@@ -436,7 +434,7 @@
 
 (specification "fallback-query"
   (behavior "extracts the fallback expressions of a query, adds execute flags, and includes errors in params"
-    (are [q q2] (= (prim/fallback-query q {:error 42}) q2)
+    (are [q q2] (= (prim/fallback-tx q {:error 42}) q2)
                 '[:a :b] nil
 
                 '[:a {:j [:a]} (f) (fulcro/load {:x 1}) (app/l) (tx/fallback {:a 3})]
@@ -1916,3 +1914,24 @@
     (prim/has-ident? AState) => false
     (prim/has-ident? AIdent) => true))
 
+#?(:clj (specification "defui advanced compile"
+          (assertions
+            "Avoids removal of statics by calling all arities of them via the class"
+            (last (prim/defui* 'Boo '(static prim/IQuery
+                                       (query [this] [:a])
+                                       (query [this arg] [:b])
+                                       static MyThing
+                                       (bah [this a b] :body)
+                                       static prim/Ident
+                                       (ident [this props] [:x 1])) nil))
+            => '(try
+                  (prim/query Boo)
+                  (prim/query Boo nil)
+                  (bah Boo nil nil)
+                  (prim/ident Boo nil)
+                  (catch :default e))
+
+            "Elides the try/catch where there are no static protocols"
+            (not= 'try (first (last (prim/defui* 'Boo '(Object
+                                                         (render [this] [:x 1])) nil))))
+            => true)))
