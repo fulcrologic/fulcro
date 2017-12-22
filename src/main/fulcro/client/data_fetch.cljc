@@ -124,6 +124,9 @@
     Can also be special targets (multiple-targets, append-to,
     prepend-to, or replace-at). If you are loading by keyword (into root), then this relocates the result (ident or value) after load.
     When loading an entity (by ident), then this option will place additional idents at the target path(s) that point to that entity.
+  - `initialize` - Optional. If `true`, uses `get-initial-state` on SubqueryClass to  get a basis for merge of the result. This allows you
+    to use initial state to pre-populate loads with things like UI concerns. If `:initialize` is passed a map, then it uses that as
+    the base target merge value for SubqueryClass instead.
   - `remote` - Optional. Keyword name of the remote that this load should come from.
   - `params` - Optional parameters to add to the generated query
   - `marker` - Boolean to determine if you want a fetch-state marker in your app state. Defaults to true. Add `:ui/fetch-state` to the
