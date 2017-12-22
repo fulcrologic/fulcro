@@ -2,6 +2,7 @@
   (:require-macros fulcro.server)
   (:require
     [fulcro.client.network :as net]
+    [fulcro.util :as util]
     [fulcro.client.logging :as log]
     [fulcro.client.primitives :as prim]))
 
@@ -14,7 +15,14 @@
   "The multimethod for Fulcro's built-in support for querying with a keyword "
   (fn [env keyword params] keyword))
 
-(declare server-read)
+(defn server-read
+  "A built-in read method for Fulcro's built-in server parser."
+  [env k params]
+  (let [k (-> env :ast :key)]
+    (if (util/ident? k)
+      (read-entity env (first k) (second k) params)
+      (read-root env k params))))
+
 (defmulti server-mutate prim/dispatch)
 
 (defn fulcro-parser

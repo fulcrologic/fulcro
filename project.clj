@@ -77,36 +77,32 @@
                                :parallel-build       true
                                :source-map-timestamp true
                                :optimizations        :none}}
-               {:id           "production-demos"
-                :source-paths ["src/main" "src/demos"]
-                :compiler     {:devcards      true
-                               :output-dir    "resources/public/js/production-demos"
-                               :asset-path    "js/production-demos"
-                               :modules       {:entry-point {:output-to "resources/public/js/production-demos/demos.min.js"
-                                                             :entries   #{cards.card-ui}}
-                                               :de          {:output-to "resources/public/js/production-demos/de.js"
-                                                             :entries   #{translations.de}}
-                                               :es-MX       {:output-to "resources/public/js/production-demos/es-MX.js"
-                                                             :entries   #{translations.es-MX}}
-                                               :main        {:output-to "resources/public/js/production-demos/main-ui.js"
-                                                             :entries   #{cards.dynamic-ui-main}}}
-                               :optimizations :advanced}}
+               {:id           "book"
+                :source-paths ["src/main" "src/book"]
+                :figwheel     true
+                :compiler     {:output-dir     "resources/public/js/book"
+                               :main           book.main
+                               :asset-path     "js/book"
+                               :preloads       [devtools.preload ]
+                               :parallel-build true
+                               :output-to      "resources/public/js/book.js"}}
                {:id           "demos"
                 :source-paths ["src/main" "src/demos"]
                 :figwheel     {:devcards true}
-                :compiler     {:devcards      true
-                               :output-dir    "resources/public/js/demos"
-                               :asset-path    "js/demos"
-                               :preloads      [devtools.preload]
-                               :modules       {:entry-point {:output-to "resources/public/js/demos/demos.js"
-                                                             :entries   #{cards.card-ui}}
-                                               :de          {:output-to "resources/public/js/demos/de.js"
-                                                             :entries   #{translations.de}}
-                                               :es-MX       {:output-to "resources/public/js/demos/es-MX.js"
-                                                             :entries   #{translations.es-MX}}
-                                               :main        {:output-to "resources/public/js/demos/main-ui.js"
-                                                             :entries   #{cards.dynamic-ui-main}}}
-                               :optimizations :none}}
+                :compiler     {:devcards       true
+                               :output-dir     "resources/public/js/demos"
+                               :asset-path     "/js/demos"
+                               :parallel-build true
+                               :preloads       [devtools.preload]
+                               :modules        {:entry-point {:output-to "resources/public/js/demos/demos.js"
+                                                              :entries   #{cards.card-ui}}
+                                                :de          {:output-to "resources/public/js/demos/de.js"
+                                                              :entries   #{translations.de}}
+                                                :es-MX       {:output-to "resources/public/js/demos/es-MX.js"
+                                                              :entries   #{translations.es-MX}}
+                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
+                                                              :entries   #{cards.dynamic-ui-main}}}
+                               :optimizations  :none}}
                {:id           "demo-i18n"
                 :source-paths ["src/main" "src/demos"]
                 :compiler     {:devcards      true
@@ -139,7 +135,7 @@
                                :output-to    "resources/public/js/devguide.js"
                                :output-dir   "resources/public/js/devguide"
                                :preloads     [devtools.preload]
-                               ;:parallel-build true
+                               :parallel-build true
                                :foreign-libs [{:provides ["cljsjs.codemirror.addons.closebrackets"]
                                                :requires ["cljsjs.codemirror"]
                                                :file     "resources/public/codemirror/closebrackets-min.js"}
@@ -195,6 +191,7 @@
                           :dependencies [[binaryage/devtools "0.9.7"]
                                          [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
                                          [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
+                                         [fulcrologic/fulcro-inspect "2.0.0-alpha3-SNAPSHOT"]
                                          [fulcrologic/fulcro-sql "0.3.0"] ; demos
                                          [org.clojure/java.jdbc "0.7.3"] ; pinned dependency
                                          [org.postgresql/postgresql "42.1.4"] ; demos

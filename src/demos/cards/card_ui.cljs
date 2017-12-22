@@ -3,11 +3,8 @@
     devcards.core
     [clojure.spec.test.alpha :as st]
     cards.A-Introduction
-    cards.UI-router-as-editor-with-type-selection
-    cards.UI-router-as-list-with-item-editor
     cards.autocomplete
     cards.cascading-dropdowns
-    cards.component-local-state
     cards.component-localized-css
     cards.declarative-mutation-refresh
     cards.dynamic-i18n-locale-cards
