@@ -131,8 +131,8 @@
                                (assertions
                                  "The locale check is passed a stringified version of the lang"
                                  l => "es-MX"))
-    (reset! i18n/*current-locale* "en-US")
 
+    (reset! i18n/*current-locale* "en-US")
     (let [new-state (m/change-locale-impl {} :es-MX)]
       (assertions
         "The locale is updated in app state as a string"
@@ -141,6 +141,17 @@
         (:ui/react-key new-state) => "es-MX"
         "The global locale atom is updated"
         @i18n/*current-locale* => "es-MX")))
+  (let [forced? (atom false)]
+    (provided "A reconciler is supplied"
+      (m/locale-present? l) => true
+      (js/setTimeout f n) => (f)
+      (prim/force-root-render! r) => (reset! forced? true)
+
+      (reset! i18n/*current-locale* "en-US")
+      (let [new-state (m/change-locale-impl {} :es-MX :reconciler)]
+        (assertions
+          "A root render is forced"
+          @forced? => true))))
   (provided "the locale is not loaded, and is invalid"
     (m/locale-present? l) => false
     (m/locale-loadable? l) => (do
@@ -244,8 +255,8 @@
                                                     :key          :x}]}))
 
   (let [ast (-> (prim/query->ast1 '[(f {:x 1})])
-                (m/with-target [:foo 123])
-                (m/returning {} Item))]
+              (m/with-target [:foo 123])
+              (m/returning {} Item))]
     (assertions
       "Override query but keep meta from previous query"
       (th/expand-meta ast)
@@ -266,7 +277,7 @@
 
 (specification "Remote with-target (add target meta data)"
   (let [ast (-> (prim/query->ast1 '[(f {:x 1})])
-                (m/with-target [:foo 123]))]
+              (m/with-target [:foo 123]))]
     (assertions
       "Return an AST with a wildcard query and target meta data"
       (th/expand-meta ast)
@@ -279,8 +290,8 @@
                           :key          '*}]}))
 
   (let [ast (-> (prim/query->ast1 '[(f {:x 1})])
-                (m/returning {} Item)
-                (m/with-target [:foo 123]))]
+              (m/returning {} Item)
+              (m/with-target [:foo 123]))]
     (assertions
       "Adds target meta data when call already has a query"
       (th/expand-meta ast)

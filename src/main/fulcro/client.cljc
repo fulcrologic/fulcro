@@ -158,7 +158,7 @@
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")
   (reset-app! [this root-component callback] "Replace the entire app state with the initial app state defined on the root component (includes auto-merging of unions). callback can be nil, a function, or :original (to call original started-callback).")
   (clear-pending-remote-requests! [this remotes] "Remove all pending network requests on the given remote(s). Useful on failures to eliminate cascading failures. Remote can be a keyword, set, or nil. `nil` means all remotes.")
-  (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work.")
+  (refresh [this] "Refresh the UI (force re-render).")
   (history [this] "Return the current UI history of the application, suitable for network transfer")
   (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
@@ -221,7 +221,6 @@
       (log/info "Mounting on newly supplied target.")
       (prim/remove-root! reconciler old-target)
       (prim/add-root! reconciler root target)))
-  (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
   (cutil/force-render reconciler))
 
 (defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
@@ -270,9 +269,7 @@
   (reset-history! [this]
     (reset-history-impl this))
 
-  (refresh [this]
-    (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
-    (cutil/force-render reconciler)))
+  (refresh [this] (cutil/force-render reconciler)))
 
 (defn new-fulcro-test-client
   "Create a test client that has no networking. Useful for UI testing with a real Fulcro app container."

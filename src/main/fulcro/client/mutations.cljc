@@ -117,29 +117,39 @@
 ; NOTE: client needs to init current locale on stated-callback if SSR
 (defn change-locale-impl
   "Given a state map and locale, returns a new state map with the locale properly changed. Also potentially triggers a module load.
-  There is also the mutation `change-locale` that can be used from transact."
-  [state-map lang]
-  (let [lang          (name lang)
-        locale-key    (keyword lang)
-        present?      (locale-present? lang)
-        valid-locale? (or present? (locale-loadable? locale-key))]
-    (if valid-locale?
-      (do
-        #?(:cljs (when (and (not present?) (locale-loadable? locale-key))
-                   (loader/load locale-key (fn [] (log/debug "Finished loading locale " lang)))))
-        (reset! i18n/*current-locale* lang)
-        (-> state-map
-          (assoc :ui/locale lang)
-          (assoc :ui/react-key lang)))
-      (do
-        (log/error (str "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module."))
-        state-map))))
+  There is also the mutation `change-locale` that can be used from transact.
+
+  The version that takes a reconciler will refresh the UI. The version that does not will not. Therefore, if you compose
+  this into a mutation you *should* pass a reconciler to it.
+
+  The :ui/react-key method of refresh is no longer the best way to do refresh, but will continue to work for now."
+  ([state-map lang reconciler]
+    #?(:cljs (js/setTimeout #(prim/force-root-render! reconciler) 10))
+   (change-locale-impl state-map lang))
+  ([state-map lang]
+   (let [lang          (name lang)
+         locale-key    (keyword lang)
+         present?      (locale-present? lang)
+         valid-locale? (or present? (locale-loadable? locale-key))]
+     (if valid-locale?
+       (do
+         #?(:cljs (when (and (not present?) (locale-loadable? locale-key))
+                    (loader/load locale-key (fn [] (log/debug "Finished loading locale " lang)))))
+         (reset! i18n/*current-locale* lang)
+         (-> state-map
+           (assoc :ui/locale lang)
+           (assoc :ui/react-key lang))) ; TODO: Deprecated. Remove :ui/react-key changes in some future version
+       (do
+         (log/error (str "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module."))
+         state-map)))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation change-locale
      "mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\")."
      [{:keys [lang]}]
-     (action [{:keys [state]}] (swap! state change-locale-impl lang))))
+     (action [{:keys [reconciler state]}]
+       (swap! state change-locale-impl lang)
+       (js/setTimeout #(prim/force-root-render! reconciler) 1))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation set-props

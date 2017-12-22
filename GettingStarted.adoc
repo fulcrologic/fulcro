@@ -67,8 +67,8 @@ this:
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defsc]]))
 
-(defsc Root [this {:keys [ui/react-key]}]
-  (dom/div #js {:key react-key} "TODO"))
+(defsc Root [this props]
+  (dom/div nil "TODO"))
 ----
 
 The actual mount is done by code that figwheel is configured to load/run in
@@ -276,8 +276,8 @@ Now we can compose people into our root:
 
 [source]
 ----
-(defsc Root [this {:keys [ui/react-key]}]
-  (dom/div #js {:key react-key }
+(defsc Root [this props]
+  (dom/div nil
     (ui-person {:person/name "Joe" :person/age 22})))
 ----
 
@@ -286,11 +286,6 @@ Now we can compose people into our root:
 Part of our quick development story is getting hot code reload to update the UI whenever we change the source.
 If you were to omit the outer `div` in the above example it would look broken. Actually, hot code
 reload is working, but the UI refresh isn't.
-
-You can force React to re-render the entire UI (Fulcro optimizes away refresh when the app state hasn't changed).
-The trick here is to change the React key on the root element (which forces React to throw away the prior tree
-and generate a whole new one). Fulcro helps by sending your root component a property named `:ui/react-key` that
-only changes on (re)mount and forced refresh.
 
 Try editing the UI of `Person` and save. You should see the UI update even though the person's data didn't change.
 
@@ -319,14 +314,14 @@ Replace your content with this:
 
 (def ui-person-list (prim/factory PersonList))
 
-(defsc Root [this {:keys [ui/react-key]}]
+(defsc Root [this props]
   (let [ui-data {:friends {:person-list/label "Friends" :person-list/people
                                               [{:person/name "Sally" :person/age 32}
                                                {:person/name "Joe" :person/age 22}]}
                  :enemies {:person-list/label "Enemies" :person-list/people
                                               [{:person/name "Fred" :person/age 11}
                                                {:person/name "Bobby" :person/age 55}]}}]
-    (dom/div #js {:key react-key}
+    (dom/div nil
       (ui-person-list (:friends ui-data))
       (ui-person-list (:enemies ui-data)))))
 ----
@@ -451,10 +446,10 @@ It looks like this:
 (def ui-person-list (prim/factory PersonList))
 
 ; Root's initial state becomes the entire app's initial state!
-(defsc Root [this {:keys [ui/react-key friends enemies]}]
+(defsc Root [this {:keys [friends enemies]}]
   {:initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
                                 :enemies (prim/get-initial-state PersonList {:label "Enemies"})}) }
-  (dom/div #js {:key react-key}
+  (dom/div nil
     (ui-person-list friends)
     (ui-person-list enemies)))
 ----
@@ -630,12 +625,12 @@ Finally, we compose to `Root`:
 
 [source]
 ----
-(defsc Root [this {:keys [ui/react-key friends enemies]}]
-  {:query         [:ui/react-key {:friends (prim/get-query PersonList)}
+(defsc Root [this {:keys [friends enemies]}]
+  {:query         [{:friends (prim/get-query PersonList)}
                    {:enemies (prim/get-query PersonList)}]
    :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
                                 :enemies (prim/get-initial-state PersonList {:label "Enemies"})})}
-  (dom/div #js {:key react-key}
+  (dom/div nil
     (ui-person-list friends)
     (ui-person-list enemies)))
 ----
@@ -1009,12 +1004,12 @@ The program will now look like this:
 
 (def ui-person-list (prim/factory PersonList))
 
-(defsc Root [this {:keys [ui/react-key friends enemies]}]
-  {:query         [:ui/react-key {:friends (prim/get-query PersonList)}
+(defsc Root [this {:keys [friends enemies]}]
+  {:query         [{:friends (prim/get-query PersonList)}
                    {:enemies (prim/get-query PersonList)}]
    :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
                                 :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
-  (dom/div #js {:key react-key}
+  (dom/div nil
     (ui-person-list friends)
     (ui-person-list enemies)))
 ----
@@ -1537,14 +1532,13 @@ We'll just use it on the Root UI node, where we don't need to "jump to the top":
 
 [source]
 ----
-(defsc Root [this {:keys [ui/react-key friends enemies current-user]}] ; <2>
-  {:query         [:ui/react-key
-                   {:current-user (prim/get-query Person)} ; <1>
+(defsc Root [this {:keys [friends enemies current-user]}] ; <2>
+  {:query         [{:current-user (prim/get-query Person)} ; <1>
                    {:friends (prim/get-query PersonList)}
                    {:enemies (prim/get-query PersonList)}]
    :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
                                 :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
-  (dom/div #js {:key react-key}
+  (dom/div nil
     (dom/h4 nil (str "Current User: " (:person/name current-user))) ; <3>
     (ui-person-list friends)
     (ui-person-list enemies)))
@@ -1703,14 +1697,13 @@ Let's embed that into our UI at the root:
 
 [source]
 ----
-(defsc Root [this {:keys [ui/react-key friends enemies current-user]}]
-  {:query         [:ui/react-key
-                   {:current-user (prim/get-query Person)}
+(defsc Root [this {:keys [friends enemies current-user]}]
+  {:query         [{:current-user (prim/get-query Person)}
                    {:friends (prim/get-query PersonList)}
                    {:enemies (prim/get-query PersonList)}]
    :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
                                 :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
-  (dom/div #js {:key react-key}
+  (dom/div nil
     (dom/h4 nil (str "Current User: " (:person/name current-user)))
     ; NEW BUTTON HERE:
     (dom/button #js {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh Person with ID 3")
@@ -1899,9 +1892,8 @@ a very simple UI we can add to our program:
 
 ; ...
 
-(defsc Root [this {:keys [ui/react-key blog-posts current-user friends enemies]}]
-  {:query         [:ui/react-key
-                   :ui/person-id
+(defsc Root [this {:keys [blog-posts current-user friends enemies]}]
+  {:query         [:ui/person-id
                    {:current-user (prim/get-query Person)}
                    {:blog-posts (prim/get-query Posts)}     ; <3>
                    {:friends (prim/get-query PersonList)}
@@ -1909,7 +1901,7 @@ a very simple UI we can add to our program:
    :initial-state (fn [params] {:blog-posts (prim/get-initial-state Posts {}) ; <4>
                                 :friends    (prim/get-initial-state PersonList {:id :friends :label "Friends"})
                                 :enemies    (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
-  (dom/div #js {:key react-key}
+  (dom/div nil
     (dom/h4 nil (str "Current User: " (:person/name current-user)))
     (dom/button #js {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh User with ID 3")
     (ui-person-list friends)
