@@ -63,22 +63,6 @@
 
   The complete list of method signatures can be found in the [cheat sheet](https://github.com/fulcrologic/fulcro/blob/develop/docs/CheatSheet.adoc).
 
-  ## ClojureScript and React – HTML differences
-
-  Here are some common things you'll want to know how to do that are different when rendering with Fulcro:
-
-  - Inline styles are specified with real maps `(dom/p #js { :style #js {:backgroundColor \"rgb(120,33,41)\"} } ...)`.
-    - `#js` is a reader tag. The reader is the thing that reads your source code, and it is configurable. This one
-    tells the reader how to turn the map into a js object.
-    - `dom/p` is a macro for generating p tags for use in React componenets. There is one of these for every legal HTML tag.
-    - There are alternatives to this ([sablono](https://github.com/r0man/sablono) is popular). It adds some overhead, but many
-    people prefer how it reads.
-  - Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
-    - As an example - CSS class names are specified with `:className` instead of `:class`.
-  - Any time there are adjacent elements of the same type in the DOM, they should each have a unique `:key`
-  attribute. If the elements are in an array, React requires it.
-  - You can convert cljs data structures (recursively) to js types with `(clj->js {:x {y 1}})`
-
   ## Element factory
 
   In order to render components on the screen you need an element factory.
@@ -245,40 +229,6 @@
 
 (def simple-counter (prim/factory SimpleCounter))
 
-(defn render-squares [component props]
-  (let [svg       (-> js/d3 (.select (dom/node component)))
-        data      (clj->js (:squares props))
-        selection (-> svg
-                    (.selectAll "rect")
-                    (.data data (fn [d] (.-id d))))]
-    (-> selection
-      .enter
-      (.append "rect")
-      (.style "fill" (fn [d] (.-color d)))
-      (.attr "x" "0")
-      (.attr "y" "0")
-      .transition
-      (.attr "x" (fn [d] (.-x d)))
-      (.attr "y" (fn [d] (.-y d)))
-      (.attr "width" (fn [d] (.-size d)))
-      (.attr "height" (fn [d] (.-size d))))
-    (-> selection
-      .exit
-      .transition
-      (.style "opacity" "0")
-      .remove)
-    false))
-
-(defsc D3Thing [this props]
-  {:componentDidMount         (fn [] (render-squares this (prim/props this)))
-   :shouldComponentUpdate     (fn [next-props next-state] false)
-   :componentWillReceiveProps (fn [props] (render-squares this props))}
-  (dom/svg #js {:style   #js {:backgroundColor "rgb(240,240,240)"}
-                :width   200 :height 200
-                :viewBox "0 0 1000 1000"}))
-
-(def d3-thing (prim/factory D3Thing))
-
 (defcard-doc
   "
   ## Component state
@@ -342,83 +292,6 @@
 
 (defcard-doc
   "
-  ### External library state (a D3 example)
-
-  Say you want to draw something with D3. D3 has its own DOM diffing algorithms and keeps its own internal state. You must
-  make sure React doesn't muck with the DOM. The following component demonstrates how you would go about it.
-
-  First, the actual rendering code that expects the component and the props (which have to
-  be converted to JS data types to work. See further D3 tutorials on the web):
-  "
-
-  (dc/mkdn-pprint-source render-squares)
-
-  "And the component itself:"
-
-  (dc/mkdn-pprint-source D3Thing)
-  (dc/mkdn-pprint-source d3-thing)
-
-  "Here it is integrated into a dev card with some controls to manipulate the data:")
-
-
-(defn random-square []
-  {
-   :id    (rand-int 10000000)
-   :x     (rand-int 900)
-   :y     (rand-int 900)
-   :size  (+ 50 (rand-int 300))
-   :color (case (rand-int 5)
-            0 "yellow"
-            1 "green"
-            2 "orange"
-            3 "blue"
-            4 "black")})
-
-(defn add-square [state] (swap! state update :squares conj (random-square)))
-
-(defcard sample-d3-component
-  (fn [state-atom _]
-    (dom/div nil
-      (dom/button #js {:onClick #(add-square state-atom)} "Add Random Square")
-      (dom/button #js {:onClick #(reset! state-atom {:squares []})} "Clear")
-      (dom/br nil)
-      (dom/br nil)
-      (d3-thing @state-atom)))
-  {:squares []}
-  {:inspect-data true})
-
-(defcard-doc
-  "
-
-  The things to note for this example are:
-
-  - We override the React lifecycle method `shouldComponentUpdate` to return false. This tells React to never ever call
-  render once the component is mounted. D3 is in control of the underlying stuff.
-  - We override `componentWillReceiveProps` and `componentDidMount` to do the actual D3 render/update. The former will
-   get incoming data changes, and the latter is called on initial mount. Our render method
-   delegates all of the hard work to D3.
-
-  ## Om Next Compatibility
-
-  Fulcro has an older macro that is still supported called `defui`. It is identical in syntax to Om Next's `defui`.
-
-  ```
-  (prim/defui Component
-    static prim/IQuery
-    (query [this] [:x])
-    static prim/Ident
-    (ident [this props] [:TABLE (:id props)])
-    static prim/InitialAppState
-    (initial-state [this params] {:x 1})
-    Object
-    (render [this]
-      (let [{:keys [x]} (prim/props this)]
-        (dom/div nil \"Hello\"))))
-  ```
-
-  In general we recommend using `defsc` because it has better error checking and is more concise, but the `defui`
-  macro is not going anywhere anytime soon.
-
 
   ## Important notes and further reading
 

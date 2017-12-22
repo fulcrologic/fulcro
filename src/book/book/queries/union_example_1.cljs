@@ -1,12 +1,11 @@
-(ns cards.UI-router-as-editor-with-type-selection
-  (:require [fulcro.client.dom :as dom]
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.routing :as r :refer [defrouter]]
-            [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client :as fc]
-            [fulcro.ui.bootstrap3 :as b]
-            [fulcro.ui.elements :as ele]
-            [fulcro.client.cards :refer [defcard-fulcro]]))
+(ns book.queries.union-example-1
+(:require [fulcro.client.dom :as dom]
+  [fulcro.client.routing :as r :refer [defrouter]]
+  [fulcro.client.primitives :as prim :refer [defsc]]
+  [fulcro.client :as fc]
+  [fulcro.ui.bootstrap3 :as b]
+  [fulcro.ui.elements :as ele]
+  [fulcro.client.cards :refer [defcard-fulcro]]))
 
 (defn item-ident
   "Generate an ident from a person, place, or thing."
@@ -113,7 +112,7 @@
 
 (def ui-item-list (prim/factory ItemList))
 
-(defsc DemoRoot [this {:keys [item-list item-detail]}]
+(defsc Root [this {:keys [item-list item-detail]}]
   {:query         [{:item-list (prim/get-query ItemList)}
                    {:item-detail (prim/get-query ItemDetail)}]
    :initial-state (fn [p] (merge
@@ -136,64 +135,3 @@
           (b/row {}
             (b/col {:xs 6} (ui-item-list (prim/computed item-list {:onSelect showDetail})))
             (b/col {:xs 6} (ui-item-detail item-detail))))))))
-
-(defcard-doc
-  "# Defrouter as a UI Type Selector
-
-  The component defined by `defrouter` is really just a union component that can be switched to point at any kind
-  of component that it knows about. The support for parameterized routers in the routing tree makes it possible
-  to very easily reuse the UI router as a component that can show one of many screens in the same location.
-
-  This is particularly useful when you have a list of items that have varying types, and you'd like to, for example,
-  show the list on one side of the screen and the detail on the other.
-
-  To write such a thing one would follow these steps:
-
-  1. Create one component for each item type that represents how it will look in the list.
-  2. Create one component for each item type that represents the fine detail view for that item.
-  3. Join (1) together into a union component and use it in a component that shows them as a list. In other words
-  the union will represent a to-many edge in your graph. Remember that unions cannot stand alone, so there
-  will be a union component (to switch the UI) and a list component to iterate through the items.
-  4. Combine the detail components from (2) into a `defrouter` (e.g. named :detail-router).
-  5. Create a routing tree that includes the :detail-router, and parameterize both elements of the target ident (kind and id)
-  6. Hook a click event from the items to a `route-to` mutation, and send route parameters for the kind and id.
-
-  Here is the source for such a UI:
-  "
-  (dc/mkdn-pprint-source item-ident)
-  (dc/mkdn-pprint-source item-key)
-  (dc/mkdn-pprint-source make-person)
-  (dc/mkdn-pprint-source make-place)
-  (dc/mkdn-pprint-source make-thing)
-
-  (dc/mkdn-pprint-source PersonListItem)
-  (dc/mkdn-pprint-source ui-person)
-  (dc/mkdn-pprint-source PlaceListItem)
-  (dc/mkdn-pprint-source ui-place)
-  (dc/mkdn-pprint-source ThingListItem)
-  (dc/mkdn-pprint-source ui-thing)
-
-  (dc/mkdn-pprint-source ItemUnion)
-  (dc/mkdn-pprint-source ItemList)
-
-  (dc/mkdn-pprint-source PersonDetail)
-  (dc/mkdn-pprint-source PlaceDetail)
-  (dc/mkdn-pprint-source ThingDetail)
-
-  "
-  ```
-  (defrouter ItemDetail :detail-router
-    (ident [this props] (item-ident props))
-    :person PersonDetail
-    :place PlaceDetail
-    :thing ThingDetail)
-
-  (def ui-item-detail (prim/factory ItemDetail))
-  ```
-  "
-  (dc/mkdn-pprint-source DemoRoot))
-
-(defcard-fulcro demo-card
-  DemoRoot
-  {}
-  {:inspect-data true})

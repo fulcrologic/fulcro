@@ -1,11 +1,8 @@
-(ns cards.component-local-state
+(ns book.ui.hover-example
   (:require
-    [devcards.core :as dc :include-macros true]
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [fulcro.client :as fc]
     [fulcro.i18n :refer [tr trf]]
-    [fulcro.client.data-fetch :as df]
-    [fulcro.client.mutations :as m :refer [defmutation]]
+    [fulcro.client.mutations :refer [defmutation]]
     [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
     [fulcro.client.dom :as dom]
     yahoo.intl-messageformat-with-locales))
@@ -98,11 +95,10 @@
     (render-hover-and-marker (prim/props child) new-state)))
 
 (defsc Child [this {:keys [id size]}]
-  {:query         [:id :size :marker]
-   :initial-state (fn [_] {:id 0 :size 50 :marker [0.5 0.5]})
-   :ident         (fn [] [:child/by-id id])
-   :protocols     [Object
-                   (initLocalState [this] {:coords [-50 -50]})]}
+  {:query          [:id :size :marker]
+   :initial-state  (fn [_] {:id 0 :size 50 :marker [0.5 0.5]})
+   :ident          (fn [] [:child/by-id id])
+   :initLocalState (fn [] {:coords [-50 -50]})}
   ; Remember that this "render" just renders the DOM (e.g. the canvas DOM element). The graphical
   ; rendering within the canvas is done during event handling.
   ; size comes from props. Transactions on size will cause the canvas to resize in the DOM
@@ -131,46 +127,4 @@
     (dom/br nil)
     (ui-child child)))
 
-(defonce app (atom (fc/new-fulcro-client)))
 
-(dc/defcard-doc
-  "# Component Local State
-
-  Sometimes you need to use component-local state to avoid the overhead in running a query to feed props. An example
-  of this is when handing mouse interactions like drag.
-
-  There are actually two ways to change component-local state. One of them defers rendering to the next animation frame,
-  but it *also* reconcles the database with the stateful components. This one will not give you as much of a speed boost
-  (though it may be enough, since you're not changing the database or recording more UI history).
-
-  The other mechanism completely avoids this, and just asks React for an immediate forced update.
-
-  - `(set-state! this data)` and `(update-state! this data)` - trigger a reconcile against the database at the next animation frame. Limits frame rate to 60 fps.
-  - `(react-set-state! this data)` - trigger a React forceUpdate immediately
-
-  In this example we're using `set-state!`, and you can see it is still plenty fast!
-
-  The source of the component in the demo looks like this:"
-  (dc/mkdn-pprint-source change-size*)
-  (dc/mkdn-pprint-source update-marker)
-  (dc/mkdn-pprint-source make-bigger)
-  (dc/mkdn-pprint-source make-smaller)
-  (dc/mkdn-pprint-source event->dom-coords)
-  (dc/mkdn-pprint-source event->normalized-coords)
-  (dc/mkdn-pprint-source place-marker)
-  (dc/mkdn-pprint-source hover-marker)
-  (dc/mkdn-pprint-source Child)
-  (dc/mkdn-pprint-source Root))
-
-(defcard-fulcro local-state
-  "# Component Local State
-
-  The component receives mouse move events to show a hover box. To make this move in real-time we use component
-  local state. Clicking to set the box, or resize the container are real transactions, and will actually cause
-  a refresh from application state to update the rendering.
-
-  The application state is shown live under the application so you can see the difference.
-  "
-  Root
-  {}
-  {:inspect-data true})

@@ -14,25 +14,11 @@
     fulcro-devguide.G-Mutation
     fulcro-devguide.G-Mutation-Exercises
     fulcro-devguide.G-Mutation-Solutions
-    fulcro-devguide.H01-Server-Interactions-General-Operation
-    fulcro-devguide.H02-Making-An-Easy-Server
-    fulcro-devguide.H05-Basic-Loading
-    fulcro-devguide.H08-Morphing-Loaded-Data
-    fulcro-devguide.H10-Mutations
-    fulcro-devguide.H11-Network-Activity-Indicators
-    fulcro-devguide.H12-Mutation-Return-Values
-    fulcro-devguide.H15-Triggering-Loads-from-Mutations
-    fulcro-devguide.H20-Incremental-Loading
-    fulcro-devguide.H30-Network-Error-Handling
-    fulcro-devguide.H35-Query-Parsing
-    fulcro-devguide.H40-Server-Interactions-As-An-Abstraction
     fulcro-devguide.I-Building-A-Server
     fulcro-devguide.J-Exercise-on-Putting-It-Together
     fulcro-devguide.K-Testing
     fulcro-devguide.K-Support-Viewer
     fulcro-devguide.L-Internationalization
-    fulcro-devguide.M05-Defsc-In-Detail
-    fulcro-devguide.M10-Advanced-UI
     fulcro-devguide.M15-Routing-UI
     fulcro-devguide.M30-Advanced-Mutation
     fulcro-devguide.H45-Customizing-Easy-Server
