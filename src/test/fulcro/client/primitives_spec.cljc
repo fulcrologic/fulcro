@@ -1587,7 +1587,7 @@
          (prim/app-state r) => state
          (p/queue! r kw) => (assertions
                               "schedules re-rendering of all affected paths"
-                              kw => [:children :items])
+                              kw => [:children :items [:table :id]])
 
          (prim/merge-component! :reconciler MergeTestChild data :append [:children] :replace [:items 0])))))
 
