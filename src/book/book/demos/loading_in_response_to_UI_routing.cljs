@@ -1,16 +1,10 @@
-(ns cards.loading-in-response-to-UI-routing
+(ns book.demos.loading-in-response-to-UI-routing
   (:require
-    #?@(:cljs [[devcards.core :as dc :include-macros true]
-               [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client.routing :as r]
-    [cards.card-utils :refer [sleep]]
     [fulcro.client.mutations :as m]
-    [fulcro.client :as fc]
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]
-    [fulcro.client :as fc]
     [fulcro.server :as server]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -20,7 +14,6 @@
 (server/defquery-root :all-settings
   "This is the only thing we wrote for the server...just return some value so we can see it really talked to the server for this query."
   (value [env params]
-    (sleep 500)
     [{:id 1 :value "Gorgon"}
      {:id 2 :value "Thraser"}
      {:id 3 :value "Under"}]))
@@ -108,54 +101,4 @@
     (ui-tabs current-tab)))
 
 
-#?(:cljs
-   (dc/defcard-doc
-     "
-     Tabbed interfaces typically use a UI Router (which can be further integrated into HTML5 routing as a routing tree). See
-     [this YouTube video](https://youtu.be/j-_itpXEo6w?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R) for more details.
-
-     This example not only shows the basic construction of an interface that allows content (and query) to be switched, it
-     also demonstrates how one goes about triggerng loads of data that some screen might need.
-
-     If you look at the source for the root component you'll see two buttons with transactions on their click handlers.
-     "
-     (dc/mkdn-pprint-source Root)
-     "
-     The first is simple enough: run a mutation that chooses which tab to show. The routing library includes a helper function
-     for building that, so the mutation just looks like this:
-
-     ```
-     (m/defmutation choose-tab [{:keys [tab]}]
-       (action [{:keys [state]}] (swap! state r/set-route :ui-router [tab :tab])))
-     ```
-
-     The transaction to go to the settings tab is more interesting. It switches tabs but also runs another mutation to
-     load data needed for that screen. The intention is to just load it if it is missing. That mutation looks like this:
-
-     ```
-     (defn missing-tab? [state tab] (empty? (-> @state :settings :tab :settings)))
-
-     (m/defmutation lazy-load-tab [{:keys [tab]}]
-       (action [{:keys [state] :as env}]
-         (when (missing-tab? state tab)
-           (df/load-action state :all-settings SomeSetting
-             {:target  [:settings :tab :settings]
-              :refresh [:settings]})
-           ))
-       (remote [{:keys [state] :as env}]
-         (when (missing-tab? state tab) (df/remote-load env))))
-     ```
-
-     Fairly standard fare at this point: Look at the database to see if it has what you want, and if not trigger a load
-     with `df/load-action` (on the action side) and `df/remote-load` on the remote.
-     "))
-
-#?(:cljs
-   (defcard-fulcro tabbed-card
-     "
-     # Tabbed Interface with Pane Content Dynamic Loading
-
-     Note: This is a full-stack example. Make sure you're running the server and are serving this page from it.
-     "
-     Root))
 
