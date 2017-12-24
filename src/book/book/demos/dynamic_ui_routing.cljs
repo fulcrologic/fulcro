@@ -1,4 +1,4 @@
-(ns cards.dynamic-ui-routing
+(ns book.demos.dynamic-ui-routing
   (:require [fulcro.client.routing :as r]
             [fulcro.client.dom :as dom]
             [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
@@ -36,7 +36,7 @@
       (dom/div nil (if pending-route "Loading" "Done"))
       (r/ui-dynamic-router top-router))))
 
-; these would happen as a result of module loads:
+; Use this as started-callback. These would happen as a result of module loads:
 (defn application-loaded [{:keys [reconciler]}]
   ; Let the dynamic router know that two of the routes are already loaded.
   (prim/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})

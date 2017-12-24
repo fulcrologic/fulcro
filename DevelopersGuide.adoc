@@ -8053,6 +8053,218 @@ The complete commented code and example is below. See the library documentation 
 include::src/book/book/demos/component_localized_css.cljs[]
 ----
 
+== Declarative Refresh
+
+In Fulcro 1.0 data model refreshes were indicated purely as follow-on reads at UI-level transactions:
+
+```
+(transact! this `[(f) :person/name])
+```
+
+This was the model inherited from Om Next; however, since the mutation is really more aware of what data is changing,
+and the UI is indexed by the data model properties, it makes quite a bit of sense for you to be able to declare
+this *on the mutation itself*.
+
+The mechanism is quite simple: add a `refresh` section on your mutation and return the list of keywords
+for the data that changed:
+
+```
+(defmutation ping-left [params]
+  (action [{:keys [state]}]
+    (swap! state update-in [:left/by-id 5 :left/value] inc))
+  (refresh [env] [:left/value]))
+```
+
+The above mutation just indicates what it changed: `:left/value`.
+
+The UI can then drop the follow-on reads:
+
+
+(dc/mkdn-pprint-source Right)
+
+In this case the transaction is running on a component that doesn't query for the data being changed (it is pinging the
+Left component). The built-in refresh list on the mutation takes care of the update!"))
+
+## Demonstration
+
+This card is a full-stack live demo of this. The buttons update data that the other button displays. The transacts
+on these would normally require follow-on reads or a callback to the parent to refresh properly. With the refresh
+list on the mutation itself, the UI designer is freed from this responsibility.
+
+The right button uses data from the server in a pessimistic fashion (it does no optimistic update, and there is a simulated
+delay on the server), so pinging if from the left actually reads a value from the server. This demonstrates that the
+refresh is working for full-stack operations.
+
+++++
+<div class="example" id="declarative-mutation-refresh"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.declarative-mutation-refresh').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="declarative-mutation-refresh source"]
+----
+include::src/book/book/demos/declarative_mutation_refresh.cljs[]
+----
+
+
+== Dynamic Routing and Code Splitting
+
+The `fulcro.client.routing` namespace includes a second kind of UIrouter that can be used with the routing tree: `DynamicRouter`.
+
+A `DynamicRouter` uses a dynamic query to change routes instead of a union, and it can derive the details of the target
+component at runtime, meaning that it can be used to route to screens that were not in the loaded application code base
+at start-time.
+
+Furthermore, the routing tree has been designed to trigger the proper dynamic module loads for your dynamically loaded
+routes so that code splitting your application can be a fairly simple exercise. Here are the basic steps:
+
+. Pick a keyword for the name of a given screen. Say `:main`
+. Write the `defsc` for that screen, and design it so that the TYPE (first element) of the ident is the keyword from (1).
+    ** The initial state must be defined, and it must have the name (1) under the key r/dynamic-route-key
+    ** The bottom of the file that defines the target screen *must* include a `defmethod` that associates the keyword (1) with the component (2). This
+      is how the dynamic router finds the initial state of the screen, and the query to route to.
+    ** IMPORTANT: Your dynamically loaded screen *MUST* have a call to `(cljs.loader/set-loaded! KW)` at the bottom of the file (where KW is from (1)).
+. Configure your cljs build to use modules. Place the screen from (2) into a module with the name from (1).
+. Use a DynamicRouter for the router that will route to the screen (2). This means you won't have to explicitly refer to the class of the component.
+    ** The Query that composes in the router must use the special `get-dynamic-router-query` to join in the DynamicRouter's query.
+. Create your routing tree as usual. Remember that a routing tree is just routing instructions (keywords).
+
+If you are routing through a DynamicRouter as part of your initial startup, then there are a few more steps. See Pre-loaded routes below.
+
+Trigger routing via the `route-to` mutation. That's it! The module rooted at the screen will be automatically loaded
+when needed.
+
+The `defsc` and `defmethod` needed for step 2 look like this:
+
+```
+(prim/defsc Main [this {:keys [label]}]
+  {:initial-state (fn [params] {r/dynamic-route-key :main :label \"MAIN\"})
+   :ident (fn [] [:main :singleton])
+   :query [r/dynamic-route-key :label]}
+  (dom/div #js {:style #js {:backgroundColor \"red\"}}
+        label))
+
+(defmethod r/get-dynamic-router-target :main [k] Main)
+(cljs.loader/set-loaded! :main)
+```
+
+### Pre-loaded Routes
+
+Screens used with DynamicRouter that are loaded at start-time are written identically to the dynamically loaded screen,
+but you will have to make sure their state and multimethod are set up at load time. This can be done
+via the mutation `r/install-route`. This mutation adds the screen's state *and* multimethod component dispatch.
+
+The demo application includes two such pre-installed routes (`Login` and `NewUser`), and one dynamically loaded one (main).
+The code called at application startup (via `:started-callback`) ensure the pre-loaded routes is:
+
+```
+(defn application-loaded [{:keys [reconciler]}]
+  ; Let the dynamic router know that two of the routes are already loaded.
+  (prim/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
+                               (r/install-route {:target-kw :login :component ~Login})
+                               (r/route-to {:handler :login})])
+  (loader/set-loaded! :entry-point))
+
+...
+(new-fulcro-client Root :started-callback application-loaded)
+```
+
+### The Demo
+
+Notice on initial load that the `[:main :singleton]` path in app state is not present. You could use the console to
+verify that `cards.dynamic_ui_main.Main` is not present (via Javascript) either. Once you route to `Main`, both will be present. You should
+see the network load of the code when you route as well. The `book` build configuration in `project.clj` has the module
+definitions, and looks like this:
+
+```
+{:id           "book"
+                :source-paths ["src/main" "src/book"]
+                :compiler     {:output-dir     "resources/public/js/book"
+                               :asset-path     "js/book"
+                               :modules        {:entry-point {:output-to "resources/public/js/book/book.js"
+                                                              :entries   #{book.main}}
+                                                ; For the dynamic code splitting demo
+                                                :main        {:output-to "resources/public/js/book/main-ui.js"
+                                                              :entries   #{book.demos.dynamic-ui-main}}}}}
+```
+
+The HTML file to start this up must load the a base CLJS module (`js/book/cljs_base.js`) and the entry point `book.js` file.
+The other code will be in `main-ui.js` and will be loaded when you route to that screen.
+
+The file `dynamic_ui_main.cljs` is the code that will be dynamically loaded. It looks like this:
+
+[source,clojure]
+----
+include::src/book/book/demos/dynamic_ui_main.cljs[]
+----
+
+The main entry point code is in the code below the demo:
+
+++++
+<div class="example" id="dynamic-ui-routing"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-ui-routing').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="dynamic-ui-routing source"]
+----
+include::src/book/book/demos/dynamic_ui_routing.cljs[]
+----
+
+== Dynamically Loaded Locales
+
+NOTE: Figwheel support for code splitting started in 0.5.15. There are a few tweaks to get it to work with earlier versions.
+
+The i18n support allows for auto-generated locale code that can be configured into modules. This allows you to
+dynamically load locale-specific strings for your UI at runtime.
+
+The book's build is configured for this, and the following steps were required:
+
+. Code something that uses i18n (see this card's source below).
+. Build the code with whitespace optimizations (see project.clj demo-i18n cljs build config). WITHOUT MODULES:
+`lein cljsbuild once demo-i18n`
+. Use `fulcro.gettext/extract-strings` to extract the strings from the Javascript from (2):
+   `(fulcro.gettext/extract-strings {:po \"resources/demos/i18n\" :js-path \"resources/public/js/demo-i18n.js\"})`
+. Use a tool like PoEdit to make translation files (e.g. `es.po`) from the generated `messages.pot` file (see Dev Guide).
+. Deploy the CLJC translation files to your source using: `(fulcro.gettext/deploy-translations {:src \"src/demos\" :po \"resources/demos/i18n\" :as-modules? true})`
+. Add the languages as modules to the project's build (see project.clj `demos` build)
+
+The two build (at the time of this writing) was:
+
+```
+{:id           "book"
+ :source-paths ["src/main" "src/book"]
+ :compiler     {:output-dir     "resources/public/js/book"
+                :asset-path     "js/book"
+                :modules        {:entry-point {:output-to "resources/public/js/book/book.js"
+                                               :entries   #{book.main}}
+                                 ; For the dynamic i18n loading demo
+                                 :de          {:output-to "resources/public/js/book/de.js"
+                                               :entries   #{translations.de}}
+                                 :es-MX       {:output-to "resources/public/js/book/es-MX.js"
+                                               :entries   #{translations.es-MX}}
+                                 ; For the dynamic code splitting demo
+                                 :main        {:output-to "resources/public/js/book/main-ui.js"
+                                               :entries   #{book.demos.dynamic-ui-main}}}}}
+```
+
+As with the other code splitting demos you must also load `cljs_base.js` in your HTML, since the common code is
+placed in it.
+
+On startup of any module program you must tell the loader which modules have been pre-loaded by
+their ID:
+
+```
+(new-fulcro-client Root :started-callback (fn [] (cljs.loader/set-loaded! :entry-point)))
+```
+
+++++
+<div class="example" id="dynamic-i18n"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-i18n').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="dynamic-i18n source"]
+----
+include::src/book/book/demos/dynamic_i18n.cljs[]
+----
 
 ++++
 <style>
@@ -8162,7 +8374,14 @@ background-color: rgba(0,0,0,0.04);
  display: block;
 }
 </style>
-<script src="/js/book.js"></script>
+
+<!-- The book demos -->
+<script src="js/book/cljs_base.js"></script>
+<script src="js/book/book.js"></script>
+<script src="js/main.js"></script>
+
+<!-- quick convenient way to toggle the source within asciidoc, since
+     it is super-easy to include it via asciidoc include -->
 <script
   src="https://code.jquery.com/jquery-3.2.1.min.js"
   integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
