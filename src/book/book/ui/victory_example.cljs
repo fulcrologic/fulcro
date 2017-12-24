@@ -1,15 +1,10 @@
 (ns book.ui.victory-example
-  (:require-macros [cljs.test :refer [is]])
   (:require [cljs.pprint :refer [cl-format]]
             cljsjs.victory
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.ui.elements :as ele]
             [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.dom :as dom]
             [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.util :as util]
-            [fulcro.client :as fc]))
+            [fulcro.util :as util]))
 
 (defn us-dollars [n]
   (str "$" (cl-format nil "~:d" n)))

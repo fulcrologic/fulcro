@@ -94,6 +94,22 @@
                                                 :main        {:output-to "resources/public/js/book/main-ui.js"
                                                               :entries   #{book.demos.dynamic-ui-main}}}
                                :parallel-build true}}
+               {:id           "book-live"
+                :source-paths ["src/main" "src/book"]
+                :compiler     {:output-dir     "docs/js/book"
+                               :asset-path     "js"
+                               :optimizations  :advanced
+                               :modules        {:entry-point {:output-to "docs/js/book.js"
+                                                              :entries   #{book.main}}
+                                                ; For the dynamic i18n loading demo
+                                                :de          {:output-to "docs/js/book/de.js"
+                                                              :entries   #{translations.de}}
+                                                :es-MX       {:output-to "docs/js/book/es-MX.js"
+                                                              :entries   #{translations.es-MX}}
+                                                ; For the dynamic code splitting demo
+                                                :main        {:output-to "docs/js/book/main-ui.js"
+                                                              :entries   #{book.demos.dynamic-ui-main}}}
+                               :parallel-build true}}
                ; Use `make guide`
                {:id           "devguide-live"
                 :source-paths ["src/main" "src/devguide"]
@@ -134,19 +150,27 @@
                                ;:parallel-build true
                                :optimizations :none}}]}
 
-  :profiles {:dev        {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/book"]
-                          :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                          :dependencies [[binaryage/devtools "0.9.7"]
-                                         [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                         [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
-                                         [fulcrologic/fulcro-inspect "2.0.0-alpha3-SNAPSHOT"]
-                                         [com.cemerick/piggieback "0.2.2"]
-                                         [figwheel-sidecar "0.5.14"]
-                                         [cljsjs/d3 "3.5.7-1"]
-                                         [cljsjs/victory "0.9.0-0"]
-                                         [hickory "0.7.1"]
-                                         [com.rpl/specter "1.0.5"] ; only used in demos
-                                         [org.flywaydb/flyway-core "4.2.0"]
-                                         [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                         [cljsjs/codemirror "5.8.0-0"]
-                                         [org.clojure/tools.nrepl "0.2.13"]]}})
+  :profiles {:book {:dependencies [[devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
+                                   [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
+                                   [fulcrologic/fulcro-inspect "2.0.0-alpha3-SNAPSHOT" :exclusions [fulcrologic/fulcro]]
+                                   [cljsjs/d3 "3.5.7-1"]
+                                   [cljsjs/victory "0.9.0-0"]
+                                   [hickory "0.7.1"]
+                                   [com.rpl/specter "1.0.5"] ; only used in demos
+                                   [org.flywaydb/flyway-core "4.2.0"]]}
+             :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/book"]
+                    :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+                    :dependencies [[binaryage/devtools "0.9.7"]
+                                   [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
+                                   [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
+                                   [fulcrologic/fulcro-inspect "2.0.0-alpha3-SNAPSHOT" :exclusions [fulcrologic/fulcro]]
+                                   [com.cemerick/piggieback "0.2.2"]
+                                   [figwheel-sidecar "0.5.14"]
+                                   [cljsjs/d3 "3.5.7-1"]
+                                   [cljsjs/victory "0.9.0-0"]
+                                   [hickory "0.7.1"]
+                                   [com.rpl/specter "1.0.5"] ; only used in demos
+                                   [org.flywaydb/flyway-core "4.2.0"]
+                                   [org.clojure/tools.namespace "0.3.0-alpha4"]
+                                   [cljsjs/codemirror "5.8.0-0"]
+                                   [org.clojure/tools.nrepl "0.2.13"]]}})
