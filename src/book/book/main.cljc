@@ -9,7 +9,11 @@
                [book.ui.clip-tool-example :as clip-tool-example]
                [book.queries.union-example-1 :as union-example-1]
                [book.queries.union-example-2 :as union-example-2]
+               [book.queries.parsing-trace-example :as trace]
+               [book.demos.autocomplete :as autocomplete]
                book.server.morphing-example
+               book.demos.cascading-dropdowns
+               book.demos.component-localized-css
                [book.server.ui-blocking-example :as ui-blocking]
                [fulcro-css.css :as css]
                ])
@@ -123,3 +127,7 @@
 #?(:cljs (defexample "Image Clip Tool" clip-tool-example/Root "clip-tool-example"))
 #?(:cljs (defexample "Unions to Select Type" union-example-1/Root "union-example-1"))
 #?(:cljs (defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :networking book.main/example-server))
+#?(:cljs (defexample "Parser Tracing" trace/Root "parsing-trace-example"))
+#?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
+#?(:cljs (defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :networking book.main/example-server))
+#?(:cljs (defexample "Component Localized CSS" book.demos.component-localized-css/Root "component-localized-css" :networking book.main/example-server))

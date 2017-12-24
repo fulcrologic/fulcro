@@ -1421,7 +1421,7 @@ dumping application state at the REPL using a rather long expression. So, at thi
 you are either running your application in a devcard, or you know how to look at things with Fulcro
 Inspect. The output in the devcards is typically easier for beginners to read.
 
-=== Loading Data
+=== Loading Data [[Loading]]
 
 Now we will start to see more of the payoff of our UI co-located queries and auto-normalization. Our application
 so far is quite unrealistic: the people we're showing should be coming from a server-side database, they
@@ -4486,7 +4486,7 @@ started.
 If you have more interesting requirements, then you may want to explore composing Fulcro's back-end into your server
 with the modular components.
 
-== Easy Server
+== Easy Server [[EasyServer]]
 
 The pre-built easy server component for Fulcro uses Stuart Sierra's Component library. The server has no
 global state except for a debugging atom that holds the entire system, and can therefore be easily restarted
@@ -4646,7 +4646,7 @@ the server as a load targeted to your root node. Thus, the server macro is calle
 
 It's as simple as that! Write a function that returns the correct value for the query. The query itself will be available
 in the `env`, and you can use libraries like `pathom`, `Datomic`, and `fulcro-sql` to parse those queries into the proper tree
-result from various data sources.
+result from various data sources. See the <<QueryParsing,Query Parsing>> chapter.
 
 === Entity Queries
 
@@ -5598,7 +5598,7 @@ is a simple helper that is ultimately identical to:
 (the follow-on read is to ensure load markers update).
 
 
-== Incremental Loading
+== Incremental Loading [[IncrementalLoading]]
 
 It is very common for your UI query to have a lot more in it than you want to load at any given time. In some cases,
 even a specific entity asks for more than you'd like to load. A good example of this is a component that allows comments.
@@ -5946,6 +5946,938 @@ user is just blocked. If you're not lucky, your database crashed and you have no
 
 So, I would assert that the only full-stack error handling *worth* doing in *any detail* is for case (3). If communications
 are down, you can retry. But in a distributed system this can be a little nuanced.
+
+= Building a Server
+
+You're already seen a little on how to build and use a server with the <<EasyServer, easy API>>. That server is acually
+flexible enough for many production needs, but Fulcro also
+comes with pre-built server components that allow you to very quickly get the server side of your
+application up and running. In this chapter we'll give you more detail on the three main approaches to
+the server-side of Fulcro:
+
+- How to use the pre-built bits to manually build your own server.
+- More details on the easy server.
+- A more involved pre-written, but modular approach, that has more overall flexibility.
+
+== Rolling Your Own Server
+
+If you're integrating with an existing server then you probably just want to know how to get things working without
+having to use a Component library, and all of the other stuff that comes along with it.
+
+It turns out that the server API handling is relatively light. Most of the work goes into getting things set up
+for easy server restart (e.g. making components stop/start) and getting those components into your parsing environment.
+
+If you have an existing server then you've mostly figured out all of that stuff already and just want to plug
+a Fulcro API handler into it.
+
+Here are the basic requirements:
+
+. Make sure your Ring stack has transit-response and transit-params. You can see the a sample Ring stack in
+[Fulcro's source](https://github.com/fulcrologic/fulcro/blob/1.2.0/src/main/fulcro/easy_server.clj#L94)
+. Check to see if the incoming request is for "/api". If so:
+. Call [`handle-api-request`](https://github.com/fulcrologic/fulcro/blob/1.2.0/src/main/fulcro/server.clj#L354). Pass
+a parser to it (recommend using `fulcro.server/fulcro-parser`), an environment, and the EDN of the request. It will
+give back a Ring response.
+
+You're responsible for creating the parser environment. I'd recommend using
+the `fulcro.server/fulcro-parser` because it is already hooked to the multimethods that the dev guide talks about
+ for handling server requests at the API level like `defquery-root`. Those won't work unless you use it, but any parser
+that can deal with the query/mutation syntax is technically legal.
+
+Here's a crappy little server with no configuration support, no ability to hot code reload, and no external
+integrations at all. But it shows how little you need:
+
+```
+(ns solutions.tiny-server
+  (:require
+    [ring.middleware.content-type :refer [wrap-content-type]]
+    [ring.middleware.gzip :refer [wrap-gzip]]
+    [ring.middleware.not-modified :refer [wrap-not-modified]]
+    [ring.middleware.resource :refer [wrap-resource]]
+    [ring.util.response :as rsp :refer [response file-response resource-response]]
+    [org.httpkit.server]
+    [fulcro.server :as server]))
+
+(defn not-found-handler []
+  (fn [req]
+    {:status  404
+     :headers {"Content-Type" "text/plain"}
+     :body    "NOPE"}))
+
+(def parser (server/fulcro-parser))
+
+(defn wrap-api [handler uri]
+  (fn [request]
+    (if (= uri (:uri request))
+      (server/handle-api-request parser {} (:transit-params request))
+      (handler request))))
+
+(defn my-tiny-server []
+  (let [port       9002
+        ring-stack (-> (not-found-handler)
+                     (wrap-api "/api")
+                     (server/wrap-transit-params)
+                     (server/wrap-transit-response)
+                     (wrap-resource "public")
+                     (wrap-content-type)
+                     (wrap-not-modified)
+                     (wrap-gzip))]
+    (org.httpkit.server/run-server ring-stack {:port port})))
+```
+
+In a REPL, you could start this one up with:
+
+```
+solutions.tiny-server=> (my-tiny-server)
+```
+
+This source is already `src/devguide/solutions/tiny-server.clj` if you're running the dev guide and would
+like to play with it in a REPL.
+
+== Making an "Easy" Server
+
+The pre-built easy server component for Fulcro uses Stuart Sierra's Component library. The server has no
+global state except for a debugging atom that holds the entire system, and can therefore be easily restarted
+with a code refresh to avoid costly restarts of the JVM.
+
+You should have a firm understanding of [Stuart's component library](https://github.com/stuartsierra/component), since
+we won't be covering that in detail here.
+
+=== Constructing a base server
+
+The base server is trivial to create:
+
+```
+(ns app.system
+  (:require
+    [fulcro.easy-server :as server]
+    [app.api :as api]
+    [fulcro.server :as prim]))
+
+(defn make-system []
+  (server/make-fulcro-server
+    ; where you want to store your override config file
+    :config-path "/usr/local/etc/app.edn"
+
+    ; The keyword names of any components you want auto-injected into the query/mutation processing parser env (e.g. databases)
+    :parser-injections #{}
+
+    ; Additional components you want added to the server
+    :components {}))
+```
+
+=== Configuring the server
+
+Server configuration requires two EDN files:
+
+- `resources/config/defaults.edn`: This file should contain a single EDN map that contains
+defaults for everything that the application wants to configure.
+- `/abs/path/of/choice`: This file can be named what you want (you supply the name when
+making the server). It can also contain an empty map, but is meant to be machine-local
+overrides of the configuration in the defaults. This file is required. We chose to do this because
+it keeps people from starting the app in an unconfigured production environment.
+
+```
+(defn make-system []
+  (server/make-fulcro-server
+    :config-path "/usr/local/etc/app.edn"
+    ...
+```
+
+The only parameter that the default server looks for is the network port to listen on:
+
+```
+{ :port 3000 }
+```
+
+The configuration component has a number of built-in features:
+
+- You can override the configuration to use with a JVM option: `-Dconfig=filename`
+- The `defaults.edn` is the target of configuration merge. Your config EDN file must be a map, and anything
+in it will override what is in defaults. The merge is a deep merge.
+- Values can take the form `:env/VAR`, which will use the *string* value of that environment variable as the value
+- Values can take the form `:env.edn/VAR`, which will use `read-string` to interpret the environment variable as the value
+- Relative paths for the config file can be used, and will search the CLASSPATH resources. This allows you to package your config with you jar.
+
+=== Pre-installed components
+
+When you start a Fulcro server it comes pre-supplied with injectable components upon which your
+component can depend and/or inject into the server-side parsing environment.
+
+The most important of these, of course, is the configuration itself. The available components
+are known by the following keys:
+
+- `:config`: The configuration component. The actual EDN value is in the `:value` field
+of the component.
+- `:handler`: The component that handles web traffic. You can inject your own Ring handlers into
+two different places in the request/response processing: before or after the API handler.
+- `:server`: The actual web server.
+
+The component library, of course, figures out the dependency order and ensures things are initialized
+and available where necessary.
+
+=== Making components available in the processing environment [[EasyParsingEnv]]
+
+Any components in the server can be injected into the processing pipeline so they are
+available when writing your mutations and query procesing. Making them available is as simple
+as putting their component keyword into the `:parser-injections` set when building the server:
+
+```
+(defn make-system []
+  (server/make-fulcro-server
+    :parser-injections #{:config}
+    ...))
+```
+
+=== Adding to the Ring Stack
+
+TODO
+
+=== Adding Non-API Routes
+
+TODO
+
+== Modular Server
+
+Fulcro's easy server support is an attempt to get you going quickly, but it suffers from a few drawbacks:
+
+* The Ring stack can only be modified at pre-hook and post-hook locations.
+* Adding new features to easy-server API would lead to a swiss-army knife API with a dizzying array of options.
+
+So when you outgrow the easy server Fulcro provides you with a more modular approach. This leads to
+more control, clearer extension points, and a simple API.
+
+The hope is that as library authors start building full-stack additions (like image libraries, for example) they might
+need to be able to hook into your existing server. The modular server design is intended to make this easier. Note that
+after the modular server API was developed (pre 1.x), Fulcro 1.x has since standardized a server-side parser with
+`defquery` and `defmutation` support. This already allows library authors to add support for handling namespaced keywords
+without having to plug into your sever at all, and the modular server support
+may turn out to be less useful for that concern.
+
+In either case the modular server gives you an approach to building the server that is more open than the easy server.
+It does, however, require a bit more work to get started.
+
+=== Overall Structure
+
+The modular server still uses components to make sure your code is reloadable. The primary difference is that the
+modular server makes no assumptions about how you want to build the web server itself. You could do anything from
+build a `ring-defaults` handler and augment it and drop the resulting processing pipeline into a Java Servlet. The options
+are endless.
+
+You must build three things:
+
+* A Module to handle API requests
+* Middleware to join the API processing with the rest of your request processing
+* Something to get you on the network (web server, servlet, etc.)
+
+The modules get composed into an API handler (which is found by injecting its well-known component), the API handler
+is injected into the middleware component (where you hook it into the correct place), and finally your middleware
+is injected into the network capable thing.
+
+The basic overall picture is shown below. Note the dotted arrows are meant to be injection, the solid lines are
+composition, and the dashed colored lines are the request/response flow.
+
+image::/svg/modular-server.svg[]
+
+==== Step 1: A Module
+
+```
+(defrecord APIModule []
+  fulcro.server/Module
+  (system-key [this] :api-module)          ; this module will be known in the component system as :api-module. Allows you to inject the module.
+  (components [this] {})                   ; Additional components to build. This allows library modules to inject other dependencies that it needs into the system. Commonly empty.
+  fulcro.server/APIHandler
+  (api-read [this] core/server-read)       ; read/mutate handlers (as function) Here we're using the fulcro multimethods so defmutation et al will work.
+  (api-mutate [this] core/server-mutate))
+```
+
+The `fulcro.server/Module` protocol is required, and allows the component to appear in the module list.
+
+NOTE: Your module will be treated as a Stuart Sierra component, so you may also add the `Lifecycle` protocol and
+participate in the `start/stop` sequence if you need to.
+
+===== The System Key
+
+The `(system-key)` protocol method must return a keyword. The module itself gets composed together with other modules
+to make a single request handler, but this keyword will be used as the dependency name for this *specific* module
+in the Stuart Sierra component system. This allows your modules to have inter-dependencies. For example, you
+could have a module that provides API parsing and one that provides utility support for image processing. Not only do you need such
+a component to end up in the processing chain, other components (like the web server itself) might need to access
+the component to obtain things like raw image data for image serving through traditional image URLs.
+
+If you're writing a module for a reusable library then it is suggested that you namespace this keyword to avoid collision.
+
+===== The Components
+
+The `(components)` method must return a map that conforms to the Stuart Sierra component's definition of a dependency
+map. The keys of such a map indicate what keyword you'd like the dependency to be known **as**, and the value
+must be a component that you want created (or the keyword of a component that you know will exist elsewhere in the
+system on startup). This allows library modules to declare, create, or otherwise hook to other things in your system.
+
+Most basic applications can just return nil or an empty map.
+
+==== The APIHandler Protocol
+
+The APIHandler protocol is how you hook into the API requests. The methods of this protocol need to return
+a **function** due to the need for module composition by Fulcro.
+
+If you'd like to use the macros like `defquery-root`, then you should provide a module that returns
+`fulcro.server/server-read` and `fulcro.server/server-mutate` respectively. You may, however, return
+any function you please.
+
+=== Step 2 – The Middleware Stack
+
+When the Fulcro modular server starts it will compose all known modules into an internal component known under the
+key `:fulcro.server/api-handler`. This component contains the key `:middleware` which holds a Ring middleware
+wrapping function that can handle Fulcro API requests. So, to build *your* middleware you simply inject the
+`:fulcro.server/api-handler` component into your own middleware component and create your Ring stack:
+
+```
+; We'll use a trick in a moment to inject the :fulcro.server/api-handler AS :api-handler here
+; :full-server-middleware is where we'll store our resulting middleware stack for the web server's use
+(defrecord CustomMiddleware [full-server-middleware api-handler]
+  component/Lifecycle
+  (start [this]
+    (let [wrap-api (:middleware api-handler)] ; pull the middleware function out
+      (assoc this :full-server-middleware
+                  (-> not-found
+                    (wrap-resource "public")
+                    wrap-api                            ; from fulcro-system modules. Handles /api
+                    fulcro.server/wrap-transit-params   ; REQUIRED
+                    fulcro.server/wrap-transit-response ; REQUIRED
+                    wrap-content-type ; REQUIRED
+                    wrap-not-modified ; these are recommended
+                    wrap-params
+                    wrap-gzip))))
+  (stop [this] (dissoc this :full-server-middleware)))
+```
+
+This component would be set up to have the API handler injected by wrapping its creation in `component/using` like
+so:
+
+```
+(component/using
+  (map->CustomMiddleware {})
+  ; Inject (and remap) the generated api handler AS api-handler
+  {:api-handler   :fulcro.server/api-handler })
+```
+
+The rename makes it possible to refer to the simpler name within the `CustomMiddleware`. If you don't rename it, then
+instead of using a declared field of the `defrecord` you'd have to pull it out via `(:fulcro.server/api-handler this)`.
+
+=== Step 3 – The Web Server
+
+Now that you have Ring middleware, you can do whatever you want. You have a simple way to get a function that
+can handle any request just by injecting the above `CustomMiddleware` into it. Here's an example using HTTP Kit:
+
+```
+; server-middleware-component will be an injected instance of CustomMiddleware
+(defrecord WebServer [^CustomMiddleware server-middleware-component server port]
+  component/Lifecycle
+  (start [this]
+    (try
+      (let [server-opts    {:port 4000}
+            port           (:port server-opts)
+            ; pull out the middleware function from the component
+            middleware     (:full-server-middleware server-middleware-component)
+            ; install the middleware and start the server
+            started-server (run-server middleware server-opts)]
+        (timbre/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
+        (assoc this :port port :server started-server))
+      (catch Exception e
+        (println "Failed to start web server " e)
+        (throw e))))
+  (stop [this]
+    (if-not server this
+                   (do (server)
+                       (println "web server stopped.")
+                       (assoc this :server nil)))))
+```
+
+=== Putting it All Together
+
+The only thing that remains is to set up your overall system so that the components are all known by the names
+you've assumed for them.
+
+```
+(defn make-system []
+  (fulcro.server/fulcro-system
+    {:components {:server-middleware-component (component/using
+                                                 (map->CustomMiddleware {})
+                                                 ; inject (and rename) the generated API handler
+                                                 {:api-handler   :fulcro.server/api-handler })
+                  ; The web server itself, which needs the config and full-stack middleware.
+                  :web-server                  (component/using (map->WebServer {})
+                                                 [:config :server-middleware-component])}
+     ; The Modules (automatically injected as :fulcro.server/api-handler)
+     :modules    [(map->APIModule {})]}))
+```
+
+=== Module Composition
+
+Modules are composed for you when you supply them to the `fulcro-system`:
+
+```
+(def your-server
+  (fulcro.server/fulcro-system
+    {:components { ... }
+     :modules [(make-mod1) (make-mod2) ...]}))
+```
+
+When an API request comes in, **each** query element (prop, join, mutation) will be sent (one at a time)
+into the API handler that appears first in this vector.
+    - If the API handler returns nil, it will try the next and so on in a chain until one returns non-nil
+    - If all return nil, then the remainder of the web processing will be sent the request
+
+=== Parsing Environment
+
+In the easy server you have explicity `:parser-injections`. In the module system, Fulcro will merge your module itself
+**into** the parsing `env` before calling your API handler functions. This means that anything you inject into the
+**module** will be visible in the `env`.
+
+```
+(def your-server
+  (fulcro.server/fulcro-system
+    {:components { ... }
+     :modules [(component/using (make-mod1) [:user-db])
+               (component/using (make-mod2) [:session-store]) ...]}))
+```
+
+In the example above module 1 will see `:user-db` in `env`, and module 2 will see the `:session-store`.
+
+== Application Configuration
+
+Since you'll still need to configure your web server, it might be useful to note that the configuration used
+by the easy server is a component you can inject into your modular server!
+
+```
+(core/fulcro-system
+  {:components {:config (fulcro.server/new-config config-path)
+                :server (component/using (make-server) [:config])}
+   :modules [(make-mod1)]})
+```
+
+It supports pulling in values from the system environment, overriding configs with a JVM option, and more.
+
+See the docstrings on `new-config` or the documentation on the easy server for more details.
+
+= Query Parsing
+
+In the <<Loading, Loading>> and <<IncrementalLoading, Incremental Loading>> sections we showed you the central entry
+points for responding to server queries:
+`defquery-root` and `defquery-entity`. These are fine for simple examples and for getting into your
+processing; however, to be truly data-driven you need to change how the server responds based
+on what the client actually *asked* for (in detail).
+
+So far, we've sort of been spewing entire entities back from the server without taking care to prune them down
+to the actual query of the client.
+
+Unless you modify the network stack all client communication will be in the form of Query/Mutation expressions,
+which of course are recursive in nature. There is no built-in recursive processing, since Fulcro does not know
+anything about your server-side storage; however, there is a parsing mechanism that you
+can use to build processing to interface with it, and there are a number of libraries that can also help.
+
+== Avoiding Parsing
+
+If you're lucky, you can make use of a library to do this stuff for you. Here are some options we know about:
+
+- Pathom : A library by Wilker Lucio that can be used to build parsers on Fulcro's query syntax.
+- Fulcro SQL : A library that knows how to convert graph queries into SQL
+- Datomic : If you're lucky enough to be using Datomic, Fulcro's graph query syntax will run in their `pull` API
+
+Of these, Pathom is the most general, and allows you to easily process a query in a more abstract way. However, it
+really isn't that hard to parse the queries yourself.
+
+== Doing the Parsing Yourself
+
+The expression parser needs two things: A function to dispatch reads to, and a function to dispatch mutations. Since
+we're talking about query parsing here, we'll be talking only about the read dispatch function.
+
+The signature of the parsing read function is `(read [env dispatch-key params])`
+where the `env` contains the `state` of your application, a reference to your `parser` (so you can
+call it recursively, if you wish), a query root marker, an AST node describing the exact
+details of the element's meaning, and *anything else* you want to put in there if
+you call the parser recursively.
+
+The most important item in the query processing is the received environment (`env`). On
+the server it contains:
+
+- Any components you've asked to be injected. Perhaps database and config components.
+- `ast`: An AST representation of the item being parsed.
+- `query`: The subquery (e.g. of a join)
+- `parser`: The query expression parser itself (which allows you to do recursive calls). If you're using the built-in
+   parser, this this will be that same parser that is already hooked into your dispatch mechanism (e.g. defquery-root).
+- `request`: The full incoming Ring request, which will contain things like the headers, cookies, session, user agent info, etc.
+
+The return value of your read must be the *value* for the `dispatch-key`. The parser assembles these back together and
+returns a map containing those keys for all of the items for which you return a non-nil result.
+
+If you understand that, you can probably already write a simple recursive parse of a query. If
+you need a bit more hand-holding, then read on.
+
+NOTE: When doing recursive parsing *You do not have to use the parser from `env`*. Parsers are cheap. If you want to
+make one to deal with a particular graph, go for it! The `fulcro.client.primitives/parser` can make one.
+
+Now, let's get a feeling for the parser in general. The example below
+runs a parser on an arbitrary query that you supply, records the calls to the read emitter,
+and shows the trace of those calls in order.
+
+See the source code comments for a full description of how it works.
+
+Try some queries like these:
+
+- `[:a :b]`
+- `[:a {:b [:c]}]` (note that the AST is recursively built, but only the top keys are actually parsed to trigger reads)
+- `[(:a { :x 1 })]`  (note the value of params)
+
+++++
+<div class="example" id="parsing-trace-example"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parsing-trace-example').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="parsing-trace-example source"]
+----
+include::src/book/book/queries/parsing_trace_example.cljs[]
+----
+
+=== Injecting some kind of database
+
+In order to play with this on a server, you'll want to have some kind of state
+available. The most trivial thing you can do is just create a global top-level atom
+that holds data. This is sufficient for testing, and we'll assume we've done something
+like this on our server:
+
+```
+(defonce state (atom {}))
+```
+
+One could also wrap that in a Stuart Sierra component and inject it into the
+parser (for details on modifying the parser environment, see <<EasyParsingEnv, Making Components Avaialble in the Parsing Environment>>).
+
+Much of the remainder of this section assumes this.
+
+== Read Dispatching
+
+When building your server there must be a read function that can
+pull data to fufill what the parser needs to fill in the result of a query. Fulcro supplies this by default
+and gives you the `defquery-*` macros as helpers to hook into it, but really it is just a multi-method.
+
+For educational purposes, we're going to walk you through implementing this read function yourself.
+
+The parser understands the grammar, and is written to work as follows:
+
+- The parser calls your `read` with the key that it parsed, along with some other helpful information.
+- Your read function returns a value for that key (possibly calling the parser recursively if it is a join).
+- The parser generates the result map by putting that key/value pair into
+the result at the correct position (relative to the query).
+
+Note that the parser only processes the query one level deep. Recursion (if you need it)
+is controlled by *you* calling the parser again from within the read function.
+")
+
+(defcard parser-read-trace
+"This card is similar to the prior card, but it has a read function that just records what keys it was
+triggered for. Give it an arbitrary legal query, and see what happens.
+
+Some interesting queries:
+
+- `[:a :b :c]`
+- `[:a {:b [:x :y]} :c]`
+- `[{:a {:b {:c [:x :y]}}}]`
+
+"
+(fn [state _]
+  (let [{:keys [v error]} @state
+        trace (atom [])
+        read-tracking (fn [env k params]
+                        (swap! trace conj {:read-called-with-key k}))
+        parser (prim/parser {:read read-tracking})]
+    (dom/div nil
+      (when error
+        (dom/div nil (str error)))
+      (dom/input #js {:type     "text"
+                      :value    v
+                      :onChange (fn [evt] (swap! state assoc :v (.. evt -target -value)))})
+      (dom/button #js {:onClick #(try
+                                   (reset! trace [])
+                                   (swap! state assoc :error nil)
+                                   (parser {} (r/read-string v))
+                                   (swap! state assoc :result @trace)
+                                   (catch js/Error e (swap! state assoc :error e))
+                                   )} "Run Parser")
+      (dom/h4 nil "Parsing Trace")
+      (html-edn (:result @state)))))
+{}
+{:inspect-data false})
+
+(defcard-doc
+"
+In the card above you should have seen that only the top-level keys trigger reads.
+
+So, the query:
+
+```clj
+[:kw {:j [:v]}]
+```
+
+would result in a call to your read function on `:kw` and `:j`. Two calls. No
+automatic recursion. Done. The output value of the *parser* will be a map (that
+parse creates) which contains the keys (from the query, copied over by the
+parser) and values (obtained from your read):
+
+```clj
+{ :kw value-from-read-for-kw :j value-from-read-for-j }
+```
+
+Note that if your read accidentally returns a scalar for `:j` then you've not
+done the right thing...a join like `{ :j [:k] }` expects a result that is a
+vector of (zero or more) things *or* a singleton *map* that contains key
+`:k`.
+
+```clj
+{ :kw 21 :j { :k 42 } }
+; OR
+{ :kw 21 :j [{ :k 42 } {:k 43}] }
+```
+
+Dealing with recursive queries is a natural fit for a recusive algorithm, and it
+is perfectly fine to invoke the `parser` function to descend the query. In fact,
+the `parser` is passed as part of your environment.
+
+So, the read function you write will receive three arguments, as described below:
+
+1. An environment containing:
+    + `:ast`: An abstract syntax *tree* for the element, which contains:
+       + `:type`: The type of node (e.g. :prop, :join, etc.)
+       + `:dispatch-key`: The keyword portion of the triggering query element (e.g. :people/by-id)
+       + `:key`: The full key of the triggering query element (e.g. [:people/by-id 1])
+       + `:query`: (same as the query in `env`)
+       + `:children`: If this node has sub-queries, will be AST nodes for those
+       + others...see documentation
+    + `:parser`: The query parser
+    + `:query`: **if** the element had one E.g. `{:people [:user/name]}` has `:query` `[:user/name]`
+    + Components you requested be injected
+2. A dispatch key for the item that triggered the read (same as dispatch key in the AST)
+3. Parameters (which are nil if not supplied in the query)
+
+It must return a value that has the shape implied the grammar element being read.
+
+So, lets try it out.
+")
+
+(defn read-42 [env key params] {:value 42})
+(def parser-42 (prim/parser {:read read-42}))
+
+(defcard-doc
+"
+=== Reading a keyword
+
+If the parser encounters a keyword `:kw`, your function will be called with:
+
+```clj
+(your-read
+  { :dispatch-key :kw :parser (fn ...) } ;; the environment: parser, etc.
+  :kw                                   ;; the keyword
+  nil) ;; no parameters
+```
+
+your read function should return some value that makes sense for
+that spot in the grammar. There are no real restrictions on what that data
+value has to be in this case. You are reading a simple property.
+There is no further shape implied by the grammar.
+It could be a string, number, Entity Object, JS Date, nil, etc.
+
+Due to additional features of the parser, *your return value must be wrapped in a
+map with the key `:value`*. If you fail to do this, you will get nothing
+in the result.
+
+Thus, a very simple read for props (keywords) could be:
+
+```clj
+(defn read [env key params] { :value 42 })
+```
+
+below is a devcard that implements exactly this `read` and plugs it into a
+parser like this:"
+(dc/mkdn-pprint-source read-42)
+(dc/mkdn-pprint-source parser-42))
+
+(defn parser-tester [parser]
+(fn [state _]
+  (let [{:keys [v error]} @state]
+    (dom/div nil
+      (dom/input #js {:type     "text"
+                      :value    v
+                      :onChange (fn [evt] (swap! state assoc :v (.. evt -target -value)))})
+      (dom/button #js {:onClick #(try
+                                   (swap! state assoc :error "" :result (parser {:state (atom (:db @state))} (r/read-string v)))
+                                   (catch js/Error e (swap! state assoc :error e))
+                                   )} "Run Parser")
+      (when error
+        (dom/div nil (str error)))
+      (dom/h4 nil "Query Result")
+      (pr-str (:result @state))
+      (dom/h4 nil "Database")
+      (pr-str (:db @state))))))
+
+(defcard property-read-for-the-meaning-of-life-the-universe-and-everything
+"This card is using the parser/read pairing shown above (the read returns
+the value 42 no matter what it is asked for). Run any query you
+want in it, and check out the answer.
+
+This card just runs `(parser-42 {} your-query)` and reports the result.
+
+Some examples to try:
+
+- `[:a :b :c]`
+- `[:what-is-6-x-7]`
+- `[{:a {:b {:c {:d [:e]}}}}]` (yes, there is only one answer)
+"
+(parser-tester parser-42)
+{:db {}})
+
+(defn property-read [{:keys [state]} key params] {:value (get @state key :not-found)})
+(def property-parser (prim/parser {:read property-read}))
+
+(defcard-doc
+"
+So now you have a read function that returns the meaning of life the universe and
+everything in a single line of code! But now it is obvious that we need to build
+an even bigger machine to understand the question.
+
+If your server state is just a flat set of scalar values with unique keyword
+identities, then a better read is similarly trivial.
+
+The read function:
+"
+(dc/mkdn-pprint-source property-read)
+"
+Just assumes the property will be in the top-level of some injected state atom.
+")
+
+(defcard trivial-property-reader
+"This card is using the `property-read` function above in a parser.
+
+The database we're emulating is shown at the bottom of the card, after the
+result.
+
+Run some queries and see what you get. Some suggestions:
+
+- `[:a :b :c]`
+- `[:what-is-6-x-7]`
+- `[{:a {:b {:c {:d [:e]}}}}]` (yes, there is only one answer)
+"
+(parser-tester property-parser)
+{:db {:a 1 :b 2 :c 99}}
+{:inspect-data true})
+
+(def flat-app-state (atom {:a 1 :user/name "Sam" :c 99}))
+
+(defn flat-state-read [{:keys [state parser query] :as env} key params]
+(if (= :user key)
+  {:value (parser env query)}                             ; recursive call. query is now [:user/name]
+  {:value (get @state key)}))                             ; gets called for :user/name :a and :c
+
+(def my-parser (prim/parser {:read flat-state-read}))
+
+(defcard-doc
+"
+The result of those nested queries is supposed to be a nested map. So, obviously we
+have more work to do.
+
+=== Reading a join
+
+Your state probably has some more structure to it than just a flat
+bag of properties. Joins are naturally recursive in syntax, and
+those that are accustomed to writing parsers probably already see the solution.
+
+First, let's clarify what the read function will receive for a join. When
+parsing:
+
+```clj
+{ :j [:a :b :c] }
+```
+
+your read function will be called with:
+
+```clj
+(your-read { :state state :parser (fn ...) :query [:a :b :c] } ; the environment
+           :j                                                 ; keyword of the join
+           nil) ; no parameters
+```
+
+But just to prove a point about the separation of database format and
+query structure we'll implement this next example
+with a basic recursive parse, *but use more flat data* (the following is live code):
+
+"
+(dc/mkdn-pprint-source flat-app-state)
+(dc/mkdn-pprint-source flat-state-read)
+(dc/mkdn-pprint-source my-parser)
+"
+The important bit is the `then` part of the `if`. Return a value that is
+the recursive parse of the sub-query. Otherwise, we just look up the keyword
+in the state (which as you can see is a very flat map).
+
+The result of running this parser on the query shown is:
+
+"
+(my-parser {:state flat-app-state} '[:a {:user [:user/name]} :c])
+"
+
+The first (possibly surprising thing) is that your result includes a nested
+object. The parser creates the result, and the recursion naturally nested the
+result correctly.
+
+Next you should remember that join implies a there could be one OR many results.
+The singleton case is fine (e.g. putting a single map there). If there are
+multiple results it should be a vector.
+
+In this case, we're just showing that you can use the parser recursively
+and it in turn will call your read function again.
+In a real application, your data will not be this flat, so you
+will almost certainly not do things in quite this
+way.
+
+So, let's put a little better state in our application, and write a
+more realistic parser.
+
+=== A Non-trivial, recursive example
+
+Let's start with the following hand-normalized application state:
+
+"
+(dc/mkdn-pprint-source parser1/app-state)
+"
+Our friend `db->tree` could handle queries against this database,
+but let's implement it by hand.
+
+Say we want to run this query:
+
+"
+(dc/mkdn-pprint-source parser1/query)
+"
+
+From the earlier discussion you see that we'll have to handle the
+top level keys one at a time.
+
+For this query there are only two keys to handle: `:friends`
+and `:window-size`. So, let's write a case for each:
+
+"
+(dc/mkdn-pprint-source parser1/read)
+"
+
+The default case is `nil`, which means if we supply an errant key in the query no
+exception will happen.
+
+when we run the query, we get:
+
+"
+(parser1/parser {:state parser1/app-state} parser1/query)
+"
+
+Those of you paying close attention will notice that we have yet to need
+recursion. We've also done something a bit naive: select-keys assumes
+that query contains only keys! What if app state and query were instead:
+
+"
+(dc/mkdn-pprint-source parser2/app-state)
+(dc/mkdn-pprint-source parser2/query)
+"
+
+Now things get interesting, and I'm sure more than one reader will have an
+opinion on how to proceed. My aim is to show that the parser can be called
+recursively to handle these things, not to find the perfect structure for the
+parser in general, so I'm going to do something simple.
+
+The primary trick I'm going to exploit is the fact that `env` is just a map, and
+that we can add stuff to it. When we are in the context of a person, we'll add
+`:person` to the environment, and pass that to a recursive call to `parser`.
+
+"
+(dc/mkdn-pprint-source parser2/read)
+"
+and running the query gives the expected result:
+
+"
+(parser2/parser {:state parser2/app-state} parser2/query)
+"
+
+All of the code shown here is being actively pulled (and run) from `fulcro-devguide.state-reads.parser-2`.
+
+== Parameters
+
+In the query grammar most kinds of rules accept parameters. These are intended
+to be combined with dynamic queries that will allow your UI to have some control
+over what you want to read from the application state (think filtering, pagination,
+sorting, and such).
+
+As you might expect, the parameters on a particular expression in the query
+are just passed into your read function as the third argument.
+You are responsible for both defining and interpreting them.
+They have no rules other than they are maps.
+
+To read the property `:load/start-time` with a parameter indicating a particular
+time unit you might use:
+
+```clj
+[(:load/start-time {:units :seconds})]
+```
+
+this will invoke read with:
+
+```clj
+(your-read env :load/start-time { :units :seconds})
+```
+
+the implication is clear. The code is up to you. Let's add some quick support for this
+in our read (in fulcro-devguide.state-reads.parser-3):
+"
+(dc/mkdn-pprint-source parser3/app-state)
+(dc/mkdn-pprint-source parser3/read)
+(dc/mkdn-pprint-source parser3/parser)
+"Now we can try the following queries:
+
+Query:"
+(dc/mkdn-pprint-source parser3/parse-result-mins)
+"Result: "
+parser3/parse-result-mins
+"Query: "
+(dc/mkdn-pprint-source parser3/parse-result-secs)
+"Result: "
+parser3/parse-result-secs
+"Query: "
+(dc/mkdn-pprint-source parser3/parse-result-ms)
+"Result: "
+parser3/parse-result-ms)
+
+(defcard-doc
+"
+== Using a Completely Custom Parser
+
+Most of this section assumed you're entering your server code via the built-in parser. Note that it is possible to use an
+alternate (custom) parser at any phase of parsing. In fact, you can even install a custom parser in your server
+(though then the macros for defining mutations and query handlers won't work for you).
+
+Just remember that at any time in parsing you may change over to using an alternate instance of a parser to continue
+processing. Parsers can be constructed using the `prim/parser` function.
+
+== External Libraries
+
+=== [Pathom](https://github.com/wilkerlucio/pathom)
+
+A really nice library for building recursive Fulcro query parsers. It has a good model for building parsers that can
+bridge everything from REST services to microservice architectures. In general if you need to interpret your UI queries,
+this tool can be very useful.
+
+
+=== [Fulcro-SQL](https://github.com/fulcrologic/fulcro-sql)
+
+A library that can run Fulcro graph queries against SQL databases. This library lets you define your joins in relation
+to the Fulcro join notion. It can walk to-one, to-many, and many-to-many joins in an SQL database in response to a
+Fulcro join. This allows it to handle many Fulcro queries as graph queries against your SQL database with just a little
+configuration and extra code.
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -6906,6 +7838,222 @@ Below you'll find the source for a Clojure program that can drive this CI testin
 TODO: Include code
 ----
 
+= Demos
+
+This chapter includes running demos with source that will give you insight on how to approach various problems. Remember
+that the server latency can be set using the controls in the upper-right corner in the live HTML version, so you can
+better watch state changes during server interactions.
+
+== Autocomplete
+
+A fairly common desire in user interfaces is to try to help the user complete an input by querying the server
+or possible completions. Like many of the demos, the UI for this example is intentionally very bare-bones
+so that we can primarily concentrate on the data-flow that you'll want to use to achieve the effect.
+
+Typically you will want to trigger autocomplete on a time interval (e.g. using `goog.functions/debounce`)
+or after some number of characters have been entered into the field. We're going to implement it in the
+following way:
+
+* The autocomplete query will trigger when the input has at least 2 characters of input.
+* The server will be asked for 10 suggestions, and will update on a debounced interval.
+* The autocomplete suggestion list will clear if length goes below 2
+* The user must use the mouse to select the desired completion (we're not handling kb events)
+
+=== Basic Operation
+
+The basic idea is as follows:
+
+* Make a component that has isolated state, so you can have more than one
+* Decide when to trigger the server query
+* Use load, but target it for a place that is not on the UI
+** Allows the UI to continue displaying old list while new load is in progress
+** Use a post-mutation to move the finished load into place
+
+=== The Server Query
+
+For our server we have a simple list of all of the airports in the world that have 3-letter codes. Our
+sever just grabs 10 that match your search string:
+
+```
+(defn airport-search [s]
+(->> airports
+ (filter (fn [i] (str/includes? (str/lower-case i) (str/lower-case s))))
+ (take 10)
+ vec))
+
+(defquery-root :autocomplete/airports
+(value [env {:keys [search]}]
+ (airport-search search)))
+```
+
+=== The UI and Post Mutation
+
+We create a helper function so we don't have to manually generate the ident for autocomplete wherever we need it:
+
+```
+(defn autocomplete-ident
+  "Returns the ident for an autocomplete control. Can be passed a map of props, or a raw ID."
+  [id-or-props]
+  (if (map? id-or-props)
+    [:autocomplete/by-id (:db/id id-or-props)]
+    [:autocomplete/by-id id-or-props]))
+```
+
+We use Closure's debounce to generate a function that will not bash the server too hard. Load's will run at most
+once every 500ms. Notice that the server query itself is for airport suggestions, and we use the `:target` option
+to place the results in our autocomplete's field:
+
+```
+(def get-suggestions
+  "A debounced function that will trigger a load of the server suggestions into a temporary locations and fire
+   a post mutation when that is complete to move them into the main UI view."
+  (letfn [(load-suggestions [component new-value id]
+            (df/load component :autocomplete/airports nil
+              {:params               {:search new-value}
+               :marker               false
+               :post-mutation        `populate-loaded-suggestions
+               :post-mutation-params {:id id}
+               :target               (conj (autocomplete-ident id) :autocomplete/loaded-suggestions)}))]
+    (gf/debounce load-suggestions 500)))
+```
+
+Notice when we trigger the load it goes into the auto-complete widget's `:autocomplete/loaded-suggestions` field.
+The UI renders the `:autocomplete/suggestions`. We do this so we can continue filtering the list as they type
+independently of the load, but at the end of the load we need to update the suggestions. We do this by running a post
+mutation (see the demo source).
+
+The running demo (with source) is below:
+
+++++
+<div class="example" id="autocomplete-demo"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.autocomplete-demo').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="autocomplete-demo source"]
+----
+include::src/book/book/demos/autocomplete.cljs[]
+----
+
+
+== Cascading Dropdowns
+
+A common UI desire is to have dropdowns that cascade. I.e. a dropdown populates in response to a selection in
+an earlier dropdown, like Make/Model for cars. This can be done quite easily.
+
+The basic implementation is as follows:
+
+. Define dropdowns that can display the items
+. Don't initialize the extra ones with items
+. When the first one is given a selection, load the next one
+
+A couple of simple implementation details are needed:
+
+. We're using bootstrap dropdowns, and we need to know where they normalize their data. Looking at the data inspector
+for the card makes this easy to see. For example, we can see that items are stored in the
+`:bootstrap.dropdown/by-id` table, in the `:fulcro.ui.bootstrap3/items` column.
+. The IDs of the dropdowns (which we generate)
+
+On the server, we define the query handler as follows (remember you can affect the server latency with the server
+controls to watch things happen):
+
+```
+(defquery-root :models
+  (value [env {:keys [make]}]
+    (case make
+      :ford [(bs/dropdown-item :escort "Escort")
+             (bs/dropdown-item :F-150 "F-150")]
+      :honda [(bs/dropdown-item :civic "Civic")
+              (bs/dropdown-item :accort "Accord")])))
+```
+
+and we define a mutation for showing a "Loading..." item in the dropdown that is loading as:
+
+```
+(defmutation show-list-loading
+  "Change the items of the dropdown with the given ID to a single item that indicates Loading..."
+  [{:keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state assoc-in
+      [:bootstrap.dropdown/by-id id :fulcro.ui.bootstrap3/items]
+      [(assoc (bs/dropdown-item :loading "Loading...") :fulcro.ui.bootstrap3/disabled? true)])))
+```
+
+The main action is in the `onSelect` of the first dropdown, which just issues the transact to set the loading
+visualization, followed by the remote load.
+
+
+++++
+<div class="example" id="cascading-dropdowns"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.cascading-dropdowns').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="cascading-dropdowns source"]
+----
+include::src/book/book/demos/cascading_dropdowns.cljs[]
+----
+
+== Colocated CSS
+
+The https://github.com/fulcrologic/fulcro-css[Fulcro CSS] library adds extensions that make it easy to co-locate and compose localized
+component CSS with your UI! This leads to all sorts of wonderful and interesting
+results:
+
+* Your CSS is name-localized, so your component's CSS is effectively private
+* You don't have to go find the CSS file to include it in your application. It's already in the code.
+* Since it's code, you can use data manipualtion, variables, and more to create your CSS. It
+is the ultimate in code reuse and generality.
+* The composition facilities prevent duplication.
+* It becomes much easier to allow themed components with additional tool chains! Variables can be
+supplied that can simply be modified via code before CSS injection.
+* Closure minification can be applied to reduce the size of the resulting files during your
+normal compilation!
+* Server-side rendering can pre-inject CSS rules into the server-side rendered page! No more waiting for
+your CSS to load for the UI to look right!
+
+Basically components define local rules via [garden](https://github.com/noprompt/garden) syntax, and Fulcro
+will localize the class names using the namespace and component name.
+Parent components compose in the children via `include-children` for the components that it uses.
+Just like initial state and queries. This causes all used components to compose to the root. Actually,
+you can stop at any time and extract CSS from any component, so you need not compose it to the root if
+you don't want/need to.
+
+Two support functions then give you easy access to the generated CSS and generated names.
+
+To access the localized names for a component, just use:
+
+```
+(let [{:keys [simple-name]} (css/get-classnames Child)] ...)
+```
+
+This function returns a map from the *simple* name you used in defining a rule with the value
+of the *localized* name that is in the CSS. This allows you to be unaware of the localization rules!
+
+At some point in your code (e.g. startup) you will want to inject the CSS into the DOM. Typically, with:
+
+```
+(css/upsert-css "dom-id" Component)
+```
+
+Any number of those can be done, at whatever ID you care to invent (it will replace or insert a style element
+as necessary).
+
+The card below upserts the co-located CSS from the code itself, but these code rules  also
+bases the color on the value in an atom (think theme color). At any time you can change your various
+embedded data on colocated CSS and re-upsert the generated result!
+
+The complete commented code and example is below. See the library documentation for more details.
+
+++++
+<div class="example" id="component-localized-css"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.component-localized-css').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="component-localized-css source"]
+----
+include::src/book/book/demos/component_localized_css.cljs[]
+----
+
+
 ++++
 <style>
 @media screen {
@@ -7020,4 +8168,5 @@ background-color: rgba(0,0,0,0.04);
   integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
   crossorigin="anonymous"></script>
 ++++
+
 
