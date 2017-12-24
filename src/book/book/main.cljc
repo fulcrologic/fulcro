@@ -14,6 +14,9 @@
                book.server.morphing-example
                book.demos.cascading-dropdowns
                book.demos.component-localized-css
+               book.demos.declarative-mutation-refresh
+               book.demos.dynamic-ui-routing
+               book.demos.dynamic-i18n
                [book.server.ui-blocking-example :as ui-blocking]
                [fulcro-css.css :as css]
                ])
@@ -85,8 +88,8 @@
                              :right           (if hidden? "-179px" "-1px")}})
     (dom/div nil "Latency: " (dom/span nil delay))
     (dom/br nil)
-    (dom/button #js {:onClick #(prim/transact! this `[(set-server-latency {:delay ~(+ delay 1000)})])} "Slower")
-    (dom/button #js {:onClick #(prim/transact! this `[(set-server-latency {:delay ~(- delay 1000)})])} "Faster")
+    (dom/button #js {:onClick #(prim/transact! this `[(set-server-latency {:delay ~(+ delay 500)})])} "Slower")
+    (dom/button #js {:onClick #(prim/transact! this `[(set-server-latency {:delay ~(- delay 500)})])} "Faster")
     (dom/div #js {:onClick #(m/toggle! this :ui/hidden?)
                   :style   #js {:color           "grey"
                                 :backgroundColor "lightgray"
@@ -131,3 +134,11 @@
 #?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
 #?(:cljs (defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :networking book.main/example-server))
 #?(:cljs (defexample "Component Localized CSS" book.demos.component-localized-css/Root "component-localized-css" :networking book.main/example-server))
+#?(:cljs (defexample "Declarative Mutation Refresh" book.demos.declarative-mutation-refresh/Root "declarative-mutation-refresh" :networking book.main/example-server))
+#?(:cljs (defexample "dynamicUiRouting" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
+           :started-callback book.demos.dynamic-ui-routing/application-loaded
+           :networking book.main/example-server))
+
+#?(:cljs (defexample "Dynamically Loaded Locales" book.demos.dynamic-i18n/Root "dynamic-i18n"
+           :networking book.main/example-server
+           :started-callback (fn [] (cljs.loader/set-loaded! :entry-point))))

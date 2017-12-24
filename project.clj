@@ -81,37 +81,20 @@
                 :source-paths ["src/main" "src/book"]
                 :figwheel     true
                 :compiler     {:output-dir     "resources/public/js/book"
-                               :main           book.main
                                :asset-path     "js/book"
-                               :preloads       [devtools.preload ]
-                               :parallel-build true
-                               :output-to      "resources/public/js/book.js"}}
-               {:id           "demos"
-                :source-paths ["src/main" "src/demos"]
-                :figwheel     {:devcards true}
-                :compiler     {:devcards       true
-                               :output-dir     "resources/public/js/demos"
-                               :asset-path     "/js/demos"
-                               :parallel-build true
                                :preloads       [devtools.preload]
-                               :modules        {:entry-point {:output-to "resources/public/js/demos/demos.js"
-                                                              :entries   #{cards.card-ui}}
-                                                :de          {:output-to "resources/public/js/demos/de.js"
+                               :modules        {:entry-point {:output-to "resources/public/js/book/book.js"
+                                                              :entries   #{book.main}}
+                                                ; For the dynamic i18n loading demo
+                                                :de          {:output-to "resources/public/js/book/de.js"
                                                               :entries   #{translations.de}}
-                                                :es-MX       {:output-to "resources/public/js/demos/es-MX.js"
+                                                :es-MX       {:output-to "resources/public/js/book/es-MX.js"
                                                               :entries   #{translations.es-MX}}
-                                                :main        {:output-to "resources/public/js/demos/main-ui.js"
-                                                              :entries   #{cards.dynamic-ui-main}}}
-                               :optimizations  :none}}
-               {:id           "demo-i18n"
-                :source-paths ["src/main" "src/demos"]
-                :compiler     {:devcards      true
-                               :output-dir    "resources/public/js/demo-i18n"
-                               :asset-path    "js/demo-i18n"
-                               :output-to     "resources/public/js/demo-i18n.js"
-                               :main          cards.card-ui
-                               :optimizations :whitespace}}
-               ; REMEBER TO USE devguide profile!!! Use `make guide`
+                                                ; For the dynamic code splitting demo
+                                                :main        {:output-to "resources/public/js/book/main-ui.js"
+                                                              :entries   #{book.demos.dynamic-ui-main}}}
+                               :parallel-build true}}
+               ; Use `make guide`
                {:id           "devguide-live"
                 :source-paths ["src/main" "src/devguide"]
                 :compiler     {:main          fulcro-devguide.guide
@@ -129,27 +112,19 @@
                {:id           "devguide"
                 :figwheel     {:devcards true}
                 :source-paths ["src/main" "src/devguide"]
-                :compiler     {:main         fulcro-devguide.guide
-                               :asset-path   "js/devguide"
-                               :devcards     true
-                               :output-to    "resources/public/js/devguide.js"
-                               :output-dir   "resources/public/js/devguide"
-                               :preloads     [devtools.preload]
+                :compiler     {:main           fulcro-devguide.guide
+                               :asset-path     "js/devguide"
+                               :devcards       true
+                               :output-to      "resources/public/js/devguide.js"
+                               :output-dir     "resources/public/js/devguide"
+                               :preloads       [devtools.preload]
                                :parallel-build true
-                               :foreign-libs [{:provides ["cljsjs.codemirror.addons.closebrackets"]
-                                               :requires ["cljsjs.codemirror"]
-                                               :file     "resources/public/codemirror/closebrackets-min.js"}
-                                              {:provides ["cljsjs.codemirror.addons.matchbrackets"]
-                                               :requires ["cljsjs.codemirror"]
-                                               :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
-               {:id           "i18n-extraction"
-                :source-paths ["src/main" "src/test"]
-                :compiler     {:output-to     "i18n/i18n.js"
-                               :main          fulcro.automated-test-main
-                               :output-dir    "resources/private/js/i18n"
-                               :asset-path    "js/i18n"
-                               ;:parallel-build true
-                               :optimizations :whitespace}}
+                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
+                                                 :requires ["cljsjs.codemirror"]
+                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
+                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
+                                                 :requires ["cljsjs.codemirror"]
+                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to     "resources/private/js/unit-tests.js"
@@ -159,42 +134,12 @@
                                ;:parallel-build true
                                :optimizations :none}}]}
 
-  :profiles {:production {:source-paths ["src/main" "src/devguide"]
-                          :dependencies [[devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
-                                         [cljsjs/d3 "3.5.7-1"]
-                                         [cljsjs/victory "0.9.0-0"]
-                                         [hickory "0.7.1"]
-                                         [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
-                                         [com.rpl/specter "1.0.5"] ; only used in demos
-                                         [org.flywaydb/flyway-core "4.2.0"]
-                                         [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                         [cljsjs/codemirror "5.8.0-0"]
-                                         [org.clojure/tools.nrepl "0.2.13"]]}
-             :uberjar    {:source-paths   ["src/main" "src/demos"]
-                          :main           cards.server-main
-                          :uberjar-name   "fulcro-demos.jar"
-                          :jar-exclusions ^:replace []
-                          :dependencies   [[devcards "0.2.3" :exclusions [cljsjs/react-dom cljsjs/react]]
-                                           [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
-                                           [com.rpl/specter "1.0.5"] ; only used in demos
-                                           [org.flywaydb/flyway-core "4.2.0"]
-                                           [fulcrologic/fulcro-sql "0.3.0"] ; demos
-                                           [org.clojure/java.jdbc "0.7.3"] ; pinned dependency
-                                           [org.postgresql/postgresql "42.1.4"] ; demos
-                                           [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                           [cljsjs/codemirror "5.8.0-0"]
-                                           [org.clojure/tools.nrepl "0.2.13"]]
-                          :aot            :all
-                          :prep-tasks     ["compile" ["cljsbuild" "once" "production-demos"]]}
-             :dev        {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/demos"]
+  :profiles {:dev        {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/book"]
                           :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                           :dependencies [[binaryage/devtools "0.9.7"]
                                          [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
                                          [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
                                          [fulcrologic/fulcro-inspect "2.0.0-alpha3-SNAPSHOT"]
-                                         [fulcrologic/fulcro-sql "0.3.0"] ; demos
-                                         [org.clojure/java.jdbc "0.7.3"] ; pinned dependency
-                                         [org.postgresql/postgresql "42.1.4"] ; demos
                                          [com.cemerick/piggieback "0.2.2"]
                                          [figwheel-sidecar "0.5.14"]
                                          [cljsjs/d3 "3.5.7-1"]

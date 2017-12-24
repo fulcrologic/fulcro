@@ -1,11 +1,7 @@
 (ns user
   (:require
-    [cards.server :as svr]
     [clojure.pprint :refer [pprint]]
     [clojure.repl :refer [doc source]]
-    [clojure.set :as set]
-    [clojure.spec.alpha :as s]
-    [clojure.spec.gen.alpha :as sg]
     [clojure.tools.namespace.repl :as tools-ns :refer [disable-reload! refresh clear set-refresh-dirs]]
     [figwheel-sidecar.system :as fig]
     [solutions.putting-together :as pt]
@@ -44,24 +40,7 @@
      (swap! figwheel component/start)
      (fig/cljs-repl (:figwheel-system @figwheel)))))
 
-(set-refresh-dirs "src/demos" "src/main" "src/test" "src/dev" "src/devguide")
-
-(defonce demo-server (atom nil))
-
-(defn stop-demo-server "Stop the running web server." []
-  (when @demo-server
-    (swap! demo-server component/stop)
-    (reset! demo-server nil)))
-
-(defn run-demo-server "Load the overall web server system and start it." []
-  (reset! demo-server (svr/make-system))
-  (swap! demo-server component/start))
-
-(defn restart-demo-server
-  "Stop the web server, refresh all namespace source code from disk, then restart the web server."
-  []
-  (stop-demo-server)
-  (refresh :after 'user/run-demo-server))
+(set-refresh-dirs "src/main" "src/test" "src/dev" "src/devguide")
 
 (defn run-upload-server
   "Load and start the server that can handle the file upload form examples."
@@ -71,7 +50,6 @@
 (def stop-upload-server upload/stop)
 
 (def restart-upload-server upload/restart)
-
 
 
 ;; SOLUTIONS: Putting it Together Setting Up: The start/restart functions for the server

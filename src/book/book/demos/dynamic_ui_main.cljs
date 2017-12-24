@@ -1,6 +1,5 @@
-(ns cards.dynamic-ui-main
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client :as fc]
+(ns book.demos.dynamic-ui-main
+  (:require [fulcro.client.primitives :refer [defsc]]
             [fulcro.client.routing :as r]
             cljs.loader
             [fulcro.client.dom :as dom]))
