@@ -1,15 +1,10 @@
-(ns cards.loading-indicators
+(ns book.demos.loading-indicators
   (:require
-    [devcards.core :as dc :include-macros true]
-    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.impl.protocols :as p]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.logging :as log]
     [fulcro.client :as fc]
     [fulcro.server :as server]
-    [fulcro.client.mutations :as m :refer [defmutation]]
-    [cards.card-utils :refer [sleep]]
     [fulcro.client.primitives :as prim :refer [defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -18,7 +13,6 @@
 
 (server/defquery-entity :lazy-load/ui
   (value [env id params]
-    (sleep 2000)
     (case id
       :panel {:child {:db/id 5 :child/label "Child"}}
       :child {:items [{:db/id 1 :item/label "A"} {:db/id 2 :item/label "B"}]}
@@ -27,7 +21,6 @@
 (server/defquery-entity :lazy-load.items/by-id
   (value [env id params]
     (log/info "Item query for " id)
-    (sleep 4000)
     {:db/id id :item/label (str "Refreshed Label " (rand-int 100))}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -94,27 +87,4 @@
    :query         [:ui/react-key {:panel (prim/get-query Panel)}]}
   (dom/div #js {:key react-key} (ui-panel panel)))
 
-#?(:cljs
-   (dc/defcard-doc
-     "# Load Indicators
-
-     Fulcro 2.0 allows you to place loading markers in a load marker table (by an ID you invent as a keyword). This keeps
-     the markers from overwriting data in your graph, and also lets you query for them from anywhere in your UI.
-
-     The comments in the code below describe how to use these:
-     "
-     (dc/mkdn-pprint-source Item)
-     (dc/mkdn-pprint-source Child)
-     (dc/mkdn-pprint-source Root)))
-
-#?(:cljs
-   (defcard-fulcro lazy-loading-demo
-     "
-     # Demo
-
-     This is a full-stack demo, and requires you run the server (see demo instructions).
-     "
-     Root
-     {}
-     {:inspect-data true}))
 

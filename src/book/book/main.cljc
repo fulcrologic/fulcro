@@ -17,6 +17,10 @@
                book.demos.declarative-mutation-refresh
                book.demos.dynamic-ui-routing
                book.demos.dynamic-i18n
+               book.demos.loading-data-basics
+               book.demos.loading-data-targeting-entities
+               book.demos.loading-in-response-to-UI-routing
+               book.demos.loading-indicators
                [book.server.ui-blocking-example :as ui-blocking]
                [fulcro-css.css :as css]
                ])
@@ -142,3 +146,8 @@
 #?(:cljs (defexample "Dynamically Loaded Locales" book.demos.dynamic-i18n/Root "dynamic-i18n"
            :networking book.main/example-server
            :started-callback (fn [] (cljs.loader/set-loaded! :entry-point))))
+
+#?(:cljs (defexample "Loading Data Basics" book.demos.loading-data-basics/Root "loading-data-basics" :networking book.main/example-server :started-callback book.demos.loading-data-basics/initialize))
+#?(:cljs (defexample "Loading Data and Targeting Entities" book.demos.loading-data-targeting-entities/Root "loading-data-targeting-entities" :networking book.main/example-server))
+#?(:cljs (defexample "Loading In Response To UI Routing" book.demos.loading-in-response-to-UI-routing/Root "loading-in-response-to-UI-routing" :networking book.main/example-server))
+#?(:cljs (defexample "Loading Indicators" book.demos.loading-indicators/Root "loading-indicators" :networking book.main/example-server))

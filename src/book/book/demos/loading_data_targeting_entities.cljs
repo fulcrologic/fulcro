@@ -1,19 +1,19 @@
-(ns cards.loading-data-targeting-entities
+(ns book.demos.loading-data-targeting-entities
   (:require
-    #?@(:cljs [[devcards.core :as dc :include-macros true]
-               [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client.mutations :as m]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.server :as server]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]
-    [fulcro.client :as fc]
     [fulcro.client.primitives :as prim]))
+
+;; SERVER
 
 (server/defquery-entity :person/by-id
   (value [env id params]
     {:db/id id :person/name (str "Person " id)}))
+
+;; CLIENT
 
 (defsc Person [this {:keys [person/name]}]
   {:query [:db/id :person/name]
@@ -26,7 +26,6 @@
   {:query         [:db/id {:pane/person (prim/get-query Person)}]
    :initial-state (fn [{:keys [id]}] {:db/id id :pane/person nil})
    :ident         [:pane/by-id :db/id]}
-  #?(:cljs (js/console.log :pane id props))
   (dom/div nil
     (dom/h4 nil (str "Pane " id))
     (if person
@@ -59,72 +58,10 @@
 (defsc Root [this {:keys [root/panel ui/react-key] :as props}]
   {:query         [:ui/react-key {:root/panel (prim/get-query Panel)}]
    :initial-state (fn [params] {:root/panel (prim/get-initial-state Panel {})})}
-  #?(:cljs (js/console.log :root props))
   (dom/div #js {:key react-key}
     (ui-panel panel)
     (dom/button #js {:onClick #(load-random-person this :left)} "Load into Left")
     (dom/button #js {:onClick #(load-random-person this :right)} "Load into Right")
     (dom/button #js {:onClick #(load-random-person this :both)} "Load into Both")))
 
-#?(:cljs
-   (dc/defcard-doc
-     "# Targeting an Entity Load
 
-     The data fetch system supports loading specific normalized data directly into tables. The requirements are simple:
-
-     - There must be a component that has a query and ident (for normalization)
-     - Your server must be able to respond to a query for that kind of entity
-
-     If you load entities with load like this:
-
-     ```
-     (df/load this [:person/by-id 3] Person)
-     ```
-
-     then by default that is just a refresh of that entity (components that have that ident will refresh).
-
-     Another thing you might be doing is loading an entity for the first time, in which case you might want to link
-     it into the graph in multiple places using `:target`. This is fully supported:
-
-     ```
-     (df/load this [:person/by-id 3] Person {:target (df/multiple-targets [:x :b :fld] [:y c :fld])})
-     ```
-
-     In the example code below, you'll see we've set up two panes in a panel, and each pane can render a person.
-
-     Initially, there are no people loaded (none in initial state). The load buttons in the root component
-     let you see entity loads targeted at one or both of them.
-
-     The main loader looks like this (and is called from root):
-
-     "
-     (dc/mkdn-pprint-source load-random-person)
-     "
-
-     The server is rather simple. It just makes up a person for any given ID:
-
-     ```
-     (server/defquery-entity :person/by-id
-       (value [env id params]
-         {:db/id id :person/name (str \"Person\" id)}))
-     ```
-
-     And the UI is coded as follows:
-     "
-     (dc/mkdn-pprint-source Person)
-     (dc/mkdn-pprint-source ui-person)
-     (dc/mkdn-pprint-source Pane)
-     (dc/mkdn-pprint-source ui-pane)
-     (dc/mkdn-pprint-source Panel)
-     (dc/mkdn-pprint-source ui-panel)
-     (dc/mkdn-pprint-source Root)))
-
-#?(:cljs
-   (defcard-fulcro targeted-entity
-     "# Live Demo
-
-     This card is running the code above. Make sure you're running the demo server.
-     "
-     Root
-     {}
-     {:inspect-data true}))
