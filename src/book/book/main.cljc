@@ -30,6 +30,7 @@
                book.demos.server-query-security
                book.demos.server-return-values-as-data-driven-mutation-joins
                book.demos.server-targeting-return-values-into-app-state
+               book.demos.server-return-values-manually-merging
                [book.server.ui-blocking-example :as ui-blocking]
                [fulcro-css.css :as css]
                ])
@@ -180,3 +181,4 @@
            :mutation-merge book.demos.server-return-values-manually-merging/merge-return-value
            :networking book.main/example-server))
 #?(:cljs (defexample "Targeting Mutation Return Values" book.demos.server-targeting-return-values-into-app-state/Root "server-targeting-return-values-into-app-state" :networking book.main/example-server))
+

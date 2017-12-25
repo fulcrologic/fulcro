@@ -20,7 +20,7 @@
 (defmulti merge-return-value (fn [state sym return-value] sym))
 
 ; Do all of the work on the server.
-(m/defmutation ^:intern crank-it-up [params]
+(m/defmutation crank-it-up [params]
   (remote [env] true))
 
 (defmethod merge-return-value `crank-it-up
@@ -41,5 +41,3 @@
   {:initial-state (fn [params] {:child (prim/get-initial-state Child {})})
    :query         [:ui/react-key {:child (prim/get-query Child)}]}
   (dom/div #js {:key react-key} (ui-child child)))
-
-
