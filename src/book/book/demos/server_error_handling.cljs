@@ -1,7 +1,5 @@
-(ns cards.server-error-handling
+(ns book.demos.server-error-handling
   (:require
-    #?@(:cljs [[devcards.core :as dc :include-macros true]
-               [fulcro.client.cards :refer [defcard-fulcro]]])
     [fulcro.client :as fc]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
@@ -62,42 +60,11 @@
    :query         [:ui/react-key {:child (prim/get-query Child)}]}
   (dom/div #js {:key react-key} (ui-child child)))
 
-#?(:cljs
-   (dc/defcard-doc
-     "# Error Handling
+(defn initialize "To be used as :started-callback" [{:keys [reconciler]}]
+  ;; specify a fallback mutation symbol as a named parameter after the component or reconciler and query
+  (df/load reconciler :data nil {:fallback `log-read-error}))
 
-     This is a full-stack example. To start the server, make sure you're running a normal clj repl:
-
-     (run-demo-server)
-
-     Note that all of the examples share the same server, but the server code is isolated for each using
-     namespacing of the queries and mutations.
-
-     "
-     (dc/mkdn-pprint-source Child)
-     (dc/mkdn-pprint-source Root)))
-
-#?(:cljs
-   (defcard-fulcro error-handling
-     "# Error Handling
-
-     This example has installed a global handler that can watch for network errors (it logs them to the console).
-
-     On startup it attempts to read garbage (which generates an error and triggers a fallback). This will leave a load
-     marker in app state, which can be examined to show an actual UI error.
-
-     Each button tries a different mutation. The one on the left disables itself on errors, whereas the right
-     one allows you to keep trying.
-
-     In all cases the application internals place the last server error in the top-level `:fulcro/server-error`. You
-     should manually clear this if you wish to use it to track hard server errors.
-     "
-     Root
-     {}
-     {:fulcro       {:started-callback       (fn [{:keys [reconciler]}]
-                                               ;; specify a fallback mutation symbol as a named parameter after the component or reconciler and query
-                                               (df/load reconciler :data nil {:fallback `log-read-error}))
-                     ;; this function is called on *every* network error, regardless of cause
-                     :network-error-callback (fn [state status-code error]
-                                               (log/warn "Global callback:" error " with status code: " status-code))}
-      :inspect-data true}))
+;; this function is called on *every* network error, regardless of cause
+(defn error-handler "To be used as network-error-callback"
+  [state status-code error]
+  (log/warn "Global callback:" error " with status code: " status-code))

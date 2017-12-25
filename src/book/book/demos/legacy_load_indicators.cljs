@@ -1,21 +1,15 @@
-(ns cards.legacy-load-indicators
+(ns book.demos.legacy-load-indicators
   (:require
-    [fulcro.client :as fc]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.mutations :as m :refer [defmutation]]
+    [fulcro.client.logging :as log]
     [fulcro.server :refer [defquery-entity]]
-    [fulcro.client.dom :as dom]
-    #?@(:clj  [
-    [taoensso.timbre :as timbre]]
-        :cljs [[devcards.core :as dc :include-macros true]
-               [fulcro.client.cards :refer [defcard-fulcro]]])))
+    [fulcro.client.dom :as dom]))
 
 ;; SERVER
 
 (defquery-entity :lazy-load/ui
   (value [env id params]
-    #?(:clj (Thread/sleep 1000))
     (case id
       :panel {:child {:db/id 5 :child/label "Child"}}
       :child {:items [{:db/id 1 :item/label "A"} {:db/id 2 :item/label "B"}]}
@@ -23,8 +17,7 @@
 
 (defquery-entity :lazy-load.items/by-id
   (value [env id params]
-    #?(:clj (timbre/info "Item query for " id))
-    #?(:clj (Thread/sleep 1000))
+    (log/info "Item query for " id)
     {:db/id id :item/label (str "Refreshed Label " (rand-int 100))}))
 
 ;; CLIENT
@@ -84,43 +77,4 @@
    :query         [:ui/loading-data :ui/react-key {:panel (prim/get-query Panel)}]}
   (dom/div #js {:key react-key} (ui-panel panel)))
 
-#?(:cljs
-   (dc/defcard-doc
-     "# Lazy Load Indicators
-
-     NOTE: Fulcro 2.0 has better support. This is still available, but see also loading-indicators in the demos.
-
-     Fulcro places markers on items that are being loaded. These markers can be used to show progress indicators in
-     the UI. There are essentially two kinds: a global marker, and an item-based marker. The global marker is present during
-     and loads, whereas the localized markers are present until a specific item's load has completed.
-
-     The comments in the code below describe how to use these:
-     "
-     (dc/mkdn-pprint-source Item)
-     (dc/mkdn-pprint-source Child)
-     (dc/mkdn-pprint-source Root)))
-
-#?(:cljs
-   (defcard-fulcro lazy-loading-demo
-     "
-     # Demo
-
-     This is a full-stack demo, and requires you run the server (see demo instructions).
-
-     The first button triggers a load of a child's data from the server. There is a built-in delay of 1 second so you
-     can see the markers. Once the child is loaded, a button appears indicating items can be loaded into that child. The
-     same 1 second delay is present so you can see the markers.
-
-     Once the items are loaded, each has a refresh button. Again, a 1 second delay is present so you can examine the
-     markers.
-
-     The app state is shown so you can see the marker detail appear/disappear. In general you'll use the `lazily-loaded`
-     helper to render different load states, and you should not base you code on the internal details of the load marker data.
-
-     Note that once you get this final items loaded (which have refresh buttons), the two items have different ways of
-     showing refresh.
-     "
-     Root
-     {}
-     {:inspect-data true}))
 
