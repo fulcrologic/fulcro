@@ -1,10 +1,6 @@
-(ns cards.initial-app-state
+(ns book.demos.initial-app-state
   (:require
-    [devcards.core :as dc :include-macros true]
-    [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]
     [fulcro.client :as fc]
     [fulcro.client.mutations :as m]
     [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]))
@@ -108,33 +104,3 @@
 
     (dom/ul nil
       (mapv ui-list-item items))))
-
-(dc/defcard-doc
-  "# Initial State
-
-  Fulcro's initial state support allows you to compose the initial (startup) state using the components themselves.
-  This allows you to co-locate the component initial state for local reasoning, and compose children into
-  parents so that any component in the app can be easily relocated. If such components also have an ident, any
-  mutations need to interact with those components will automatically just work, since you'll be working on
-  normalized data!
-
-  The source of the demo components is:
-  "
-  (dc/mkdn-pprint-source Main)
-  (dc/mkdn-pprint-source Settings)
-  (dc/mkdn-pprint-source PaneSwitcher)
-  (dc/mkdn-pprint-source ItemLabel)
-  (dc/mkdn-pprint-source Foo)
-  (dc/mkdn-pprint-source Bar)
-  (dc/mkdn-pprint-source ListItem)
-  (dc/mkdn-pprint-source Root))
-
-(defcard-fulcro initial-state
-  "
-  Note: There are two union queries in this application. Notice how the initial app state manages to find them all even
-  though one of them is not in the initial tree of initial state (PaneSwitcher composes in Main, but Settings is
-  auto-found and added as well).
-  "
-  Root
-  {}
-  {:inspect-data true})

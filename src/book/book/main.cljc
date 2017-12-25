@@ -17,10 +17,19 @@
                book.demos.declarative-mutation-refresh
                book.demos.dynamic-ui-routing
                book.demos.dynamic-i18n
+               book.demos.initial-app-state
+               book.demos.legacy-load-indicators
                book.demos.loading-data-basics
                book.demos.loading-data-targeting-entities
                book.demos.loading-in-response-to-UI-routing
                book.demos.loading-indicators
+               book.demos.paginating-large-lists-from-server
+               book.demos.parallel-vs-sequential-loading
+               book.demos.parent-child-ownership-relations
+               book.demos.server-error-handling
+               book.demos.server-query-security
+               book.demos.server-return-values-as-data-driven-mutation-joins
+               book.demos.server-targeting-return-values-into-app-state
                [book.server.ui-blocking-example :as ui-blocking]
                [fulcro-css.css :as css]
                ])
@@ -151,3 +160,23 @@
 #?(:cljs (defexample "Loading Data and Targeting Entities" book.demos.loading-data-targeting-entities/Root "loading-data-targeting-entities" :networking book.main/example-server))
 #?(:cljs (defexample "Loading In Response To UI Routing" book.demos.loading-in-response-to-UI-routing/Root "loading-in-response-to-UI-routing" :networking book.main/example-server))
 #?(:cljs (defexample "Loading Indicators" book.demos.loading-indicators/Root "loading-indicators" :networking book.main/example-server))
+#?(:cljs (defexample "Initial State" book.demos.initial-app-state/Root "initial-app-state" :networking book.main/example-server))
+#?(:cljs (defexample "Legacy Load Indicators" book.demos.legacy-load-indicators/Root "legacy-load-indicators" :networking book.main/example-server))
+#?(:cljs (defexample "Paginating Lists From Server" book.demos.paginating-large-lists-from-server/Root "paginating-large-lists-from-server"
+           :started-callback book.demos.paginating-large-lists-from-server/initialize
+           :networking book.main/example-server))
+
+#?(:cljs (defexample "Parallel vs. Sequential Loading" book.demos.parallel-vs-sequential-loading/Root "parallel-vs-sequential-loading" :networking book.main/example-server))
+#?(:cljs (defexample "Parent-Child Ownership" book.demos.parent-child-ownership-relations/Root "parent-child-ownership-relations" :networking book.main/example-server))
+
+(fc/new-fulcro-client)
+#?(:cljs (defexample "Error Handling (TODO:install error handler)" book.demos.server-error-handling/Root "server-error-handling"
+           :networking book.main/example-server))
+#?(:cljs (defexample "Query Security (TODO:install in mock server)" book.demos.server-query-security/Root "server-query-security" :networking book.main/example-server))
+#?(:cljs (defexample "Return Values and Mutation Joins" book.demos.server-return-values-as-data-driven-mutation-joins/Root "server-return-values-as-data-driven-mutation-joins"
+
+           :networking book.main/example-server))
+#?(:cljs (defexample "Manually Merging Server Mutation Return Values" book.demos.server-return-values-manually-merging/Root "server-return-values-manually-merging"
+           :mutation-merge book.demos.server-return-values-manually-merging/merge-return-value
+           :networking book.main/example-server))
+#?(:cljs (defexample "Targeting Mutation Return Values" book.demos.server-targeting-return-values-into-app-state/Root "server-targeting-return-values-into-app-state" :networking book.main/example-server))

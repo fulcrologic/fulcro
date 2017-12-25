@@ -3940,6 +3940,26 @@ since it isn't the "default branch" that was explicitly listed (in `PersonPlaceU
 This behavior is critical when using unions to handle UI routing, which is in turn essential for good application
 performance.
 
+
+=== Initial State Demo
+
+Fulcro's initial state support allows you to compose the initial (startup) state using the components themselves.
+This allows you to co-locate the component initial state for local reasoning, and compose children into
+parents so that any component in the app can be easily relocated. If such components also have an ident, any
+mutations need to interact with those components will automatically just work, since you'll be working on
+normalized data!
+
+++++
+<div class="example" id="initial-app-state"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.initial-app-state').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="initial-app-state source"]
+----
+include::src/book/book/demos/initial_app_state.cljs[]
+----
+
+
 == Initial State and State Progressions
 
 If you remember from the <<PureRenderingDiagram, diagram>> about pure rendering, then you'll also note that this step
@@ -8137,10 +8157,10 @@ The `defsc` and `defmethod` needed for step 2 look like this:
 
 ```
 (prim/defsc Main [this {:keys [label]}]
-  {:initial-state (fn [params] {r/dynamic-route-key :main :label \"MAIN\"})
+  {:initial-state (fn [params] {r/dynamic-route-key :main :label "MAIN"})
    :ident (fn [] [:main :singleton])
    :query [r/dynamic-route-key :label]}
-  (dom/div #js {:style #js {:backgroundColor \"red\"}}
+  (dom/div #js {:style #js {:backgroundColor "red"}}
         label))
 
 (defmethod r/get-dynamic-router-target :main [k] Main)
@@ -8222,9 +8242,9 @@ The book's build is configured for this, and the following steps were required:
 . Build the code with whitespace optimizations (see project.clj demo-i18n cljs build config). WITHOUT MODULES:
 `lein cljsbuild once demo-i18n`
 . Use `fulcro.gettext/extract-strings` to extract the strings from the Javascript from (2):
-   `(fulcro.gettext/extract-strings {:po \"resources/demos/i18n\" :js-path \"resources/public/js/demo-i18n.js\"})`
+   `(fulcro.gettext/extract-strings {:po "resources/demos/i18n" :js-path "resources/public/js/demo-i18n.js"})`
 . Use a tool like PoEdit to make translation files (e.g. `es.po`) from the generated `messages.pot` file (see Dev Guide).
-. Deploy the CLJC translation files to your source using: `(fulcro.gettext/deploy-translations {:src \"src/demos\" :po \"resources/demos/i18n\" :as-modules? true})`
+. Deploy the CLJC translation files to your source using: `(fulcro.gettext/deploy-translations {:src "src/demos" :po "resources/demos/i18n" :as-modules? true})`
 . Add the languages as modules to the project's build (see project.clj `demos` build)
 
 The two build (at the time of this writing) was:
@@ -8299,10 +8319,10 @@ or 3 elements (loading one or more things into a property of an existing compone
 The server-side code for handling these queries uses a global table on the server, and is:
 
 ```
-(def all-users [{:db/id 1 :person/name \"A\" :kind :friend}
-                {:db/id 2 :person/name \"B\" :kind :friend}
-                {:db/id 3 :person/name \"C\" :kind :enemy}
-                {:db/id 4 :person/name \"D\" :kind :friend}])
+(def all-users [{:db/id 1 :person/name "A" :kind :friend}
+                {:db/id 2 :person/name "B" :kind :friend}
+                {:db/id 3 :person/name "C" :kind :enemy}
+                {:db/id 4 :person/name "D" :kind :friend}])
 
 ; incoming param (kind) is destructured from third arg
 (defmethod api/server-read :load-samples/people [env _ {:keys [kind]}]
@@ -8391,7 +8411,7 @@ The server is rather simple. It just makes up a person for any given ID:
 ```
 (server/defquery-entity :person/by-id
   (value [env id params]
-    {:db/id id :person/name (str \"Person\" id)}))
+    {:db/id id :person/name (str "Person" id)}))
 ```
 
 ++++
@@ -8472,6 +8492,502 @@ The comments in the code of the demo describe the different parts.
 [source,clojure,role="loading-indicators source"]
 ----
 include::src/book/book/demos/loading_indicators.cljs[]
+----
+
+== Legacy Load Indicators
+
+NOTE: Fulcro 2.0 has better support. This is still available, but see also loading-indicators in the demos.
+
+Fulcro places markers on items that are being loaded. These markers can be used to show progress indicators in
+the UI. There are essentially two kinds: a global marker, and an item-based marker. The global marker is present during
+and loads, whereas the localized markers are present until a specific item's load has completed.
+
+In the demo below the first button triggers a load of a child's data from the server. Use the server latency
+cnotrols to slow things down so you
+can see the markers. Once the child is loaded, a button appears indicating items can be loaded into that child.
+
+Once the items are loaded, each has a refresh button. Again, a 1 second delay is present so you can examine the
+markers.
+
+++++
+<div class="example" id="legacy-load-indicators"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.legacy-load-indicators').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="legacy-load-indicators source"]
+----
+include::src/book/book/demos/legacy_load_indicators.cljs[]
+----
+
+== Paginating Large Lists
+
+This demo is showing a (dynamically generated) list of items. The server can generate any number of them, so you
+can page ahead as many times as you like. Each page is dynamically loaded if and only if the browser does not already
+have it. The demo also ensures you cannot run out of browser memory by removing items and pages that are more than 4 steps away
+from your current position. You can demostrate this by moving ahead by more than 4 pages, then page back 5. You should
+see a reload of that early page when you go back to it.
+
+The UI of this example is a great example of how a complex application behavior remains very very simple at the UI
+layer with Fulcro.
+
+We represent the list items as you might expect:
+
+```
+(defsc ListItem [this {:keys [item/id]}]
+  {:query [:item/id :ui/fetch-state]
+   :ident [:items/by-id :item/id]}
+  (dom/li nil (str "Item " id)))
+```
+
+We then generate a component to represent a page of them. This allows us to associate the items on a page with
+a particular component, which makes tracking the page number and items on that page much simpler:
+
+```
+(defsc ListPage [this {:keys [page/number page/items]}]
+  {:initial-state {:page/number 1 :page/items []}
+   :query         [:page/number {:page/items (prim/get-query ListItem)}]
+   :ident         [:page/by-number :page/number]}
+  (dom/div nil
+    (dom/p nil "Page number " number)
+    (df/lazily-loaded #(dom/ul nil (mapv ui-list-item %)) items)))
+```
+
+Next we build a component named `LargeList` to control which page we're on. This component does nothing more than
+show the current page, and transact mutations that ask for the specific page. Not that we could easily add a control
+to jump to any page, since the mutation itself is `goto-page`.
+
+```
+(defsc LargeList [this {:keys [list/current-page]}]
+  {:initial-state (fn [params] {:list/current-page (prim/get-initial-state ListPage {})})
+   :query         [{:list/current-page (prim/get-query ListPage)}]
+   :ident         (fn [] [:list/by-id 1])}
+  (let [{:keys [page/number]} current-page]
+    (dom/div nil
+      (dom/button #js {:disabled (= 1 number)
+        :onClick #(prim/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
+      (dom/button #js {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])}
+        "Next Page")
+      (ui-list-page current-page))))
+```
+
+=== The goto-page Mutation
+
+So you can infer that all of the complexity of this application is hidden behind a single mutation: `goto-page`. This
+mutation is a complete abstraction to the UI, and the UI designer would need to very little about it.
+
+We've decided that this mutation will:
+
+* Ensure the given page exists in app state (with its page number)
+* Check to see if the page has items
+** If not: it will trigger a server-side query for those items
+* Update the `LargeList`'s current page to point to the correct page
+* Garbage collect pages/items in the app database that are 5 or more pages away from the current position.
+
+The mutation itself looks like this:
+
+```
+(m/defmutation goto-page [{:keys [page-number]}]
+  (action [{:keys [state] :as env}]
+    (load-if-missing env page-number)
+    (swap! state (fn [s]
+                   (-> s
+                     (init-page page-number)
+                     (set-current-page page-number)
+                     (gc-distant-pages page-number)))))
+  (remote [{:keys [state] :as env}]
+    (when (not (page-exists? @state page-number))
+      (df/remote-load env)))) ; trigger load queue processing
+```
+
+Let's break this down.
+
+==== The Action
+
+The `load-if-missing` function is composed of the following bits:
+
+```
+(defn page-exists? [state-map page-number]
+  (let [page-items (get-in state-map [:page/by-number page-number :page/items])]
+    (boolean (seq page-items))))
+
+(defn load-if-missing [{:keys [reconciler state] :as env} page-number]
+  (when-not (page-exists? @state page-number)
+    (let [start (inc (* 10 (dec page-number)))
+          end   (+ start 9)]
+      (df/load reconciler :paginate/items ListItem {:params {:start start :end end}
+                                                    :target [:page/by-number page-number :page/items]}))))
+```
+
+and you can see that it just detects if the page is missing its items. If the items are missing, it loads them.
+
+=== The Server-Side Code
+
+The server in this example is trivial. It is just a query that generates items on the fly:
+
+```
+(defmethod api/server-read :paginate/items [env k {:keys [start end]}]
+  (when (> 1000 (- end start)) ; ensure the server doesn't die if the client does something like use NaN for end
+    {:value (vec (for [id (range start end)]
+                   {:item/id id}))}))
+```
+
+
+++++
+<div class="example" id="paginating-large-lists-from-server"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.paginating-large-lists-from-server').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="paginating-large-lists-from-server source"]
+----
+include::src/book/book/demos/paginating_large_lists_from_server.cljs[]
+----
+
+== Parallel vs. Sequential Loading
+
+This is a simple application that shows off the difference between regular loads and those marked parallel. In
+order to see the effect, increase your server latency to something like 5 seconds.
+
+Normally, Fulcro runs separate event-based loads in sequence, ensuring that your reasoning can be synchronous;
+however, for loads that might take some time to complete, and for which you can guarantee order of
+completion doesn't matter, you can specify an option on load (`:parallel true`) that allows them to proceed in parallel.
+
+In the demo below pressing the sequential buttons on the three (in any order) will take
+at least 3x your server latency to complete from the time you click the first one (since each will run after the other is complete).
+If you rapidly click the parallel buttons, then the loads will not be sequenced, and you will see them all complete in roughly
+1x your server latency (from the time you click the last one).
+
+++++
+<div class="example" id="parallel-vs-sequential-loading"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parallel-vs-sequential-loading').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="parallel-vs-sequential-loading source"]
+----
+include::src/book/book/demos/parallel_vs_sequential_loading.cljs[]
+----
+
+== Parent-Child Relationships
+
+UIs often have parent-child relationships. In these cases, the parent can be seen as a UI component in control of the
+children (it is responsible for telling them to render). In such cases it is usually better to reason about
+the *management* logic (i.e. deleting, reordering, etc) from the parent; however, it is commonly the case the
+you want the *child* to render some controls, such as a delete button.
+
+The most basic example of this is the list. Lists are very simple.
+In a normalized database there will be a table of items, and other parts
+of the UI will refer to the list items by ident.
+
+In order to accomplish this the parent must create some things. Perhaps it needs to ask a list item to highlight,
+or it wants to pass a callback that can be used by the child to indicate `onDelete`.
+
+In Fulcro you *must* pass such calculated values via `prim/computed`.
+
+This is because the underlying system can cause UI refreshes on targeted components (e.g. the items themselves). In
+those cases the way it works is that Fulcro runs the query on the item and forces an update. When it does so, *it
+only has the data from the query!*. Any computed values that were originally passed from the parent are *not* in
+the database! The `computed` function sends the parent-generated data to the component, and causes the component
+itself to cache those values behind the scenes (after all, the parent has not refresh, so those values should still
+be ok).
+
+So, in our list example let's talk about removing and item.
+Removing an item from a list requires at least one change to the database, possibly two:
+
+* You'll always want to remove the ident from the list itself. This will cause the item to disappear from the screen. This
+is sufficient if the item is being removed from the screen, but not from the db. Remember that you're working
+on a normalized database, so you have to remove an ident, not the item in this case.
+* If the item is provably being deleted from storage altogether, then you'll want to remove it from the database
+table as well. Remember that removal from a list is not necessarily deletion of the item.
+
+In our example, we'll assume both need to happen:
+
+```
+(m/defmutation delete-item
+  "Mutation: Delete an item from a list"
+  [{:keys [id]}]
+  (action [{:keys [state]}]
+    (letfn [(filter-item [list] (filterv #(not= (second %) id) list))]
+      (swap! state
+        (fn [s]
+          (-> s
+            (update :items dissoc id) ; remove the item from the db (optional)
+            (update-in [:lists 1 :list/items] filter-item))))))) ; remove the item from the list of idents
+```
+
+The source of the components for this demo are below. Make note of the use of `computed`.
+
+++++
+<div class="example" id="parent-child-ownership-relations"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parent-child-ownership-relations').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="parent-child-ownership-relations source"]
+----
+include::src/book/book/demos/parent_child_ownership_relations.cljs[]
+----
+
+== Server Error Handling
+
+This example has installed a global handler that can watch for network errors (it logs them to the console).
+
+On startup it attempts to read garbage (which generates an error and triggers a fallback). This will leave a load
+marker in app state, which can be examined to show an actual UI error.
+
+Each button tries a different mutation. The one on the left disables itself on errors, whereas the right
+one allows you to keep trying.
+
+In all cases the application internals place the last server error in the top-level `:fulcro/server-error`. You
+should manually clear this if you wish to use it to track hard server errors.
+
+++++
+<div class="example" id="server-error-handling"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-error-handling').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="server-error-handling source"]
+----
+include::src/book/book/demos/server_error_handling.cljs[]
+----
+
+== UI Query Security
+
+If you examine any UI query it will have a tree form. That is the nature of Fulcro's query and Datomic pull syntax. It
+is also the nature of UI's. For any such query, you can imagine it as a graph walk:
+
+Take this query:
+
+```
+[:a {:join1 [:b {:join2 [:c :d]}]}]
+```
+
+If you think about how this looks in the server: each join walks from one table (or entity) to another through
+some kind of (forward or reverse) reference.
+
+```
+   QUERY PART                            IMPLIED DATABASE graph
+[:a {:join1                           { :a 6 :join1 [:tableX id1] }
+                                                      \\
+                                                       \\
+                                                        \\|
+        [:b {:join2                       :tableX { id1 { :id id1 :join2 [:tableY id2]
+                                                                            /
+                                                                           /
+                                                                         |/
+              [:c :d]}]}]                :tableY { id2 { :id id2 :c 4 :d 5 }}
+```
+
+One idea that works pretty well for us is based on this realization: There is a starting point of this walk (e.g. I
+want to load a person), and the top-level detail *must* be specified (or implied at least) by the incoming query
+(load person 5, load all persons in my account, etc.).
+
+A tradition logic check always needs to be run on
+this object to see if it is OK for the user to *start* reading the database there.
+
+The problem that remains is that there is a graph query that could conceivably walk to things in the database that
+should not be readable. So, to ensure security we need to verify that the user:
+
+. is allowed to read the specific *data* at the node of the graph (e.g. :a, :c, and :d)
+. is allowed to *walk* across a given *reference* at that node of the graph.
+
+However, since both of those cases are essentially the same in practice (can the user read the given property), one
+possible algorithm simplifies to:
+
+* Create a whitelist of keywords that are allowed to be read by the query in question. This can be a one-time
+declarative configuration, or something dynamic based on user rights.
+* Verify the user is allowed to read the \"top\" object. If not, disallow the query.
+* Recursively gather up all keywords from the query as a set
+* Find the set difference of the whitelist and the query keywords.
+* If the difference if not empty, refuse to run the query
+
+=== The Server Hooks
+
+This is one of the few examples that would add extra code to the server itself (we're still simulating it for this
+book). This example's auth mechanisms would be set up as components and a parser injection there. The relevant
+code is:
+
+```
+(defn make-system []
+  (core/make-fulcro-server
+    :config-path \"config/demos.edn\"
+    :parser (prim/parser {:read logging-query :mutate logging-mutate})
+    :parser-injections #{:authentication}
+    :components {
+                 ; Server security demo: This puts itself into the Ring pipeline to add user info to the request
+                 :auth-hook      (server-security/make-authentication)
+                 ; This is here as a component so it can be injected into the parser env for processing security
+                 :authentication (server-security/make-authorizer)}))
+```
+
+++++
+<div class="example" id="server-query-security"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-query-security').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="server-query-security source"]
+----
+include::src/book/book/demos/server_query_security.cljs[]
+----
+
+== Mutation Joins
+
+Fulcro 2.0+ supports the ability to return (and auto-normalize) a value from a server-side mutation.
+
+You can write mutation joins as part of normal transactions, but they are a bit messy to read (see the
+Developer's Guide). The easier way to work with them is to use a regular-looking mutation in the UI,
+and encode the join on the client-side *implementation* of the mutation.
+
+So, in our demo below our mutation to change a label is called like this:
+"
+(dc/mkdn-pprint-source Item)
+"
+
+but our mutation can take that incoming AST (for `(change-label)`) and indicate that it will return a value:
+
+```
+(defmutation change-label [{:keys [db/id]}]
+  (remote [{:keys [ast state]}]
+    (-> ast
+      (m/returning state Item)
+      (m/with-params {:db/id id}))))
+```
+
+Note that there is *no* optimistic update here. The change you see on the UI in the demo below is due to the response
+merging into your application state!
+
+The additional `with-params` just shows there's an additional helper for changing the parameters that would be
+sent to the server (it isn't needed in this example, since that's what the parameters already were).
+
+## Normalization
+
+For normalization to work, the mutation join must use a UI query. This is why the second argument to `returning` is
+a *component*. The query is pulled from that component, which includes the metadata necessary for proper normalization.
+"))
+
+The two items in the list are clickable. Clicking on either of them will ask the server to change their value
+to some random UUID and return the updated entity. Using mutation joins this data is auto-merged and the UI updated.
+
+NOTE: The Add Item button is full-stack, and uses tempids. Use the server latency to
+see the state as it runs.
+
+
+== Targeting Return values
+
+This demo shows you how to use the `with-target` mutation modifier to cause the return value of the server to
+be placed in a location of your choosing.
+
+=== Targeting Raw Values
+
+If you don't specify a component with `returning`, then your returned data can be targeted, but of course it
+won't normalize. The error triggering mutation does this:
+
+"
+(dc/mkdn-pprint-source trigger-error)
+"and the server simply returns a raw value (map is recommended)"
+(dc/mkdn-pprint-source server-trigger-error)
+"
+
+=== Targeting Graph Results
+
+The more interesting case is when you want normalization, but you also need to pepper the return
+value's ident around the state of your application. The default `returning` just refreshes (or loads)
+the entity into its table, which means anything that already way linked to it will update, but if it is
+new there can be no UI refresh because nothing in the UI will be using it.
+
+This is where targeting shines. In the demo The bulk of the work is done in the `create-entity` mutation.
+which is targeting to-many so we can demo more features (you can
+also target to-one with a simple path). Multiple targets are also supported (see load documentation).
+"
+(dc/mkdn-pprint-source create-entity)
+"The server mutation just returns the entity (mixed with tempid remappings, if you need them)."
+(dc/mkdn-pprint-source server-create-entity)))
+
+=== Demonstration
+
+This shows how you can make the mutation result target a specific place, if you use just the with-params the raw
+response will be placed on the given path as is. If you use in conjunction with returning, the ident for the
+created entity will be place into the target path. This target accepts the same things a load target does."
+
+++++
+<div class="example" id="server-targeting-return-values-into-app-state"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-targeting-return-values-into-app-state').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="server-targeting-return-values-into-app-state source"]
+----
+include::src/book/book/demos/server_targeting_return_values_into_app_state.cljs[]
+----
+
+== Mutation Return Values
+
+NOTE: In most cases you're better off using Mutation Joins instead of this.
+
+The displayed volume in the UI is coming from the server's mutation return value.
+
+There is a bit of simulated delay on the server (200ms). Notice if you click too rapidly then the value doesn't increase
+any faster than the server can respond (since it computes the new volume based on what the client sends). Opening
+the console in your devtools on the browser where you can see the transaction makes this easier to follow and understand.
+
+(new-fulcro-client ...  :mutation-merge merge-return-value)
+
+=== Explanation
+
+Occasionally a full-stack application will want to return a value from the server-side of a mutation. In general this
+is rarer that in other frameworks because most operations in Fulcro are done optimistically (the UI drives the changes).
+
+*NOTE:* In Fulcro 2.0 you should probably use data driven mutation joins.
+
+It is possible for you to completely define how to handle the returned data from your server.
+
+The pipeline normally throws away return values from server-side mutations since there is no query to use to normalize
+and merge them (unless you use mutation joins).
+
+Note that Fulcro specifically avoids asychrony whenever possible. Networking is, by nature, async in the browser. Your
+application could be off doing anything at all by the time the server responds to a network request. Therefore, return
+values from mutations will have an async nature to them (they arrive when they arrive).
+
+Fulcro's method of allowing you to recieve a return value is for you to provide a function that can merge the return
+value into your app database when it arrives. Most commonly you'll do this by defining a multimethod
+that dispatches on the symbol of your original mutation:
+
+```
+(dc/mkdn-pprint-source merge-return-value)
+```
+
+You can then define methods for each mutation symbol. For example, the demo has a `crank-it-up` mutation, which
+does no optimistic update. It simply sends it off to the server for processing.
+
+```
+(dc/mkdn-pprint-source crank-it-up)
+```
+
+Our mutation asks a remote server to increase the volume. It does the computation and returns the new value
+(in this case based on the old value from the UI). It need only return a value to have it propagate to the client:
+
+```
+(dc/mkdn-pprint-source crank-it-up-server)
+```
+
+Handling the return value involves defining a method for that dispatch:
+
+```
+(defmethod merge-return-value `crank-it-up
+  [state _ {:keys [new-volume]}]
+  (assoc-in state [:child/by-id 0 :volume] new-volume))
+```
+
+The remainder of the setup is just giving the merge handler function to the application at startup:
+
+```
+(fc/new-fulcro-client :mutation-merge merge-return-value)
+```
+
+++++
+<div class="example" id="server-return-values-manually-merging"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-return-values-manually-merging').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="server-return-values-manually-merging source"]
+----
+include::src/book/book/demos/server_return_values_manually_merging.cljs[]
 ----
 
 ++++
