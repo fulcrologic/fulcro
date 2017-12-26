@@ -197,6 +197,8 @@ The most basic HTML file you can start with (and it won't get much bigger) is:
 </html>
 ----
 
+Save this in `resources/public/index.html`.
+
 === Running Figwheel
 
 You can now run this project in various ways.
@@ -483,12 +485,9 @@ In Fulcro, there is a way to construct the initial tree of data in a way that al
 easy refactoring: co-locate the initial desired part of the tree with the component that uses it. This allows
 you to compose the state tree in exactly the same way as the UI tree.
 
-Fulcro defines a protocol `InitialAppState` with a single method named `initial-state`. The defui macro
-will allow us to add that implementation to the generated component class by adding `static` in front of
-the protocol name we want to implement.
-
-The `defsc` macro makes this much shorter: use a simple lambda that gets parameters (optionally from
-the parent) and returns a map representing the state of the component.
+The `defsc` macro makes short work of this with the `initial-state` option. Simply give it a
+lambda that gets parameters (optionally from the parent) and returns a map representing the state of the component.
+You can retrieve this data using `(prim/get-initial-state Component)`.
 
 It looks like this:
 
@@ -629,7 +628,9 @@ key, and would expect the value to be nested state (because maps mean joins on t
 - The value in the `:friends` join must be a vector, because we have to indicate what we want out of the nested data.
 
 Joins are automatically `to-one` if the data found in the state is a map, and `to-many` if the data found is a
-vector.
+vector. In the example above the `:friends` field from root pointed to a single `PersonList`, whereas the `PersonList`
+field `:person-list/people` pointed to a vector of `Person`.  Be care that you don't confuse yourself with
+naming (e.g. friends is plural, but points to a single list).
 
 The namespacing of keywords in your data (and therefore your query) is highly encouraged, as it makes it clear to the
 reader what kind of entity you're working against (it also ensures that over-rendering doesn't happen on
@@ -650,7 +651,7 @@ for you): For each scalar property in
 initial state, there should be an identical simple property in your query. For each join of initial state to a child via
 `get-initial-state` there should be a query join via `get-query` to that same child.
 
-==== Adding Queries Our Example
+==== Adding Queries to Our Example
 
 We want our queries to have the same nice local-reasoning as our initial data tree. The `get-query` function
 works just like the `get-initial-state` function, and can pull the query from a component. In this case, you
@@ -1106,14 +1107,16 @@ dev:cljs.user=> @(fulcro.client.primitives/app-state (-> app.client/app deref :r
    :person-list/people [[:person/by-id 3] [:person/by-id 4]]}}}
 ----
 
-Note that `db->tree` understands (prefers) this normalized form, and can still convert it (via a query)
-to the proper data tree (note the repetition of the app state is necessary now). At the REPL, try this:
+Note that `db->tree` understands this normalized form, and can convert it (via a query)
+to the proper data tree. `db->tree` (for legacy reasons) requires a way to resolve references (idents) and the
+database. In Fulcro these are the same. So, try this at the REPL:
 
 [source]
 ----
 dev:cljs.user=> (def current-db @(fulcro.client.primitives/app-state (-> app.client/app deref :reconciler)))
+dev:cljs.user=> (def root-query (fulcro.client.primitives/get-query app.ui.root/Root))
 #'cljs.user/current-db
-dev:cljs.user=> (fulcro.client.primitives/db->tree (fulcro.client.primitives/get-query app.ui.root/Root) current-db current-db)
+dev:cljs.user=> (fulcro.client.primitives/db->tree root-query current-db current-db)
 {:friends
  {:db/id :friends,
   :person-list/label "Friends",
@@ -1133,7 +1136,7 @@ dev:cljs.user=> (fulcro.client.primitives/db->tree (fulcro.client.primitives/get
 We have now made it possible to fix the problems with our mutation. Now, instead of removing
 a person from a tree, we can remove a FK from a TABLE entry!
 
-This is not only much easier to code, but it is complete independent of the shape of the UI tree:
+This is not only much easier to code, but it is completely independent of the shape of the UI tree:
 
 ```
 (ns app.api.mutations
