@@ -1,3 +1,10 @@
+2.1.0
+-----
+- Refactored rendering
+   - Added support for alternate rendering modes
+ - Made force update override shouldComponentUpdate
+   - Eliminates the need for `react-key` on root element
+
 2.0.0
 -----
 - Minor bug fixes in `ptransact!` (ref not required) and `merge-component!` (UI refresh)
