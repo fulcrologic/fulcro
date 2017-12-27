@@ -1880,7 +1880,7 @@ the delete.
 Try reloading your page from the server. That person should still be missing, indicating that it really was removed
 from the server.
 
-== Using a legacy REST API
+== Using a legacy REST API [[RESTAPI]]
 
 Fulcro is really meant to be a full-stack solution. That said, it isn't really that hard to make it talk to other kinds
 of servers. As an example, this addendum talks you through what it takes to talk to a legacy REST service.
@@ -2125,7 +2125,6 @@ the mutation to be sent to that network handler.
 == The Complete Source
 
 For your convenince this complete application is at https://github.com/fulcrologic/fulcro-getting-started
-
 
 = Core Concepts
 
@@ -4368,8 +4367,6 @@ calls are where you actually specify which remote a given load should actually t
 
 = Full Stack Operation
 
-== Server interaction - General Operation
-
 One of the most interesting and powerful things about Fulcro is that the model for server interaction is unified into
 a clean data-driven structure. At first the new concepts can be challenging, but once you've seen the core primitive
 (component-based queries/idents for normalization) we think you'll find that it dramatically simplifies everything!
@@ -4413,6 +4410,14 @@ the concept of a remote is just "something you can talk to via queries and mutat
 You can easily define a "remote" that reads and writes browser
 local storage or a Datascript database in the browser. This is an extremely powerful generalization for isolating
 side-effect code from your UI.
+
+NOTE: To those of you with REST APIs. Fulcro can be made to work with REST, but you're in for some work. The full
+stack data-driven architecture is often completely at odds with REST. You will end up writing a network layer on your
+client that translates graph queries to one or more REST calls, and then combines those results into a tree of response
+data that you can pass back up the chain. The UI is wonderfully protected from this nastiness, but when possible you
+will find the most leverage by writing the server to support the graph queries directly (consider your REST API a legacy
+thing that your new UI doesn't want/need). If you have to access 3rd-party REST APIs, then you're kind of stuck
+with making the interface layer.
 
 == General Theory of Operation
 
@@ -4461,9 +4466,9 @@ Tree of Data + Query --> merge! --> New Database
 When you interact with a server through the data fetch API, remember that it is essentially doing a server interaction
 (send the query to get the response), but everything that happens after that is pretty much just `merge!`.
 
-== The Central Functions : `transact!` and `merge!`
+=== The Central Functions : `transact!` and `merge!`
 
-When you start a Fulcro application your start-callback will get the completed `app` as a parameter.
+When you start a Fulcro application your started-callback will get the completed `app` as a parameter.
 
 Inside of this app is a `reconciler`. The `reconciler` is a central component in the system, particularly with
 respect to remote interaction. It is the component that is responsible for managing the query engine, the remote
@@ -4478,36 +4483,101 @@ or reconciler. If run with the reconciler, will typically cause a root re-render
 * `prim/merge!` : A function that can be run against the reconciler to merge a tree of data via a UI query. This is
 the primary function that is used to integrate data in response to things like websocket server push.
 
-== Augmenting the Ring Response
+=== Query Mismatch
 
-In the following sections we'll be showing you how to respond to queries and mutations. The Ring stack is supplied for
-you in the server, but there are times when you need to modify something about the low-level response itself (such
-as adding a cookie).
+We have all sorts of ways we'd like to view data. Perhaps we'd like to view "all the people who've ever had a particular
+phone number". That is something we can very simply represent with a UI graph, but may not be trivial to pull from
+our database.
 
-Any of the techniques you read about in the coming sections all allow you to wrap your response as follows:
+In general, there are a few approaches to resolving our graph differences:
 
-```
-(fulcro.server/augment-response your-response (fn [ring-response] ring-response'))
-```
+. Use a query parser on the server to piece together data based on the graph of the query.
+. Ask the server for exactly what you want, using an invented well-known "root" keyword, and hand-code the database
+code to create the UI-centric view.
+. Ask the server for the data in a format it can easily provide and morph it on the client.
 
-For example, if you were using Ring and Ring Session, you could cause a session cookie to be generated, and user
-information to be stored in a server session store simply by returning this from a query on user:
+The first two have the advantage of making the client blissfully unaware of the server schema. It just asks for what
+it needs, and someone on the server programming team is stuck with satisfying the query. This is the down-side: the number
+of possible UI-centric queries could become quite large. Theoretically a parser solution makes this *more* tractable
+than a hand-coded variant, but in practice the parser is hard to make general in a way that allows UI developers to just
+run willy-nilly queries and get what they want.
 
-```
-(server/augment-response user (fn [resp] (assoc-in resp [:session :uid] real-uid)))
-```
+In the example of "people who've had a particular phone number", the graph would be phone-number centric. Maybe
+`[:db/id :phone/number {:phone/historical-owners (prim/get-query Person)}]`. There probably isn't a graph edge in the
+real database called `:phone/historical-owners`.  One could write parser code that understood this particular edge,
+and did the logic. In this case, that really isn't even that hard and may be a good choice.
 
-We'll mention this again when you need to be reminded in an upcoming section.
+Fulcro gives you another easy-to-access option: morph something the server can easily provide (on the
+real graph without custom code). We'll show you an example of this as we explore the data fetch options.
 
-The easy server is a fairly minimal server implementation that includes a simple Ring stack, component support,
-API query/mutation injections of server components, and resource and alternate route handling. It allows you to
-get going quickly, and is extensible; however, it is not as flexible as the modular server construction.
+=== Server Interaction Order
 
-In general if all you're using is a few components and the API, then the easy server is a great choice for getting
-started.
+Fulcro will serialize requests unless you mark queries as parallel (an option you can specify on `load`). Two different
+*events* that queue mutations or loads will be processed in order. For example The user clicks on something and you trigger two loads
+during *that even*, then both of those will be combined (if they don't conflict by querying for the same thing)
+sent as one network request. If the user clicks on something else and that handler queues two more loads, then the latter two
+loads will not start over the network until the first load sequence has completed.
 
-If you have more interesting requirements, then you may want to explore composing Fulcro's back-end into your server
-with the modular components.
+This ensures that you don't get out-of-order
+server execution. This is a distributed system, so it is possible for a second request to hit a less congested server (or even thread)
+than the first and get processed out of order. That would hurt your ability to reason about your program, so the default behavior in
+Fulcro is to ensure that server interactions happen on the server in the same order as they do on the client.
+
+If you combine mutations and reads in the same event processing (before giving up the thread), then Fulcro *also* ensures
+that remote *mutations* go over the wire and complete *before* reads. The idea being that you don't want to fetch data
+and then immediately make it stale through mutations. This additional detail is also aimed at preventing subtle classes
+of application bugs.
+
+In Summary:
+
+- Loads/transactions queued while "holding the UI thread" will be joined together in a single network request.
+- Remote writes go before reads
+- Loads/transactions queued at a later event "new UI thread event" are guaranteed to be processed after ones queued earlier.
+- You can override this behavior with the `parallel` option of `load`.
+
+=== Server Result Query Merging
+
+There is a potential for a data-driven app to create a new class of problem related to merging data. The normalization
+guarantees that the data for any number of *views* of the same thing are normalized to the same *node* in the graph
+database.
+
+Thus, your `PersonListRow` view and `PersonDetail` view should both normalize the same person data to
+a location like `[:person/by-id id]`. Let's say you have a quick list of people on the screen that is paginated and
+demand-loaded, where each row is a `PersonListRow` with query `[:db/id :person/name {:person/image (prim/get-query Image)}]`.
+Now say that you can click on one of these rows and a side-by-side view of that person's `PersonDetail` is shown,
+but the query for that is a whole bunch of stuff: name, age, address, phone numbers, etc. A *much* larger query.
+
+A naive merge could cause you all sorts of nightmares. For example, Refreshing the list rows would load only name and image,
+but if merge overwrote the entire table *entry* then the current detail would suddenly empty out!
+
+Fulcro provides you with an advanced merging algorithm that ensures these kinds of cases don't easily occur. It does an
+intelligent merge with the following algorithm:
+
+- It is a detailed deep merge. Thus, the target table entry is updated, not overwritten.
+- If the query *asks* for a value but the result *does not* contain it, then that value *is removed*.
+- If the query *didn't ask* for a value, then the existing database value is untouched.
+
+This reduces the problem to one of potential staleness. It is technically possible for an entity in the resulting client
+database to be in a state that has never existed on the server because of such a partial update. This is considered
+to be a better result than the arbitrary UI madness that a more naive approach would cause.
+
+For example, in the example above a query for a list row will update the name and image. All of the other details (if already
+loaded) would remain the same; however, it is possible that the server has run a mutation that also updated this person's
+phone number. The detail part of the UI will be showing an updated name and image, but the old phone number. Technically
+this "state of Person" has never existed in the server's timeline, but from a user's perspective it looks better than
+the phone number disappearing.
+
+In practice this isn't that big of a deal; however, if you are switching the UI to an edit mode it is generally a good practice to
+on-demand load the entity being edited to help prevent user confusion and accidental overwrite based on stale values.
+
+=== React Lifecycle and Load
+
+React lifecycle and Load may not mix well. It is technically legal to issue transactions and loads from React Lifecycle,
+methods, but it is recommended that you carefully check the state of the system in said mutations before actually
+queuing network traffic.
+Perhaps you wish to ensure something is loaded. To do that: trigger a mutation that checks state an optionally
+submits a load. You'll learn how to do this in the sections on the <<DataFetch, data featch API>>.
+
 
 == Easy Server [[EasyServer]]
 
@@ -4609,7 +4679,7 @@ user=> (restart) ; should reload code and restart web server
 user=> (tools-ns/refresh) ; IFF restart fails to start, followed by (go) again
 ----
 
-== The Data Fetch API: `load`
+== The Data Fetch API: `load` [[DataFetch]]
 
 Let's say we want to load all of our friends from the server. A query has to be rooted somewhere, so we'll invent
 a root-level keyword, `:all-friends`, and join it to the UI query for a `Person`:
@@ -4794,7 +4864,7 @@ Loads allow a number of additional arguments. Many of these are discussed in mor
 `:params`:: A map. If supplied the params will appear as the params of the query on the server.
 `:initialize bool|map`:: If true, uses component's initial state as a basis for incoming merge. If a map, uses the map as the basis for incoming merge.
 
-=== Initializing Loaded Items
+=== Initializing Loaded Items (ALPHA, SUBJECT TO CHANGE)
 
 On occasion you may find that your entities have `:ui/???` attributes that you would like to
 default to something on a loaded entity. This is the purpose of the `:initialize` option to load.
@@ -4913,6 +4983,26 @@ Simply code your (nested) queries using `defsc`, and skip writing the body:
 
 NOTE: We know that the name `defsc` seems a bit of a misnomer for this, so feel free to create an alias for it.
 
+== Augmenting the Ring Response
+
+The Ring stack is supplied for you in the server code and most responses are simple EDN with the HTTP details taken care
+of for you; however, there are times when you need to modify something about the low-level response itself (such
+as adding a cookie).
+
+If you're using the Fulcro server tools (handle API request, easy or modular server) then you can add a fully general
+response transform to your EDN response as follows:
+
+```
+(fulcro.server/augment-response your-EDN-response (fn [ring-response] ring-response'))
+```
+
+For example, if you were using Ring and Ring Session, you could cause a session cookie to be generated, and user
+information to be stored in a server session store simply by returning this from a query on user:
+
+```
+(server/augment-response user (fn [resp] (assoc-in resp [:session :uid] real-uid)))
+```
+
 == Full-Stack Mutations
 
 You've already seen how to define local mutations on the client. That portion of a mutation is run immediately on the
@@ -4985,8 +5075,8 @@ don't have to rely on state (which might have changed in an earlier pass).
 
 Server-side mutations in Fulcro are written the same way as on the client: A mutation returns a map with a key `:action`
 and a function of no variables as a value. The mutation then does whatever server-side operation is indicated. The `env`
-parameter on the server can contain anything you like (for example database access interfaces), and you'll see how
-to configure that when you study the `I_Building_A_Server` section.
+parameter on the server can contain anything you like (for example database access interfaces). You'll see how
+to configure that when you study how to <<BuildingAServer, build a server>>.
 
 The recommended approach to writing a server mutation is to use the pre-written server-side parser and multimethods, which allow you
 to mimic the same code structure of the client (there is a `defmutation` in `fulcro.server` for this).
@@ -5047,8 +5137,17 @@ source file. The only trick is that you have to make sure you use the correct `d
 NOTE: The server namespace includes support for defining a server mutation in the browser. This allows you to simulate a server
 in the browser instead of having to have a real server.
 
-Please see I_Building_A_Server for more information about setting up a server with injected components in the mutation
+Please see <<BuildingAServer, Building A Server>> for more information about setting up a server with injected components in the mutation
 environment.
+
+==== The Server Multimethods for Mutations
+
+The `defmutation` macro on the server simply hits a multimethod. You can use `defmethod`
+`defmethod` on `fulcro.server/server-mutate` to define your mutations. The advantage of this is that you might want
+to write your own wrappers, macros, or code around the low-level implementation.
+
+In general, we recommend using `defmutation` because it is better supported by IDEs (for navigation, docstrings, etc)
+and eliminates some classes of syntactic error.
 
 === New item creation – Temporary IDs
 
@@ -5710,6 +5809,91 @@ submit a form and move on before the server has confirmed the submission).
 Over the years we've gotten a little more clever with our error handling, but largely our users (and our ability
 to reason about our programs) has kept us firmly rooted to the block-until-we-know method of error handling.
 
+A distributed system with optimistic updates assumes a relatively robust network where unrecoverable errors are rare. The default
+networking of Fulcro assumes LAN quality. This isn't always a true assumption, but let's first talk about
+the kinds of errors we'll see:
+
+- Communication (the operation would succeed, if we could just make the request)
+- Outage
+- Security
+- Bug
+
+If you're seeing a security problem that isn't a bug, then someone is attacking your servers. There is nothing to do in the UI.
+Hard fail at the server and move on with your life. Why write UI code for a case that should never be triggered by the UI.
+
+If it is a true bug, then there isn't much you can do about it either. It is a bug. It is random and affects things in
+ways you cannot possibly imagine. You didn't even detect it (or you would have fixed it). So again: nothing you can
+reasonably code to help.
+
+The final two, outage and communication, are technically something you can recover from. In both cases your biggest problem
+is figuring out how your client and server state might differ. Again, you're in a distributed system. Did that mutation
+partially complete?
+
+If your application can assume reasonably reliable networking, then your error handling can be a relatively small amount of
+code. Outages and network problems will be rare, and at worst you throw up a dialog that says you've had an unrecoverable
+error and the user hits reload on their browser. If this happens to users once or twice a year, it isn't going to hurt you.
+
+=== Programming with Optimism
+
+The general philosophy of a Fulcro application is that optimistic updates are not even triggered on the client
+unless they expect to succeed on the server. In other words, you write the application in such a way that operations cannot be triggered
+from the UI unless you're certain that a *functioning server* will execute them. A server should not throw an exception
+and trigger a need for network error handling unless there is a real, non-recoverable situation.
+
+If this is true, then a functioning server *does* need to do sanity checking for security reasons, but in general you
+don't need to give friendly errors when those checks fail: you should assume they are attempted hacks. Other serious
+problems are similar: there is usually nothing you can do but throw an exception and let the user contact support.
+Exceptions to this rule certainly exist, but they are few and far between.
+
+There are some cases where the server has to be involved in a validation interaction non-optimistically. Login is a great
+example of this. However, invalid credentials on login *need not be treated as an error*! Instead they can be treated as
+a response to a question. "Can I log in with these credentials?". Yes or no. This is a *query* and *response*, *not* an
+error handling interaction. Thus, something like login can be handled with a query (to get the answer) and post-mutation
+(to update the screen with a message or change the UI route).
+
+This philosophy eases the overhead in general application programming. You need not write a bunch of code in the UI
+that gives a nice friendly message for every kind of error that occurs. If an error occurs, you can pretty much assume
+it is either a bug, or a real outage. In both cases, there isn't a lot you can do that will work "well" for the user. If
+it is a bug, then you really have no chance of predicting what will fix it, otherwise you would have already fixed the
+bug. If it's an outage, again you have no way of knowing what has gone wrong. Is the user's WiFi out of range? Did your
+database take a dump?
+
+So, most error conditions can be treated as a problem that needs fairly radical recovery since you're working with
+a distributed application and the recovery from errors is a difficult task. There is no sugar-coating it. What in your
+client database is now corrupt or out-of-sync?
+
+One method is to use a global error handler that is configured during
+the setup of your client application (you have to explicitly configure networking). This function could update application
+state to show some kind of top-level modal dialog that describes the problem, possibly allows the user to submit
+application history (for support viewer) to your servers, and then re-initializes the application in some way.
+
+You can, of course, get pretty creative with the re-initialization. For example, say you write screens so that they will
+refresh their persistent data whenever it is older than some amount of time, and write it so all entities have a timestamp.
+You could walk the state and "expire" all of the timestamps, and then close the dialog. Your lifecycle methods on the
+components could be set up to check for the expiration, which in turn would trigger loads. If the server is really having
+problems then the worst case is that the dialog pops back up telling them there is still a problem.
+
+=== Flaky Network Operation
+
+If your users are likely using your software from a phone on a subway, then you have a completely different issue.
+
+Fortunately, Fulcro actually makes handling this case relatively easy as well. Here is what you can do:
+
+1. Write a custom networking implementation for the client that detects the *kind* of error, and retries recoverable ones
+until they succeed. Possibly with exponential backoff. (If an infinite loop happens, the user will eventually hit reload.)
+2. Make your server mutations idempotent, so that a client can safely re-apply one that fails.
+
+The default fulcro networking does not do retries because without the idempotent guarantee it isn't safe.
+
+The optimistic updates of Fulcro and the in-order server execution means that "offline" operation is actually quite
+tractable. If programmed this way, your error handling becomes isolated almost entirely to the networking layer. Of course,
+if the user navigates to a screen that needs server data, they will just have to wait. Writing UI code that possibly has
+lifecycle timers to show progress updates will improve the overall feel, but the correctness will be there with a fairly
+small number of additions.
+
+However, even with these fancy tricks that make our applications better, there are times when we'd just like to
+block until something is complete.
+
 === UI Blocking
 
 Fulcro defaults to optimistic updates, which in turn encourages you to write a UI that is very responsive. However,
@@ -5863,7 +6047,6 @@ You can try out the finished product in the example below. Try it a few times so
 include::src/book/book/server/ui_blocking_example.cljs[]
 ----
 
-
 === Fulcro 1.x Fallbacks
 
 NOTE: Fulcro 1.x inherited fallbacks from when it was known as Untangled. These turned out to not be very easy to
@@ -5970,7 +6153,7 @@ user is just blocked. If you're not lucky, your database crashed and you have no
 So, I would assert that the only full-stack error handling *worth* doing in *any detail* is for case (3). If communications
 are down, you can retry. But in a distributed system this can be a little nuanced.
 
-= Building a Server
+= Building a Server [[BuildingAServer]]
 
 You're already seen a little on how to build and use a server with the <<EasyServer, easy API>>. That server is acually
 flexible enough for many production needs, but Fulcro also
@@ -6154,11 +6337,72 @@ as putting their component keyword into the `:parser-injections` set when buildi
 
 === Adding to the Ring Stack
 
-TODO
+The easy server has a hook in front of the API processing (pre-hook), and one at the end of the ring stack
+after API processing and just before the not-found handler (post-hook). You can have a component join into
+the stack by making it depend on `:handler`. Here is an example:
+
+```
+(defrecord Authentication [handler]
+  c/Lifecycle
+  (start [this]
+    (log/info "Hooking into pre-processing to add user info")
+    (let [old-pre-hook (fulcro.easy-server/get-pre-hook handler)
+          new-hook     (fn [ring-handler] (fn [req] ((old-pre-hook ring-handler) (new-behavior req)))]
+      (fulcro.easy-server/set-pre-hook! handler new-hook))
+    this)
+  (stop [this] this))
+
+...
+
+(def server (fulcro.easy-server/make-fulcro-server
+               :components { :auth (component/using (map->Authentication {}) [:handler]))}))
+```
+
+The same pattern is used for post-hooks.
+
+=== Handling Filesystem Resources
+
+The easy server will serve any files that are placed in `resources/public`. The easy server does pre-map
+URI "/" to "/index.html".
+
+=== Modifying the `/api` route
+
+The easy server (and client) default to using `/api` as the URI on which to handle traffic. If you are proxying multiple
+Fulcro applications to a single server, you may want to place them under different URI paths (e.g. `/app-1/api` and `/app-2/api`.
+
+```
+; server API at "/app-1/api":
+(def server (fulcro.easy-server/make-fulcro-server :app-name "app-1" ...))
+```
+
+The `:app-name` option of the easy server will add such a prefix to the API route. If you do that, then the client
+will also need to have manual configuration of networking to ensure that it tries to contact the correct URI for
+API calls.
+
+```
+(def client (fc/new-fulcro-client :networking {:remote (fulcro.client.network/make-fulcro-network :url "/app1/api" ...)}))
+```
 
 === Adding Non-API Routes
 
-TODO
+The easy server also supplies a way to add in URI handlers via BIDI:
+
+```
+(defn page-handler [env bidi-match]
+  (ring/response ...))
+
+; define routes (see BIDI documentation)
+(def my-routes ["/" {"page.html" :page}])
+
+(def server (fulcro.easy-server/make-fulcro-server
+               :extra-routes { :routes   my-routes
+                               :handlers {:page page-handler}}))
+```
+
+The extra routes are processed right *after* the pre-hook, but just before the
+resource (filesystem) serving. Thus, you can respond to any URI that isn't already
+handled by your pre-hook.
+
 
 == Modular Server
 
@@ -6408,7 +6652,7 @@ If you're lucky, you can make use of a library to do this stuff for you. Here ar
 - Fulcro SQL : A library that knows how to convert graph queries into SQL
 - Datomic : If you're lucky enough to be using Datomic, Fulcro's graph query syntax will run in their `pull` API
 
-Of these, Pathom is the most general, and allows you to easily process a query in a more abstract way. However, it
+Of these, Pathom is the most general and allows you to easily process a query in a more abstract way. However, it
 really isn't that hard to parse the queries yourself.
 
 == Doing the Parsing Yourself
@@ -6886,429 +7130,46 @@ alternate (custom) parser at any phase of parsing. In fact, you can even install
 Just remember that at any time in parsing you may change over to using an alternate instance of a parser to continue
 processing. Parsers can be constructed using the `prim/parser` function.
 
+== Parsing on the Client
+
+Fulcro allows you to augment the built-in query parser *for local reads* on the client. It uses the exact same techniques
+discussed above, and it is similar in that you must be able to start at the root of the query
+(even though you may only want to augment something rather deep in the query tree).
+
+Acutally, there are two cases that such a custom read *must* be able to do:
+
+* Handle the path from root to the point of interest (it can hand off uninteresting side branches to `db->tree`.
+* Handle (or safely ignore) ident-based queries for any "virtual" entities that are purely parser-generated.
+
+The first is a limitation of how queries are processed. Fulcro normally runs the query through `db->tree`, which attempts to
+fill the entire result. If you supply a `:read-local` function during client construction, then your `:read-local` will
+get first shot at *each element* of the query that was submitted. Note that the query *can start* at an ident.
+If your `read-local` function returns `nil` for an element, then the normal Fulcro
+processing takes place on that sub-query. If your `read-local` returns a value, then that is *all of the processing* that
+is done for the sub-tree rooted at that key. Thus, custom client parsing always requires you to process sub-trees of the query, not just
+individual elements.  Of course, you can use `db->tree` at any time to "finish out" some subquery against real data.
+
+This has the advantage of letting you dynamically fill queries without having to have a concrete representation of the
+graph in your database. This can be helpful if you have some rapidly changing data (e.g. updated by a web worker) and
+some views of that data that would otherwise be hard to keep up-to-date.
+
+It is also useful if you're trying to port from Om Next.
+
 == External Libraries
 
-=== [Pathom](https://github.com/wilkerlucio/pathom)
+=== [Pathom](https: //github.com/wilkerlucio/pathom)// {{{3
 
 A really nice library for building recursive Fulcro query parsers. It has a good model for building parsers that can
 bridge everything from REST services to microservice architectures. In general if you need to interpret your UI queries,
 this tool can be very useful.
 
 
-=== [Fulcro-SQL](https://github.com/fulcrologic/fulcro-sql)
+=== [Fulcro-SQL](https: //github.com/fulcrologic/fulcro-sql)// {{{3
 
 A library that can run Fulcro graph queries against SQL databases. This library lets you define your joins in relation
 to the Fulcro join notion. It can walk to-one, to-many, and many-to-many joins in an SQL database in response to a
 Fulcro join. This allows it to handle many Fulcro queries as graph queries against your SQL database with just a little
 configuration and extra code.
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-OLD CONTENT STARTS BELOW
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-=== API Modules (OLD)
-
-The `fulcro.server` namespace's server's primary contribution to your server is the API handling. Everything else is
-pretty much up to you to construct. The general structure of your server will end up as shown in the following
-diagram.
-
-image::/svg/modular-server.svg[]
-
-You'll write (or find as a library) each Module (API Handler). You'll also construct whatever sort of network
-pipeline (Web Server) and join that all together using the `com.stuartsierra/component` library. The primary thing
-the Fulcro code does for you in this diagram is composes the Modules together into a *single* middleware component
-that you can inject and use in your own network stack (e.g. Ring).
-
-The primary requirement is that the `server/wrap-transit-params` and `server/wrap-transit-response` be in front
-of this compose API to ensure that the EDN can be encoded/decoded across the network.
-
-See Developer's Guide for more details.
-
-==== Accessing Server Components (OLD)
-
-The modular server uses the Stuart Sierra component library. This allows you to inject any component into any other.
-The one place where there needs to be a bit of special support is in the API modules themselves. The modular server
-support of API Modules will automatically merge the Module's state with the parser environment. This means that
-any components that are injected into the API module component will appear in the `env` of the read/mutate methods
-for that module.
-
-==== Library Modules (composition) (OLD)
-
-The modular server allows you to install more than one API handler. Remember that the expression parser will invoke
-the API once for each "top-level" expression (root query key or mutation). The modular server composes modules together
-leveraging these facts in the following manner:
-
-- For each expression:
-   - Try the modules in declared order
-   - Use the first non-nil result
-
-Thus, to ensure that your modules are composable you should ensure that your API's "default" handler returns nil when
-it doesn't recognize something.
-
-This is *not* the default behavior for the built-in server mutation handling. If you plan to compose API handlers and
-you're using the built-in server-read and server-mutation, you should install default handlers that return nil instead
-of throwing an error:
-
-```
-(defmethod server/server-mutate :default [env k p] nil)
-(defmethod server/read-root :default [env k p] nil)
-(defmethod server/read-entity :default [env type id p] nil)
-```
-
-Libraries that provide full-stack operations can simple provide an API module that has the same attributes. For example,
-say you wanted to create a Fulcro Image Library plug-in that came with server and client components. You could write
-the server-side as a module that handles just your reads and mutations, and allow your users to install it into
-the module chain.
-
-= Full-Stack Operations (NEEDS COMBINED WITH EARLIER CHAPTER)
-
-Full stack operation is where Fulcro really shines. All of the primitives you've learned for the client application
-not only solve some real client-side issues, they also form the basis for the data-driven story of server interactions.
-You'll see that full-stack operations very much mirror client local ones in a way that makes full-stack development a breeze.
-
-NOTE: To those of you with REST APIs. Fulcro can be made to work with REST, but you're in for some work. The full
-stack data-driven architecture is often completely at odds with REST. You will end up writing a network layer on your
-client that translates graph queries to one or more REST calls, and then combines those results into a tree of response
-data that you can pass back up the chain. The UI is wonderfully protected from this nastiness, but when possible you
-will find the most leverage by writing the server to support the graph queries directly (consider your REST API a legacy
-thing that your new UI doesn't want/need). If you have to access 3rd-party REST APIs, then you're kind of stuck
-with making the interface layer.
-
-== Theory of Operation
-
-
-=== Think In Graphs
-
-The first thing you should continue getting used to is the fact that everything works on your graph database concept
-of the client database. The connections within this graph have two possible realities: the graph that corresponds to your
-UI, and the graph that corresponds to the schema of your actual persistence engine (database).
-
-Sub-portions of these graphs (the persistent parts) will very often match perfectly. For example, "a person has a phone
-number" is almost certainly modelled in the same sort of relational way in the UI and the database.
-
-But we have all sorts of ways we'd like to view data. Perhaps we'd like to view "all the people who've ever had this
-phone number". That is something we can very simply represent with a UI graph, but may not be trivial to pull from
-our database.
-
-In general, there are a few approaches to resolving our graph differences:
-
-. Use the query parser on the server to piece together data based on the graph of the query.
-. Ask the server for exactly what you want, using an invented well-known "root" keyword, and hand-code the database
-code to create the UI-centric view.
-. Ask the server for something it can easily provide with the persistence graph, and morph it on the client.
-
-The first two have the advantage of making the client blissfully unaware of the server schema. It just asks for what
-it needs, and someone on the server programming team is stuck with satisfying the query. This is the down-side: the number
-of possible UI-centric queries could become quite large. Theoretically a parser solution makes this *more* tractable
-than a hand-coded variant, but in practice the parser is hard to make general in a way that allows UI developers to just
-run willy-nilly queries and get what they want.
-
-In the example of "people who've had this phone number", the graph would be phone-number centric. Maybe
-`[:db/id :phone/number {:phone/historical-owners (prim/get-query Person)}]`. There probably isn't a graph edge in the
-real database called `:phone/historical-owners`.  One could write parser code that understood this particular edge,
-and did the logic. In this case, that really isn't even that hard and may be a good choice.
-
-Fulcro gives you an easy-to-access additional option: morph something the server can easily provide (on the
-real graph without custom code). Issuing
-`(load this :people Person {:params {:with-phone-number n} :post-mutation 'generate-historical-phone-view})` would allow
-you to simply support an additional parameter on the graph walk of your normal schema to filter it down to people that have
-had a specific phone number. Then the post-mutation is used to create the UI graph you're looking for.
-
-=== Targeting the Root of Your Graph
-
-The main way of obtaining data from the server is a call to `load`. By default, `load` targets the loaded data to
-the root of your graph, though it does normalize the result (so you typically just end up with an ident or list of
-idents at the root key).
-
-`(load this :root-keyword Component)` is the most basic form of load. This will issue the server query
-`[{:root-keyword (prim/get-query Component)}]`. It generates the query for you so that things are guaranteed to be
-well-structured. In particular, `post-mutations` are typically interested in just one sub-graph, and targeting loads
-to alternate places in your graph is also made easier.
-
-If you issue more than one `load` in the same thread of execution (event handler, for example), then the loads
-*will* be combined, when possible, into a single network interaction. In other words, network processing does not proceed
-until you release the UI thread.
-
-=== Targeting an Alternate Node
-
-The vast majority of your loads will not belong at the root of your graph. Fortunatly, your database is normalized, so
-all of your UI components are in top-level tables (at some ident path). The `load` function includes an option that
-allows you to take advantage of this convenient fact to place the resulting (normalized) graph result in some
-field of some component. It's as simple as:
-
-```
-(load this :root-keyword Component {:target [:table id :field]})
-```
-
-The actual operation of this load is to run the query, place the (normalized) result on the root node (temporarily at :root-keyword)
-and then move the resulting ident (or vector of idents) at that root-level key to the desired location.
-
-WARNING: Because the value does briefly appear on the root node, we recommend that you namespace the root keyword to
-avoid collisions with real root-node data.
-
-=== UI-Only Query Elements
-
-The general pure rendering model encourages you to put as much state as possible into your client database, including
-data that is of concern only to the UI. Server interactions pose a problem here: you don't want to have to worry about
-UI-specific parts of the UI query being sent to the server on data-driver interactions.
-
-Fulcro has you covered. If you have query elements that have nothing to do with server interaction, just use keywords
-in the `ui` namespace. Such keywords will be automatically omitted from the network query.
-
-=== Server Interaction Order
-
-Unless you mark queries as parallel (an option to `load`), Fulcro will serialize requests. Two different *events* that
-queue mutations or loads will be processed in order. For example The user clicks on something and you trigger two loads. Those
-two loads are combined and sent. The user clicks on something else and that handler queues two more loads. The latter two
-loads will not start over the network until the first load sequence completes. This ensures that you don't get out-of-order
-server execution. This is a distributed system, so it is possible for a second request to hit a less congested server than
-the first and get processed out of order. This kills your ability to reason about your program, so the default behavior in
-Fulcro is to ensure that server interactions happen in the same order as on the client.
-
-If you combine mutations and reads in the same event processing (before giving up the thread), then Fulcro also ensures
-that remote *mutations* go over the wire and complete *before* reads. The idea being that you don't want to fetch data
-and then immediately make it stale through mutations. This additional detail is also aimed at preventing subtle classes
-of application bugs.
-
-=== Server Result Query Merging
-
-There is a potential for a data-driven app to create a new class of problem related to merging data. The normalization
-guarantees that the data for any number of *views* of the same thing are normalized to the same *node* in the graph.
-
-Thus, your `PersonListRow` view and `PersonDetail` view might both normalize their data to `[:person/by-id id]`. Let's say
-you have a quick list of people on the screen that is paginated and demand-loaded, where each row is a `PersonListRow`
-with query `[:db/id :person/name {:person/image (prim/get-query Image)}]`. Now say that you can click on one of these
-rows and a side-by-side view of that person's `PersonDetail` is shown, but the query for that is a whole bunch of
-stuff: name, age, address, phone numbers, etc. A *much* larger query.
-
-A naive merge could cause you all sorts of nightmares. For example, Refreshing the list rows would load only name and image,
-but if merge overwrote the entire table entry then the current detail view might suddenly empty out!
-
-Fulcro provides you with an advanced merging algorithm that ensures these kinds of cases don't easily occur. It does an
-intelligent merge with the following algorithm:
-
-- It is a detailed deep merge. Thus, the target table entry is not overwritten, but updated
-- If the query asks for a value but the result does not contain it, then that value *is removed*.
-- If the query didn't ask for a value, then the existing value is untouched.
-
-This reduces the problem to one of potential staleness. It is technically possible for an entity in the resulting
-database to be in a state that has never existed on the server because of such a partial update. This is considered
-to be a better result than the arbitrary UI madness that generalized data-driven overwrite would cause.
-
-For example, in the example above, a query for a list row will update the name and image. All of the other details (if already
-loaded) would remain the same; however, it is possible that the server has run a mutation that also updated this person's
-phone number. The detail part of the UI will be showing an updated name and image, but the old phone number. Technically
-this "state of Person" has never existed in the server's timeline.
-
-In practice this isn't that big of a deal; however, if switching the UI to an edit mode it is generally a good practice to
-bring the entity being edited up-to-date with respect to the server to help prevent problems with your reasoning model.
-
-=== React Lifecycle and Load
-
-React lifecycle and Load may not mix well. The UI lifecycle should really not be heavily tied to the
-data lifecycle, other than to perhaps trigger a mutation that checks state and conditionally triggers loads. Different
-scenarios in React can cause a subtree to unmount and remount, meaning that calls like `componentDidMount` may fire when
-you don't expect them to.
-
-=== Incremental Loading
-
-Incremental loading is a first-class feature of Fulcro's data-driven model. The `load` primitive allows you to
-prune parts of the query to prevent loading those bits. For example, say you have a `Blog` with `Comments`. You
-probably want to load the blog by itself, and then load the comments later, but the comments are almost
-certainly in the UI's graph query. So `(load app :blog Blog)` would ask the server for the blog, comments, etc.
-
-The `:without` option allows you to have the query trimmed so that certain branches are not sent to the server. So,
-a call like `(load app :blog Blob {:without #{:comments}})` will send the same query to the server, but any property
-or join (anywhere in the query tree) that is named `:comments` will not be included.
-
-The elided data can later be loaded *in the context* of the component where it appears. For example:
-
-```
-(defui Blog
-  static prim/IQuery
-  (query [this] [:db/id :blog/content {:comments (prim/get-query Comment)}])
-  ...
-  Object
-  (render [this]
-    ...
-    (dom/button #js {:onClick #(df/load-field this :comments)} "Comments")))
-```
-
-does the exact opposite: it finds the ident of the invoking component, and joins it to a query from Blog that contains
-nothing *but* `:comments` (e.g. `[{[:blog/by-id 3] [{:comments (prim/get-query Comment)}]}]`). This allows the server
-to understand exactly which entity to start at (blog 3) and what sub-graph is needed.
-
-== Processing Remote Queries
-
-The server-side processing defines two internal multimethods, and joins them together in a parser via a call
-to `fulcro-parser`. You can also write your own custom parser and use that instead. The latter is covered in some detail in the
-Developer's Guide.
-
-All of the techniques you'd use in a parser can be easily applied using the `fulcro-parser`, but the entry points are
-slightly more well-defined.
-
-Fulcro's parser hooks queries that join on a simple keyword up to the `fulcro.server/read-root` multimethod, and those
-that join on idents (e.g. `load-field` and `refresh`) to `fulcro.server/read-entity`. For convenience, two
-macros give you a slightly easier way to write handlers for these.
-
-NOTE: Once you're in a handler, the `env` *will* contain the parser (which dispatches ident-based joins to read-entity, and
-keyword-based things to `read-root`). You could also use an alternative hand-constructed parser to continue processing the graph if you
-so desire.
-
-=== Using `defquery-root` and `defquery-entity`
-
-Any load of the form `(load this :keyword Component)` can be handled with:
-
-```
-(defquery-root :keyword
-  (value [env params]
-     value-to-send-to-client))
-```
-
-Any load of the form `(load this [:table/by-id 4] Component)` or `(load-field this :field)` will trigger:
-
-```
-(defquery-entity :table/by-id
-  (value [env id params]
-     value-to-send-to-client))
-```
-
-In both cases the `env` will include things like an AST and parser for processing the remainder of the graph query.
-
-=== Datomic Tips
-
-The query syntax is a subset of Datomic Pull syntax. Typically your code on the server can simply find the root set of
-entities in question (using the ident or implied entities of the keyword), and then run a `pull` to get the result.
-See the Fulcro Demos for an example of security-checking graph queries to prevent arbitrary graph walks of your database.
-
-=== SQL Tips
-
-The `fulcro-sql` library includes a function that mimics the Datomic `pull` method against SQL databases. This allows you
-to run real data-driven graph queries against your SQL database with a minimal description of the schema. This library
-is young and may not support certain complex SQL schemas, but demonstrates the power of the model. The actual algorithm
-to run the graph query against an SQL database takes about 250 lines of Clojure.
-
-== Remote Mutations
-
-Server-side mutations, when using the `fulcro-parser` look identical to the client-side ones. You can either
-use `defmethod` on `fulcro.server/server-mutate` OR you can use a `fulcro.server/defmutation` that looks
-identical to the client.
-
-```
-(server/defmutation sample [params]
-  (action [env] ...))
-```
-
-The biggest difference is that the `env` in this case is a server environment that you create through dependency injection
-to include things like databases.
-
-=== Creating Things: Tempid Remapping
-
-Creating things on the client involves the resolution of identity. A new thing on the client will turn into
-a persistent thing on the server, and you cannot know in advance what ID(s) to give to those things. Temporary IDs
-are the solution. The `prim/tempid` function generates a specially typed UUID that is transit-compatible, and can be
-used in place of a real ID.
-
-Server-side mutations that create things can simply return a map with a `:tempids` key whose value is a map from
-`tempid` to `realid`. Fulcro will take it from there:
-
-- All appearances of the tempid in application state will automatically be rewritten to the real ID
-- Any pending network requests that contain the tempid will be rewritten to use the new real ID
-
-The only danger is using parallel network requests. If you use the (default) sequential processing of network interactions, then
-the fact that pending network requests are tempid remapped means that you don't have to do anything special to keep track
-of the fact that a temporary ID appears in your client application state. Simply keep evolving your graph optimistically
-in response to user events, and let the full-stack interaction (however slow it may be) take care of the rest!
-
-=== Dealing with Errors
-
-A distributed system with optimistic updates assumes a relatively robust network where unrecoverable errors are rare. The default
-networking of Fulcro assumes LAN quality. This isn't always a true assumption, but let's first talk about
-the kinds of errors we'll see:
-
-- Communication (the operation would succeed, if we could just make the request)
-- Outage
-- Security
-- Bug
-
-If you're seeing a security problem that isn't a bug, then someone is attacking your servers. There is nothing to do in the UI.
-Hard fail at the server and move on with your life. Why write UI code for a case that should never be triggered by the UI.
-
-If it is a true bug, then there isn't much you can do about it either. It is a bug. It is random and affects things in
-ways you cannot possibly imagine. You didn't even detect it (or you would have fixed it). So again: nothing you can
-reasonably code to help.
-
-The final two, outage and communication, are technically something you can recover from. In both cases your biggest problem
-is figuring out how your client and server state might differ. Again, you're in a distributed system. Did that mutation
-partially complete?
-
-If your application can assume reasonably reliable networking, then your error handling can be a relatively small amount of
-code. Outages and network problems will be rare, and at worst you throw up a dialog that says you've had an unrecoverable
-error and the user hits reload on their browser. If this happens to users once or twice a year, it isn't going to hurt you.
-
-If your users are likely using your software from a phone on a subway, then you have a completely different issue.
-
-Fortunately, Fulcro actually makes handling this case relatively easy as well. Here is what you can do:
-
-1. Write a custom networking implementation for the client that detects the *kind* of error, and retries recoverable ones
-until they succeed. Possibly with exponential backoff. (If an infinite loop happens, the user will eventually hit reload.)
-2. Make your server mutations idempotent, so that a client can safely re-apply one that fails.
-
-The default fulcro networking does not do retries because without the idempotent guarantee it isn't safe.
-
-The optimistic updates of Fulcro and the in-order server execution means that "offline" operation is actually quite
-tractable. If programmed this way, your error handling becomes isolated almost entirely to the networking layer. Of course,
-if the user navigates to a screen that needs server data, they will just have to wait. Writing UI code that possibly has
-lifecycle timers to show progress updates will improve the overall feel, but the correctness will be there with a fairly
-small number of additions.
-
-=== Returning a Value
-
-The optimistic update nature of Fulcro means that return values from mutations are rare. The client generates everything
-about a mutation, including the (temporary) ID of new entities. However, there are cases where a return value is
-desirable.
-
-The problem is the fact that a return value doesn't have a query! Remember, you need to normalize any data that comes
-from the server into the proper place in the app state. That is the model. A return value has "noplace to go" by default.
-
-There are two ways of dealing with this:
-
-1. If there is a server-based session: place the data in the session, and query for it after the mutation. Remember that mutations
-are always ordered before reads. So a mutation/load combo can server as a "call a function" and then "read the result".
-2. Register a mutation merge function.
-
-Option (1) should be pretty obvious by now, but option (2) is new. There is an option when creating a fulcro client
-called `mutation-merge`. You give it a function (typically a multimethod) of the form `(fn [state-map mutation-symbol return-value-from-server] state-map')`.
-Note that this is a state-map, not an atom. You must return the new state of the entire app (if you return nil, you'll wipe out your
-entire UI database). This allows you to use functions like `merge`, `tree->db`, and such to do whatever is necessary with the
-return value with respect to application state.
-
-= Advanced Parsing
-
-See the Developer's Guide for details on advanced parsing.
-
-== Using Advanced Parsing on the Client
-
-Fulcro allows you to augment the built-in query parser. It uses the exact same techniques discussed in the Developer's
-Guide on advanced server query processing; and it is similar in that you must start at the root of the query
-(even though you may only want to augment something rather deep in the query tree).
-
-This is a limitation of how queries are processed. Fulcro normally runs the query through `db->tree`, which attempts to
-fill the entire result. If you supply a `:read-local` function during client construction, then your `:read-local` will
-get first shot at each element of the query that was submitted. Note that the query *can start* at an ident.
-If your `read-local` function returns `nil` for an element, then the normal Fulcro
-processing takes place on that sub-query. If your `read-local` returns a value, then that is all the processing that
-is done for that sub-tree. Thus, custom client parsing always requires you to process sub-trees of the query, not just
-individual elements.  Of course, you can use `db->tree` at any time to "finish out" some subquery against real data.
-
-This has the advantage of letting you dynamically fill queries without having to have a concrete representation of the
-graph in your database. This can be helpful if you have some rapidly changing data (e.g. updated by a web worker) and
-some views of that data that would otherwise be hard to keep up-to-date.
 
 = UI Routing
 
@@ -7322,107 +7183,47 @@ See the Developer's Guide and the Fulcro Template.
 
 = Server-side Rendering
 
-See the Developer's Guide and the Fulcro Template.
 
-== Generating Initial State
+= The Network Layer [[Networking]]
 
-When your application is starting you will need data in the app database for the UI to query. There are three ways
-to do this:
-
-1. Hand-code a normalized graph database
-2. Hand-code a tree of data that matches the initial UI query, and let it be auto-normalized on start
-3. (recommended) co-locate initial state with components.
-
-The first two are legal options when creating the client application. You can use the `:initial-state` option. If
-you pass a map in an atom, then it will be treated as an already-normalized database. If you pass a plain
-map it will be considered a UI tree of data and will be auto-normalized. The first two exist mainly for legacy
-reasons, although they are handy when using devcards (the devcard's atom is used to hold state so you can see it
-with data inspection).
-
-The third option is *definitely* the option you should use. It enable easy UI refactoring, and it by far the
-easiest and most reliable way to generate your application's initial state database.
-
-Simply statically implement the fulcro.client.primitives/InitialAppState protocol and compose that to the root
-component of your UI:
-
-```
-(defui Component
-  static prim/InitialAppState
-  (initial-state [cls params] {:x 1})
-  static prim/IQuery
-  (query [this] [:x])
-  Object
-  (render [this] ...))
-```
-
-Composing that into it's parent (repeated up until root) will result in the construction of the correct initial tree of data at root:
-
-```
-(defui Parent
-  static prim/InitialAppState
-  (initial-state [cls params] {:comp (prim/get-initial-state Component {}})
-  static prim/IQuery
-  (query [this] [{:comp (prim/get-query Component)}])
-  Object
-  (render [this] ...))
-```
-
-=== Alternate Union Branches
-
-If your Initial UI uses union queries on a to-one relation (e.g. for UI routing), then you may want initial
-state for all of the branches, but only one branch will be the *current* branch, meaning that the initial
-tree will only be able to list the default one in state.
-
-Fulcro will auto-detect `InitialAppState` on the alternate branches and place those in the database. This ensures
-that your initial application state will be complete, even in the presence of this complication.
-
-= Networking [[Networking]]
+Many Fulcro applications will never have to say anything at all about the networking layer. However, if you
+have a client that needs to use an alternate (non-EDN) protocol or talk to multiple servers then this section
+is for you!
 
 == Adding Additional Remotes
 
-Give a single FulcroNetworking object to `:networking` (which will be known as `:remote`), or a map of keyword
-remote names whose values are objects the implement FulcroNetworking. Each remote that you add will be usable
-through the `:remote` parameter of loads, and that remote's name in mutations.
-
-For example, if you add a remote named `:microservice-one`, then you could query it with:
+When you create a client you can pass the `:networking` option. This is a map whose keys are remote "names" and whose values are objects that
+implement the `FulcroNetworking` protocol. Each remote that you add will be usable
+through the `:remote` parameter of loads, and that remote's name in mutations:
 
 ```
-(load this :thing Things {:remote :microservice-one})
-```
+(def app (new-fulcro-client :networking {:custom-remote (map->MyNetworking {})}))
 
-and send it a mutation with:
+...
 
-```
+(load this :thing Things {:remote :custom-remote})
+
+...
+
 (defmutation something [params]
-  (microservice-one [env] true))
+  (custom-remote [env] true))
 ```
 
-Loads must be directed at a single remote, but mutations can technically be sent to as many as you'd like (though there
+Loads must be queued to a single remote at a time, but mutations can technically list as many as you'd like (though there
 is no built-in coordination of them).
-
-== Creating Custom Remote Handlers
-
-You can create custom "remote" handlers for Fulcro. Usually this is to talk to remote systems, but you can
-also leverage them to talk to side-effecting subsystems of the client app, simulate server interactions
-(for prototyping), and more.
-
-The basic task for doing this is to implement the `FulcroNetwork` protocol and pass an instance of that
-object as a `:remote` when creating your client.
-
-There are only two methods in the protocol: `send` and `start`. The latter is called when the application is starting
-on the client. The latter is called whenever there is work for the remote to do.
 
 === Optional Sequential Operation
 
-When you create a client component to provide networking you can optionally implement the `NetworkBehavior` protocol,
-which has a single method `(serialize-requests? [this])`. The default is to serialize them, but if you implement this
-protocol and return false, then Fulcro's plumbing will not manage request queuing, and will just call `send` any time
-there is anything in the queue.
+When you create a networking component you can optionally implement the `NetworkBehavior` protocol
+which has a single method `(serialize-requests? [this])`.
+The default (without this protocol) is to serialize them, but if you implement this
+protocol and return false from the method then Fulcro's plumbing will not manage request queuing at all and will just
+call `send` any time there is anything in the queue.
 
 === Implementing Send
 
 The send method of the `FulcroNetwork` protocol is given `[this edn done-callback error-callback]`. `this` is just
-the instance of your implementation. The `edn` is the raw Fulcro query/mutation that was issued. The two callback
+the instance of your network implementation. The `edn` is the raw Fulcro query/mutation that was issued. The two callback
 functions are what you call when the request is complete. You must call one (and only one) of them exactly once
 with the response (or error).
 
@@ -7440,50 +7241,10 @@ are tempid remappings.
 
 Fulcro remembers the query that was used when calling `send`. Therefore it can auto-normalize the server's tree-like
 response to a graph query. It is perfectly legal to alter this by passing a UI query to the `done-callback` as
-an additional argument. Doing so will cause the back-end to use the specified query for normalization instead of
-the original outgoing query.
+an additional argument. Doing so will cause the back-end to use the *specified query* for normalization instead of
+the original (remembered) outgoing query.
 
-=== Error Handling
-
-The general philosophy of a Fulcro application is that optimistic updates are not even triggered on the client
-unless they expect to succeed on the server. In other words, you write the application in such a way that operations cannot be triggered
-from the UI unless you're certain that a *functioning server* will execute them. A server should not throw an exception
-and trigger a need for network error handling unless there is a real, non-recoverable situation.
-
-If this is true, then a functioning server *does* need to do sanity checking for security reasons, but in general you
-don't need to give friendly errors when those checks fail: you should assume they are attempted hacks. Other serious
-problems are similar: there is usually nothing you can do but throw an exception and let the user contact support.
-Exceptions to this rule certainly exist, but they are few and far between.
-
-There are some cases where the server has to be involved in a validation interaction non-optimistically. Login is a great
-example of this. However, invalid credentials on login *should not be treated as an error*! It should be treated as
-a response to a question. "Can I log in with these credentials?". Yes or no. This is a *query* and *response*, *not* an
-error handling interaction. Thus, something like login can be handled with a query (to get the answer) and post-mutation
-(to update the screen with an error or change the route on response).
-
-This philosophy eases the overhead in general application programming. You need not write a bunch of code in the UI
-that gives a nice friendly message for every kind of error that occurs. If an error occurs, you can pretty much assume
-it is either a bug, or a real outage. In both cases, there isn't a lot you can do that will work "well" for the user. If
-it is a bug, then you really have no chance of predicting what will fix it, otherwise you would have already fixed the
-bug. If it's an outage, again you have no way of knowing what has gone wrong. Is the user's WiFi out of range? Did your
-database take a dump?
-
-So, most error conditions can be treated as a problem that needs fairly radical recovery. Since you're working with
-a distributed application the recovery from errors is a difficult task. There is no sugar-coating it. What in your
-client database is now corrupt or out-of-sync?
-
-In general, it is recommended that full-stack error handling use the global error handler that is configured during
-the setup of your client application (you have to explicitly configure networking). This function can update application
-state to show some kind of top-level modal dialog that describes the problem, possibly allows the user to submit
-application history (for support viewer) to your servers, and then re-initializes the application in some way.
-
-You can, of course, get pretty creative with the re-initialization. For example, say you write screens so that they will
-refresh their persistent data whenever it is older than some amount of time, and write it so all entities have a timestamp.
-You could walk the state and "expire" all of the timestamps, and then close the dialog. Your lifecycle methods on the
-components could be set up to check for the expiration, which in turn would trigger loads. If the server is really having
-problems then the worst case is that the dialog pops back up telling them there is still a problem.
-
-=== Supporting Progress Updates
+=== Network Progress Updates
 
 The networking layer of Fulcro will, by default, place load markers at the target location for any data that is
 scheduled to be loaded or is currently loading. It also updates a global loading marker. This gives you ample
@@ -7491,26 +7252,38 @@ opportunities to give the user feedback about network activity.
 
 However, many applications have custom desires beyond showing a busy indicator in place of the data being loaded.
 
-==== Alternative Busy Indicator
-
-One common pattern is for the current data to stay in-place while the new data is loading, and for a busy
-marker (for *that* data, not for global network activity) to show in the UI. In this case what you want is a load
-marker for the data, but you don't want it to appear at the target.
-
-The best way to support this use-case is to target the data to a temporary location in the UI, where you want to show
-the load marker. Then use a post-mutation to re-target it when loading is done.
+For example, one might like to show the progress of a file upload. Fulcro includes an additional protocol
+to enable progress updates:
 
 ```
-(df/load :person Person {:params {:id 1} :target [:panel :person-editor :temp/person]
-                         :post-mutation `move-temp-to-editor})
+(defprotocol ProgressiveTransfer
+  (updating-send [this edn done-callback error-callback update-callback] "Send EDN. The update-callback will merge the state
+  given to it. The done-callback will merge the state given to it, and indicates completion. See
+  `fulcro.client.ui.file-upload/FileUploadNetwork` for an example."))
 ```
 
-where the `PersonEditor` would need to query for `:temp/person` (the load target) as well as `:person-to-edit`
-(the field that represents the actual thing being edited). When `:temp/person` has a load marker, show the busy indicator.
+If you implement this protocol (in addition to `FulcroNetwork`), then you will be given a callback that can be called
+at any time to merge data into the app state:
+
+```
+(update-callback data query)
+```
+
+for example, say you're doing progress updates on a file upload represented in your app state by a `File` component:
+
+```
+; on network update event for file 1:
+(let [ident (prim/get-ident File {:id 1})]
+  (update-callback {ident file} {ident (prim/get-query File)}))
+```
+
+The `fulcro.ui.fule-upload` namespace contains networking and UI for exactly this scenario. You could also use this
+sort of networking component to deal with things like incoming streaming data.
+
 
 === Interfacing with REST Servers
 
-See the final sections of the GettingStarted guide in the Fulcro repository on Git Hub.
+See the <<RESTAPI, REST API>> section of the Getting Started chapter for an example of working with REST.
 
 = Websockets
 
@@ -8796,7 +8569,7 @@ possible algorithm simplifies to:
 
 * Create a whitelist of keywords that are allowed to be read by the query in question. This can be a one-time
 declarative configuration, or something dynamic based on user rights.
-* Verify the user is allowed to read the \"top\" object. If not, disallow the query.
+* Verify the user is allowed to read the "top" object. If not, disallow the query.
 * Recursively gather up all keywords from the query as a set
 * Find the set difference of the whitelist and the query keywords.
 * If the difference if not empty, refuse to run the query
@@ -8838,7 +8611,7 @@ code is:
 
 (defn make-system []
   (core/make-fulcro-server
-    :config-path \"config/demos.edn\"
+    :config-path "config/demos.edn"
     :parser (prim/parser {:read logging-query :mutate logging-mutate})
     :parser-injections #{:authentication}
     :components {
@@ -9023,7 +8796,6 @@ The remainder of the setup is just giving the merge handler function to the appl
 ----
 include::src/book/book/demos/server_return_values_manually_merging.cljs[]
 ----
-
 
 == Fulcro with SQL
 
