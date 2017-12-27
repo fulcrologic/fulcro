@@ -1,5 +1,9 @@
 2.0.0
 -----
+- Minor bug fixes in `ptransact!` (ref not required) and `merge-component!` (UI refresh)
+
+2.0.0-RC4
+---------
 - Added support for ::prim/ref in fallbacks
 - Refactored a bit of internal fallback logic
 - Tweaks to docs and demos
@@ -9,7 +13,6 @@
 - Removed the cljs compiler hack for adv optimization. Fixed it in a way that is localized to Fulcro. This
 fixes the madness with needing a production profile to build adv builds!
 - Added support for `:initialize` option to load (ALPHA. In flux)
-- Minor bug fixes in `ptransact!` (ref not required) and `merge-component!` (UI refresh)
 
 2.0.0-RC3
 ---------
