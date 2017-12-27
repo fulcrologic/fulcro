@@ -6740,10 +6740,8 @@ the result at the correct position (relative to the query).
 
 Note that the parser only processes the query one level deep. Recursion (if you need it)
 is controlled by *you* calling the parser again from within the read function.
-")
 
-(defcard parser-read-trace
-"This card is similar to the prior card, but it has a read function that just records what keys it was
+The example below card is similar to the prior one, but it has a read function that just records what keys it was
 triggered for. Give it an arbitrary legal query, and see what happens.
 
 Some interesting queries:
@@ -6752,38 +6750,22 @@ Some interesting queries:
 - `[:a {:b [:x :y]} :c]`
 - `[{:a {:b {:c [:x :y]}}}]`
 
-"
-(fn [state _]
-  (let [{:keys [v error]} @state
-        trace (atom [])
-        read-tracking (fn [env k params]
-                        (swap! trace conj {:read-called-with-key k}))
-        parser (prim/parser {:read read-tracking})]
-    (dom/div nil
-      (when error
-        (dom/div nil (str error)))
-      (dom/input #js {:type     "text"
-                      :value    v
-                      :onChange (fn [evt] (swap! state assoc :v (.. evt -target -value)))})
-      (dom/button #js {:onClick #(try
-                                   (reset! trace [])
-                                   (swap! state assoc :error nil)
-                                   (parser {} (r/read-string v))
-                                   (swap! state assoc :result @trace)
-                                   (catch js/Error e (swap! state assoc :error e))
-                                   )} "Run Parser")
-      (dom/h4 nil "Parsing Trace")
-      (html-edn (:result @state)))))
-{}
-{:inspect-data false})
 
-(defcard-doc
-"
-In the card above you should have seen that only the top-level keys trigger reads.
+++++
+<div class="example" id="parsing-key-trace"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parsing-key-trace').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="parsing-key-trace source"]
+----
+include::src/book/book/queries/parsing_key_trace.cljs[]
+----
+
+In the example above you should have seen that only the top-level keys trigger reads.
 
 So, the query:
 
-```clj
+```
 [:kw {:j [:v]}]
 ```
 
@@ -6792,7 +6774,7 @@ automatic recursion. Done. The output value of the *parser* will be a map (that
 parse creates) which contains the keys (from the query, copied over by the
 parser) and values (obtained from your read):
 
-```clj
+```
 { :kw value-from-read-for-kw :j value-from-read-for-j }
 ```
 
@@ -6801,7 +6783,7 @@ done the right thing...a join like `{ :j [:k] }` expects a result that is a
 vector of (zero or more) things *or* a singleton *map* that contains key
 `:k`.
 
-```clj
+```
 { :kw 21 :j { :k 42 } }
 ; OR
 { :kw 21 :j [{ :k 42 } {:k 43}] }
@@ -6827,16 +6809,15 @@ So, the read function you write will receive three arguments, as described below
 2. A dispatch key for the item that triggered the read (same as dispatch key in the AST)
 3. Parameters (which are nil if not supplied in the query)
 
-It must return a value that has the shape implied the grammar element being read.
+It must return a value that has the shape implied by the grammar element being read.
 
-So, lets try it out.
-")
+NOTE: The following examples run various parsers against arbitrary queries. The `ParseRunner` component source looks like
+this:
 
-(defn read-42 [env key params] {:value 42})
-(def parser-42 (prim/parser {:read read-42}))
+```
+include::src/book/book/queries/parse_runner.cljs[]
+```
 
-(defcard-doc
-"
 === Reading a keyword
 
 If the parser encounters a keyword `:kw`, your function will be called with:
@@ -6864,92 +6845,66 @@ Thus, a very simple read for props (keywords) could be:
 (defn read [env key params] { :value 42 })
 ```
 
-below is a devcard that implements exactly this `read` and plugs it into a
-parser like this:"
-(dc/mkdn-pprint-source read-42)
-(dc/mkdn-pprint-source parser-42))
+below is an example that implements exactly this `read` and plugs it into a
+parser like this:
 
-(defn parser-tester [parser]
-(fn [state _]
-  (let [{:keys [v error]} @state]
-    (dom/div nil
-      (dom/input #js {:type     "text"
-                      :value    v
-                      :onChange (fn [evt] (swap! state assoc :v (.. evt -target -value)))})
-      (dom/button #js {:onClick #(try
-                                   (swap! state assoc :error "" :result (parser {:state (atom (:db @state))} (r/read-string v)))
-                                   (catch js/Error e (swap! state assoc :error e))
-                                   )} "Run Parser")
-      (when error
-        (dom/div nil (str error)))
-      (dom/h4 nil "Query Result")
-      (pr-str (:result @state))
-      (dom/h4 nil "Database")
-      (pr-str (:db @state))))))
+```
+(defn read-42 [env key params] {:value 42})
+(def parser-42 (prim/parser {:read read-42}))
+```
 
-(defcard property-read-for-the-meaning-of-life-the-universe-and-everything
-"This card is using the parser/read pairing shown above (the read returns
-the value 42 no matter what it is asked for). Run any query you
+The UI just passes your query off to the parser and shows the results.
+
+Thus, the example returns the value 42 no matter what it is asked for. Run any query you
 want in it, and check out the answer.
-
-This card just runs `(parser-42 {} your-query)` and reports the result.
 
 Some examples to try:
 
 - `[:a :b :c]`
 - `[:what-is-6-x-7]`
 - `[{:a {:b {:c {:d [:e]}}}}]` (yes, there is only one answer)
-"
-(parser-tester parser-42)
-{:db {}})
 
-(defn property-read [{:keys [state]} key params] {:value (get @state key :not-found)})
-(def property-parser (prim/parser {:read property-read}))
+++++
+<div class="example" id="naive-read"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.naive-read').toggle()">Show/Hide Source</a>
+++++
 
-(defcard-doc
-"
+[source,clojure,role="naive-read source"]
+----
+include::src/book/book/queries/naive_read.cljs[]
+----
+
 So now you have a read function that returns the meaning of life the universe and
 everything in a single line of code! But now it is obvious that we need to build
 an even bigger machine to understand the question.
 
 If your server state is just a flat set of scalar values with unique keyword
-identities, then a better read is similarly trivial.
+identities, then a better read is similarly trivial:
 
-The read function:
-"
-(dc/mkdn-pprint-source property-read)
-"
-Just assumes the property will be in the top-level of some injected state atom.
-")
+```
+(defn property-read [{:keys [state]} key params] {:value (get @state key :not-found)})
+(def property-parser (prim/parser {:read property-read}))
+```
 
-(defcard trivial-property-reader
-"This card is using the `property-read` function above in a parser.
-
-The database we're emulating is shown at the bottom of the card, after the
-result.
-
+It just assumes the property will be in the top-level of some injected state atom. Let's try
+that out. The database we're emulating is shown at the bottom of the example.
 Run some queries and see what you get. Some suggestions:
 
 - `[:a :b :c]`
 - `[:what-is-6-x-7]`
 - `[{:a {:b {:c {:d [:e]}}}}]` (yes, there is only one answer)
-"
-(parser-tester property-parser)
-{:db {:a 1 :b 2 :c 99}}
-{:inspect-data true})
 
-(def flat-app-state (atom {:a 1 :user/name "Sam" :c 99}))
+++++
+<div class="example" id="simple-property-read"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-property-read').toggle()">Show/Hide Source</a>
+++++
 
-(defn flat-state-read [{:keys [state parser query] :as env} key params]
-(if (= :user key)
-  {:value (parser env query)}                             ; recursive call. query is now [:user/name]
-  {:value (get @state key)}))                             ; gets called for :user/name :a and :c
+[source,clojure,role="simple-property-read source"]
+----
+include::src/book/book/queries/simple_property_read.cljs[]
+----
 
-(def my-parser (prim/parser {:read flat-state-read}))
-
-(defcard-doc
-"
-The result of those nested queries is supposed to be a nested map. So, obviously we
+The result of those nested queries (the last suggestion above) is supposed to be a nested map. So, obviously we
 have more work to do.
 
 === Reading a join
@@ -6961,13 +6916,13 @@ those that are accustomed to writing parsers probably already see the solution.
 First, let's clarify what the read function will receive for a join. When
 parsing:
 
-```clj
+```
 { :j [:a :b :c] }
 ```
 
 your read function will be called with:
 
-```clj
+```
 (your-read { :state state :parser (fn ...) :query [:a :b :c] } ; the environment
            :j                                                 ; keyword of the join
            nil) ; no parameters
@@ -6977,53 +6932,72 @@ But just to prove a point about the separation of database format and
 query structure we'll implement this next example
 with a basic recursive parse, *but use more flat data* (the following is live code):
 
-"
-(dc/mkdn-pprint-source flat-app-state)
-(dc/mkdn-pprint-source flat-state-read)
-(dc/mkdn-pprint-source my-parser)
-"
+```
+(def flat-app-state {:a 1 :user/name "Sam" :c 99})
+
+(defn flat-state-read [{:keys [state parser query] :as env} key params]
+  (if (= :user key)
+    {:value (parser env query)}                             ; recursive call. query is now [:user/name]
+    {:value (get @state key)}))                             ; gets called for :user/name :a and :c
+
+(def my-parser (prim/parser {:read flat-state-read}))
+```
+
 The important bit is the `then` part of the `if`. Return a value that is
 the recursive parse of the sub-query. Otherwise, we just look up the keyword
 in the state (which as you can see is a very flat map).
 
-The result of running this parser on the query shown is:
+Try running the query `[:a {:user [:user/name]} :c]`:
 
-"
-(my-parser {:state flat-app-state} '[:a {:user [:user/name]} :c])
-"
+++++
+<div class="example" id="parsing-simple-join"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parsing-simple-join').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="parsing-simple-join source"]
+----
+include::src/book/book/queries/parsing_simple_join.cljs[]
+----
 
 The first (possibly surprising thing) is that your result includes a nested
 object. The parser creates the result, and the recursion naturally nested the
 result correctly.
 
-Next you should remember that join implies a there could be one OR many results.
+Next you should remember that a join implies there could be one OR many results.
 The singleton case is fine (e.g. putting a single map there). If there are
 multiple results it should be a vector.
 
-In this case, we're just showing that you can use the parser recursively
-and it in turn will call your read function again.
-In a real application, your data will not be this flat, so you
+In this case we're just showing calling the parser recursively. Notice that
+it in turn will call your read function again.
+In a real application your data will not be this flat so you
 will almost certainly not do things in quite this
 way.
 
-So, let's put a little better state in our application, and write a
-more realistic parser.
+Let's put a little better state in our application and write a more realistic parser.
 
 === A Non-trivial, recursive example
 
 Let's start with the following hand-normalized application state:
 
-"
-(dc/mkdn-pprint-source parser1/app-state)
-"
+```
+(def app-state (atom {
+                      :window/size  [1920 1200]
+                      :friends      #{[:people/by-id 1] [:people/by-id 3]}
+                      :people/by-id {
+                                     1 {:id 1 :name "Sally" :age 22 :married false}
+                                     2 {:id 2 :name "Joe" :age 22 :married false}
+                                     3 {:id 3 :name "Paul" :age 22 :married true}
+                                     4 {:id 4 :name "Mary" :age 22 :married false}}}))
+```
+
 Our friend `db->tree` could handle queries against this database,
 but let's implement it by hand.
 
 Say we want to run this query:
 
-"
-(dc/mkdn-pprint-source parser1/query)
-"
+```
+(def query [:window/size {:friends [:name :married]}])
+```
 
 From the earlier discussion you see that we'll have to handle the
 top level keys one at a time.
@@ -7031,27 +7005,52 @@ top level keys one at a time.
 For this query there are only two keys to handle: `:friends`
 and `:window-size`. So, let's write a case for each:
 
-"
-(dc/mkdn-pprint-source parser1/read)
-"
+```
+(defn read [{:keys [state query]} key params]
+  (case key
+    :window/size {:value (get @state :window/size)}
+    :friends (let [friend-ids (get @state :friends)
+                   get-friend (fn [id] (select-keys (get-in @state id) query))
+                   friends (mapv get-friend friend-ids)]
+               {:value friends})
+    nil))
+```
 
 The default case is `nil`, which means if we supply an errant key in the query no
 exception will happen.
 
-when we run the query, we get:
+You can try it out below:
 
-"
-(parser1/parser {:state parser1/app-state} parser1/query)
-"
+++++
+<div class="example" id="parsing-recursion-one"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parsing-recursion-one').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="parsing-recursion-one source"]
+----
+include::src/book/book/queries/parsing_recursion_one.cljs[]
+----
 
 Those of you paying close attention will notice that we have yet to need
-recursion. We've also done something a bit naive: select-keys assumes
-that query contains only keys! What if app state and query were instead:
+recursion. We've also done something a bit naive: `select-keys` assumes
+that query contains only keys! What if query followed an ident link to
+`:married-to`:
 
-"
-(dc/mkdn-pprint-source parser2/app-state)
-(dc/mkdn-pprint-source parser2/query)
-"
+```
+[:window/size {:friends [:name :age {:married-to [:name]}]}]
+```
+
+and the database was:
+
+```
+{:window/size  [1920 1200]
+               :friends      [[:people/by-id 1] [:people/by-id 3]]
+               :people/by-id {
+                              1 {:id 1 :name "Sally" :age 22 :married false}
+                              2 {:id 2 :name "Joe" :age 33 :married false}
+                              3 {:id 3 :name "Paul" :age 45 :married true :married-to [:people/by-id 1]}
+                              4 {:id 4 :name "Mary" :age 19 :married false}}}
+```
 
 Now things get interesting, and I'm sure more than one reader will have an
 opinion on how to proceed. My aim is to show that the parser can be called
@@ -7062,20 +7061,26 @@ The primary trick I'm going to exploit is the fact that `env` is just a map, and
 that we can add stuff to it. When we are in the context of a person, we'll add
 `:person` to the environment, and pass that to a recursive call to `parser`.
 
-"
-(dc/mkdn-pprint-source parser2/read)
-"
-and running the query gives the expected result:
+The example below (with source) shows the result:
 
-"
-(parser2/parser {:state parser2/app-state} parser2/query)
-"
+++++
+<div class="example" id="parsing-recursion-two"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parsing-recursion-two').toggle()">Show/Hide Source</a>
+++++
 
-All of the code shown here is being actively pulled (and run) from `fulcro-devguide.state-reads.parser-2`.
+[source,clojure,role="parsing-recursion-two source"]
+----
+include::src/book/book/queries/parsing_recursion_two.cljs[]
+----
+
+It can be a little bit of work to build these parsers for the queries (which is why libraries exist so you don't have to); however,
+we hope you can see that it is actually pretty tractable to build them once you understand the basics.
+
+Now we'll move on to another thing that servers typically need in thier queries: parameters!
 
 == Parameters
 
-In the query grammar most kinds of rules accept parameters. These are intended
+The Fulcro query grammar accept parameters on most elements. These are intended
 to be combined with dynamic queries that will allow your UI to have some control
 over what you want to read from the application state (think filtering, pagination,
 sorting, and such).
@@ -7086,49 +7091,47 @@ You are responsible for both defining and interpreting them.
 They have no rules other than they are maps.
 
 To read the property `:load/start-time` with a parameter indicating a particular
-time unit you might use:
+time unit you might use a query like:
 
-```clj
+```
 [(:load/start-time {:units :seconds})]
 ```
 
 this will invoke read with:
 
-```clj
+```
 (your-read env :load/start-time { :units :seconds})
 ```
 
 the implication is clear. The code is up to you. Let's add some quick support for this
-in our read (in fulcro-devguide.state-reads.parser-3):
-"
-(dc/mkdn-pprint-source parser3/app-state)
-(dc/mkdn-pprint-source parser3/read)
-(dc/mkdn-pprint-source parser3/parser)
-"Now we can try the following queries:
+in our read so you can try it out.
 
-Query:"
-(dc/mkdn-pprint-source parser3/parse-result-mins)
-"Result: "
-parser3/parse-result-mins
-"Query: "
-(dc/mkdn-pprint-source parser3/parse-result-secs)
-"Result: "
-parser3/parse-result-secs
-"Query: "
-(dc/mkdn-pprint-source parser3/parse-result-ms)
-"Result: "
-parser3/parse-result-ms)
+The parser below understands the following queries:
 
-(defcard-doc
-"
+```
+[(:load/start-time {:units :seconds})]
+
+[(:load/start-time {:units :minutes})]
+
+[(:load/start-time {:units :ms})]
+```
+
+++++
+<div class="example" id="parsing-parameters"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parsing-parameters').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="parsing-parameters source"]
+----
+include::src/book/book/queries/parsing_parameters.cljs[]
+----
+
 == Using a Completely Custom Parser
 
-Most of this section assumed you're entering your server code via the built-in parser. Note that it is possible to use an
-alternate (custom) parser at any phase of parsing. In fact, you can even install a custom parser in your server
+Most of this book has assumed you'll be using Fulcro's predefined server parser. Note that you can still do that
+and switch out to an alternate (custom) parser at any phase of parsing. You can even install a custom parser in your server
 (though then the macros for defining mutations and query handlers won't work for you).
-
-Just remember that at any time in parsing you may change over to using an alternate instance of a parser to continue
-processing. Parsers can be constructed using the `prim/parser` function.
+Parsers can be constructed using the `prim/parser` function.
 
 == Parsing on the Client
 
