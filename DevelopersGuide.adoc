@@ -8765,18 +8765,18 @@ Take this query:
 If you think about how this looks in the server: each join walks from one table (or entity) to another through
 some kind of (forward or reverse) reference.
 
-```
+----
    QUERY PART                            IMPLIED DATABASE graph
 [:a {:join1                           { :a 6 :join1 [:tableX id1] }
-                                                      \\
-                                                       \\
-                                                        \\|
+                                                      \
+                                                       \
+                                                        \|
         [:b {:join2                       :tableX { id1 { :id id1 :join2 [:tableY id2]
                                                                             /
                                                                            /
-                                                                         |/
+                                                                         /
               [:c :d]}]}]                :tableY { id2 { :id id2 :c 4 :d 5 }}
-```
+----
 
 One idea that works pretty well for us is based on this realization: There is a starting point of this walk (e.g. I
 want to load a person), and the top-level detail *must* be specified (or implied at least) by the incoming query
@@ -8808,6 +8808,34 @@ book). This example's auth mechanisms would be set up as components and a parser
 code is:
 
 ```
+
+(defrecord Authentication [handler]
+  c/Lifecycle
+  (start [this]
+    (log/info "Hooking into pre-processing to add user info")
+    (let [old-pre-hook (h/get-pre-hook handler)
+          new-hook     (fn [ring-handler] (fn [req] ((old-pre-hook ring-handler) (assoc req :user {:username "Tony"}))))]
+      (h/set-pre-hook! handler new-hook))
+    this)
+  (stop [this] this))
+
+(defn make-authentication []
+  (c/using (map->Authentication {}) [:handler]))
+
+(defprotocol Auth
+  (can-access-entity? [this user key entityid] "Check if the given user is allowed to access the entity designated by the given key and entity id")
+  (authorized-query? [this user top-key query] "Check if the given user is allowed to access all of the data in the query that starts at the given join key"))
+
+(defrecord Authorizer []
+  c/Lifecycle
+  (start [this] this)
+  (stop [this] this)
+  Auth
+  (can-access-entity? [this user key entityid] (authorized-root-entity? user key entityid))
+  (authorized-query? [this user top-key query] (is-authorized-query? query top-key)))
+
+(defn make-authorizer [] (map->Authorizer {}))
+
 (defn make-system []
   (core/make-fulcro-server
     :config-path \"config/demos.edn\"
@@ -8819,6 +8847,9 @@ code is:
                  ; This is here as a component so it can be injected into the parser env for processing security
                  :authentication (server-security/make-authorizer)}))
 ```
+
+This logic is basically hacked in to the live example to give you an idea of how
+it looks.
 
 ++++
 <div class="example" id="server-query-security"> </div>
@@ -8992,6 +9023,244 @@ The remainder of the setup is just giving the merge handler function to the appl
 ----
 include::src/book/book/demos/server_return_values_manually_merging.cljs[]
 ----
+
+
+== Fulcro with SQL
+
+The Fulcro SQL library is capable of running many Fulcro graph queries directly
+against an SQL database. It also comes with testing utilities and a component for
+setting up connection pooling (via HikariCP) and migrations (via Flyway).
+
+Since our demos run in the browser only for this document, we cannot show you a live demo,
+but here are some basics to whet your appetite.
+
+Assume you have a PostgreSQL database. We could create a project with
+migrations in `src/main/config/migrations/V1__account_schema.sql`. See
+Flyway documentation for naming conventions. For our example here,
+let's say our initial schema is:
+
+```
+CREATE TABLE settings (
+  id                 SERIAL PRIMARY KEY,
+  auto_open          BOOLEAN NOT NULL DEFAULT FALSE,
+  keyboard_shortcuts BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE account (
+  id             SERIAL PRIMARY KEY,
+  name           TEXT,
+  last_edited_by INTEGER,
+  settings_id    INTEGER REFERENCES settings (id),
+  created_on     TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE TABLE member (
+  id         SERIAL PRIMARY KEY,
+  name       TEXT,
+  account_id INTEGER NOT NULL REFERENCES account (id)
+);
+ALTER TABLE account
+  ADD CONSTRAINT account_last_edit_by_fkey FOREIGN KEY (last_edited_by) REFERENCES member (id);
+
+-- Some seed data for the demo
+INSERT INTO settings (id, auto_open, keyboard_shortcuts) VALUES (1, true, false);
+INSERT INTO settings (id, auto_open, keyboard_shortcuts) VALUES (2, false, false);
+INSERT INTO account (id, name, settings_id) values (1, 'Sally', 1);
+INSERT INTO account (id, name, settings_id) values (2, 'Bob', 2);
+INSERT INTO member (id, name, account_id) values (1, 'Billy', 1);
+INSERT INTO member (id, name, account_id) values (2, 'Tom', 1);
+INSERT INTO member (id, name, account_id) values (3, 'Tori', 1);
+INSERT INTO member (id, name, account_id) values (4, 'Cory', 2);
+INSERT INTO member (id, name, account_id) values (5, 'Kady', 2);
+```
+
+The connection pooling needs to be configured as well, and Fulcro SQL allows this to
+also be on the classpath. Assume we have `src/main/config/accountpool.props` with
+(see HikariCP documentation):
+
+```
+dataSourceClassName=org.postgresql.ds.PGSimpleDataSource
+dataSource.user=test
+dataSource.password=
+dataSource.databaseName=accounts
+dataSource.portNumber=5432
+dataSource.serverName=localhost
+```
+
+Then with some simple UI components like
+
+```
+(defsc Settings [this {:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]}]
+  {:query [:db/id :settings/auto-open? :settings/keyboard-shortcuts?]
+  ...
+
+(defsc Member [this {:keys [db/id member/name]}]
+  {:query [:db/id :member/name]
+  ...
+
+(defsc Account [this {:keys [db/id account/name account/members account/settings]}]
+  {:query [:db/id :account/name {:account/members (prim/get-query Member)} {:account/settings (prim/get-query Settings)}]
+```
+
+we might want to issue a load like this:
+
+```
+(df/load app :graph-demo/accounts Account {:target [:accounts]})
+```
+
+In this example, we've been careful to align the UI with the schema of the database. All
+Fuclro SQL needs is a bit of configuration to tell it how to map the UI graph to the
+schema:
+
+```
+(def schema
+ {:fulcro-sql.core/graph->sql {:settings/auto-open?          :settings/auto_open
+                               :settings/keyboard-shortcuts? :settings/keyboard_shortcuts}
+  :fulcro-sql.core/joins      {:account/members  (sql/to-many [:account/id :member/account_id])
+                               :account/settings (sql/to-one [:account/settings_id :settings/id])
+                               :member/account   (sql/to-one [:member/account_id :account/id])}
+  :fulcro-sql.core/pks        {}})
+```
+
+The relations (defined with `to-one` and `to-many`) assume you've chosen keyword namespaces that match your table names,
+and keyword names that match column names (e.g. keyword `:account/id` -> SQL `ACCOUNT.ID`). The joins are
+then simply defined in the direction desired (you can see `:account/members` and `:member/account`
+trafersing the same SQL "edge"). If that isn't try, then you can remap them in the `graph->sql` section.
+
+The database configuration (in our config EDN file) is:
+
+```
+{:port   8081
+ :sqldbm {:accounts {:hikaricp-config "config/accountpool.props"
+                     :auto-migrate?   true
+                     :create-drop?    true
+                     :migrations      ["classpath:config/migrations"]}}}
+```
+
+and we inject the Fulcro SQL component into our parsing environment via:
+
+```
+(core/make-fulcro-server
+  ...
+  :parser-injections #{:sqldb}
+  :components {:sqldb (component/using (sql/build-db-manager {}) [:config])})
+```
+
+The server code to handle the query is then quite small:
+
+```
+(server/defquery-root :graph-demo/accounts
+ (value [{:keys [sqldb query]} params] ; get the injected database manager
+   (let [db              (sql/get-dbspec sqldb :accounts) ; get the database from the db manager
+         ; Find the IDs of the account(s) of interest (all accounts)
+         all-account-ids (jdbc/query db ["select id from account"] {:row-fn :id :result-set-fn set})]
+     (if (seq all-account-ids)
+       (sql/run-query db schema :account/id query all-account-ids) ; run the graph query
+       []))))
+```
+
+The complete source for this demo is:
+
+[source, clojure]
+----
+(ns book.demos.server-SQL-graph-queries
+  (:require
+    #?@(:clj [[fulcro-sql.core :as sql]
+              [clojure.java.jdbc :as jdbc]
+              [taoensso.timbre :as timbre]])
+              [com.stuartsierra.component :as component]
+              [fulcro.client.dom :as dom]
+              [fulcro.easy_server :refer [make-fulcro-server]]
+              [fulcro.server :as server :refer [defquery-root server-read server-mutate]]
+              [fulcro.client.data-fetch :as df]
+              [fulcro.client.logging :as log]
+              [fulcro.client :as fc]
+              [fulcro.ui.bootstrap3 :as b]
+              [fulcro.client.primitives :as prim :refer [defsc]]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; SERVER:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#?(:clj
+   (def schema
+     {:fulcro-sql.core/graph->sql {:settings/auto-open?          :settings/auto_open
+                                   :settings/keyboard-shortcuts? :settings/keyboard_shortcuts}
+      :fulcro-sql.core/joins      {:account/members  (sql/to-many [:account/id :member/account_id])
+                                   :account/settings (sql/to-one [:account/settings_id :settings/id])
+                                   :member/account   (sql/to-one [:member/account_id :account/id])}
+      :fulcro-sql.core/pks        {}}))
+
+; This is the only thing we wrote for the server...just return some value so we can
+; see it really talked to the server for this query.
+#?(:clj
+   (server/defquery-root :graph-demo/accounts
+     (value [{:keys [sqldb query]} params]
+       (let [db              (sql/get-dbspec sqldb :accounts)
+             all-account-ids (jdbc/query db ["select id from account"] {:row-fn :id :result-set-fn set})]
+         (timbre/info all-account-ids)
+         (if (seq all-account-ids)
+           (sql/run-query db schema :account/id query all-account-ids)
+           [])))))
+
+(defn make-system []
+  (let [include-postgres? (boolean (System/getProperty "postgres"))]
+    (make-fulcro-server
+      :config-path "config/demos.edn"
+      :parser-injections (cond-> #{:authorization}
+                           include-postgres? (conj :sqldb))
+      :components {:sqldb (component/using
+                            (sql/build-db-manager {})
+                            [:config])})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CLIENT:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defsc Settings [this {:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]}]
+  {:query [:db/id :settings/auto-open? :settings/keyboard-shortcuts?]
+   :ident [:settings/by-id :db/id]}
+  (dom/ul nil
+    (dom/li nil (str "Auto open? " auto-open?))
+    (dom/li nil (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))
+
+(def ui-settings (prim/factory Settings {:keyfn :db/id}))
+
+(defsc Member [this {:keys [db/id member/name]}]
+  {:query [:db/id :member/name]
+   :ident [:member/by-id :db/id]}
+  (dom/div nil
+    "Member: " name))
+
+(def ui-member (prim/factory Member {:keyfn :db/id}))
+
+(defsc Account [this {:keys [db/id account/name account/members account/settings]}]
+  {:query [:db/id :account/name {:account/members (prim/get-query Member)} {:account/settings (prim/get-query Settings)}]
+   :ident [:account/by-id :db/id]}
+  (dom/div nil
+    (dom/h3 nil (str "Account for " name))
+    (dom/ul nil
+      (when (seq settings)
+        (dom/li nil
+          (dom/h3 nil "Settings")
+          (ui-settings settings)))
+      (dom/li nil
+        (dom/h3 nil "Members in the account")
+        (map ui-member members)))))
+
+(def ui-account (prim/factory Account {:keyfn :db/id}))
+
+(defsc Root [this {:keys [ui/react-key accounts]}]
+  {:query [:ui/react-key {:accounts (prim/get-query Account)}]}
+  (dom/div #js {:key react-key}
+    (dom/h3 nil "Accounts with settings and users")
+    (map ui-account accounts)))
+
+#?(:cljs (defonce app (atom (fc/new-fulcro-client :started-callback
+                              (fn [app]
+                                (df/load app :graph-demo/accounts Account {:target [:accounts]})))))) `#?(:cljs (swap! app fc/mount Root "app"))
+----
+
+
 
 ++++
 <style>

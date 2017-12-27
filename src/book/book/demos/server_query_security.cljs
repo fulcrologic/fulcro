@@ -38,20 +38,6 @@
         insecure-keywords (set/difference (keywords-in-query query) keywords-allowed)]
     (empty? insecure-keywords)))
 
-(comment
-  (defrecord Authentication [handler]
-    c/Lifecycle
-    (start [this]
-      (log/info "Hooking into pre-processing to add user info")
-      (let [old-pre-hook (h/get-pre-hook handler)
-            new-hook     (fn [ring-handler] (fn [req] ((old-pre-hook ring-handler) (assoc req :user {:username "Tony"}))))]
-        (h/set-pre-hook! handler new-hook))
-      this)
-    (stop [this] this))
-
-  (defn make-authentication []
-    (c/using (map->Authentication {}) [:handler])))
-
 (defprotocol Auth
   (can-access-entity? [this user key entityid] "Check if the given user is allowed to access the entity designated by the given key and entity id")
   (authorized-query? [this user top-key query] "Check if the given user is allowed to access all of the data in the query that starts at the given join key"))
@@ -69,17 +55,15 @@
 (def pretend-database {:person {:id 42 :name "Joe" :address "111 Nowhere" :cc-number "1234-4444-5555-2222"}})
 
 (server/defquery-root :person
-  (value [{:keys [ast authorization request query] :as env} params]
-    (let [enforce-security? true
-          ; The user is added by the authentication hook into Ring
-          user              (:user request)]
+  (value [{:keys [request query] :as env} params]
+    (let [authorization (make-authorizer)
+          user (:user request)]
       (log/info (str authorization "w/user" user))
-      (when enforce-security?
-        (or (and
-              ;; of course, the params would be derived from the request/headers/etc.
-              (can-access-entity? authorization user :person 42)
-              (authorized-query? authorization user :person query))
-          (throw (ex-info "Unauthorized query!" {:status 401 :body {:query query}}))))
+      (or (and
+            ;; of course, the params would be derived from the request/headers/etc.
+            (can-access-entity? authorization user :person 42)
+            (authorized-query? authorization user :person query))
+        (throw (ex-info "Unauthorized query!" {:status 401 :body {:query query}})))
       ;; Emulate a datomic pull kind of operation...
       (select-keys (get pretend-database :person) query))))
 

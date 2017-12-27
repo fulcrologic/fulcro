@@ -32,8 +32,7 @@
                book.demos.server-targeting-return-values-into-app-state
                book.demos.server-return-values-manually-merging
                [book.server.ui-blocking-example :as ui-blocking]
-               [fulcro-css.css :as css]
-               ])
+               [fulcro-css.css :as css]])
     [book.ui.example-1 :as ui-ex-1]
     [fulcro.server :as server :refer [defquery-root]]
     [fulcro.client.mutations :as m :refer [defmutation]]
@@ -74,16 +73,20 @@
 #?(:cljs
    (defrecord MockNetwork []
      fcn/FulcroNetwork
-     (send [this edn ok err]
+     (send [this edn ok error]
        (log/info "Server received " edn)
-       (let [resp        (raise-response (parser {} edn))
-             skip-delay? (and (map? resp) (some-> resp first second meta ::nodelay))]
-         ; simulates a network delay:
-         (if skip-delay?
-           (ok resp)
-           (js/setTimeout (fn []
-                            (log/info "Server responded with " resp)
-                            (ok resp)) @latency))))
+       (try
+         (let [resp        (raise-response (parser {} edn))
+               skip-delay? (and (map? resp) (some-> resp first second meta ::nodelay))]
+           ; simulates a network delay:
+           (if skip-delay?
+             (ok resp)
+             (js/setTimeout (fn []
+                              (log/info "Server responded with " resp)
+                              (ok resp)) @latency)))
+         (catch :default e
+           (error {:type (type e)
+                   :data (some-> (ex-data e) :body)}))))
      (start [this] this)))
 
 (defsc ServerControl [this {:keys [:server-control/delay ui/hidden?]}]
@@ -173,7 +176,8 @@
 (fc/new-fulcro-client)
 #?(:cljs (defexample "Error Handling (TODO:install error handler)" book.demos.server-error-handling/Root "server-error-handling"
            :networking book.main/example-server))
-#?(:cljs (defexample "Query Security (TODO:install in mock server)" book.demos.server-query-security/Root "server-query-security" :networking book.main/example-server))
+#?(:cljs (defexample "Query Security" book.demos.server-query-security/Root "server-query-security"
+           :networking book.main/example-server))
 #?(:cljs (defexample "Return Values and Mutation Joins" book.demos.server-return-values-as-data-driven-mutation-joins/Root "server-return-values-as-data-driven-mutation-joins"
 
            :networking book.main/example-server))
