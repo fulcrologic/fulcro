@@ -2846,7 +2846,7 @@
   NOTE: `ptransact!` *is* safe to use from within mutations (e.g. for retry behavior).
   WARNING: Mutations that interact with more than one remote *at the same time* will only wait for one of the remotes to finish."
   ([comp-or-reconciler tx]
-   (let [ref (when (component? comp-or-reconciler) (get-ident comp-or-reconciler))]
+   (let [ref (when (and (component? comp-or-reconciler) (has-ident? comp-or-reconciler)) (get-ident comp-or-reconciler))]
      (ptransact! comp-or-reconciler ref tx)))
   ([comp-or-reconciler ref tx]
    (let [reconciler (if (reconciler? comp-or-reconciler) comp-or-reconciler (get-reconciler comp-or-reconciler))
@@ -3379,7 +3379,7 @@
       (merge! reconciler merge-data merge-query)
       (swap! state dissoc :fulcro/merge)
       (apply integrate-ident! state ident named-parameters)
-      (p/queue! reconciler data-path-keys)
+      (p/queue! reconciler (conj data-path-keys ident))
       @state)))
 
 (defn merge-alternate-unions
