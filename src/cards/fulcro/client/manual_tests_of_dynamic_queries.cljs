@@ -24,11 +24,10 @@
 
 (def ui-leaf (prim/factory Leaf {:qualifier :x}))
 
-(defsc Root [this {:keys [ui/react-key root/leaf] :as props}]
-  {:initial-state (fn [p] {:ui/react-key "A" :root/leaf (prim/get-initial-state Leaf {})})
-   :query         (fn [] [{:root/leaf (prim/get-query ui-leaf)} :ui/react-key])}
-  (dom/div #js {:key (or react-key)}
-    (ui-leaf leaf)))
+(defsc Root [this {:keys [root/leaf] :as props}]
+  {:initial-state (fn [p] {:root/leaf (prim/get-initial-state Leaf {})})
+   :query         (fn [] [{:root/leaf (prim/get-query ui-leaf)}])}
+  (dom/div nil (ui-leaf leaf)))
 
 (defcard-fulcro union-initial-app-state
   Root

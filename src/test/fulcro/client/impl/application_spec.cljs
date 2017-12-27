@@ -22,7 +22,7 @@
 
 (defui ^:once Root
   static prim/IQuery
-  (query [this] [:ui/react-key :ui/locale {:things (prim/get-query Thing)}])
+  (query [this] [:ui/locale {:things (prim/get-query Thing)}])
   Object
   (render [this]
     (dom/div nil "")))
@@ -128,12 +128,12 @@
     (component "tempid migration"
       (when-mocking
         (prim/rewrite-tempids-in-request-queue queue remaps) =1x=> (assertions
-                                                                         "Remaps tempids in the requests queue(s)"
-                                                                         remaps => :mock-tempids)
+                                                                     "Remaps tempids in the requests queue(s)"
+                                                                     remaps => :mock-tempids)
         (prim/resolve-tempids state remaps) =1x=> (assertions
-                                                        "Remaps tempids in the app state"
-                                                        state => :app-state
-                                                        remaps => :mock-tempids)
+                                                    "Remaps tempids in the app state"
+                                                    state => :app-state
+                                                    remaps => :mock-tempids)
 
         (migrate :app-state :query :mock-tempids :id-key)))
 
@@ -154,19 +154,22 @@
         (app/server-send :the-app :transactions :merge-callback)))
 
     (component "Changing app :ui/locale"
-      (when-mocking
-        (m/locale-present? l) => true
+      (let [forced? (atom false)]
+        (when-mocking
+          (m/locale-present? l) => true
+          (prim/force-root-render! r) => (reset! forced? true)
+          (js/setTimeout f n) => (f)                        ; calls force root render
 
-        (let [react-key (:ui/react-key @mounted-app-state)]
-          (reset! i18n/*current-locale* "en")
-          (prim/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
-          (assertions
-            "Changes the i18n locale for translation lookups"
-            (deref i18n/*current-locale*) => "es-MX"
-            "Places the new locale in the app state"
-            (:ui/locale @mounted-app-state) => "es-MX"
-            "Updates the react key to ensure render can redraw everything"
-            (not= react-key (:ui/react-key @mounted-app-state)) => true))))))
+          (let [react-key (:ui/react-key @mounted-app-state)]
+            (reset! i18n/*current-locale* "en")
+            (prim/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
+            (assertions
+              "Changes the i18n locale for translation lookups"
+              (deref i18n/*current-locale*) => "es-MX"
+              "Places the new locale in the app state"
+              (:ui/locale @mounted-app-state) => "es-MX"
+              "Triggers a force render of root"
+              @forced? => true)))))))
 
 (specification "Fulcro Application (multiple remotes)"
   (let [state             {}
@@ -199,9 +202,9 @@
       (when-mocking
         (prim/rewrite-tempids-in-request-queue queue remaps) => (swap! queues-remapped conj queue)
         (prim/resolve-tempids state remaps) =1x=> (assertions
-                                                        "remaps tempids in state"
-                                                        state => :state
-                                                        remaps => :mock-tempids)
+                                                    "remaps tempids in state"
+                                                    state => :state
+                                                    remaps => :mock-tempids)
 
         (migrate :state :query :mock-tempids :id-key)
 

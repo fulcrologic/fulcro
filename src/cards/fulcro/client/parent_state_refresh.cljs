@@ -1,7 +1,7 @@
 (ns fulcro.client.parent-state-refresh
   (:require [devcards.core :as dc]
             [fulcro.client.dom :as dom]
-            [fulcro.client :as fc ]
+            [fulcro.client :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [goog.object]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
@@ -57,14 +57,13 @@
 
 (defui ^:once Root
   static InitialAppState
-  (initial-state [clz params] {:ui/react-key "A"
-                               :parent       (prim/get-initial-state Parent nil)})
+  (initial-state [clz params] {:parent (prim/get-initial-state Parent nil)})
   static prim/IQuery
-  (query [this] [{:parent (prim/get-query ui-parent)} :ui/react-key])
+  (query [this] [{:parent (prim/get-query ui-parent)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key parent] :as props} (prim/props this)]
-      (dom/div #js {:key (or react-key)}
+    (let [{:keys [parent] :as props} (prim/props this)]
+      (dom/div nil
         (dom/button #js {:onClick #(prim/transact! this `[:left])} "Run real transaction (no-op)")
         (ui-parent parent)))))
 

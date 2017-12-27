@@ -121,10 +121,10 @@
 
 (def ui-child (prim/factory Child))
 
-(defsc Root [this {:keys [ui/react-key child]}]
-  {:query         [:ui/react-key {:child (prim/get-query Child)}]
+(defsc Root [this {:keys [child]}]
+  {:query         [{:child (prim/get-query Child)}]
    :initial-state (fn [params] {:ui/react-key "K" :child (initial-state Child nil)})}
-  (dom/div #js {:key react-key}
+  (dom/div nil
     (dom/button #js {:onClick #(prim/transact! this `[(make-bigger {})])} "Bigger!")
     (dom/button #js {:onClick #(prim/transact! this `[(make-smaller {})])} "Smaller!")
     (dom/br nil)

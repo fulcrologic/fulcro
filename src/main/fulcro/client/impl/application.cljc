@@ -218,7 +218,6 @@
    During startup this function will be called once for each reconciler that is running on a page."
   [reconciler]
   (letfn [(re-render [k r o n] (when (prim/mounted? (prim/app-root reconciler))
-                                 (log/debug "Forcing a UI refresh on locale change.")
                                  (util/force-render reconciler)))]
     (remove-watch i18n/*current-locale* :locale)
     (add-watch i18n/*loaded-translations* :locale re-render) ; when a module load completes, it stores the translations here

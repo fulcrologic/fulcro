@@ -17,11 +17,10 @@
 (def ui-child (prim/factory Child))
 
 (declare change-color)
-(defsc Root [this {:keys [ui/react-key]}]
+(defsc Root [this props]
   {; Compose children with local reasoning. Dedupe is automatic if two UI paths cause re-inclusion.
-   :css-include [Child]
-   :query       [:ui/react-key]}
-  (dom/div #js {:key react-key}
+   :css-include [Child]}
+  (dom/div nil
     (dom/button #js {:onClick (fn [e]
                                 ; change the atom, and re-upsert the CSS. Look at the elements in your dev console.
                                 ; Figwheel and Closure push SCRIPT tags too, so it may be hard to find on
@@ -104,4 +103,5 @@
   (dc/mkdn-pprint-source theme-color)
   (dc/mkdn-pprint-source change-color))
 
-(defcard-fulcro colocated-css Root)
+(defcard-fulcro colocated-css
+  Root)
