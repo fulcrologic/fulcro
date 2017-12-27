@@ -1,14 +1,15 @@
-(ns fulcro-devguide.state-reads.parser-2
-  (:require [fulcro.client.primitives :as prim]))
+(ns book.queries.parsing-recursion-two
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
+            [book.queries.parse-runner :refer [ParseRunner ui-parse-runner]]
+            [fulcro.client.dom :as dom]))
 
-(def app-state (atom {
-                      :window/size  [1920 1200]
-                      :friends      [[:people/by-id 1] [:people/by-id 3]]
-                      :people/by-id {
-                                     1 {:id 1 :name "Sally" :age 22 :married false}
-                                     2 {:id 2 :name "Joe" :age 33 :married false}
-                                     3 {:id 3 :name "Paul" :age 45 :married true :married-to [:people/by-id 1]}
-                                     4 {:id 4 :name "Mary" :age 19 :married false}}}))
+(def database {:window/size  [1920 1200]
+               :friends      [[:people/by-id 1] [:people/by-id 3]]
+               :people/by-id {
+                              1 {:id 1 :name "Sally" :age 22 :married false}
+                              2 {:id 2 :name "Joe" :age 33 :married false}
+                              3 {:id 3 :name "Paul" :age 45 :married true :married-to [:people/by-id 1]}
+                              4 {:id 4 :name "Mary" :age 19 :married false}}})
 
 ; we're going to add person to the env as we go
 (defn read [{:keys [parser ast state query person] :as env} dispatch-key params]
@@ -37,4 +38,10 @@
       nil)))
 
 (def parser (prim/parser {:read read}))
-(def query [:window/size {:friends [:name :age {:married-to [:name]}]}])
+(def query "[:window/size {:friends [:name :age {:married-to [:name]}]}]")
+
+(defsc Root [this {:keys [parse-runner]}]
+  {:initial-state (fn [params] {:parse-runner (prim/get-initial-state ParseRunner {:query query})})
+   :query         [{:parse-runner (prim/get-query ParseRunner)}]}
+  (dom/div nil
+    (ui-parse-runner (prim/computed parse-runner {:parser parser :database database}))))

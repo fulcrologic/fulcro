@@ -10,6 +10,13 @@
                [book.queries.union-example-1 :as union-example-1]
                [book.queries.union-example-2 :as union-example-2]
                [book.queries.parsing-trace-example :as trace]
+               book.queries.parsing-key-trace
+               book.queries.naive-read
+               book.queries.simple-property-read
+               book.queries.parsing-simple-join
+               book.queries.parsing-recursion-one
+               book.queries.parsing-recursion-two
+               book.queries.parsing-parameters
                [book.demos.autocomplete :as autocomplete]
                book.server.morphing-example
                book.demos.cascading-dropdowns
@@ -147,7 +154,18 @@
 #?(:cljs (defexample "Image Clip Tool" clip-tool-example/Root "clip-tool-example"))
 #?(:cljs (defexample "Unions to Select Type" union-example-1/Root "union-example-1"))
 #?(:cljs (defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :networking book.main/example-server))
+
+;; Parsing Chapter
 #?(:cljs (defexample "Parser Tracing" trace/Root "parsing-trace-example"))
+#?(:cljs (defexample "Parser Dispatch Trace" book.queries.parsing-key-trace/Root "parsing-key-trace"))
+#?(:cljs (defexample "Naive Read" book.queries.naive-read/Root "naive-read"))
+#?(:cljs (defexample "Parsing Simple Properties" book.queries.simple-property-read/Root "simple-property-read"))
+#?(:cljs (defexample "Parsing a Simple Join" book.queries.parsing-simple-join/Root "parsing-simple-join"))
+#?(:cljs (defexample "Recursive Part 1" book.queries.parsing-recursion-one/Root "parsing-recursion-one"))
+#?(:cljs (defexample "Recursive Part 2" book.queries.parsing-recursion-two/Root "parsing-recursion-two"))
+#?(:cljs (defexample "Parsing Parameters" book.queries.parsing-parameters/Root "parsing-parameters"))
+
+
 #?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
 #?(:cljs (defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :networking book.main/example-server))
 #?(:cljs (defexample "Component Localized CSS" book.demos.component-localized-css/Root "component-localized-css" :networking book.main/example-server))
