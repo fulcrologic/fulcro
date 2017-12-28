@@ -20,6 +20,8 @@
                [book.demos.autocomplete :as autocomplete]
                book.basic-i18n
                book.ui-routing
+               book.tree-to-db
+               book.merge-component
                book.server.morphing-example
                book.demos.cascading-dropdowns
                book.demos.component-localized-css
@@ -169,7 +171,8 @@
 
 #?(:cljs (defexample "Internationalization Demo" book.basic-i18n/Root "basic-i18n"))
 #?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
-
+#?(:cljs (defexample "Tree to DB with Queries" book.tree-to-db/Root "tree-to-db" :networking book.main/example-server))
+#?(:cljs (defexample "Merging with a Component" book.merge-component/Root "merge-component" :networking book.main/example-server))
 
 #?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
 #?(:cljs (defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :networking book.main/example-server))
