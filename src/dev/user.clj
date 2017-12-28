@@ -6,7 +6,6 @@
     [figwheel-sidecar.system :as fig]
     [solutions.putting-together :as pt]
     [com.stuartsierra.component :as component]
-    [fulcro-devguide.upload-server :as upload]
     [fulcro-spec.selectors :as sel]
     [fulcro-spec.suite :as suite]))
 
@@ -40,35 +39,38 @@
      (swap! figwheel component/start)
      (fig/cljs-repl (:figwheel-system @figwheel)))))
 
-(set-refresh-dirs "src/main" "src/test" "src/dev" "src/devguide")
+(set-refresh-dirs "src/main" "src/test" "src/dev" "src/tutorial")
 
-(defn run-upload-server
-  "Load and start the server that can handle the file upload form examples."
-  []
-  (upload/go))
+(comment
+  "move to cards"
 
-(def stop-upload-server upload/stop)
+  (defn run-upload-server
+    "Load and start the server that can handle the file upload form examples."
+    []
+    (upload/go))
 
-(def restart-upload-server upload/restart)
+  (def stop-upload-server upload/stop)
+
+  (def restart-upload-server upload/restart))
 
 
 ;; SOLUTIONS: Putting it Together Setting Up: The start/restart functions for the server
 (comment
   (defn ex-start
-    "Start the server for the devguide server exercises."
+    "Start the server for the tutorial server exercises."
     []
     (reset! pt/system (pt/make-server))
     (swap! pt/system component/start))
 
   (defn ex-stop
-    "Stop the server for the devguide server exercises."
+    "Stop the server for the tutorial server exercises."
     []
     (when @pt/system
       (component/stop @pt/system)
       (reset! pt/system nil)))
 
   (defn ex-restart
-    "Stop the server for the devguide server exercises, refresh code from disk, and start it again."
+    "Stop the server for the tutorial server exercises, refresh code from disk, and start it again."
     []
     (ex-stop)
     (refresh :after 'user/ex-start)))
