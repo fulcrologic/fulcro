@@ -18,6 +18,7 @@
                book.queries.parsing-recursion-two
                book.queries.parsing-parameters
                [book.demos.autocomplete :as autocomplete]
+               book.basic-i18n
                book.server.morphing-example
                book.demos.cascading-dropdowns
                book.demos.component-localized-css
@@ -164,6 +165,8 @@
 #?(:cljs (defexample "Recursive Part 1" book.queries.parsing-recursion-one/Root "parsing-recursion-one"))
 #?(:cljs (defexample "Recursive Part 2" book.queries.parsing-recursion-two/Root "parsing-recursion-two"))
 #?(:cljs (defexample "Parsing Parameters" book.queries.parsing-parameters/Root "parsing-parameters"))
+
+#?(:cljs (defexample "Internationalization Demo" book.basic-i18n/Root "basic-i18n"))
 
 
 #?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
