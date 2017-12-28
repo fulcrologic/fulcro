@@ -3119,6 +3119,8 @@
 #?(:clj
    (defn- build-form [form-fields]
      (when form-fields
+       (when-not (vector? form-fields)
+         (throw (ex-info "Form fields must be a vector of form field definitions" {})))
        `(~'static ~'fulcro.ui.forms/IForm
           (~'form-spec [~'this] ~form-fields)))))
 
