@@ -2024,7 +2024,7 @@ itself, rather than the work you have to do. Create a new namespace `src/main/ap
                                        (@global-error-callback status error)))]
         (if (zero? status)
           (log-and-dispatch-error
-            (str "UNTANGLED NETWORK ERROR: No connection established.")
+            (str "NETWORK ERROR: No connection established.")
             {:type :network})
           (log-and-dispatch-error (str "SERVER ERROR CODE: " status) {})))
       (finally (.dispose xhr-io))))
