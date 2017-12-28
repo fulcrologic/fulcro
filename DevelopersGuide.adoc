@@ -8407,69 +8407,204 @@ See the demo on <<DynamicLocale, dynamic locale loading for details>>.
 
 = Devcards
 
+Devcards is an external library by Bruce Hauman that is excellent for working up components,
+active documentation, or even complete applications. Fulcro comes with a macro
+that makes embedding Fulcro Applications into a devcard trivial.
+
+== The Project Setup
+
+Simply include devcards in your dependencies:
+
+```
+[devcards "0.2.4"]
+```
+
+and follow the basic setup instructions from that project's documentation. Typically, a build
+configuration like this when using Figwheel:
+
+```
+(defproject app "1.0.0"
+  :cljsbuild {:builds
+              [{:id           "cards"
+                :figwheel     {:devcards true}
+                :source-paths ["src/cards"]
+                :compiler     {:main           app.cards-ui
+                               :asset-path     "js/cards"
+                               :devcards       true
+                               :output-to      "resources/public/js/cards.js"
+                               :output-dir     "resources/public/js/cards"}}]})
+```
+
+then run that build through figwheel.
+
 == Developing Component UI
+
+Developing simple components is done as described in the Devcard documentation. Fulcro encourages you to
+use pure rendering, so that means it is quick and easy to make cards that should UI components in
+all of their valid states. This is quite helpful when working out the data model and look of a component.
+If you use component-local CSS this can be an extremely effective way to quickly build up
+components for use in your application.
+
+=== Visual Regression Testing
+
+Developing components in cards allows you to also do a form of visual regression testing. The basic idea is
+to render the valid UI states for components, then have an automated script snapshot each card into an
+image that can be compared with later CI runs.
+
+See https://medium.com/adstage-engineering/how-we-test-our-full-stack-clojure-app-b18d79ee9e00[AdStage's blog]
+for a detailed example of this with the code necessary to make it work.
 
 == Developing Active Screens
 
+The `defcard-fulcro` macro can embed a Fulcro application in a card. It allows any client options
+to be passed to the client, but generates the mount into the card internally. It looks like this:
 
 
-  = Support Viewer
+```
+(ns my-cards
+  (:require
+            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
+            [fulcro.client.cards :refer [defcard-fulcro]]))
 
-  Fulcro automatically tracks the sequence of steps in the UI, including what transactions ran to move your
-  application from state to state. This enables you to do time travel for things like error handling, but
-  also allows you to serialize the history and send it to your servers for debugging sessions against
-  real user interactions!
+(defcard-fulcro symbol-for-card
+   AppRootUIComponent
+   {}  ; initial state. Leave empty to use :initial-state from root component
+   {:inspect-data false ; normal devcard options
+    :fulcro { :started-callback (fn [app] ...)} ; fulcro client options
+   })
+```
 
-  The viewer is already written for you, and is in the `fulcro.support-viewer` namespace. There are a few things you
-  have to do in order to make it work.
+=== Running Devcards Against a Real Server
 
-  == Sending a Support Request
+Figwheel embeds the hot loading websocket code into the compiled Javascript. This means
+that you can serve devcards *from your real application server* simply by making
+sure the HTML and Javascript for it are accessible through your server.
 
-  There is a built-in mutation that can do this called `fulcro.client.mutations/send-history`. It can accept anything
-  as parameters, and will send the support request to `:remote`. All you have to do is run it via UI:
+This means that full-stack operations against your real application are trivial
+from within cards.
 
-  ```
-  (transact! this `[(m/send-history {:support-id (om/tempid)})])
-  ```
+=== Splitting Your Application
 
-  == Storing the Support Request
+Hopefully you see that the ability to embed a full-stack Fulcro client inside
+of a card is much more powerful than just embedding your *entire* application.
 
-  Basically you just have to write something to handle the `fulcro.client.mutations/send-history` mutation, save the
-  data, and return a tempid remapping (optional, since the client itself won't care):
+Remember, we have component *normalization*! The mutations and loads for any given part of
+your application work independent of how your UI is nested. This means that you
+can easily write your application in a way that allows you to factor it apart and embed just
+portions into devcards for localized development and testing!
 
-  ```
-  (server/defmutation fulcro.client.mutations/send-history [params]
-    (action [env]
-       ...save the history from params...
-       ...send an email to a developer with the saved id?...))
-  ```
+We think this can be quite revolutionary to development, since it allows you
+to build up the application in completely dijoint steps and join them
+together once they're ready!
 
-  See Fulcro TodoMVC for an example.
+```
+(defsc ScreenOne [this props]
+  {:ident (fn [] [:screens/by-id :screen1])}
+  ...)
 
-  == Using the Support Viewer
+(defmutation do-screen-1-thing [params]
+  (action [env]
+    ; operations relative to ident of ScreenOne
+    ...)
 
-  The support viewer is a simple UI that is pre-programmed in the `fulcro.support-viewer` namespace. When started, it
-  will issue a load in order to obtain the history you saved in the prior step. It will then run the application
-  (which you also have to point to) with that history in a DVR-style playback.
+(defcard-fulcro screen-1
+   ScreenOne
+   {}
+   {:fulcro {:started-callback
+              (fn [app]
+                 ; code to establish the context (preloads) that the real application would have done for this screen
+                 )}})
+```
 
-  See Fulcro TodoMVC for an example.
+Composition of the pieces can be as simple as dropping them into your UI router at the appropriate place!
 
-  You can see how simple the
-  [client setup](https://github.com/fulcrologic/fulcro-todomvc/blob/master/src/main/fulcro_todomvc/support_viewer.cljs) is here, and
-  look at the defmutation for the `send-history` and query for `:support-request` in this file:
-  [Server API](https://github.com/fulcrologic/fulcro-todomvc/blob/master/src/main/fulcro_todomvc/api.clj)
+== Using External CSS via IFrames [[IFrames]]
 
-  == Compressible Transactions
+If you need to have the content of a devcard use external CSS, then you can use the `fulcro.client.elements/iframe`
+to do so. This cool little tool creates an iframe, but then uses React to render into *from* the parent page. This
+gives you the *isolation* of an iframe with the *convenience* of single-page reasoning!
 
-  The `compressible-transact!` function support compressing transactions that would be otherwise annoying to step through. It works
-  as follows:
+Here's a quick function that can be used within a card to wrap UI that wants to use Bootstrap CSS:
 
-  1. Use `compressible-transact!` instead of `transact!`
-  2. If more than one adjacent transaction is marked compressible in history then only the *last* of them is kept.
+```
+(defn render-example [width height & children]
+  (ele/ui-iframe {:frameBorder 0 :height height :width width}
+    (apply dom/div #js {:key "example-frame-key"}
+      (dom/link #js {:rel "stylesheet" :href "/css/bootstrap.min.css"})
+      children)))
+```
 
-  The built-in mutations that set a value (e.g. m/set-value!) are meant to be used with user inputs and already mark their
-  transactions this way. This is quite useful when you don't want to pollute (or overflow) history with keystrokes that
-  are not interesting.
+this function can then be used to put a pre-sized iframe into a component like so:
+
+```
+(defsc NavRoot [this props]
+  { :query         [:boo]}
+  (render-example "100%" "150px"
+    (dom/div #js { :className "row" }
+      (dom/div #js {:className "col-md-1"}
+         ...))))
+```
+
+this can then be used within a devcard, keeping the external CSS from messing with
+the card layout or other cards.
+
+= Support Viewer
+
+Fulcro automatically tracks the sequence of steps in the UI in history, including what transactions ran to move your
+application from state to state. This enables you to do time travel for things like debugging and 
+error handling, but also allows you to serialize the history and send it to your servers for debugging sessions against
+real user interactions!
+
+The viewer is already written for you, and is in the `fulcro.support-viewer` namespace. There are a few things you
+have to do in order to make it work.
+
+== Sending a Support Request
+
+There is a built-in mutation that can do this called `fulcro.client.mutations/send-history`. It can accept anything
+as parameters, and will send the support request to `:remote`. All you have to do is run it via UI:
+
+```
+(transact! this `[(m/send-history {:support-id (om/tempid)})])
+```
+
+== Storing the Support Request
+
+Basically you just have to write something to handle the `fulcro.client.mutations/send-history` mutation, save the
+data, and return a tempid remapping (optional, since the client itself won't care):
+
+```
+(server/defmutation fulcro.client.mutations/send-history [params]
+  (action [env]
+     ...save the history from params...
+     ...send an email to a developer with the saved id?...))
+```
+
+See Fulcro TodoMVC for an example.
+
+== Using the Support Viewer
+
+The support viewer is a simple UI that is pre-programmed in the `fulcro.support-viewer` namespace. When started, it
+will issue a load in order to obtain the history you saved in the prior step. It will then run the application
+(which you also have to point to) with that history in a DVR-style playback.
+
+See Fulcro TodoMVC for an example.
+
+You can see how simple the
+[client setup](https://github.com/fulcrologic/fulcro-todomvc/blob/master/src/main/fulcro_todomvc/support_viewer.cljs) is here, and
+look at the defmutation for the `send-history` and query for `:support-request` in this file:
+[Server API](https://github.com/fulcrologic/fulcro-todomvc/blob/master/src/main/fulcro_todomvc/api.clj)
+
+== Compressible Transactions
+
+The `compressible-transact!` function support compressing transactions that would be otherwise annoying to step through. It works
+as follows:
+
+1. Use `compressible-transact!` instead of `transact!`
+2. If more than one adjacent transaction is marked compressible in history then only the *last* of them is kept.
+
+The built-in mutations that set a value (e.g. m/set-value!) are meant to be used with user inputs and already mark their
+transactions this way. This is quite useful when you don't want to pollute (or overflow) history with keystrokes that
+are not interesting.
 
 = Code Splitting (modules)
 
