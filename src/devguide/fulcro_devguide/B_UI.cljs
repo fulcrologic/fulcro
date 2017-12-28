@@ -261,7 +261,7 @@
   the input events so that the value you supply changes. This locks your application state with the rendered state.
   Read about React forms on that project's website for more details.
 
-  In general, we recommend using the controlled version to ensure bug-free code.
+  In general, we recommend using the controlled version to improve your chances of writing bug-free code.
 
   ### Using local state
 

@@ -14,14 +14,13 @@
     fulcro-devguide.G-Mutation
     fulcro-devguide.G-Mutation-Exercises
     fulcro-devguide.G-Mutation-Solutions
-    fulcro-devguide.I-Building-A-Server
-    fulcro-devguide.J-Exercise-on-Putting-It-Together
+    fulcro-devguide.J-Setting-Up-Easy-Server
+    fulcro-devguide.I-Exercise-on-Putting-It-Together
     fulcro-devguide.K-Testing
     fulcro-devguide.K-Support-Viewer
     fulcro-devguide.L-Internationalization
     fulcro-devguide.M15-Routing-UI
     fulcro-devguide.M30-Advanced-Mutation
-    fulcro-devguide.H45-Customizing-Easy-Server
     fulcro-devguide.M50-Server-Side-Rendering
     fulcro-devguide.N10-Twitter-Bootstrap-CSS
     fulcro-devguide.N15-Twitter-Bootstrap-Components

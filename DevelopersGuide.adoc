@@ -6237,10 +6237,7 @@ In a REPL, you could start this one up with:
 solutions.tiny-server=> (my-tiny-server)
 ```
 
-This source is already `src/devguide/solutions/tiny-server.clj` if you're running the dev guide and would
-like to play with it in a REPL.
-
-== Making an "Easy" Server
+== The "Easy" Server
 
 The pre-built easy server component for Fulcro uses Stuart Sierra's Component library. The server has no
 global state except for a debugging atom that holds the entire system, and can therefore be easily restarted
