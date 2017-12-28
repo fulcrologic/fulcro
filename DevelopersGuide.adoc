@@ -9917,6 +9917,67 @@ comparison fails, your UI changed. Have a human check that specific item and app
 
 See the section on <<DevCards, Dev Cards>> for more information.
 
+# Deploying to Heroku
+
+As an example of sending a complete Fulcro application to the cloud we'll walk you through the steps
+to put an application up on Heroku.
+
+Here are the things you need to do:
+
+- Set up server to pull the web port from the PORT environment variable (using EDN)
+- Make sure `:min-lein-version` is in your project file
+- Include a Procfile
+- Use the clojure build pack (should be auto-detected)
+
+== Setting PORT
+
+Fulcro server's PORT can be configured from the environment as follows:
+
+```
+{ :port :env.edn/PORT }
+```
+
+place that in a file on your classpath, such as `src/config/prod.edn` (if `src` is your base source code directory). You
+could also use `resources` (which is technically more correct).
+
+== Minimum lein version
+
+Heroku (at the time of this writing) defaults to lein version 1.7.x. This is almost certainly *not* what you want.
+
+## Include a Profile
+
+If you're building an uberjar from one of our template projects, using Fulcro Server, and you've set up a config
+file as described above, then the following Procfile should work for you:
+
+```
+web: java $JVM_OPTS -Dconfig=config/prod.edn -jar target/uberjar-name.jar\n
+```
+
+== Use a Clojure Build Pack
+
+Just follow the directions when adding a project. We've only used the git deployment method. Make sure you don't have
+a generated `pom.xml` as well as a `project.clj` file, or your project might get built using Maven instead of Lein.
+
+== Sample Project
+
+The [fulcro-template](http://github.com/fulcrologic/fulcro-template) is pre-configured for easy deployment to Heroku.
+
+= Converting HTML to Fulcro
+
+This chapter has a simple little live application that can convert valid HTML into the Clojure(script) you'd use
+within a Fulcro component. Note that stray whitespace will be converted to (harmless) `" "` that can be easily
+removed, and the output indentation isn't ideal; Still, it turns the task into one of simple formatting:
+
+++++
+<div class="example" id="html-converter"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.html-converter').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="html-converter source"]
+----
+include::src/book/book/html_converter.cljs[]
+----
+
 = Demos
 
 This chapter includes running demos with source that will give you insight on how to approach various problems. Remember

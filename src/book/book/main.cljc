@@ -26,6 +26,7 @@
                book.ui-routing
                book.tree-to-db
                book.merge-component
+               book.html-converter
                book.server.morphing-example
                book.demos.cascading-dropdowns
                book.demos.component-localized-css
@@ -178,6 +179,7 @@
 #?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
 #?(:cljs (defexample "Tree to DB with Queries" book.tree-to-db/Root "tree-to-db" :networking book.main/example-server))
 #?(:cljs (defexample "Merging with a Component" book.merge-component/Root "merge-component" :networking book.main/example-server))
+#?(:cljs (defexample "HTML Converter" book.html-converter/Root "html-converter"))
 
 ;; Forms
 #?(:cljs (defexample "Basic Form" book.forms.forms-demo-1/Root "forms-demo-1" :networking book.main/example-server))
