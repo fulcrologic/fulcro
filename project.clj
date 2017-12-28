@@ -110,29 +110,14 @@
                                                 :main        {:output-to "docs/js/book/main-ui.js"
                                                               :entries   #{book.demos.dynamic-ui-main}}}
                                :parallel-build true}}
-               ; Use `make guide`
-               {:id           "devguide-live"
-                :source-paths ["src/main" "src/devguide"]
-                :compiler     {:main          fulcro-devguide.guide
-                               :asset-path    "js"
-                               :optimizations :advanced
-                               :devcards      true
-                               :output-to     "docs/js/guide.js"
-                               :output-dir    "docs/js"
-                               :foreign-libs  [{:provides ["cljsjs.codemirror.addons.closebrackets"]
-                                                :requires ["cljsjs.codemirror"]
-                                                :file     "resources/public/codemirror/closebrackets-min.js"}
-                                               {:provides ["cljsjs.codemirror.addons.matchbrackets"]
-                                                :requires ["cljsjs.codemirror"]
-                                                :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
-               {:id           "devguide"
+               {:id           "tutorial"
                 :figwheel     {:devcards true}
-                :source-paths ["src/main" "src/devguide"]
+                :source-paths ["src/main" "src/tutorial"]
                 :compiler     {:main           fulcro-devguide.guide
-                               :asset-path     "js/devguide"
+                               :asset-path     "js/tutorial"
                                :devcards       true
-                               :output-to      "resources/public/js/devguide.js"
-                               :output-dir     "resources/public/js/devguide"
+                               :output-to      "resources/public/js/tutorial.js"
+                               :output-dir     "resources/public/js/tutorial"
                                :preloads       [devtools.preload]
                                :parallel-build true
                                :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
@@ -158,7 +143,7 @@
                                    [hickory "0.7.1"]
                                    [com.rpl/specter "1.0.5"] ; only used in demos
                                    [org.flywaydb/flyway-core "4.2.0"]]}
-             :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/devguide" "src/book"]
+             :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/tutorial" "src/book"]
                     :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                     :dependencies [[binaryage/devtools "0.9.7"]
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
