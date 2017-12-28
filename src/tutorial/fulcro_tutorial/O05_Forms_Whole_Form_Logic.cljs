@@ -6,6 +6,7 @@
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client :as fc]
+    [fulcro.server :refer [defquery-root]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.ui.icons :as i]
     [fulcro.ui.forms :as f]
@@ -16,35 +17,14 @@
     [fulcro.client.network :as fcn]
     [fulcro.ui.bootstrap3 :as b]))
 
-(defn read-handler [{:keys [users]} k {:keys [name] :as params}]
-  (log/info "SERVER query for " k " with parameters " params
-    " and existing usernames " users)
-  (case k
-    :name-in-use {:value (if (contains? users name) :duplicate :ok)}
-    nil))
+;; SERVER
+(def users #{"tony" "sam"})
 
-;; Server-side mutation handling. We only care about one mutation
-(defn write-handler [env k p]
-  (log/info "SERVER mutation for " k " with params " p))
+(defquery-root :name-in-use
+  (value [env [{:keys [name]}]]
+    (if (contains? users name) :duplicate :ok) ))
 
-; query parser. Calls read/write handlers with keywords from the query
-(def server-parser (prim/parser {:read read-handler :mutate write-handler}))
-
-; Simulated server. You'd never write this part
-(defn server [env tx]
-  (server-parser (assoc env :users #{"tony" "sam"}) tx))
-
-; Networking that pretends to talk to server. You'd never write this part
-(defrecord MockNetwork []
-  fcn/FulcroNetwork
-  (send [this edn ok err]
-    ; simulates a network delay:
-    (js/setTimeout
-      #(let [resp (server {} edn)]
-         (ok resp))
-      1000))
-  (start [this] this))
-
+;; CLIENT
 (defn field-with-label
   "A non-library helper function, written by you to help lay out your form."
   ([comp form name label] (field-with-label comp form name label nil))
@@ -54,10 +34,6 @@
      (dom/div #js {:className "col-sm-10"} (f/form-field comp form name))
      (when validation-message
        (dom/div #js {:className (str "col-sm-offset-2 col-sm-10 " name)} validation-message)))))
-
-(defui NameInUseQuery
-  static prim/IQuery
-  (query [this] []))
 
 (defmutation check-username-available
   "Sample mutation that simulates legal username check"

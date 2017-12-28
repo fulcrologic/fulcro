@@ -1,7 +1,7 @@
 Fulcro Developers Guide
 =======================
 :author: Tony Kay
-:revdate: Dec 26, 2017
+:revdate: Dec 27, 2017
 :revnumber: 1.0
 :lang: en
 :encoding: UTF-8
@@ -34,8 +34,9 @@ endif::[]
 
 == About This Book
 
-This book is meant to be a stand-alone book for Fulcro developers. Fulcro has a
-pretty extensive set of resources on the web, tailored to fit your learning style.
+This is a stand-alone book for Fulcro developers that can be used by beginners and experienced
+developers and covers most of the library in detail. Fulcro has a
+pretty extensive set of resources on the web tailored to fit your learning style.
 There are YouTube videos, an interactive tutorial, and full-blown sample applications.
 
 This book includes quite a bit of live code. Live code demos with their source
@@ -52,11 +53,13 @@ look like this:
 include::src/book/book/example_1.cljc[]
 ----
 
-All of the Full Stack examples actually use a mock server embedded in the browser to
+All of the full stack examples use a mock server embedded in the browser to
 simulate the interaction, but the source that you'll read for the application is
-identical to what you'd write for a real server. This mock server has a built-in latency to
+identical to what you'd write for a real server.
+
+The mock server has a built-in latency to
 simulate a moderately slow network so you can observe behaviors over time. You can
-control the length of this latency in ms using the "Server Controls" in the upper-right
+control the length of this latency in milliseconds using the "Server Controls" in the upper-right
 corner of this document (if you're reading the HTML version with live examples).
 
 === Common Prefixes and Namespaces
@@ -1213,7 +1216,7 @@ The DB tab of this tool shows you your application's database *and* has a time s
 has tabs for showing you transactions that have run, and network interactions. See the tool's documentation for more
 information. In fact, by the time you read this it will probably have even more exciting features!
 
-=== Devcards
+=== Dev Cards
 
 There is a build in the template project called `cards`. This starts up a development environment where you can
 code entire applications (or portions of them) in an environment that can show you live state and is quite handy, particularly
@@ -5834,7 +5837,7 @@ and loads the data for that view. A few important points:
    loads instead. Lifecycle methods are often misunderstood, leading to incorrect behaviors like triggering loads
    over and over again.
 
-### Using the `fulcro/load` Mutation Directly (NOT recommended)
+=== Using the `fulcro/load` Mutation Directly (NOT recommended)
 
 Fulcro has a built-in mutation `fulcro/load` (also aliased as `fulcro.client.data-fetch/load`).
 
@@ -7515,7 +7518,7 @@ which can then be used more cleanly in the UI:
 (dom/a #js {:onClick #(show-report! this :a)} "Report A")
 ```
 
-## Mutations with Routing
+== Mutations with Routing
 
 In some cases you will find it most convenient to do your routing within a mutation itself. This will let you
 check state, trigger loads, etc. If you trigger loads, then you can also easily defer the routing until the
@@ -7563,7 +7566,915 @@ See the fulcro-template on github. It supports HTML5 routing with a demo tree.
 
 = Forms
 
-== See the Developer's Guide.
+Fulcro includes support for working with forms. The core purpose of the support is to help you with
+the fact that you usually need roughly the same pattern for each form:
+
+* A place to store what the form was before the user started editing
+* A way to indicate validation for fields
+* A way to calculate and submit the changes the user has made (ideally as a minimal diff)
+* A way to relate joined entities as sub forms of a form.
+* A way to do file uploads, possibly with progress updates.
+
+All of these things can be written with the primitives that you already have
+at your disposal, but the `fulcro.ui.forms` namespace gives you something to start out with
+that may very well fit your needs.
+
+== The Basics
+
+Generic form support is a primary rapid appliation development feature. Fortunately, the overall structure of
+Fulcro makes it relatively simple to write form support in a general-purpose, composeable manner. This library
+defines form support that has:
+
+- Declarative forms
+- An extensible set of form fields
+- Extensible validation
+- Separation of form UI from form logic
+- Remote integration with form <-> entity
+- Local integration with entities in the browser database
+
+The following `requires` define the namespacing used in the examples:
+
+```
+(ns your-ns
+  (:require
+    [fulcro.client.cards :refer [defcard-fulcro]]
+    [clojure.string :as str]
+    [com.stuartsierra.component :as component]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [fulcro.client :as fc]
+    [fulcro.client.mutations :as m]
+    [fulcro.ui.forms :as f]
+    [fulcro.i18n :refer [tr]]))
+```
+
+**IMPORTANT NOTE**: When we use the parameter `form` or the word 'form' in the descriptions below, we mean the data
+of the entire entity from a table that normally represents something in your application (like a person, phone number, etc).
+This library *augments* your database entry with form support data (your 'person' becomes a 'person' AND a 'form'). In
+raw technical terms, the `build-form` function takes a map, and adds a `f/form-key { ... }` entry *to it*. The only
+implication for your UI is that your component queries must be expanded to include queries for this additional support
+data.
+
+== Your Component as a Form
+
+Components that wish to act as forms must meet the following requirements (here `f` is an alias for the forms namespace):
+
+* Must implement the `f/IForm` protocol.
+** The `fields` method must return a list of fields that includes an `id-field`
+* Must have an ident.
+* Must have a query that includes `f/form-key` (an opaque entry the holds the pristine state and definition of the form).
+* Entity must be initialized via `f/build-form` (e.g. using a mutation or app initialization).
+* Render the form fields using `f/form-field`.
+
+=== Step 1: Declare the Form Fields
+
+Form fields are declared on the ui component that will render the form via a `static f/IForm` protocol. The fields themselves
+are declared with function calls that correspond to the field type:
+
+[horizontal]
+`id-field`:: A (meant-to-be-hidden) form field that corresponds to the attribute that uniquely identifies the entity being edited. Required for much of the interesting support.
+`text-input`:: An optionally validated input for strings.
+`dropdown-input`:: A menu that allows the user to choose from a set of values.
+`checkbox-input`:: A boolean control
+your-input-here!:: Form support is extensible. Whatever interaction you can imagine can be added to a form.
+
+Form fields are really just simple maps of attributes that describe the configuration of the specified input.
+
+The built-in support for doing form logic expects the fields to be declared on the component that will
+render the form.
+
+You can use the `:protocols` option of `defsc` to add the IForm to your component:
+
+```
+(defsc MyForm [this props]
+  {:protocols [static f/IForm
+               (form-spec [this] [(f/id-field :db/id)
+                                  (f/text-input :person/name)
+                                 ...])]}
+  ...)
+```
+
+The `defsc` macro support adding this protocol through the `:form-fields` option:
+
+```
+(defsc MyForm [this props]
+  {:form-fields [(f/id-field :db/id)
+                 (f/text-input :person/name)]}
+  ...)
+```
+
+== Step 2: Rendering the Form Fields
+
+The form fields themselves are rendered by calling `(f/form-field form field-name)`. This method **only** renders
+the simple input itself.
+
+`(f/form-field my-form :name)` --- outputs ---> `(dom/input #js { ... })`
+
+This is the minimum we can do to ensure that the logic is correctly connected, while not interfering with your
+ability to render the form however you please.
+
+You'll commonly write some functions of your own that combine other DOM markup with this, such as the function
+`field-with-label` shown in the example. Additional functions like `f/invalid?` can be used to make decisions about
+showing/hiding validation messages.
+
+```
+(defn field-with-label
+  "A non-library helper function, written by you to help lay out your form."
+  ([comp form name label] (field-with-label comp form name label nil))
+  ([comp form name label validation-message]
+   (dom/div #js {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
+     (dom/label #js {:className "col-sm-2" :htmlFor name} label)
+     ;; THE LIBRARY SUPPLIES f/form-field. Use it to render the actual field
+     (dom/div #js {:className "col-sm-10"} (f/form-field comp form name))
+     (when (and validation-message (f/invalid? form name))
+       (dom/span #js {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
+```
+
+**The rendering of the form is pretty much up to you! Thus, your forms can be as pretty (or ugly) as you care to make
+them. No worrying about figuring out how we render them, and then trying to make *that* look good.**
+
+That said, there is nothing preventing you (or us) from supplying a library function that can produce reasonable looking
+reusable form rendering.
+
+== Step 3: Setting Up the Form State
+
+A form can augment any entity in an app database table in your client application. The `f/build-form` function
+can take any such entity and add form support to it (under the special key `f/form-key` as an opaque value in state).
+The result is perfectly compatible with the original entity. The
+example shown above is doing this on application start, but it is trivial to compose `f/build-form` into a mutation
+(for example, a mutation that is changing the UI to display the form can simultaneously initialize the entity to-be-edited
+at the same time.
+
+IMPORTANT: If you're doing server-side rendering you should not use `build-form` via initial state. The server cannot
+do that properly. There is a mutation that can be run from a component's React `componentWillMount` to recursively
+initialize the form support on a specific form with its subforms:
+
+```
+(defsc MyForm [this props]
+  {:query (fn [] [f/form-key ...])
+   :componentWillMount (fn [] (when-not (f/is-form? (prim/props this)) (prim/transact! this `[(f/initialize-form {})])))
+   ...}
+  ...)
+```
+
+Note that this mutation derives all the info it needs by being run on the top-level entity of the form.
+
+== A Complete Form Component
+
+Below is a simple form component (with source) that you can interact with:
+
+++++
+<div class="example" id="forms-demo-1"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.forms-demo-1').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="forms-demo-1 source"]
+----
+include::src/book/book/forms/forms_demo_1.cljs[]
+----
+
+== Validation
+
+There is a multimethod `(f/form-field-valid? [symbol value args])`
+that dispatches on symbol (symbols are allowed in app state, lambdas are not). Form fields that support validation
+will run that validation at their configured time (typically on blur).
+Validation is therefore completely extensible. You need only supply a dispatch for your own validation symbol, and
+declare it as the validator on a field (by symbol).
+
+Validation is tri-state. The allowed states are `:valid` (checked and correct), `:invalid` (checked and incorrect),
+and `:unchecked`.
+
+You can trigger full-form validation (which you should do as part of your interaction with the form) by calling
+`(f/validate-entire-form! component form)`. This function invokes a transaction that will update the validation
+markings on all declared fields (which in turn will re-render your UI).
+
+If you want to check if a form is valid (without updating the markings in the app state...e.g. you want an inline
+answer), then use `(f/valid? (f/validate-fields form))` to get an immediate answer. This is more computationally
+expensive, but allows you to check the validity of the form without triggering an actual validation transaction against
+the application state.
+
+For example, the definition of a validator for US phone numbers could be:
+
+```
+(defvalidator us-phone?
+  [sym value args]
+  (seq (re-matches #\"[(][0-9][0-9][0-9][)] [0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]\" value)))
+```
+
+The only change in your UI would be to add the validator to the form field declaration, along with a validation message.
+The result (with source) is in the example below:
+
+++++
+<div class="example" id="forms-demo-2"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.forms-demo-2').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="forms-demo-2 source"]
+----
+include::src/book/book/forms/forms_demo_2.cljs[]
+----
+
+== State Evolution
+
+A form will initially record the pristine state of field values during `build-form`. As you interact with
+the form the entity data will change (locally only). This allows the library to support:
+
+- The ability to compare the original entity state with the current (edited) state
+- Reset the entity state from the pristine condition
+- Commit *just* the actual changes to the entity to a remote
+
+**This, combined with a little server code, makes the form support full stack!**
+
+You can trigger the following operations on a form:
+
+- `(f/commit-to-entity! comp)` : Commit the current edits to the entity (no-op if the form doesn't validate)
+- `(f/commit-to-entity! comp true)` : Commit the current edits to the entity AND the server (is a no-op if the form doesn't validate)
+- `(f/reset-from-entity! comp)` : Undo the changes on the form (back to the pristine state of the original), (triggers validation after the reset)
+
+IMPORTANT: The pristine state is the copy. Editing the fields is identical to editing your entity. A common
+question is "Why isn't it the other way around?" The answer is "because of nested forms". Joining together entities
+requires a query join and destructuring of props. You already know how to do that with Fulcro. If you were editing
+some "hidden" thing, then you would not know how to write, query, or render your nested form components.
+
+=== State evolution within your own transactions
+
+Any changes you make to your entity after `build-form` are technically considered form edits (and make the form *dirty*
+and possibly *invalid*).  The built-in form fields just change the state of the entity, and you can too.
+
+Commits will copy the entity state into the form's pristine holding area, and resets will copy from this pristine area
+back to your entity.
+
+The primary concern is that any custom fields that you create should be careful to only populate the value of fields
+with things that are serializable via transit, since their updated values will need to be transmitted across the wire
+for full-stack operation.
+
+== Form Composition
+
+Form support augments normalized entities in your app database. This makes it possible form them to be easily composed!
+They are UI components, and have nothing special
+about them other than the `f/form-key` state that is added to the entity (through your call of `build-form`).
+You can convert any entity in your database to a form using the `build-form` function, meaning that you can load
+entities as normal, and as you want to edit them in a form:
+
+. First mutate them into form-compatible entities with `build-form` (which will not touch the original
+properties of the entity, just add `f/form-key` data).
+. Render them with a UI component (that has the correct entity Ident) with a render method that renders the form
+  fields with `form-field`.
+
+=== Composition and Rendering Refresh
+
+The one caveat is that when forms are nested the mutations on the nested fields cannot (due to the design of Fulcro) refresh
+the parent automatically. To work around this, all built-in form mutations will trigger follow-on reads of
+the special property `f/form-root-key`. So, if you add that to your parent form's query, rendering of the top-level
+form elements (e.g. buttons that control submission) will properly update when any element of a subform changes.
+
+=== Adding Sub-form Elements
+
+Adding a phone number (which acts as a sub-form) is done via the `add-phone` mutation, which looks like this:
+
+```
+(defmutation add-phone [{:keys [id person]}]
+  (action [{:keys [state]}]
+    (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number " "})
+          person-ident [:people/by-id person]
+          phone-ident  (prim/ident ValidatedPhoneForm new-phone)]
+      (swap! state assoc-in phone-ident new-phone)
+      (fc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
+```
+
+Notice that there is nothing really special going on here. Just add an additional item to the database (which is
+augmented with `f/build-form`) and integrate it's ident!
+
+If you look carefully at `PersonForm` you'll see the button to trigger adding a phone number, where we're using
+`(prim/tempid)` to generate a temporary ID for the new phone number.
+
+=== Compositional Dirty-Checking, Validation, and Submission
+
+The code also shows how you would compose the checks. The `dirty?` function combines the results of the nested forms
+together with the top form. You could do the same for validations.
+
+The `Save` button does a similar thing: it submits the phone numbers, and then the top. Note that Fulcro combines
+mutations that happen in the same thread sequence (e.g. you have not given up the thread for rendering). So, all of
+those commits will be sent to the server as a single transaction (if you include the remote parameter).
+
+== A More Complete, Nested Form
+
+Here is the source for an application that renders a Person form. The person can have any number of phone numbers,
+each represented by a nested phone number entity/form. Note the use of `:initial-state` in Root to build out sample
+data. It also includes validation of fields, and some optional rendering based on the checkbox value.
+
+++++
+<div class="example" id="forms-demo-3"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.forms-demo-3').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="forms-demo-3 source"]
+----
+include::src/book/book/forms/forms_demo_3.cljs[]
+----
+
+== Adding Form Field Types
+
+Adding a new kind of form field is simple:
+
+* Create a method that returns a map of input configuration values
+* Add a multimethod that can render your field with appropriate hooks into the logic
+
+The built-in text input field is implemented like this:
+
+```
+(defn text-input
+  "Declare a text input on a form. The allowed options are named parameters:
+
+  :className nm    Additional CSS classnames to include on the input (as a string)
+  :validator sym   A symbol to target the dispatch of validation
+  :validator-args  Arguments that will be passed to the validator
+  :placeholder     The input placeholder. Supports a lambda or string
+  :default-value   A value to use in the field if the app-state value is nil
+  :validate-on-blur? Should the field be validated on a blur event (default = true)
+  "
+  [name & {:keys [validator validator-args className default-value placeholder validate-on-blur?]
+           :or   {placeholder "" default-value "" className "" validate-on-blur? true}}]
+  (cond-> {:input/name              name
+           :input/default-value     default-value
+           :input/placeholder       placeholder
+           :input/css-class         className
+           :input/validate-on-blur? validate-on-blur?
+           :input/type              ::text}
+    validator (assoc :input/validator validator)
+    validator-args (assoc :input/validator-args validator-args)))
+```
+
+The keys in an input's configuration map are:
+
+- `:input/name` : Required. What you want to call the field. Must match an entity property (e.g. :person/name).
+- `:input/type` : Required. Usually namespaced. This should be a unique key that indicates what kind of input you're making
+- `:input/validator` : Optional. Specifies a symbol (dispatch of the form-field-valid? multimethod).
+- `:input/validator-args` : Optional. If there is a validator, it is called with the validator symbol, the questionable value, and these args.
+- Any you want to define : This is a map. Put whatever else you want in this map to help with rendering (e.g. placeholder text,
+ class names, style, etc).
+
+and its renderer looks like this:
+
+```
+(defn- render-input-field [component htmlProps form field-name type
+                           field-value->input-value
+                           input-value->field-value]
+  (let [id          (form-ident form)
+        input-value (field-value->input-value (current-value form field-name))
+        input-value (if (nil? input-value) "" input-value)
+        attrs       (clj->js (merge htmlProps
+                               {:type        type
+                                :name        field-name
+                                :value       input-value
+                                :placeholder (placeholder form field-name)
+                                :onBlur      (fn [_]
+                                               (prim/transact! component
+                                                 `[(validate-field
+                                                     ~{:form-id id :field field-name})
+                                                   ~@(get-on-form-change-mutation form field-name :blur)
+                                                   ~form-root-key]))
+                                :onChange    (fn [event]
+                                               (let [value      (input-value->field-value (.. event -target -value))
+                                                     field-info {:form-id id
+                                                                 :field   field-name
+                                                                 :value   value}]
+                                                 (prim/transact! component
+                                                   `[(set-field ~field-info)
+                                                     ~@(get-on-form-change-mutation form field-name :edit)
+                                                     ~form-root-key])))}))]
+    (dom/input attrs)))
+
+(def allowed-input-dom-props #{:id :className :onKeyDown :onKeyPress :onKeyUp :ref :alt :accept :align :autocomplete
+                               :autofocus :dirname :disabled :height :max :min :maxLength :pattern
+                               :name :size :step :width})
+
+(defmethod form-field* ::text [component form field-name & {:keys [id className] :as params}]
+  (let [i->f   identity
+        cls    (or className (css-class form field-name) "form-control")
+        params (assoc params :className cls)
+        f->i   identity]
+    (render-input-field component (select-keys params allowed-input-dom-props) form field-name "text" f->i i->f)))
+```
+
+You can retrieve a field's current form value with `(f/current-value form field-name)`, and you can obtain
+your field's configuration (map of :input/??? values) with `(f/field-config form field-name)`.
+
+The `form-field*` multimethod should, in general, return as little as possible, but you are allowed to do whatever you want.
+You are free to make form field renderers that render much more complex DOM, an SVG, etc.
+
+The following built-in mutations can (and should) be used in your event handlers:
+
+- `(fulcro.ui.form/validate-field {:form-id [:ident/by-x n] :field :field-name})` - Run validation on the given form/field. Marks the form state for the field to `:invalid` or `:valid`. Fields without validators
+will be marked `:valid`.
+- `(fulcro.ui.form/set-field {:form-id [:ident/by-x n] :field :field-name :value raw-value})` - Set the raw-value (you can use any type) onto the form's placeholder state (not on the entity)
+- Others listed elsewhere, like those that commit, validate, etc.
+
+== Other Functions of Interest
+
+Since the `form` is also your entity, you may of course pull any entity data from the `form` map. (E.g. you can
+for example directly access `(:person/name person-form)`). The form attributes are stored under the `f/form-key` key
+and are intended to be opaque. Do not sneak access into the data structure, since we may choose to change the structure
+in future versions. Instead, use these:
+
+- `f/current-value` : Get the most recent value of a field from a form
+- `f/current-validity` : Get the most recent result of validation on a field
+- `f/valid?` : Test if the form (or a field) is currently marked valid (must run validation separately)
+- `f/invalid?` : Test if the form (or a field) is currently marked invalid (must run validation separately)
+- `f/field-names` : Get the field names on a form
+- `f/form-id` : returns the Ident of the form (which is also the ident of the entity)
+- `f/validate-fields` : returns a new version of the form with the fields marked with validation. Pure function.
+- `f/validate-entire-form!` : Transacts a mutation that runs and sets validation markers on the form (which will update UI)
+
+== Form State and Lifecycle
+
+Form support is meant to track the state of one or more entities through
+the process of editing. It is important to remember the general
+model of Fulcro is one where the application moves from
+state to state over time, and the components themselves have (ideally)
+no local state.
+
+This means that your form will not change states on you unless a mutation
+of some sort runs.
+
+Many of the form fields *do* run mutations on events, which in turn
+can change the state of the form or the fields.
+
+A form can have any number of child forms (which themselves can dynamically change
+over time).
+
+The lifecycle is as follows:
+
+----
+Regular Persisted Entity
+      |
+      | build-form
+      v
+Pristine Form <------------+
+      |                    |
+      | edits/additions    ^
+      v                   /|
+ Dirty Form -------------/ |
+            reset/commit>  +------+
+                                  |
+Locally Created (tempid)          |
+      |                           |
+      | build-form                |
+      v                           | (server tempid remap)
+ Dirty Form                       |
+  ^    |                         _|_
+  |    | edits/additions/reset/commit
+  +----+
+----
+
+=== Is my Form Dirty?
+
+A form is considered `dirty?` when:
+
+- Any field of the form or its declared subforms has a value different from
+the initial (or most recently committed) value.
+- Any form or subform in a set has a tempid (e.g. server remaps have not
+yet taken effect)
+
+NOTE: If you're writing forms on a UI that has
+no server interaction then you will probably want to generate your own
+numeric unique IDs for any new entities to prevent permanently dirty forms.
+
+== Is my Form/Field Valid?
+
+Form fields that support validation will typically run validation on the field when that
+field is manipulated. Full-form validation can be done at any time by composing `validate-fields`
+into your own mutation (see also `on-form-change`). The system is fully flexible, and for the
+most part validation is composable, extensible, configurable, and happens at transaction
+boundaries in whatever ways you define.
+
+Validation is tri-state. All fields start out `:unchecked`. If you wish your form to start out
+`:valid` then you can compose a call to `f/valiate-fields`:
+
+```
+;; NOTE: non-recursive validation. You'd have to use this explicitly on each declared subform state as well.
+initial-form (f/validate-fields (f/build-form MyForm my-entity-props))
+```
+
+The functions `valid?` and `invalid?` honor the tri-state nature of forms (e.g. `invalid?` returns
+true iff at least one field is `:invalid`, and `valid?` returns true iff all fields are
+`:valid`). The `:unchecked` state thus allows you to prevent error messages from
+appearing on fields until you're actually ready to validate them:
+
+```
+;; only emits if the field is actually marked :invalid (not :unchecked)
+(when (invalid? this-form :field) (dom/span nil \"Invalid!\"))
+
+;; Disables submit button unless all fields are marked `:valid` (none are :unchecked or :invalid)
+(dom/button #js {:disabled (not (valid? form)) :onClick submit} \"Submit!\")
+```
+
+The tricky part is that \"global\" validation is not ever triggered by built-in iteraction
+support with fields.
+
+Thus, you have a few ways of dealing with checking if a form is valid:
+
+1. Trigger a `f/validate-form` mutation. Such a mutation will recursively walk your form and
+subforms and mark all fields with `:invalid` or `:valid`. This will have the effect of
+showing validation messages that are defined in the examples above.
+2. Compose the `f/validate-forms` helper function into your own mutation. This function works against
+an app state map and recursively updates a form/subforms. (see the source for `defmutation validate-form`)
+3. Use the `would-be-valid?` function on the forms props (e.g. in the UI). This function returns true
+if the supplied form (and subforms) would be valid if validation was run on it. It essentially runs
+validation in a pure functional way.
+
+If using (1) or (2), then the methods `valid?` and `invalid?` can recursively test the validity. Note that
+as fields are changed the state of those fields may return to unchecked (which is neither valid or invalid).
+
+== Server Integration
+
+A form (and associated subforms) have support for saving state to the
+server. This support takes the best view it possibly can of the possible
+things a user can do to an entity via a form:
+
+A user should be able to:
+
+. Change the value of one or more fields.
+. Add a completely new entity (with tempid) to the database (e.g. new form or new subform)
+. Link an existing form to an instance of a subform. The subform might have been looked up (by your code)
+or created (via 2).
+. Remove the linkage from a form to a subform.
+
+=== Handling Submission of a Form
+
+Form submission has some general helpers. In general, *it is recommended that you write your own
+custom mutation to do a form submission*, but there is a general-purpose mutation that can also do it
+for you.
+
+The advantage of using the general-purpose mutation is that it is already written, but the disadvantage is that
+all of your form submissions become centralized into a single point of entry in the server and more significantly
+become difficult to distinguish from each other in the actual transaction logs.
+
+Thus, when getting started you might choose to play with the built-in mechanism, but as you progress we highly
+recommend you customize form submission, which is actually quite simple to do.
+
+==== Built-in Form Submisssion – `commit-to-entity`
+
+A form submission can be done via the `commit-to-entity` function/mutation with the inclusion
+of a `:remote` flag. The function version `commit-to-entity!` is a simple wrapper of a
+`transact!` that invokes the `f/commit-to-entity` mutation (where `f` is the forms namespace).
+The former is a convenience, and the latter is more useful when you want to compose commit with
+other transaction actions (such as navigation away from the form).
+
+The wrapper function must be called using the `this` of the component that is the top-level of the form,
+and the mutation must be called with the `props` of the top-level form.
+
+Both default to a local commit (where you can deal with persistence in some other way), but if you supply
+them with a remote argument they will send the *changes* to the data in the form to the server. Of course,
+new entities will be completely sent.
+
+Of course to handle this mutation you must implement a server-side mutation with the fully-namespaces
+`fulcro.ui.forms/commit-to-entity` name.
+
+==== Custom Form Submission
+
+Custom form submission allows you to do a number of custom things:
+
+* Choose optimistic *or* response-driven form submission.
+* Combine submission with other form checking logic and UI updates.
+* Name your submit mutation so that you can easily keep them separate.
+
+The primary utility functions in `fulcro.ui.forms` for implementing such mutations are:
+
+* `(f/diff-form form-root-props)`: This function calculates a diff of the form (and subforms). Only new and changed
+data will be included (see later sections). You must pass this function the tree version of a form (e.g. pass the form-props
+as an arg to the mutation). It is important to calculate the diff outside of the mutation, because of the multi-pass nature
+of mutation bodies (e.g. you'll need the delta in remote, but action may have already done an optimistic local commit).
+* `(f/entity-xform state-map ident f)` Recursively walks a form set starting at `ident` in `state-map` running `f` on each (sub)form.
+* `(f/commit-state form-props)`: This is a non-recursive function that copies form data from the edited area to the
+pristine area locally. Typically called as `(swap! state f/entity-xform form-ident commit-state)`.
+(which must be sent from the UI invocation of transact as a parameter or reconstituted as a tree with `db->tree`). It
+copies the new state to the pristine state, making the form appear complete and clean (submitted) on the client.
+* `(f/reset-entity form-props)`: The opposite of `commit-state`, but called via `entity-xform` as well.
+* `(f/would-be-valid form-props)` : Requires a tree of form props (e.g. from the UI or `db->tree`). Returns true if
+the given form would be considered valid if a validation mutation were run on it. Useful in form submission logic where
+pushing validation data to the UI can be bypassed because you can tell it is OK.
+* `(f/dirty? form-props)`: Requires tree of props (from UI). Returns true if the form has changes (needs a submit)
+* `(f/validate-forms state-map form-ident)`: Used from *within* mutations. Causes form validation mutation on the
+recursive form, which will cause UI updates. Use this if you decide not to submit the form and want to show why on the UI.
+
+Notice that a lot of these functions are meant to be usable at the UI (they work on a tree of form props). The reason
+there are not two versions is that because of optimistic updates and how mutations work, it is advisable to pass your
+form's tree of props through to the mutation, so that your mutation closes over the form state at the time of user
+interaction. This allows you to properly calculate your form delta and have a consistent snapshot for the remote
+interaction.
+
+It is useful to study the code of the built-in commit, and mimic parts of the behavior for your own mutations:
+
+The `commit-to-entity!` function calls transact, but note how it pulls props and constructs the mutation to
+include that tree. It also triggers validation, to ensure that the UI shows updated validation messages (clearing
+errors or adding new ones). It also includes the `f/form-root-key` to ensure the entire form set will re-render:
+
+```
+(defn commit-to-entity!
+  [component & {:keys [remote rerender fallback fallback-params] :or {fallback-params {} remote false}}]
+  (let [form          (prim/props component)
+        fallback-call (list `df/fallback (merge fallback-params {:action fallback}))]
+    (let [is-valid? (valid? (validate-fields form))
+          tx        (cond-> []
+                      is-valid? (conj `(commit-to-entity ~{:form form :remote remote}))
+                      (and is-valid? (symbol? fallback)) (conj fallback-call)
+                      (not is-valid?) (conj `(validate-form ~{:form-id (form-ident form)}))
+                      (seq rerender) (into rerender)
+                      :always (conj form-root-key))]
+      (prim/transact! component tx))))
+```
+
+The mutation itself now has all of the data it needs to calculate a diff and such. Here is its implementation:
+
+```
+(defmutation commit-to-entity
+  [{:keys [form remote]}]
+  (action [{:keys [state]}] (swap! state entity-xform (form-ident form) commit-state))
+  (remote [{:keys [state ast target]}]
+    (when (and remote target)
+      (assoc ast :params (diff-form form)))))
+```
+
+Note that the local optimistic update just copies the edited state over top of the pristine (this mutation
+isn't run if the form doesn't validate...see the earlier function).
+
+The remote side modified the parameters so that instead of sending the form's UI tree to the server, it instead
+sends a calculated diff. See below for how to deal with this diff.
+
+=== What Your Server Must Do
+
+On the server, you must provide a mutation handler for your mutation or the `f/commit-to-entity` symbol (where `f` is the
+forms namespace). If you're using multimethods on the server, this might look like:
+
+```
+(ns amazing-server.mutations
+  (:require
+    [fulcro.client.primitives :as prim]
+    [fulcro.ui.forms :as f]))
+
+(defmulti my-mutate prim/dispatch)
+
+;; NOTE: the syntax quote will honor the `f` aliasing in the ns.
+(defmethod my-mutate `f/commit-to-entity [env k params]
+  {:action (fn [] ...)})
+```
+
+The complete form delta will be in the incoming `params`. The description of the entries in `params`
+is below.
+
+==== Processing a Form's Diff
+
+The incoming parameters is a map. This map will contain up to four different keys to indicate
+what changed on the client.
+
+===== Form Field Updates
+
+Field updates are sent under the following conditions:
+
+* The entity of the form has a REAL ID
+* One or more fields have values different from those at the time of `build-form` or the last commit.
+
+The parameters sent to the `commit-to-entity` mutation on the server will include the key
+`:form/updates` whose value will be a map. The map's keys will be client-side idents of
+the entities that changed, and the values will be maps of k-v pairs of the data the changed.
+
+Examples:
+
+```
+{:form/updates { [:thing 1] {:field-a 1 }
+                 [:thing 2] {:field-b 55 }}}
+```
+
+NOTES:
+
+* Updates will *never* include referential updates (e.g. A references subform element B). See
+New Relations and Removed Relations below.
+* Fields on the entity in the UI that are *not* declared as form fields *will never* appear in
+an update.
+
+===== New Entities
+
+When a form (and/or subforms) is submitted that has a primary ID whose value is a tempid then
+the incoming commit parameters will include the `:form/new-entities` key. The value of this entry is just like
+that of `:form/updates`, but the ID in the ident will be a tempid (which you must send remaps
+back for), and the map of data will include all attributes of that entity that were declared as part
+of the form.
+
+```
+{:form/new-entities { [:thing tempid-1] {:field-a 1 :field-b 55 }
+                      [:thing tempid-2] {:field-a 8 :field-b 42 }}}
+```
+
+It is important that you remember to return a map to remap the incoming tempids:
+
+```
+(defmethod my-mutate `f/commit-to-entity [env k params]
+  {:action (fn []
+         ...
+         {:tempids {tempid-1 realid-1 tempid-2 realid-2}})})
+```
+
+NOTES:
+* New entity properties include only the columns declared in the form support. Remember that you can
+declare fields without rendering them.
+* New entity entries *do not include* references! Any reference changes are always expressed
+with linkage change entries, as described below.
+
+===== New Relations
+
+If a subform is explicitly declared, then new linkage between a form and the subforms will
+be expressed via the `:form/add-relations` entry. The value will be a map whose keys are idents of the
+referring object and whose values are a single ident (in the to-one case) or vectors of the idents (in the to-many
+case) of the new targets. This is a delta. This is
+not meant to be interpreted as all of them, just the ones that were added since the form was considered
+clean.
+
+Examples:
+
+Two different to-one relationship additions:
+
+```
+{:form/add-relations { [:thing tempid-1] {:thing/child [:thing tempid-2] }
+                       [:thing tempid-2] {:thing/parent [:thing tempid-1] }}}
+```
+
+A to-many parent-child relationship with two new children:
+
+```
+{:form/add-relations { [:people/by-id 1] {:person/number [[:phone/by-id 2] [:phone/by-id 3]] }}}
+```
+
+===== Removed Relations
+
+If a subform is explicitly declared, then removal of linkage between a form and the subforms will
+be expressed via the `:form/remove-relations` entry. The value will be a map whose keys are idents of the
+referring object and whose values just like in new linkage. This is also a delta.
+
+Examples:
+
+Removal of a to-one relation:
+
+```
+{:form/remove-relations { [:thing 1] {:thing/child [:thing 2] }}}
+```
+
+Removal of a single child in a to-many relation:
+
+```
+{:form/remove-relations { [:people/by-id 1] {:person/number [[:phone/by-id 3]] }}}
+```
+
+=== Updating a forms-based Entity From the Server
+
+Since your app state is normalized, any reads of an entity will end up being merged over top of
+the entity you already have. This means that your active form fields on such an entity would
+update.
+
+There are some caveats to doing this, since the *remembered* state of your form will now be out
+of sync with what you read (or pushed) from the server.
+
+Typically what you'll want to do when (re)reading an entity that is being actively used on a form is:
+
+. Issue a Fulcro load for that entity. The incoming state will cause the UI of the form to update
+(since you're always editing/rendering active state of the entity). Unfortunately, the pristine state
+of the form now thinks the newly loaded entity is *dirty*!
+. Include a post mutation, which should:
+** `dissoc` the form state via `(update-in app-state form-ident dissoc f/form-key)`
+** Run `build-form` on the form
+** Optionally use the `validate-fields` or `validate-forms` function to update the validation markers.
+
+A non-remote (local-only) commit-to-entity (still as a post-mutation) could also be used to accomplish (2).
+
+== Forms – Whole Form Logic
+
+Many forms need logic that updates the UI in some non-local way as form interactions take place.
+Simple field validations can be local to a field, but some UI changes require who-form reasoning
+or cross-field interactions.
+
+Some simple examples:
+
+* Verification fields (two fields must contain the same data to ensure they typed it correctly)
+* Triggering a server-side check of a value (e.g. is that username in use?)
+* Making other UI elements appear/disappear according to field changes
+
+We accomplish these things in the form support by allowing you to declare an entry in your
+`IForm` list that names a Fulcro mutation to run as changes are detected in the form/subform
+set.
+
+The mutation given is just a normal mutation that can do anything you need done: remoting, global
+reasoning, etc.
+
+Only one (the last if more than one) `on-form-change` can be declared on a form. Use other composition
+techniques to make a single mutation if you'd like multiple operations on the form change.
+
+```
+(defsc Person [this props]
+  {:initial-state [params] (fn [params] (f/build-form this (or params {})))
+   :form-fields [(f/id-field :db/id)
+                 (f/on-form-change `check-username-available)
+                 (f/text-input :person/name)
+                 (f/integer-input :person/age)]}
+  ...
+```
+
+=== The Events
+
+The form change support can send events on change and on blur. The latter is useful for regular
+input fields (as opposed to checkboxes, for example). Your mutation will be passed parameters
+as a map that has:
+
+`:form-id` - The ident of the form that generated the event
+`:kind` - Either :blur or :edit
+`:field` - The name of the field affected
+
+Your mutation can do anything a normal mutation can do.
+
+=== An Example
+
+In this example, we'll use remoting to ask the server (on field blur) if a given username is
+already in use (in our code, 'sam' and 'tony' are taken). The client-side mutation looks like this:
+
+```
+(defmutation check-username-available
+  [{:keys [form-id kind field]}]
+  (action [{:keys [state] :as env}]
+    (when (and (= kind :blur) (= :person/name field)) ; only do things on blur
+      (let [value (get-in @state (conj form-id field))] ; get the value of the field
+        (swap! state assoc-in (conj form-id :ui/name-status) :checking) ; set a UI state to show progress
+        (df/load-action env :name-in-use nil {:target  (conj form-id :ui/name-status) ; trigger a remote load
+                                                :refresh [f/form-root-key] ; ensure the forms re-render
+                                                :marker  false ; don't overwrite our marker with a loading marker
+                                                :params  {:name value}})))) ; include params on the query
+  (remote [env] (df/remote-load env))) ; trigger eval of network queue to see if there is anything remote to do
+```
+
+and a server-side query function would satisfy the `:name-in-use` query with something like this
+(users is just a set of existing usernames in our sample code):
+
+```
+(def users #{"tony" "sam"})
+
+(defquery-root :name-in-use
+  (value [env [{:keys [name]}]]
+    (if (contains? users name) :duplicate :ok)))
+```
+
+Now, the sequence of interactions is as follows:
+
+. The user blurs on the username field (we could also debounce edit events)
+. The mutation places a marker in the app state that allows the UI to show the 'checking' message
+. The mutation causes a remote query targeted to the marker location
+. When the server query completes, it overwrites the marker from (2) with the server response
+
+The main catch is the `:refresh` argument to the `load-action`. This ensures that the form gets
+re-rendered when the request completes. Of course, this could have just as easily been any keyword
+queried by Person.
+
+The general Person form UI looks like this:
+
+```
+(defsc Person [this {:keys [ui/name-status] :as props}]
+  {:initial-state (fn [params] (f/build-form this (or params {})))
+   :query         [f/form-root-key f/form-key :db/id :person/name :person/age :ui/name-status]
+   :ident         [:person/by-id :db/id]
+   :form-fields   [(f/id-field :db/id)
+                   (f/on-form-change `check-username-available)
+                   (f/text-input :person/name)
+                   (f/integer-input :person/age)]}
+  (dom/div #js {:className "form-horizontal"}
+    (field-with-label this props :person/name "Username:"
+      (case name-status
+        :duplicate (b/alert {:kind :warning}
+                     "That username is in use." (i/icon :error))
+        :checking (b/alert {:color :neutral}
+                    "Checking if that username is in use...")
+        :ok (b/alert {:color :success} "OK" (i/icon :check))
+        ""))
+    (field-with-label this props :person/age "Age:")
+    (dom/div #js {:className "button-group"}
+      (dom/button #js {:className "btn btn-default"
+                       :disabled  (not (f/dirty? props))
+                       :onClick   #(f/commit-to-entity! this :remote true)}
+        "Save!"))))
+```
+
+Note, in particular, that the query includes `:ui/name-status` and rendering code for the possible
+values of status. The UI is completely disconnected from the fact that remoting is being used
+to verify the username.
+
+The complete running example with source is below.
+
+++++
+<div class="example" id="whole-form-logic"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.whole-form-logic').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="whole-form-logic source"]
+----
+include::src/book/book/forms/whole_form_logic.cljs[]
+----
+
 
 = Server-side Rendering
 
@@ -7604,7 +8515,7 @@ we want to force state into the client.
 
 This will become clearer when we get to examples.
 
-### Write Mutations via Helper Functions on State Maps
+=== Write Mutations via Helper Functions on State Maps
 
 When writing a mutation, first write a helper function. Perhaps end it's name with `-impl` or even `*`. The
 helper function should take the application database state map (*not* atom) and any arguments needed to accomplish the
@@ -8405,10 +9316,10 @@ You can place your locales into modules (code split) so that only the main local
 
 See the demo on <<DynamicLocale, dynamic locale loading for details>>.
 
-= Devcards
+= Dev Cards [[DevCards]]
 
 Devcards is an external library by Bruce Hauman that is excellent for working up components,
-active documentation, or even complete applications. Fulcro comes with a macro
+active documentation, or even complete applications piece by piece. Fulcro comes with a macro
 that makes embedding Fulcro Applications into a devcard trivial.
 
 == The Project Setup
@@ -8622,21 +9533,112 @@ since parents technically render children, you're going to have to have an exten
 To demonstrate one technique we'll assume that what you load is a "section" of the application that can be routed to. The
 main application knows to provide the link, but it does not yet have the rendering factory, class, or query.
 
-== The Source Structure
+== Dynamic Routing and Code Splitting
 
-TODO: Add a dynamic query routing component to `routing.cljc`
+The `fulcro.client.routing` namespace includes a second kind of UIrouter that can be used with the routing tree: `DynamicRouter`.
 
-TODO: multimethods for getting class by well-known name. Use keyword (which parent can know) as dispatch. Use dynamic query for that router.
+A `DynamicRouter` uses a dynamic query to change routes instead of a union, and it can derive the details of the target
+component at runtime, meaning that it can be used to route to screens that were not in the loaded application code base
+at start-time.
 
-== The Compiler Config
+Furthermore, the routing tree has been designed to trigger the proper dynamic module loads for your dynamically loaded
+routes so that code splitting your application can be a fairly simple exercise. Here are the basic steps:
 
-- Add modules
+. Pick a keyword for the name of a given screen. Say `:main`
+. Write the `defsc` for that screen, and design it so that the TYPE (first element) of the ident is the keyword from (1).
+    ** The initial state must be defined, and it must have the name (1) under the key r/dynamic-route-key
+    ** The bottom of the file that defines the target screen *must* include a `defmethod` that associates the keyword (1) with the component (2). This
+      is how the dynamic router finds the initial state of the screen, and the query to route to.
+    ** IMPORTANT: Your dynamically loaded screen *MUST* have a call to `(cljs.loader/set-loaded! KW)` at the bottom of the file (where KW is from (1)).
+. Configure your cljs build to use modules. Place the screen from (2) into a module with the name from (1).
+. Use a DynamicRouter for the router that will route to the screen (2). This means you won't have to explicitly refer to the class of the component.
+    ** The Query that composes in the router must use the special `get-dynamic-router-query` to join in the DynamicRouter's query.
+. Create your routing tree as usual. Remember that a routing tree is just routing instructions (keywords).
 
-== The Extension Point
+If you are routing through a DynamicRouter as part of your initial startup, then there are a few more steps. See Pre-loaded routes below.
 
-== Server-Side Rendering
+Trigger routing via the `route-to` mutation. That's it! The module rooted at the screen will be automatically loaded
+when needed.
 
-Of course this affects server-side rendering as well. If you want to pre-render a page that is normally loaded as a
+The `defsc` and `defmethod` needed for step 2 look like this:
+
+```
+(prim/defsc Main [this {:keys [label]}]
+  {:initial-state (fn [params] {r/dynamic-route-key :main :label "MAIN"})
+   :ident (fn [] [:main :singleton])
+   :query [r/dynamic-route-key :label]}
+  (dom/div #js {:style #js {:backgroundColor "red"}}
+        label))
+
+(defmethod r/get-dynamic-router-target :main [k] Main)
+(cljs.loader/set-loaded! :main)
+```
+
+=== Pre-loaded Routes
+
+Screens used with DynamicRouter that are loaded at start-time are written identically to the dynamically loaded screen,
+but you will have to make sure their state and multimethod are set up at load time. This can be done
+via the mutation `r/install-route`. This mutation adds the screen's state *and* multimethod component dispatch.
+
+The demo application includes two such pre-installed routes (`Login` and `NewUser`), and one dynamically loaded one (main).
+The code called at application startup (via `:started-callback`) ensure the pre-loaded routes is:
+
+```
+(defn application-loaded [{:keys [reconciler]}]
+  ; Let the dynamic router know that two of the routes are already loaded.
+  (prim/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
+                               (r/install-route {:target-kw :login :component ~Login})
+                               (r/route-to {:handler :login})])
+  (loader/set-loaded! :entry-point))
+
+...
+(new-fulcro-client Root :started-callback application-loaded)
+```
+
+=== The Demo
+
+Notice on initial load that the `[:main :singleton]` path in app state is not present. You could use the console to
+verify that `cards.dynamic_ui_main.Main` is not present (via Javascript) either. Once you route to `Main`, both will be present. You should
+see the network load of the code when you route as well. The `book` build configuration in `project.clj` has the module
+definitions, and looks like this:
+
+```
+{:id           "book"
+                :source-paths ["src/main" "src/book"]
+                :compiler     {:output-dir     "resources/public/js/book"
+                               :asset-path     "js/book"
+                               :modules        {:entry-point {:output-to "resources/public/js/book/book.js"
+                                                              :entries   #{book.main}}
+                                                ; For the dynamic code splitting demo
+                                                :main        {:output-to "resources/public/js/book/main-ui.js"
+                                                              :entries   #{book.demos.dynamic-ui-main}}}}}
+```
+
+The HTML file to start this up must load the a base CLJS module (`js/book/cljs_base.js`) and the entry point `book.js` file.
+The other code will be in `main-ui.js` and will be loaded when you route to that screen.
+
+The file `dynamic_ui_main.cljs` is the code that will be dynamically loaded. It looks like this:
+
+[source,clojure]
+----
+include::src/book/book/demos/dynamic_ui_main.cljs[]
+----
+
+The main entry point code is in the code below the demo:
+
+++++
+<div class="example" id="dynamic-ui-routing"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-ui-routing').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="dynamic-ui-routing source"]
+----
+include::src/book/book/demos/dynamic_ui_routing.cljs[]
+----
+
+== Code Splitting and Server-Side Rendering
+
+Of course splitting up your application affects server-side rendering as well. If you want to pre-render a page that is normally loaded as a
 module then you must make sure it is loaded properly on the server. This is typically relatively simple, since you won't
 need the module splitting or the loading code to do anything. Instead, you just need to make sure the namespace is required so
 that the multimethod has been installed. There is also the problem of the dynamic query: you don't have component instances
@@ -8651,7 +9653,14 @@ is statically complete when used on the server.
        :clj {:main-screen (prim/get-query Main) :other (prim/get-query Other) ...}))
 ```
 
-= Dynamic Queries
+When the application loads you'll need to do the same kind of routing things you'd do with any other server-side
+render; however, in this case the dynamic router will trigger the code load and
+
+FIXME: This section needs a bit more work. It is doable, but a bit more work probably. The new <<DynamicQueries,dynamic queries>> make
+getting the query correct much easier, but you also need to make sure you trigger the proper module loads for the
+server state of the code-split screen.
+
+= Dynamic Queries [[DynamicQueries]]
 
 Fulcro fully support dynamic queries: the ability the change the query of a component at runtime. This feature is fully
 serializable (works with the support viewer and other time-travel features), and is critical for features like code splitting
@@ -8906,11 +9915,7 @@ that verifies your UI, without having to have ugly and hard-to-maintain browser 
 * Add the script to CI, and have it compare the "approved" images to the newly generated ones. If the image
 comparison fails, your UI changed. Have a human check that specific item and approve the change.
 
-Below you'll find the source for a Clojure program that can drive this CI testing:
-
-----
-TODO: Include code
-----
+See the section on <<DevCards, Dev Cards>> for more information.
 
 = Demos
 
@@ -9159,7 +10164,7 @@ The UI can then drop the follow-on reads:
 In this case the transaction is running on a component that doesn't query for the data being changed (it is pinging the
 Left component). The built-in refresh list on the mutation takes care of the update!"))
 
-## Demonstration
+== Demonstration
 
 This card is a full-stack live demo of this. The buttons update data that the other button displays. The transacts
 on these would normally require follow-on reads or a callback to the parent to refresh properly. With the refresh
@@ -9177,110 +10182,6 @@ refresh is working for full-stack operations.
 [source,clojure,role="declarative-mutation-refresh source"]
 ----
 include::src/book/book/demos/declarative_mutation_refresh.cljs[]
-----
-
-
-== Dynamic Routing and Code Splitting
-
-The `fulcro.client.routing` namespace includes a second kind of UIrouter that can be used with the routing tree: `DynamicRouter`.
-
-A `DynamicRouter` uses a dynamic query to change routes instead of a union, and it can derive the details of the target
-component at runtime, meaning that it can be used to route to screens that were not in the loaded application code base
-at start-time.
-
-Furthermore, the routing tree has been designed to trigger the proper dynamic module loads for your dynamically loaded
-routes so that code splitting your application can be a fairly simple exercise. Here are the basic steps:
-
-. Pick a keyword for the name of a given screen. Say `:main`
-. Write the `defsc` for that screen, and design it so that the TYPE (first element) of the ident is the keyword from (1).
-    ** The initial state must be defined, and it must have the name (1) under the key r/dynamic-route-key
-    ** The bottom of the file that defines the target screen *must* include a `defmethod` that associates the keyword (1) with the component (2). This
-      is how the dynamic router finds the initial state of the screen, and the query to route to.
-    ** IMPORTANT: Your dynamically loaded screen *MUST* have a call to `(cljs.loader/set-loaded! KW)` at the bottom of the file (where KW is from (1)).
-. Configure your cljs build to use modules. Place the screen from (2) into a module with the name from (1).
-. Use a DynamicRouter for the router that will route to the screen (2). This means you won't have to explicitly refer to the class of the component.
-    ** The Query that composes in the router must use the special `get-dynamic-router-query` to join in the DynamicRouter's query.
-. Create your routing tree as usual. Remember that a routing tree is just routing instructions (keywords).
-
-If you are routing through a DynamicRouter as part of your initial startup, then there are a few more steps. See Pre-loaded routes below.
-
-Trigger routing via the `route-to` mutation. That's it! The module rooted at the screen will be automatically loaded
-when needed.
-
-The `defsc` and `defmethod` needed for step 2 look like this:
-
-```
-(prim/defsc Main [this {:keys [label]}]
-  {:initial-state (fn [params] {r/dynamic-route-key :main :label "MAIN"})
-   :ident (fn [] [:main :singleton])
-   :query [r/dynamic-route-key :label]}
-  (dom/div #js {:style #js {:backgroundColor "red"}}
-        label))
-
-(defmethod r/get-dynamic-router-target :main [k] Main)
-(cljs.loader/set-loaded! :main)
-```
-
-### Pre-loaded Routes
-
-Screens used with DynamicRouter that are loaded at start-time are written identically to the dynamically loaded screen,
-but you will have to make sure their state and multimethod are set up at load time. This can be done
-via the mutation `r/install-route`. This mutation adds the screen's state *and* multimethod component dispatch.
-
-The demo application includes two such pre-installed routes (`Login` and `NewUser`), and one dynamically loaded one (main).
-The code called at application startup (via `:started-callback`) ensure the pre-loaded routes is:
-
-```
-(defn application-loaded [{:keys [reconciler]}]
-  ; Let the dynamic router know that two of the routes are already loaded.
-  (prim/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
-                               (r/install-route {:target-kw :login :component ~Login})
-                               (r/route-to {:handler :login})])
-  (loader/set-loaded! :entry-point))
-
-...
-(new-fulcro-client Root :started-callback application-loaded)
-```
-
-### The Demo
-
-Notice on initial load that the `[:main :singleton]` path in app state is not present. You could use the console to
-verify that `cards.dynamic_ui_main.Main` is not present (via Javascript) either. Once you route to `Main`, both will be present. You should
-see the network load of the code when you route as well. The `book` build configuration in `project.clj` has the module
-definitions, and looks like this:
-
-```
-{:id           "book"
-                :source-paths ["src/main" "src/book"]
-                :compiler     {:output-dir     "resources/public/js/book"
-                               :asset-path     "js/book"
-                               :modules        {:entry-point {:output-to "resources/public/js/book/book.js"
-                                                              :entries   #{book.main}}
-                                                ; For the dynamic code splitting demo
-                                                :main        {:output-to "resources/public/js/book/main-ui.js"
-                                                              :entries   #{book.demos.dynamic-ui-main}}}}}
-```
-
-The HTML file to start this up must load the a base CLJS module (`js/book/cljs_base.js`) and the entry point `book.js` file.
-The other code will be in `main-ui.js` and will be loaded when you route to that screen.
-
-The file `dynamic_ui_main.cljs` is the code that will be dynamically loaded. It looks like this:
-
-[source,clojure]
-----
-include::src/book/book/demos/dynamic_ui_main.cljs[]
-----
-
-The main entry point code is in the code below the demo:
-
-++++
-<div class="example" id="dynamic-ui-routing"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-ui-routing').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="dynamic-ui-routing source"]
-----
-include::src/book/book/demos/dynamic_ui_routing.cljs[]
 ----
 
 == Dynamically Loaded Locales [[DynamicLocale]]
@@ -9941,7 +10842,7 @@ merging into your application state!
 The additional `with-params` just shows there's an additional helper for changing the parameters that would be
 sent to the server (it isn't needed in this example, since that's what the parameters already were).
 
-## Normalization
+== Normalization
 
 For normalization to work, the mutation join must use a UI query. This is why the second argument to `returning` is
 a *component*. The query is pulled from that component, which includes the metadata necessary for proper normalization.

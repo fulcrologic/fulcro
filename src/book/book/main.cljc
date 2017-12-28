@@ -17,6 +17,10 @@
                book.queries.parsing-recursion-one
                book.queries.parsing-recursion-two
                book.queries.parsing-parameters
+               book.forms.forms-demo-1
+               book.forms.forms-demo-2
+               book.forms.forms-demo-3
+               book.forms.whole-form-logic
                [book.demos.autocomplete :as autocomplete]
                book.basic-i18n
                book.ui-routing
@@ -96,6 +100,7 @@
                               (log/info "Server responded with " resp)
                               (ok resp)) @latency)))
          (catch :default e
+           (log/error "Exception thrown during parse:" e)
            (error {:type (type e)
                    :data (some-> (ex-data e) :body)}))))
      (start [this] this)))
@@ -173,6 +178,12 @@
 #?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
 #?(:cljs (defexample "Tree to DB with Queries" book.tree-to-db/Root "tree-to-db" :networking book.main/example-server))
 #?(:cljs (defexample "Merging with a Component" book.merge-component/Root "merge-component" :networking book.main/example-server))
+
+;; Forms
+#?(:cljs (defexample "Basic Form" book.forms.forms-demo-1/Root "forms-demo-1" :networking book.main/example-server))
+#?(:cljs (defexample "Validated Form" book.forms.forms-demo-2/Root "forms-demo-2" :networking book.main/example-server))
+#?(:cljs (defexample "Validated Form" book.forms.forms-demo-3/Root "forms-demo-3" :networking book.main/example-server))
+#?(:cljs (defexample "Whole Form Logic" book.forms.whole-form-logic/Root "whole-form-logic" :networking book.main/example-server))
 
 #?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
 #?(:cljs (defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :networking book.main/example-server))
