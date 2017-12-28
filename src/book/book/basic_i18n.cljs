@@ -25,7 +25,7 @@
     (dom/input #js {:value label :onChange #(m/set-string! this :ui/label :event %)})
     (trf "Hi, {name}" :name label)
     (dom/br nil)
-    (trf "N: {n, number} ({m, date, long})" :n 10229 :m (new js/Date))
+    (trf "N: {n, number} ({m, date, long})" {:n 10229 :m (new js/Date)})
     (dom/br nil)))
 
 (def ui-format (prim/factory Format))
