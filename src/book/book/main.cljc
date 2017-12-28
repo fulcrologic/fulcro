@@ -19,6 +19,7 @@
                book.queries.parsing-parameters
                [book.demos.autocomplete :as autocomplete]
                book.basic-i18n
+               book.ui-routing
                book.server.morphing-example
                book.demos.cascading-dropdowns
                book.demos.component-localized-css
@@ -167,6 +168,7 @@
 #?(:cljs (defexample "Parsing Parameters" book.queries.parsing-parameters/Root "parsing-parameters"))
 
 #?(:cljs (defexample "Internationalization Demo" book.basic-i18n/Root "basic-i18n"))
+#?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
 
 
 #?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
