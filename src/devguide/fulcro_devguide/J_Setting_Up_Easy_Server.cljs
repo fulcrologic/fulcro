@@ -14,7 +14,7 @@
   "
   # Setting Up an Easy Server
 
-  This section includes exercises that require an `easy` server. Use the solutions to the exercises of section J as
+  This section includes exercises that require an `easy` server. Use the solutions to the exercises of Putting It Together as
   a starting point. This section explains various ways to extend the `easy` server to deal with multiple
   configurations, add additional ring middleware, and handle extra routes.
 

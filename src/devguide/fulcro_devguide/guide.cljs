@@ -14,8 +14,14 @@
     fulcro-devguide.G-Mutation
     fulcro-devguide.G-Mutation-Exercises
     fulcro-devguide.G-Mutation-Solutions
-    fulcro-devguide.J-Setting-Up-Easy-Server
+    fulcro-devguide.H02-Making-An-Easy-Server
+    fulcro-devguide.H05-Basic-Loading
+    fulcro-devguide.H10-Mutations
     fulcro-devguide.I-Exercise-on-Putting-It-Together
+    fulcro-devguide.J-Setting-Up-Easy-Server
+
+
+
     fulcro-devguide.K-Testing
     fulcro-devguide.K-Support-Viewer
     fulcro-devguide.L-Internationalization
