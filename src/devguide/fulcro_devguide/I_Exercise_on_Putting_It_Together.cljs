@@ -1,4 +1,4 @@
-(ns fulcro-devguide.J-Exercise-on-Putting-It-Together
+(ns fulcro-devguide.I-Exercise-on-Putting-It-Together
   (:require-macros [cljs.test :refer [is]])
   (:require [fulcro.client.primitives :as prim :refer-macros [defsc]]
             [fulcro.client.dom :as dom]
@@ -15,10 +15,9 @@
   # Putting it all together
 
   This section is a large interactive exercise in building a small full-stack application. The assumption is that
-  you've cloned the fulcro project and are running the devguide locally. This would mean, for example, that you're
-  probably currently running a figwheel build of the devguide.
+  you've cloned the fulcro project and are running this locally.
 
-  In this exercise you'll create a server that can serve not only the devguide files, but process requests from a card
+  In this exercise you'll create a server that can serve files and process requests from a card
   running a fulcro application on this page.
 
   Our goal is to demonstrate the following core features:

@@ -1,4 +1,4 @@
-(ns fulcro-devguide.H45-Customizing-Easy-Server
+(ns fulcro-devguide.J-Setting-Up-Easy-Server
   (:require-macros [cljs.test :refer [is]])
   (:require [fulcro.client.primitives :as prim :refer-macros [defui]]
             [fulcro.client.dom :as dom]
@@ -10,11 +10,9 @@
             [fulcro.client.mutations :as m]
             [fulcro.client :as fc]))
 
-; TODO: (advanced?) Client headers? Cookies? related stuff to security.
-
 (defcard-doc
   "
-  # Advanced Server Topics
+  # Setting Up an Easy Server
 
   This section includes exercises that require an `easy` server. Use the solutions to the exercises of section J as
   a starting point. This section explains various ways to extend the `easy` server to deal with multiple
