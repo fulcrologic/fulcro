@@ -6039,7 +6039,7 @@ Fortunately, Fulcro actually makes handling this case relatively easy as well. H
 
 1. Write a custom networking implementation for the client that detects the *kind* of error, and retries recoverable ones
 until they succeed. Possibly with exponential backoff. (If an infinite loop happens, the user will eventually hit reload.)
-2. Make your server mutations are idempotent, so that a client can safely re-apply the one that fails.
+2. Make your server mutations idempotent so that a client can safely re-apply one that fails.
 
 The default fulcro networking does not do retries because without the idempotent guarantee it isn't safe.
 
@@ -8056,7 +8056,7 @@ initial-form (f/validate-fields (f/build-form MyForm my-entity-props))
 ```
 
 The functions `valid?` and `invalid?` honor the tri-state nature of forms (e.g. `invalid?` returns
-true IFF at least one field is `:invalid`, and `valid?` returns true IFF all fields are
+true if and only if at least one field is `:invalid`, and `valid?` returns true IFF all fields are
 `:valid`). The `:unchecked` state thus allows you to prevent error messages from
 appearing on fields until you're actually ready to validate them:
 
@@ -10708,8 +10708,8 @@ Removing an item from a list requires at least one change to the database, possi
 * You'll always want to remove the ident from the list itself. This will cause the item to disappear from the screen. This
 is sufficient if the item is being removed from the screen, but not from the db. Remember that you're working
 on a normalized database, so you have to remove an ident, not the item in this case.
-* If the item is probably being deleted from storage altogether, then you'll want to remove it from the database
-table as well. Remember that removal from a list is not necessarily deletion of the item.
+* If the item is being deleted from storage altogether (as opposed to just the UI list) then you may want to remove it
+from the database table as well. Remember that removal from a list is not necessarily deletion of the item.
 
 In our example, we'll assume both need to happen:
 
