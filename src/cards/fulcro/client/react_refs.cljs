@@ -11,28 +11,43 @@
   (dom/div nil "TODO"))
 
 (defsc FunctionRefTest [this props]
+  ; create component-specific functions that will remain the same for the component lifetime, so we're not
+  ; causing them to change (using anon functions) all the time. In general, anon functions are not really that
+  ; big of an overhead or problem, but this just shows you how you'd do it if you didn't want the parameters to
+  ; a DOM element changing all the time.
+  {:componentWillMount (fn []
+                         (gobj/set this "set-ref" (fn [r] (when r (gobj/set this "input-field" r))))
+                         (gobj/set this "set-value" (fn [evt] (prim/set-state! this {:v (.. evt -target -value)}))))}
   (let [focus (fn [evt]
                 (when-let [n (gobj/get this "input-field")]
                   (.focus n)))]
     (dom/div nil
       (dom/input #js {:value    (or (prim/get-state this :v) "")
-                      :onChange #(prim/set-state! this {:v (.. % -target -value)})
-                      :ref      (fn [r] (gobj/set this "input-field" r))})
+                      :onChange (gobj/get this "set-value")
+                      :ref      (gobj/get this "set-ref")})
       (dom/button #js {:onClick focus} "Focus"))))
 
 (defsc StringRefTest [this props]
+  {:componentWillMount (fn []
+                         (gobj/set this "set-value" (fn [evt] (prim/set-state! this {:v (.. evt -target -value)}))))}
   (let [focus (fn [evt]
                 (let [n (dom/node this "input-field")]
                   (.focus n)))]
     (dom/div nil
-      (dom/input #js {;:value "TODO"
-                      :ref   "input-field"})
+      (dom/input #js {:value    (or (prim/get-state this :v) "")
+                      :onChange (gobj/get this "set-value")
+                      :ref      "input-field"})
       (dom/button #js {:onClick focus} "Focus"))))
 
 (defcard-fulcro fn-ref-test-1
-  "# Tests that we can find the DOM component via a function ref"
+  "# Tests that we can find the DOM component via a function ref
+
+  NOTE: This card will only work if you supplied -DrawInputs to the JVM that is running the compiler. Function-refs are broken
+  by the wrappers on inputs."
   FunctionRefTest)
 
 (defcard-fulcro str-ref-test-1
-  "# Tests that we can find the DOM component via a function ref"
+  "# Tests that we can find the DOM component via string ref.
+
+  This card should work with wrapped and raw inputs, but string refs are deprecated in React."
   StringRefTest)
