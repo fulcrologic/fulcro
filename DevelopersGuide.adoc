@@ -547,7 +547,7 @@ There are several benefits of this so far:
 . It generates the exact tree of data needed to feed the initial UI.
 . That initial state becomes your initial application database.
 . It restores local reasoning (and easy refactoring). Moving a component just means local reasoning about the
-component being moved and the component it is being moved from/to: You remove the the `get-initial-state` from one
+component being moved and the component it is being moved from/to: You remove the `get-initial-state` from one
 parent and add it to a different one.
 
 You can see that there is no magic if you just pull the initial tree at the REPL:
@@ -1521,12 +1521,12 @@ under the `:fulcro` key:
                   (fn [app] (df/load app :current-user root/Person))}})
 ```
 
-Of course hot code reload does not restart the app (if just hot patches the code), so to see this load trigger we must
+Of course hot code reload does not restart the app (it just hot patches the code), so to see this load trigger we must
 reload the browser page.
 
 If you do that at the moment, you should see an error in the various consoles related to the failure of the load.
 
-IMPORTANT: Make sure your application (or dev cadr) is running from *your* server (port 3000) and not the figwheel one!
+IMPORTANT: Make sure your application (or dev card) is running from *your* server (port 3000) and not the figwheel one!
 
 Technically, `load` is just writing a query for you (in this case `[{:current-user (prim/get-query Person)}]`) and sending it to the
 server. The server will receive *exactly* that query as a CLJ data structure.
@@ -2127,7 +2127,7 @@ the mutation to be sent to that network handler.
 
 == The Complete Source
 
-For your convenince this complete application is at https://github.com/fulcrologic/fulcro-getting-started
+For your convenience this complete application is at https://github.com/fulcrologic/fulcro-getting-started
 
 = Core Concepts
 
@@ -2306,7 +2306,7 @@ adjust to this way of thinking about the problem.
 
 Data-driven concepts were pioneered in web development by Facebook's GraphQL and
 Netflix's Falcor. The idea is quite powerful, and eliminates huge amounts of
-complexity is your network communication and application development.
+complexity in your network communication and application development.
 
 The basic idea is this: Your UI, which might have various versions (mobile, web, tablet)
 all have different, but related, data needs. The prevalent way of talking to our
@@ -2716,7 +2716,7 @@ means:
   ...)
 ```
 
-It is even more powerful that that, because it analyzes your query and can deal with to-one and to-many join initialization as well:
+It is even more powerful than that, because it analyzes your query and can deal with to-one and to-many join initialization as well:
 
 ```
 (defsc Person [this props]
@@ -2784,7 +2784,7 @@ See Fulcro CSS for more information.
 
 === React Lifecycle Methods
 
-The options of defsc allow for React Lifecylcle methods to be defined (as lambdas). The `this` parameter of `defsc` is
+The options of defsc allow for React Lifecycle methods to be defined (as lambdas). The `this` parameter of `defsc` is
 in scope for all of them, but *not* `props` or `computed`. You can obtain computed using `prim/get-computed`. This is
 because the lifecycle method may receive prior or next props, and using the top parameter list could be confusing.
 
@@ -3209,10 +3209,10 @@ spent time with libraries or abstractions like Om and friends. JSX will also abs
 just the cljs wrappers. For a good article explaining some of the concepts read, React Elements The take-aways here are:
 
 . If you are importing third party components, you should be importing the class, not a factory.
-. You need to explicitly create the react elements with factories. The relevent js functions are React.createElement, and React.createFactory.
+. You need to explicitly create the react elements with factories. The relevant js functions are React.createElement, and React.createFactory.
 
 It is very important to consider when using any of these functions - the children. JS does not have a built in notion
-of lazy sequences. Clojurescript does. This can create suttle bugs when evaluating the children of a component.
+of lazy sequences. Clojurescript does. This can create subtle bugs when evaluating the children of a component.
 
 `fulcro.util/force-children` helps us in this regard by taking a seq and returning a vector. We can use this to
 create our own factory function, much like React.createFactory:
@@ -3637,7 +3637,7 @@ is roughly this (cleaned up from macro output):
 
 You can see that this just defines a union whose "selection" is controlled by the `:current-route` property!
 
-Here is a compelte working example that uses this to make a UI around displaying things of various types:
+Here is a complete working example that uses this to make a UI around displaying things of various types:
 
 ++++
 <div class="example" id="union-example-1"> </div>
@@ -3803,7 +3803,7 @@ versa. This lends itself to doing complex parsing of the query (typically on the
 of interest are `fulcro.client.primitives/query->ast` and `ast->query`.
 
 There are many uses for this. One such use might be to convert the graph expression into another form. For
-example, say you wanted to run a query against and SQL database. You could write an algorithm that translates
+example, say you wanted to run a query against an SQL database. You could write an algorithm that translates
 the AST into a series of SQL queries to build the desired result. The AST is always available as one
 of the parameters in the mutation/query `env` on the client and server.
 
@@ -4247,7 +4247,7 @@ necessary graph database operations to accomplish any higher-level task.
 For example, the `fulcro.client.routing/update-routing-links` function takes a state map, and changes all of the routers
 in the application state to show that particular screen. So, say you wanted add-friend to also
 take you to the screen that shows the details of that particular person. The top-level abstract mutation in the UI
-might still be called `add-friend`, but the internals now two things to do.
+might still be called `add-friend`, but the internals now have two things to do.
 
 Having all of these functions on the graph database allows you to write this in a very nice form as
 a sequence of operations on the state map itself through threading:
@@ -4673,7 +4673,7 @@ real graph without custom code). We'll show you an example of this as we explore
 
 Fulcro will serialize requests unless you mark queries as parallel (an option you can specify on `load`). Two different
 *events* that queue mutations or loads will be processed in order. For example The user clicks on something and you trigger two loads
-during *that even*, then both of those will be combined (if they don't conflict by querying for the same thing)
+during *that event*, then both of those will be combined (if they don't conflict by querying for the same thing)
 sent as one network request. If the user clicks on something else and that handler queues two more loads, then the latter two
 loads will not start over the network until the first load sequence has completed.
 
@@ -4734,7 +4734,7 @@ on-demand load the entity being edited to help prevent user confusion and accide
 React lifecycle and Load may not mix well. It is technically legal to issue transactions and loads from React Lifecycle,
 methods, but it is recommended that you carefully check the state of the system in said mutations before actually
 queuing network traffic.
-Perhaps you wish to ensure something is loaded. To do that: trigger a mutation that checks state an optionally
+Perhaps you wish to ensure something is loaded. To do that: trigger a mutation that checks state and optionally
 submits a load. You'll learn how to do this in the sections on the <<DataFetch, data featch API>>.
 
 
@@ -5016,7 +5016,7 @@ Loads allow a number of additional arguments. Many of these are discussed in mor
 `:post-mutation` and `:post-mutation-params`:: A mutation to run once the load is complete (local data transform only).
 `:remote`:: The name of the remote you want to load from.
 `:refresh`:: A vector of keywords and idents. Any component that queries these will be re-rendered once the load completes.
-`:marker`:: Boolean or keyword. Indicates how (of if) load should indicate progress in your app state.
+`:marker`:: Boolean or keyword. Indicates how (or if) load should indicate progress in your app state.
 `:parallel`:: Boolean. Defaults to false. When true, bypasses the sequential network queue. Allows multiple loads to run at once, but causes you to lose any guarantees about ordering since the server might complete them out-of-order.
 `:fallback`:: A mutation to run if the server throws an error during the load.
 `:without`:: A set of keywords to elide from the query. Covered in Incremental Loading.
@@ -5125,7 +5125,7 @@ include::src/book/book/server/morphing_example.cljs[]
 
 ==== Using `defsc` For Server Queries
 
-It is perfectly legal to use `defsc` to define an graph query (and normalization) for something like this that doesn't exactly
+It is perfectly legal to use `defsc` to define a graph query (and normalization) for something like this that doesn't exactly
 exist on your UI. This can be quite useful in the presence of post mutations that can re-shape the data.
 
 Simply code your (nested) queries using `defsc`, and skip writing the body:
@@ -5301,8 +5301,7 @@ environment.
 
 ==== The Server Multimethods for Mutations
 
-The `defmutation` macro on the server simply hits a multimethod. You can use `defmethod`
-`defmethod` on `fulcro.server/server-mutate` to define your mutations. The advantage of this is that you might want
+The `defmutation` macro on the server simply hits a multimethod. You can use `defmethod` on `fulcro.server/server-mutate` to define your mutations. The advantage of this is that you might want
 to write your own wrappers, macros, or code around the low-level implementation.
 
 In general, we recommend using `defmutation` because it is better supported by IDEs (for navigation, docstrings, etc)
@@ -5523,7 +5522,7 @@ In Fulcro 1.0 this was done as follows:
 
 This is still supported (and is still currently the default); however, it is deprecated because it was found to be less than ideal:
 
-. It caused the old data to disappear. There was noplace else to put the targeted load marker except *over* the old data.
+. It caused the old data to disappear. There was no place else to put the targeted load marker except *over* the old data.
 This caused flicker and workarounds (such as mis-targeting the data and using post-mutations to put it in place at the end)
 . The load markers are rather large. Looking at your component's app state during a load is kind of ugly.
 . The load markers could not be queried from elsewhere, meaning activity indicators had to be local to the loaded data.
@@ -6040,7 +6039,7 @@ Fortunately, Fulcro actually makes handling this case relatively easy as well. H
 
 1. Write a custom networking implementation for the client that detects the *kind* of error, and retries recoverable ones
 until they succeed. Possibly with exponential backoff. (If an infinite loop happens, the user will eventually hit reload.)
-2. Make your server mutations idempotent, so that a client can safely re-apply one that fails.
+2. Make your server mutations are idempotent, so that a client can safely re-apply the one that fails.
 
 The default fulcro networking does not do retries because without the idempotent guarantee it isn't safe.
 
@@ -6314,7 +6313,7 @@ are down, you can retry. But in a distributed system this can be a little nuance
 
 = Building a Server [[BuildingAServer]]
 
-You're already seen a little on how to build and use a server with the <<EasyServer, easy API>>. That server is acually
+You've already seen a little on how to build and use a server with the <<EasyServer, easy API>>. That server is acually
 flexible enough for many production needs, but Fulcro also
 comes with pre-built server components that allow you to very quickly get the server side of your
 application up and running. In this chapter we'll give you more detail on the three main approaches to
@@ -6337,7 +6336,7 @@ a Fulcro API handler into it.
 
 Here are the basic requirements:
 
-. Make sure your Ring stack has transit-response and transit-params. You can see the a sample Ring stack in
+. Make sure your Ring stack has transit-response and transit-params. You can see a sample Ring stack in
 [Fulcro's source](https://github.com/fulcrologic/fulcro/blob/1.2.0/src/main/fulcro/easy_server.clj#L94)
 . Check to see if the incoming request is for "/api". If so:
 . Call [`handle-api-request`](https://github.com/fulcrologic/fulcro/blob/1.2.0/src/main/fulcro/server.clj#L354). Pass
@@ -6574,7 +6573,7 @@ The hope is that as library authors start building full-stack additions (like im
 need to be able to hook into your existing server. The modular server design is intended to make this easier. Note that
 after the modular server API was developed (pre 1.x), Fulcro 1.x has since standardized a server-side parser with
 `defquery` and `defmutation` support. This already allows library authors to add support for handling namespaced keywords
-without having to plug into your sever at all, and the modular server support
+without having to plug into your server at all, and the modular server support
 may turn out to be less useful for that concern.
 
 In either case the modular server gives you an approach to building the server that is more open than the easy server.
@@ -6875,7 +6874,7 @@ like this on our server:
 ```
 
 One could also wrap that in a Stuart Sierra component and inject it into the
-parser (for details on modifying the parser environment, see <<EasyParsingEnv, Making Components Avaialble in the Parsing Environment>>).
+parser (for details on modifying the parser environment, see <<EasyParsingEnv, Making Components Available in the Parsing Environment>>).
 
 Much of the remainder of this section assumes this.
 
@@ -7232,7 +7231,7 @@ include::src/book/book/queries/parsing_recursion_two.cljs[]
 It can be a little bit of work to build these parsers for the queries (which is why libraries exist so you don't have to); however,
 we hope you can see that it is actually pretty tractable to build them once you understand the basics.
 
-Now we'll move on to another thing that servers typically need in thier queries: parameters!
+Now we'll move on to another thing that servers typically need in their queries: parameters!
 
 == Parameters
 
@@ -7244,7 +7243,7 @@ sorting, and such).
 As you might expect, the parameters on a particular expression in the query
 are just passed into your read function as the third argument.
 You are responsible for both defining and interpreting them.
-They have no rules other than they are maps.
+They have no rules other than that they are maps.
 
 To read the property `:load/start-time` with a parameter indicating a particular
 time unit you might use a query like:
@@ -7295,7 +7294,7 @@ Fulcro allows you to augment the built-in query parser *for local reads* on the 
 discussed above, and it is similar in that you must be able to start at the root of the query
 (even though you may only want to augment something rather deep in the query tree).
 
-Acutally, there are two cases that such a custom read *must* be able to do:
+Actually, there are two cases that such a custom read *must* be able to do:
 
 * Handle the path from root to the point of interest (it can hand off uninteresting side branches to `db->tree`.
 * Handle (or safely ignore) ident-based queries for any "virtual" entities that are purely parser-generated.
@@ -7450,7 +7449,7 @@ a sub-screen. For example, a reports sub-screen can nest using something like th
 == Using the Routing Tree
 
 The routing library includes a Fulcro mutation for placing a specific screen front-and-center. It is namespaced
-to the fulcro.client.routing namespace, and takes and :handler and optional :route-params argument:
+to the fulcro.client.routing namespace, and takes a :handler and optional :route-params argument:
 
 ```
 ; assumes you've aliased fulcro.client.routing to r
@@ -7581,7 +7580,7 @@ that may very well fit your needs.
 
 == The Basics
 
-Generic form support is a primary rapid appliation development feature. Fortunately, the overall structure of
+Generic form support is a primary rapid application development feature. Fortunately, the overall structure of
 Fulcro makes it relatively simple to write form support in a general-purpose, composeable manner. This library
 defines form support that has:
 
@@ -7592,7 +7591,7 @@ defines form support that has:
 - Remote integration with form <-> entity
 - Local integration with entities in the browser database
 
-The following `requires` define the namespacing used in the examples:
+The following `requires` define the namespaces used in the examples:
 
 ```
 (ns your-ns
@@ -7654,7 +7653,7 @@ You can use the `:protocols` option of `defsc` to add the IForm to your componen
   ...)
 ```
 
-The `defsc` macro support adding this protocol through the `:form-fields` option:
+The `defsc` macro supports adding this protocol through the `:form-fields` option:
 
 ```
 (defsc MyForm [this props]
@@ -7810,7 +7809,7 @@ for full-stack operation.
 
 == Form Composition
 
-Form support augments normalized entities in your app database. This makes it possible form them to be easily composed!
+Form support augments normalized entities in your app database. This makes it possible for them to be easily composed!
 They are UI components, and have nothing special
 about them other than the `f/form-key` state that is added to the entity (through your call of `build-form`).
 You can convert any entity in your database to a form using the `build-form` function, meaning that you can load
@@ -8057,7 +8056,7 @@ initial-form (f/validate-fields (f/build-form MyForm my-entity-props))
 ```
 
 The functions `valid?` and `invalid?` honor the tri-state nature of forms (e.g. `invalid?` returns
-true iff at least one field is `:invalid`, and `valid?` returns true iff all fields are
+true IFF at least one field is `:invalid`, and `valid?` returns true IFF all fields are
 `:valid`). The `:unchecked` state thus allows you to prevent error messages from
 appearing on fields until you're actually ready to validate them:
 
@@ -8309,7 +8308,7 @@ A to-many parent-child relationship with two new children:
 
 If a subform is explicitly declared, then removal of linkage between a form and the subforms will
 be expressed via the `:form/remove-relations` entry. The value will be a map whose keys are idents of the
-referring object and whose values just like in new linkage. This is also a delta.
+referring object and whose values are just like in the new linkage. This is also a delta.
 
 Examples:
 
@@ -8499,7 +8498,7 @@ your server can be in CLJC files and can be used without writing anything new!
 == Recommendations
 
 In order to get the most out of your code base when supporting server-side rendering, here are some general recommendations
-about how to write you application. These are pretty much what we recommend for all applications, but they're particularly
+about how to write your application. These are pretty much what we recommend for all applications, but they're particularly
 important for SSR:
 
 === Use Initial State on Components That Appear on Client Start
@@ -8983,7 +8982,7 @@ There is a full https://github.com/fulcrologic/websocket-demo[chat demo applicat
 = Internationalization
 
 Fulcro combines together a few tools and libraries to give a consistent and easy-to-use method of internationalizing
-you application. The approach includes the following features:
+your application. The approach includes the following features:
 
 * A global setting for the *current* application locale.
 * The ability to write UI strings in a default language/locale in the code. These are the defaults that are shown on
@@ -9026,7 +9025,7 @@ that is comprehensible.
 Plain strings need only be wrapped in the `tr` macro:
 
 ```
-(namespace boo
+(ns boo
   (:require [fulcro.i18n :refer [tr]]))
 
 ...
@@ -9153,7 +9152,7 @@ The underlying function looks in a translation map under the current locale key 
 emits the value found. If no value is found, then it just returns the string it was passed.
 
 When you change locales the entire UI must re-render. The mutation to change locales simply changes the global variable
-that tracks locale and does a call to force a re-render of the root of you UI.
+that tracks locale and does a call to force a re-render of the root of your UI.
 
 String extraction is done against compiled Javascript with whitespace optimizations. The optimizations cause it to become
 a single file (but doesn't remove dead code). The GNU gettext `xgettext` program can read Javascript and extract the
@@ -9351,7 +9350,7 @@ then run that build through figwheel.
 == Developing Component UI
 
 Developing simple components is done as described in the Devcard documentation. Fulcro encourages you to
-use pure rendering, so that means it is quick and easy to make cards that should UI components in
+use pure rendering, so that means it is quick and easy to make cards that display UI components in
 all of their valid states. This is quite helpful when working out the data model and look of a component.
 If you use component-local CSS this can be an extremely effective way to quickly build up
 components for use in your application.
@@ -9522,7 +9521,7 @@ are not interesting.
 Clojurescript 1.9.854+ has expanded support for code splitting (older versions do too, but require a bit more code). The
 main things you need to do to accomplish code splitting are:
 
-1. Make sure your main app doesn't don't accidentally refer to things in the module. Hard dependencies make it
+1. Make sure your main app doesn't accidentally refer to things in the module. Hard dependencies make it
 impossible to split the code.
 2. Define a mechanism whereby your loaded code can find and install itself into the application.
 
@@ -9614,7 +9613,7 @@ definitions, and looks like this:
                                                               :entries   #{book.demos.dynamic-ui-main}}}}}
 ```
 
-The HTML file to start this up must load the a base CLJS module (`js/book/cljs_base.js`) and the entry point `book.js` file.
+The HTML file to start this up must load the base CLJS module (`js/book/cljs_base.js`) and the entry point `book.js` file.
 The other code will be in `main-ui.js` and will be loaded when you route to that screen.
 
 The file `dynamic_ui_main.cljs` is the code that will be dynamically loaded. It looks like this:
@@ -9717,7 +9716,7 @@ that item.
 
 = Performance
 
-Fuclro and React behave in a very performant manner for most data-driven applications. There are ways, however,
+Fulcro and React behave in a very performant manner for most data-driven applications. There are ways, however,
 in which you can negatively affect performance.
 
 == Poor Query Performance
@@ -9997,7 +9996,7 @@ following way:
 * The autocomplete query will trigger when the input has at least 2 characters of input.
 * The server will be asked for 10 suggestions, and will update on a debounced interval.
 * The autocomplete suggestion list will clear if length goes below 2
-* The user must use the mouse to select the desired completion (we're not handling kb events)
+* The user must use the mouse to select the desired completion (we're not handling keyboard events)
 
 === Basic Operation
 
@@ -10012,7 +10011,7 @@ The basic idea is as follows:
 === The Server Query
 
 For our server we have a simple list of all of the airports in the world that have 3-letter codes. Our
-sever just grabs 10 that match your search string:
+server just grabs 10 that match your search string:
 
 ```
 (defn airport-search [s]
@@ -10039,7 +10038,7 @@ We create a helper function so we don't have to manually generate the ident for 
     [:autocomplete/by-id id-or-props]))
 ```
 
-We use Closure's debounce to generate a function that will not bash the server too hard. Load's will run at most
+We use Google Closure's debounce to generate a function that will not bash the server too hard. Load's will run at most
 once every 500ms. Notice that the server query itself is for airport suggestions, and we use the `:target` option
 to place the results in our autocomplete's field:
 
@@ -10446,7 +10445,7 @@ Tabbed interfaces typically use a UI Router (which can be further integrated int
 [this YouTube video](https://youtu.be/j-_itpXEo6w?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R) for more details.
 
 This example not only shows the basic construction of an interface that allows content (and query) to be switched, it
-also demonstrates how one goes about triggerng loads of data that some screen might need.
+also demonstrates how one goes about triggering loads of data that some screen might need.
 
 If you look at the source for the root component you'll see two buttons with transactions on their click handlers.
 "
@@ -10515,11 +10514,9 @@ include::src/book/book/demos/loading_indicators.cljs[]
 NOTE: Fulcro 2.0 has better support. This is still available, but see also loading-indicators in the demos.
 
 Fulcro places markers on items that are being loaded. These markers can be used to show progress indicators in
-the UI. There are essentially two kinds: a global marker, and an item-based marker. The global marker is present during
-and loads, whereas the localized markers are present until a specific item's load has completed.
+the UI. There are essentially two kinds: a global marker, and an item-based marker. The global marker is present during loads, whereas the localized markers are present until a specific item's load has completed.
 
-In the demo below the first button triggers a load of a child's data from the server. Use the server latency
-cnotrols to slow things down so you
+In the demo below the first button triggers a load of a child's data from the server. Use the server latency controls to slow things down so you
 can see the markers. Once the child is loaded, a button appears indicating items can be loaded into that child.
 
 Once the items are loaded, each has a refresh button. Again, a 1 second delay is present so you can examine the
@@ -10691,7 +10688,7 @@ you want the *child* to render some controls, such as a delete button.
 
 The most basic example of this is the list. Lists are very simple.
 In a normalized database there will be a table of items, and other parts
-of the UI will refer to the list items by ident.
+of the UI will refer to the list of items by ident.
 
 In order to accomplish this the parent must create some things. Perhaps it needs to ask a list item to highlight,
 or it wants to pass a callback that can be used by the child to indicate `onDelete`.
@@ -10705,13 +10702,13 @@ the database! The `computed` function sends the parent-generated data to the com
 itself to cache those values behind the scenes (after all, the parent has not refresh, so those values should still
 be ok).
 
-So, in our list example let's talk about removing and item.
+So, in our list example let's talk about removing an item.
 Removing an item from a list requires at least one change to the database, possibly two:
 
 * You'll always want to remove the ident from the list itself. This will cause the item to disappear from the screen. This
 is sufficient if the item is being removed from the screen, but not from the db. Remember that you're working
 on a normalized database, so you have to remove an ident, not the item in this case.
-* If the item is provably being deleted from storage altogether, then you'll want to remove it from the database
+* If the item is probably being deleted from storage altogether, then you'll want to remove it from the database
 table as well. Remember that removal from a list is not necessarily deletion of the item.
 
 In our example, we'll assume both need to happen:
@@ -10746,7 +10743,7 @@ include::src/book/book/demos/parent_child_ownership_relations.cljs[]
 This example has installed a global handler that can watch for network errors (it logs them to the console).
 
 On startup it attempts to read garbage (which generates an error and triggers a fallback). This will leave a load
-marker in app state, which can be examined to show an actual UI error.
+marker in the app state, which can be examined to show an actual UI error.
 
 Each button tries a different mutation. The one on the left disables itself on errors, whereas the right
 one allows you to keep trying.
@@ -10812,7 +10809,7 @@ declarative configuration, or something dynamic based on user rights.
 * Verify the user is allowed to read the "top" object. If not, disallow the query.
 * Recursively gather up all keywords from the query as a set
 * Find the set difference of the whitelist and the query keywords.
-* If the difference if not empty, refuse to run the query
+* If the difference is not empty, refuse to run the query
 
 === The Server Hooks
 
@@ -10910,7 +10907,7 @@ a *component*. The query is pulled from that component, which includes the metad
 "))
 
 The two items in the list are clickable. Clicking on either of them will ask the server to change their value
-to some random UUID and return the updated entity. Using mutation joins this data is auto-merged and the UI updated.
+to some random UUID and return the updated entity. When using mutation joins this data is auto-merged and the UI updated.
 
 NOTE: The Add Item button is full-stack, and uses tempids. Use the server latency to
 see the state as it runs.
@@ -10936,13 +10933,13 @@ won't normalize. The error triggering mutation does this:
 
 The more interesting case is when you want normalization, but you also need to pepper the return
 value's ident around the state of your application. The default `returning` just refreshes (or loads)
-the entity into its table, which means anything that already way linked to it will update, but if it is
+the entity into its table, which means anything that already was linked to it will update, but if it is
 new there can be no UI refresh because nothing in the UI will be using it.
 
 This is where targeting shines. In the demo The bulk of the work is done in the `create-entity` mutation.
 which is targeting to-many so we can demo more features (you can
 also target to-one with a simple path). Multiple targets are also supported (see load documentation).
-"
+
 (dc/mkdn-pprint-source create-entity)
 "The server mutation just returns the entity (mixed with tempid remappings, if you need them)."
 (dc/mkdn-pprint-source server-create-entity)))
@@ -10987,7 +10984,7 @@ It is possible for you to completely define how to handle the returned data from
 The pipeline normally throws away return values from server-side mutations since there is no query to use to normalize
 and merge them (unless you use mutation joins).
 
-Note that Fulcro specifically avoids asychrony whenever possible. Networking is, by nature, async in the browser. Your
+Note that Fulcro specifically avoids asynchrony whenever possible. Networking is, by nature, async in the browser. Your
 application could be off doing anything at all by the time the server responds to a network request. Therefore, return
 values from mutations will have an async nature to them (they arrive when they arrive).
 
@@ -11121,7 +11118,7 @@ we might want to issue a load like this:
 ```
 
 In this example, we've been careful to align the UI with the schema of the database. All
-Fuclro SQL needs is a bit of configuration to tell it how to map the UI graph to the
+Fulcro SQL needs is a bit of configuration to tell it how to map the UI graph to the
 schema:
 
 ```
