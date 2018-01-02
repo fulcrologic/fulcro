@@ -34,5 +34,5 @@
   FunctionRefTest)
 
 (defcard-fulcro str-ref-test-1
-  "# Tests that we can find the DOM component via a function ref"
+  "# Tests that we can find the DOM component via a string ref"
   StringRefTest)
