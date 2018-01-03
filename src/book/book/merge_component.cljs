@@ -16,12 +16,13 @@
 
 (def ui-counter (prim/factory Counter {:keyfn :counter/id}))
 
+; the * suffix is just a notation to indicate an implementation of something..in this case the guts of a mutation
 (defn increment-counter*
   "Increment a counter with ID counter-id in a Fulcro database."
   [database counter-id]
   (update-in database [:counter/by-id counter-id :counter/n] inc))
 
-(defmutation ^:intern increment-counter [{:keys [id] :as params}]
+(defmutation increment-counter [{:keys [id] :as params}]
   ; The local thing to do
   (action [{:keys [state] :as env}]
     (swap! state increment-counter* id))

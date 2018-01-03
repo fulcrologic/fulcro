@@ -842,7 +842,7 @@ modification should run from the parent via a callback so that refresh will not 
 show you how to deal with refreshes that could be in far-flung parts of the UI. First, let's get some data
 changing.
 
-=== Transactions
+=== Transactions [[Transactions]]
 
 Every change to the application database must go through a transaction processing system. This has two
 goals:
@@ -870,9 +870,9 @@ in the `ns`). Of course, you'll typically use unquote to embed data from local v
 
 === Handling Mutations
 
-When a transaction runs in Fulcro, it passes things off to a multimethod. This multi-method is described in more
-detail in the Fulcro Developer's Guide, but Fulcro provides a macro that makes
-building (and using) them easier: `defmutation`.
+When a transaction runs in Fulcro it passes things off to a multimethod. The multi-method is described in more
+detail in the section on <<MutationMultimethod,the mutation multimethod>>, but Fulcro provides a macro that makes
+building (and using) mutations easier: `defmutation`.
 
 The template application comes with a pre-built namespace for these `src/main/app/api/mutations.cljs`, but you can put them anywhere as long
 as the namespace in question is required by your application at runtime. Note there is also a `mutations.clj`, which is
@@ -2531,9 +2531,10 @@ other naming conventions, then these can elide a namespace if that facilitates s
 
 == HTML5 Element Factories
 
-The core of DOM rendering is taken care of by simple factory functions that
-generate the core VDOM elements. These stand-ins are ultimately what React
-uses to generate, diff, and update the real DOM.
+The core HTML5 elements all have simple factory functions that
+generate the core elements that stand-in for the real DOM.
+These stand-ins (commonly referred to as the virtual DOM or VDOM)
+are ultimately what React uses to generate, diff, and update the real DOM.
 
 So, there are functions for every possible HTML5 element. These are in the
 `fulcro.client.dom` namespace, and take a Javascript map for attributes (this gives
@@ -2571,10 +2572,57 @@ tells the reader how to turn the map into a js object.
 people prefer how it reads.
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
-* Any time there are adjacent elements of the same type in the DOM, they should each have a unique `:key`
-attribute. If the elements are in an array, React requires it.
-* You can convert cljs data structures (recursively) to js types with `(clj->js {:x {y 1}})`
+* Any time a VDOM includes a collection of elements they should each have a unique `:key`
+attribute. This helps the React diff figure out how that collection has changed. You will
+get warnings in the browser console if you fail to do so.
+* You can run-time convert cljs data structures (recursively) to js types with `(clj->js {:x {y 1}})`.
+The `#js` tag causes the *compiler* to output a Javascript
+data structure (it is *not* a conversion, nor is it recursive). Thus `#js` has no runtime overhead,
+but `clj->js` can convert dynamic things on the fly at runtime.
 
+// == The Reconciler [[Reconciler]]
+
+When you start a Fulcro application your `:started-callback` will get the completed `app` as a parameter.
+
+Inside of this app is a reconciler under the key `:reconciler`. The reconciler is a central component in the system
+that is responsible for being the thing that reconciles the differences between the database and the UI. Therefore it
+is involved in processing the queries, merging novel data into the database, network interactions, and tracking
+mounted components that might need refresh.
+
+You will see it mentioned in many places in this book, and we'll point out where you'll use it directly.
+
+// === Rendering Optimizations [[RenderingOptimizations]]
+
+The reconciler does a number of things to optimize rendering beyond the basics of React.
+
+* Fulcro provides a a built-in `shouldComponentUpdate` that uses a comparison of the prior props to
+tell React to skip no-op updates that would lead to a useless VDOM diff.
+* When more than one component will refresh the components are refreshed in depth-first order. This allows Fulcro
+to prevent double-rendering of children. (e.g. if a Parent and Child need to refresh then updating the parent
+first will render the child, and the child can be skipped. If the child was rendered first then the parent refresh would
+try to double-render the child).
+* If a component is the target of a refresh and has an ident then Fulcro will run the query for *just* that component,
+and re-render *just* that component's subtree (avoiding a root query and root render).
+** NOTE: a component without an ident will *always* trigger a root refresh, since there is no way to figure out
+how to run that component's query (queries are relative, and idents give you an anchor point for them).
+
+The `shouldComponentUpdate` optimization reduces the load by quite a bit, but running the query from root can
+be somewhat costly depending on how well you <<Performance, optimized>> your UI query. Thus, idents become a major
+factor in both normalization and rendering performance since Fulcro relies on them in order to reduce
+the query overhead of UI refresh.
+
+// === Rendering Modes
+
+Version 2.1+ of Fulcro include the ability to tell the reconciler which rendering mode to use.
+
+[[horizontal]]
+`:normal`:: The default mode. Uses all possible optimizations.
+`:keyframe`:: Disables the ident-based targeted refresh. Thus every render is considered a key frame of the DOM.
+This means that every transaction/change will run the root UI query and render from root. The `shouldComponentUpdate`
+optimization is in force and prevents quite a bit of work from React. This mode can be plenty fast and has the advantage
+of not needing you to program with follow-on reads.
+`:brutal`:: Disables all optimizations, runs queries from root, runs refresh from root, and forces React to do a full
+DOM diff. Primarily useful to compare how much benefit optimizations are actually giving you beyond React's DOM diff.
 
 == The `defsc` Macro
 
@@ -2857,7 +2905,7 @@ There are 3 supported options to a factory:
 `:validator`:: A function from props to boolean. If it returns false then an assertion will be thrown at runtime.
 `:instrument?`:: A boolean. If true, it indicates that instrumentation should be enabled on the component.
 
-Instrumentation is a function you can install on the reconciler that wraps component `render` allowing you to add
+Instrumentation is a function you can install on the <<Reconciler,reconciler>> that wraps component `render` allowing you to add
 measurement and debugging code to your component's rendering.
 
 In Fulcro documentation we generally adopt the naming convention for UI factories to be prefixed with `ui-`. This
@@ -2899,17 +2947,17 @@ easily become out of sync and lead to more complex logic.
     (dom/ul nil ...))))
 ```
 
-General Guidelines for Derived Values
+==== General Guidelines for Derived Values
 
 You should consider computing a derived value when:
-- The known data from the props already gives you sufficient information to calculate the value.
-- The computation is relatively light.
+* The known data from the props already gives you sufficient information to calculate the value.
+* The computation is relatively light.
 
 Some examples where UI computation are effective, light, or even necessary:
 
-- Rendering an internationalized value. (e.g. `tr`)
-- Rendering a check-all button
-- Rendering "row numbering" or other decorations like row highlighting
+* Rendering an internationalized value. (e.g. `tr`)
+* Rendering a check-all button
+* Rendering "row numbering" or other decorations like row highlighting
 
 There are some trade-offs, but most significantly you generally do *not* want to compute things like the order/pagination of a list of items.
 The logic and overhead in sorting and pagination often needs caching, and there are
@@ -3044,13 +3092,11 @@ Form inputs in React can take two possible approaches: controlled and uncontroll
 the value state of inputs for you as mutable data; however, this breaks our overall model of pure rendering! The
 advantage is UI interaction speed: If your UI gets rather large, it is possible that UI updates on keystrokes in
 form inputs may be too slow. This is the same sort of trade-off that we talked about when covering component
-local state for rendering speed with more graphical components.
+local state for rendering speed with more graphical components. If you follow the basic <<Performance,optimization guidelines>>
+then your application should be fast enough to do database updates on every keystroke, and you can keep all input
+changes in your client database.
 
-If you're using UI routers to split up your UI, then you're also getting the speed benefits of not running anything
-but the current active screen's query. This should, in fact, be fast enough to do on every keystroke (in fact, you'll
-see warnings in your browser console if this gets slower than 60 FPS).
-
-So, in general it is recommended that you use controlled inputs and retain the benefits of pure rendering: no embedded
+In general it is recommended that you use controlled inputs and retain the benefits of pure rendering: no embedded
 state, your UI exactly represents your data representation, concrete devcards support for UI prototyping, and full
 support viewer support.
 
@@ -3086,7 +3132,8 @@ Some topics you should be familiar with in React to accomplish many of these thi
 
 - Component references: A mechanism that allows you access to the *real* DOM of the component once it's on-screen.
 - Component-local state: A stateful mechanism where mutable data is stored on the component instance.
-- General DOM manipulation. The Google Closure library has your JQuery equivalents, should you need them.
+- General DOM manipulation. Clojurescript builds for Closure and therefore includes the Google Closure library, which in
+  turn has all sorts of helpful low-level functions should you need them.
 
 === Focusing an input
 
@@ -3298,8 +3345,8 @@ include::src/book/book/ui/clip_tool_example.cljs[]
 The `defui` macro generates a React component. It does the same thing as the
 `defsc` macro, but looks more like a `defrecord` and is a bit more OO in style. It
 does not error-check your work, nor does it allow you to destructure incoming data
-over the body or options; however, it is syntax-comptible with Om Next, so it you're
-porting from that library, it can be useful to have access to it.
+over the body or options; however, it is syntax-comptible with Om Next so if you're
+porting from that library it can be useful.
 
 It is 100% compatible with the React ecosystem. The macro is intended
 to look a bit like a class declaration, and borrows generation notation style from `defrecord`. There is no
@@ -3470,7 +3517,7 @@ the graph.
 == Properties
 
 The simplest thing to query are properties "right here" in the relative node of the graph. Properties are queried
-by a simple keyword. Their values can be any scalar data value that is serializable in EDN.
+by a simple keyword. Their values can be any scalar data value that is serializable in https://github.com/edn-format/edn[EDN].
 
 The query
 
@@ -3482,18 +3529,18 @@ is asking for the properties known as `:a` and `:b` at the "current node" in the
 
 == Joins
 
-A join is similar to a property query, in that the linkage is stored at the given keyword, but the linkage
-walks to another node in the graph. The notation is a map with a single key (the local property at
-the current node) whose single value is the query for the remainder of the graph walk:
+A join represents a traversal of an edge to another node in the graph. The notation is a map with a single key
+(the local key on the current node that holds the "pointer" to another node) whose single value is the
+query for the remainder of the graph walk:
 
 ```
 [{:children (prim/get-query Child)}]
 ```
 
-The query itself cannot specify that this is a to-one or to-many join. The data in the database graph itself
-determines this when the query is being run. Basically, if walking the join property leads to a vector of
-links, it is to-many. If it leads to a single link, then it is to-one. Of course, rendering the data is going
-to have the same concern, so the arity of the relation more strongly affects the rendering code.
+The query itself cannot specify that this is a to-one or to-many join. The data in the *database graph itself*
+determines the arity when the query is being run. Basically, if walking the join property leads to a vector of
+links, it is to-many. If it leads to a single link, then it is to-one. Rendering the data is going
+to have the same concern so the arity of the relation more strongly affects the rendering code.
 
 Joins should always use `get-query` to get the next component in the graph. This annotates (with metadata) the sub-query
 so that normalization can work correctly.
@@ -3508,10 +3555,10 @@ components. The union query itself is a map of the possible queries:
 
 ```
 (defsc PersonPlaceOrThingUnion [this props]
-  ; lambda form required for unions
-  {:query (fn [] {:person (prim/get-query Person)
-                  :place (prim/get-query Place)
-                  :thing (prim/get-query Thing)})}
+  ; lambda form required for unions (a limitation of the error checking routines in defsc)
+  {:query (fn [] {:person/by-id (prim/get-query Person)
+                  :place/by-id (prim/get-query Place)
+                  :thing/by-id (prim/get-query Thing)})}
   ...)
 ```
 
@@ -3529,8 +3576,8 @@ using them in order for everything to work correctly (normalization, queries, an
 Here is what a graph database might look like for the above query assuming we started at `Parent`:
 
 ```
-{ :peron-place-or-thing [:place 3]
-  :place { 3 { :id 3 :location "New York" }}}
+{ :peron-place-or-thing [:place/by-id 3]
+  :place/by-id { 3 { :id 3 :location "New York" }}}
 ```
 
 The query would start at the root. When it saw the join it would detect a union. The union would be resolved
@@ -3542,9 +3589,9 @@ Processing of the query then continues as normal as if the join was just on `Pla
 A to-many linkage works just as well:
 
 ```
-{ :peron-place-or-thing [[:person 1] [:place 3]]
-  :person { 1 { :id 1 :name "Julie" }}
-  :place { 3 { :id 3 :location "New York" }}}
+{ :peron-place-or-thing [[:person/by-id 1] [:place/by-id 3]]
+  :person/by-id { 1 { :id 1 :name "Julie" }}
+  :place/by-id { 3 { :id 3 :location "New York" }}}
 ```
 
 and now you have a mixed to-many relationship where the correct sub-query will be used for each item in turn.
@@ -3566,9 +3613,9 @@ ident function might look like this:
 (defsc PersonPlaceOrThingUnion [this props]
   {:ident (fn []
     (cond
-      (contains? props :name) [:person (:id props)]
-      (contains? props :location) [:place (:id props)]
-      :else [:thing (:id props)]))}
+      (contains? props :name) [:person/by-id (:id props)]
+      (contains? props :location) [:place/by-id (:id props)]
+      :else [:thing/by-id (:id props)]))}
   ...)
 ```
 
@@ -3603,9 +3650,9 @@ The output of this defrouter (macro):
 ```
 (defrouter ItemDetail :detail-router
   (ident [this props] (item-ident props))
-  :person PersonDetail
-  :place PlaceDetail
-  :thing ThingDetail)
+  :person/by-id PersonDetail
+  :place/by-id PlaceDetail
+  :thing/by-id ThingDetail)
 ```
 
 is roughly this (cleaned up from macro output):
@@ -3614,14 +3661,14 @@ is roughly this (cleaned up from macro output):
 (defsc ItemDetail-Union [this props]
   {:initial-state [clz params] (prim/get-initial-state PersonDetail params)) ;; defaults to the first one listed
    :ident [this props] (item-ident props))
-   :query (fn [] {:person (prim/get-query PersonDetail),
-                  :place (prim/get-query PlaceDetail),
-                  :thing (prim/get-query ThingDetail)}}
+   :query (fn [] {:person/by-id (prim/get-query PersonDetail),
+                  :place/by-id (prim/get-query PlaceDetail),
+                  :thing/by-id (prim/get-query ThingDetail)}}
    (let [page (first (prim/get-ident this))]
     (case page
-     :person ((prim/factory PersonDetail) (prim/props this))
-     :place ((prim/factory PlaceDetail) (prim/props this))
-     :thing ((prim/factory ThingDetail) (prim/props this))
+     :person/by-id ((prim/factory PersonDetail) (prim/props this))
+     :place/by-id ((prim/factory PlaceDetail) (prim/props this))
+     :thing/by-id ((prim/factory ThingDetail) (prim/props this))
      (dom/div nil (str "Cannot route: Unknown Screen " page))))
 
 (defsc ItemDetail [this props]
@@ -3647,30 +3694,6 @@ Here is a complete working example that uses this to make a UI around displaying
 [source,clojure,role="union-example-1 source"]
 ----
 include::src/book/book/queries/union_example_1.cljs[]
-----
-
-=== Demo – Using Unions to Switch out UI Elements
-
-
-This demo is similar to the prior example. In fact, the two could be combined to make
-this one polymorphic as well, but the primary interest in this demo is to show swapping between an editor
-and a list (or table).
-
-This example uses the forms support, with a custom submit and cancel mutation.
-It is instructive to see how entities could be loaded
-(simulated in the started-callback) as pristine entities and augmented with form support through mutations
-that have a nice clear meaning (to both front and back-end).
-
-See the comments on the source for more details.
-
-++++
-<div class="example" id="union-example-2"></div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.union-example-2').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="union-example-2 source"]
-----
-include::src/book/book/queries/union_example_2.cljs[]
 ----
 
 == Mutations [[Mutations]]
@@ -3701,11 +3724,11 @@ syntax quoting to get reasonably short expressions:
    (prim/transact! this `[(am/do-something {})])
 ```
 
-The syntax quoting always ensures everything is fully-qualified, so this results in the raw symbol within
-the `transact!`: `app.mutations/do-something`. When using IDEs like Cursive this allows you to enable support
-for code navigation to the definition of mutations.
+We talked about <<Transactions,syntax quoting transactions>> in the Getting Started chapter. You may want to
+review that or just read more online about Clojure syntax quoting.
 
-The parameter map on mutations is optional.
+The parameter map on mutations is optional, but recommended, if you're using IDE support since the IDE will always
+see mutations as if they were function calls with an arity of one.
 
 == Parameters
 
@@ -3746,28 +3769,47 @@ the proper subquery.
 
 == Queries on Idents
 
-Idents are valid in queries as a plain prop or a join. When used as a plain prop you will end up with the ident
-as a key in the `props`, and the complete (still-normalized) table entry as a value:
+Idents are valid in queries as a plain prop or a join. When used alone (not in a join) this will pull a table
+entry from the database *without normalizing it or following any subquery*:
 
 ```
 [ [:person/by-id 1] ]
 ```
 
-results in something like this in props:
+results in something like this:
 
 ```
-{ [:person/by-id 1] {:id 1 :person/spouse [:person/by-id 1]} }
+(defsc Phone [this props]
+  {:query [:id :phone/number]
+   :ident [:phone/by-id :id]}
+  ...)
+
+(defsc Person [this props]
+  {:query [:id {:person/phone (prim/get-query Phone)}]
+   :ident [:person/by-id :id]}
+  ...)
+
+(defsc X [this props]
+  {:query [ [:person/by-id 1] ] } ; query just for the ident
+  (let [person (get props [:person/by-id 1]) ; NOT get-in. The key of the result is an ident
+        ...
+        ; person contains {:id 1 :person/phone [:phone/by-id 4]}
 ```
 
-This is not typically what you want because you'd typically want it to follow the graph links.
-Instead, `idents` are normally queried with a join:
+This is not typically what you want because you'd typically want it to follow the graph links (resolving phone number).
+
+Therefore these kinds of queries are normally done via a join:
 
 ```
-[{[:person/by-id 1] (prim/get-query Person)}]
+(defsc X [this props]
+  {:query [{[:person/by-id 1] (prim/get-query Person)}]}
+  (let [person (get props [:person/by-id 1])
+        ...
+        ; person contains {:id 1 :person/phone {:phone/id 4 :phone/number "555-1212"}}
 ```
 
-which has the effect of "re-rooting" the graph walk at that node, and continuing from there. You still get
-the ident in the props, but now spouse would resolve to a map of real properties.
+This has the effect of "re-rooting" the graph walk at that ident's table entry and continuing from there for the
+rest of the subtree. In fact this is how Fulcro's <<RenderingOptimizations,ident-based rendering optimization>> works.
 
 == Link Queries
 
@@ -3786,15 +3828,50 @@ overall root node of the database. Of course, denormalization just requires you 
 [ {[:current-user '_] (prim/get-query Person)} ]
 ```
 
-would pull `:current-user` into the component's props with a continued walk of the graph (e.g. person's spouse would
-be populated).
+would pull `:current-user` into the component's props with a continued walk of the graph. In other words this is
+just like the ident join, except the special symbol `_` indicates there is only one of them and it is in the root
+node.
 
-WARNING: Link queries require that the component doing the query have a database node, even if empty. The database
-query engine will not try to run the query of a component that has no data presence in the graph. Remember: the
-query and database are walked together. If it runs out of data, it stops. So, if you had a component
-asking for only `:current-user` via a link, but that component itself did not exist in the database then you
-will never get to the link query at all. The fix is simple: include an empty map where that component's state
-should be.
+== A Warning About Ident and Link Queries
+
+Components can query for whatever they want, and sometimes it is useful to write components that *only* query
+for things "elsewhere" in the database:
+
+```
+(defsc LocaleSwitcher [this {:keys [ui/locale]}]
+  {:query [[:ui/locale '_]]}
+  (dom/div ...))
+```
+
+When the database is constructed for such components they will have no state of their own.
+
+Sadly, even if you compose it into your UI properly it may not receive any data:
+
+```
+(defsc Root [this {:keys [locale-selector]}]
+  {:query [{:locale-selector (prim/get-query LocaleSelector)}]}
+  (ui-locale-selector locale-selector)) ; data comes back nil!!!
+```
+
+The problem is that the query engine walks the database and query in tandem. When it sees a join
+(`:locale-selector` in this case) it goes looking for an entry in the database *at the current location*
+(root node in this case) to process the subquery against. If it finds an ident it follows it and processes
+the subquery. If it is a map it uses that to fulfill the subquery. If it is a vector then it processes the
+subquery against every entry. But if it is _missing_ *then it stops*.
+
+The fix is simple: make sure the component has a presence in the database, even if empty:
+
+```
+(defsc LocaleSwitcher [this {:keys [ui/locale]}]
+  {:query [[:ui/locale '_]]
+   :initial-state {}} ; empty map
+  (dom/div ...))
+
+(defsc Root [this {:keys [locale-selector]}]
+  {:query [{:locale-selector (prim/get-query LocaleSelector)}]
+   :initial-state (fn [params] {:locale-selector (prim/get-initial-state LocaleSwitcher)})} ; empty map from child
+  (ui-locale-selector locale-selector)) ; link query data is found/passed
+```
 
 == The AST
 
@@ -3948,11 +4025,7 @@ performance.
 
 === Initial State Demo
 
-Fulcro's initial state support allows you to compose the initial (startup) state using the components themselves.
-This allows you to co-locate the component initial state for local reasoning, and compose children into
-parents so that any component in the app can be easily relocated. If such components also have an ident, any
-mutations need to interact with those components will automatically just work, since you'll be working on
-normalized data!
+The following demo shows all of this in action.
 
 ++++
 <div class="example" id="initial-app-state"> </div>
@@ -4015,7 +4088,7 @@ which expands to:
 `tree->db` recursively walks the data structure and query:
 
 - At the root, it sees `:people` as a root key and property. It remembers it will be writing `:people` to the root.
-- It examines the value of `:people` and finds it to be a vector of maps. This indicates a to-one relationship.
+- It examines the value of `:people` and finds it to be a vector of maps. This indicates a to-many relationship.
 - It examines the metadata on the subquery of `:people` and discovers that the entries are represented by
 the component `Person`
 - For each map in the vector, it calls the `ident` function of `Person` (which it found in the metadata) to get a
@@ -4029,7 +4102,7 @@ compose the queries correctly.
 
 == Normalization: Initial State, Server Interations, and Mutations [[Normalization]]
 
-The process described above is how most data interactions occur. At startup the `InitialAppState` supplies data that
+The process described above is how most data interactions occur. At startup the `:initial-state` supplies data that
 exactly matches the tree of the UI. This gives your UI some initial state to render. The normalization mechanism
 described above is exaclty what happens to that initial tree when it is detected by Fulcro at startup.
 
@@ -4059,11 +4132,6 @@ Can be used within mutations.
 - `fulcro.client.util/deep-merge` - An implementation of merge that is recursive
 
 = Handling Mutations [[MutationsChapter]]
-
-<<Mutations, Mutations>> are triggered using `fulcro.client.primitives/transact!`. The meaning of this function is to
-"run a sequence of operations that can have both local and remote side-effects". The
-mutation expression itself is just data, and must be quoted since it uses plain
-lists.
 
 Mutations are known by their symbol and are dispatched to the internal multimethod
 `fulcro.client.mutations/mutate`. To handle a mutation you can do two basic things: use `defmethod`
@@ -4095,7 +4163,7 @@ whose value is the function to run.
 that remote's keyword as the key, and either a boolean or AST as the remote action. (true means send the
 AST for the expression sent in (1) to the remote)
 
-== Using the Multimethod Directly
+== Using the Multimethod Directly [[MutationMultimethod]]
 
 Typically the multipass nature is ignored by the mutation itself, and it just returns a map
 containing all of the possible things that should be done. This looks like:
@@ -4108,20 +4176,27 @@ containing all of the possible things that should be done. This looks like:
 ```
 
 Since the action is just data, it doesn't matter that we "generate" it for the multiple passes. Same for
-the remotes. Note that the example above uses syntax quoting on the symbol, which will add the current
-namespace to it. In any case, the symbol is just that: a symbol (data) that acts as the dispatch
-key for the multimethod. If you use a plain quote (`'`) then you should still namespace the symbol.
+the remotes.
+
+.Reminder
+****
+The example above uses syntax quoting on the symbol which will add the current
+namespace to it. In any case the symbol is just that: a symbol (data) that acts as the dispatch
+key for the multimethod. If you use a plain quote (`'`) then you should manually namespace the symbol.
+****
 
 Some common possible mistakes are:
 
-1. You side-effect. Since your mutation will be called at least two times, this is a bad idea.
+1. You side-effect. Your mutation will be called at least two times so this is a bad idea.
+Side effects should be wrapped in the action.
 2. You assume that the remote expression "sees" the old state (e.g. you might build an AST based on
-what is in app state). The local action is usually run before the remote passes, meaning that state has already changed.
-3. You could forget to return a map with the correct keys (usually if you made mistake 1).
+what is in app state). The local action is usually run before the remote passes, meaning the state has already changed
+and the remote logic is seeing the "new" client database state.
+3. You forget to return a map with the correct keys (usually if you made mistake 1).
 
 There is no guaranteed order to evaluation. Therefore if you need a value from state as it was seen
-when the mutation was triggered: send it as a parameter to the mutation. That way the call has closed
-over the old value.
+when the mutation was triggered: *send it as a _parameter_ to the mutation* from the UI (where you knew the old value).
+That way the call itself has captured the old value.
 
 == Using `defmutation`
 
@@ -4138,11 +4213,11 @@ over the old value.
 ```
 
 Thus it ends up looking more like a function definition. IDE's like Cursive can be told how to resolve
-the macro (as `defn` in this case) and will then let you read the docstrings and navigate from the
-use in transact. This makes development a lot easier.
+the macro (as `defn` in this case) and will then let you read the docstrings and navigate to the definition
+from the usage site in transact. This makes development a lot easier.
 
 Another advantage is that the symbol is placed into the namespace in which it is declared (not interned,
-just given the namespace...it is still just symbol data). Syntax quoting can expand these, which means
+just given the namespace...it is still just symbol data). Syntax quoting can expand aliasing, which means
 you get a very nice tool experience at usage site:
 
 ```
@@ -4188,7 +4263,7 @@ You can run a node-specific operation with:
 For example, say you want to implement a mutation that adds a person to another person's friend list. The data
 representation of a person is: `{:db/id 1 :person/name "Nancy" :person/friends []}`.
 
-The `ident` function can be coded into a top-level function and used by the `defui` and a person-centric function:
+The `ident` function can be coded into a top-level function and used by the component:
 
 ```
 (defn person-ident [id-or-props]
@@ -4196,9 +4271,8 @@ The `ident` function can be coded into a top-level function and used by the `def
     (person-ident (:db/id id-or-props))
     [:person/by-id id-or-props]))
 
-(defui Person
-  static prim/Ident
-  (ident [this props] (person-ident props))
+(defsc Person [this props]
+  {:ident (fn [] (person-ident props))}
   ...)
 ```
 
@@ -4206,7 +4280,8 @@ and our desired operation on the general state of a person can also be written a
 to the :person/friends field):
 
 ```
-(defn add-friend-impl
+(defn add-friend*
+   "Add a friend to an existing person. Returns the updated person."
    [person target-person-id]
    (update person :person/friends (fnil conj []) (person-ident target-person-id)))
 ```
@@ -4214,7 +4289,7 @@ to the :person/friends field):
 Note, in particular, that we always choose to put the item to be updated as the first argument so that functions
 like `update` are easier to use with it.
 
-Now `(add-friend-impl {:db/id 1 :person/name "Nancy"} 33)` results in
+Now `(add-friend* {:db/id 1 :person/name "Nancy"} 33)` results in
 `{:db/id 1, :person/name "Nancy", :person/friends [[:person/by-id 33]]}`.
 
 You can write a mutation to support this operation within Fulcro:
@@ -4223,7 +4298,7 @@ You can write a mutation to support this operation within Fulcro:
 (defmutation add-friend [{:keys [source-person-id target-id]}]
   (action [{:keys [state]}]
     (swap! state update-in (person-ident source-person-id)
-      add-friend-impl target-id)))
+      add-friend* target-id)))
 ```
 
 You could even take it a step further with a little more sugar by defining a helper that can turn a node-specific
@@ -4235,14 +4310,28 @@ op into a db-level operation (again note that the thing being updated is the fir
 
 (defmutation add-friend [{:keys [source-person-id target-id]}]
   (action [{:keys [state]}]
-    (swap! state update-person source-person-id add-friend-impl target-id)))
+    (swap! state update-person source-person-id add-friend* target-id)))
+```
+
+If you find that a given entity is always modified in the context of the state map itself (a common
+case) then it can be a bit shorter to just push the table logic (ident resolution) into the operation itself:
+
+```
+(defn add-friend**
+   "Add a friend to an existing person in the client database."
+   [app-state person-id friend-id]
+   (update-in app-state [:person/by-id person-id field-name] (fnil conj []) (person-ident friend-id)))
+
+(defmutation add-friend [{:keys [source-person-id target-id]}]
+  (action [{:keys [state]}]
+    (swap! state add-friend** source-person-id target-id)))
 ```
 
 === Composition in Mutations
 
 Once you have your general operations written as basic functions on either the entire state (like `update-person`) or
-targeted to nodes (like `add-friend-impl`), then it becomes much easier to create mutations that compose together the
-necessary graph database operations to accomplish any higher-level task.
+targeted to nodes or the state map itself (like `add-friend*`), then it becomes much easier to create mutations that
+compose together operations to accomplish any higher-level task.
 
 For example, the `fulcro.client.routing/update-routing-links` function takes a state map, and changes all of the routers
 in the application state to show that particular screen. So, say you wanted add-friend to also
@@ -4261,7 +4350,8 @@ a sequence of operations on the state map itself through threading:
       (fn [s]
         (-> s
           (r/update-routing-links {:handler :show-friend :route-params {:person-id target-id}})
-          (update-person source-id add-friend-impl target-id)))))
+          ; Could use (add-friend** source-id target-id) or:
+          (update-person source-id add-friend* target-id)))))
   (remote [env] true)
 ```
 
@@ -4269,101 +4359,18 @@ and your mutations become a thing of beauty!
 
 Of course, this can also be overkill. It is true that it is often handy to be able to compose many db operations together
 into one abstract mutation, but don't forget that more that one mutation can be triggered by a single call
-to `transact!`. You'll want to balance your mutations just like you do any other library of code: so that
-reuse and clarity are maximized.
+to `transact!`:
 
 ```
 (prim/transact! this `[(route-to {:handler :show-friend :route-params {:person-id ~target-id}})
-                     (add-friend {:source-person-id ~my-id :target-id ~target-id})])
+                       (add-friend {:source-person-id ~my-id :target-id ~target-id})])
 ```
 
-== Remote Mutations
+You'll want to balance your mutations just like you do any other library of code: so that
+reuse and clarity are maximized. In the case of mutations the deciding factor is often
+how you want to deal with remote mutations.
 
-Fulcro comes with a default remote, named `:remote`, that by default talks to the origin server at `/api`. All of this
-is configurable when you create your fulcro client application. In fact, any number of remotes can be created and
-installed on your client, each with a unique name. See the section on <<Networking,networking>> for more details on
-adding remotes to your client.
-
-Mutations are already plain data, so Fulcro can pass them over the network as-is when the client invokes them. All you
-need to do to indicate that a given mutation should affect a given remote is add that remote to the mutation:
-
-```
-(defmutation add-friend [params]
-  (action ...) ; optimistic update of client state
-  (remote [env] true)) ; send the mutation to the remote known as :remote
-
-; or using the multimethod directly:
-(defmethod m/mutate `add-friend [env k params]
-  {:action (fn [] ...)
-   :remote true})
-```
-
-=== Altering the Mutation
-
-It is sometimes desirable to alter the mutation that came from the UI before sending it to the remote. For example,
-you might want to add a parameter like a global security token so that you don't have to worry about security at the
-UI `transact!`.
-
-The `env` passed to the mutation contains an `ast`. This is the abstract syntax tree of the mutation (e.g. the symbol
-name and params). You may return this instead of `true` from the remote side of the mutation, and Fulcro will
-send the specific representation of that AST on the network. This means if you change the AST, you'll change
-what the remote sees.
-
-So, for example, to add an api-token to the parameters, you would do something like this:
-
-```
-(defmutation add-friend [params]
-  (action [env] ...)
-  (remote [{:keys [ast]}]
-    (update ast :params assoc :api-token @global-api-token)))
-```
-
-WARNING: The `state` is available in `remote`, but the `action` will run first. This means that you should not
-expect the "old" values in state when computing anything for the remote because the optimistic
-update of the `action` will have already been applied! If you need to rely on data as it existed at the time of
-`transact!` then you *must* pass it as a *parameter* to the mutation so that the original data is closed over for the
-duration of the mutation processing.
-
-=== Mutations that Trigger one or more Loads
-
-Mutations generally need not expose their full-stack nature to the UI. For
-example a `next-page` mutation might trigger a load for the next page of
-data or simply swap in some already cached data. The UI need not be
-aware of the logic of this distinction (though typically the UI will
-want to include loading markers, so it is common for there to be some
-kind of knowledge about lazy loading).
-
-Instead of coding complex "do I need to load that?" logic in the UI
-(where it most certainly does *not* belong) one should instead write
-mutations that abstract it into a nice concept.
-
-Fulcro handles loads by placing load markers into a special place in the
-application database. Whenever a remote operation is triggered, the
-networking layer will check this queue and process it.
-
-The `fulcro.client.data-detch/load` function simply runs a `transact!`
-that does both (adds the load to the queue and triggers remote processing).
-
-If you'd like to compose one or more loads into a mutation, there are helper
-functions that will help you do just that: `df/load-action` and `df/remote-load`.
-
-The basic pattern is:
-
-```
-(defmutation next-page [params]
-  (action [{:keys [state] :as env}]
-    (swap! state ...) ; local optimistic db updates
-    (df/load-action env :prop Component {:remote :remote}) ; same basic args as `load`, except state atom instead of `this`
-    (df/load-action env :other Other) {:remote :other-remote}) ; as many as you need...
-  (remote [env]
-    (df/remote-load env))) ; notifies back-end that there is some loading to do
-```
-
-IMPORTANT: The `remote-load` call need only be done for *any one* of the remotes you're talking to. It merely tells the
-back-end code to process remote requests (which will hit all remote queues). Thus, the parameters to the `load-action`
-calls are where you actually specify which remote a given load should actually talk to.
-
-== Advanced Mutation Topics
+== Advanced Mutation Topics // 8.6
 
 This section covers a number of additional mutation techniques that arise in more advanced situations.
 Almost all of these circumstances arise
@@ -4374,8 +4381,8 @@ section until you're comfortable with that material.
 
 === Saving a Reconciler
 
-The first note is that `prim/transact!` can be used on the reconciler. If you've saved your Fulcro Application
-in a top-level atom (as recommended in the templates), then you can run a transaction "globally" like this:
+The first note is that `prim/transact!` can be used on the <<Reconciler,reconciler>>. If you've saved your Fulcro Application
+in a top-level atom then you can run a transaction "globally" like this:
 
 ```
 (prim/transact! (:reconciler @app) ...)
@@ -4461,9 +4468,12 @@ include::src/book/book/tree_to_db.cljs[]
 of course, you can see that you're still going to need to merge the database table contents into your main app state
 and carefully integrate the other bits as well.
 
-*IMPORTANT*: The *`ident`* part of the component is the magic here. This is why you *need* component queries for
+.Reminder
+****
+The *`ident`* part of the component is the magic here. This is why you *need* component queries for
 this work work right. The `ident` functions are used to determine the table locations and idents to place into
 the normalized database!
+****
 
 === Using `fulcro.client.primitives/merge!`
 
@@ -4499,8 +4509,10 @@ shop for merging data that is coming from some external source.
 
 This first argument can be an application or reconciler.
 
-In the card below we're using part of our Counter application from earlier. The button simulates some external source of data that
-we'd like to merge in. In this case, let's assume we are wanting to merge some newly arrived counter entity:
+==== Merge-component! Demo
+
+In the card below the button simulates some external event that has brought in data that
+we'd like to merge (a newly arrived counter entity):
 
 ```
 { :counter/id 5 :counter/n 66 }
@@ -4511,7 +4523,26 @@ We'll want to:
 - Add the counter to the counter's table (which is not even present because we have none in our initial app state)
 - Add the ident of the counter to the UI panel so it's UI shows up
 
-Here is a full running example with source:
+```
+(defsc Counter [this {:keys [counter/id counter/n] :as props} {:keys [onClick] :as computed}]
+  {:query [:counter/id :counter/n]
+   :ident [:counter/by-id :counter/id]}
+   ...
+
+(defn add-counter
+  "Merge the given counter data into app state and append it to our list of counters"
+  [reconciler counter]
+  (prim/merge-component! reconciler Counter counter
+    :append [:panels/by-kw :counter :counters]))
+
+...
+(defsc Root ...
+  (let [reconciler (prim/get-reconciler this)]  ; one way to get to the reconciler
+    (dom/button #js {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
+   ...
+```
+
+Here is the full running example with source:
 
 ++++
 <div class="example" id="merge-component"> </div>
@@ -4523,8 +4554,7 @@ Here is a full running example with source:
 include::src/book/book/merge_component.cljs[]
 ----
 
-
-= Full Stack Operation [[FullStack]]
+= Full Stack Operation [[FullStack]] // 9
 
 One of the most interesting and powerful things about Fulcro is that the model for server interaction is unified into
 a clean data-driven structure. At first the new concepts can be challenging, but once you've seen the core primitive
@@ -4560,9 +4590,8 @@ as current as possible.
 * Any `:ui/` namespaced query elements are automatically elided when generating a query from the UI to a server, allowing you
 to easily mix UI concerns with server concerns in your component queries.
 * Normalization of a remote query result is automatic.
-* Deep merge of query results uses intelligent overwrite for properties that are already present in the client database
-(described in a section on Deep Merge).
-* Any number of remotes can be defined (allowing you to easily integrate with microservices)
+* Deep merge of query results uses <<ResultMerge,intelligent overwrite>> for properties that are already present in the client database.
+* Any number of remotes can be defined (allowing you to easily integrate with microservices).
 * Protocol and communication is strictly constrained to the networking layer and away from your application's core structure,
 meaning you can actually speak whatever and however you want to a remote. In fact
 the concept of a remote is just "something you can talk to via queries and mutations".
@@ -4570,13 +4599,13 @@ You can easily define a "remote" that reads and writes browser
 local storage or a Datascript database in the browser. This is an extremely powerful generalization for isolating
 side-effect code from your UI.
 
-NOTE: To those of you with REST APIs. Fulcro can be made to work with REST, but you're in for some work. The full
-stack data-driven architecture is often completely at odds with REST. You will end up writing a network layer on your
+NOTE: To those of you with REST APIs. Fulcro can be <<RESTAPI,made to work with REST>>, but full
+stack data-driven architectures are often at odds with REST. You will end up writing a network layer on your
 client that translates graph queries to one or more REST calls, and then combines those results into a tree of response
-data that you can pass back up the chain. The UI is wonderfully protected from this nastiness, but when possible you
+data that you can pass back up the chain. The UI is wonderfully protected from this, but when possible you
 will find the most leverage by writing the server to support the graph queries directly (consider your REST API a legacy
-thing that your new UI doesn't want/need). If you have to access 3rd-party REST APIs, then you're kind of stuck
-with making the interface layer.
+thing that your new UI doesn't want/need). Things like GraphQL are a different story. That is a much simpler translation
+layer.
 
 == General Theory of Operation
 
@@ -4600,8 +4629,8 @@ properly if you do not understand those topics!
 
 === Integration of *ALL* new external data is just a Query-Based Merge
 
-So, here is the secret: When external data needs to go into your database, it all uses the exact same mechanism: a
-query-based merge. So, for a simple load, you send a UI-based query to the server, the server responds with a tree
+So, here is the secret: When external data needs to go into your database it all uses the exact same mechanism: a
+query-based merge. So, for a simple load: you send a UI-based query to the server, the server responds with a tree
 of data that matches that graph query, and then the query itself (which is annotated with the components and ident functions)
 can be used to normalize the result. Finally, the normalized result can be merged into your existing client database.
 
@@ -4622,25 +4651,19 @@ There is a primitive function `merge!` function that implements this, so that yo
 Tree of Data + Query --> merge! --> New Database
 ----
 
-When you interact with a server through the data fetch API, remember that it is essentially doing a server interaction
-(send the query to get the response), but everything that happens after that is pretty much just `merge!`.
+=== The Central Functions: `transact!` and `merge!`
 
-=== The Central Functions : `transact!` and `merge!`
+The two core functions that allow you to trigger abstract operations or data merges externally
+(via a <<Reconciler,reconciler>>) are:
 
-When you start a Fulcro application your started-callback will get the completed `app` as a parameter.
-
-Inside of this app is a `reconciler`. The `reconciler` is a central component in the system, particularly with
-respect to remote interaction. It is the component that is responsible for managing the query engine, the remote
-networking, data merge, etc.
-
-There are some core central functions you should be well aware of, because they can be used from anywhere if used
-with the `reconciler`. It is therefore often also useful to make sure your `app` or `reconciler` are stored in
-a more global location where you can access them from outside of the application if you should need to.
-
-* `prim/transact!` : The central function for running abstract changes in the application. Can be run with a component
-or reconciler. If run with the reconciler, will typically cause a root re-render.
-* `prim/merge!` : A function that can be run against the reconciler to merge a tree of data via a UI query. This is
+[[Horizontal]]
+`prim/transact!`:: The central function for running abstract changes in the application. Can be run with a component
+_or_ reconciler. If run with the reconciler, will typically cause a root re-render.
+`prim/merge!`:: A function that can be run against the reconciler to merge a tree of data via a UI query. This is
 the primary function that is used to integrate data in response to things like websocket server push.
+
+These (and related/derived helpers) are the primary tools to use when trying to make your application respond to
+external stimuli that is not triggered from the UI.
 
 === Query Mismatch
 
@@ -4694,7 +4717,7 @@ In Summary:
 - Loads/transactions queued at a later event "new UI thread event" are guaranteed to be processed after ones queued earlier.
 - You can override this behavior with the `parallel` option of `load`.
 
-=== Server Result Query Merging
+=== Server Result Query Merging [[ResultMerge]]
 
 There is a potential for a data-driven app to create a new class of problem related to merging data. The normalization
 guarantees that the data for any number of *views* of the same thing are normalized to the same *node* in the graph
@@ -4736,107 +4759,6 @@ methods, but it is recommended that you carefully check the state of the system 
 queuing network traffic.
 Perhaps you wish to ensure something is loaded. To do that: trigger a mutation that checks state and optionally
 submits a load. You'll learn how to do this in the sections on the <<DataFetch, data featch API>>.
-
-
-== Easy Server [[EasyServer]]
-
-The pre-built easy server component for Fulcro uses Stuart Sierra's Component library. The server has no
-global state except for a debugging atom that holds the entire system, and can therefore be easily restarted
-with a code refresh to avoid costly restarts of the JVM. It actually takes very little code to get one going:
-A couple of config files, and a couple of short clj files.
-
-You should have a firm understanding of [Stuart's component library](https://github.com/stuartsierra/component), since
-we won't be covering that in detail here.
-
-=== Constructing a base server
-
-The base server is trivial to create:
-
-```
-(ns app.system
-  (:require
-    [fulcro.easy-server :as server]
-    [app.api :as api]
-    [fulcro.server :as prim]))
-
-(defn make-system []
-  (server/make-fulcro-server
-    ; where you want to store your override config file
-    :config-path "/usr/local/etc/app.edn"
-
-    ; The keyword names of any components you want auto-injected into the query/mutation processing parser env (e.g. databases)
-    :parser-injections #{}
-
-    ; Additional components you want added to the server
-    :components {}))
-```
-
-=== Configuring the server
-
-Server configuration requires two EDN files:
-
-- `resources/config/defaults.edn`: This file should contain a single EDN map that contains
-defaults for everything that the application wants to configure.
-- `/abs/path/of/choice`: This file can be named what you want (you supply the name when
-making the server). It can also contain an empty map, but is meant to be machine-local
-overrides of the configuration in the defaults. This file is required. We chose to do this because
-it keeps people from starting the app in an unconfigured production environment.
-
-```
-(defn make-system []
-  (server/make-fulcro-server
-    :config-path "/usr/local/etc/app.edn"
-    ...
-```
-
-The only parameter that the default server looks for is the network port to listen on:
-
-```
-{ :port 3000 }
-```
-
-=== Reloading Server Code
-
-When working with server code you'd like to be able to start and stop/reload/start the server to make changes to
-your code available. We typically put these together in the `user` namespace under a `dev` source folder. Something
-like this works:
-
-```
-(ns user
-  (:require
-    [clojure.tools.namespace.repl :as tools-ns :refer [disable-reload! refresh clear set-refresh-dirs]]
-    [my-server :as svr]
-    [com.stuartsierra.component :as component]))
-
-; Make sure the cljs output folder is NOT on the refresh dirs list, or you'll get screwy results
-(set-refresh-dirs "src/main" "src/test" "src/dev")
-
-; An atom to hold onto the running server component
-(defonce server (atom nil))
-
-(defn stop "Stop the running web server." []
-  (when @server
-    (swap! server component/stop)
-    (reset! server nil)))
-
-(defn go "Load the overall web server system and start it." []
-  (reset! server (svr/make-system))
-  (swap! server component/start))
-
-(defn restart
-  "Stop the web server, refresh all namespace source code from disk, then restart the web server."
-  []
-  (stop)
-  (refresh :after 'user/run-demo-server))
-```
-
-You should now be able to start a Clojure REPL, and within the user namespace run things like:
-
-----
-user=> (go) ; start from stopped state
-user=> (restart) ; should reload code and restart web server
-user=> (tools-ns/refresh) ; IFF restart fails to start, followed by (go) again
-----
 
 == The Data Fetch API: `load` [[DataFetch]]
 
@@ -4882,8 +4804,8 @@ talk about this more in a moment, first, let's see how to handle that on the ser
 
 === Handling a Root Query
 
-If you're using the standard server support of Fulcro, then the API hooks are already predefined for you, and you
-can use helper macros to generate handlers for queries. If your `load` specified a keyword, then this is seen by
+If you're using the standard server support of Fulcro, then the API hooks are already predefined for you and you
+can use helper macros to generate handlers for queries. If your `load` specified a keyword then this is seen by
 the server as a load targeted to your root node. Thus, the server macro is called `defquery-root`:
 
 ```
@@ -4953,7 +4875,9 @@ Since the graph database is just nodes and edges, there really aren't many more 
 You've essentially got to *normalize a tree*, *merge normalized data*, and *move graph edges*.
 
 The load API supports several kinds of graph edge targeting to allow you to put data where you want it in your
-graph. NOTE: Technically data is always loaded into the root, then relocated. So, be careful not to name your top-level
+graph.
+
+WARNING: Technically data is always loaded into the root, then relocated. So, be careful not to name your top-level
 edge after something that already exists there!
 
 ==== Simple Targeting
@@ -5008,7 +4932,7 @@ You can supply keywords and/or idents:
 (df/load comp :best-friend Person {:refresh [:person/name]})
 ```
 
-=== Other Load Options
+=== Other Load Options [[LoadOptions]]
 
 Loads allow a number of additional arguments. Many of these are discussed in more detail in later sections:
 
@@ -5023,7 +4947,9 @@ Loads allow a number of additional arguments. Many of these are discussed in mor
 `:params`:: A map. If supplied the params will appear as the params of the query on the server.
 `:initialize bool|map`:: If true, uses component's initial state as a basis for incoming merge. If a map, uses the map as the basis for incoming merge.
 
-=== Initializing Loaded Items (ALPHA, SUBJECT TO CHANGE)
+=== Initializing Loaded Items
+
+WARNING: This support is not complete yet (in version 2.0.0). It should be considered ALPHA and subject to change.
 
 On occasion you may find that your entities have `:ui/???` attributes that you would like to
 default to something on a loaded entity. This is the purpose of the `:initialize` option to load.
@@ -5152,7 +5078,10 @@ If you're using the Fulcro server tools (handle API request, easy or modular ser
 response transform to your EDN response as follows:
 
 ```
-(fulcro.server/augment-response your-EDN-response (fn [ring-response] ring-response'))
+(fulcro.server/augment-response your-EDN-response
+  (fn [ring-response]
+     ...
+     modified-ring-response))
 ```
 
 For example, if you were using Ring and Ring Session, you could cause a session cookie to be generated, and user
@@ -5164,12 +5093,35 @@ information to be stored in a server session store simply by returning this from
 
 == Full-Stack Mutations
 
-You've already seen how to define local mutations on the client. That portion of a mutation is run immediately on the
-client, and when there is also a server interaction that client-side of the operation is an optimistic update (because
-you're assuming that the server will succeed in replicating the action).
+You've already seen how to define local mutations on the client. In this chapter we're going to go into the details
+of making mutations work against the server.
 
-We'll talk more about handling errors in a bit, but first let's clear up how you go about telling the server it has
-something to do.
+== Remote Mutations
+
+Mutations are already plain data, so Fulcro can pass them over the network as-is when the client invokes them. All you
+need to do to indicate that a given mutation should affect a given remote is add that remote to the mutation:
+
+```
+(defmutation add-friend [params]
+  (action ...) ; optimistic update of client state
+  (remote [env] true)) ; send the mutation to the remote known as :remote
+
+; or using the multimethod directly:
+(defmethod m/mutate `add-friend [env k params]
+  {:action (fn [] ...)
+   :remote true})
+```
+
+Now you can see why choosing the right real mutations and amount of composition on the client
+can give you optimal server interaction: Anything that you run in `transact!` itself can stand
+alone as a remote mutation call in the transaction on the wire.
+
+=== Optimistic by Default
+
+The `action` portion of a mutation is run immediately on the client. When there is _also_ a server interaction
+then the client-side operation is known as an *optimistic update* because by default we assume that the server
+will succeed in replicating the action. This gives the user immediate feedback and the ability to proceed quickly
+even in the presence of a slow network. We'll discuss more on error handling shortly.
 
 === Mutations Revisited
 
@@ -5224,11 +5176,11 @@ or even change which mutation the server sees:
   (remote [{:keys [ast] :as env}] (assoc ast :key 'server-mutation :dispatch-key 'server-mutation)))
 ```
 
-Note: The action is executed **before** the remote, and the processing is done in multiple passes (your mutation
-handler is invoked for each pass).
-So if you want to delete data from the client, but will need the data to compute the remote expression, then you will
-typically pass the needed data as a *parameter* to the mutation so that the mutation invocation closes over it and you
-don't have to rely on state (which might have changed in an earlier pass).
+WARNING: The `state` is available in `remote`, but the `action` will run first. This means that you should not
+expect the "old" values in state when computing anything for the remote because the optimistic
+update of the `action` will have already been applied! If you need to rely on data as it existed at the time of
+`transact!` then you *must* pass it as a *parameter* to the mutation so that the original data is closed over for the
+duration of the mutation processing.
 
 === Writing The Server Mutations
 
@@ -5415,17 +5367,6 @@ This can be combined with analysis of <<ReturnValues, mutation return values>> t
 (prim/ptransact! this `[(submit-my-form) (leave-form-if-ok)])
 ```
 
-==== Pessimistic Transaction Fallbacks
-
-The fallback mechanism described for error handling works in `ptransact!`. Fallbacks are clustered to the remote they follow
-up until the next remote mutation (with one exception: fallbacks at the beginning of the entire tx are clustered to the first remote mutation):
-
-```
-(ptransact! this `[(L) (df/fallback {...}) (L) (R) (df/fallback {...}) (L2) (R2) (L3) (df/fallback {...}) ])
-```
-
-will associate the first two fallbacks with remote call `R`, and the last one with `R2`.
-
 === Using Loads as Mutations
 
 There is technically nothing wrong with issuing a load that has side-effects on the server (though one could argue that
@@ -5467,6 +5408,45 @@ then the transaction will run as-if it were executed in the context of any live 
 that ident. This will make the ident available in the mutation's environment as `:ref`, and will focus refresh at that
 component sub-tree(s). This can be useful when you have out-of-band data that causes you to want to run a
 transaction outside of the UI using the reconciler.
+
+=== Mutations that Trigger one or more Loads
+
+Mutations generally need not expose their full-stack nature to the UI. For
+example a `next-page` mutation might trigger a load for the next page of
+data or simply swap in some already cached data. The UI need not be
+aware of the logic of this distinction (though typically the UI will
+want to include loading markers, so it is common for there to be some
+kind of knowledge about lazy loading).
+
+Instead of coding complex "do I need to load that?" logic in the UI
+(where it most certainly does *not* belong) one should instead write
+mutations that abstract it into a nice concept.
+
+Fulcro handles loads by placing load markers into a special place in the
+application database. Whenever a remote operation is triggered, the
+networking layer will check this queue and process it.
+
+The `fulcro.client.data-detch/load` function simply runs a `transact!`
+that does both (adds the load to the queue and triggers remote processing).
+
+If you'd like to compose one or more loads into a mutation, there are helper
+functions that will help you do just that: `df/load-action` and `df/remote-load`.
+
+The basic pattern is:
+
+```
+(defmutation next-page [params]
+  (action [{:keys [state] :as env}]
+    (swap! state ...) ; local optimistic db updates
+    (df/load-action env :prop Component {:remote :remote}) ; same basic args as `load`, except state atom instead of `this`
+    (df/load-action env :other Other) {:remote :other-remote}) ; as many as you need...
+  (remote [env]
+    (df/remote-load env))) ; notifies back-end that there is some loading to do
+```
+
+IMPORTANT: The `remote-load` call need only be done for *any one* of the remotes you're talking to. It merely tells the
+back-end code to process remote requests (which will hit all remote queues). Thus, the parameters to the `load-action`
+calls are where you actually specify which remote a given load should actually talk to.
 
 == Network Activity Indicators
 
@@ -5580,7 +5560,7 @@ component could then find its load marker like this:
 ```
 (defn person-markerid [id] (keyword "person-load-marker" (str id)))
 
-(defsc Person [this {:keys [db/id person/name]}]
+(defsc Person [this {:keys [db/id person/name] :as props}]
   {:query [:db/id :person/name [df/marker-table '_]]
    :ident [:person/by-id :db/id]}
   (let [marker-id   (person-markerid id)
@@ -5595,7 +5575,19 @@ the load might look something like this:
 (df/load this [:person/by-id 42] Person {:marker (person-markerid 42)})
 ```
 
-TODO: Demo HERE!
+The example below uses these techniques to name load markers.
+
+NOTE: Open up the DB view and turn your server's latency way up so you can watch the marker state.
+
+++++
+<div class="example" id="loading-indicators"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-indicators').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="loading-indicators source"]
+----
+include::src/book/book/demos/loading_indicators.cljs[]
+----
 
 == Server Mutation Return Values [[ReturnValues]]
 
@@ -5633,7 +5625,7 @@ but you never write them this way because a manual query doesn't have ident info
 you write them just like you do when grabbing queries for anything else:
 
 ```
-`[{(f) ~(om/get-query Item)}]
+`[{(f) ~(prim/get-query Item)}]
 ```
 
 Running a mutation with this notation allows you to return a value from the server's mutation that exactly matches the graph
@@ -5662,7 +5654,7 @@ Here's the difference. With the manual syntactic technique we just described you
 
 ```
 ; in the UI
-(transact! this `[{(f) ~(om/get-query Item)}])
+(transact! this `[{(f) ~(prim/get-query Item)}])
 
 ; in your mutation definition (client-side)
 (defmutation f [params]
@@ -5722,8 +5714,80 @@ Special targets are also supported:
           (df/prepend-to [:table-2 4 :field]))))))
 ```
 
+==== Demo of Mutation Joins
 
-TODO: DEMO
+The demo below cover the basics of using mutation joins.
+It demonstrates:
+
+* Targeting Raw Values
++
+If you don't specify a component with `returning`, then your returned data can be targeted, but of course it
+won't normalize. The error triggering mutation does this:
++
+```
+(defmutation  trigger-error
+  "This mutation causes an unstructured error (just a map), but targets that value
+   to the field `:error-message` on the component that invokes it."
+  [_]
+  (remote [{:keys [ast ref]}]
+    (m/with-target ast (conj ref :error-message))))
+```
++
+and the server simply returns a raw value (map is recommended)
++
+```
+(server/defmutation trigger-error [_]
+  (action [env]
+    {:error "something bad"}))
+```
+* Targeting Graph Results
++
+In the demo The bulk of the work is done in the `create-entity` mutation.
+which is targeting to-many so we can demo more features.
++
+```
+(defmutation  create-entity
+  "This mutation simply creates a new entity, but targets it to a specific location
+  (in this case the `:child` field of the invoking component)."
+  [{:keys [where?] :as params}]
+  (remote [{:keys [ast ref state]}]
+    (let [path-to-target (conj ref :children)
+          ; replacement cannot succeed if there is nothing present...turn those into appends
+          no-items?      (empty? (get-in @state path-to-target))
+          where?         (if (and no-items? (= :replace-first where?))
+                           :append
+                           where?)]
+      (cond-> (-> ast
+                ; always set what kind of thing is coming back
+                (m/returning state Entity)
+                ; strip the where?...it is for local use only (not server)
+                (m/with-params (dissoc params :where?)))
+        ; Add the targeting...based on where?
+        (= :append where?) (m/with-target (df/append-to path-to-target)) ; where to put it
+        (= :prepend where?) (m/with-target (df/prepend-to path-to-target))
+        (= :replace-first where?) (m/with-target (df/replace-at (conj path-to-target 0)))))))
+```
++
+The server mutation just returns the entity (mixed with tempid remappings, if you need them).
++
+```
+(server/defmutation create-entity [{:keys [db/id]}]
+  (action [env]
+    (let [real-id (swap! ids inc)]
+      {:db/id        real-id
+       :entity/label (str "Entity " real-id)
+       :tempids      {id real-id}})))
+```
+
+++++
+<div class="example" id="server-targeting-return-values-into-app-state"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-targeting-return-values-into-app-state').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="server-targeting-return-values-into-app-state source"]
+----
+include::src/book/book/demos/server_targeting_return_values_into_app_state.cljs[]
+----
 
 === Augmenting the Merge
 
@@ -5804,9 +5868,10 @@ The action-suffixed load functions are useful when performing an action in the u
 the client-side database *and* load data from the server.
 
 NOTE: You must use the result of the
-`fulcro.client.data-fetch/remote-load` funtion as the value of the `:remote` key in the mutation return value. The
-`action` calls place the item on the queue. The `remote-load` returns the correct indicator to Fulcro so that it know
-you queued a load. If you forget it, then your load won't be processed until the next operation causes remote interactions.
+`fulcro.client.data-fetch/remote-load` funtion as the value of the `remote` in the mutation. The
+`action` calls of `load-action` place the request on a queue. The `remote-load` returns the correct indicator to
+Fulcro so that it knows you queued a load. If you forget it, then your load won't be processed until the next
+operation causes remote interactions.
 
 ```
 (require [fulcro.client.data-fetch :as df]
@@ -5848,20 +5913,10 @@ The helper functions described above simply trigger this built-in Fulcro mutatio
 
 You are allowed to use this mutation directly in a call to `transact!`, but you should never need to.
 
-The arguments to this mutation include:
-
-- `query`: The specific query you'd like to send to the server
-- `post-mutation`: A symbol indicating a mutation to run after the load completes
-- `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
-- `without`: A set of keywords that should be (recursively) removed from `query`
-- `refresh`: A vector of keywords that should cause re-rendering after the load.
-- `parallel`: True or false. If true, bypasses the sequential network queue
-- `target`: A key path where the result should be move to when the load is complete.
-- `marker`: True or false. If true, places a loading marker in place of the first top-level key in the query,
-  of in place of the given database object if `ident` and `field` are set (e.g. by `load-field`)
-
-For most direct use-cases you'll probably skip using the `load-field` specific parameters. You can read
-the source of `load-field` if you'd like to simulate it by hand.
+The arguments to this mutation include <<LoadOptions, most of the options that `load` can take>>, but you do
+need to specify `query`. For most direct use-cases you'll probably skip using the `load-field` specific parameters
+described in the docstring (`:field` and `:ident`). You can read the source of `load-field` if you'd like to simulate
+it by hand.
 
 For example:
 
@@ -5876,7 +5931,6 @@ is a simple helper that is ultimately identical to:
 ```
 
 (the follow-on read is to ensure load markers update).
-
 
 == Incremental Loading [[IncrementalLoading]]
 
@@ -5954,49 +6008,62 @@ This kind of query can be handled on the server with `defquery-entity` (which is
     (get-blog id query))) ; SAME HANDLER WORKS!!!
 ```
 
-== Full-Stack Error Handling
+== Full-Stack Error Handling [[FullStackErrorHandling]]
 
-First, let's talk about where we're coming from. In the world of mutable state, asynchrony, and plain JavaScript
-we've had to adapt to deal with errors in a pretty specific way. Essentially, we make our network call and hook
-up the error as a callback right where it matters. In other words, the context of the error handling is
-available at the same time as our request to do the operation.
+The first thing I want to challenge you to think about is this: why do errors happen, and what can we do about them?
 
-In order to make things "make sense", we often block the UI so that the user cannot get ahead of things (like
+In the early days of web apps, our UI was completely dumb: the server did all of the logic. The answer to these questions
+were clear, because it wasn't even a distributed app: it was a *remote display* of an app running on a *remote machine*.
+In other words, the context of the error handling was available at the same time as our request to do the operation.
+
+So we often block the UI so that the user cannot get ahead of things (like
 submit a form and move on before the server has confirmed the submission).
-
 Over the years we've gotten a little more clever with our error handling, but largely our users (and our ability
-to reason about our programs) has kept us firmly rooted to the block-until-we-know method of error handling.
+to reason about our programs) has kept us firmly rooted to the block-until-we-know method of error handling because
+it is actually *less like* a distributed system. Unfortunately, such UI interactions are doomed to feel sluggish
+in congested or bandwidth-limited environments.
 
-A distributed system with optimistic updates assumes a relatively robust network where unrecoverable errors are rare. The default
-networking of Fulcro assumes LAN quality. This isn't always a true assumption, but let's first talk about
-the kinds of errors we'll see:
+More and more code is moving to the client machine. In the world of single-page apps we want
+things to "make sense" and we also want them to be snappy. Unfortunately, we still also have security concerns
+at the server, so we get confused by the following fact: the server *has* to be able to
+validate a request for security reasons. There is no getting around this. You cannot trust a client.
 
-- Communication (the operation would succeed, if we could just make the request)
-- Outage
-- Security
-- Bug
+However, I think many of us take this too far: security concerns are often a lot easier to enforce than the full
+client-level interaction _with_ these concerns. For example, we can say on a server that a field must be a number.
+This is one line of code that can be done with an assertion.
 
-If you're seeing a security problem that isn't a bug, then someone is attacking your servers. There is nothing to do in the UI.
-Hard fail at the server and move on with your life. Why write UI code for a case that should never be triggered by the UI.
+The UI logic for this is much larger: we have to tell the user what we expected, why we expected it, constrain the UI
+to keep them from typing letters, etc. In other words, almost all of the _real_ logic is _already on the client_, and unless
+there is a bug, *our* UI *won't* cause a server error because it is pre-checking everything before sending it out.
 
-If it is a true bug, then there isn't much you can do about it either. It is a bug. It is random and affects things in
-ways you cannot possibly imagine. You didn't even detect it (or you would have fixed it). So again: nothing you can
-reasonably code to help.
+So, in a modern UI, here are the scenarios for errors *from the server*:
 
-The final two, outage and communication, are technically something you can recover from. In both cases your biggest problem
-is figuring out how your client and server state might differ. Again, you're in a distributed system. Did that mutation
-partially complete?
+. You have a bug. Is there anything you can really do? No, because it is a bug. If you could predict it going wrong, you would
+have already fixed it. Testing and user bug reports are your only recourse.
+. There is a security violation. There is nothing for your UI to do, because your UI didn't do it! This is an attack.
+Throw an exception on the server, and never expect it in the UI. If you get it, it is a bug. See (1).
+. There is a user perspective outage (LAN/WiFi/phone). These are possibly recoverable. You can block the UI, and allow the
+user to continue once networking is re-established.
+. There is an infrastructure outage. You're screwed. Things are just down. If you're lucky, it is networking and your
+user is seeing it as (3) and is just blocked. If you're not lucky, your database crashed and you have no idea
+if your data is even consistent.
 
-If your application can assume reasonably reliable networking, then your error handling can be a relatively small amount of
-code. Outages and network problems will be rare, and at worst you throw up a dialog that says you've had an unrecoverable
-error and the user hits reload on their browser. If this happens to users once or twice a year, it isn't going to hurt you.
+So, I would assert that the only full-stack error handling *worth* doing in *any detail* is for case (3). If communications
+are down, the client can retry. But in a distributed system this can be a little nuanced. Did that mutation partially complete?
 
-=== Programming with Optimism
+If your application can assume reasonably reliable networking and you write your server operations to be atomic then
+your error handling can be a relatively small amount of code. Unrecoverable problems will be rare and at worst
+you throw up a dialog that says you've had an error and the user hits reload on their browser.
+If this happens to users once or twice a year, it isn't going to hurt you.
+
+But of course there is more to the story, and the devil is in the details.
+
+=== Programming with Pure Optimism
 
 The general philosophy of a Fulcro application is that optimistic updates are not even triggered on the client
 unless they expect to succeed on the server. In other words, you write the application in such a way that operations cannot be triggered
 from the UI unless you're certain that a *functioning server* will execute them. A server should not throw an exception
-and trigger a need for network error handling unless there is a real, non-recoverable situation.
+and trigger a need for error handling unless there is a real, non-recoverable situation.
 
 If this is true, then a functioning server *does* need to do sanity checking for security reasons, but in general you
 don't need to give friendly errors when those checks fail: you should assume they are attempted hacks. Other serious
@@ -6010,38 +6077,35 @@ error handling interaction. Thus, something like login can be handled with a que
 (to update the screen with a message or change the UI route).
 
 This philosophy eases the overhead in general application programming. You need not write a bunch of code in the UI
-that gives a nice friendly message for every kind of error that occurs. If an error occurs, you can pretty much assume
-it is either a bug, or a real outage. In both cases, there isn't a lot you can do that will work "well" for the user. If
+that gives a nice friendly message for every kind of error that can possibly occur (nor does anyone really do that
+anywhere anyhow). If an error occurs, you can pretty much assume
+it is either a bug or a real outage. In both cases, there isn't a lot you can do that will work "well" for the user. If
 it is a bug, then you really have no chance of predicting what will fix it, otherwise you would have already fixed the
-bug. If it's an outage, again you have no way of knowing what has gone wrong. Is the user's WiFi out of range? Did your
-database take a dump?
+bug. If it's an outage you might be able to do retries, but in many cases you have no way of knowing what has gone wrong.
 
-So, most error conditions can be treated as a problem that needs fairly radical recovery since you're working with
-a distributed application and the recovery from errors is a difficult task. There is no sugar-coating it. What in your
-client database is now corrupt or out-of-sync?
-
-One method is to use a global error handler that is configured during
+So, one approach is to treat most error conditions as a rare problem that needs fairly radical recovery.
+One such method is to use a global error handler that is configured during
 the setup of your client application (you have to explicitly configure networking). This function could update application
 state to show some kind of top-level modal dialog that describes the problem, possibly allows the user to submit
 application history (for support viewer) to your servers, and then re-initializes the application in some way.
 
 You can, of course, get pretty creative with the re-initialization. For example, say you write screens so that they will
 refresh their persistent data whenever it is older than some amount of time, and write it so all entities have a timestamp.
-You could walk the state and "expire" all of the timestamps, and then close the dialog. Your lifecycle methods on the
-components could be set up to check for the expiration, which in turn would trigger loads. If the server is really having
+You could walk the state and "expire" all of the timestamps, and then close the dialog. Your retry
+could be set up to check for the expiration, which in turn would trigger loads. If the server is really having
 problems then the worst case is that the dialog pops back up telling them there is still a problem.
 
-=== Flaky Network Operation
+=== Being a Bit More Pessimistic -- Flaky Network Operation
 
-If your users are likely using your software from a phone on a subway, then you have a completely different issue.
+If your users are likely using your software from a phone on a subway then you have a completely different issue.
 
 Fortunately, Fulcro actually makes handling this case relatively easy as well. Here is what you can do:
 
 1. Write a custom networking implementation for the client that detects the *kind* of error, and retries recoverable ones
 until they succeed. Possibly with exponential backoff. (If an infinite loop happens, the user will eventually hit reload.)
-2. Make your server mutations idempotent so that a client can safely re-apply one that fails.
+2. Make your server mutations idempotent so that a client can safely re-apply a transaction without causing data corruption.
 
-The default fulcro networking does not do retries because without the idempotent guarantee it isn't safe.
+The default fulcro networking does not do retries because it isn't safe without the idempotent guarantee.
 
 The optimistic updates of Fulcro and the in-order server execution means that "offline" operation is actually quite
 tractable. If programmed this way, your error handling becomes isolated almost entirely to the networking layer. Of course,
@@ -6063,8 +6127,8 @@ Another way of looking at it is: we're letting them leave the *visual context* o
 server error happens then we need to inform them about that error. We'd like to be sure they understand the error
 by still seeing that context when it arrives.
 
-This is a rather complicated way of saying "if their email change didn't work, then we'd like to show the error next to the
-email input box".
+This is a rather complicated way of saying something like "if their email change didn't work, then we'd like to
+show the error next to the email input box".
 
 There is nothing in Fulcro that prevents you from writing a blocking UI. You just have to remember that the UI is a
 pure rendering of application state: meaning that if you want to block the UI, then you need a way to put a "block the ui"
@@ -6205,19 +6269,11 @@ You can try out the finished product in the example below. Try it a few times so
 include::src/book/book/server/ui_blocking_example.cljs[]
 ----
 
-=== Fulcro 1.x Fallbacks
+=== Fallbacks
 
-NOTE: Fulcro 1.x inherited fallbacks from when it was known as Untangled. These turned out to not be very easy to
-work with because they require you to put error handling code with each transaction. They are still supported,
-but probably should be used less frequently. Use pessimistic transactions, global error
-handling, or history-based recovery (coming soon) instead.
-
-If you're running a mutation that has likely server errors, then you can explicitly encode a fallback with the mutation.
-Fallbacks are triggered *if and only if* the mutation on the server throws an error that is detectable as a non-network
-error.
-
-Fallbacks are about scenarios where you'd like the option of showing the user an error if the server can be reasonably
-expected to issue such an error.
+If you're running a mutation is likely to trigger server errors then you can explicitly encode a fallback behavior
+with the mutation. Fallbacks are triggered *if and only if* the mutation on the server *throws an error that is
+detectable as a _non-network_ error.*
 
 ```
 (prim/transact! this `[(some/mutation) (fulcro.client.data-fetch/fallback {:action handle-failure})])
@@ -6244,21 +6300,15 @@ that invoked the original transaction in parameters under the key `fulcro.client
 
 You can have any number of fallbacks in a tx, and they will run in order if the transaction fails.
 
-As a result it is not recommended that you rely on fallbacks for very much. They are provided for cases where you'd
+NOTE: It is not recommended that you rely on fallbacks for very much. They are provided for cases where you'd
 like to code instance-targeted recovery, but we believe this to be a rarely useful feature.
-
 You're much better off preventing errors by coding your UI to validate,
 authorize, and error check things on the client before sending them to the server. The server should still verify
 sanity for security reasons, but optimistic systems like Fulcro put more burden on the client code in order to
-provide a better experience under normal operation.
+provide a better experience under normal operation. See the earlier discussion about <<FullStackErrorHandling,error handling>>.
 
-In general it can be difficult to recover from real hard failures, and this is true for any application. The difference
-for optimistic systems is that the user can be several steps ahead in the UI of the operation that is failing.
-Fortunately, the overall user experience is better for the happy cases (which hopefully are 99.9999% of them), but
-it is true that if you're user is 10 steps ahead of the server and the server barfs, your easiest route to recovery
-is to throw up an error dialog and reload all questionable state.
-
-You probably also need to clear the network queue so that additional queued operations don't continue to fail.
+If you do use fallback then you probably also need to clear the network queue so that additional queued
+operations don't continue to fail.
 
 === Clearing Network Queue
 
@@ -6277,43 +6327,20 @@ The FulcroApplication protocol (implemented by your client app) includes the pro
 A common recovery strategy from errors could be to clean the network queue and run a mutation that resets your application
 to a known state, possibly loading sane state from the server.
 
-=== A New Approach to Errors
+=== Pessimistic Transaction Fallbacks
 
-The first thing I want to challenge you to think about is this: why do errors happen, and what can we do about them?
+The fallback mechanism described for error handling works in `ptransact!`. Fallbacks are clustered to the remote they follow
+up until the next remote mutation (with one exception: fallbacks at the beginning of the entire tx are clustered to the first remote mutation):
 
-In the early days of web apps, our UI was completely dumb: the server did all of the logic. The answer to these questions
-were clear, because it wasn't even a distributed app...it was a *remote display* of an app running on a remote machine.
+```
+(ptransact! this `[(L) (df/fallback {...}) (L) (R) (df/fallback {...}) (L2) (R2) (L3) (df/fallback {...}) ])
+```
 
-As more and more code has moved back to the UI, more and more of the real logic lives on the client machine.
-
-Unfortunately, we still have security concerns at the server, so we get confused by the following fact: the server *has* to be able to
-validate a request for security reasons. There is no getting around this. You cannot trust a client.
-
-However, I think many of us take this too far: security concerns are often a lot easier to enforce than the full client-level
-interaction with these concerns. For example, we can say on a server that a field must be a number. This is one line of
-code, that can be done with an assertion.
-
-The UI logic for this is much larger: we have to tell the user what we expected, why we expected it, constrain the UI
-to keep them from typing letters, etc. In other words, almost all of the real logic is already on the client, and unless
-there is a bug, *our* UI *won't* cause a server error, because it is pre-checking everything before sending it out.
-
-So, in a modern UI, here are the scenarios for errors *from the server*:
-
-. You have a bug. Is there anything you can really do? No, because it is a bug. If you could predict it going wrong, you would
-have already fixed it. Testing and user bug reports are your only recourse.
-. There is a security violation. There is nothing for your UI to do, because your UI didn't do it! This is an attack.
-Throw an exception on the server, and never expect it in the UI. If you get it, it is a bug. See (1).
-. There is a user perspective outage (LAN/WiFi/phone). These are possibly recoverable. You can block the UI, and allow the
-user to continue once networking is re-established.
-. There is an infrastructure outage. You're screwed. Things are just down. If you're lucky, it is networking and your
-user is just blocked. If you're not lucky, your database crashed and you have no idea if your data is even consistent.
-
-So, I would assert that the only full-stack error handling *worth* doing in *any detail* is for case (3). If communications
-are down, you can retry. But in a distributed system this can be a little nuanced.
+will associate the first two fallbacks with remote call `R`, and the last one with `R2`.
 
 = Building a Server [[BuildingAServer]]
 
-You've already seen a little on how to build and use a server with the <<EasyServer, easy API>>. That server is acually
+In the Getting Started chapter you saw a little on how to build and use Fulcro's easy server. That server is acually
 flexible enough for many production needs, but Fulcro also
 comes with pre-built server components that allow you to very quickly get the server side of your
 application up and running. In this chapter we'll give you more detail on the three main approaches to
@@ -6321,7 +6348,7 @@ the server-side of Fulcro:
 
 - How to use the pre-built bits to manually build your own server.
 - More details on the easy server.
-- A more involved pre-written, but modular approach, that has more overall flexibility.
+- A more involved pre-written modular approach that has more overall flexibility.
 
 == Rolling Your Own Server
 
@@ -6344,8 +6371,8 @@ a parser to it (recommend using `fulcro.server/fulcro-parser`), an environment, 
 give back a Ring response.
 
 You're responsible for creating the parser environment. I'd recommend using
-the `fulcro.server/fulcro-parser` because it is already hooked to the multimethods that the dev guide talks about
- for handling server requests at the API level like `defquery-root`. Those won't work unless you use it, but any parser
+the `fulcro.server/fulcro-parser` because it is already hooked to the server multimethods
+like `defquery-root` and `defmutation`. Those won't work unless you use it, but any parser
 that can deal with the query/mutation syntax is technically legal.
 
 Here's a crappy little server with no configuration support, no ability to hot code reload, and no external
@@ -6395,7 +6422,7 @@ In a REPL, you could start this one up with:
 solutions.tiny-server=> (my-tiny-server)
 ```
 
-== The "Easy" Server
+== The "Easy" Server [[EasyServer]]
 
 The pre-built easy server component for Fulcro uses Stuart Sierra's Component library. The server has no
 global state except for a debugging atom that holds the entire system, and can therefore be easily restarted
@@ -6748,8 +6775,9 @@ Modules are composed for you when you supply them to the `fulcro-system`:
 
 When an API request comes in, **each** query element (prop, join, mutation) will be sent (one at a time)
 into the API handler that appears first in this vector.
-    - If the API handler returns nil, it will try the next and so on in a chain until one returns non-nil
-    - If all return nil, then the remainder of the web processing will be sent the request
+
+* If the API handler returns nil, it will try the next and so on in a chain until one returns non-nil
+* If all return nil, then the remainder of the web processing will be sent the request
 
 === Parsing Environment
 
@@ -6781,7 +6809,7 @@ by the easy server is a component you can inject into your modular server!
 
 It supports pulling in values from the system environment, overriding configs with a JVM option, and more.
 
-See the docstrings on `new-config` or the documentation on the easy server for more details.
+See the docstrings on `new-config` for more details.
 
 = Query Parsing
 
@@ -6803,19 +6831,32 @@ can use to build processing to interface with it, and there are a number of libr
 
 If you're lucky, you can make use of a library to do this stuff for you. Here are some options we know about:
 
-- Pathom : A library by Wilker Lucio that can be used to build parsers on Fulcro's query syntax.
-- Fulcro SQL : A library that knows how to convert graph queries into SQL
-- Datomic : If you're lucky enough to be using Datomic, Fulcro's graph query syntax will run in their `pull` API
+* https://github.com/wilkerlucio/pathom[Pathom]
++
+A really nice library for building recursive Fulcro query parsers. It has a good model for building parsers that can
+bridge everything from REST services to microservice architectures. In general if you need to interpret your UI queries,
+this tool can be very useful.
++
+* https://github.com/fulcrologic/fulcro-sql[Fulcro-SQL]
++
+A library that can run Fulcro graph queries against SQL databases. This library lets you define your joins in relation
+to the Fulcro join notion. It can walk to-one, to-many, and many-to-many joins in an SQL database in response to a
+Fulcro join. This allows it to handle many Fulcro queries as graph queries against your SQL database with just a little
+configuration and invocatin code.
++
+* http://www.datomic.com[Datomic]
++
+If you're lucky enough to be using Datomic, Fulcro's graph query syntax will run in their `pull` API
 
-Of these, Pathom is the most general and allows you to easily process a query in a more abstract way. However, it
-really isn't that hard to parse the queries yourself.
+Of these, Pathom is the most general and allows you to easily process a query in a more abstract way. However, you
+should know a little bit about parsing the queries yourself.
 
 == Doing the Parsing Yourself
 
 The expression parser needs two things: A function to dispatch reads to, and a function to dispatch mutations. Since
-we're talking about query parsing here, we'll be talking only about the read dispatch function.
+we're talking about query parsing we'll only be talking about the read dispatch function.
 
-The signature of the parsing read function is `(read [env dispatch-key params])`
+The signature of the read function is `(read [env dispatch-key params])`
 where the `env` contains the `state` of your application, a reference to your `parser` (so you can
 call it recursively, if you wish), a query root marker, an AST node describing the exact
 details of the element's meaning, and *anything else* you want to put in there if
@@ -7313,23 +7354,7 @@ some views of that data that would otherwise be hard to keep up-to-date.
 
 It is also useful if you're trying to port from Om Next.
 
-== External Libraries
-
-=== [Pathom](https: //github.com/wilkerlucio/pathom)// {{{3
-
-A really nice library for building recursive Fulcro query parsers. It has a good model for building parsers that can
-bridge everything from REST services to microservice architectures. In general if you need to interpret your UI queries,
-this tool can be very useful.
-
-
-=== [Fulcro-SQL](https: //github.com/fulcrologic/fulcro-sql)// {{{3
-
-A library that can run Fulcro graph queries against SQL databases. This library lets you define your joins in relation
-to the Fulcro join notion. It can walk to-one, to-many, and many-to-many joins in an SQL database in response to a
-Fulcro join. This allows it to handle many Fulcro queries as graph queries against your SQL database with just a little
-configuration and extra code.
-
-= UI Routing
+= UI Routing [[UIRouting]]
 
 UI Routing is a *very* important task in Fulcro. It is the primary means by which you keep your application
 running quickly. You see, in Fulcro your query is run from root. If your entire application's query runs on every
@@ -9714,7 +9739,7 @@ that item.
 
 == Demo – Writing a Pagination and Sort Routine
 
-= Performance
+= Performance [[Performance]]
 
 Fulcro and React behave in a very performant manner for most data-driven applications. There are ways, however,
 in which you can negatively affect performance.
@@ -10073,6 +10098,27 @@ The running demo (with source) is below:
 include::src/book/book/demos/autocomplete.cljs[]
 ----
 
+== Using Unions to Switch out UI Elements
+
+This demo is similar to the example in the section on <<Unions,unions>>. In fact, the two could be combined to make
+this one polymorphic as well, but the primary interest in this demo is to show swapping between an editor
+and a list (or table).
+
+This example uses <<Forms,forms support>> with a custom submit and cancel mutation.
+It is instructive to see how entities could be loaded (simulated in the started-callback) as pristine entities
+and augmented with form support through mutations that have a nice clear meaning (to both front and back-end).
+
+See the comments on the source for more details.
+
+++++
+<div class="example" id="union-example-2"></div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.union-example-2').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="union-example-2 source"]
+----
+include::src/book/book/queries/union_example_2.cljs[]
+----
 
 == Cascading Dropdowns
 
@@ -10490,25 +10536,6 @@ include::src/book/book/demos/loading_in_response_to_UI_routing.cljs[]
 ----
 
 
-== Load Indicators
-
-Fulcro 2.0 allows you to place loading markers in a load marker table (by an ID you invent as a keyword). This keeps
-the markers from overwriting data in your graph, and also lets you query for them from anywhere in your UI.
-
-NOTE: Turn up your server's latency to watch what happens.
-
-The comments in the code of the demo describe the different parts.
-
-++++
-<div class="example" id="loading-indicators"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-indicators').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="loading-indicators source"]
-----
-include::src/book/book/demos/loading_indicators.cljs[]
-----
-
 == Legacy Load Indicators
 
 NOTE: Fulcro 2.0 has better support. This is still available, but see also loading-indicators in the demos.
@@ -10911,54 +10938,6 @@ to some random UUID and return the updated entity. When using mutation joins thi
 
 NOTE: The Add Item button is full-stack, and uses tempids. Use the server latency to
 see the state as it runs.
-
-
-== Targeting Return values
-
-This demo shows you how to use the `with-target` mutation modifier to cause the return value of the server to
-be placed in a location of your choosing.
-
-=== Targeting Raw Values
-
-If you don't specify a component with `returning`, then your returned data can be targeted, but of course it
-won't normalize. The error triggering mutation does this:
-
-"
-(dc/mkdn-pprint-source trigger-error)
-"and the server simply returns a raw value (map is recommended)"
-(dc/mkdn-pprint-source server-trigger-error)
-"
-
-=== Targeting Graph Results
-
-The more interesting case is when you want normalization, but you also need to pepper the return
-value's ident around the state of your application. The default `returning` just refreshes (or loads)
-the entity into its table, which means anything that already was linked to it will update, but if it is
-new there can be no UI refresh because nothing in the UI will be using it.
-
-This is where targeting shines. In the demo The bulk of the work is done in the `create-entity` mutation.
-which is targeting to-many so we can demo more features (you can
-also target to-one with a simple path). Multiple targets are also supported (see load documentation).
-
-(dc/mkdn-pprint-source create-entity)
-"The server mutation just returns the entity (mixed with tempid remappings, if you need them)."
-(dc/mkdn-pprint-source server-create-entity)))
-
-=== Demonstration
-
-This shows how you can make the mutation result target a specific place, if you use just the with-params the raw
-response will be placed on the given path as is. If you use in conjunction with returning, the ident for the
-created entity will be place into the target path. This target accepts the same things a load target does."
-
-++++
-<div class="example" id="server-targeting-return-values-into-app-state"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-targeting-return-values-into-app-state').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="server-targeting-return-values-into-app-state source"]
-----
-include::src/book/book/demos/server_targeting_return_values_into_app_state.cljs[]
-----
 
 == Mutation Return Values
 

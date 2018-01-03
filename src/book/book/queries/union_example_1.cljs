@@ -15,9 +15,9 @@
   "Generate a distinct react key for a person, place, or thing"
   [props] (str (:kind props) "-" (:db/id props)))
 
-(defn make-person [id n] {:db/id id :kind :person :person/name n})
-(defn make-place [id n] {:db/id id :kind :place :place/name n})
-(defn make-thing [id n] {:db/id id :kind :thing :thing/label n})
+(defn make-person [id n] {:db/id id :kind :person/by-id :person/name n})
+(defn make-place [id n] {:db/id id :kind :place/by-id :place/name n})
+(defn make-thing [id n] {:db/id id :kind :thing/by-id :thing/label n})
 
 (defsc PersonDetail [this {:keys [db/id person/name] :as props}]
   ; defrouter expects there to be an initial state for each possible target. We'll cause this to be a "no selection"
@@ -25,7 +25,7 @@
   ; we later re-order them in the defrouter.
   {:ident         (fn [] (item-ident props))
    :query         [:kind :db/id :person/name]
-   :initial-state {:db/id :no-selection :kind :person}}
+   :initial-state {:db/id :no-selection :kind :person/by-id}}
   (dom/div nil
     (if (= id :no-selection)
       "Nothing selected"
@@ -34,7 +34,7 @@
 (defsc PlaceDetail [this {:keys [db/id place/name] :as props}]
   {:ident         (fn [] (item-ident props))
    :query         [:kind :db/id :place/name]
-   :initial-state {:db/id :no-selection :kind :place}}
+   :initial-state {:db/id :no-selection :kind :place/by-id}}
   (dom/div nil
     (if (= id :no-selection)
       "Nothing selected"
@@ -43,7 +43,7 @@
 (defsc ThingDetail [this {:keys [db/id thing/label] :as props}]
   {:ident         (fn [] (item-ident props))
    :query         [:kind :db/id :thing/label]
-   :initial-state {:db/id :no-selection :kind :thing}}
+   :initial-state {:db/id :no-selection :kind :thing/by-id}}
   (dom/div nil
     (if (= id :no-selection)
       "Nothing selected"
@@ -77,21 +77,21 @@
 
 (defrouter ItemDetail :detail-router
   (ident [this props] (item-ident props))
-  :person PersonDetail
-  :place PlaceDetail
-  :thing ThingDetail)
+  :person/by-id PersonDetail
+  :place/by-id PlaceDetail
+  :thing/by-id ThingDetail)
 
 (def ui-item-detail (prim/factory ItemDetail))
 
 (defsc ItemUnion [this {:keys [kind] :as props}]
   {:ident (fn [] (item-ident props))
-   :query (fn [] {:person (prim/get-query PersonListItem)
-                  :place  (prim/get-query PlaceListItem)
-                  :thing  (prim/get-query ThingListItem)})}
+   :query (fn [] {:person/by-id (prim/get-query PersonListItem)
+                  :place/by-id  (prim/get-query PlaceListItem)
+                  :thing/by-id  (prim/get-query ThingListItem)})}
   (case kind
-    :person (ui-person props)
-    :place (ui-place props)
-    :thing (ui-thing props)))
+    :person/by-id (ui-person props)
+    :place/by-id (ui-place props)
+    :thing/by-id (ui-thing props)))
 
 (def ui-item-union (prim/factory ItemUnion {:keyfn item-key}))
 
