@@ -178,8 +178,8 @@
 #?(:cljs (defexample "Parsing Parameters" book.queries.parsing-parameters/Root "parsing-parameters"))
 
 ;; Dynamic queries
-#?(:cljs (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries" ))
-#?(:cljs (defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters" ))
+#?(:cljs (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries"))
+#?(:cljs (defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters"))
 
 #?(:cljs (defexample "Internationalization Demo" book.basic-i18n/Root "basic-i18n"))
 #?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
@@ -218,7 +218,7 @@
 #?(:cljs (defexample "Parallel vs. Sequential Loading" book.demos.parallel-vs-sequential-loading/Root "parallel-vs-sequential-loading" :networking book.main/example-server))
 #?(:cljs (defexample "Parent-Child Ownership" book.demos.parent-child-ownership-relations/Root "parent-child-ownership-relations" :networking book.main/example-server))
 
-#?(:cljs (defexample "Error Handling (TODO:install error handler)" book.demos.server-error-handling/Root "server-error-handling"
+#?(:cljs (defexample "Error Handling" book.demos.server-error-handling/Root "server-error-handling"
            :networking book.main/example-server))
 #?(:cljs (defexample "Query Security" book.demos.server-query-security/Root "server-query-security"
            :networking book.main/example-server))

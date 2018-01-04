@@ -15,7 +15,7 @@
 
 (server/defmutation error-mutation [params]
   ;; Throw a mutation error for the client to handle
-  (action [env] (throw (ex-info "Server error" {:status 401 :body "Unauthorized User"}))))
+  (action [env] (throw (ex-info "Server error" {:type :fulcro.client.primitives/abort :status 401 :body "Unauthorized User"}))))
 
 (server/defquery-entity :error.child/by-id
   (value [env id params]
@@ -46,12 +46,14 @@
   (dom/div nil
     ;; declare a tx/fallback in the same transact call as the mutation
     ;; if the mutation fails, the fallback will be called
+    (dom/button #js {:onClick #(df/load this :data nil {:fallback `log-read-error})}
+      "Click me to try a read with a fallback (logs to console)")
     (dom/button #js {:onClick  #(prim/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
                      :disabled button-disabled}
-      "Click me for error!")
+      "Click me for error (disables on error)!")
     (dom/button #js {:onClick #(df/load-field this :fulcro/read-error)}
       "Click me for other error!")
-    (dom/div nil (str server-error))))
+    (dom/div nil "Server error (root level): " (str server-error))))
 
 (def ui-child (prim/factory Child))
 
@@ -60,11 +62,3 @@
    :query         [:ui/react-key {:child (prim/get-query Child)}]}
   (dom/div #js {:key react-key} (ui-child child)))
 
-(defn initialize "To be used as :started-callback" [{:keys [reconciler]}]
-  ;; specify a fallback mutation symbol as a named parameter after the component or reconciler and query
-  (df/load reconciler :data nil {:fallback `log-read-error}))
-
-;; this function is called on *every* network error, regardless of cause
-(defn error-handler "To be used as network-error-callback"
-  [state status-code error]
-  (log/warn "Global callback:" error " with status code: " status-code))

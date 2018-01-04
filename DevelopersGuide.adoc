@@ -4932,11 +4932,89 @@ is `defquery-entity`, and is dispatched by the table name:
 Note that this call gets an `id` in addition to parameters (in the above call, `id` would be 22). Again, the full query
 is in `env` so you can process the data driven response properly.
 
+=== A Loading Example
+
+This example shows two very common ways that data is loaded (or reloaded) in an application.
+
+On startup, the following loads are run via the started callback:
+
+```
+(fc/new-fulcro-client
+  :started-callback
+    (fn [app]
+      (df/load app :load-samples/people Person {:target [:lists/by-type :enemies :people]
+                                                :params {:kind :enemy}})
+      (df/load app :load-samples/people Person {:target [:lists/by-type :friends :people]
+                                                :params {:kind :friend}})))
+```
+
+In this demo we're loading lists of people (thus the keyword's name). There are two kinds of people available from the
+server: friends and enemies. We use the `:params` config parameter to add a map of parameters to the network request
+to specify what we want. The `:target` key is the path to the (normalized) entity's property under which the response
+should be stored once received.
+
+Since all components should be normalized, this target path is almost always 2 (loading a whole component into a table)
+or 3 elements (loading one or more things into a property of an existing component).
+
+The server-side code for handling these queries uses a global table on the server, and is:
+
+```
+(def all-users [{:db/id 1 :person/name "A" :kind :friend}
+                {:db/id 2 :person/name "B" :kind :friend}
+                {:db/id 3 :person/name "C" :kind :enemy}
+                {:db/id 4 :person/name "D" :kind :friend}])
+
+; incoming param (kind) is destructured from third arg
+(server/defquery-root :load-samples/people
+  (value [env {:keys [kind]}]
+    (let [result (->> all-users
+                   (filter (fn [p] (= kind (:kind p))))
+                   (mapv (fn [p] (-> p
+                                   (select-keys [:db/id :person/name])
+                                   (assoc :person/age-ms (now))))))]
+      result)))
+```
+
+Once started, any given person can be refreshed at any time. Timeouts, user event triggers, etc. There are two ways
+to refresh a given entity in a database. In the code of `Person` below you'll see that we are using `load` again, but
+this time with an `ident`:
+
+```
+(df/load this (prim/ident this props) Person)
+```
+
+All of the parameters of this call can be easily derived when calling it from the component needing refreshed, so
+there is a helper function called `refresh!` that makes this a bit shorter to type:
+
+```
+(df/refresh! this)
+```
+
+The server-side implementation of refresh for person looks like this:
+
+```
+(server/defquery-entity :load-samples.person/by-id
+  (value [{:keys [] :as env} id p]
+    (let [person (first (filter #(= id (:db/id %)) all-users))]
+      (assoc person :person/age-ms (now))))) ; include a timestamp so we can see refreshes change something
+```
+
+++++
+<div class="example" id="loading-data-basics"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-data-basics').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="loading-data-basics source"]
+----
+include::src/book/book/demos/loading_data_basics.cljs[]
+----
+
 === Targeting Loads
 
 A short while ago we noted that loads are targeted at the root of your graph, and that this wasn't always what you
-wanted. After all, your graph database will always have other UI stuff. For example there might be a current screen, which
-might point to a friends screen, which in turn is where you want to load that list of friends:
+wanted. After all, your graph database will always have other UI stuff. For example there might be the concept of
+a "current screen" (join from root) that might currently point to a "friends screen", which in turn is where you want
+to load that list of friends:
 
 ```
 { :current-screen [:screens/by-type :friends]
@@ -4944,7 +5022,7 @@ might point to a friends screen, which in turn is where you want to load that li
   :screens/by-type { :friends { :friends/list [] ... }}}
 ```
 
-If you've followed our earlier recommendations, then your applications UI is normalized as well, and any given
+If you've followed our earlier recommendations then your application's UI is normalized and any given
 spot in your graph is really just an entry in a top-level table. Thus, the path to the desired location
 of our friends is usually just 3 deep. In this case: `[:screens/by-type :friends :friends/list]`.
 
@@ -5008,6 +5086,44 @@ with the `multiple-targets` wrapper:
 
 Note that `multiple-targets` can use plain target vectors (replacement) or any of the special wrappers.
 
+==== An Example of Targeting
+
+In the example below, you'll see we've set up two panes in a panel, and each pane can render a person.
+
+Initially, there are no people loaded (none in initial state). The load buttons in the root component
+let you see entity loads targeted at one or both of them.
+
+The main loader looks like this (and is called from root):
+
+```
+(defn load-random-person [component where]
+  (let [load-target  (case where
+                       (:left :right) [:pane/by-id where :pane/person]
+                       :both (df/multiple-targets
+                               [:pane/by-id :left :pane/person]
+                               [:pane/by-id :right :pane/person]))
+        person-ident [:person/by-id (rand-int 100)]]
+    (df/load component person-ident Person {:target load-target :marker false})))
+```
+
+The server is rather simple. It just makes up a person for any given ID:
+
+```
+(server/defquery-entity :person/by-id
+  (value [env id params]
+    {:db/id id :person/name (str "Person" id)}))
+```
+
+++++
+<div class="example" id="loading-data-targeting-entities"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-data-targeting-entities').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="loading-data-targeting-entities source"]
+----
+include::src/book/book/demos/loading_data_targeting_entities.cljs[]
+----
+
 === Refreshing the UI After Load
 
 The component that issued the load will automatically be refreshed when the load completes. You may use the data-driven
@@ -5028,14 +5144,38 @@ Loads allow a number of additional arguments. Many of these are discussed in mor
 `:post-mutation` and `:post-mutation-params`:: A mutation to run once the load is complete (local data transform only).
 `:remote`:: The name of the remote you want to load from.
 `:refresh`:: A vector of keywords and idents. Any component that queries these will be re-rendered once the load completes.
-`:marker`:: Boolean or keyword. Indicates how (or if) load should indicate progress in your app state.
 `:parallel`:: Boolean. Defaults to false. When true, bypasses the sequential network queue. Allows multiple loads to run at once, but causes you to lose any guarantees about ordering since the server might complete them out-of-order.
 `:fallback`:: A mutation to run if the server throws an error during the load.
 `:without`:: A set of keywords to elide from the query. Covered in Incremental Loading.
 `:params`:: A map. If supplied the params will appear as the params of the query on the server.
 `:initialize bool|map`:: If true, uses component's initial state as a basis for incoming merge. If a map, uses the map as the basis for incoming merge.
 
-=== Initializing Loaded Items
+==== Parallel vs. Sequential Loading
+
+The `:parallel` option of `load` bypasses the normal network sequential queue. Below is a simple live
+example that shows off the difference between regular loads and those marked parallel. In
+order to see the effect increase your server latency to something like 5 seconds.
+
+Normally, Fulcro runs separate event-based loads in sequence, ensuring that your reasoning can be synchronous;
+however, for loads that might take some time to complete, and for which you can guarantee order of
+completion doesn't matter, you can specify an option on load (`:parallel true`) that allows them to proceed in parallel.
+
+Pressing the sequential buttons on all three (in any order) will take
+at least 3x your server latency to complete from the time you click the first one (since each will run after the other is complete).
+If you rapidly click the parallel buttons, then the loads will not be sequenced and you will see them all complete in roughly
+1x your server latency (from the time you click the last one).
+
+++++
+<div class="example" id="parallel-vs-sequential-loading"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parallel-vs-sequential-loading').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="parallel-vs-sequential-loading source"]
+----
+include::src/book/book/demos/parallel_vs_sequential_loading.cljs[]
+----
+
+==== Initializing Loaded Items
 
 WARNING: This support is not complete yet (in version 2.0.0). It should be considered ALPHA and subject to change.
 
@@ -5057,7 +5197,7 @@ The steps are:
 . Merge the result of (2) into the database using the component's query (auto-normalize)
 
 
-=== Post Mutations – Morphing Loaded Data
+==== Post Mutations – Morphing Loaded Data
 
 The targeting system that we discussed in the prior section is great for cases where your data-driven query gets you
 exactly what you need for the UI. In fact, since you can process the query on the server it is entirely possible that
@@ -5112,32 +5252,7 @@ distinct advantages:
 * Simple layout in resulting UI database (normalized into tables and a graph)
 * Straightforward data transform into what we want to show
 
-==== Post Mutations
-
-Fulcro calls these kinds of post-load transforms *Post Mutations*. The reason for this name is that it requires
-you define the transform as a mutation, and then allows you to ask for that transform to trigger when the load is
-complete. The API is trivial:
-
-```
-(df/load this :items Item {:post-mutation `group-items})
-```
-
-and you can include parameters with `:post-mutation-params`.
-
-The example below simulates post mutations. You can interact with it and view the database to A/B compare
-the before/after state.
-
-++++
-<div class="example" id="morphing-example"></div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.morphing-example').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="morphing-example source"]
-----
-include::src/book/book/server/morphing_example.cljs[]
-----
-
-==== Using `defsc` For Server Queries
+===== Using `defsc` For Server Queries
 
 It is perfectly legal to use `defsc` to define a graph query (and normalization) for something like this that doesn't exactly
 exist on your UI. This can be quite useful in the presence of post mutations that can re-shape the data.
@@ -5155,6 +5270,24 @@ Simply code your (nested) queries using `defsc`, and skip writing the body:
 ```
 
 NOTE: We know that the name `defsc` seems a bit of a misnomer for this, so feel free to create an alias for it.
+
+===== Live Demo of Post Mutations
+
+The example below simulates post mutations to show how a load of simple data could be morphed into something
+that the UI wants to display. In  this case we're pretending that the load has brought in a number of items
+(as a collection) and normalized it, but we'd prefer to show the items organized by category..
+
+You can interact with it and view the database to A/B compare the before/after state.
+
+++++
+<div class="example" id="morphing-example"></div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.morphing-example').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="morphing-example source"]
+----
+include::src/book/book/server/morphing_example.cljs[]
+----
 
 == Augmenting the Ring Response
 
@@ -5582,11 +5715,34 @@ Loads are a different story. It is very often the case that you might have a num
 parts of your UI all at once. In this case it is quite useful to have some kind of load-specific marker that you
 can use to show that activity.
 
-In Fulcro 1.0 this was done as follows:
+In Fulcro 1.0+ this can be done as follows:
 
-* The target of each load was replaced by a *load marker* until the load completed
-* You can detect these load markers and show an alternate UI while they are loading
-* When the data arrived the load marker was replaced by it.
+* The target of each load is replaced by a *load marker* until the load completed
+* You can detect these load markers and show an alternate UI while they are loading.
+** The component that is to be loaded *must* include `:ui/fetch-state` in its query (this is the key under which the marker is placed)
+** The `data-fetch` namespace has utility functions for detecting the state of the marker, though usually just its presence is enough.
+* When the data arrives the load marker is replaced by it.
+
+==== A Live Example of 1.x Load Indicators
+
+By default Fulcro places markers where the items will appear that are being loaded. These markers can be used to show progress indicators in
+the UI.
+
+In the demo below the first button triggers a load of a child's data from the server. Use the server latency controls to slow things down so you
+can see the markers. Once the child is loaded, a button appears indicating items can be loaded into that child.
+
+Once the items are loaded, each has a refresh button. Again, use the server delay so you can watch the
+markers.
+
+++++
+<div class="example" id="legacy-load-indicators"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.legacy-load-indicators').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="legacy-load-indicators source"]
+----
+include::src/book/book/demos/legacy_load_indicators.cljs[]
+----
 
 This is still supported (and is still currently the default); however, it is deprecated because it was found to be less than ideal:
 
@@ -5594,8 +5750,10 @@ This is still supported (and is still currently the default); however, it is dep
 This caused flicker and workarounds (such as mis-targeting the data and using post-mutations to put it in place at the end)
 . The load markers are rather large. Looking at your component's app state during a load is kind of ugly.
 . The load markers could not be queried from elsewhere, meaning activity indicators had to be local to the loaded data.
-. Worst: you had to add a special query property to the component representing the thing being loaded, or the load marker
-wasn't even available. This bit of magic was hard to understand.
+. Worst: you have to add `:ui/fetch-state` to the query of the component representing the thing being loaded, or the load marker
+isn't available.
+
+=== Normalized Load Markers
 
 In Fulcro 2.0, it is recommended that you use a keyword (of your own invention) for the `:marker` option instead. This
 has the following behavior:
@@ -5606,10 +5764,10 @@ using your keyword as their ID. They are normalized!
 
 This solves all of the prior system's weaknesses.
 
-==== Working with Load Markers
+==== Working with Normalized Load Markers
 
 The steps are rather simple: Include the `:marker` parameter with load, and issue a query for the load marker on
-the marker table. The table name for markers is stored in the data-fetch namespace as `df/marker-table`.
+the marker table. The table name for markers is stored in the data-fetch namespace in the var `df/marker-table`.
 
 ```
 (defsc SomeComponent [this props]
@@ -6204,6 +6362,54 @@ small number of additions.
 However, even with these fancy tricks that make our applications better, there are times when we'd just like to
 block until something is complete.
 
+=== Detecting Errors From the Server
+
+The built-in remote and networking in Fulcro has a few hooks for dealing with errors:
+
+. A global network error handler for dealing with actual network errors (i.e. you can't talk to the server).
+. A global root node value (at `:fulcro/server-error`) you can query that holds the last network error.
+(You manually clear this if you wish to use it to track errors over time.)
+. The ability to run a mutation if a load fails with an *application-level* error (load option `:fallback`). See <<Fallbacks, fallbacks>>.
+. Mutation <<Fallbacks,fallbacks>> for responding to full-stack *application-level* mutation errors.
+
+==== Global Error Handler
+
+This is only available if you use the built-in remote with the Fulcro client. If you write your own networking then
+you can handle errors at the network layer any way you want. To install a network error handler on the default
+remote support simply write a function like this:
+
+```
+;; this function is called on *every* network error, regardless of cause
+(defn error-handler "To be used as network-error-callback"
+  [state status-code error]
+  (log/warn "Global callback:" error " with status code: " status-code))
+```
+
+and install it:
+
+```
+(fc/new-fulcro-client :network-error-callback error-handler)
+```
+
+==== Server Error Demo
+
+The live example below does various things to demonstrate various ways of reacting to errors.
+There is a load that fails and uses a fallback to log a message.
+
+The next button tries a mutation that fails (by throwing on the server in a way that propagates the
+error back to the client). The final one tries a read that will fail, but does nothing with the error, though
+you'll still see that the global indicator updates.
+
+++++
+<div class="example" id="server-error-handling"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-error-handling').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="server-error-handling source"]
+----
+include::src/book/book/demos/server_error_handling.cljs[]
+----
+
 === UI Blocking
 
 Fulcro defaults to optimistic updates, which in turn encourages you to write a UI that is very responsive. However,
@@ -6357,11 +6563,18 @@ You can try out the finished product in the example below. Try it a few times so
 include::src/book/book/server/ui_blocking_example.cljs[]
 ----
 
-=== Fallbacks
+=== Fallbacks [[Fallbacks]]
 
 If you're running a mutation is likely to trigger server errors then you can explicitly encode a fallback behavior
 with the mutation. Fallbacks are triggered *if and only if* the mutation on the server *throws an error that is
 detectable as a _non-network_ error.*
+
+The requirement for a server mutation to trigger fallbacks is for it to throw an `ex-info` exception and
+include `{:type :fulcro.client.primitives/abort}` in the data. Otherwise the server-side parser will swallow
+the exception and continue with the transaction.
+
+Defining a fallback for a transaction is done by including a special mutation in the transaction that names the
+mutation to invoke on error:
 
 ```
 (prim/transact! this `[(some/mutation) (fulcro.client.data-fetch/fallback {:action handle-failure})])
@@ -9502,7 +9715,7 @@ A function is provided for you that can be run from the REPL:
 
 `src` is your target source folder, and `:po` is where
 you keep your PO files. This step will generate one cljc file for each PO file. If you supply `:as-modules?` then
-your translations will support being dynamically loaded by `cljs-loader`. See the <<DynamicLocale, dynamic locale demo>> for
+your translations will support being dynamically loaded by `cljs-loader`. See the <<DynamicLocale, dynamically loaded locale demo>> for
 more information on modules.
 Translations will be output to the `translations` namespace in namespaces that match the locale name.
 
@@ -10328,7 +10541,6 @@ and we define a mutation for showing a "Loading..." item in the dropdown that is
 The main action is in the `onSelect` of the first dropdown, which just issues the transact to set the loading
 visualization, followed by the remote load.
 
-
 ++++
 <div class="example" id="cascading-dropdowns"> </div>
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.cascading-dropdowns').toggle()">Show/Hide Source</a>
@@ -10409,16 +10621,13 @@ dynamically load locale-specific strings for your UI at runtime.
 
 The book's build is configured for this, and the following steps were required:
 
-. Code something that uses i18n (see this card's source below).
-. Build the code with whitespace optimizations (see project.clj demo-i18n cljs build config). WITHOUT MODULES:
-`lein cljsbuild once demo-i18n`
-. Use `fulcro.gettext/extract-strings` to extract the strings from the Javascript from (2):
-   `(fulcro.gettext/extract-strings {:po "resources/demos/i18n" :js-path "resources/public/js/demo-i18n.js"})`
-. Use a tool like PoEdit to make translation files (e.g. `es.po`) from the generated `messages.pot` file (see Dev Guide).
+. Code something that uses i18n.
+. Build the code with `:whitespace` optimizations and WITHOUT MODULES (so all code ends up in the generated js).
+. Use the normal extraction `fulcro.gettext/extract-strings` and translation steps.
 . Deploy the CLJC translation files to your source using: `(fulcro.gettext/deploy-translations {:src "src/demos" :po "resources/demos/i18n" :as-modules? true})`
-. Add the languages as modules to the project's build (see project.clj `demos` build)
+. Add the languages as modules to the project's build (see the `book` build in Fulcro's `project.clj`).
 
-The two build (at the time of this writing) was:
+The build (at the time of this writing) look like this:
 
 ```
 {:id           "book"
@@ -10447,6 +10656,9 @@ their ID:
 (new-fulcro-client Root :started-callback (fn [] (cljs.loader/set-loaded! :entry-point)))
 ```
 
+The demo below is the live example that uses modules for the German and Spanish translations (open your
+browser's network tab to see them load)
+
 ++++
 <div class="example" id="dynamic-i18n"> </div>
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-i18n').toggle()">Show/Hide Source</a>
@@ -10457,142 +10669,14 @@ their ID:
 include::src/book/book/demos/dynamic_i18n.cljs[]
 ----
 
-== Loading Data Basics
-
-This demo shows two very common ways that data is loaded (or reloaded) in an application. This is a full-stack demo,
-and you must be running this card from the correct server URL or it will not work. See the general instructions for
-the demo.
-
-On startup, the following loads are run via the started callback:
-
-```
-(fc/new-fulcro-client
-  :started-callback
-    (fn [app]
-      (df/load app :load-samples/people Person {:target [:lists/by-type :enemies :people]
-                                                       :params {:kind :enemy}})
-      (df/load app :load-samples/people Person {:target [:lists/by-type :friends :people]
-                                                       :params {:kind :friend}})))
-```
-
-The `load` function is the general-purpose workhorse for loading arbitrary data into the database. Most often it
-is given a keyword (which will be seen by the server as the top-level join key), a component (which defines the
-graph query for the data desired), and a load configuration.
-
-In this demo we're loading lists of people (thus the keyword's name). There are two kinds of people available from the
-server: friends and enemies. We use the `:params` config parameter to add a map of parameters to the network request
-to specify what we want. The `:target` key is the path to the (normalized) entity's property under which the response
-should be stored once received.
-
-Since all components should be normalized, this target path is almost always 2 (loading a whole component into a table)
-or 3 elements (loading one or more things into a property of an existing component).
-
-The server-side code for handling these queries uses a global table on the server, and is:
-
-```
-(def all-users [{:db/id 1 :person/name "A" :kind :friend}
-                {:db/id 2 :person/name "B" :kind :friend}
-                {:db/id 3 :person/name "C" :kind :enemy}
-                {:db/id 4 :person/name "D" :kind :friend}])
-
-; incoming param (kind) is destructured from third arg
-(defmethod api/server-read :load-samples/people [env _ {:keys [kind]}]
-  (let [result (->> all-users
-                 (filter (fn [p] (= kind (:kind p)))) ; get just the right kind of users
-                 (mapv (fn [p] (-> p
-                                 (select-keys [:db/id :person/name])
-                                 (assoc :person/age-ms (now))))))]
-    {:value result}))
-```
-
-Once started, any given person can be refreshed at any time. Timeouts, user event triggers, etc. There are two ways
-to refresh a given entity in a database. In the code of `Person` below you'll see that we are using `load` again, but
-this time with an `ident`:
-
-```
-(df/load this (prim/ident this props) Person)
-```
-
-All of the parameters of this call can be easily derived when calling it from the component needing refreshed, so
-there is a helper function called `refresh!` that makes this a bit shorter to type:
-
-```
-(df/refresh! this)
-```
-
-The server-side implementation of refresh for person looks like this:
-
-```
-; ident join queries dispatch on the keyword in the ident
-(defmethod api/server-read :load-samples.person/by-id [{:keys [ast query-root] :as env} _ p]
-  (let [id     (second (:key ast)) ; the key of the ast will be the ident, whose second member is the entity ID
-        person (first (filter #(= id (:db/id %)) all-users))] ; use the all-users global in-memory db
-    {:value (assoc person :person/age-ms (now))}))
-```
-
-The final kind of load (fill in a field of an already loaded element) is called `load-field`, and can be seen in action
-in the lazy loading indicators demo.
-
-++++
-<div class="example" id="loading-data-basics"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-data-basics').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="loading-data-basics source"]
+[source,clojure,role="dynamic-i18n source"]
 ----
-include::src/book/book/demos/loading_data_basics.cljs[]
+include::src/book/translations/de.cljc[]
 ----
 
-
-== Targeting an Entity Load
-
-The data fetch system supports loading specific normalized data directly into tables. The requirements are simple:
-
-- There must be a component that has a query and ident (for normalization)
-- Your server must be able to respond to a query for that kind of entity
-
-If you load entities with load like this:
-
-```
-(df/load this [:person/by-id 3] Person)
-```
-
-then by default that is just a refresh of that entity (components that have that ident will refresh).
-
-Another thing you might be doing is loading an entity for the first time, in which case you might want to link
-it into the graph in multiple places using `:target`. This is fully supported:
-
-```
-(df/load this [:person/by-id 3] Person {:target (df/multiple-targets [:x :b :fld] [:y c :fld])})
-```
-
-In the example code below, you'll see we've set up two panes in a panel, and each pane can render a person.
-
-Initially, there are no people loaded (none in initial state). The load buttons in the root component
-let you see entity loads targeted at one or both of them.
-
-The main loader looks like this (and is called from root):
-
-"
-(dc/mkdn-pprint-source load-random-person)
-"
-
-The server is rather simple. It just makes up a person for any given ID:
-
-```
-(server/defquery-entity :person/by-id
-  (value [env id params]
-    {:db/id id :person/name (str "Person" id)}))
-```
-
-++++
-<div class="example" id="loading-data-targeting-entities"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-data-targeting-entities').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="loading-data-targeting-entities source"]
+[source,clojure,role="dynamic-i18n source"]
 ----
-include::src/book/book/demos/loading_data_targeting_entities.cljs[]
+include::src/book/translations/es_MX.cljc[]
 ----
 
 == Loading due to a UI Event
@@ -10604,9 +10688,23 @@ This example not only shows the basic construction of an interface that allows c
 also demonstrates how one goes about triggering loads of data that some screen might need.
 
 If you look at the source for the root component you'll see two buttons with transactions on their click handlers.
-"
-(dc/mkdn-pprint-source Root)
-"
+
+```
+(defsc Root [this {:keys [ui/react-key current-tab] :as props}]
+  ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the
+  ; app state graph database.
+  {:initial-state (fn [params] {:ui/react-key "initial" :current-tab (prim/get-initial-state UITabs nil)})
+   :query         [:ui/react-key {:current-tab (prim/get-query UITabs)}]}
+  (dom/div #js {:key react-key}
+    ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
+    ; ensure proper re-render of the tab body). See prim/computed for passing callbacks.
+    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
+    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
+                                                      ; extra mutation: sample of what you would do to lazy load the tab content
+                                                      (lazy-load-tab {:tab :settings})])} "Settings")
+    (ui-tabs current-tab)))
+```
+
 The first is simple enough: run a mutation that chooses which tab to show. The routing library includes a helper function
 for building that, so the mutation just looks like this:
 
@@ -10643,30 +10741,6 @@ with `df/load-action` (on the action side) and `df/remote-load` on the remote.
 [source,clojure,role="loading-in-response-to-UI-routing source"]
 ----
 include::src/book/book/demos/loading_in_response_to_UI_routing.cljs[]
-----
-
-
-== Legacy Load Indicators
-
-NOTE: Fulcro 2.0 has better support. This is still available, but see also loading-indicators in the demos.
-
-Fulcro places markers on items that are being loaded. These markers can be used to show progress indicators in
-the UI. There are essentially two kinds: a global marker, and an item-based marker. The global marker is present during loads, whereas the localized markers are present until a specific item's load has completed.
-
-In the demo below the first button triggers a load of a child's data from the server. Use the server latency controls to slow things down so you
-can see the markers. Once the child is loaded, a button appears indicating items can be loaded into that child.
-
-Once the items are loaded, each has a refresh button. Again, a 1 second delay is present so you can examine the
-markers.
-
-++++
-<div class="example" id="legacy-load-indicators"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.legacy-load-indicators').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="legacy-load-indicators source"]
-----
-include::src/book/book/demos/legacy_load_indicators.cljs[]
 ----
 
 == Paginating Large Lists
@@ -10792,30 +10866,6 @@ The server in this example is trivial. It is just a query that generates items o
 include::src/book/book/demos/paginating_large_lists_from_server.cljs[]
 ----
 
-== Parallel vs. Sequential Loading
-
-This is a simple application that shows off the difference between regular loads and those marked parallel. In
-order to see the effect, increase your server latency to something like 5 seconds.
-
-Normally, Fulcro runs separate event-based loads in sequence, ensuring that your reasoning can be synchronous;
-however, for loads that might take some time to complete, and for which you can guarantee order of
-completion doesn't matter, you can specify an option on load (`:parallel true`) that allows them to proceed in parallel.
-
-In the demo below pressing the sequential buttons on the three (in any order) will take
-at least 3x your server latency to complete from the time you click the first one (since each will run after the other is complete).
-If you rapidly click the parallel buttons, then the loads will not be sequenced, and you will see them all complete in roughly
-1x your server latency (from the time you click the last one).
-
-++++
-<div class="example" id="parallel-vs-sequential-loading"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.parallel-vs-sequential-loading').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="parallel-vs-sequential-loading source"]
-----
-include::src/book/book/demos/parallel_vs_sequential_loading.cljs[]
-----
-
 == Parent-Child Relationships
 
 UIs often have parent-child relationships. In these cases, the parent can be seen as a UI component in control of the
@@ -10873,29 +10923,6 @@ The source of the components for this demo are below. Make note of the use of `c
 [source,clojure,role="parent-child-ownership-relations source"]
 ----
 include::src/book/book/demos/parent_child_ownership_relations.cljs[]
-----
-
-== Server Error Handling
-
-This example has installed a global handler that can watch for network errors (it logs them to the console).
-
-On startup it attempts to read garbage (which generates an error and triggers a fallback). This will leave a load
-marker in the app state, which can be examined to show an actual UI error.
-
-Each button tries a different mutation. The one on the left disables itself on errors, whereas the right
-one allows you to keep trying.
-
-In all cases the application internals place the last server error in the top-level `:fulcro/server-error`. You
-should manually clear this if you wish to use it to track hard server errors.
-
-++++
-<div class="example" id="server-error-handling"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-error-handling').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="server-error-handling source"]
-----
-include::src/book/book/demos/server_error_handling.cljs[]
 ----
 
 == UI Query Security
