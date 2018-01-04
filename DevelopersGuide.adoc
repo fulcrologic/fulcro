@@ -4056,7 +4056,7 @@ Writing tests against the state model and mutation implementations is a great wa
 without needing to involve the UI itself at all! You can read more about that in the section on
 <<VisualRegression, Visual Regression Testing>>
 
-= Normalization
+= Normalization [[Normalization]]
 
 Normalization is a central mechanism in Fulcro. It is the means by which your data
 trees (which you receive from component queries against servers) can be placed into
@@ -4100,7 +4100,7 @@ critical to compose queries correctly. The query and tree of data must have a pa
 UI. In template mode `defsc` will try to check some things for you, but you must ensure that you
 compose the queries correctly.
 
-== Normalization: Initial State, Server Interations, and Mutations [[Normalization]]
+== Normalization: Initial State, Server Interations, and Mutations
 
 The process described above is how most data interactions occur. At startup the `:initial-state` supplies data that
 exactly matches the tree of the UI. This gives your UI some initial state to render. The normalization mechanism
@@ -4243,6 +4243,45 @@ minimum amount of activity happens in the query engine and React. The basic rule
 . Refresh the subtree starting at the component that ran `transact!`. If it was the reconciler, run from root.
 . Refresh any component's that share the same `ident` with the component that ran the transaction.
 . Refresh any component that *queries* for any of the data that was indicated in "follow-on" reads.
+
+=== Parent-Child Relationships
+
+The most common case of non-local UI refresh comes up with parent-child relationships. In these cases, the parent can
+be seen as a UI component in control of the children (it is responsible for telling them to render). In such cases it is
+usually better to reason about the *management* logic (i.e. deleting, reordering, etc) from the parent; however,
+it is commonly the case the you want the *child* to render some controls, such as a delete button. Thus, the control
+that wants to modify the state (the delete button on the item) is not local to the component that will need to refresh
+(the parent's list).
+
+The solution is simple: create a callback in the parent that can run the delete transaction and pass it through
+as a computed value.
+
+In our example, we'll assume the delete is global (removes the item from the list and the normalized table):
+
+```
+(m/defmutation delete-item
+  "Mutation: Delete an item from a list"
+  [{:keys [id]}]
+  (action [{:keys [state]}]
+    (letfn [(filter-item [list] (filterv #(not= (second %) id) list))]
+      (swap! state
+        (fn [s]
+          (-> s
+            (update :items dissoc id) ; remove the item from the db (optional)
+            (update-in [:lists 1 :list/items] filter-item))))))) ; remove the item from the list of idents
+```
+
+The source of the components for this demo are below. Make note of the use of `computed`.
+
+++++
+<div class="example" id="parent-child-ownership-relations"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.parent-child-ownership-relations').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="parent-child-ownership-relations source"]
+----
+include::src/book/book/demos/parent_child_ownership_relations.cljs[]
+----
 
 === Follow-on Reads
 
@@ -6072,6 +6111,55 @@ application.
 NOTE: Mutation merge happens after server return values have been merged; however, it does happen *before* tempid remapping.
 Just work with the tempids, and they will be rewritten once your merge is complete.
 
+==== Live Example of a Mutation Merge
+
+In the example below the displayed volume is coming from the server's mutation return value.
+Use the server latency to convince yourself of this. Notice if you click too rapidly then the value doesn't increase
+any faster than the server can respond (since it computes the new volume based on what the client sends).
+
+The merge function is most easily dealt with as a multimethod so you can dispatch on the mutation symbol:
+
+```
+(defmulti merge-return-value (fn [state sym return-value] sym))
+```
+
+We're going to return a map with `:new-volume` in it from the server, so our merge can look like this:
+
+```
+(defmethod merge-return-value `crank-it-up
+  [state _ {:keys [new-volume]}]
+  (assoc-in state [:child/by-id 0 :volume] new-volume))
+```
+
+Our mutation asks a remote server to increase the volume. The client and server mutations are:
+
+```
+;; client-side
+(m/defmutation crank-it-up [params]
+  (remote [env] true))
+```
+
+```
+(server/defmutation crank-it-up [{:keys [value]}]
+  (action [env]
+    {:new-volume (inc value)}))
+```
+
+The remainder of the setup is just giving the merge handler function to the application at startup:
+
+```
+(fc/new-fulcro-client :mutation-merge merge-return-value)
+```
+
+++++
+<div class="example" id="server-return-values-manually-merging"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-return-values-manually-merging').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="server-return-values-manually-merging source"]
+----
+include::src/book/book/demos/server_return_values_manually_merging.cljs[]
+----
 
 == Loads From Within Mutations
 
@@ -10380,9 +10468,9 @@ include::src/book/book/html_converter.cljs[]
 
 = Demos
 
-This chapter includes running demos with source that will give you insight on how to approach various problems. Remember
+This chapter includes some additional running demos with source that will give you insight on how to approach various problems. Remember
 that the server latency can be set using the controls in the upper-right corner in the live HTML version, so you can
-better watch state changes during server interactions.
+more easily watch state changes during server interactions.
 
 == Autocomplete
 
@@ -10724,8 +10812,7 @@ load data needed for that screen. The intention is to just load it if it is miss
     (when (missing-tab? state tab)
       (df/load-action state :all-settings SomeSetting
         {:target  [:settings :tab :settings]
-         :refresh [:settings]})
-      ))
+         :refresh [:settings]})))
   (remote [{:keys [state] :as env}]
     (when (missing-tab? state tab) (df/remote-load env))))
 ```
@@ -10866,65 +10953,6 @@ The server in this example is trivial. It is just a query that generates items o
 include::src/book/book/demos/paginating_large_lists_from_server.cljs[]
 ----
 
-== Parent-Child Relationships
-
-UIs often have parent-child relationships. In these cases, the parent can be seen as a UI component in control of the
-children (it is responsible for telling them to render). In such cases it is usually better to reason about
-the *management* logic (i.e. deleting, reordering, etc) from the parent; however, it is commonly the case the
-you want the *child* to render some controls, such as a delete button.
-
-The most basic example of this is the list. Lists are very simple.
-In a normalized database there will be a table of items, and other parts
-of the UI will refer to the list of items by ident.
-
-In order to accomplish this the parent must create some things. Perhaps it needs to ask a list item to highlight,
-or it wants to pass a callback that can be used by the child to indicate `onDelete`.
-
-In Fulcro you *must* pass such calculated values via `prim/computed`.
-
-This is because the underlying system can cause UI refreshes on targeted components (e.g. the items themselves). In
-those cases the way it works is that Fulcro runs the query on the item and forces an update. When it does so, *it
-only has the data from the query!*. Any computed values that were originally passed from the parent are *not* in
-the database! The `computed` function sends the parent-generated data to the component, and causes the component
-itself to cache those values behind the scenes (after all, the parent has not refresh, so those values should still
-be ok).
-
-So, in our list example let's talk about removing an item.
-Removing an item from a list requires at least one change to the database, possibly two:
-
-* You'll always want to remove the ident from the list itself. This will cause the item to disappear from the screen. This
-is sufficient if the item is being removed from the screen, but not from the db. Remember that you're working
-on a normalized database, so you have to remove an ident, not the item in this case.
-* If the item is being deleted from storage altogether (as opposed to just the UI list) then you may want to remove it
-from the database table as well. Remember that removal from a list is not necessarily deletion of the item.
-
-In our example, we'll assume both need to happen:
-
-```
-(m/defmutation delete-item
-  "Mutation: Delete an item from a list"
-  [{:keys [id]}]
-  (action [{:keys [state]}]
-    (letfn [(filter-item [list] (filterv #(not= (second %) id) list))]
-      (swap! state
-        (fn [s]
-          (-> s
-            (update :items dissoc id) ; remove the item from the db (optional)
-            (update-in [:lists 1 :list/items] filter-item))))))) ; remove the item from the list of idents
-```
-
-The source of the components for this demo are below. Make note of the use of `computed`.
-
-++++
-<div class="example" id="parent-child-ownership-relations"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.parent-child-ownership-relations').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="parent-child-ownership-relations source"]
-----
-include::src/book/book/demos/parent_child_ownership_relations.cljs[]
-----
-
 == UI Query Security
 
 If you examine any UI query it will have a tree form. That is the nature of Fulcro's query and Datomic pull syntax. It
@@ -10944,7 +10972,7 @@ some kind of (forward or reverse) reference.
 [:a {:join1                           { :a 6 :join1 [:tableX id1] }
                                                       \
                                                        \
-                                                        \|
+                                                        \
         [:b {:join2                       :tableX { id1 { :id id1 :join2 [:tableY id2]
                                                                             /
                                                                            /
@@ -10982,7 +11010,6 @@ book). This example's auth mechanisms would be set up as components and a parser
 code is:
 
 ```
-
 (defrecord Authentication [handler]
   c/Lifecycle
   (start [this]
@@ -11035,126 +11062,12 @@ it looks.
 include::src/book/book/demos/server_query_security.cljs[]
 ----
 
-== Mutation Joins
-
-Fulcro 2.0+ supports the ability to return (and auto-normalize) a value from a server-side mutation.
-
-You can write mutation joins as part of normal transactions, but they are a bit messy to read (see the
-Developer's Guide). The easier way to work with them is to use a regular-looking mutation in the UI,
-and encode the join on the client-side *implementation* of the mutation.
-
-So, in our demo below our mutation to change a label is called like this:
-"
-(dc/mkdn-pprint-source Item)
-"
-
-but our mutation can take that incoming AST (for `(change-label)`) and indicate that it will return a value:
-
-```
-(defmutation change-label [{:keys [db/id]}]
-  (remote [{:keys [ast state]}]
-    (-> ast
-      (m/returning state Item)
-      (m/with-params {:db/id id}))))
-```
-
-Note that there is *no* optimistic update here. The change you see on the UI in the demo below is due to the response
-merging into your application state!
-
-The additional `with-params` just shows there's an additional helper for changing the parameters that would be
-sent to the server (it isn't needed in this example, since that's what the parameters already were).
-
-== Normalization
-
-For normalization to work, the mutation join must use a UI query. This is why the second argument to `returning` is
-a *component*. The query is pulled from that component, which includes the metadata necessary for proper normalization.
-"))
-
-The two items in the list are clickable. Clicking on either of them will ask the server to change their value
-to some random UUID and return the updated entity. When using mutation joins this data is auto-merged and the UI updated.
-
-NOTE: The Add Item button is full-stack, and uses tempids. Use the server latency to
-see the state as it runs.
-
-== Mutation Return Values
-
-NOTE: In most cases you're better off using Mutation Joins instead of this.
-
-The displayed volume in the UI is coming from the server's mutation return value.
-
-There is a bit of simulated delay on the server (200ms). Notice if you click too rapidly then the value doesn't increase
-any faster than the server can respond (since it computes the new volume based on what the client sends). Opening
-the console in your devtools on the browser where you can see the transaction makes this easier to follow and understand.
-
-(new-fulcro-client ...  :mutation-merge merge-return-value)
-
-=== Explanation
-
-Occasionally a full-stack application will want to return a value from the server-side of a mutation. In general this
-is rarer that in other frameworks because most operations in Fulcro are done optimistically (the UI drives the changes).
-
-*NOTE:* In Fulcro 2.0 you should probably use data driven mutation joins.
-
-It is possible for you to completely define how to handle the returned data from your server.
-
-The pipeline normally throws away return values from server-side mutations since there is no query to use to normalize
-and merge them (unless you use mutation joins).
-
-Note that Fulcro specifically avoids asynchrony whenever possible. Networking is, by nature, async in the browser. Your
-application could be off doing anything at all by the time the server responds to a network request. Therefore, return
-values from mutations will have an async nature to them (they arrive when they arrive).
-
-Fulcro's method of allowing you to recieve a return value is for you to provide a function that can merge the return
-value into your app database when it arrives. Most commonly you'll do this by defining a multimethod
-that dispatches on the symbol of your original mutation:
-
-```
-(dc/mkdn-pprint-source merge-return-value)
-```
-
-You can then define methods for each mutation symbol. For example, the demo has a `crank-it-up` mutation, which
-does no optimistic update. It simply sends it off to the server for processing.
-
-```
-(dc/mkdn-pprint-source crank-it-up)
-```
-
-Our mutation asks a remote server to increase the volume. It does the computation and returns the new value
-(in this case based on the old value from the UI). It need only return a value to have it propagate to the client:
-
-```
-(dc/mkdn-pprint-source crank-it-up-server)
-```
-
-Handling the return value involves defining a method for that dispatch:
-
-```
-(defmethod merge-return-value `crank-it-up
-  [state _ {:keys [new-volume]}]
-  (assoc-in state [:child/by-id 0 :volume] new-volume))
-```
-
-The remainder of the setup is just giving the merge handler function to the application at startup:
-
-```
-(fc/new-fulcro-client :mutation-merge merge-return-value)
-```
-
-++++
-<div class="example" id="server-return-values-manually-merging"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-return-values-manually-merging').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="server-return-values-manually-merging source"]
-----
-include::src/book/book/demos/server_return_values_manually_merging.cljs[]
-----
-
 == Fulcro with SQL
 
 The Fulcro SQL library is capable of running many Fulcro graph queries directly
 against an SQL database. It also comes with testing utilities and a component for
-setting up connection pooling (via HikariCP) and migrations (via Flyway).
+setting up connection pooling (via http://brettwooldridge.github.io/HikariCP[HikariCP])
+and migrations (via https://flywaydb.org/[Flyway]).
 
 Since our demos run in the browser only for this document, we cannot show you a live demo,
 but here are some basics to whet your appetite.

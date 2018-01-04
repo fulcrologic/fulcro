@@ -9,7 +9,7 @@
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(server/defmutation ^{:intern "-server"} crank-it-up [{:keys [value]}]
+(server/defmutation crank-it-up [{:keys [value]}]
   (action [env]
     {:new-volume (inc value)}))
 
