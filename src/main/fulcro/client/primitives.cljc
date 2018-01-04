@@ -2321,21 +2321,20 @@
   (reconcile! [this]
     (p/reconcile! this nil))
   (reconcile! [this remote]
-    (let [st             @state
-          q              (if-not (nil? remote)
-                           (get-in st [:remote-queue remote])
-                           (:queue st))
-          app-state-atom (:state config)
-          render-mode    (:render-mode config)
-          force-root?    (or (empty? q) (contains? #{:keyframe :brutal} render-mode) *blindly-render*)
-          blind-refresh? (or (contains? #{:brutal} render-mode) *blindly-render*)
-          rendered-root? (atom false)
-          render-root    (fn []
-                           (if-let [do-render (:render st)]
-                             (when-not @rendered-root?
-                               (reset! rendered-root? true)
-                               (do-render))
-                             (log/error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
+    (let [reconciler-state      @state
+          components-to-refresh (if-not (nil? remote)
+                                  (get-in reconciler-state [:remote-queue remote])
+                                  (:queue reconciler-state))
+          render-mode           (:render-mode config)
+          force-root?           (or (empty? components-to-refresh) (contains? #{:keyframe :brutal} render-mode) *blindly-render*)
+          blind-refresh?        (or (contains? #{:brutal} render-mode) *blindly-render*)
+          rendered-root?        (atom false)
+          render-root           (fn []
+                                  (if-let [do-render (:render reconciler-state)]
+                                    (when-not @rendered-root? ; make sure we only render root once per reconcile
+                                      (reset! rendered-root? true)
+                                      (do-render))
+                                    (log/error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
       ;; IMPORTANT: Unfortunate naming that would require careful refactoring. `state` here is the RECONCILER's state, NOT
       ;; the application's state. That is in (:state config).
       (swap! state update-in [:queued] not)
@@ -2345,7 +2344,7 @@
       (binding [*blindly-render* blind-refresh?]
         (if force-root?
           (render-root)
-          (optimal-render this q render-root)))))
+          (optimal-render this components-to-refresh render-root)))))
 
   (send! [this]
     (let [sends (:queued-sends @state)]

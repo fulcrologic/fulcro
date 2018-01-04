@@ -137,21 +137,9 @@
       (assertions
         "The locale is updated in app state as a string"
         (:ui/locale new-state) => "es-MX"
-        "The react key is changed to force a DOM refresh"
-        (:ui/react-key new-state) => "es-MX"
         "The global locale atom is updated"
         @i18n/*current-locale* => "es-MX")))
-  (let [forced? (atom false)]
-    (provided "A reconciler is supplied"
-      (m/locale-present? l) => true
-      (js/setTimeout f n) => (f)
-      (prim/force-root-render! r) => (reset! forced? true)
 
-      (reset! i18n/*current-locale* "en-US")
-      (let [new-state (m/change-locale-impl {} :es-MX :reconciler)]
-        (assertions
-          "A root render is forced"
-          @forced? => true))))
   (provided "the locale is not loaded, and is invalid"
     (m/locale-present? l) => false
     (m/locale-loadable? l) => (do
@@ -171,16 +159,23 @@
   (provided "the locale is not loaded, but is defined in a module"
     (m/locale-present? l) => false
     (m/locale-loadable? l) => true
-    (cljs.loader/load m) => (assertions
-                              "Triggers a module load with the locale's module keyword"
-                              m => :ja)
+    (cljs.loader/load m cb) => (do
+                                 (assertions
+                                   "Triggers a module load with the locale's module keyword"
+                                   m => :ja
+                                   "passes the loader a callback to run when load completes"
+                                   (nil? cb) => false)
+                                 ; simulate the loader finishing the load
+                                 (reset! i18n/*current-locale* "value-to-verify-callback")
+                                 (assertions
+                                   (:ui/locale (cb)) => "ja"
+                                   "the loader callback updates the locale atom (whose watch will refresh the UI)"
+                                   (deref i18n/*current-locale*) => "ja" ) )
 
     (let [new-state (m/change-locale-impl {} "ja")]
       (assertions
         "The locale is updated in app state as a string"
         (:ui/locale new-state) => "ja"
-        "The react key is changed to force a DOM refresh"
-        (:ui/react-key new-state) => "ja"
         "The global locale atom is updated"
         @i18n/*current-locale* => "ja"))))
 

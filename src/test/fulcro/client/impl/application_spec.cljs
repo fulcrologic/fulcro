@@ -153,12 +153,22 @@
 
         (app/server-send :the-app :transactions :merge-callback)))
 
+    (component "The i18n/*current-locale* atom"
+      (let [forced? (atom false)]
+        (when-mocking
+          (prim/force-root-render! r) => (reset! forced? true)
+
+          (reset! i18n/*current-locale* "en")
+
+          (assertions
+            "Triggers a force render of root"
+            @forced? => true))))
+
     (component "Changing app :ui/locale"
       (let [forced? (atom false)]
         (when-mocking
           (m/locale-present? l) => true
           (prim/force-root-render! r) => (reset! forced? true)
-          (js/setTimeout f n) => (f)                        ; calls force root render
 
           (let [react-key (:ui/react-key @mounted-app-state)]
             (reset! i18n/*current-locale* "en")

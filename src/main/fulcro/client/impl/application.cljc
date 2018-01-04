@@ -220,7 +220,7 @@
   (letfn [(re-render [k r o n] (when (prim/mounted? (prim/app-root reconciler))
                                  (util/force-render reconciler)))]
     (remove-watch i18n/*current-locale* :locale)
-    (add-watch i18n/*loaded-translations* :locale re-render) ; when a module load completes, it stores the translations here
+    (add-watch i18n/*loaded-translations* :locale re-render)
     (add-watch i18n/*current-locale* :locale re-render)))   ; when the local itself changes
 
 (defn generate-reconciler
