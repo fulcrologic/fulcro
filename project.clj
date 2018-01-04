@@ -74,7 +74,7 @@
                                :output-dir           "resources/public/js/cards"
                                :asset-path           "js/cards"
                                :preloads             [devtools.preload]
-                               ;:parallel-build       true
+                               :parallel-build       true
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "production-demos"
