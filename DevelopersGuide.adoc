@@ -2580,7 +2580,7 @@ The `#js` tag causes the *compiler* to output a Javascript
 data structure (it is *not* a conversion, nor is it recursive). Thus `#js` has no runtime overhead,
 but `clj->js` can convert dynamic things on the fly at runtime.
 
-// == The Reconciler [[Reconciler]]
+== The Reconciler [[Reconciler]]
 
 When you start a Fulcro application your `:started-callback` will get the completed `app` as a parameter.
 
@@ -2591,7 +2591,7 @@ mounted components that might need refresh.
 
 You will see it mentioned in many places in this book, and we'll point out where you'll use it directly.
 
-// === Rendering Optimizations [[RenderingOptimizations]]
+=== Rendering Optimizations [[RenderingOptimizations]]
 
 The reconciler does a number of things to optimize rendering beyond the basics of React.
 
@@ -2611,7 +2611,7 @@ be somewhat costly depending on how well you <<Performance, optimized>> your UI 
 factor in both normalization and rendering performance since Fulcro relies on them in order to reduce
 the query overhead of UI refresh.
 
-// === Rendering Modes
+=== Rendering Modes
 
 Version 2.1+ of Fulcro include the ability to tell the reconciler which rendering mode to use.
 
@@ -4458,7 +4458,7 @@ You'll want to balance your mutations just like you do any other library of code
 reuse and clarity are maximized. In the case of mutations the deciding factor is often
 how you want to deal with remote mutations.
 
-== Advanced Mutation Topics // 8.6
+== Advanced Mutation Topics
 
 This section covers a number of additional mutation techniques that arise in more advanced situations.
 Almost all of these circumstances arise
