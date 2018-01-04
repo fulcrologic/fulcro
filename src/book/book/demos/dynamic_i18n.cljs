@@ -5,8 +5,8 @@
             [fulcro.client.dom :as dom]
             [fulcro.client.mutations :as m]))
 
-(defsc Root [this {:keys [ui/locale ui/react-key]}]
-  {:query [:ui/locale :ui/react-key]}
+(defsc Root [this {:keys [ui/locale]}]
+  {:query [:ui/locale]}
   (dom/div nil
     (dom/h4 nil (tr "Locale Tests. Current locale: ") (name locale))
     (dom/p nil (tr "This is a test."))

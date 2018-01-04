@@ -10770,7 +10770,7 @@ include::src/book/translations/es_MX.cljc[]
 == Loading due to a UI Event
 
 Tabbed interfaces typically use a UI Router (which can be further integrated into HTML5 routing as a routing tree). See
-[this YouTube video](https://youtu.be/j-_itpXEo6w?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R) for more details.
+https://youtu.be/j-_itpXEo6w?list=PLVi9lDx-4C_T_gsmBQ_2gztvk6h_Usw6R[this YouTube video] for more details.
 
 This example not only shows the basic construction of an interface that allows content (and query) to be switched, it
 also demonstrates how one goes about triggering loads of data that some screen might need.
