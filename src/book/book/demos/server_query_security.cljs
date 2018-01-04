@@ -2,6 +2,7 @@
   (:require
     [fulcro.client.data-fetch :as df]
     [fulcro.client.primitives :as prim :refer [defsc]]
+    [fulcro.client.mutations :refer [defmutation]]
     [com.rpl.specter :as s]
     [clojure.set :as set]
     [fulcro.client.dom :as dom]
@@ -28,7 +29,7 @@
   query keyword and entity ID.
 
   TODO: Implement some logic here."
-  [user keyword id] (= "Tony" (:username user)))
+  [user keyword id] true)
 
 (defn is-authorized-query?
   "Returns true if the given query is ok with respect to the top-level key of the API query (which should have already
@@ -57,12 +58,13 @@
 (server/defquery-root :person
   (value [{:keys [request query] :as env} params]
     (let [authorization (make-authorizer)
-          user (:user request)]
+          user          (:user request)]
       (log/info (str authorization "w/user" user))
-      (or (and
-            ;; of course, the params would be derived from the request/headers/etc.
-            (can-access-entity? authorization user :person 42)
-            (authorized-query? authorization user :person query))
+      (or
+        (and
+          ;; of course, the params would be derived from the request/headers/etc.
+          (can-access-entity? authorization user :person 42)
+          (authorized-query? authorization user :person query))
         (throw (ex-info "Unauthorized query!" {:status 401 :body {:query query}})))
       ;; Emulate a datomic pull kind of operation...
       (select-keys (get pretend-database :person) query))))
@@ -90,13 +92,19 @@
 
 (def ui-person (prim/factory Person))
 
+(defmutation clear-error [params] (action [{:keys [state]}] (swap! state dissoc :fulcro/server-error)))
+
 (defsc Root [this {:keys [ui/react-key person fulcro/server-error] :or {ui/react-key "ROOT"} :as props}]
   {:query [:ui/react-key {:person (prim/get-query Person)} :fulcro/server-error]}
   (dom/div #js {:key react-key}
     (when server-error
       (dom/p nil (pr-str "SERVER ERROR: " server-error)))
-    (dom/button #js {:onClick #(df/load this :person Person {:refresh [:person]})} "Query for person with credit card")
-    (dom/button #js {:onClick #(df/load this :person Person {:refresh [:person] :without #{:cc-number}})} "Query for person WITHOUT credit card")
+    (dom/button #js {:onClick (fn []
+                                (prim/transact! this `[(clear-error {})])
+                                (df/load this :person Person {:refresh [:person]}))} "Query for person with credit card")
+    (dom/button #js {:onClick (fn []
+                                (prim/transact! this `[(clear-error {})])
+                                (df/load this :person Person {:refresh [:person] :without #{:cc-number}}))} "Query for person WITHOUT credit card")
     (df/lazily-loaded ui-person person)))
 
 
