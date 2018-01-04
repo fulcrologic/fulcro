@@ -1,7 +1,7 @@
 Fulcro Developers Guide
 =======================
 :author: Tony Kay
-:revdate: Dec 27, 2017
+:revdate: Jan 3, 2018
 :revnumber: 1.0
 :lang: en
 :encoding: UTF-8
