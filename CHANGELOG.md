@@ -1,3 +1,8 @@
+2.0.1
+-----
+- Fixed transact! follow on reads. The declared refresh fix had accidentally
+dropped processing the explicit follow-on reads.
+
 2.0.0
 -----
 - Minor bug fixes in `ptransact!` (ref not required) and `merge-component!` (UI refresh)
