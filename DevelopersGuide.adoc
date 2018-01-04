@@ -3132,8 +3132,8 @@ Some topics you should be familiar with in React to accomplish many of these thi
 
 - Component references: A mechanism that allows you access to the *real* DOM of the component once it's on-screen.
 - Component-local state: A stateful mechanism where mutable data is stored on the component instance.
-- General DOM manipulation. Clojurescript builds for Closure and therefore includes the Google Closure library, which in
-  turn has all sorts of helpful low-level functions should you need them.
+- General DOM manipulation. Clojurescript builds using the Google Closure compiler and therefore
+  includes the Google Closure library, which in turn has all sorts of helpful low-level functions should you need them.
 
 === Focusing an input
 
@@ -4235,10 +4235,98 @@ will do the right thing.
 In general these advantages mean you should generally use the macro to define mutations, but it is good
 to be aware that underneath is just a multimethod.
 
+== Refreshing Non-local UI
+
+In the default rendering mode Fulcro is capable of optimizing your rendering refresh so that the bare
+minimum amount of activity happens in the query engine and React. The basic rules are as follows:
+
+. Refresh the subtree starting at the component that ran `transact!`. If it was the reconciler, run from root.
+. Refresh any component's that share the same `ident` with the component that ran the transaction.
+. Refresh any component that *queries* for any of the data that was indicated in "follow-on" reads.
+
+=== Follow-on Reads
+
+A *follow-on read* is a property listed in a transaction:
+
+```
+(transact! this `[(f) :person/name])
+```
+
+It indicates that the given data will have changed, and therefore any on-screen component that queries for
+that particular data should also be refreshed when the transaction completes the optimistic update (and again
+after the remote interaction, if there is one).
+
+Follow-on reads allow the developer to reason more abstractly about non-local UI refresh. They need only
+think about what data is changing, and not about what components might be displaying it. This allows the UI
+to evolve without additional concerns that refresh will be slow (due to expensive data analysis) or will become
+broken (because you didn't know a component needed refresh).
+
+```
+(defsc Right [this {:keys [db/id right/value]}]
+  {:query         [:db/id :right/value]}
+  (dom/div nil
+    ; needs a follow-on read because it is updating something that is queried elsewhere...
+    (dom/button #js {:onClick #(prim/transact! this `[(ping-left {}) :left/value])} "Ping Left")
+    value))
+```
+
+This model was inherited from Om Next, and it is the correct model to use when the transaction might, for example,
+modify opaque data that is not directly queried but which would cause a component to need a refresh; however,
+since most transactions run a mutation that is really more aware of what data is changing
+it makes quite a bit of sense for you to be able to declare this *on the mutation itself*.
+
+=== Declarative Refresh
+
+Fulcro 2.0+ supports a way of declaring follow-on reads that allows for better local reasoning: co-locate the
+follow-on reads with the mutation itself. The mechanism is quite simple: add a `refresh` section on your mutation
+and return the list of keywords for the data that changed:
+
+```
+(defmutation ping-left [params]
+  (action [{:keys [state]}]
+    (swap! state update-in [:left/by-id 5 :left/value] inc))
+  (refresh [env] [:left/value]))
+```
+
+The above mutation just indicates what it changed: `:left/value`.
+
+The UI can then drop the follow-on reads:
+
+```
+(defsc Right [this {:keys [db/id right/value]}]
+  {:query         [:db/id :right/value] }
+  (dom/div nil
+    ; no longer need the :left/value as a follow-on read
+    (dom/button #js {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
+    value))
+```
+
+In this case the transaction is running on a component that doesn't query for the data being changed (it is pinging the
+Left component). The built-in refresh list on the mutation takes care of the update!
+
+The live example below is a full-stack demo of this. The buttons update data that the other button displays.
+The `transact!`s on these would normally require follow-on reads or a callback to the parent to refresh properly.
+With the refresh list on the mutation itself the UI designer is freed from this responsibility.
+
+The right button uses data from the server in a pessimistic fashion (it does no optimistic update, and you can
+increase the simulated delay on the server), so pinging it from the left actually reads a value from the server.
+This demonstrates that the refresh is working for full-stack operations.
+
+++++
+<div class="example" id="declarative-mutation-refresh"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.declarative-mutation-refresh').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="declarative-mutation-refresh source"]
+----
+include::src/book/book/demos/declarative_mutation_refresh.cljs[]
+----
+
 == Recommendations About Writing Mutations
 
-Mutations really are aimed at being functions on your application state. Components have nice clean abstractions,
-and you will often benefit from writing low-level functions that represent the general operations on a component. As
+Mutations themselves are meant to be abstractions across the entire stack; however, the optimistic side of them are
+really just functions on your application state. Components have nice clean abstractions,
+and you will often benefit from writing low-level functions that represent the general operations on a component's data. As
 you move towards higher-level abstractions you'll want to compose those lower-level functions. As such, it pays
 to think a little about how this will look over time.
 
@@ -4554,7 +4642,7 @@ Here is the full running example with source:
 include::src/book/book/merge_component.cljs[]
 ----
 
-= Full Stack Operation [[FullStack]] // 9
+= Full Stack Operation [[FullStack]]
 
 One of the most interesting and powerful things about Fulcro is that the model for server interaction is unified into
 a clean data-driven structure. At first the new concepts can be challenging, but once you've seen the core primitive
@@ -6810,6 +6898,81 @@ by the easy server is a component you can inject into your modular server!
 It supports pulling in values from the system environment, overriding configs with a JVM option, and more.
 
 See the docstrings on `new-config` for more details.
+
+= Dynamic Queries [[DynamicQueries]]
+
+Fulcro fully support dynamic queries: the ability the change the query of a component at runtime. This feature is fully
+serializable (works with the support viewer and other time-travel features), and is critical for features like code splitting
+where you may need to compose in a query of an as-yet unloaded component tree of your application.
+
+== Query IDs
+
+For dynamic queries to work right they have to be stored in your application database and every aspect of them must
+be serializable. Additionally, the UI must be able to look them up at the component level in order to do optimal refresh.
+The solution to this is query IDs. A query ID is a simple combination of the the component's fully-qualified class name
+combined with a user-defined qualifier (which defaults to the empty string).
+
+Since this qualifier is needed both in the code that obtains queries (`get-query`) and in the UI rendering (the factory
+that draws that component), it is easiest to locate the qualifier in the UI factory itself. This allows you
+to have instances of a class that can have different queries:
+
+```
+(defsc Thing ...)
+(def ui-thing (prim/factory Thing)) ; query ID is based solely on the class itself (with no qualifier)
+(def ui-thing-1 (prim/factory Thing {:qualifier :a})) ; query ID is derived from Thing plus the qualifier :a
+
+(defsc Parent [this props]
+  {:query (fn [] [{:child (prim/get-query ui-thing-1)}])}
+  ...)
+```
+
+In the above example one can now set the query for `Thing`, or "`Thing` with qualifier `:a`".
+
+The following live demo shows dynamic queries in action:
+
+++++
+<div class="example" id="dynamic-queries"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-queries').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="dynamic-queries source"]
+----
+include::src/book/book/queries/dynamic_queries.cljs[]
+----
+
+== Query Parameters
+
+The dynamic query support allows you to use variables in your query to facilitate more easy modification of a component's query.
+Setting the entire query can be tedious when the query has a lot of elements, only one or a few of which need modifications.
+
+Query parameters are simply symbols you place in the query like so:
+
+```
+[:x ?p]
+```
+
+The symbol *must* start with a `?` to be a legal parameter.
+
+The parameters start out with no value, meaning that the query above will be interpreted as just `[:x]` at first.
+
+You can set the value of the parameter with `prim/set-query!`:
+
+```
+(prim/set-query! this Component {:params {:p :y}})
+```
+
+which in this case would cause the component's query to become `[:x :y]`. This is demonstrated in the
+demo below:
+
+++++
+<div class="example" id="dynamic-query-parameters"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-query-parameters').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="dynamic-query-parameters source"]
+----
+include::src/book/book/queries/dynamic_query_parameters.cljs[]
+----
 
 = Query Parsing
 
@@ -9521,6 +9684,12 @@ real user interactions!
 The viewer is already written for you, and is in the `fulcro.support-viewer` namespace. There are a few things you
 have to do in order to make it work.
 
+WARNING: You must be careful to follow the rule that "only data goes in the database". Things like anonymous functions
+are not serializable, and therefore if you store them in app state you will break your ability to use history for
+things like support viewer. See the documentation on https://github.com/cognitect/transit-format[Transit] for a
+description of the default types that are serializable and
+for some hints on how you can extend transit to support additional types.
+
 == Sending a Support Request
 
 There is a built-in mutation that can do this called `fulcro.client.mutations/send-history`. It can accept anything
@@ -9690,61 +9859,22 @@ include::src/book/book/demos/dynamic_ui_routing.cljs[]
 
 == Code Splitting and Server-Side Rendering
 
-Of course splitting up your application affects server-side rendering as well. If you want to pre-render a page that is normally loaded as a
-module then you must make sure it is loaded properly on the server. This is typically relatively simple, since you won't
-need the module splitting or the loading code to do anything. Instead, you just need to make sure the namespace is required so
-that the multimethod has been installed. There is also the problem of the dynamic query: you don't have component instances
-or a reconciler, so there is no place to set the query. Instead, you'll have to use reader conditionals so that the query
-is statically complete when used on the server.
+WARNING: Server-side rendering with dynamically-loaded modules requires support for `r/route-to-impl!` on the server
+to set the dynamic route in the app state that you want to render. At the time of this writing that function is not yet
+capable of running in Clojure.
 
-```
-(defsc RouterUnion [this props]
-  {:query (fn []
-    #?(:cljs {:main-screen (prim/get-query Main)}
-       :clj {:main-screen (prim/get-query Main) :other (prim/get-query Other) ...}))}
-  ...
-```
+Splitting up your application affects server-side rendering as well. If you want to pre-render a page that is normally loaded as a
+module then you must make sure it is loaded properly on the server. The basic steps are:
 
-When the application loads you'll need to do the same kind of routing things you'd do with any other server-side
-render; however, in this case the dynamic router will trigger the code load and
+. Make sure the namespace of the dynamic screen is required so that the `defmethod` for `get-dynamic-router-target` has been installed.
+. During the app state setup, use `r/route-to-impl!` to set the route on app state.
+. Render the DOM to a string.
 
-FIXME: This section needs a bit more work. It is doable, but a bit more work probably. The new <<DynamicQueries,dynamic queries>> make
-getting the query correct much easier, but you also need to make sure you trigger the proper module loads for the
-server state of the code-split screen.
-
-= Dynamic Queries [[DynamicQueries]]
-
-Fulcro fully support dynamic queries: the ability the change the query of a component at runtime. This feature is fully
-serializable (works with the support viewer and other time-travel features), and is critical for features like code splitting
-where you may need to compose in a query of an as-yet unloaded component tree of your application.
-
-== Query IDs
-
-For dynamic queries to work right they have to be stored in your application database and every aspect of them must
-be serializable. Additionally, the UI must be able to look them up at the component level in order to do optimal refresh.
-The solution to this is query IDs. A query ID is a simple combination of the the component's fully-qualified class name
-combined with a user-defined qualifier (which defaults to the empty string).
-
-Since this qualifier is needed both in the code that obtains queries (`get-query`) and in the UI rendering (the factory
-that draws that component), it is easiest to locate the qualifier in the UI factory itself. This allows you
-to have instances of a class that can have different queries:
-
-```
-(defsc Thing ...)
-(def ui-thing (prim/factory Thing)) ; query ID is derived from Thing + :a
-(def ui-thing-1 (prim/factory Thing {:qualifier :a})) ; query ID is derived from Thing + :a
-
-(defsc Parent [this props]
-  {:query (fn [] [{:child (prim/get-query ui-thing-1)}])}
-  ...)
-```
-
-In the above example one can now set the query for `Thing`, or `Thing` with qualifier `:a`.
-
-== Query Parameters
-
-The dynamic query support allows you to use variables in your query to facilitate more easy modification of a component's query.
-Setting the entire query can be tedious when the query has a lot of elements, only one or a few of which need modifications.
+When the application loads on the client you'll have passed the generated app state, so the route will be correct from
+a *data* standpoint, but you'll need your started callback to make sure the actual *code* gets loaded when it
+detects a dynamic route (which you'll have to do by analyzing the app state or setting the current handler in
+some easy-to-understand location. If you're using HTML5 history events then your URI will probably trigger the correct
+dynamic route call which will result in the correct result.
 
 = Hacking the Client Query Engine
 
@@ -9765,7 +9895,11 @@ that item.
 
 == Adding to `read-local`
 
+TODO
+
 == Demo – Writing a Pagination and Sort Routine
+
+TODO
 
 = Performance [[Performance]]
 
@@ -9832,7 +9966,8 @@ with a number of helpful features:
 * A Mocking/expectation system
 * Outline-based specifications
 * All of the functions from `clojure.test` work inside of specifications (e.g. `is`, `are`, etc).
-* It is easy to run specifications from CI systems. See the templates for examples.
+* It is easy to run specifications from CI systems. Try out the https://github.com/fulcrologic/fulcro-lein-template[Leiningen template]
+  to get an application that is already set up to go.
 
 == Specifications
 
@@ -10017,7 +10152,7 @@ The [fulcro-template](http://github.com/fulcrologic/fulcro-template) is pre-conf
 = Converting HTML to Fulcro
 
 This chapter has a simple little live application that can convert valid HTML into the Clojure(script) you'd use
-within a Fulcro component. Note that stray whitespace will be converted to (harmless) `" "` that can be easily
+within a Fulcro component. Note that stray whitespace will be converted to (harmless) things like `" \n"` that can be easily
 removed, and the output indentation isn't ideal; Still, it turns the task into one of simple formatting:
 
 ++++
@@ -10068,14 +10203,13 @@ server just grabs 10 that match your search string:
 
 ```
 (defn airport-search [s]
-(->> airports
- (filter (fn [i] (str/includes? (str/lower-case i) (str/lower-case s))))
- (take 10)
- vec))
+  (->> airports
+       (filter (fn [i] (str/includes? (str/lower-case i) (str/lower-case s))))
+       (take 10)
+       vec))
 
 (defquery-root :autocomplete/airports
-(value [env {:keys [search]}]
- (airport-search search)))
+  (value [env {:keys [search]}] (airport-search search)))
 ```
 
 === The UI and Post Mutation
@@ -10218,7 +10352,7 @@ is the ultimate in code reuse and generality.
 * The composition facilities prevent duplication.
 * It becomes much easier to allow themed components with additional tool chains! Variables can be
 supplied that can simply be modified via code before CSS injection.
-* Closure minification can be applied to reduce the size of the resulting files during your
+* Google Closure's minification can be applied to reduce the size of the resulting files during your
 normal compilation!
 * Server-side rendering can pre-inject CSS rules into the server-side rendered page! No more waiting for
 your CSS to load for the UI to look right!
@@ -10264,58 +10398,6 @@ The complete commented code and example is below. See the library documentation 
 [source,clojure,role="component-localized-css source"]
 ----
 include::src/book/book/demos/component_localized_css.cljs[]
-----
-
-== Declarative Refresh
-
-In Fulcro 1.0 data model refreshes were indicated purely as follow-on reads at UI-level transactions:
-
-```
-(transact! this `[(f) :person/name])
-```
-
-This was the model inherited from Om Next; however, since the mutation is really more aware of what data is changing,
-and the UI is indexed by the data model properties, it makes quite a bit of sense for you to be able to declare
-this *on the mutation itself*.
-
-The mechanism is quite simple: add a `refresh` section on your mutation and return the list of keywords
-for the data that changed:
-
-```
-(defmutation ping-left [params]
-  (action [{:keys [state]}]
-    (swap! state update-in [:left/by-id 5 :left/value] inc))
-  (refresh [env] [:left/value]))
-```
-
-The above mutation just indicates what it changed: `:left/value`.
-
-The UI can then drop the follow-on reads:
-
-
-(dc/mkdn-pprint-source Right)
-
-In this case the transaction is running on a component that doesn't query for the data being changed (it is pinging the
-Left component). The built-in refresh list on the mutation takes care of the update!"))
-
-== Demonstration
-
-This card is a full-stack live demo of this. The buttons update data that the other button displays. The transacts
-on these would normally require follow-on reads or a callback to the parent to refresh properly. With the refresh
-list on the mutation itself, the UI designer is freed from this responsibility.
-
-The right button uses data from the server in a pessimistic fashion (it does no optimistic update, and there is a simulated
-delay on the server), so pinging if from the left actually reads a value from the server. This demonstrates that the
-refresh is working for full-stack operations.
-
-++++
-<div class="example" id="declarative-mutation-refresh"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.declarative-mutation-refresh').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="declarative-mutation-refresh source"]
-----
-include::src/book/book/demos/declarative_mutation_refresh.cljs[]
 ----
 
 == Dynamically Loaded Locales [[DynamicLocale]]

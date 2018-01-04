@@ -17,6 +17,8 @@
                book.queries.parsing-recursion-one
                book.queries.parsing-recursion-two
                book.queries.parsing-parameters
+               book.queries.dynamic-queries
+               book.queries.dynamic-query-parameters
                book.forms.forms-demo-1
                book.forms.forms-demo-2
                book.forms.forms-demo-3
@@ -175,6 +177,10 @@
 #?(:cljs (defexample "Recursive Part 2" book.queries.parsing-recursion-two/Root "parsing-recursion-two"))
 #?(:cljs (defexample "Parsing Parameters" book.queries.parsing-parameters/Root "parsing-parameters"))
 
+;; Dynamic queries
+#?(:cljs (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries" ))
+#?(:cljs (defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters" ))
+
 #?(:cljs (defexample "Internationalization Demo" book.basic-i18n/Root "basic-i18n"))
 #?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
 #?(:cljs (defexample "Tree to DB with Queries" book.tree-to-db/Root "tree-to-db" :networking book.main/example-server))
@@ -212,7 +218,6 @@
 #?(:cljs (defexample "Parallel vs. Sequential Loading" book.demos.parallel-vs-sequential-loading/Root "parallel-vs-sequential-loading" :networking book.main/example-server))
 #?(:cljs (defexample "Parent-Child Ownership" book.demos.parent-child-ownership-relations/Root "parent-child-ownership-relations" :networking book.main/example-server))
 
-(fc/new-fulcro-client)
 #?(:cljs (defexample "Error Handling (TODO:install error handler)" book.demos.server-error-handling/Root "server-error-handling"
            :networking book.main/example-server))
 #?(:cljs (defexample "Query Security" book.demos.server-query-security/Root "server-query-security"
