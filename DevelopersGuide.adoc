@@ -2742,7 +2742,7 @@ This is simple to understand, and all you need to see is a simple example:
 
 ```
 (defsc Component [this props]
- {:initial-state (fn [params] ...exactly what you'd write in defui...)}
+ {:initial-state (fn [params] ...exactly the state this component should start with...)}
  ...)
 ```
 
@@ -4656,7 +4656,7 @@ Tree of Data + Query --> merge! --> New Database
 The two core functions that allow you to trigger abstract operations or data merges externally
 (via a <<Reconciler,reconciler>>) are:
 
-[[Horizontal]]
+[Horizontal]
 `prim/transact!`:: The central function for running abstract changes in the application. Can be run with a component
 _or_ reconciler. If run with the reconciler, will typically cause a root re-render.
 `prim/merge!`:: A function that can be run against the reconciler to merge a tree of data via a UI query. This is
@@ -6929,22 +6929,22 @@ For educational purposes, we're going to walk you through implementing this read
 
 The parser understands the grammar, and is written to work as follows:
 
-- The parser calls your `read` with the key that it parsed, along with some other helpful information.
-- Your read function returns a value for that key (possibly calling the parser recursively if it is a join).
-- The parser generates the result map by putting that key/value pair into
+* The parser calls your `read` with the key that it parsed, along with some other helpful information.
+* Your read function returns a value for that key (possibly calling the parser recursively if it is a join).
+* The parser generates the result map by putting that key/value pair into
 the result at the correct position (relative to the query).
 
 Note that the parser only processes the query one level deep. Recursion (if you need it)
 is controlled by *you* calling the parser again from within the read function.
 
-The example below card is similar to the prior one, but it has a read function that just records what keys it was
+The example below is similar to the prior one, but it has a read function that just records what keys it was
 triggered for. Give it an arbitrary legal query, and see what happens.
 
 Some interesting queries:
 
-- `[:a :b :c]`
-- `[:a {:b [:x :y]} :c]`
-- `[{:a {:b {:c [:x :y]}}}]`
+* `[:a :b :c]`
+* `[:a {:b [:x :y]} :c]`
+* `[{:a {:b {:c [:x :y]}}}]`
 
 
 ++++
@@ -6991,19 +6991,19 @@ the `parser` is passed as part of your environment.
 
 So, the read function you write will receive three arguments, as described below:
 
-1. An environment containing:
-    + `:ast`: An abstract syntax *tree* for the element, which contains:
-       + `:type`: The type of node (e.g. :prop, :join, etc.)
-       + `:dispatch-key`: The keyword portion of the triggering query element (e.g. :people/by-id)
-       + `:key`: The full key of the triggering query element (e.g. [:people/by-id 1])
-       + `:query`: (same as the query in `env`)
-       + `:children`: If this node has sub-queries, will be AST nodes for those
-       + others...see documentation
-    + `:parser`: The query parser
-    + `:query`: **if** the element had one E.g. `{:people [:user/name]}` has `:query` `[:user/name]`
-    + Components you requested be injected
-2. A dispatch key for the item that triggered the read (same as dispatch key in the AST)
-3. Parameters (which are nil if not supplied in the query)
+. An environment containing:
+** `:ast`: An abstract syntax *tree* for the element, which contains:
+*** `:type`: The type of node (e.g. :prop, :join, etc.)
+*** `:dispatch-key`: The keyword portion of the triggering query element (e.g. :people/by-id)
+*** `:key`: The full key of the triggering query element (e.g. [:people/by-id 1])
+*** `:query`: (same as the query in `env`)
+*** `:children`: If this node has sub-queries, will be AST nodes for those
+*** others...see documentation
+** `:parser`: The query parser
+** `:query`: **if** the element had one E.g. `{:people [:user/name]}` has `:query` `[:user/name]`
+** Components you requested be injected
+. A dispatch key for the item that triggered the read (same as dispatch key in the AST)
+. Parameters (which are nil if not supplied in the query)
 
 It must return a value that has the shape implied by the grammar element being read.
 
@@ -7178,7 +7178,7 @@ Let's start with the following hand-normalized application state:
 ```
 (def app-state (atom {
                       :window/size  [1920 1200]
-                      :friends      #{[:people/by-id 1] [:people/by-id 3]}
+                      :friends      [[:people/by-id 1] [:people/by-id 3]]
                       :people/by-id {
                                      1 {:id 1 :name "Sally" :age 22 :married false}
                                      2 {:id 2 :name "Joe" :age 22 :married false}
@@ -7377,10 +7377,10 @@ such that only one can be on the screen at a time. If you want to nest routers s
 within a given screen you'll need to define that.
 * Give each of the routers in your design an ID. For example :top-router and :report-router, along with an ident
 function that can extract the proper ident from the components it will route to.
-
++
 Here is an example of a "main" screen and a UI router that can route to it (and some others that we're
 not showing yet):
-
++
 ```
 (defsc Main [this {:keys [label]}]
   {:initial-state {:page :main :label "MAIN"}
@@ -7395,14 +7395,14 @@ not showing yet):
   :new-user NewUser
   :report ReportsMain)
 ```
-
++
 in the example above, the ident function of `TopRouter` will be used against the screens (e.g. `Main`) to produce idents
 like `[:main :top]`
-
++
 * Give each routable screen in your tree a handler name. For example, if screen A will show a subscreen B or C, then
 B and C will need app-wide unique names. If screen A were also (at times) a leaf (not showing B or C), it should also have
  a handler name.
-
++
 ----
               (top-router w/id :top-router)
                  ----------------------
@@ -7414,15 +7414,15 @@ B and C will need app-wide unique names. If screen A were also (at times) a leaf
                                             / \
                                       :status  :graph
 ----
-
++
 * Define your routing tree. This is a data structure that gives instructions to one-or-more routers that are necessary to
- place the screen from (4) front-and-center. For example, you need to tell the top router and report router in the above
+ display the screen for a given handler name. For example, you need to tell the top router and report router in the above
  example to change what they are showing in order to get a `:status` or `:graph` on the screen.
-
++
 ```
 (def routing-tree
   "A map of route handling instructions. The top key is the handler name of the route which can be
-  thought of as the terminal leaf in the UI graph of the screen that should be "foremost".
+  thought of as the terminal leaf in the UI graph of the screen that should be visible".
 
   The value is a vector of routing-instructions to tell the UI routers which ident
   of the route that should be made visible.
@@ -7438,15 +7438,15 @@ B and C will need app-wide unique names. If screen A were also (at times) a leaf
     (r/make-route :status [(r/router-instruction :top-router [:report :top])
                            (r/router-instruction :report-router [:status-report :param/report-id])])))
 ```
-
++
 * Compose your top-level router into your root, and place the routing tree into the top-level app state (e.g.
 using initial-state). The routing tree is considered singleton data and is not needed in the query.
-
++
 * You may place nested routers wherever you like, though they cannot be directly nested in other routers, since
 the parent router needs to use an ident function that is different from the ident of the routers. This should not
 be a problem since the only reason to nest routers is to show some portion of the parent screen while routing to
 a sub-screen. For example, a reports sub-screen can nest using something like this:
-
++
 ```
 (defrouter ReportRouter :report-router
   ; This router expects numerous possible status and graph reports. The :id in the props of the report will determine
@@ -7613,7 +7613,7 @@ defines form support that has:
 - An extensible set of form fields
 - Extensible validation
 - Separation of form UI from form logic
-- Remote integration with form <-> entity
+- Remote integration between the form and entity
 - Local integration with entities in the browser database
 
 The following `requires` define the namespaces used in the examples:
@@ -7632,7 +7632,7 @@ The following `requires` define the namespaces used in the examples:
     [fulcro.i18n :refer [tr]]))
 ```
 
-**IMPORTANT NOTE**: When we use the parameter `form` or the word 'form' in the descriptions below, we mean the data
+NOTE: When we use the parameter `form` or the word 'form' in the descriptions below, we mean the data
 of the entire entity from a table that normally represents something in your application (like a person, phone number, etc).
 This library *augments* your database entry with form support data (your 'person' becomes a 'person' AND a 'form'). In
 raw technical terms, the `build-form` function takes a map, and adds a `f/form-key { ... }` entry *to it*. The only
@@ -7692,7 +7692,9 @@ The `defsc` macro supports adding this protocol through the `:form-fields` optio
 The form fields themselves are rendered by calling `(f/form-field form field-name)`. This method **only** renders
 the simple input itself.
 
-`(f/form-field my-form :name)` --- outputs ---> `(dom/input #js { ... })`
+```
+(f/form-field my-form :name) ;; results in: (dom/input #js { ... })
+```
 
 This is the minimum we can do to ensure that the logic is correctly connected, while not interfering with your
 ability to render the form however you please.
@@ -7714,8 +7716,8 @@ showing/hiding validation messages.
        (dom/span #js {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
 ```
 
-**The rendering of the form is pretty much up to you! Thus, your forms can be as pretty (or ugly) as you care to make
-them. No worrying about figuring out how we render them, and then trying to make *that* look good.**
+The rendering of the form is up to you! Thus, your forms can be as pretty (or ugly) as you care to make
+them. No worrying about figuring out how we render them, and then trying to make *that* look good.
 
 That said, there is nothing preventing you (or us) from supplying a library function that can produce reasonable looking
 reusable form rendering.
@@ -7724,10 +7726,10 @@ reusable form rendering.
 
 A form can augment any entity in an app database table in your client application. The `f/build-form` function
 can take any such entity and add form support to it (under the special key `f/form-key` as an opaque value in state).
-The result is perfectly compatible with the original entity. The
-example shown above is doing this on application start, but it is trivial to compose `f/build-form` into a mutation
-(for example, a mutation that is changing the UI to display the form can simultaneously initialize the entity to-be-edited
-at the same time.
+The result is perfectly compatible with the original entity. You can do this in `initial-state` if you
+know at application startup that a form needs to work on some entity, but more likely
+you will compose `f/build-form` into a mutation (for example, a mutation that is changing the UI to display
+the form can simultaneously initialize the entity to-be-edited at the same time.
 
 IMPORTANT: If you're doing server-side rendering you should not use `build-form` via initial state. The server cannot
 do that properly. There is a mutation that can be run from a component's React `componentWillMount` to recursively
@@ -7845,6 +7847,24 @@ properties of the entity, just add `f/form-key` data).
 . Render them with a UI component (that has the correct entity Ident) with a render method that renders the form
   fields with `form-field`.
 
+=== Example: A More Complete, Nested Form
+
+Here is a running example with source for an application that renders a Person form. The person can have any number of phone numbers,
+each represented by a nested phone number entity/form. Note the use of `:initial-state` in Root to build out sample
+data. It also includes validation of fields, and some optional rendering based on the checkbox value.
+
+++++
+<div class="example" id="forms-demo-3"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.forms-demo-3').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="forms-demo-3 source"]
+----
+include::src/book/book/forms/forms_demo_3.cljs[]
+----
+
+The elements of this demo are discussed in the following sections.
+
 === Composition and Rendering Refresh
 
 The one caveat is that when forms are nested the mutations on the nested fields cannot (due to the design of Fulcro) refresh
@@ -7869,33 +7889,25 @@ Adding a phone number (which acts as a sub-form) is done via the `add-phone` mut
 Notice that there is nothing really special going on here. Just add an additional item to the database (which is
 augmented with `f/build-form`) and integrate it's ident!
 
-If you look carefully at `PersonForm` you'll see the button to trigger adding a phone number, where we're using
-`(prim/tempid)` to generate a temporary ID for the new phone number.
+For example, the button to run a transaction to add a phone number to
+a person creates a tempid for the phone number and passes it as a parameter in the transaction:
+
+```
+  (dom/button #js {:onClick #(prim/transact! this
+                               `[(add-phone ~{:id     (prim/tempid)
+                                              ...})])}
+    "Add Phone")
+```
 
 === Compositional Dirty-Checking, Validation, and Submission
 
 The code also shows how you would compose the checks. The `dirty?` function combines the results of the nested forms
 together with the top form. You could do the same for validations.
 
-The `Save` button does a similar thing: it submits the phone numbers, and then the top. Note that Fulcro combines
+The save button in the example above does a similar thing: it submits the phone numbers, and then the top.
+Note that Fulcro combines
 mutations that happen in the same thread sequence (e.g. you have not given up the thread for rendering). So, all of
 those commits will be sent to the server as a single transaction (if you include the remote parameter).
-
-== A More Complete, Nested Form
-
-Here is the source for an application that renders a Person form. The person can have any number of phone numbers,
-each represented by a nested phone number entity/form. Note the use of `:initial-state` in Root to build out sample
-data. It also includes validation of fields, and some optional rendering based on the checkbox value.
-
-++++
-<div class="example" id="forms-demo-3"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.forms-demo-3').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="forms-demo-3 source"]
-----
-include::src/book/book/forms/forms_demo_3.cljs[]
-----
 
 == Adding Form Field Types
 
@@ -7929,13 +7941,13 @@ The built-in text input field is implemented like this:
     validator-args (assoc :input/validator-args validator-args)))
 ```
 
-The keys in an input's configuration map are:
+The keys in an input's configuration are:
 
-- `:input/name` : Required. What you want to call the field. Must match an entity property (e.g. :person/name).
-- `:input/type` : Required. Usually namespaced. This should be a unique key that indicates what kind of input you're making
-- `:input/validator` : Optional. Specifies a symbol (dispatch of the form-field-valid? multimethod).
-- `:input/validator-args` : Optional. If there is a validator, it is called with the validator symbol, the questionable value, and these args.
-- Any you want to define : This is a map. Put whatever else you want in this map to help with rendering (e.g. placeholder text,
+* `:input/name` : Required. What you want to call the field. Must match an entity property (e.g. :person/name).
+* `:input/type` : Required. Usually namespaced. This should be a unique key that indicates what kind of input you're making
+* `:input/validator` : Optional. Specifies a symbol (dispatch of the form-field-valid? multimethod).
+* `:input/validator-args` : Optional. If there is a validator, it is called with the validator symbol, the questionable value, and these args.
+* Any additional keys you want to define : The representation of an input is just a map. Put whatever else you want in this map to help with rendering (e.g. placeholder text,
  class names, style, etc).
 
 and its renderer looks like this:
@@ -8012,17 +8024,17 @@ in future versions. Instead, use these:
 
 == Form State and Lifecycle
 
-Form support is meant to track the state of one or more entities through
+Form support is meant to track the state of one or more entities throughout
 the process of editing. It is important to remember the general
 model of Fulcro is one where the application moves from
 state to state over time, and the components themselves have (ideally)
 no local state.
 
-This means that your form will not change states on you unless a mutation
+This means that your form will not change states unless a mutation
 of some sort runs.
 
 Many of the form fields *do* run mutations on events, which in turn
-can change the state of the form or the fields.
+change the state of the form or the fields.
 
 A form can have any number of child forms (which themselves can dynamically change
 over time).
@@ -8051,6 +8063,16 @@ Locally Created (tempid)          |
   +----+
 ----
 
+A form need not be full stack, but if it is then
+server interactions would typically occur when you transition from a dirty form
+to a pristine one due to a commit.
+
+You are responsible for coding the transactions to ensure that your
+concept of a pristine vs. dirty form are consistent in a distributed sense. The
+default behavior for the full-stack commit is to optimistically mark the client
+form pristine and submit the data to the server. See <<PTransact,
+pessimistic transactions>> for details on how to do blocking server interactions.
+
 === Is my Form Dirty?
 
 A form is considered `dirty?` when:
@@ -8077,11 +8099,12 @@ Validation is tri-state. All fields start out `:unchecked`. If you wish your for
 
 ```
 ;; NOTE: non-recursive validation. You'd have to use this explicitly on each declared subform state as well.
-initial-form (f/validate-fields (f/build-form MyForm my-entity-props))
+(let [initial-form (f/validate-fields (f/build-form MyForm my-entity-props))
+      ...
 ```
 
 The functions `valid?` and `invalid?` honor the tri-state nature of forms (e.g. `invalid?` returns
-true if and only if at least one field is `:invalid`, and `valid?` returns true IFF all fields are
+true if and only if at least one field is `:invalid`, and `valid?` returns true if and only if all fields are
 `:valid`). The `:unchecked` state thus allows you to prevent error messages from
 appearing on fields until you're actually ready to validate them:
 
@@ -8093,10 +8116,11 @@ appearing on fields until you're actually ready to validate them:
 (dom/button #js {:disabled (not (valid? form)) :onClick submit} \"Submit!\")
 ```
 
-The tricky part is that \"global\" validation is not ever triggered by built-in iteraction
-support with fields.
+The tricky part is that global validation is never triggered by built-in field interaction because
+that would not allow you to control your form UI very well (e.g. fields might show validation errors when
+the user hasn't even interacted with them yet).
 
-Thus, you have a few ways of dealing with checking if a form is valid:
+Thus, you have a few ways of dealing with validation checking:
 
 1. Trigger a `f/validate-form` mutation. Such a mutation will recursively walk your form and
 subforms and mark all fields with `:invalid` or `:valid`. This will have the effect of
@@ -8228,20 +8252,16 @@ sends a calculated diff. See below for how to deal with this diff.
 
 === What Your Server Must Do
 
-On the server, you must provide a mutation handler for your mutation or the `f/commit-to-entity` symbol (where `f` is the
-forms namespace). If you're using multimethods on the server, this might look like:
+On the server, you must provide a mutation handler for your mutation or the `f/commit-to-entity` symbol.
+If you're using multimethods on the server, this might look like:
 
 ```
 (ns amazing-server.mutations
   (:require
-    [fulcro.client.primitives :as prim]
-    [fulcro.ui.forms :as f]))
+    [fulcro.server :as server]))
 
-(defmulti my-mutate prim/dispatch)
-
-;; NOTE: the syntax quote will honor the `f` aliasing in the ns.
-(defmethod my-mutate `f/commit-to-entity [env k params]
-  {:action (fn [] ...)})
+(server/defmutation fulcro.ui.forms/commit-to-entity [params]
+  (action [env] ...))
 ```
 
 The complete form delta will be in the incoming `params`. The description of the entries in `params`
@@ -8256,7 +8276,7 @@ what changed on the client.
 
 Field updates are sent under the following conditions:
 
-* The entity of the form has a REAL ID
+* The entity of the form has a real id (not a temp id)
 * One or more fields have values different from those at the time of `build-form` or the last commit.
 
 The parameters sent to the `commit-to-entity` mutation on the server will include the key
@@ -8299,7 +8319,8 @@ It is important that you remember to return a map to remap the incoming tempids:
          {:tempids {tempid-1 realid-1 tempid-2 realid-2}})})
 ```
 
-NOTES:
+Some additional notes:
+
 * New entity properties include only the columns declared in the form support. Remember that you can
 declare fields without rendering them.
 * New entity entries *do not include* references! Any reference changes are always expressed
@@ -8373,7 +8394,7 @@ A non-remote (local-only) commit-to-entity (still as a post-mutation) could also
 == Forms – Whole Form Logic
 
 Many forms need logic that updates the UI in some non-local way as form interactions take place.
-Simple field validations can be local to a field, but some UI changes require who-form reasoning
+Simple field validations can be local to a field, but some UI changes require whole-form reasoning
 or cross-field interactions.
 
 Some simple examples:
@@ -8408,9 +8429,10 @@ The form change support can send events on change and on blur. The latter is use
 input fields (as opposed to checkboxes, for example). Your mutation will be passed parameters
 as a map that has:
 
-`:form-id` - The ident of the form that generated the event
-`:kind` - Either :blur or :edit
-`:field` - The name of the field affected
+[Horizontal]
+`:form-id`:: The ident of the form that generated the event
+`:kind`:: Either :blur or :edit
+`:field`:: The name of the field affected
 
 Your mutation can do anything a normal mutation can do.
 
@@ -8627,7 +8649,7 @@ Of course, the whole point is to pre-render the page. Now that you have a comple
 trivial:
 
 ```
-(let [props                (prim/db->tree (prim/get-query app/Root normalized-db normalized-db)
+(let [props                (prim/db->tree (prim/get-query app/Root normalized-db)
       root-factory         (prim/factory app/Root)]
   (dom/render-to-str (root-factory props)))
 ```
@@ -8694,35 +8716,35 @@ There is a complete working example of these techniques (including the HTML5 rou
 * [Client Start-up](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/client.cljs) Note this example tolerates a failure of the server to send
 initial state, so it runs initial startup steps if it detects that.
 
-== True Isomorphic Support with Nashorn
+== True Isomorphic Support with Nashorn (JVM Javascript engine)
 
-If you use external Javascript libraries of React components then you have two choices. One: write wrappers in cljs
-that can output something reasonable for them in SSR, and them make cljc wrappers that use the JS when on the client,
-and your placeholder dom on the server.
+If you use external Javascript libraries of React components then you have two choices.
 
-Using placeholders instead of Nashorn can work very well, and is the *recommended approach*.
+. Write wrappers in cljs that can output something reasonable for them in SSR, and them make
+cljc wrappers that use the JS when on the client, and your placeholder dom on the server.
+. Use Nashhorn on the server to actually run a render in a Javascript engine on the server.
+
+Using placeholders can work very well, and is the *recommended approach*.
 
 If you're willing to work just a little bit harder then you can maintain a true isomorphic application using Java
 8+ and the Nashorn ECMA scripting engine.
 
 Some notes:
 
-. Server-side use of the compiled Javascript works best with advanced-optimized builds. Figwheel and other development
+* Server-side use of the compiled Javascript works best with advanced-optimized builds. Figwheel and other development
 builds of the javascript won't work right, and we've even seen problems with builds that don't use advanced optimizations.
-. (1) means that your SSR is going to be hard to work with if you're in dev (figwheel) mode. The recommendation is that
+* (1) means that your SSR is going to be hard to work with if you're in dev (figwheel) mode. The recommendation is that
 you test SSR as a separate step (where you can have an auto incremental build with advanced compilation). Figwheel hot loads
 code updates anyhow, so not having SSR when working in development mode isn't really a big loss.
-
-There is a `nashorn` branch on the github `fulcro-template` project that demonstrates the setup and rendering code.
 
 The basics are:
 
 * Start a Nashorn instance
-* Run a polyfill that defines console and global
+* Run a script that defines console and global
 * Run the compiled script of your program to define everything
 * Use a render to string call to get the initial HTML output
 
-The polyfill is just:
+The js script to defined console and global is just:
 
 ```
 var global = this;
@@ -8775,6 +8797,8 @@ accomplishes the rendering of a given tree of UI props via:
    (timbre/debug "Server-side render failed. This is an expected error when not running from a production build with adv optimizations.")
    (timbre/trace "Rendering exception:" e))))
 ```
+
+There is a `nashorn` branch on the github `fulcro-template` project that demonstrates the setup and rendering code.
 
 = The Network Layer [[Networking]]
 
@@ -8865,13 +8889,13 @@ for example, say you're doing progress updates on a file upload represented in y
 
 ```
 ; on network update event for file 1:
-(let [ident (prim/get-ident File {:id 1})]
+(let [ident (prim/get-ident File {:id 1})
+      file  ...] ; file would be a map containing the data for a File
   (update-callback {ident file} {ident (prim/get-query File)}))
 ```
 
 The `fulcro.ui.fule-upload` namespace contains networking and UI for exactly this scenario. You could also use this
 sort of networking component to deal with things like incoming streaming data.
-
 
 === Interfacing with REST Servers
 
@@ -8879,11 +8903,21 @@ See the <<RESTAPI, REST API>> section of the Getting Started chapter for an exam
 
 = Websockets
 
-Fulcro includes support for using Sente to set up websockets as a remote
+Fulcro includes support for using https://github.com/ptaoussanis/sente[Sente] to set up websockets as a remote
 for your applications.
 
 == Usage
 
+The namespaces of interest are
+aliased in the following sections as:
+
+```
+(ns your-app
+  (:require
+    [fulcro.websockets.networking :as wn]
+    [fulcro.websockets.protocols :refer [WSNet WSListen push]]
+    [fulcro.websockets.components.channel-server :as cs]))
+```
 === Server
 
 There are two protocols on the server side:
@@ -8938,8 +8972,6 @@ There are two protocols on the server side:
 Hooking Fulcro websockets into the system is simple. We will add the `ChannelServer` component and the `ChannelListener` component from above, and then define the route:
 
 ```
-(require '[fulcro.websockets.components.channel-server :as cs])
-
 (defn make-system []
   (core/make-fulcro-server
     :config-path "config/app.edn"
@@ -8956,8 +8988,6 @@ The listing for `:extra-routes` is the endpoint for your websocket. `route-handl
 In your api you may add something like this:
 
 ```
-(require '[fulcro.websockets.protocols :refer [push]])
-
 (defn notify-others [ws-net cid verb edn]
   (let [clients (:any @(:connected-uids ws-net))]
     (doall (map (fn [id]
@@ -9030,7 +9060,7 @@ Yahoo's FormatJS. Fulcro includes a version of this library so you can
 just require it from at one of your namespaces:
 
 ```
-(ns some-ns
+(ns some-namespace
   (:require yahoo.intl-messageformat-with-locales))
 ```
 
@@ -9127,7 +9157,8 @@ See the formatJS documentation for further details.
 == Changing the Locale
 
 The locale of the current browser tab can be changed through the built-in mutation `fulcro.client.mutations/change-locale` with a `:lang`
-parameter (which can use the ISO standard two-letter language with an optional country code):
+parameter (which can use the ISO standard two-letter language with an optional country code, and can be
+a string or keyword):
 
 ```
 (prim/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang :es})])
@@ -9156,6 +9187,9 @@ Installing a translation map can be done as:
 
 in other words there is a global atom that holds the currently-loaded translations as a map, keyed by locale. The
 map entries are the above-mentioned translation entry keys and the desired translation.
+
+NOTE: The internal translation map is keyed by the string version of the locale, not the keyword. You can
+use either to change the locale, but the translation map is keyed by the string version.
 
 === A Small Demo
 
@@ -9273,7 +9307,7 @@ your translation template. The `js-path` is the path to the whitespace-optimized
 The `:po` option specifies your translation directory.
 
 NOTE: This task will automatically merge the generated `.pot` file into any pre-existing `.po` files as a final step,
-so updating translations will just involve sending off the locale-specific `.po` files.
+so updating translations will just involve sending a human translator the resulting locale-specific `.po` files.
 
 === Creating a new Locale
 
@@ -9297,7 +9331,7 @@ since the overall process allows carrying over old translations to newly extract
 
 == Generating Clojure Versions of the Translations
 
-Again, a function is provided for you that can be run from the REPL:
+A function is provided for you that can be run from the REPL:
 
 ```
 (fulcro.gettext/deploy-translations {:src "src/main" :po "i18n" })
@@ -9307,7 +9341,7 @@ Again, a function is provided for you that can be run from the REPL:
 you keep your PO files. This step will generate one cljc file for each PO file. If you supply `:as-modules?` then
 your translations will support being dynamically loaded by `cljs-loader`. See the <<DynamicLocale, dynamic locale demo>> for
 more information on modules.
-Translations will be output to the `translations` package in namespaces that match the locale name.
+Translations will be output to the `translations` namespace in namespaces that match the locale name.
 
 === Using the Generated Translation Code
 
@@ -9333,12 +9367,6 @@ be set on the server. This makes server-side rendering a breeze:
 (reset! fulcro.i18n/*current-locale* :es)
 (dom/render-to-str (ui-root props))
 ```
-
-== Modular Locale Loading
-
-You can place your locales into modules (code split) so that only the main locale need be part of your initial load.
-
-See the demo on <<DynamicLocale, dynamic locale loading for details>>.
 
 = Dev Cards [[DevCards]]
 
@@ -9499,7 +9527,7 @@ There is a built-in mutation that can do this called `fulcro.client.mutations/se
 as parameters, and will send the support request to `:remote`. All you have to do is run it via UI:
 
 ```
-(transact! this `[(m/send-history {:support-id (om/tempid)})])
+(transact! this `[(m/send-history {:support-id ~(prim/tempid)})])
 ```
 
 == Storing the Support Request
@@ -9514,15 +9542,11 @@ data, and return a tempid remapping (optional, since the client itself won't car
      ...send an email to a developer with the saved id?...))
 ```
 
-See Fulcro TodoMVC for an example.
-
 == Using the Support Viewer
 
 The support viewer is a simple UI that is pre-programmed in the `fulcro.support-viewer` namespace. When started, it
 will issue a load in order to obtain the history you saved in the prior step. It will then run the application
 (which you also have to point to) with that history in a DVR-style playback.
-
-See Fulcro TodoMVC for an example.
 
 You can see how simple the
 [client setup](https://github.com/fulcrologic/fulcro-todomvc/blob/master/src/main/fulcro_todomvc/support_viewer.cljs) is here, and
@@ -9541,6 +9565,10 @@ The built-in mutations that set a value (e.g. m/set-value!) are meant to be used
 transactions this way. This is quite useful when you don't want to pollute (or overflow) history with keystrokes that
 are not interesting.
 
+== Demo
+
+See https://github.com/fulcrologic/fulcro-todomvc/tree/master/src/main/fulcro_todomvc[Fulcro TodoMVC] for an example.
+
 = Code Splitting (modules)
 
 Clojurescript 1.9.854+ has expanded support for code splitting (older versions do too, but require a bit more code). The
@@ -9551,8 +9579,8 @@ impossible to split the code.
 2. Define a mechanism whereby your loaded code can find and install itself into the application.
 
 Since you're working with a data-driven application with components that have queries, this typically means that you're
-going to have to have the newly loaded components somehow modify the main application's query to tie them in. Also,
-since parents technically render children, you're going to have to have an extensible mechanism for that as well.
+going to need to have the newly loaded components somehow modify the main application's query to tie them in. Also,
+since parents technically render children, you're going to need to have an extensible mechanism for that as well.
 
 To demonstrate one technique we'll assume that what you load is a "section" of the application that can be routed to. The
 main application knows to provide the link, but it does not yet have the rendering factory, class, or query.
@@ -9608,7 +9636,7 @@ The demo application includes two such pre-installed routes (`Login` and `NewUse
 The code called at application startup (via `:started-callback`) ensure the pre-loaded routes is:
 
 ```
-(defn application-loaded [{:keys [reconciler]}]
+(defn application-loaded! [{:keys [reconciler]}]
   ; Let the dynamic router know that two of the routes are already loaded.
   (prim/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
                                (r/install-route {:target-kw :login :component ~Login})
@@ -9616,7 +9644,7 @@ The code called at application startup (via `:started-callback`) ensure the pre-
   (loader/set-loaded! :entry-point))
 
 ...
-(new-fulcro-client Root :started-callback application-loaded)
+(new-fulcro-client Root :started-callback application-loaded!)
 ```
 
 === The Demo
@@ -9670,11 +9698,11 @@ or a reconciler, so there is no place to set the query. Instead, you'll have to 
 is statically complete when used on the server.
 
 ```
-(defui RouterUnion
-  static prim/IQuery
-  (query [this]
+(defsc RouterUnion [this props]
+  {:query (fn []
     #?(:cljs {:main-screen (prim/get-query Main)}
-       :clj {:main-screen (prim/get-query Main) :other (prim/get-query Other) ...}))
+       :clj {:main-screen (prim/get-query Main) :other (prim/get-query Other) ...}))}
+  ...
 ```
 
 When the application loads you'll need to do the same kind of routing things you'd do with any other server-side

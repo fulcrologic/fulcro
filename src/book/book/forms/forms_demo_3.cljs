@@ -65,7 +65,7 @@
 
 (def ui-vphone-form (prim/factory ValidatedPhoneForm))
 
-(defui ^:once PersonForm
+(defui PersonForm
   static prim/InitialAppState
   (initial-state [this params] (f/build-form this (or params {})))
   static f/IForm
