@@ -2,13 +2,12 @@
 
 If you've tried stock Om Next, you probably found out pretty quickly that there are a lot of things you have
 to figure out, plug in, and set up before you actually have something working as a full-stack app with
-complete features. The primary difference is that Fulcro makes a lot of these choices for you so that you
+complete features. Fulcro is based on the *model* defined by Om Next, but makes a lot of the choices for you so that you
 can work on what you care about: your software!
 
 ## TL;DR
 
-The gist is that Fulcro supplies all of the bits and pieces you need to get going. This
-gives Fulcro some very nice properties that Stock Om Next does not:
+The gist is that Fulcro is a kinder gentler version of Om Next.
 
 - Easier local reasoning (no hand-building initial UI state or composing parser bits)
 - Refactoring UI is much easier. Just move the component and re-compose locally in the UI.
@@ -32,8 +31,9 @@ that component's mutations! There is no known database on the client for them to
 at a query cost that might be too high for your UI refresh rates to look good. Also, the code to write
 to interact with something like Datascript is a heck of a lot harder than `get-in`, `update-in`, or `assoc-in`
 
-The primary disadvantage is...hm. We're not sure there is one. There are hooks to put
-yourself back in the situation you would be in with Om Next, but why would you do that?
+The primary disadvantage is...hm. We're not sure there is one! There are hooks that
+let you customize many of the things that are defined (e.g. you can
+hack into the client-side read parser).
 
 Instead of parsers as the primary mechanism, Fulcro has you explicitly represent what
 you want from a query through the data model itself.
@@ -56,7 +56,8 @@ in the "correct" way.
 
 While this sounds less powerful (it technically is), it turns out in practice that
 it makes general development much simpler. There is a hook that lets you
-supply a parser in any situation in which you feel the need for it.
+supply a custom query handler in any situation in which you feel the need for it. This
+gives you the best of both worlds: choose to handle queries on the client when it suits you.
 
 ### Simpler Development Process
 
@@ -78,11 +79,11 @@ Adopting the model above leads to much easier development.
 **Fulcro:**
 
 1. Write the UI
-2. Add InitialAppState to the component
-3. Compose in the component
+2. Add initial state to the component
+3. Compose the UI
 4. Write mutations (you need those anyhow) that directly evolve the model to "look right"
 
-Fulcr's remote story is separate, and not complected with the local data reads at all. Notice
+Fulcro's remote story is separate, and not complected with the local data reads at all. Notice
 that in Fulcro your view updates are directly linked to an action of the UI (mutation)
 instead of logic that might have performance implications during rendering. The (sort of)
 down-side is that Fulcro is essentially asking you to always cache your calculation for rendering.
@@ -100,18 +101,18 @@ isolated and modular!
 
 Unfortunately, your parser is usually tied to the UI structure you invent (you have to expect
 the UI to want to walk some particular graph). This means that if you want to pull out
-some "screen" and dropp it in a devcard, then you must customize the parser in order to
+some "screen" and drop it in a devcard then you must customize the parser in order to
 support it, figure out what app state you need, compose it all together and hope that the
 devcard experience actually represents how it will behave within the real application.
-Since the remoting and processing of query roots is also tied to this concern, it quickly
+Since the remoting and processing of query roots is also tied to this concern it quickly
 becomes rather cumbersome and difficult. The same thing happens when two developers are working
 on the same application. You both end up working primarily on the parser, resulting in
 a higher likelihood of code conflicts on merge.
 
 **Fulcro**
 
-The predefined data model means there is no need for a parser. All components have an ident,
-their initial state composes locally, and loads are not tied to UI structure. If you want to put a screen
+The predefined data model means there is no need for a custom parser. All components should have an ident,
+their initial state composes locally, and loads are not tied to global UI structure. If you want to put a screen
 in a devcard you just compose it into a new Root and drop it in place! The only thing
 that (typically) fails to work is navigation to UI stuff that you didn't bring along!
 
@@ -150,7 +151,7 @@ In practice this is much much simpler and easier.
 
 **Fulcro:**
 
-1. Re-compose InitialAppState into parent (like query)
+2. Re-compose InitialAppState into parent (like query)
 (remoting is separate, and there is no custom parser)
 
 ## Remote Interaction

@@ -1,4 +1,4 @@
-(ns fulcro-tutorial.upload-server
+(ns fulcro.democards.upload-server
   (:require [taoensso.timbre :as timbre]
             [fulcro.client.impl.parser :as op]
             [fulcro.server :as server :refer [defmutation defquery-root defquery-entity]]

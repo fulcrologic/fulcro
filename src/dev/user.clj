@@ -7,6 +7,7 @@
     [solutions.putting-together :as pt]
     [com.stuartsierra.component :as component]
     [fulcro-spec.selectors :as sel]
+    [fulcro.democards.upload-server :as upload]
     [fulcro-spec.suite :as suite]))
 
 (suite/def-test-suite server-test-server
@@ -41,18 +42,14 @@
 
 (set-refresh-dirs "src/main" "src/test" "src/dev" "src/tutorial")
 
-(comment
-  "move to cards"
+(defn run-upload-server
+  "Load and start the server that can handle the file upload form examples."
+  []
+  (upload/go))
 
-  (defn run-upload-server
-    "Load and start the server that can handle the file upload form examples."
-    []
-    (upload/go))
+(def stop-upload-server upload/stop)
 
-  (def stop-upload-server upload/stop)
-
-  (def restart-upload-server upload/restart))
-
+(def restart-upload-server upload/restart)
 
 ;; SOLUTIONS: Putting it Together Setting Up: The start/restart functions for the server
 (comment

@@ -8229,7 +8229,7 @@ For example, the definition of a validator for US phone numbers could be:
 ```
 (defvalidator us-phone?
   [sym value args]
-  (seq (re-matches #\"[(][0-9][0-9][0-9][)] [0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]\" value)))
+  (seq (re-matches #"[(][0-9][0-9][0-9][)] [0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]" value)))
 ```
 
 The only change in your UI would be to add the validator to the form field declaration, along with a validation message.
@@ -8555,10 +8555,10 @@ appearing on fields until you're actually ready to validate them:
 
 ```
 ;; only emits if the field is actually marked :invalid (not :unchecked)
-(when (invalid? this-form :field) (dom/span nil \"Invalid!\"))
+(when (invalid? this-form :field) (dom/span nil "Invalid!"))
 
 ;; Disables submit button unless all fields are marked `:valid` (none are :unchecked or :invalid)
-(dom/button #js {:disabled (not (valid? form)) :onClick submit} \"Submit!\")
+(dom/button #js {:disabled (not (valid? form)) :onClick submit} "Submit!")
 ```
 
 The tricky part is that global validation is never triggered by built-in field interaction because
@@ -8712,7 +8712,7 @@ If you're using multimethods on the server, this might look like:
 The complete form delta will be in the incoming `params`. The description of the entries in `params`
 is below.
 
-==== Processing a Form's Diff
+==== Processing a Form's Diff [[FormDiff]]
 
 The incoming parameters is a map. This map will contain up to four different keys to indicate
 what changed on the client.
@@ -8966,6 +8966,165 @@ The complete running example with source is below.
 include::src/book/book/forms/whole_form_logic.cljs[]
 ----
 
+== Full Stack Form Demo
+
+In this demo we're still using a simulated server. We're also using browser local
+storage to make sure the changes you make look like they get persisted, so you should see your edited
+data on page reloads.
+
+=== Application Load
+
+When the application loads it uses `data-fetch/load` to query the server for
+`:all-numbers`.
+
+```
+(df/load app :all-numbers PhoneDisplayRow {:target [:screen/phone-list :tab :phone-numbers]})
+```
+
+We have a very simple database that looks like this on the server:
+
+```
+(defn make-phone-number [id type num]
+  {:db/id id :phone/type type :phone/number num})
+
+(defonce server-state (atom {:all-numbers [(make-phone-number 1 :home "555-1212")
+                                           (make-phone-number 2 :home "555-1213")
+                                           (make-phone-number 3 :home "555-1214")
+                                           (make-phone-number 4 :home "555-1215")]}))
+```
+
+The server query handler is just:
+
+```
+(defquery-root :all-numbers
+  (value [env params]
+    {:value (get @server-state :all-numbers)} ))
+```
+
+=== The UI
+
+We're using a UI router via defrouter to create two screens: A phone list and phone editor screen.
+
+The basic UI tree looks like this:
+
+----
+           Root
+             |
+       TopLevelRouter
+         /          \\
+  PhoneEditor     PhoneList
+      |               / | \\
+  PhoneForm       PhoneDisplayRow...
+----
+
+The UI starts out showing PhoneList. Clicking on an element leads to editing.
+
+=== The Mutations
+
+Note: PhoneForm and PhoneDisplayRow share the same ident since they render two differing views
+of the same entity in our database.
+
+==== Editing
+
+Since the phone numbers were loaded from raw data on a server, they are not form capable yet.
+
+Thus, the application must do a few things in order for editing to work:
+
+* It must add form state to the entity using `build-form`. We create a quick helper function
+to do this against app state (the function `phone-ident` just returns the ident of a phone
+number based on the simple ID):
++
+```
+(defn- initialize-form [state-map form-class form-ident]
+  (update-in state-map form-ident #(f/build-form form-class %)))
+```
++
+* The form itself needs to link up to the thing it should edit. In order words we need to write
+an ident into PhoneEditor to point it to the (newly initialized) PhoneForm instance. We write
+another helper to do this against app state (as a map). Note the path is just the ident of the
+PhoneEditor combined with the field name.
++
+```
+(defn- set-number-to-edit [state-map phone-id]
+  (assoc-in state-map [:screen/phone-editor :tab :number-to-edit] (phone-ident phone-id)))
+```
++
+* Tell the top UI router to change UI routes. We can do this with the built-in `route-to` mutation.
+* Indicate what data changed. We can do this with a follow-on read at the call site, or just declare the
+refresh list in the mutation.
+
+Our final `edit-phone` mutation is thus:
+
+```
+(defmutation edit-phone
+  [{:keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state (fn [state-map]
+                   (-> state-map
+                     (initialize-form PhoneForm (phone-ident id))
+                     (set-number-to-edit id)
+                     (r/update-routing-links {:route-params {}
+                                              :handler      :route/phone-editor})))))
+  (refresh [env] [:main-ui-router]))
+```
+
+=== Commit and Reset
+
+Commit and reset are a built-in mutations.  They both have a function and mutation-composable version (the former
+just calls transact for you). Often you'll want to combine other operations with a commit or
+reset, as is shown in the form editor.
+
+The Save button runs a commit operation with a remote flag. This causes the changes to not only be sync'd with
+the form's pristine state, it also causes a network (in this case simulated) request to have the server update
+its copy.
+
+See the <<FormDiff, form diff section>> for the full possible items in such a request. For this example we'll describe
+just the one we're supporting: Updates.
+
+The parameters passed to the server on update have
+a `:form/updates` key with a map whose keys are the idents of things that changed, and whose values are maps
+of the field/value updates. For example:
+
+```
+{:form/updates {[:phone/by-id 1] {:phone/number "444-5421"}}}
+```
+
+would be sent to indicate that phone number with id 1 had just its `:phone/number` attribute changed to the
+new value "444-5421".
+
+So, a really naive implementation of this update handler looks like this:
+
+```
+(defn update-phone-number [id incoming-changes]
+  (log/info "Server asked to updated phone " id " with changes: " incoming-changes)
+  (swap! server-state update-in [:all-numbers (dec id)] merge incoming-changes)
+  ;; simulate saving to "disk"
+  (.setItem js/localStorage "/" (pr-str @server-state)))
+```
+
+The server commit handler is pretty simple as well:
+
+```
+(server/defmutation fulcro.ui.forms/commit-to-entity [p]
+  (action [env]
+    (let [updates (-> p :form/updates)]
+      (doseq [[[table id] changes] updates]
+        (case table
+          :phone/by-id (update-phone-number id changes)
+          (log/info "Server asked to update unknown entity " table)))) ) )
+```
+
+You can see the full source and play with the demo below:
+
+++++
+<div class="example" id="full-stack-forms-demo"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.full-stack-forms-demo').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="full-stack-forms-demo source"]
+----
+include::src/book/book/forms/full_stack_forms_demo.cljs[]
+----
 
 = Server-side Rendering
 

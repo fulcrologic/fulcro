@@ -1,4 +1,4 @@
-(ns fulcro.client.manual-tests-of-dynamic-queries
+(ns fulcro.democards.manual-tests-of-dynamic-queries
   (:require [devcards.core :as dc]
             [fulcro.client.dom :as dom]
             [fulcro.client :as fc]

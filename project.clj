@@ -69,7 +69,7 @@
                {:id           "cards"
                 :source-paths ["src/main" "src/cards"]
                 :figwheel     {:devcards true}
-                :compiler     {:main                 fulcro.client.card-ui
+                :compiler     {:main                 fulcro.democards.card-ui
                                :output-to            "resources/public/js/cards.js"
                                :output-dir           "resources/public/js/cards"
                                :asset-path           "js/cards"
@@ -113,13 +113,28 @@
                {:id           "tutorial"
                 :figwheel     {:devcards true}
                 :source-paths ["src/main" "src/tutorial"]
-                :compiler     {:main           fulcro-devguide.guide
+                :compiler     {:main           fulcro-tutorial.main
                                :asset-path     "js/tutorial"
                                :devcards       true
                                :output-to      "resources/public/js/tutorial.js"
                                :output-dir     "resources/public/js/tutorial"
                                :preloads       [devtools.preload]
                                :parallel-build true
+                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
+                                                 :requires ["cljsjs.codemirror"]
+                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
+                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
+                                                 :requires ["cljsjs.codemirror"]
+                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
+               {:id           "tutorial-live"
+                :source-paths ["src/main" "src/tutorial"]
+                :compiler     {:main           fulcro-tutorial.main
+                               :devcards       true
+                               :asset-path     "js"
+                               :output-to      "docs/js/tutorial.js"
+                               :output-dir     "resources/public/js/tutorial-live"
+                               :parallel-build true
+                               :optimizations  :advanced
                                :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
                                                  :requires ["cljsjs.codemirror"]
                                                  :file     "resources/public/codemirror/closebrackets-min.js"}

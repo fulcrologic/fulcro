@@ -66,12 +66,14 @@
         (merge {:status 200 :body parse-result} (augment-map parse-result))
         (process-errors parse-result)))))
 
-(defrecord ServerEmulator [parser]
+(defrecord ServerEmulator [parser delayms]
   net/FulcroNetwork
   (send [this edn done-callback error-callback]
+    (js/console.log "Server request is " edn)
     (let [{:keys [body status] :as response} (handle-api-request parser {} edn)]
+      (js/console.log "Server response is " response)
       (if (= 200 status)
-        (done-callback body)
+        (js/setTimeout #(done-callback body) delayms)
         (do
           (log/error "Server responded with an error" response)
           (error-callback body)))))
@@ -80,5 +82,5 @@
 (defn new-server-emulator
   "Create a server emulator that can be installed as client-side networking. If you do not supply a parser,
   then it will create one that works with the normal server-side macros."
-  ([] (ServerEmulator. (fulcro-parser)))
-  ([parser] (ServerEmulator. parser)))
+  ([] (ServerEmulator. (fulcro-parser) 0))
+  ([parser delay] (ServerEmulator. parser delay)))

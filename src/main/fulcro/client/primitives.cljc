@@ -3255,7 +3255,7 @@
 
    Only the first two arguments are required (this and props).
 
-   See section M05-Defsc-In-Detail of the Developer's Guide for more details.
+   See the Developer's Guide at book.fulcrologic.com for more details.
    "
                :arglists '([this dbprops computedprops]
                             [this dbprops computedprops local-css-classes])}

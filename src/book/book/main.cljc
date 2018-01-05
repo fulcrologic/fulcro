@@ -23,6 +23,7 @@
                book.forms.forms-demo-2
                book.forms.forms-demo-3
                book.forms.whole-form-logic
+               book.forms.full-stack-forms-demo
                [book.demos.autocomplete :as autocomplete]
                book.basic-i18n
                book.ui-routing
@@ -193,6 +194,9 @@
 #?(:cljs (defexample "Validated Form" book.forms.forms-demo-2/Root "forms-demo-2" :networking book.main/example-server))
 #?(:cljs (defexample "Validated Form" book.forms.forms-demo-3/Root "forms-demo-3" :networking book.main/example-server))
 #?(:cljs (defexample "Whole Form Logic" book.forms.whole-form-logic/Root "whole-form-logic" :networking book.main/example-server))
+#?(:cljs (defexample "Full Stack Forms" book.forms.full-stack-forms-demo/Root "full-stack-forms-demo"
+           :started-callback book.forms.full-stack-forms-demo/initialize
+           :networking book.main/example-server))
 
 #?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
 #?(:cljs (defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :networking book.main/example-server))

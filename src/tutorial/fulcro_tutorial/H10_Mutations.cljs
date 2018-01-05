@@ -204,7 +204,7 @@
         {::prim/tempids {tempid database-id}})))
   ```
 
-  Other mutation return values are covered in the Developer's Guide.
+  Other mutation return values are covered in the [Developer's Guide](http://book.fulcrologic.com).
 
   ## What's Next?
 

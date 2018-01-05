@@ -2,16 +2,16 @@
 
 Fulcro has a number of resources that can get you going.
 
-## Getting Started Instructions
+## Developer's Tutorial
 
-The [Getting Started](https://github.com/fulcrologic/fulcro/blob/develop/GettingStarted.adoc) document is a good place to start to see a full-stack application.
+The [Developer's Tutorial](tutorial.html) is an interactive guide to the
+basics. You can view it online but you should really clone Fulcro itself
+and run it via the instructions in the README.
 
 ## Developer's Guide
 
-The [Developer's Guide](guide.html) is interactive. You can view it online, but you should really clone Fulcro itself, and run it via the instructions in the README.
-
-It includes coding exercises and covers most topics in great detail.
-It is written in an order that most naturally fits what you'll need to know as you progress in your use of Fulcro.
+The [Developer's Guide](http://book.fulcrologic.com) covers the entire
+library, and also has a Getting Started chapter that is great for beginners.
 
 ## Cheat Sheet
 

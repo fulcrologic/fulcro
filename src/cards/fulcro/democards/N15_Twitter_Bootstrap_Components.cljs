@@ -1,4 +1,4 @@
-(ns fulcro-tutorial.N15-Twitter-Bootstrap-Components
+(ns fulcro.democards.N15-Twitter-Bootstrap-Components
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
@@ -6,7 +6,7 @@
             [devcards.core :as dc :refer-macros [defcard defcard-doc deftest]]
             [cljs.reader :as r]
             [fulcro.client.impl.parser :as p]
-            [fulcro-tutorial.N10-Twitter-Bootstrap-CSS :refer [render-example sample]]
+            [fulcro.democards.N10-Twitter-Bootstrap-CSS :refer [render-example sample]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.ui.elements :as ele]
             [fulcro.client.cards :refer [defcard-fulcro]]

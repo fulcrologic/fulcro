@@ -1,4 +1,4 @@
-(ns fulcro-tutorial.O09-Forms-Predefined-Fields
+(ns fulcro.democards.O09-Forms-Predefined-Fields
   (:require
     [fulcro.client.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard-doc]]
@@ -16,8 +16,10 @@
     [clojure.string :as str]
     [fulcro.ui.file-upload :refer [FileUploadInput file-upload-input file-upload-networking]]
     [fulcro.client.logging :as log]
+    [fulcro.democards.N10-Twitter-Bootstrap-CSS :refer [render-example]]
     [fulcro.client.network :as net]
-    [fulcro.ui.bootstrap3 :as b])
+    [fulcro.ui.bootstrap3 :as b]
+    [fulcro.ui.file-upload :as fu])
   (:refer-clojure :exclude [send])
   (:import [goog.net XhrIo EventType]))
 
@@ -49,23 +51,24 @@
   (render [this]
     (let [props      (prim/props this)
           not-valid? (not (f/would-be-valid? props))]
-      (dom/div #js {:className "form-horizontal"}
-        (field-with-label this props :text "Text:")
-        (field-with-label this props :number "Number:")
-        (field-with-label this props :mood "Mood:")
-        (field-with-label this props :done? "Done:")
-        (field-with-label this props :essay "Essay:" :rows 10 :maxLength 100)
-        (dom/div #js {:className "form-group"}
-          (dom/label #js {:className "col-sm-2" :htmlFor :rating} "Rating:")
-          (dom/div #js {:className "col-sm-10"}
-            (f/form-field this props :rating :choice 1 :label 1)
-            (f/form-field this props :rating :choice 2 :label 2)
-            (f/form-field this props :rating :choice 3 :label 3)
-            (f/form-field this props :rating :choice 4 :label 4)
-            (f/form-field this props :rating :choice 5 :label 5)))
-        (field-with-label this props :short-story "Story (PDF):" :accept "application/pdf" :multiple? true)
-        (b/button {:disabled not-valid?
-                   :onClick  #(f/commit-to-entity! this :remote true)} "Submit")))))
+      (b/container-fluid nil
+        (dom/div #js {:className "form-horizontal"}
+          (field-with-label this props :text "Text:")
+          (field-with-label this props :number "Number:")
+          (field-with-label this props :mood "Mood:")
+          (field-with-label this props :done? "Done:")
+          (field-with-label this props :essay "Essay:" :rows 10 :maxLength 100)
+          (dom/div #js {:className "form-group"}
+            (dom/label #js {:className "col-sm-2" :htmlFor :rating} "Rating:")
+            (dom/div #js {:className "col-sm-10"}
+              (f/form-field this props :rating :choice 1 :label 1)
+              (f/form-field this props :rating :choice 2 :label 2)
+              (f/form-field this props :rating :choice 3 :label 3)
+              (f/form-field this props :rating :choice 4 :label 4)
+              (f/form-field this props :rating :choice 5 :label 5)))
+          (field-with-label this props :short-story "Story (PDF):" :accept "application/pdf" :multiple? true)
+          (b/button {:disabled not-valid?
+                     :onClick  #(f/commit-to-entity! this :remote true)} "Submit"))))))
 
 (def ui-sink (prim/factory KitchenSink {:keyfn :db/id}))
 
@@ -73,12 +76,11 @@
   static prim/InitialAppState
   (initial-state [this _] {:sink (prim/get-initial-state KitchenSink {:db/id 1})})
   static prim/IQuery
-  (query [this] [:ui/react-key
-                 {:sink (prim/get-query KitchenSink)}])
+  (query [this] [{:sink (prim/get-query KitchenSink)}])
   Object
   (render [this]
-    (let [{:keys [ui/react-key sink]} (prim/props this)]
-      (dom/div #js {:key react-key}
+    (let [{:keys [sink]} (prim/props this)]
+      (render-example "800px" "600px"
         (ui-sink sink)))))
 
 (defcard-doc
@@ -86,10 +88,9 @@
 
   In order for this example to work (submission and file upload) you must start the dev upload server:
 
-  - Start a REPL
   ```
-  (require 'fulcro-tutorial.upload-server)
-  (fulcro-tutorial.upload-server/go)
+  # lein repl
+  user=> (run-upload-server)
   ```
   - Connect to this page by changing the port on the URL to the one reported by the server.
 
@@ -99,10 +100,14 @@
   "
   (dc/mkdn-pprint-source KitchenSink))
 
+(defonce upload-networking (file-upload-networking))
+
 (defcard-fulcro form-changes
   CommitRoot
   {}
-  {:fulcro       {:networking {:remote      (net/make-fulcro-network "/api" :global-error-callback identity)
-                               :file-upload (file-upload-networking)}}
+  {:fulcro       {
+                  :started-callback (fn [{:keys [reconciler]}] (fu/install-reconciler! upload-networking reconciler))
+                  :networking       {:remote      (net/make-fulcro-network "/api" :global-error-callback identity)
+                                     :file-upload upload-networking}}
    :inspect-data false})
 

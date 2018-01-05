@@ -1,4 +1,4 @@
-(ns fulcro.client.root-form-refresh
+(ns fulcro.democards.root-form-refresh
   (:require [devcards.core :as dc]
             [fulcro.client.dom :as dom]
             [fulcro.client :as fc]

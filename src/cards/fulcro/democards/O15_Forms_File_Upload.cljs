@@ -1,4 +1,4 @@
-(ns fulcro-tutorial.O15-Forms-File-Upload
+(ns fulcro.democards.O15-Forms-File-Upload
   (:require
     [fulcro.client.dom :as dom]
     [devcards.core :as dc :refer-macros [defcard defcard-doc]]
@@ -7,7 +7,7 @@
     [fulcro.client :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro-tutorial.N10-Twitter-Bootstrap-CSS :refer [render-example]]
+    [fulcro.democards.N10-Twitter-Bootstrap-CSS :refer [render-example]]
     [goog.events :as events]
     [fulcro.client.network :as net]
     [clojure.string :as str]
@@ -329,7 +329,13 @@
   This card is full-stack, and uses a special server. The separate server is not necessary, but
   it makes it clearer to the reader what is related to file upload. The server-side code is in `upload_server.clj`.
 
-  You can start the server for these demos at a CLJ REPL:
+  You can start the server for these demos with a shell script at the command prompt:
+
+  ```
+  $ ./run-file-upload-server.sh
+  ```
+
+  or via a REPL:
 
   ```
   $ lein repl
@@ -339,7 +345,7 @@
   or with the shell script `run-file-upload-server.sh`.
 
   The server for these examples is on port 8085, so use this page via
-  [http://localhost:8085/tutorial.html#!/fulcro_tutorial.O15_Forms_File_Upload](http://localhost:8085/tutorial.html#!/fulcro_tutorial.O15_Forms_File_Upload).
+  [http://localhost:8085/cards.html#!/fulcro.democards.O15_Forms_File_Upload](http://localhost:8085/cards.html#!/fulcro.democards.O15_Forms_File_Upload).
   "
   DemoRoot
   {}

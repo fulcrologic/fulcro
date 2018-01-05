@@ -1,4 +1,4 @@
-(ns fulcro.client.load-cards
+(ns fulcro.democards.load-cards
   (:require
     [devcards.core :as dc]
     [fulcro.client :as fc]

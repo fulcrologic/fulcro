@@ -167,19 +167,17 @@ especially if you intend to use children.
   (let [{:keys [invented-join-prop]} (prim/props this)]
     (ui-child invented-join-prop)))
 ```
-* If using initial state, the `InitialAppState` mirrors the component's query and composition all
+* If using initial state, it mirrors the component's query and composition all
 the way to the root of your application state. That is to say that for each scalar property
 queried there will be a scalar value in the initial state map, and for every join in the query
 there will be a key in the initial state whose value is the `get-initial-state` of the child
 in the query join.
 +
 ```
-static prim/InitialAppState
-(initial-state [c p] {:scalar-prop 42 :child-props (prim/get-initial-state Child {})})
-static prim/IQuery
-(query [this] [:scalar-prop {:child-props (prim/get-query Child)}])
+:initial-state [p] {:scalar-prop 42 :child-props (prim/get-initial-state Child {})}
+:query [:scalar-prop {:child-props (prim/get-query Child)}]
 ```
-* Every component that has state (except your root) *should* have an `Ident`. Exceptions
+* Every component that has state (except your root) *should* have an ident. Exceptions
 are possible but rare.
 * More than one component can use the same ident. This is common. PersonListView, PersonDetail,
 PersonSummary might all have the same `[:person/by-id id]` style ident.

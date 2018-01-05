@@ -1,4 +1,4 @@
-(ns fulcro-tutorial.N10-Twitter-Bootstrap-CSS
+(ns fulcro.democards.N10-Twitter-Bootstrap-CSS
   (:require [fulcro.client.primitives :as prim]
             [fulcro.client.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]

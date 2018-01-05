@@ -5,6 +5,7 @@
  - Made force update override shouldComponentUpdate
    - Eliminates the need for `react-key` on root element
 - Fixed bug with dynamic locale loading UI refresh (timing issue)
+- Considerable revamping of documentation
 
 2.0.1
 -----

@@ -1,4 +1,4 @@
-(ns fulcro.client.react-refs
+(ns fulcro.democards.react-refs
   (:require [devcards.core :as dc]
             [fulcro.client.dom :as dom]
             [fulcro.client :as fc]
