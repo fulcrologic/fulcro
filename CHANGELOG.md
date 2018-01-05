@@ -1,5 +1,5 @@
-2.1.0
------
+2.1.0-beta1
+-----------
 - Refactored rendering
    - Added support for alternate rendering modes
  - Made force update override shouldComponentUpdate
