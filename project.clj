@@ -83,7 +83,7 @@
                 :compiler     {:output-dir     "resources/public/js/book"
                                :asset-path     "js/book"
                                :preloads       [devtools.preload]
-                               :modules        {:entry-point {:output-to "resources/public/js/book/book.js"
+                               :modules        {:entry-point {:output-to "resources/public/js/book.js"
                                                               :entries   #{book.main}}
                                                 ; For the dynamic i18n loading demo
                                                 :de          {:output-to "resources/public/js/book/de.js"
@@ -97,7 +97,7 @@
                {:id           "book-live"
                 :source-paths ["src/main" "src/book"]
                 :compiler     {:output-dir     "docs/js/book"
-                               :asset-path     "js"
+                               :asset-path     "js/book"
                                :optimizations  :advanced
                                :modules        {:entry-point {:output-to "docs/js/book.js"
                                                               :entries   #{book.main}}

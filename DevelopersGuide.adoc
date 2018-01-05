@@ -11411,7 +11411,7 @@ background-color: rgba(0,0,0,0.04);
 
 <!-- The book demos -->
 <script src="js/book/cljs_base.js"></script>
-<script src="js/book/book.js"></script>
+<script src="js/book.js"></script>
 <script src="js/main.js"></script>
 
 <!-- quick convenient way to toggle the source within asciidoc, since
