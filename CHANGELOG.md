@@ -4,6 +4,8 @@
    - Added support for alternate rendering modes
  - Made force update override shouldComponentUpdate
    - Eliminates the need for `react-key` on root element
+- Fixed bug with dynamic locale loading UI refresh (timing issue)
+- Considerable revamping of documentation
 - Significant change to the internals of i18n. Should work better when
   multiple apps are on the screen.
 

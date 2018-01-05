@@ -1,0 +1,430 @@
+body {
+    margin: 0;
+}
+
+body .hljs {
+    padding: 0;
+    color: #333;
+    background: transparent;
+}
+
+#com-rigsomelight-devcards-main {
+    padding-bottom: 10em;
+}
+
+.com-rigsomelight-devcards_rendered-card {
+    position: relative;
+}
+
+.com-rigsomelight-devcards-body {
+    background-color: rgb(233, 234, 237);
+}
+
+.com-rigsomelight-devcards-markdown pre,
+.com-rigsomelight-devcards-test-line.com-rigsomelight-devcards-test-doc .com-rigsomelight-devcards-markdown pre {
+    display: block;
+    padding: 9.5px 14px;
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.42857143;
+    word-break: normal;
+    word-wrap: normal;
+    overflow-x: scroll;
+    color: #333;
+    background-color: rgb(250, 250, 250);
+    border: 1px solid #e1e1e1;
+    border-left: 0;
+    border-right: 0;
+}
+
+.com-rigsomelight-devcards-test-line.com-rigsomelight-devcards-test-doc .com-rigsomelight-devcards-markdown pre {
+}
+
+/* frameless style for markdown */
+.com-rigsomelight-devcards-framelesss .com-rigsomelight-devcards-markdown {
+    padding-top: 14px;
+    padding-left: 14px;
+    padding-right: 14px;
+}
+
+/* end fremless markdown style */
+
+.com-rigsomelight-devcards-padding-top-border {
+    margin-top: 14px;
+    padding-top: 14px;
+}
+
+.com-rigsomelight-devcards-markdown code {
+    padding: 2px 4px;
+    font-size: 90%;
+    color: #990073;
+    background-color: #fafafa;
+    white-space: nowrap;
+    border-radius: 4px;
+}
+
+.com-rigsomelight-devcards-markdown pre code {
+    padding: 0;
+    font-size: 1em;
+    color: inherit;
+    white-space: pre;
+    background-color: transparent;
+    border-radius: 0;
+}
+
+.com-rigsomelight-devcards-base,
+.com-rigsomelight-devcards-markdown {
+
+}
+
+.com-rigsomelight-devcards-typog {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.42857143;
+}
+
+.com-rigsomelight-devcards-typog h1,
+.com-rigsomelight-devcards-typog h2,
+.com-rigsomelight-devcards-typog h3,
+.com-rigsomelight-devcards-typog h4,
+.com-rigsomelight-devcards-typog h5,
+.com-rigsomelight-devcards-markdown h1,
+.com-rigsomelight-devcards-markdown h2,
+.com-rigsomelight-devcards-markdown h3,
+.com-rigsomelight-devcards-markdown h4,
+.com-rigsomelight-devcards-markdown h5 {
+    font-weight: 500;
+}
+
+.com-rigsomelight-devcards-typog a {
+    color: #428bca;
+    text-decoration: none;
+}
+
+.com-rigsomelight-devcards-markdown h1:first-child,
+.com-rigsomelight-devcards-markdown h2:first-child,
+.com-rigsomelight-devcards-markdown h3:first-child,
+.com-rigsomelight-devcards-markdown h4:first-child,
+.com-rigsomelight-devcards-markdown h5:first-child {
+    margin-top: 14px;
+}
+
+.com-rigsomelight-devcards-markdown code,
+.com-rigsomelight-devcards-markdown kbd,
+.com-rigsomelight-devcards-markdown pre,
+.com-rigsomelight-devcards-markdown samp {
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+.com-rigsomelight-devcards-navbar {
+    background-color: rgb(60, 90, 153);
+    border-color: rgb(50, 80, 153);
+    color: #fff;
+    height: 50px;
+}
+
+.com-rigsomelight-devcards-brand {
+    color: #ccc;
+    font-size: 18px;
+    line-height: 50px;
+    display: block;
+    margin-left: 14px;
+}
+
+.com-rigsomelight-devcards-container {
+    margin: auto;
+    width: 95%;
+}
+
+.com-rigsomelight-devcards-card-base {
+    background: #fff;
+    margin-top: 20px;
+}
+
+.com-rigsomelight-devcards-card-base-no-pad {
+    background: #fff;
+    border: 1px solid rgb(231, 234, 242);
+    margin-top: 20px;
+    margin-left: 30px;
+    margin-right: 30px;
+    border-left: 0;
+    border-right: 0;
+}
+
+.com-rigsomelight-devcards-card-base-no-pad.com-rigsomelight-devcards-card-hide-border {
+    border: 1px solid transparent;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.com-rigsomelight-devcards-breadcrumbs {
+    font-size: 16px;
+    line-height: 1.5em;
+    border: none !important;
+}
+
+.com-rigsomelight-devcards-breadcrumb-sep {
+    display: inline-block;
+    padding: 0 5px;
+    color: #ccc;
+}
+
+.com-rigsomelight-devcards-list-group {
+    margin-top: 30px;
+}
+
+.com-rigsomelight-devcards-list-group-item {
+    color: #555;
+    position: relative;
+    display: block;
+    padding: 10px 14px;
+    margin-bottom: -1px;
+    border-bottom: 1px solid #eee;
+}
+
+.com-rigsomelight-devcards-badge {
+    display: inline-block;
+    min-width: 10px;
+    padding: 3px 7px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+    vertical-align: baseline;
+    white-space: nowrap;
+    text-align: center;
+    background-color: #999;
+    border-radius: 10px;
+}
+
+button.com-rigsomelight-devcards-badge {
+    border: none;
+    padding: 3px 19px;
+}
+
+.com-rigsomelight-devcards-panel-heading {
+    padding: 8px 15px;
+    font-size: 16px;
+    line-height: 1.5em;
+    background-color: #e7ffe0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom: 1px solid rgb(131, 134, 142);
+}
+
+.com-rigsomelight-devcards-panel-heading a {
+    color: #000;
+}
+
+.com-rigsomelight-devcards-devcard-padding {
+    margin-top: 14px;
+    padding-left: 14px;
+    padding-right: 14px;
+    padding-bottom: 14px;
+}
+
+.com-rigsomelight-devcards-test-line {
+    position: relative;
+    display: block;
+    padding: 10px 14px;
+    border: none;
+    border-top: 1px solid #fafafa;
+}
+
+.com-rigsomelight-devcards-test-line.com-rigsomelight-devcards-context {
+    background-color: #fcfcfc;
+    border-left: 1px solid #f1f1f1;
+    border-right: 1px solid #f1f1f1;
+}
+
+.com-rigsomelight-devcards-test-line pre {
+    margin: 0;
+
+    word-break: normal;
+    word-wrap: normal;
+    overflow-x: scroll;
+}
+
+.com-rigsomelight-devcards-test-line pre code {
+    font-size: 80%;
+    padding: 0;
+    background-color: transparent;
+}
+
+.com-rigsomelight-devcards-pass {
+    color: #3c763d;
+    border: 1px solid rgb(199, 225, 160);
+    border-left: 10px solid rgb(199, 225, 160);
+}
+
+.com-rigsomelight-devcards-fail, .com-rigsomelight-devcards-error {
+    color: #a94442;
+    border: 1px solid rgb(236, 196, 196);
+    border-left: 10px solid rgb(236, 196, 196);
+}
+
+.com-rigsomelight-devcards-fail {
+    background-color: rgb(254, 254, 244);
+}
+
+.com-rigsomelight-devcards-error {
+    background-color: rgb(254, 245, 245);
+}
+
+.com-rigsomelight-devcards-test-message {
+    display: block;
+    margin-top: 2px;
+    margin-bottom: 8px;
+}
+
+.com-rigsomelight-devcards-pass .com-rigsomelight-devcards-test-message {
+    color: #386739;
+}
+
+.com-rigsomelight-devcards-fail .com-rigsomelight-devcards-test-message {
+    color: #994745;
+}
+
+.com-rigsomelight-devcards-history-control-small-arrow {
+    display: inline-block;
+    height: 0;
+    width: 0;
+    border: 8px solid transparent;
+    border-left-width: 9px;
+    border-left-color: #666;
+    margin-right: -10px;
+}
+
+.com-rigsomelight-devcards-history-control-block {
+    display: inline-block;
+    height: 16px;
+    width: 3px;
+    background-color: #666;
+}
+
+.com-rigsomelight-devcards-history-control-right {
+    display: inline-block;
+    height: 0;
+    width: 0;
+    border: 8px solid transparent;
+    border-left-width: 16px;
+    border-left-color: #666;
+    margin-right: -10px;
+}
+
+.com-rigsomelight-devcards-history-control-left {
+    display: inline-block;
+    height: 0;
+    width: 0;
+    border: 8px solid transparent;
+    border-right-width: 16px;
+    border-right-color: #666;
+    margin-left: -10px;
+}
+
+.com-rigsomelight-devcards-history-stop {
+    display: inline-block;
+    height: 17px;
+    width: 17px;
+    background-color: #D88282;
+    border-radius: 3px;
+}
+
+.com-rigsomelight-devcards-history-control-bar {
+    background-color: rgb(255, 252, 234);
+    padding-top: 5px;
+    padding-bottom: 3px;
+    margin: 14px 0;
+    padding-left: 14px;
+    padding-right: 14px;
+    text-align: right;
+    /* position: absolute;
+    top: 0px;
+    right: 0px; */
+}
+
+.com-rigsomelight-devcards-history-control-bar button {
+    background: transparent;
+    border: none;
+    margin: 0 4px;
+    height: 20px;
+    padding: 1px 28px;
+}
+
+.com-rigsomelight-devcards-history-control-bar + .com-rigsomelight-devcards-padding-top-border {
+    border: none;
+    padding-top: 0;
+}
+
+.com-rigsomelight-devcards-devcard-padding .com-rigsomelight-devcards-history-control-bar {
+    margin: 14px -30px;
+}
+
+.com-rigsomelight-devcards-markdown pre,
+.com-rigsomelight-devcards-test-line.com-rigsomelight-devcards-test-doc .com-rigsomelight-devcards-markdown pre {
+    padding: 9.5px 30px;
+}
+
+.com-rigsomelight-devcards-panel-heading {
+    padding: 8px 30px;
+}
+
+.com-rigsomelight-devcards-brand {
+    margin-left: 0;
+}
+
+.com-rigsomelight-devcards-devcard-padding {
+    padding-left: 30px;
+    padding-right: 30px;
+}
+
+.com-rigsomelight-devcards-card-hide-border .com-rigsomelight-devcards-devcard-padding {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.com-rigsomelight-devcards-breadcrumbs {
+    padding: 0 0;
+}
+
+.com-rigsomelight-devcards-list-group {
+    margin-top: 30px;
+}
+
+.com-rigsomelight-devcards-list-group-item {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+button.com-rigsomelight-devcards-badge {
+    border: 1px solid #999;
+    padding: 3px 9px;
+    background-color: #ccc;
+}
+
+.com-rigsomelight-devcards-history-control-bar button {
+    padding: 1px 6px;
+}
+
+.com-rigsomelight-devcards-card-base,
+.com-rigsomelight-devcards-card-base-no-pad {
+    border-radius: 8px;
+    border: 1px solid rgb(131, 134, 142);
+}
+
+.com-rigsomelight-devcards-test-line {
+    padding: 10px 30px;
+}
+
+.com-rigsomelight-devcards-pass {
+    border-left: 25px solid rgb(199, 225, 160);
+}
+
+.com-rigsomelight-devcards-fail {
+    border-left: 25px solid rgb(236, 196, 196);
+}
+
+.com-rigsomelight-devcards-error {
+    border-left: 25px solid rgb(236, 196, 196);
+}
+

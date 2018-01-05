@@ -2063,8 +2063,7 @@
                    value       (get (parser env query) id)]
                (if (and has-tempid? (or (nil? value) (empty? value)))
                  ::no-ident                                 ; tempid remap happened...cannot do targeted props until full re-render
-                 value)
-               ))]
+                 value)))]
     (or ui ::no-ident)))
 
 (defn computed
@@ -2546,10 +2545,10 @@
      (cond
        (reconciler? x) (transact* x nil nil tx)
        (not (has-query? x)) (do
-                              (when (some-hasquery? x) (log/error
-                                                         (str "transact! should be called on a component"
-                                                           "that implements IQuery or has a parent that"
-                                                           "implements IQuery")))
+                              (when-not (some-hasquery? x) (log/error
+                                                             (str "transact! should be called on a component"
+                                                               "that implements IQuery or has a parent that"
+                                                               "implements IQuery")))
                               (transact* (get-reconciler x) nil nil tx))
        :else (do
                (loop [p (parent x) x x tx tx]
@@ -2662,8 +2661,9 @@
    recomputing :shared."
   [reconciler]
   {:pre [(reconciler? reconciler)]}
-  (binding [*blindly-render* true]
-    ((get @(:state reconciler) :render))))
+  (when-let [render (get @(:state reconciler) :render)] ; hot code reload can cause this to be nil
+    (binding [*blindly-render* true]
+     (render))))
 
 (defn tempid
   "Return a temporary id."
@@ -3120,6 +3120,8 @@
 #?(:clj
    (defn- build-form [form-fields]
      (when form-fields
+       (when-not (vector? form-fields)
+         (throw (ex-info "Form fields must be a vector of form field definitions" {})))
        `(~'static ~'fulcro.ui.forms/IForm
           (~'form-spec [~'this] ~form-fields)))))
 
@@ -3254,7 +3256,7 @@
 
    Only the first two arguments are required (this and props).
 
-   See section M05-Defsc-In-Detail of the Developer's Guide for more details.
+   See the Developer's Guide at book.fulcrologic.com for more details.
    "
                :arglists '([this dbprops computedprops]
                             [this dbprops computedprops local-css-classes])}

@@ -27,9 +27,10 @@ Be sure to watch the [whiteboard discussion video](https://youtu.be/mT4jJHf929Q?
 ## HTML5 Routing
 
 The primitives to support this are well-defined in `routing.cljc`. There are a few gotchas, and
-it is recommended that you carefully examine the new [Fulcro Template](https://github.com/fulcrologic/fulcro-template).
+it is recommended that you carefully examine the [Fulcro Template](https://github.com/fulcrologic/fulcro-template)
+to see an app in action.
 
-Supported on both client and for server-side rendering (100%). 
+Routing is also supported for server-side rendering (100%).
 
 ## Form Support
 
@@ -37,17 +38,18 @@ This is in active (priority) development. It should be relatively stable, but mi
 have missing features that you need. File upload works, but
 needs some CSS love or other instructions for how to make it look good.
 
-- Components as user-editable forms (99%)
-- Commit/submit (90%)
-- Error Handling (70%)
-- Validation (90%)
+A simple state management version of forms is also planned (60% but on a branch currently).
+
+- Components as user-editable forms (100%)
+- Commit/submit (100%)
+- Validation (100%)
 - Custom "form input" rendering (90%)
 - File Upload (80%)
 
-## Developer's Guide
+## Documentation
 
-The developer's guide is constantly evolving, but is the most
-complete documentation on the overall platform.
+There is quite a bit of documentation: A book, tutorial, cheat sheet, and
+YouTube video series.
 
 ## Internationalization
 
@@ -80,6 +82,9 @@ Both are in good shape, and well-documented.
 - Easy Server (100%)
 - Module-based Server (100%)
 
+See the Developer's Guide for instructions on rolling your own
+server that isn't dependent on either.
+
 ## Twitter Bootstrap Support
 
 In order to facilitate very rapid application development there is a
@@ -92,32 +97,18 @@ bootstrap CSS and theme in your HTML page.
 - Active Components (80%)
 - Integration with Forms (50%)
 
+This will probably be moved to an alternate project in the near future.
+
 ## Advanced Optimization (Closure)
 
-Advanced optimization works well, though there is a problem if your 
-clojure namespaces that are loaded during cljs compiles include 
-`tools.namespace` calls (which the default template dev environment 
-does). To work around this, make sure you use a lein profile that
-prevents such code from being on the classpath during advanced
-compilations.
-
-## Elements
-
-A small library of useful React tools. It might get renamed, but
-there isn't a lot in it. It currently has a couple of helpers for
-writing components that have nested components. See the Bootstrap
-code for the `defui` of `Modal` to see some examples.
-
-One of the most useful elements is `ui-iframe`, which can be used
-to drop content into an iframe. This is used, for example, to make
-sure the correct CSS and top-level rendering can work within a devcard.
+Advanced optimization works well.
 
 ## Devcards
 
-The `cards.cljc` namespace includes `defcard-fulcro` macro that lets you
+The `fulcro.cards` namespace includes `defcard-fulcro` macro that lets you
 embed a full-stack Fulcro app within a card. 
 Combine this with `ui-iframe` from elements to get the CSS and rendering fully encapsulated
-in a card. See the Bootstrap devcards in the Developer's Guide.
+in a card. See the Bootstrap devcards for examples.
 
 ## Server-Side Rendering
 
@@ -130,6 +121,9 @@ use external Javascript libraries. See the `nashorn` branch of the template
 for a demonstration of the latter.
 
 ## Random Bits
+
+Some of these will probably get moved with the bootstrap support. Most
+of these are UI-only concerns.
 
 - `events.cljs`: Has helpers for detecting a few kinds of key events. Could be dramatically expanded.
 - `icons.cljc` : Has embedded SVG data for generating nice SVG icons from the Material Icons set with needing CSS or other code.

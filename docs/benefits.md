@@ -8,7 +8,7 @@ clean evolution of your data model from one state to the next through *mutations
 data model (atomic steps that complete one operation). The UI pretty much takes care
 of itself.
 
-We understand that it is hard for you to take our word for it, but framework
+We understand that it is hard for you to take our word for it, but library
 evaluation does require the reader to put in some effort. However, we also
 understand you're busy, so in the interest of giving you some talking points:
 

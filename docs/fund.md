@@ -1,8 +1,8 @@
 # Support Fulcro
 
 Fulcro largely exists due to the contributions of the community. Much of the
-work on it is done by Tony Kay on his personal time. If you find Fulcro useful in what you
-do, please consider showing your appreciation by contributing some of your
+work on it is done by Tony Kay in his personal time. If you find Fulcro useful
+please consider showing your appreciation by contributing some of your
 own time or money to the project.
 
 There are a number of ways you can help:

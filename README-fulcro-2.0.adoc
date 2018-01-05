@@ -150,9 +150,9 @@ a mutation version you can call directly from `transact!`: `fulcro.client.mutati
 was to fix dynamic queries, and make the rendering refresh a bit simpler.
 * Fulcro's `defsc` macro was expanded and is now the recommended way to build components
 * `defui` still exists, and is 100% API-compatible with Om Next's
-* Advanced optimization works. It has been tested.
-* Dynamic queries work.
-** Query parameters (e.g. IQueryParams) is as-yet untested, but it wasn't changed much.
+* Advanced optimization works, and does not rely on the compiler hacks that were present in Om Next.
+* Dynamic queries work in a general purpose and serializable way.
+** Query parameters (e.g. IQueryParams) wasn't changed.
 * Other than the renames and a few minor function moves (from util), it should be API-compatible with existing Fulcro apps
 * Rendering should should be at least as fast as stock Om Next in most circumstances. It should be faster in many, but there
 are some circumstances where it could be slower.

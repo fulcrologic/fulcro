@@ -55,3 +55,5 @@ DevelopersGuide.html
 docs/.jekyll-metadata
 .floo
 .flooignore
+.asciidoctor
+/ReferenceGuide.html

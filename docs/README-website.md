@@ -2,8 +2,6 @@
 
 These instructions assume a UNIX-like (OSX in particular) OS.
 
-The website uses [the merlot template](https://github.com/pages-themes/merlot).
-
 You should be able to get a local rendering system going to preview your
 edits by following these instructions:
 
@@ -16,16 +14,11 @@ Then you should be able to:
 ```bash
 $ cd docs
 $ bundle install
-$ bundle exec jekyll serve
+$ bundle exec jekyll serve --incremental
 ```
 
 and then use the URL it gives you. It will recompile on save, but you have
 to reload the browser page to see changes.
-
-## Layout
-
-The file `_layout/default.html` defines the layout wrapper. This is where the
-top links and logo are hard-coded.
 
 ## Publishing
 
@@ -35,19 +28,17 @@ which case you should use git flow hotfix).
 The live website is auto-generated from the current `master`. So, merging
 and pushing to master will update the website.
 
-Remember to update the devguide javascript!
+Remember to update the live tutorial javascript!
 
 ```bash
-$ lein do clean, cljsbuild once devguide-live
+$ lein do clean, cljsbuild once tutorial-live
 ```
 
-should regenerate `docs/js/guide.js`. You should test that new version
-by looking at the Queries and Bootstrap pages locally before a commit:
+should regenerate `docs/js/tutorial.js`. You should run through some of the
+live pages to check it is ok:
 
 ```
 $ cd docs
-$ open guide.html
+$ open tutorial.html
 ```
-
-You will need to commit that for the devguide to update on the website.
 
