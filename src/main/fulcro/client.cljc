@@ -89,9 +89,9 @@
   mounted in the DOM, and is useful for triggering initial loads, routing mutations, etc. The reconciler is available
   under the `:reconciler` key (and you can access the app state, root node, etc from there.)
 
-  `:network-error-callback` is a function of two arguments, the app state atom and the error, which will be invoked for
-  every network error (status code >= 400, or no network found), should you choose to use the default built-in
-  networking.
+  `:network-error-callback` is a function of three arguments, the app state atom, status code, and the error, which will be invoked for
+  every network error (status code >= 400, or no network found). Only works if you choose to use the default built-in
+  networking (ignored if you also specify :networking).
 
   `:migrate` is optional. It is a (fn [state tid->rid] ... state') that should return a new state where all tempids
   (the keys of `tid->rid`) are rewritten to real ids (the values of tid->rid). This defaults to a full recursive

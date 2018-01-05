@@ -218,7 +218,7 @@
                         and handlers are map from handler name to a function of type :: Env -> BidiMatch -> Res
                         see `handler/wrap-extra-routes` & handler-spec for more.
 
-  *`app-name`           OPTIONAL, a string that will turn \"\\api\" into \"<app-name>\\api\"
+  *`app-name`           OPTIONAL, a string that will turn \"/api\" into \"<app-name>/api\"
 
   Returns a Sierra system component.
   "

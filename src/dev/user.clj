@@ -1,16 +1,11 @@
 (ns user
   (:require
-    [cards.server :as svr]
     [clojure.pprint :refer [pprint]]
     [clojure.repl :refer [doc source]]
-    [clojure.set :as set]
-    [clojure.spec.alpha :as s]
-    [clojure.spec.gen.alpha :as sg]
     [clojure.tools.namespace.repl :as tools-ns :refer [disable-reload! refresh clear set-refresh-dirs]]
     [figwheel-sidecar.system :as fig]
     [solutions.putting-together :as pt]
     [com.stuartsierra.component :as component]
-    [fulcro-devguide.upload-server :as upload]
     [fulcro-spec.selectors :as sel]
     [fulcro-spec.suite :as suite]))
 
@@ -44,53 +39,38 @@
      (swap! figwheel component/start)
      (fig/cljs-repl (:figwheel-system @figwheel)))))
 
-(set-refresh-dirs "src/demos" "src/main" "src/test" "src/dev" "src/devguide")
+(set-refresh-dirs "src/main" "src/test" "src/dev" "src/tutorial")
 
-(defonce demo-server (atom nil))
+(comment
+  "move to cards"
 
-(defn stop-demo-server "Stop the running web server." []
-  (when @demo-server
-    (swap! demo-server component/stop)
-    (reset! demo-server nil)))
+  (defn run-upload-server
+    "Load and start the server that can handle the file upload form examples."
+    []
+    (upload/go))
 
-(defn run-demo-server "Load the overall web server system and start it." []
-  (reset! demo-server (svr/make-system))
-  (swap! demo-server component/start))
+  (def stop-upload-server upload/stop)
 
-(defn restart-demo-server
-  "Stop the web server, refresh all namespace source code from disk, then restart the web server."
-  []
-  (stop-demo-server)
-  (refresh :after 'user/run-demo-server))
-
-(defn run-upload-server
-  "Load and start the server that can handle the file upload form examples."
-  []
-  (upload/go))
-
-(def stop-upload-server upload/stop)
-
-(def restart-upload-server upload/restart)
-
+  (def restart-upload-server upload/restart))
 
 
 ;; SOLUTIONS: Putting it Together Setting Up: The start/restart functions for the server
 (comment
   (defn ex-start
-    "Start the server for the devguide server exercises."
+    "Start the server for the tutorial server exercises."
     []
     (reset! pt/system (pt/make-server))
     (swap! pt/system component/start))
 
   (defn ex-stop
-    "Stop the server for the devguide server exercises."
+    "Stop the server for the tutorial server exercises."
     []
     (when @pt/system
       (component/stop @pt/system)
       (reset! pt/system nil)))
 
   (defn ex-restart
-    "Stop the server for the devguide server exercises, refresh code from disk, and start it again."
+    "Stop the server for the tutorial server exercises, refresh code from disk, and start it again."
     []
     (ex-stop)
     (refresh :after 'user/ex-start)))

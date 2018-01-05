@@ -100,10 +100,10 @@
 
   Features:
 
-  - Can configure the target URL on the server for network requests
-  - Can supply a (fn [{:keys [body headers] :as req}] req') to transform arbitrary requests (e.g. to add things like auth headers)
-  - Supports a global error callback (fn [status-code error] ) that is notified when a 400+ status code or hard network error occurs
-  - `transit-handlers`: A map of transit handlers to install on the reader, such as
+  - `:url` is the target URL suffix (URI) on the server for network requests. defaults to /api.
+  - `:request-transform` is a (fn [{:keys [body headers] :as req}] req') to transform arbitrary requests (e.g. to add things like auth headers)
+  - `:global-error-callback` is a global error callback (fn [app-state-map status-code error] ) that is notified when a 400+ status code or hard network error occurs
+  - `transit-handlers` is a map of transit handlers to install on the reader, such as
 
    `{ :read { \"thing\" (fn [wire-value] (convert wire-value))) }
       :write { Thing (ThingHandler.) } }`

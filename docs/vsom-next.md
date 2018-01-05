@@ -214,8 +214,7 @@ file uploads, standing up a server.
 
 All of these are things you have to "plug in" with Om Next.
 
-Fulcro doesn't lock you in to one solution for these (Closure will dead-code eliminate
-anything you don't user). It does, however, provide an
-included production-ready option that makes rapid application development possible.
+Fulcro doesn't lock you in to one solution for these (cljs uses Google's Closure compiler to eliminate unused code)
+It does, however, provide an included production-ready option that makes rapid application development possible.
 
 
