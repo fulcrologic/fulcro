@@ -1,3 +1,7 @@
+2.1.0-beta2
+-----------
+- Fixed initial state generation for SSR
+
 2.1.0-beta1
 -----------
 - Refactored rendering
