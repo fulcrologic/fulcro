@@ -2661,8 +2661,9 @@
    recomputing :shared."
   [reconciler]
   {:pre [(reconciler? reconciler)]}
-  (binding [*blindly-render* true]
-    ((get @(:state reconciler) :render))))
+  (when-let [render (get @(:state reconciler) :render)] ; hot code reload can cause this to be nil
+    (binding [*blindly-render* true]
+     (render))))
 
 (defn tempid
   "Return a temporary id."
