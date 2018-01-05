@@ -35,8 +35,11 @@
                 state-atom#)
               (reset! ~app-sym (fulcro.client/mount (deref ~app-sym) ~root-ui node#)))
             (fulcro.client/mount (deref ~app-sym) ~root-ui node#))
-          ; ensures shows app state immediately if you're using inspect data true...otherwise you don't see it until the first interaction.
-          (js/setTimeout (fn [] (swap! state-atom# assoc :ui/react-key (fulcro.util/unique-key))) 100)))))
+          ; Dev cards rendering timing issues...this makes sure the app renders after plugging in the app state, and
+          ; triggers a swap on the atom so devcards will show that updated state.
+          (js/setTimeout (fn []
+                           (swap! state-atom# identity)
+                           (fulcro.client.primitives/force-root-render! (-> ~app-sym deref :reconciler))) 100)))))
 
 #?(:clj
    (defmacro defcard-fulcro

@@ -349,22 +349,24 @@
    :defaults
    `{~'shouldComponentUpdate
      ([this# next-props# next-state#]
-       (let [next-children#     (. next-props# -children)
-             next-props#        (goog.object/get next-props# "fulcro$value")
-             next-props#        (cond-> next-props#
-                                  (instance? FulcroProps next-props#) unwrap)
-             current-props#     (fulcro.client.primitives/props this#)
-             ; a parent could send in stale props due to a component-local state change..make sure we don't use them. (Props have a timestamp on metadata)
-             next-props-stale?# (> (get-basis-time current-props#) (get-basis-time next-props#))
-             props-changed?#    (and
-                                  (not next-props-stale?#)
-                                  (not= current-props# next-props#))
-             state-changed?#    (and (.. this# ~'-state)
-                                  (not= (goog.object/get (. this# ~'-state) "fulcro$state")
-                                    (goog.object/get next-state# "fulcro$state")))
-             children-changed?# (not= (.. this# -props -children)
-                                  next-children#)]
-         (or props-changed?# state-changed?# children-changed?#)))
+       (if fulcro.client.primitives/*blindly-render*
+         true
+         (let [next-children#     (. next-props# -children)
+               next-props#        (goog.object/get next-props# "fulcro$value")
+               next-props#        (cond-> next-props#
+                                    (instance? FulcroProps next-props#) unwrap)
+               current-props#     (fulcro.client.primitives/props this#)
+               ; a parent could send in stale props due to a component-local state change..make sure we don't use them. (Props have a timestamp on metadata)
+               next-props-stale?# (> (get-basis-time current-props#) (get-basis-time next-props#))
+               props-changed?#    (and
+                                    (not next-props-stale?#)
+                                    (not= current-props# next-props#))
+               state-changed?#    (and (.. this# ~'-state)
+                                    (not= (goog.object/get (. this# ~'-state) "fulcro$state")
+                                      (goog.object/get next-state# "fulcro$state")))
+               children-changed?# (not= (.. this# -props -children)
+                                    next-children#)]
+           (or props-changed?# state-changed?# children-changed?#))))
      ~'componentWillUpdate
      ([this# next-props# next-state#]
        (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
@@ -662,6 +664,7 @@
 (def ^{:dynamic true} *raf* nil)
 (def ^{:dynamic true :private true} *reconciler* nil)
 (def ^{:dynamic true :private true} *parent* nil)
+(def ^{:dynamic true :private true} *blindly-render* false) ; when true: shouldComponentUpdate will return true even if their data/state hasn't changed
 (def ^{:dynamic true :private true} *shared* nil)
 (def ^{:dynamic true :private true} *instrument* nil)
 (def ^{:dynamic true :private true} *depth* 0)
@@ -2060,8 +2063,7 @@
                    value       (get (parser env query) id)]
                (if (and has-tempid? (or (nil? value) (empty? value)))
                  ::no-ident                                 ; tempid remap happened...cannot do targeted props until full re-render
-                 value)
-               ))]
+                 value)))]
     (or ui ::no-ident)))
 
 (defn computed
@@ -2139,6 +2141,52 @@
      (update-props! c next-props)
      (force-update c)))
 
+(defn- optimal-render
+  "Run an optimal render of the given `refresh-queue` (a list of idents and data query keywords). This function attempts
+   to refresh the minimum number of components according to the UI depth and state. If it cannot do targeted updates then
+   it will call `render-root` to render the entire UI. Other optimizations may apply in render-root."
+  [reconciler refresh-queue render-root]
+  (let [reconciler-state      (:state reconciler)
+        config                (:config reconciler)
+        app-state-atom        (:state config)
+        components-to-refresh (transduce
+                                (map #(p/key->components (:indexer config) %))
+                                #(into %1 %2) #{} refresh-queue)
+        env                   (assoc (to-env config) :reconciler reconciler)
+        root                  (:root @reconciler-state)
+        sort-by-depth         (:optimize config)]
+    #?(:cljs
+       (doseq [c (sort-by-depth components-to-refresh)]
+         (let [current-time   (get-current-time reconciler)
+               component-time (t c)
+               props-change?  (> current-time component-time)]
+           (when (mounted? c)
+             (let [computed       (get-computed (props c))
+                   next-raw-props (if (has-query? c)
+                                    (add-basis-time (get-query c @app-state-atom) (fulcro-ui->props env c) current-time)
+                                    (add-basis-time (fulcro-ui->props env c) current-time))
+                   force-root?    (= ::no-ident next-raw-props) ; screw focused query...
+                   next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
+               (if force-root?
+                 (do
+                   (force-update c)                         ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
+                   (render-root))                           ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
+                 (do
+                   (when (and (exists? (.-componentWillReceiveProps c))
+                           (has-query? root)
+                           props-change?)
+                     (let [next-props (if (nil? next-props)
+                                        (when-let [props (props c)]
+                                          props)
+                                        next-props)]
+                       ;; `componentWilReceiveProps` is always called before `shouldComponentUpdate`
+                       (.componentWillReceiveProps c
+                         #js {:fulcro$value (om-props next-props (get-current-time reconciler))})))
+                   (when (should-update? c next-props (get-state c))
+                     (if-not (nil? next-props)
+                       (update-component! c next-props)
+                       (force-update c))))))))))))
+
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
      :cljs IDeref)
@@ -2147,14 +2195,16 @@
 
   p/IReconciler
   (tick! [_] (swap! state update :t inc))
+  (get-id [_] (:id @state))
   (basis-t [_] (:t @state))
   (get-history [_] history)
 
   (add-root! [this root-class target options]
-    (let [ret          (atom nil)
-          rctor        (factory root-class)
-          guid #?(:clj (java.util.UUID/randomUUID)
-                  :cljs (random-uuid))]
+    (let [ret   (atom nil)
+          rctor (factory root-class)
+          guid  (or (p/get-id this) (util/unique-key))]
+      (when-not (p/get-id this)
+        (swap! state assoc :id guid))
       (when (has-query? root-class)
         (p/index-root (assoc (:indexer config) :state (-> config :state deref)) root-class))
       (when (and (:normalize config)
@@ -2183,28 +2233,28 @@
                             (swap! state assoc :root c)
                             (reset! ret c)))))
             parsef  (fn parse-fn []
-                      (let [sel (get-query rctor (-> config :state deref))]
-                        (assert (or (nil? sel) (vector? sel))
-                          "Application root query must be a vector")
-                        (if-not (nil? sel)
+                      (let [root-query (get-query rctor (-> config :state deref))]
+                        (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
+                        (if-not (nil? root-query)
                           (let [env          (to-env config)
-                                raw-props    ((:parser config) env sel)
+                                raw-props    ((:parser config) env root-query)
                                 current-time (get-current-time this)
-                                v            (add-basis-time sel raw-props current-time)]
-                            (when-not (empty? v)
-                              (renderf v)))
+                                root-props   (add-basis-time root-query raw-props current-time)]
+                            (when (empty? root-props)
+                              (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
+                            (renderf root-props))
                           (renderf @(:state config)))))]
         (swap! state merge
           {:target target :render parsef :root root-class
            :remove (fn remove-fn []
-                     (remove-watch (:state config) (or target guid))
+                     (remove-watch (:state config) (p/get-id this))
                      (swap! state
                        #(-> %
                           (dissoc :target) (dissoc :render) (dissoc :root)
                           (dissoc :remove)))
                      (when-not (nil? target)
                        ((:root-unmount config) target)))})
-        (add-watch (:state config) (or target guid)
+        (add-watch (:state config) (p/get-id this)
           (fn add-fn [_ _ _ _]
             #?(:cljs
                (if-not (has-query? root-class)
@@ -2272,60 +2322,30 @@
   (reconcile! [this]
     (p/reconcile! this nil))
   (reconcile! [this remote]
-    (let [st             @state
-          q              (if-not (nil? remote)
-                           (get-in st [:remote-queue remote])
-                           (:queue st))
-          rendered-root? (atom false)
-          render-root    (fn []
-                           (if-let [do-render (:render st)]
-                             (when-not @rendered-root?
-                               (reset! rendered-root? true)
-                               (do-render))
-                             (log/error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
+    (let [reconciler-state      @state
+          components-to-refresh (if-not (nil? remote)
+                                  (get-in reconciler-state [:remote-queue remote])
+                                  (:queue reconciler-state))
+          render-mode           (:render-mode config)
+          force-root?           (or (empty? components-to-refresh) (contains? #{:keyframe :brutal} render-mode) *blindly-render*)
+          blind-refresh?        (or (contains? #{:brutal} render-mode) *blindly-render*)
+          rendered-root?        (atom false)
+          render-root           (fn []
+                                  (if-let [do-render (:render reconciler-state)]
+                                    (when-not @rendered-root? ; make sure we only render root once per reconcile
+                                      (reset! rendered-root? true)
+                                      (do-render))
+                                    (log/error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
+      ;; IMPORTANT: Unfortunate naming that would require careful refactoring. `state` here is the RECONCILER's state, NOT
+      ;; the application's state. That is in (:state config).
       (swap! state update-in [:queued] not)
       (if (not (nil? remote))
         (swap! state assoc-in [:remote-queue remote] [])
         (swap! state assoc :queue []))
-      (if (empty? q)                                        ;3ms average keypress overhead with path-opt optimizations and incremental
-        ;; TODO: need to move root re-render logic outside of batching logic
-        (render-root)
-        (let [cs   (transduce
-                     (map #(p/key->components (:indexer config) %))
-                     #(into %1 %2) #{} q)
-              env  (assoc (to-env config) :reconciler this)
-              root (:root @state)]
-          #?(:cljs
-             (doseq [c ((:optimize config) cs)]             ; sort by depth
-               (let [current-time   (get-current-time this)
-                     component-time (t c)
-                     props-change?  (> current-time component-time)]
-                 (when (mounted? c)
-                   (let [computed       (get-computed (props c))
-                         next-raw-props (if (has-query? c)
-                                          (add-basis-time (get-query c @state) (fulcro-ui->props env c) current-time)
-                                          (add-basis-time (fulcro-ui->props env c) current-time))
-                         force-root?    (= ::no-ident next-raw-props) ; screw focused query...
-                         next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
-                     (if force-root?
-                       (do
-                         (force-update c)                   ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
-                         (render-root))                     ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
-                       (do
-                         (when (and (exists? (.-componentWillReceiveProps c))
-                                 (has-query? root)
-                                 props-change?)
-                           (let [next-props (if (nil? next-props)
-                                              (when-let [props (props c)]
-                                                props)
-                                              next-props)]
-                             ;; `componentWilReceiveProps` is always called before `shouldComponentUpdate`
-                             (.componentWillReceiveProps c
-                               #js {:fulcro$value (om-props next-props (get-current-time this))})))
-                         (when (should-update? c next-props (get-state c))
-                           (if-not (nil? next-props)
-                             (update-component! c next-props)
-                             (force-update c))))))))))))))
+      (binding [*blindly-render* blind-refresh?]
+        (if force-root?
+          (render-root)
+          (optimal-render this components-to-refresh render-root)))))
 
   (send! [this]
     (let [sends (:queued-sends @state)]
@@ -2358,6 +2378,8 @@
      :parser       - the parser to be used
 
    Optional parameters:
+     :id           - a unique ID that this reconciler will be known as. Used to resolve global variable usage when more than one app is on a page. If
+                     left unspecified it will default to a random UUID.
      :shared       - a map of global shared properties for the component tree.
      :shared-fn    - a function to compute global shared properties from the root props.
                      the result is merged with :shared.
@@ -2379,22 +2401,31 @@
      :root-render  - the root render function. Defaults to ReactDOM.render
      :root-unmount - the root unmount function. Defaults to
                      ReactDOM.unmountComponentAtNode
-     :lifecycle    - A function (fn [component event]) that is called when react component s and either :mount or :unmount. Useful for debugging tools.
+     :render-mode  - :normal - fastest, and the default. Components with idents can refresh in isolation.
+                               shouldComponentUpdate returns false is state/data are unchanged. Follow-on reads are
+                               required to refresh non-local concerns.
+                     :keyframe - Every data change runs a root-level query and re-renders from root.
+                                 shouldComponentUpdate is the same as :default. Follow-on reads are *not* needed for
+                                 non-local UI refresh.
+                     :brutal - Every data change runs a root-level query, and re-renders from root. shouldComponentUpdate
+                               always returns true, forcing full React diff. Not really useful for anything but benchmarking.
+     :lifecycle    - A function (fn [component event]) that is called when react components either :mount or :unmount. Useful for debugging tools.
      :tx-listen    - a function of 2 arguments that will listen to transactions.
                      The first argument is the parser's env map also containing
                      the old and new state. The second argument is a history-step (see history). It also contains
                      a couple of legacy fields for bw compatibility with 1.0."
-  [{:keys [state shared shared-fn
+  [{:keys [id state shared shared-fn
            parser normalize
            send merge-sends remotes
            merge-tree merge-ident
            optimize lifecycle
            root-render root-unmount
-           migrate
+           migrate render-mode
            instrument tx-listen
            history]
     :or   {merge-sends  #(merge-with into %1 %2)
            remotes      [:remote]
+           render-mode  :normal
            history      200
            lifecycle    nil
            optimize     (fn depth-sorter [cs] (sort-by depth cs))
@@ -2416,12 +2447,14 @@
                          :optimize    optimize
                          :normalize   (or (not norm?) normalize)
                          :root-render root-render :root-unmount root-unmount
+                         :render-mode render-mode
                          :pathopt     true
                          :migrate     migrate
                          :lifecycle   lifecycle
                          :instrument  instrument :tx-listen tx-listen}
                         (atom {:queue        []
                                :remote-queue {}
+                               :id           id
                                :queued       false :queued-sends {}
                                :sends-queued false
                                :target       nil :root nil :render nil :remove nil
@@ -2512,10 +2545,10 @@
      (cond
        (reconciler? x) (transact* x nil nil tx)
        (not (has-query? x)) (do
-                              (when (some-hasquery? x) (log/error
-                                                         (str "transact! should be called on a component"
-                                                           "that implements IQuery or has a parent that"
-                                                           "implements IQuery")))
+                              (when-not (some-hasquery? x) (log/error
+                                                             (str "transact! should be called on a component"
+                                                               "that implements IQuery or has a parent that"
+                                                               "implements IQuery")))
                               (transact* (get-reconciler x) nil nil tx))
        :else (do
                (loop [p (parent x) x x tx tx]
@@ -2622,11 +2655,15 @@
   (parser/ast->expr query-ast true))
 
 (defn force-root-render!
-  "Force a re-render of the root. Not recommended for anything except
+  "Force a re-render of the root. Runs a root query, disables shouldComponentUpdate, and renders the root component.
+   This effectively forces React to do a full VDOM diff. Useful for things like changing locales where there are no
+   real data changes, but the UI still needs to refresh.
    recomputing :shared."
   [reconciler]
   {:pre [(reconciler? reconciler)]}
-  ((get @(:state reconciler) :render)))
+  (when-let [render (get @(:state reconciler) :render)] ; hot code reload can cause this to be nil
+    (binding [*blindly-render* true]
+     (render))))
 
 (defn tempid
   "Return a temporary id."
@@ -3083,6 +3120,8 @@
 #?(:clj
    (defn- build-form [form-fields]
      (when form-fields
+       (when-not (vector? form-fields)
+         (throw (ex-info "Form fields must be a vector of form field definitions" {})))
        `(~'static ~'fulcro.ui.forms/IForm
           (~'form-spec [~'this] ~form-fields)))))
 
@@ -3217,7 +3256,7 @@
 
    Only the first two arguments are required (this and props).
 
-   See section M05-Defsc-In-Detail of the Developer's Guide for more details.
+   See the Developer's Guide at book.fulcrologic.com for more details.
    "
                :arglists '([this dbprops computedprops]
                             [this dbprops computedprops local-css-classes])}

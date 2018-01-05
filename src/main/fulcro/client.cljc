@@ -89,9 +89,9 @@
   mounted in the DOM, and is useful for triggering initial loads, routing mutations, etc. The reconciler is available
   under the `:reconciler` key (and you can access the app state, root node, etc from there.)
 
-  `:network-error-callback` is a function of two arguments, the app state atom and the error, which will be invoked for
-  every network error (status code >= 400, or no network found), should you choose to use the default built-in
-  networking.
+  `:network-error-callback` is a function of three arguments, the app state atom, status code, and the error, which will be invoked for
+  every network error (status code >= 400, or no network found). Only works if you choose to use the default built-in
+  networking (ignored if you also specify :networking).
 
   `:migrate` is optional. It is a (fn [state tid->rid] ... state') that should return a new state where all tempids
   (the keys of `tid->rid`) are rewritten to real ids (the values of tid->rid). This defaults to a full recursive
@@ -158,7 +158,7 @@
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")
   (reset-app! [this root-component callback] "Replace the entire app state with the initial app state defined on the root component (includes auto-merging of unions). callback can be nil, a function, or :original (to call original started-callback).")
   (clear-pending-remote-requests! [this remotes] "Remove all pending network requests on the given remote(s). Useful on failures to eliminate cascading failures. Remote can be a keyword, set, or nil. `nil` means all remotes.")
-  (refresh [this] "Refresh the UI (force re-render). NOTE: You MUST support :key on your root DOM element with the :ui/react-key value from app state for this to work.")
+  (refresh [this] "Refresh the UI (force re-render).")
   (history [this] "Return the current UI history of the application, suitable for network transfer")
   (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
@@ -175,8 +175,11 @@
 (defn- initialize
   "Initialize the fulcro Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
-  [{:keys [networking read-local started-callback lifecycle] :as app} initial-state root-component dom-id-or-node reconciler-options]
+  [{:keys [networking read-local started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
   (let [network-map         (normalize-network networking)
+        reconciler-options  (if (-> reconciler-options :id not)
+                              (assoc reconciler-options :id (if (string? dom-id-or-node) dom-id-or-node (util/unique-key)))
+                              reconciler-options)
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels   (zipmap remotes (map #(async/chan) remotes))
@@ -221,7 +224,6 @@
       (log/info "Mounting on newly supplied target.")
       (prim/remove-root! reconciler old-target)
       (prim/add-root! reconciler root target)))
-  (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
   (cutil/force-render reconciler))
 
 (defn mount* [{:keys [mounted? initial-state reconciler-options] :as app} root-component dom-id-or-node]
@@ -270,9 +272,7 @@
   (reset-history! [this]
     (reset-history-impl this))
 
-  (refresh [this]
-    (log/info "RERENDER: NOTE: If your UI doesn't change, make sure you query for :ui/react-key on your Root and embed that as :key in your top-level DOM element")
-    (cutil/force-render reconciler)))
+  (refresh [this] (cutil/force-render reconciler)))
 
 (defn new-fulcro-test-client
   "Create a test client that has no networking. Useful for UI testing with a real Fulcro app container."

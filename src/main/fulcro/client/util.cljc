@@ -12,20 +12,15 @@
     [clojure.spec.gen.alpha :as sg])))
 
 (defn force-render
-  "Re-render components. If only a reconciler is supplied then it forces a full DOM re-render by updating the :ui/react-key
-  in app state and forcing a re-render of the entire DOM, which only works properly if you query
-  for :ui/react-key in your Root render component and add that as the react :key to your top-level element.
+  "Re-render components. If only a reconciler is supplied then it forces a full React DOM refresh.
 
-  If you supply an additional vector of keywords and idents then it will ask to rerender only those components that mention
+  If you supply an additional vector of keywords and idents then it will try to rerender only those components that mention
   those things in their queries."
   ([reconciler keywords]
    (proto/queue! reconciler keywords)
    (proto/schedule-render! reconciler))
   ([reconciler]
-   (let [app-state (prim/app-state reconciler)]
-     (do
-       (swap! app-state assoc :ui/react-key (unique-key))
-       (prim/force-root-render! reconciler)))))
+   (prim/force-root-render! reconciler)))
 
 (defn react-instance?
   "Returns the react-instance (which is logically true) iff the given react instance is an instance of the given react class.

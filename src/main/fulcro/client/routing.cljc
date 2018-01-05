@@ -54,8 +54,8 @@
         (~'query [~'this] [::id {::current-route (fulcro.client.primitives/get-query ~union-sym)}])
         ~'Object
         (~'render [~'this]
-          (let [computed# (fulcro.client.primitives/get-computed ~'this)
-                props# (::current-route (fulcro.client.primitives/props ~'this))
+          (let [computed#            (fulcro.client.primitives/get-computed ~'this)
+                props#               (::current-route (fulcro.client.primitives/props ~'this))
                 props-with-computed# (fulcro.client.primitives/computed props# computed#)]
             ((fulcro.client.primitives/factory ~union-sym) props-with-computed#))))))
 
@@ -327,7 +327,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                            (load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))))
                delay))))
 
-(defn- load-routes [{:keys [state reconciler] :as env} routes]
+(defn- load-routes [{:keys [state] :as env} routes]
   #?(:clj (log/info "Dynamic loading of routes is not done on the server itself.")
      :cljs
           (let [loaded        (atom 0)

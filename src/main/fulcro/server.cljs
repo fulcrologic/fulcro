@@ -2,6 +2,7 @@
   (:require-macros fulcro.server)
   (:require
     [fulcro.client.network :as net]
+    [fulcro.util :as util]
     [fulcro.client.logging :as log]
     [fulcro.client.primitives :as prim]))
 
@@ -14,7 +15,14 @@
   "The multimethod for Fulcro's built-in support for querying with a keyword "
   (fn [env keyword params] keyword))
 
-(declare server-read)
+(defn server-read
+  "A built-in read method for Fulcro's built-in server parser."
+  [env k params]
+  (let [k (-> env :ast :key)]
+    (if (util/ident? k)
+      (read-entity env (first k) (second k) params)
+      (read-root env k params))))
+
 (defmulti server-mutate prim/dispatch)
 
 (defn fulcro-parser
@@ -58,12 +66,14 @@
         (merge {:status 200 :body parse-result} (augment-map parse-result))
         (process-errors parse-result)))))
 
-(defrecord ServerEmulator [parser]
+(defrecord ServerEmulator [parser delayms]
   net/FulcroNetwork
   (send [this edn done-callback error-callback]
+    (js/console.log "Server request is " edn)
     (let [{:keys [body status] :as response} (handle-api-request parser {} edn)]
+      (js/console.log "Server response is " response)
       (if (= 200 status)
-        (done-callback body)
+        (js/setTimeout #(done-callback body) delayms)
         (do
           (log/error "Server responded with an error" response)
           (error-callback body)))))
@@ -72,5 +82,5 @@
 (defn new-server-emulator
   "Create a server emulator that can be installed as client-side networking. If you do not supply a parser,
   then it will create one that works with the normal server-side macros."
-  ([] (ServerEmulator. (fulcro-parser)))
-  ([parser] (ServerEmulator. parser)))
+  ([] (ServerEmulator. (fulcro-parser) 0))
+  ([parser delay] (ServerEmulator. parser delay)))

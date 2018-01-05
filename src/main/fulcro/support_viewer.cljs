@@ -53,14 +53,13 @@
   static prim/InitialAppState
   (initial-state [t p] {:history {} :position :controls-left :client-time (js/Date.) :comments ""})
   static prim/IQuery
-  (query [this] [:ui/react-key :history-nav :comments :position])
+  (query [this] [:history-nav :comments :position])
   Object
   (render [this]
-    (let [{:keys [ui/react-key history-nav position comments] :or {ui/react-key "ROOT"}} (prim/props this)
+    (let [{:keys [history-nav position comments]} (prim/props this)
           [index frames] (hist/nav-position history-nav)
           {:keys [::hist/client-time ::hist/network-result ::hist/tx ::hist/tx-result] :as step} (hist/current-step history-nav)]
-      (dom/div (clj->js {:key       react-key
-                         :style     {:maxWidth "300px"}
+      (dom/div (clj->js {:style     {:maxWidth "300px"}
                          :className (str "history-controls " (or (some-> position name) "controls-left"))})
         (dom/button #js {:className "toggle-position"
                          :onClick   #(prim/transact! this `[(toggle-position {})])} (tr "<= Reposition =>"))

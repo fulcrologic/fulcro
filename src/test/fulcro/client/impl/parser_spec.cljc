@@ -102,10 +102,16 @@
 
 (specification "Parser reads"
   (let [state-db   {:top   [:table 1]
+                    :prop 1
+                    :name-in-use :no
                     :table {1 {:id 1 :value :v}}}
         state-atom (atom state-db)
         env        {:state state-atom}]
     (assertions
+      "accepts properties"
+      (parser env [:prop]) => {:prop 1}
+      "allows parameters on properties"
+      (parser env '[(:name-in-use {:name "tony"})]) => {:name-in-use :no}
       "can produce query results"
       (parser env [{:top [:value]}]) => {:top {:value :v}})))
 

@@ -1,3 +1,14 @@
+2.1.0-beta1
+-----------
+- Refactored rendering
+   - Added support for alternate rendering modes
+ - Made force update override shouldComponentUpdate
+   - Eliminates the need for `react-key` on root element
+- Fixed bug with dynamic locale loading UI refresh (timing issue)
+- Considerable revamping of documentation
+- Significant change to the internals of i18n. Should work better when
+  multiple apps are on the screen.
+
 2.0.1
 -----
 - Fixed transact! follow on reads. The declared refresh fix had accidentally

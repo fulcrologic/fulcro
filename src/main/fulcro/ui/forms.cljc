@@ -341,7 +341,7 @@
 (defn dirty-field? [form field]
   (let [cfg  (field-config form field)
         curr (?normalize cfg (current-value form field))]
-    (or (prim/tempid? curr)                                   ;;TODO FIXME ??? how does this work if its an ident? or not normalized?
+    (or (prim/tempid? curr)                                 ;;TODO FIXME ??? how does this work if its an ident? or not normalized?
       (not= curr (?normalize cfg (get-original-data form field))))))
 
 (declare validator)
@@ -530,8 +530,8 @@
   [empty-form-state field-keys-to-initialize entity]
   (assert-or-fail field-keys-to-initialize (every-pred seq (partial every? keyword?))
     "Empty or invalid field keys")
-  (reduce (fn [s k] (if-let [v (get entity k)]
-                      (assoc s k v)
+  (reduce (fn [s k] (if (contains? entity k)
+                      (assoc s k (get entity k))
                       s))
     empty-form-state field-keys-to-initialize))
 

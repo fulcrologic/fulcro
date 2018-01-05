@@ -10,7 +10,8 @@
     [fulcro.client.impl.data-fetch :as f]
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]
-    [fulcro.history :as hist]))
+    [fulcro.history :as hist]
+    [fulcro.client.impl.protocols :as p]))
 
 (defui ^:once Thing
   static prim/Ident
@@ -22,7 +23,7 @@
 
 (defui ^:once Root
   static prim/IQuery
-  (query [this] [:ui/react-key :ui/locale {:things (prim/get-query Thing)}])
+  (query [this] [:ui/locale {:things (prim/get-query Thing)}])
   Object
   (render [this]
     (dom/div nil "")))
@@ -85,6 +86,34 @@
       @i18n/*current-locale* => :es
       (get @mounted-app-state :ui/locale) => :es)))
 
+(specification "initialize-internationalization"
+  (behavior "Resets the watches for i18n"
+    (let [forced? (atom 0)]
+      (when-mocking
+        (prim/mounted? app) => true
+        (prim/app-root r) => :ignored
+        (js/setTimeout f t) => (do
+                                 (assertions
+                                   "delays the force render in order to allow change-locale mutation to finish"
+                                   t => 0)
+                                 (f))
+        (prim/force-root-render! r) => (swap! forced? inc)
+        (p/get-id r) => :id
+        (add-watch v k f) =1x=> (do
+                                  (assertions
+                                    "adds a watch on current-locale using the reconciler's unique id"
+                                    (identical? v i18n/*current-locale*) => true
+                                    k => :id)
+
+                                  ; simulate triggering the watch
+                                  (f))
+
+        (app/initialize-internationalization :mock-reconciler)
+
+        (assertions
+          "The installed watch function forces a root render if the app is mounted"
+          @forced? => 1)))))
+
 (specification "Fulcro Application (integration tests)"
   (let [startup-called    (atom false)
         thing-1           {:id 1 :name "A"}
@@ -128,12 +157,12 @@
     (component "tempid migration"
       (when-mocking
         (prim/rewrite-tempids-in-request-queue queue remaps) =1x=> (assertions
-                                                                         "Remaps tempids in the requests queue(s)"
-                                                                         remaps => :mock-tempids)
+                                                                     "Remaps tempids in the requests queue(s)"
+                                                                     remaps => :mock-tempids)
         (prim/resolve-tempids state remaps) =1x=> (assertions
-                                                        "Remaps tempids in the app state"
-                                                        state => :app-state
-                                                        remaps => :mock-tempids)
+                                                    "Remaps tempids in the app state"
+                                                    state => :app-state
+                                                    remaps => :mock-tempids)
 
         (migrate :app-state :query :mock-tempids :id-key)))
 
@@ -151,22 +180,7 @@
                                         "Enqueues the reads"
                                         app => :the-app)
 
-        (app/server-send :the-app :transactions :merge-callback)))
-
-    (component "Changing app :ui/locale"
-      (when-mocking
-        (m/locale-present? l) => true
-
-        (let [react-key (:ui/react-key @mounted-app-state)]
-          (reset! i18n/*current-locale* "en")
-          (prim/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
-          (assertions
-            "Changes the i18n locale for translation lookups"
-            (deref i18n/*current-locale*) => "es-MX"
-            "Places the new locale in the app state"
-            (:ui/locale @mounted-app-state) => "es-MX"
-            "Updates the react key to ensure render can redraw everything"
-            (not= react-key (:ui/react-key @mounted-app-state)) => true))))))
+        (app/server-send :the-app :transactions :merge-callback)))))
 
 (specification "Fulcro Application (multiple remotes)"
   (let [state             {}
@@ -199,9 +213,9 @@
       (when-mocking
         (prim/rewrite-tempids-in-request-queue queue remaps) => (swap! queues-remapped conj queue)
         (prim/resolve-tempids state remaps) =1x=> (assertions
-                                                        "remaps tempids in state"
-                                                        state => :state
-                                                        remaps => :mock-tempids)
+                                                    "remaps tempids in state"
+                                                    state => :state
+                                                    remaps => :mock-tempids)
 
         (migrate :state :query :mock-tempids :id-key)
 

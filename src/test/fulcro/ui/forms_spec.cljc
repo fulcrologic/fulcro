@@ -157,15 +157,16 @@
           "are given a default value defined by the field type"
           (-> default-state :state :name) => :ABC))))
   (component "The initialized state of a form"
-    (let [entity        {:a 1}
-          field-keys    [:a :b]
-          default-state {:a 0 :b "X"}
-          initial-state (f/initialized-state default-state [:a :b] entity)]
+    (let [entity        {:a 1 :c false}
+          field-keys    [:a :b :c]
+          default-state {:a 0 :b "X" :c true}
+          initial-state (f/initialized-state default-state [:a :b :c] entity)]
       (assertions
         "overwrites the defaults with the entity state being augmented"
         (-> initial-state :a) => 1
         "leaves defaults alone when the entity state does not contain them"
         (-> initial-state :b) => "X"
+        (-> initial-state :c) => false
         "tolerates nil and empty entities"
         (f/initialized-state default-state field-keys {}) => default-state
         (f/initialized-state default-state field-keys nil) => default-state))))

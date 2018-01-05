@@ -114,7 +114,6 @@
   #?(:clj  false
      :cljs (contains? cljs.loader/module-infos locale-key)))
 
-; NOTE: client needs to init current locale on stated-callback if SSR
 (defn change-locale-impl
   "Given a state map and locale, returns a new state map with the locale properly changed. Also potentially triggers a module load.
   There is also the mutation `change-locale` that can be used from transact."
@@ -122,24 +121,27 @@
   (let [lang          (name lang)
         locale-key    (keyword lang)
         present?      (locale-present? lang)
-        valid-locale? (or present? (locale-loadable? locale-key))]
-    (if valid-locale?
-      (do
-        #?(:cljs (when (and (not present?) (locale-loadable? locale-key))
-                   (loader/load locale-key (fn [] (log/debug "Finished loading locale " lang)))))
-        (reset! i18n/*current-locale* lang)
-        (-> state-map
-          (assoc :ui/locale lang)
-          (assoc :ui/react-key lang)))
-      (do
-        (log/error (str "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module."))
-        state-map))))
+        loadable?     (locale-loadable? locale-key)
+        valid-locale? (or present? loadable?)
+        set-locale!   (fn []
+                        (reset! i18n/*current-locale* lang)
+                        (assoc state-map :ui/locale lang))
+        should-load?  (and (not present?) loadable?)]
+    (cond
+      should-load? (do
+                     #?(:cljs (loader/load locale-key set-locale!))
+                     (set-locale!))
+      valid-locale? (set-locale!)
+      :otherwise (do
+                   (log/error (str "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module."))
+                   state-map))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation change-locale
-     "mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\")."
+     "mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\").
+     NOTE: Locale is *global* within a browser page. I.e. If you have more than one Fulcro app on a page then this will change the locale of them all and re-render them."
      [{:keys [lang]}]
-     (action [{:keys [state]}] (swap! state change-locale-impl lang))))
+     (action [{:keys [reconciler state]}] (swap! state change-locale-impl lang reconciler))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation set-props

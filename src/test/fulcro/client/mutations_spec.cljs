@@ -131,16 +131,15 @@
                                (assertions
                                  "The locale check is passed a stringified version of the lang"
                                  l => "es-MX"))
-    (reset! i18n/*current-locale* "en-US")
 
+    (reset! i18n/*current-locale* "en-US")
     (let [new-state (m/change-locale-impl {} :es-MX)]
       (assertions
         "The locale is updated in app state as a string"
         (:ui/locale new-state) => "es-MX"
-        "The react key is changed to force a DOM refresh"
-        (:ui/react-key new-state) => "es-MX"
         "The global locale atom is updated"
         @i18n/*current-locale* => "es-MX")))
+
   (provided "the locale is not loaded, and is invalid"
     (m/locale-present? l) => false
     (m/locale-loadable? l) => (do
@@ -160,16 +159,23 @@
   (provided "the locale is not loaded, but is defined in a module"
     (m/locale-present? l) => false
     (m/locale-loadable? l) => true
-    (cljs.loader/load m) => (assertions
-                              "Triggers a module load with the locale's module keyword"
-                              m => :ja)
+    (cljs.loader/load m cb) => (do
+                                 (assertions
+                                   "Triggers a module load with the locale's module keyword"
+                                   m => :ja
+                                   "passes the loader a callback to run when load completes"
+                                   (nil? cb) => false)
+                                 ; simulate the loader finishing the load
+                                 (reset! i18n/*current-locale* "value-to-verify-callback")
+                                 (assertions
+                                   (:ui/locale (cb)) => "ja"
+                                   "the loader callback updates the locale atom (whose watch will refresh the UI)"
+                                   (deref i18n/*current-locale*) => "ja" ) )
 
     (let [new-state (m/change-locale-impl {} "ja")]
       (assertions
         "The locale is updated in app state as a string"
         (:ui/locale new-state) => "ja"
-        "The react key is changed to force a DOM refresh"
-        (:ui/react-key new-state) => "ja"
         "The global locale atom is updated"
         @i18n/*current-locale* => "ja"))))
 
@@ -244,8 +250,8 @@
                                                     :key          :x}]}))
 
   (let [ast (-> (prim/query->ast1 '[(f {:x 1})])
-                (m/with-target [:foo 123])
-                (m/returning {} Item))]
+              (m/with-target [:foo 123])
+              (m/returning {} Item))]
     (assertions
       "Override query but keep meta from previous query"
       (th/expand-meta ast)
@@ -266,7 +272,7 @@
 
 (specification "Remote with-target (add target meta data)"
   (let [ast (-> (prim/query->ast1 '[(f {:x 1})])
-                (m/with-target [:foo 123]))]
+              (m/with-target [:foo 123]))]
     (assertions
       "Return an AST with a wildcard query and target meta data"
       (th/expand-meta ast)
@@ -279,8 +285,8 @@
                           :key          '*}]}))
 
   (let [ast (-> (prim/query->ast1 '[(f {:x 1})])
-                (m/returning {} Item)
-                (m/with-target [:foo 123]))]
+              (m/returning {} Item)
+              (m/with-target [:foo 123]))]
     (assertions
       "Adds target meta data when call already has a query"
       (th/expand-meta ast)

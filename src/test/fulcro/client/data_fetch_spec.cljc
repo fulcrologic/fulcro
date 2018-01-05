@@ -111,7 +111,7 @@
    :query         [:x :z {:child (prim/get-query InitTestChild)}]})
 
 #?(:cljs
-   (specification "Load parameters" :focused
+   (specification "Load parameters"
      (let [query-with-params       (:query (df/load-params* :prop Person {:params {:n 1}}))
            ident-query-with-params (:query (df/load-params* [:person/by-id 1] Person {:params {:n 1}}))]
        (assertions
@@ -454,7 +454,7 @@
            @globally-marked => true)))))
 
 #?(:cljs
-   (specification "Query Response with :initialize (load ... {:initialize true})" :focused
+   (specification "Query Response with :initialize (load ... {:initialize true})"
      (let [item      (dfi/set-loading! (dfi/ready-state (df/load-params* :root/comp InitTestComponent {:initialize true})))
            state     (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}})
            items     [item]
@@ -779,7 +779,7 @@
       "Returns an empty set if the mutation is not remote"
       (df/get-remotes `h) => #{})))
 
-(specification "fallback (the mutation)" :focused
+(specification "fallback (the mutation)"
   (behavior "On parse (run of `transact!`)"
     (let [fake-ast (prim/query->ast1 '[(f {:x 1})])]
       (assertions
