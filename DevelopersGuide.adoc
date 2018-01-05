@@ -8,8 +8,8 @@ Fulcro Developers Guide
 :doctype: book
 :source-highlighter: coderay
 :source-language: clojure
-:toc:
-:toclevels: 5
+:toc: left
+:toclevels: 2
 :sectlinks:
 :sectanchors:
 :leveloffset: 1
@@ -38,6 +38,10 @@ This is a stand-alone book for Fulcro developers that can be used by beginners a
 developers and covers most of the library in detail. Fulcro has a
 pretty extensive set of resources on the web tailored to fit your learning style.
 There are YouTube videos, an interactive tutorial, and full-blown sample applications.
+
+A lot of time and energy went into writing these libraries and materials and providing them free of 
+charge. If you find them useful please consider 
+http://fulcro.fulcrologic.com/fund.html[contributing to the project].
 
 This book includes quite a bit of live code. Live code demos with their source
 look like this:
