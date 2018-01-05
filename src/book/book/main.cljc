@@ -117,6 +117,7 @@
                              :height          "130px"
                              :fontSize        "10px"
                              :backgroundColor :white
+                             :zIndex          60000
                              :opacity         1.0
                              :padding         "3px"
                              :border          "3px groove white"
