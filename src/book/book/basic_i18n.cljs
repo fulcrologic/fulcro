@@ -13,8 +13,8 @@
 
 (defn locale-switcher [comp]
   (dom/div nil
-    (dom/button #js {:onClick #(prim/transact! comp `[(m/change-locale {:lang "en"}) :ui/locale])} "en")
-    (dom/button #js {:onClick #(prim/transact! comp `[(m/change-locale {:lang "es"}) :ui/locale])} "es")))
+    (dom/button #js {:onClick #(prim/transact! comp `[(m/change-locale {:lang "en"})])} "en")
+    (dom/button #js {:onClick #(prim/transact! comp `[(m/change-locale {:lang "es"})])} "es")))
 
 (defsc Format [this {:keys [ui/label]}]
   {:initial-state {:ui/label "Your Name"}

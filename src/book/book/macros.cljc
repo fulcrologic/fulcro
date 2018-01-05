@@ -88,7 +88,7 @@
   (let [app         (symbol (str "fulcroapp-" id))
         example-app (symbol (str "example-container-" id))]
     `(do
-       (defonce ~app (fulcro.client/new-fulcro-client ~@args))
+       (defonce ~app (fulcro.client/new-fulcro-client :reconciler-options {:id ~(name app)} ~@args))
        (defonce ~example-app (book.macros/new-example {:title ~title :example-app ~app :root-class ~root-class}))
        (fulcro.client/mount ~example-app ExampleRoot ~id))))
 
