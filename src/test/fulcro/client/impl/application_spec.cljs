@@ -85,6 +85,47 @@
       @i18n/*current-locale* => :es
       (get @mounted-app-state :ui/locale) => :es)))
 
+(specification "initialize-internationalization"
+  (remove-watch i18n/*current-locale* :locale)
+  (remove-watch i18n/*loaded-translations* :locale)
+
+  (behavior "Resets the watches for i18n"
+    (let [forced? (atom 0)]
+      (when-mocking
+        (prim/mounted? app) => true
+        (prim/app-root r) => :ignored
+        (prim/force-root-render! r) => (swap! forced? inc)
+        (remove-watch v k) =1x=> (assertions
+                                   "removes the watch on loaded-translations"
+                                   (identical? v i18n/*loaded-translations*) => true
+                                   k => :locale)
+        (add-watch v k f) =1x=> (do
+                                  (assertions
+                                    "adds a watch on loaded-translations"
+                                    (identical? v i18n/*loaded-translations*) => true
+                                    k => :locale)
+
+                                  ; simulate triggering the watch
+                                  (f))
+        (remove-watch v k) =1x=> (assertions
+                                   "removes the watch on current-locale"
+                                   (identical? v i18n/*current-locale*) => true
+                                   k => :locale)
+        (add-watch v k f) =1x=> (do
+                                  (assertions
+                                    "adds a watch on current-locale"
+                                    (identical? v i18n/*current-locale*) => true
+                                    k => :locale)
+
+                                  ; simulate triggering the watch
+                                  (f))
+
+        (app/initialize-internationalization :mock-reconciler)
+
+        (assertions
+          "The installed watch function forces a root render if the app is mounted"
+          @forced? => 2)))))
+
 (specification "Fulcro Application (integration tests)"
   (let [startup-called    (atom false)
         thing-1           {:id 1 :name "A"}
@@ -151,35 +192,7 @@
                                         "Enqueues the reads"
                                         app => :the-app)
 
-        (app/server-send :the-app :transactions :merge-callback)))
-
-    (component "The i18n/*current-locale* atom"
-      (let [forced? (atom false)]
-        (when-mocking
-          (prim/force-root-render! r) => (reset! forced? true)
-
-          (reset! i18n/*current-locale* "en")
-
-          (assertions
-            "Triggers a force render of root"
-            @forced? => true))))
-
-    (component "Changing app :ui/locale"
-      (let [forced? (atom false)]
-        (when-mocking
-          (m/locale-present? l) => true
-          (prim/force-root-render! r) => (reset! forced? true)
-
-          (let [react-key (:ui/react-key @mounted-app-state)]
-            (reset! i18n/*current-locale* "en")
-            (prim/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang "es-MX"})])
-            (assertions
-              "Changes the i18n locale for translation lookups"
-              (deref i18n/*current-locale*) => "es-MX"
-              "Places the new locale in the app state"
-              (:ui/locale @mounted-app-state) => "es-MX"
-              "Triggers a force render of root"
-              @forced? => true)))))))
+        (app/server-send :the-app :transactions :merge-callback)))))
 
 (specification "Fulcro Application (multiple remotes)"
   (let [state             {}
