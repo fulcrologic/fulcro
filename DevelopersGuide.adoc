@@ -2401,59 +2401,40 @@ in the graph needs to point to another. If the idents (which are vectors)
 ------
 { :person/by-id
     {  1  {:id 1 :person/name "Joe"
-           :person/spouse [:person/by-id 4]         <1>
-           :person/children [ [:person/by-id 2]
-                              [:person/by-id 3] ] } <2>
-       2  { :id 2 :person/name "Julie" }
+           :person/spouse [:person/by-id 2]         ; <1>
+           :person/children [ [:person/by-id 3]
+                              [:person/by-id 4] ] } ; <2>
+       2  { :id 2 :person/name "Julie"
+            :person/spouse [:person/by-id 1]}       ; <3>
        3  { :id 3 :person/name "Billy" }
-       4  { :id 4 :person/name "Heather"
-            :person/spouse [:person/by-id 1]}}      <3>
+       4  { :id 4 :person/name "Heather"}}
 ------
 
-<1> A to-one relation to Joe's spouse (Heather)
+<1> A to-one relation to Joe's spouse (Julie)
 <2> A to-many relation to Joe's kids
-<3> A to-relation back to Joe from Heather
+<3> A to-relation back to Joe from Julie
 
-Notice in the example above that Joe and Heather point at each other. This creates
+Notice in the example above that Joe and Julie point at each other. This creates
 a 'loop' in the graph. This is perfectly legal. Graphs can contain loops. The
 table in the example contains 4 nodes.
-
-=== A Complete Database
 
 The client database treats the 'root' node as a special set of non-table properties
 in the top of the database map. Thus, an entire state database with 'root node'
 properties might look like this:
 
-[source,clojure]
-------
-{ :people [ [:person/by-id 1] [:person/by-id 2]                       <1>
-            [:person/by-id 3] [:person/by-id 4] ]
-  :person/by-id                                                       <2>
-    {  1  {:id 1 :person/name "Joe"
-           :person/spouse [:person/by-id 4]
-           :person/children [ [:person/by-id 2] [:person/by-id 3] ] }
-       2  { :id 2 :person/name "Julie" }
-       3  { :id 3 :person/name "Billy" }
-       4  { :id 4 :person/name "Heather"
-            :person/spouse [:person/by-id 1]}}
-------
-
-<1> A root property called `:people` that points to all of the people nodes
-<2> The people table that contains the people nodes.
-
-The above data structure can now be thought of as a graph database looking like this:
+The above data structure is now a graph database that looks like this:
 
 [ditaa,target=dbgraph]
 ....
-root                [:person/by-id 1] <----+
-+-----------+      +-----------------+     |
-|           |      | id 1            |     |
-| people    |-+--->| name "Joe"      |     |
-|           | | +----spouse          |     |
-|           | | |  | children ---------+------+
-+-----------+ | |  +------------------     |  |
-              | |                          |  |
-              +-+->[:person/by-id 2]       |  |
+root          +---> [:person/by-id 1] <----+
++-----------+ |    +-----------------+     |
+|           | |    | id 1            |     |
+| people -----+    | name "Joe"      |     |
+|           | |    | spouse ----+    |     |
+|           | |    | children --+------+------+
++-----------+ |    +------------|-----     |  |
+              |                 v          |  |
+              +--->[:person/by-id 2]       |  |
               |    +-----------------+     |  |
               |    | id 2            |     |  |
               |    | name "Julie     |     |  |
