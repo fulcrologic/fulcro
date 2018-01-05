@@ -8,8 +8,8 @@ Fulcro Developers Guide
 :doctype: book
 :source-highlighter: coderay
 :source-language: clojure
-:toc:
-:toclevels: 5
+:toc: left
+:toclevels: 2
 :sectlinks:
 :sectanchors:
 :leveloffset: 1
@@ -37,7 +37,14 @@ endif::[]
 This is a stand-alone book for Fulcro developers that can be used by beginners and experienced
 developers and covers most of the library in detail. Fulcro has a
 pretty extensive set of resources on the web tailored to fit your learning style.
-There are YouTube videos, an interactive tutorial, and full-blown sample applications.
+There is http://book.fulcrologic.com[this book],
+https://youtu.be/pLFOVhWsxMM?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube videos], 
+an http://fulcro.fulcrologic.com/tutorial.html[interactive tutorial], 
+and full-blown https://github.com/fulcrologic[sample applications].
+
+A lot of time and energy went into creating these libraries and materials and providing them free of 
+charge. If you find them useful please consider 
+http://fulcro.fulcrologic.com/fund.html[contributing to the project].
 
 This book includes quite a bit of live code. Live code demos with their source
 look like this:
@@ -56,6 +63,9 @@ include::src/book/book/example_1.cljc[]
 All of the full stack examples use a mock server embedded in the browser to
 simulate the interaction, but the source that you'll read for the application is
 identical to what you'd write for a real server.
+
+WARNING: If you're viewing this directly from the GitHub Fulcro repository then you
+won't see the live code! Use http://book.fulcrologic.com instead.
 
 The mock server has a built-in latency to
 simulate a moderately slow network so you can observe behaviors over time. You can
@@ -10545,7 +10555,7 @@ comparison fails, your UI changed. Have a human check that specific item and app
 
 See the section on <<DevCards, Dev Cards>> for more information.
 
-# Deploying to Heroku
+= Deploying to Heroku
 
 As an example of sending a complete Fulcro application to the cloud we'll walk you through the steps
 to put an application up on Heroku.
@@ -10572,7 +10582,7 @@ could also use `resources` (which is technically more correct).
 
 Heroku (at the time of this writing) defaults to lein version 1.7.x. This is almost certainly *not* what you want.
 
-## Include a Profile
+== Include a Profile
 
 If you're building an uberjar from one of our template projects, using Fulcro Server, and you've set up a config
 file as described above, then the following Procfile should work for you:
@@ -11560,6 +11570,16 @@ background-color: rgba(0,0,0,0.04);
   src="https://code.jquery.com/jquery-3.2.1.min.js"
   integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
   crossorigin="anonymous"></script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-107376541-3"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-107376541-3');
+</script>
 ++++
 
 

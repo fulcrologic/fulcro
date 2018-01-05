@@ -9,7 +9,7 @@
    (defn initial-state->script-tag
      "Returns a string containing an HTML script tag that that sets js/window.INITIAL_APP_STATE to a transit-encoded string version of initial-state."
      [initial-state]
-     (let [assignment (str "window.INITIAL_APP_STATE = '" (util/transit-clj->str initial-state) "'")]
+     (let [assignment (str "window.INITIAL_APP_STATE = '" (clojure.string/replace (util/transit-clj->str initial-state) #"'" "\\\\'") "'")]
        (str
          "<script type='text/javascript'>\n"
          assignment

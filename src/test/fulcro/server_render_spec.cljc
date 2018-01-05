@@ -47,6 +47,12 @@
        "puts an assignment on the document window"
        (ssr/initial-state->script-tag []) => "<script type='text/javascript'>\nwindow.INITIAL_APP_STATE = '[]'\n</script>\n")))
 
+#?(:clj
+   (specification "SSR script tag generation w/ apos"
+     (assertions
+       "puts an assignment on the document window with some tricky content"
+       (ssr/initial-state->script-tag {:some-field "some text's apostrophe"}) => "<script type='text/javascript'>\nwindow.INITIAL_APP_STATE = '[\"^ \",\"~:some-field\",\"some text\\'s apostrophe\"]'\n</script>\n")))
+
 #?(:cljs
    (specification "SSR initial-state extraction"
      (let [state (util/transit-clj->str [])]

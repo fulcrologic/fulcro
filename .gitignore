@@ -46,7 +46,7 @@ package-lock.json
 docs/_site
 docs/.sass-cache
 docs/Gemfile.lock
-docs/js/[a-fh-z]*
+docs/js/[a-fh-su-z]*
 docs/js/goog
 docs/js/garden
 old-docs/.asciidoctor
