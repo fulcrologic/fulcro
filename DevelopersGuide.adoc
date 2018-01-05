@@ -10545,7 +10545,7 @@ comparison fails, your UI changed. Have a human check that specific item and app
 
 See the section on <<DevCards, Dev Cards>> for more information.
 
-# Deploying to Heroku
+= Deploying to Heroku
 
 As an example of sending a complete Fulcro application to the cloud we'll walk you through the steps
 to put an application up on Heroku.
@@ -10572,7 +10572,7 @@ could also use `resources` (which is technically more correct).
 
 Heroku (at the time of this writing) defaults to lein version 1.7.x. This is almost certainly *not* what you want.
 
-## Include a Profile
+== Include a Profile
 
 If you're building an uberjar from one of our template projects, using Fulcro Server, and you've set up a config
 file as described above, then the following Procfile should work for you:
@@ -11560,6 +11560,16 @@ background-color: rgba(0,0,0,0.04);
   src="https://code.jquery.com/jquery-3.2.1.min.js"
   integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
   crossorigin="anonymous"></script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-107376541-3"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-107376541-3');
+</script>
 ++++
 
 
