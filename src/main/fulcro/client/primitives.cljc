@@ -2196,14 +2196,16 @@
 
   p/IReconciler
   (tick! [_] (swap! state update :t inc))
+  (get-id [_] (:id @state))
   (basis-t [_] (:t @state))
   (get-history [_] history)
 
   (add-root! [this root-class target options]
-    (let [ret          (atom nil)
-          rctor        (factory root-class)
-          guid #?(:clj (java.util.UUID/randomUUID)
-                  :cljs (random-uuid))]
+    (let [ret   (atom nil)
+          rctor (factory root-class)
+          guid  (or (p/get-id this) (util/unique-key))]
+      (when-not (p/get-id this)
+        (swap! state assoc :id guid))
       (when (has-query? root-class)
         (p/index-root (assoc (:indexer config) :state (-> config :state deref)) root-class))
       (when (and (:normalize config)
@@ -2246,14 +2248,14 @@
         (swap! state merge
           {:target target :render parsef :root root-class
            :remove (fn remove-fn []
-                     (remove-watch (:state config) (or target guid))
+                     (remove-watch (:state config) (p/get-id this))
                      (swap! state
                        #(-> %
                           (dissoc :target) (dissoc :render) (dissoc :root)
                           (dissoc :remove)))
                      (when-not (nil? target)
                        ((:root-unmount config) target)))})
-        (add-watch (:state config) (or target guid)
+        (add-watch (:state config) (p/get-id this)
           (fn add-fn [_ _ _ _]
             #?(:cljs
                (if-not (has-query? root-class)
@@ -2377,6 +2379,8 @@
      :parser       - the parser to be used
 
    Optional parameters:
+     :id           - a unique ID that this reconciler will be known as. Used to resolve global variable usage when more than one app is on a page. If
+                     left unspecified it will default to a random UUID.
      :shared       - a map of global shared properties for the component tree.
      :shared-fn    - a function to compute global shared properties from the root props.
                      the result is merged with :shared.
@@ -2411,7 +2415,7 @@
                      The first argument is the parser's env map also containing
                      the old and new state. The second argument is a history-step (see history). It also contains
                      a couple of legacy fields for bw compatibility with 1.0."
-  [{:keys [state shared shared-fn
+  [{:keys [id state shared shared-fn
            parser normalize
            send merge-sends remotes
            merge-tree merge-ident
@@ -2451,6 +2455,7 @@
                          :instrument  instrument :tx-listen tx-listen}
                         (atom {:queue        []
                                :remote-queue {}
+                               :id           id
                                :queued       false :queued-sends {}
                                :sends-queued false
                                :target       nil :root nil :render nil :remove nil

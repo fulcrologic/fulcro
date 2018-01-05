@@ -217,12 +217,13 @@
   "Configure a re-render when the locale changes and also when the translations arrive from a module load.
    During startup this function will be called once for each reconciler that is running on a page."
   [reconciler]
-  (letfn [(re-render [k r o n] (when (prim/mounted? (prim/app-root reconciler))
-                                 (util/force-render reconciler)))]
-    (remove-watch i18n/*loaded-translations* :locale)
-    (add-watch i18n/*loaded-translations* :locale re-render)
-    (remove-watch i18n/*current-locale* :locale)
-    (add-watch i18n/*current-locale* :locale re-render)))   ; when the local itself changes
+  (let [app-id (p/get-id reconciler)]
+    (letfn [(re-render [k r o n] #?(:cljs
+                                    ; the delay is necessary because the locale change triggers the watch before
+                                    ; it has affected the state of the application
+                                    (when (prim/mounted? (prim/app-root reconciler))
+                                      (js/setTimeout #(util/force-render reconciler) 0))))]
+      (add-watch i18n/*current-locale* app-id re-render))))
 
 (defn generate-reconciler
   "The reconciler's send method calls FulcroApplication/server-send, which itself requires a reconciler with a

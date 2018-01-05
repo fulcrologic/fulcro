@@ -138,9 +138,10 @@
 
 #?(:cljs
    (fulcro.client.mutations/defmutation change-locale
-     "mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\")."
+     "mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\").
+     NOTE: Locale is *global* within a browser page. I.e. If you have more than one Fulcro app on a page then this will change the locale of them all and re-render them."
      [{:keys [lang]}]
-     (action [{:keys [reconciler state]}] (swap! state change-locale-impl lang reconciler))))
+     (action [{:keys [reconciler state]}] (swap! state change-locale-impl lang))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation set-props

@@ -10,7 +10,8 @@
     [fulcro.client.impl.data-fetch :as f]
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]
-    [fulcro.history :as hist]))
+    [fulcro.history :as hist]
+    [fulcro.client.impl.protocols :as p]))
 
 (defui ^:once Thing
   static prim/Ident
@@ -86,36 +87,23 @@
       (get @mounted-app-state :ui/locale) => :es)))
 
 (specification "initialize-internationalization"
-  (remove-watch i18n/*current-locale* :locale)
-  (remove-watch i18n/*loaded-translations* :locale)
-
   (behavior "Resets the watches for i18n"
     (let [forced? (atom 0)]
       (when-mocking
         (prim/mounted? app) => true
         (prim/app-root r) => :ignored
+        (js/setTimeout f t) => (do
+                                 (assertions
+                                   "delays the force render in order to allow change-locale mutation to finish"
+                                   t => 0)
+                                 (f))
         (prim/force-root-render! r) => (swap! forced? inc)
-        (remove-watch v k) =1x=> (assertions
-                                   "removes the watch on loaded-translations"
-                                   (identical? v i18n/*loaded-translations*) => true
-                                   k => :locale)
+        (p/get-id r) => :id
         (add-watch v k f) =1x=> (do
                                   (assertions
-                                    "adds a watch on loaded-translations"
-                                    (identical? v i18n/*loaded-translations*) => true
-                                    k => :locale)
-
-                                  ; simulate triggering the watch
-                                  (f))
-        (remove-watch v k) =1x=> (assertions
-                                   "removes the watch on current-locale"
-                                   (identical? v i18n/*current-locale*) => true
-                                   k => :locale)
-        (add-watch v k f) =1x=> (do
-                                  (assertions
-                                    "adds a watch on current-locale"
+                                    "adds a watch on current-locale using the reconciler's unique id"
                                     (identical? v i18n/*current-locale*) => true
-                                    k => :locale)
+                                    k => :id)
 
                                   ; simulate triggering the watch
                                   (f))
@@ -124,7 +112,7 @@
 
         (assertions
           "The installed watch function forces a root render if the app is mounted"
-          @forced? => 2)))))
+          @forced? => 1)))))
 
 (specification "Fulcro Application (integration tests)"
   (let [startup-called    (atom false)
