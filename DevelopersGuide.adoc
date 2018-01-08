@@ -7952,6 +7952,25 @@ whatever you return so you can customize this behavior:
 (defmethod r/coerce-param :param/NAME [k incoming-string-value] (transform-it incoming-string-value))
 ```
 
+== Examining Routes
+
+Your UI will often want to rely on knowing the "current" route of a given router in order to give
+user navigation feedback. You cannot embed *your* router in the query, because that would
+make the query have a circular reference and blow the stack. So, the routing namespace includes a
+query-only component called `RouterInfo` that can be composed in via an ident query to get any router's
+details. Of course the most useful bit of info is the current route:
+
+```
+(ns x
+  (:require [fulcro.client.routing :as r]
+            [fulcro.client.primitives :as prim]))
+
+(defsc NavBar [this props]
+  {:query (fn [] [{[r/routers-table :my-router] (prim/get-query RouterInfo)}])}
+  (let [current-route-id (get-in props [[r/routers-table :my-router] ::r/current-route 1])]
+     ...)
+```
+
 == A Complete UI Routing Example
 
 The following example shows the above code and tree in a complete running example.
