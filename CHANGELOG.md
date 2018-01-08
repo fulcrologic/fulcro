@@ -1,3 +1,9 @@
+2.1.0-beta3
+-----------
+- Added param coercion to routing
+- Updated `current-route` to work on state or the routing table itself
+- Updated docs to reflect the above two
+
 2.1.0-beta2
 -----------
 - Fixed initial state generation for SSR

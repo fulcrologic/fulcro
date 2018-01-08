@@ -122,20 +122,49 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
    :target-screen target-screen-ident})
 
 (defn current-route
-  "Get the current route from the router with the given id"
-  [state-map router-id] (get-in state-map [routers-table router-id ::current-route]))
+  "Get the current route (an ident) from the router with the given id. You can pass the entire app database, the routers table,
+  or the props of a component that has queried for the router table as the first argument to this function.
+  Thus, it can be used easily from within a mutation or in a component to find (and display) the current route:
+
+  ```
+  (defmutation do-something-with-routes [params]
+    (action [{:keys [state]}]
+      (let [current (r/current-route state :top-router)]
+      ...)))
+
+  (defsc NavBar [this props]
+    {:query (fn [] [[r/routers-table '_]])
+     :initial-state (fn [params] {})}
+    (let [current (r/current-route props :top-router)]
+      ...))
+  ```
+  "
+  [state-map-or-router-table router-id]
+  (if (contains? state-map-or-router-table routers-table)
+    (get-in state-map-or-router-table [routers-table router-id ::current-route])
+    (get-in state-map-or-router-table [router-id ::current-route])))
+
+(defmulti coerce-param (fn [param-keyword v] param-keyword))
+(defmethod coerce-param :default [k v]
+  (cond
+    (and (string? v) (seq (re-seq #"^[0-9][0-9]*$" v))) #?(:clj  (Integer/parseInt v)
+                                                           :cljs (js/parseInt v))
+    (and (string? v) (seq (re-seq #"^[a-zA-Z]" v))) (keyword v)
+    :else v))
 
 (defn- set-ident-route-params
-  "Replace any keywords of the form :params/X with the value of (get route-params X)"
+  "Replace any keywords of the form :params/X with the value of (get route-params :X). By default the value
+  of the parameter (which comes in as a string) will be converted to an int if it is all digits, and will be
+  converted to a keyword if it is all letters. If you want to customize the coercion, just:
+
+  ```
+  (defmethod r/coerce-param :param/NAME [k v] (transform-it v))
+  ```
+  "
   [ident route-params]
   (mapv (fn [element]
           (if (and (keyword? element) (= "param" (namespace element)))
-            (let [v (get route-params (keyword (name element)) element)]
-              (cond
-                (and (string? v) (seq (re-seq #"^[0-9][0-9]*$" v))) #?(:clj  (Integer/parseInt v)
-                                                                       :cljs (js/parseInt v))
-                (and (string? v) (seq (re-seq #"^[a-zA-Z]" v))) (keyword v)
-                :else v))
+            (coerce-param element (get route-params (keyword (name element)) element))
             element))
     ident))
 
