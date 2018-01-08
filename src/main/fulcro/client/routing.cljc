@@ -22,12 +22,12 @@
 #?(:clj
    (defn- emit-union-element [sym ident-fn kws-and-screens]
      (try
-       (let [query         (reduce (fn [q {:keys [kw sym]}] (assoc q kw `(fulcro.client.primitives/get-query ~sym))) {} kws-and-screens)
-             first-screen  (-> kws-and-screens first :sym)
+       (let [query (reduce (fn [q {:keys [kw sym]}] (assoc q kw `(fulcro.client.primitives/get-query ~sym))) {} kws-and-screens)
+             first-screen (-> kws-and-screens first :sym)
              screen-render (fn [cls] `((fulcro.client.primitives/factory ~cls {:keyfn (fn [props#] ~(name cls))}) (fulcro.client.primitives/props ~'this)))
-             render-stmt   (reduce (fn [cases {:keys [kw sym]}]
-                                     (-> cases
-                                       (conj kw (screen-render sym)))) [] kws-and-screens)]
+             render-stmt (reduce (fn [cases {:keys [kw sym]}]
+                                   (-> cases
+                                     (conj kw (screen-render sym)))) [] kws-and-screens)]
          `(fulcro.client.primitives/defui ~(vary-meta sym assoc :once true)
             ~'static fulcro.client.primitives/InitialAppState
             (~'initial-state [~'clz ~'params] (fulcro.client.primitives/get-initial-state ~first-screen ~'params))
@@ -54,8 +54,8 @@
         (~'query [~'this] [::id {::current-route (fulcro.client.primitives/get-query ~union-sym)}])
         ~'Object
         (~'render [~'this]
-          (let [computed#            (fulcro.client.primitives/get-computed ~'this)
-                props#               (::current-route (fulcro.client.primitives/props ~'this))
+          (let [computed# (fulcro.client.primitives/get-computed ~'this)
+                props# (::current-route (fulcro.client.primitives/props ~'this))
                 props-with-computed# (fulcro.client.primitives/computed props# computed#)]
             ((fulcro.client.primitives/factory ~union-sym) props-with-computed#))))))
 
@@ -125,17 +125,20 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   "Get the current route from the router with the given id"
   [state-map router-id] (get-in state-map [routers-table router-id ::current-route]))
 
+(defmulti coerce-param (fn [param-keyword v] param-keyword))
+(defmethod coerce-param :default [k v]
+  (cond
+    (and (string? v) (seq (re-seq #"^[0-9][0-9]*$" v))) #?(:clj  (Integer/parseInt v)
+                                                           :cljs (js/parseInt v))
+    (and (string? v) (seq (re-seq #"^[a-zA-Z]" v))) (keyword v)
+    :else v))
+
 (defn- set-ident-route-params
   "Replace any keywords of the form :params/X with the value of (get route-params X)"
   [ident route-params]
   (mapv (fn [element]
           (if (and (keyword? element) (= "param" (namespace element)))
-            (let [v (get route-params (keyword (name element)) element)]
-              (cond
-                (and (string? v) (seq (re-seq #"^[0-9][0-9]*$" v))) #?(:clj  (Integer/parseInt v)
-                                                                       :cljs (js/parseInt v))
-                (and (string? v) (seq (re-seq #"^[a-zA-Z]" v))) (keyword v)
-                :else v))
+            (coerce-param element (get route-params (keyword (name element)) element))
             element))
     ident))
 
@@ -150,12 +153,12 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (defn- set-routing-query
   "Change the given router's query iff it is a dynamic router. Returns the updated state."
   [state reconciler router-id [target-kw _]]
-  (let [router   (-> state :fulcro.client.routing.routers/by-id router-id)
+  (let [router (-> state :fulcro.client.routing.routers/by-id router-id)
         dynamic? (-> router ::dynamic boolean)
-        query    (when dynamic?
-                   (some-> target-kw
-                     get-dynamic-router-target
-                     (prim/get-query state)))]
+        query (when dynamic?
+                (some-> target-kw
+                  get-dynamic-router-target
+                  (prim/get-query state)))]
     (if query
       (do
         (p/queue! reconciler [::pending-route])
@@ -201,8 +204,8 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (defmethod get-dynamic-router-target :default [k] nil)
 
 (defn add-route-state [state-map target-kw component]
-  (let [tree-state       {:tmp/new-route (prim/get-initial-state component nil)}
-        query            [{:tmp/new-route (prim/get-query component)}]
+  (let [tree-state {:tmp/new-route (prim/get-initial-state component nil)}
+        query [{:tmp/new-route (prim/get-query component)}]
         normalized-state (-> (prim/tree->db query tree-state true)
                            (dissoc :tmp/new-route))]
     (util/deep-merge state-map normalized-state)))
@@ -242,6 +245,25 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 
 (def dynamic-route-key ::dynamic-route)
 
+(defsc RouterInfo
+  "A component that can be used for joins against the router table to pull in a router for looking at
+  the current route. E.g.
+
+  ```
+  (ns x
+    (:require [fulcro.client.routing :as r]
+              [fulcro.client.primitives :as prim]))
+
+  (defsc SomeComponent [this props]
+    {:query (fn [] [{[r/routers-table :my-router] (prim/get-query RouterInfo)}])}
+    (let [current-route-id (get-in props [[r/routers-table :my-router] ::r/current-route 1])]
+       ...)
+  ```
+  "
+  [this props]
+  {:query [::id ::current-route]
+   :ident (fn [] [routers-table (::id props)])})
+
 (defui ^:once DynamicRouter
   static prim/InitialAppState
   (initial-state [clz {:keys [id]}] {::id id ::dynamic true ::current-route {}})
@@ -253,8 +275,8 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   (render [this]
     (let [{:keys [::id ::current-route]} (prim/props this)
           target-key (get current-route dynamic-route-key)
-          c          (get-dynamic-router-target target-key)
-          factory    (when c (prim/factory c {:keyfn dynamic-route-key :qualifier id}))]
+          c (get-dynamic-router-target target-key)
+          factory (when c (prim/factory c {:keyfn dynamic-route-key :qualifier id}))]
       (when factory
         (factory current-route)))))
 
@@ -281,7 +303,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   "Returns true iff the given ident has no component loaded into the dynamic routing multimethod."
   [ident]
   (let [screen (first ident)
-        c      (get-dynamic-router-target screen)]
+        c (get-dynamic-router-target screen)]
     (nil? c)))
 
 (defn- is-dynamic-router?
@@ -317,7 +339,7 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
                      ; if the load succeeds, finish will be called to finish the route instruction
                      (let [deferred-result (loader/load route-to-load)
                            ;; see if the route is no longer needed (pending has changed)
-                           next-delay      (min 10000 (* 2 (max 1000 delay)))]
+                           next-delay (min 10000 (* 2 (max 1000 delay)))]
                        ; if the load fails, retry
                        (.addCallback deferred-result finish)
                        (.addErrback deferred-result
@@ -330,15 +352,15 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
 (defn- load-routes [{:keys [state] :as env} routes]
   #?(:clj (log/info "Dynamic loading of routes is not done on the server itself.")
      :cljs
-          (let [loaded        (atom 0)
+          (let [loaded (atom 0)
                 pending-route (get @state ::pending-route)
-                to-load       (count routes)
-                finish        (fn [k]
-                                (fn []
-                                  (swap! loaded inc)
-                                  (when (= @loaded to-load)
-                                    (swap! state add-route-state k (get-dynamic-router-target k))
-                                    (process-pending-route! env))))]
+                to-load (count routes)
+                finish (fn [k]
+                         (fn []
+                           (swap! loaded inc)
+                           (when (= @loaded to-load)
+                             (swap! state add-route-state k (get-dynamic-router-target k))
+                             (process-pending-route! env))))]
             (doseq [r routes]
               (load-dynamic-route state pending-route r (finish r))))))
 
