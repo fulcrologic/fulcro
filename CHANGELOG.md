@@ -1,3 +1,9 @@
+2.1.0-beta3
+-----------
+- Added param coercion to routing
+- Added RouterInfo to routing to make it easier to query for the current route
+- Updated docs to reflect the above two
+
 2.1.0-beta2
 -----------
 - Fixed initial state generation for SSR
