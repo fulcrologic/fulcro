@@ -7939,36 +7939,56 @@ to the fulcro.client.routing namespace, and takes a :handler and optional :route
 === Route Parameters
 
 Anything you pass in the `:route-params` map will get plugged into the parameter placeholders in your
-routing instructions.
+routing tree instructions. By default anything that looks like an integer (only digits) will
+be coerced to an integer. Anything that contains only letters will map to a keyword.
+
+If the default coercion isn't sufficient, then you can customize it.
 
 ==== Parameter Coercion
 
 The default coercion converts integer-looking things to integers, and string-looking things to keywords.
 
 There is a multimethod `r/coerce-param` that dispatches on `:param/X` and replaces the value with
-whatever you return so you can customize this behavior:
+whatever you return. You customize coercion simply by adding your own coercion for
+a parameter by name:
 
 ```
 (defmethod r/coerce-param :param/NAME [k incoming-string-value] (transform-it incoming-string-value))
 ```
 
-== Examining Routes
+Of course, be sure that your namespace with the `defmethod` is loaded so that your methods get installed.
+
+== Examining Routes in UI and Mutations
 
 Your UI will often want to rely on knowing the "current" route of a given router in order to give
-user navigation feedback. You cannot embed *your* router in the query, because that would
-make the query have a circular reference and blow the stack. So, the routing namespace includes a
-query-only component called `RouterInfo` that can be composed in via an ident query to get any router's
-details. Of course the most useful bit of info is the current route:
+user navigation feedback. You cannot embed *your* router in the query, because that would often
+make the query have a circular reference and blow the stack.
+
+The only real bit of information in a router that is useful is the current route
+The `current-route` function can be used in a mutation or component (by querying for the router
+table) to check the route:
 
 ```
 (ns x
   (:require [fulcro.client.routing :as r]
             [fulcro.client.primitives :as prim]))
 
+(r/defrouter SomeRouter :top-router
+  (ident [this props] ...)
+  :home-page HomePage
+  :about-page AboutPage
+  ...)
+
+(defmutation do-something-with-routes [params]
+  (action [{:keys [state]}]
+    (let [current (r/current-route state :top-router)] ; current will be an ident of a screen of :top-router
+    ...)))
+
 (defsc NavBar [this props]
-  {:query (fn [] [{[r/routers-table :my-router] (prim/get-query RouterInfo)}])}
-  (let [current-route-id (get-in props [[r/routers-table :my-router] ::r/current-route 1])]
-     ...)
+  {:query (fn [] [ [r/routers-table '_] ])
+   :initial-state (fn [p] {})}
+  (let [current (current-route props :top-router)] ; current will be an ident of a screen of :top-router
+     ...))
 ```
 
 == A Complete UI Routing Example
