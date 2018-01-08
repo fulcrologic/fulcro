@@ -134,7 +134,14 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
     :else v))
 
 (defn- set-ident-route-params
-  "Replace any keywords of the form :params/X with the value of (get route-params X)"
+  "Replace any keywords of the form :params/X with the value of (get route-params :X). By default the value
+  of the parameter (which comes in as a string) will be converted to an int if it is all digits, and will be
+  converted to a keyword if it is all letters. If you want to customize the coercion, just:
+
+  ```
+  (defmethod r/coerce-param :param/NAME [k v] (transform-it v))
+  ```
+  "
   [ident route-params]
   (mapv (fn [element]
           (if (and (keyword? element) (= "param" (namespace element)))

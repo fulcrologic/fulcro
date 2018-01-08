@@ -7936,6 +7936,22 @@ to the fulcro.client.routing namespace, and takes a :handler and optional :route
 (prim/transact! `[(r/route-to {:handler :main})])
 ```
 
+=== Route Parameters
+
+Anything you pass in the `:route-params` map will get plugged into the parameter placeholders in your
+routing instructions.
+
+==== Parameter Coercion
+
+The default coercion converts integer-looking things to integers, and string-looking things to keywords.
+
+There is a multimethod `r/coerce-param` that dispatches on `:param/X` and replaces the value with
+whatever you return so you can customize this behavior:
+
+```
+(defmethod r/coerce-param :param/NAME [k incoming-string-value] (transform-it incoming-string-value))
+```
+
 == A Complete UI Routing Example
 
 The following example shows the above code and tree in a complete running example.
