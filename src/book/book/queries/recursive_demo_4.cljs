@@ -10,7 +10,7 @@
    :ident [:item/by-id :db/id]}
   (dom/li nil
     (dom/input #js {:type     "checkbox"
-                    :checked  (when (boolean? checked?) checked? false)
+                    :checked  (if (boolean? checked?) checked? false)
                     :onChange #(m/toggle! this :ui/checked?)})
     label
     (when subitems
