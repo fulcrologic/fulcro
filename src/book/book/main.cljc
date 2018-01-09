@@ -19,6 +19,10 @@
                book.queries.parsing-parameters
                book.queries.dynamic-queries
                book.queries.dynamic-query-parameters
+               book.queries.recursive-demo-1
+               book.queries.recursive-demo-2
+               book.queries.recursive-demo-3
+               book.queries.recursive-demo-4
                book.forms.forms-demo-1
                book.forms.forms-demo-2
                book.forms.forms-demo-3
@@ -178,6 +182,10 @@
 #?(:cljs (defexample "Recursive Part 1" book.queries.parsing-recursion-one/Root "parsing-recursion-one"))
 #?(:cljs (defexample "Recursive Part 2" book.queries.parsing-recursion-two/Root "parsing-recursion-two"))
 #?(:cljs (defexample "Parsing Parameters" book.queries.parsing-parameters/Root "parsing-parameters"))
+#?(:cljs (defexample "Recursive Demo 1" book.queries.recursive-demo-1/Root "recursive-demo-1"))
+#?(:cljs (defexample "Recursive Demo 2" book.queries.recursive-demo-2/Root "recursive-demo-2"))
+#?(:cljs (defexample "Recursive Demo 3" book.queries.recursive-demo-3/Root "recursive-demo-3"))
+#?(:cljs (defexample "Recursive Demo 4" book.queries.recursive-demo-4/Root "recursive-demo-4"))
 
 ;; Dynamic queries
 #?(:cljs (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries"))

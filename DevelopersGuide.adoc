@@ -3864,6 +3864,91 @@ The fix is simple: make sure the component has a presence in the database, even 
   (ui-locale-selector locale-selector)) ; link query data is found/passed
 ```
 
+== Recursive Queries
+
+Fulcro's query syntax includes support for recursive queries. Recursion is *always* expressed on a join,
+and it *always* means that the recursive item has the same type as the component you're on.
+There are two notations for this: `...` and a number. The former means "recurse until there are no more links
+(circular detection is included to prevent infinite loops)", and the other is the recursion limit:
+
+NOTE: At the time of this writing you must use the lamba mode of `defsc` for queries that include recursion.
+
+The following demo (with source) demonstrates the core basics of recursion:
+
+++++
+<div class="example" id="recursive-demo-1"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-1').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="recursive-demo-1 source"]
+----
+include::src/book/book/queries/recursive_demo_1.cljs[]
+----
+
+=== Circular Recursion
+
+It is perfectly legal to include recursion in your graph, and it is equally fine to
+query for it. The query engine will automatically stop if a loop is detected.
+
+However, this is not the whole story. You see, components can be updated in a relative
+fasion when all optimizations are enabled. This means that a refresh could happen anywhere
+in the (recursive) UI, and the query would run until it detects the loop again. This can
+lead to funny-looking results.
+
+The demo below lets you modify people and their spouse (a circular relation). Try it out
+and you'll see that something isn't quite right (try making Sally older):
+
+++++
+<div class="example" id="recursive-demo-2"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-2').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="recursive-demo-2 source"]
+----
+include::src/book/book/queries/recursive_demo_2.cljs[]
+----
+
+The problem is that when you touch Sally the UI refresh updates *just* that component; however,
+that component has a recursive query of depth 1, so it ends up returning Joe as her spouse! This
+is technically correct, but almost certainly isn't what you want!
+
+The fix is equally simple: calculate depth and pass it to the child. Use the calculated depth
+to prevent the extra rendering when local refresh gives you data you don't need. The
+demo below has this fix.
+
+++++
+<div class="example" id="recursive-demo-3"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-3').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="recursive-demo-3 source"]
+----
+include::src/book/book/queries/recursive_demo_3.cljs[]
+----
+
+=== Duplicates and Recursion
+
+Of course it is perfectly fine for there to be multiple edges in your graph that point
+to the same node. Below is a recursive bullet list example. We've intentionally nested
+item `B.1` under B and D so you can see that it all works itself out.
+
+Normalization of initial state (which must be a tree) is perfectly happy to see duplcate
+entries. It simply merges the multiple copies into the same normalized entry in the table.
+
+Since the two entries merge to the same entry, it also means the modifications will
+be shared among them. Try checking item `B.1` in either location.
+
+++++
+<div class="example" id="recursive-demo-4"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-4').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="recursive-demo-4 source"]
+----
+include::src/book/book/queries/recursive_demo_4.cljs[]
+----
+
+
 == The AST
 
 You can convert any expression in the query/mutation language into an AST (abstract syntax tree) and vice
