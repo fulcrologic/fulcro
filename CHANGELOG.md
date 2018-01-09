@@ -1,3 +1,8 @@
+2.1.0
+-----
+- See betas below
+- Removed reference to missing externs file
+
 2.1.0-beta3
 -----------
 - Added param coercion to routing
