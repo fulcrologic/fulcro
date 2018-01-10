@@ -6730,8 +6730,8 @@ include::src/book/book/server/ui_blocking_example.cljs[]
 === Fallbacks [[Fallbacks]]
 
 If you're running a mutation is likely to trigger server errors then you can explicitly encode a fallback behavior
-with the mutation. Fallbacks are triggered *if and only if* the mutation on the server *throws an error that is
-detectable as a _non-network_ error.*
+with the mutation. Fallbacks are triggered the mutation on the server throws an error that is
+detectable, or if there is a network error.
 
 The requirement for a server mutation to trigger fallbacks is for it to throw an `ex-info` exception and
 include `{:type :fulcro.client.primitives/abort}` in the data. Otherwise the server-side parser will swallow
