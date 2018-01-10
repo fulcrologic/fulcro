@@ -5703,6 +5703,12 @@ This can be combined with analysis of <<ReturnValues, mutation return values>> t
 (prim/ptransact! this `[(submit-my-form) (leave-form-if-ok)])
 ```
 
+WARNING: Use caution when using mutations with *conditional* remote behavior.
+`ptransact!` detects which mutations are remote by pre-running them (they are side-effect free)
+against the app state *as it is at the beginning of the transaction*. If you have a mutation in the middle
+that relies on the state modifications of a prior mutation in the same transaction in order to *decide* if
+it is remote then it will be mis-detected.
+
 === Using Loads as Mutations
 
 There is technically nothing wrong with issuing a load that has side-effects on the server (though one could argue that
