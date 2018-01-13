@@ -1,4 +1,5 @@
 (ns fulcro.localization
+  #?(:cljs (:require-macros fulcro.localization))
   (:require
     [fulcro.client.mutations :refer [defmutation]]
     [fulcro.client.logging :as log]
@@ -96,3 +97,5 @@
         available-locales))))
 
 (def ui-locale-selector (prim/factory LocaleSelector))
+
+
