@@ -1,6 +1,7 @@
 (ns fulcro.democards.card-ui
   (:require
     fulcro.democards.load-cards
+    fulcro.democards.i18n-rewrite-cards
     fulcro.democards.manual-tests-of-dynamic-queries
     fulcro.democards.react-refs
     fulcro.democards.root-form-refresh
