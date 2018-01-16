@@ -1,3 +1,9 @@
+2.1.1
+-----
+- Fixed remote detection in `ptransact!` to use application state so that
+it more reliably detects which mutations are remote in a tx.
+- Fixed bug related to union app state initialization 
+
 2.1.0
 -----
 - See betas below

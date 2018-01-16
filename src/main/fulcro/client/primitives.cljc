@@ -2661,9 +2661,9 @@
    recomputing :shared."
   [reconciler]
   {:pre [(reconciler? reconciler)]}
-  (when-let [render (get @(:state reconciler) :render)] ; hot code reload can cause this to be nil
+  (when-let [render (get @(:state reconciler) :render)]     ; hot code reload can cause this to be nil
     (binding [*blindly-render* true]
-     (render))))
+      (render))))
 
 (defn tempid
   "Return a temporary id."
@@ -2832,21 +2832,21 @@
 
   WARNING: If a mutation tries to interact with more than one simultaneous remote, the current implementation will wait
   until the *first* one of them completes (selected in a non-deterministic fashion), not all."
-  ([tx] (pessimistic-transaction->transaction tx #{:remote}))
-  ([tx {:keys [valid-remotes env]
-        :or   {valid-remotes #{:remote} env {}}
+  ([tx] (pessimistic-transaction->transaction tx nil))
+  ([tx {:keys [valid-remotes env state-map]
+        :or   {valid-remotes #{:remote} env {} state-map {}}
         :as   options}]
    (let [ast-nodes             (:children (query->ast tx))
          {ast-calls true ast-reads false} (group-by #(= :call (:type %)) ast-nodes)
          ast-follow-on-reads   (ast->query {:type :root :children ast-reads})
          remote-for-ast-call   (fn [c] (let [dispatch-key (:dispatch-key c)
                                              get-remotes  (or (some-> (resolve 'fulcro.client.data-fetch/get-remotes) deref)
-                                                            (fn [sym]
-                                                              (log/error "FAILED TO FIND MUTATE. CANNOT DERIVE REMOTES FOR ptransact!")
+                                                            (fn [state-map sym]
+                                                              (log/error "FAILED TO FIND get-remotes. CANNOT DERIVE REMOTES FOR ptransact! Assuming :remote")
                                                               #{:remote}))
                                              remotes      (if (= "fallback" (name dispatch-key)) ; fallbacks are a special case
                                                             #{}
-                                                            (get-remotes dispatch-key))]
+                                                            (get-remotes state-map dispatch-key))]
                                          (when (seq remotes)
                                            (first remotes))))
          is-local?             (fn [c] (not (remote-for-ast-call c)))
@@ -2887,8 +2887,9 @@
      (ptransact! comp-or-reconciler ref tx)))
   ([comp-or-reconciler ref tx]
    (let [reconciler (if (reconciler? comp-or-reconciler) comp-or-reconciler (get-reconciler comp-or-reconciler))
+         state-map  @(app-state reconciler)
          remotes    (some-> reconciler :config :remotes set)
-         ptx        (pessimistic-transaction->transaction tx (cond-> {:valid-remotes remotes}
+         ptx        (pessimistic-transaction->transaction tx (cond-> {:valid-remotes remotes :state-map state-map}
                                                                ref (assoc :env {:ref ref})))]
      #?(:clj  (transact! comp-or-reconciler ptx)
         :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler ptx)) 0)))))
