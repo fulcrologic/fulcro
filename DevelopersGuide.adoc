@@ -7808,7 +7808,7 @@ render frame things can get slow indeed.
 The solution is easy: use union queries with to-one relations to ensure only the portions of your
 query that are active on the UI are processed.
 
-Unfortunately many people find hand-writing union components a litle challenging. Fulcro provides a nice
+Unfortunately many people find hand-writing union components a little challenging. Fulcro provides a nice
 pre-written facility that can write much of the code for you, making the process more conceptual: UI Routing.
 
 Defining routes requires just a few steps:
