@@ -174,8 +174,8 @@
   ## Manual graph building? Do I have to build that by hand?
 
   No. You do not need to build normalized graph databases. Fulcro can do that for you.
-  Fulcro also provides a protocol called `InitialAppState`. This can be attached to each component
-  in the same manner as `IQuery`.  The benefit is that you don't have to think as much about
+  Fulcro also provides a way to attach initial state to each component
+  like a query.  The benefit is that you don't have to think as much about
   normalization or building a map of initial app state.  You simply define it with regards to the
   component, and compose over child components. This greatly complements the query concepts and improves
   local reasonsing with regard to initial state and component composition.

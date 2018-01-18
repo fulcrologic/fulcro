@@ -87,7 +87,7 @@
   when we learn about colocated queries you'll see it is possible for a component to ask for the data it needs in
   a declarative fashion.
 
-  For now, understand that you *can* give data to a stateless component via a simple edn map, and pull it out
+  For now, understand that you *can* give data to a stateless component via a simple [EDN](https://github.com/edn-format/edn) map, and pull it out
   with destructuring on `defsc`'s second argument:"
   (dc/mkdn-pprint-source WidgetWithProperties)
   (dc/mkdn-pprint-source ui-prop-widget)
@@ -140,7 +140,7 @@
 
   It is important to note that _this is exactly how the composition of UI components always happens_, independent of
   whether or not you use the rest of the features of Fulcro. A root component calls the factory functions of subcomponents
-  with an edn map as the first argument. That map is accessed using `props` within the subcomponent. Data
+  with an EDN map as the first argument. That map is accessed using `props` within the subcomponent. Data
   is passed from component to component through `props`. All data originates from the root.
 
   ### Don't forget the React DOM key!
@@ -186,26 +186,52 @@
   In React, you pass your callbacks through props. In Fulcro, we need a slight variation of this.
 
   In Fulcro, a component can have a [query](/index.html#!/fulcro_tutorial.D_Queries) that asks
-  the underlying system for data. If you complect callbacks and such with this queried data then Fulcro cannot correctly
+  the underlying system for data. If you mix callbacks into this queried data then Fulcro cannot correctly
   refresh the UI in an optimized fashion (because while it can derive the data from the query, it cannot derive the callbacks).
   So, props are for passing data that the component **requested in a query**.
 
   Fulcro has an additional mechanism for passing things that were not specifically asked for in a query: Computed
   properties.
 
-  For your UI to function properly you must *attach* computed data to props via the helper function `prim/computed`.
+  For your UI to function properly you must *attach* computed data to props via the helper function `prim/computed`. For
+  example, say you were going to render some component through the factory method `ui-other-component`. The props
+  for that component would be one map, and the computed would be another. You combined them together into a single
+  thing like so:
+
+  ```
+  (let [computed-props {:incHandler (fn [args] ...)}
+        data-props     { ... }
+        props          (prim/computed data-props computed-props)]
+    (ui-other-component props))
+  ```
+
   The child can look for these computed properties using `get-computed`.
-  "
 
+  ```
+  (let [computed-data (prim/get-computed this)]
+     ...)
+  ```
+
+  and of course Clojure's destructuring allows us to pull out things by key:
+
+  ```
+  (let [{:keys [incHandler] :as computed-data} (prim/get-computed this)]
+     ...)
+  ```
+
+  For convenience `defsc` puts these into an optional third argument that you can also destructure:
+
+  ```
+  (defsc MyComponent [this props {:keys [incHandler]}]
+    ...)
+  ```
+
+  The code below shows a complete running component that is used in the card that follows, and receives it's callbacks
+  through the computed properties.
+
+  "
   (dc/mkdn-pprint-source Root-computed)
-  (dc/mkdn-pprint-source ui-root-computed)
-
-  "
-  ## Play with it!
-
-  Open `B-UI.cljs`, search for `passing-callbacks-via-computed`, and you'll find the card shown below. Interact with it
-  in your browser, play with the source, and make sure you understand everything we've covered so far.
-  ")
+  (dc/mkdn-pprint-source ui-root-computed))
 
 (defcard passing-callbacks-via-computed
   "This card is backing the React system with it's own atom-based state. By passing in callbacks that modify the
@@ -259,7 +285,7 @@
 
   Controlled inputs are generally created by supplying them with a `:value`, and then evolving your app state via
   the input events so that the value you supply changes. This locks your application state with the rendered state.
-  Read about React forms on that project's website for more details.
+  Read up on [React forms](https://reactjs.org/docs/forms.html) for more details.
 
   In general, we recommend using the controlled version to improve your chances of writing bug-free code.
 
@@ -296,10 +322,8 @@
   ## Important notes and further reading
 
   - Remember to use `#js` to transform attribute maps for passing to low-level DOM elements.
-  - Use *cljs* maps as input to your own Elements: `(my-ui-thing {:a 1})` and `(dom/div #js { :data-x 1 } ...)`.
-  - Extract properties with `prim/props`. This is the same for stateful (with queries) or stateless components.
-  - Add parent-generated things (like callbacks) using `prim/computed` and pull them from the component with
-    `(prim/get-computed (prim/props this)`.
+  - Use *cljs* maps as input to your own Elements: `(my-ui-thing {:a 1})` and Javascript objects for low-level DOM `(dom/div #js { :data-x 1 } ...)`.
+  - Add parent-generated things (like callbacks) using `prim/computed` and use the optional third argument to receive them.
 
   You may do additional [UI exercises](#!/fulcro_tutorial.B_UI_Exercises), or continue on to the
   [next chapter](#!/fulcro_tutorial.C_App_Database) on the client database.

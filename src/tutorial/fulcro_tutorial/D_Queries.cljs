@@ -58,7 +58,7 @@
   (e.g. ``prim/Ident` would resolve to the symbol `fulcro.client.primitives/Ident` if it had been required and aliased to `prim`).
 
   If you have not done much in the way of macro programming you may be confused by the
-  quoting often seen in these queries. There is an [appendix](/#!/fulcro_tutorial.Z_Query_Quoting) on this, but
+  quoting often seen in these queries. There is an [appendix](#!/fulcro_tutorial.Z_Query_Quoting) on this, but
   here are some quick notes:
 
   - Using `'` quotes the form that follows it, making it literal.

@@ -343,7 +343,8 @@
   - `:ident` - This tells Fulcro where the entity should live in the database. It is a vector of `KIND` and `ID`. `KIND` MUST be
   a keyword.
 
-  The body of the `defsc` should end with a single React element (which can have children). This is a normal React rule. You
+  The body of the `defsc` should end with a single React element (which can have children). This is a normal React rule.
+  If you choose to use [React 16 this has been expanded](https://reactjs.org/blog/2017/09/26/react-v16.0.html#new-render-return-types-fragments-and-strings). You
   should think of this as pure rendering logic, which is based on the properties of the entity itself.
 
   The database data comes in through the second argument (at the top), and any parent-calculated values (like callbacks) come
