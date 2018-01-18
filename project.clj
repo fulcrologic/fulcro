@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.1.0"
+(defproject fulcrologic/fulcro "2.1.2"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -17,7 +17,7 @@
 
                  ;; easy-server and server
                  [http-kit "2.2.0"]
-                 [ring/ring-core "1.6.2" :exclusions [commons-codec]]
+                 [ring/ring-core "1.6.3" :exclusions [commons-codec]]
                  [bk/ring-gzip "0.2.1"]
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.10.0"]
@@ -152,7 +152,7 @@
 
   :profiles {:book {:dependencies [[devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
                                    [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
-                                   [fulcrologic/fulcro-inspect "2.0.0-alpha3-SNAPSHOT" :exclusions [fulcrologic/fulcro]]
+                                   [fulcrologic/fulcro-inspect "2.0.0-alpha4" :exclusions [fulcrologic/fulcro]]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
@@ -163,7 +163,7 @@
                     :dependencies [[binaryage/devtools "0.9.7"]
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
                                    [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
-                                   [fulcrologic/fulcro-inspect "2.0.0-alpha3-SNAPSHOT" :exclusions [fulcrologic/fulcro]]
+                                   [fulcrologic/fulcro-inspect "2.0.0-alpha4" :exclusions [fulcrologic/fulcro]]
                                    [com.cemerick/piggieback "0.2.2"]
                                    [figwheel-sidecar "0.5.14"]
                                    [cljsjs/d3 "3.5.7-1"]

@@ -1,6 +1,7 @@
 tests:
 	npm install
 	lein doo chrome automated-tests once
+	lein test-refresh :run-once
 
 tutorial:
 	rm -rf docs/js/[a-fh-z]* docs/js/goog docs/js/garden

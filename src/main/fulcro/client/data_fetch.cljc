@@ -422,13 +422,13 @@
 
   Returns a set of the remotes that will be triggered for this mutation, which may be empty.
   "
-  ([dispatch-symbol] (get-remotes dispatch-symbol #{:remote}))
-  ([dispatch-symbol legal-remotes]
+  ([state-map dispatch-symbol] (get-remotes state-map dispatch-symbol #{:remote}))
+  ([state-map dispatch-symbol legal-remotes]
    (letfn [(run-mutation [remote]
              (mutate {:ast    (prim/query->ast1 `[(~dispatch-symbol)])
                       :parser (constantly nil)
                       :target remote
-                      :state  (atom {})} dispatch-symbol {}))]
+                      :state  (atom state-map)} dispatch-symbol {}))]
      (reduce (fn [remotes r]
                (try
                  (let [mutation-map     (run-mutation r)

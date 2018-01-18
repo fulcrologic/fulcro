@@ -426,59 +426,6 @@
               dt))]
     (->> dt (map reshape*) vec add-object-protocol add-defaults)))
 
-#?(:clj
-   (defn- add-proto-methods* [pprefix type type-sym [f & meths :as form]]
-     (let [pf          (str pprefix (name f))
-           emit-static (when (-> type-sym meta :static)
-                         `(~'js* "/** @nocollapse */"))]
-       (if (vector? (first meths))
-         ;; single method case
-         (let [meth meths]
-           [`(do
-               ~emit-static
-               (set! ~(#'cljs.core/extend-prefix type-sym (str pf "$arity$" (count (first meth))))
-                 ~(with-meta `(fn ~@(#'cljs.core/adapt-proto-params type meth)) (meta form))))])
-         (map (fn [[sig & body :as meth]]
-                `(do
-                   ~emit-static
-                   (set! ~(#'cljs.core/extend-prefix type-sym (str pf "$arity$" (count sig)))
-                     ~(with-meta `(fn ~(#'cljs.core/adapt-proto-params type meth)) (meta form)))))
-           meths)))))
-
-#?(:clj (intern 'cljs.core 'add-proto-methods* add-proto-methods*))
-
-#?(:clj
-   (defn- proto-assign-impls [env resolve type-sym type [p sigs]]
-     (#'cljs.core/warn-and-update-protocol p type env)
-     (let [psym        (resolve p)
-           pprefix     (#'cljs.core/protocol-prefix psym)
-           skip-flag   (set (-> type-sym meta :skip-protocol-flag))
-           static?     (-> p meta :static)
-           type-sym    (cond-> type-sym
-                         static? (vary-meta assoc :static true))
-           emit-static (when static?
-                         `(~'js* "/** @nocollapse */"))]
-       (if (= p 'Object)
-         (#'cljs.core/add-obj-methods type type-sym sigs)
-         (concat
-           (when-not (skip-flag psym)
-             (let [{:keys [major minor qualifier]} cljs.util/*clojurescript-version*]
-               (if (and (== major 1) (== minor 9) (>= qualifier 293))
-                 [`(do
-                     ~emit-static
-                     (set! ~(#'cljs.core/extend-prefix type-sym pprefix) cljs.core/PROTOCOL_SENTINEL))]
-                 [`(do
-                     ~emit-static
-                     (set! ~(#'cljs.core/extend-prefix type-sym pprefix) true))])))
-           (mapcat
-             (fn [sig]
-               (if (= psym 'cljs.core/IFn)
-                 (#'cljs.core/add-ifn-methods type type-sym sig)
-                 (#'cljs.core/add-proto-methods* pprefix type type-sym sig)))
-             sigs))))))
-
-#?(:clj (intern 'cljs.core 'proto-assign-impls proto-assign-impls))
-
 #?(:clj (defn- extract-static-methods [protocols]
           (letfn [(add-protocol-method [existing-methods method]
                     (let [nm              (first method)
@@ -555,80 +502,44 @@
                         :component-name ~(str name)}
                   ~class-methods))))))))
 
-(defn- gather-namespaced-protocol-calls
-  "Gather the protocol calls (with the correct namespace) from the static protocols on a defui."
-  [statics]
-  (:calls
-    (reduce (fn [{:keys [current-ns] :as acc} entry]
-              (cond
-                (and current-ns
-                  (list? entry)) (update acc :calls conj
-                                   (list (symbol current-ns (-> entry first name))
-                                     (rest entry)))
-                (list? entry) (update acc :calls conj entry)
-                (symbol? entry) (assoc acc :current-ns (namespace entry))
-                :else acc)) {:current-ns nil :calls []} (:protocols statics))))
-
-(defn- build-noop-static-calls
-  "Builds a list of calls to defui static protocol methods to prevent Closure adv compile from removing them"
-  [className static-methods]
-  (map (fn [call]
-         (let [multi-arity? (list? (second call))
-               nm           (first call)
-               args         (if multi-arity?
-                              (-> call second first)
-                              (second call))
-               arity        (count args)
-               extra-args   (repeat (dec arity) nil)
-               args         (cons className extra-args)
-               noop-call    (cons nm args)]
-           noop-call)) static-methods))
-
 (defn defui*
   ([name form] (defui* name form nil))
   ([name forms env]
    (letfn [(field-set! [obj [field value]]
              `(set! (. ~obj ~(symbol (str "-" field))) ~value))]
-     (let [docstring         (when (string? (first forms))
-                               (first forms))
-           forms             (cond-> forms
-                               docstring rest)
+     (let [docstring        (when (string? (first forms))
+                              (first forms))
+           forms            (cond-> forms
+                              docstring rest)
            {:keys [dt statics]} (collect-statics forms)
-           _                 (validate-statics dt)
-           fqn               (if env
-                               (symbol (-> env :ns :name str) (str name))
-                               name)
-           ctor              `(defn ~(with-meta name
-                                       (merge {:jsdoc ["@constructor"]}
-                                         (meta name)
-                                         (when docstring
-                                           {:doc docstring})))
-                                []
-                                (this-as this#
-                                  (.apply js/React.Component this# (js-arguments))
-                                  (if-not (nil? (.-initLocalState this#))
-                                    (set! (.-state this#) (.initLocalState this#))
-                                    (set! (.-state this#) (cljs.core/js-obj)))
-                                  this#))
-           set-react-proto!  `(set! (.-prototype ~name)
-                                (goog.object/clone js/React.Component.prototype))
-           ctor              (if (-> name meta :once)
-                               `(when-not (cljs.core/exists? ~name)
-                                  ~ctor
-                                  ~set-react-proto!)
-                               `(do
-                                  ~ctor
-                                  ~set-react-proto!))
-           display-name      (if env
-                               (str (-> env :ns :name) "/" name)
-                               'js/undefined)
-           static-methods    (gather-namespaced-protocol-calls statics)
-           noop-static-calls (build-noop-static-calls name static-methods)
-           closure-fix       (if (seq noop-static-calls)
-                               [`(try
-                                   ~@noop-static-calls
-                                   (catch :default ~'e))]
-                               [])]
+           _                (validate-statics dt)
+           fqn              (if env
+                              (symbol (-> env :ns :name str) (str name))
+                              name)
+           ctor             `(defn ~(with-meta name
+                                      (merge {:jsdoc ["@constructor" "@nocollapse"]}
+                                        (meta name)
+                                        (when docstring
+                                          {:doc docstring})))
+                               []
+                               (this-as this#
+                                 (.apply js/React.Component this# (js-arguments))
+                                 (if-not (nil? (.-initLocalState this#))
+                                   (set! (.-state this#) (.initLocalState this#))
+                                   (set! (.-state this#) (cljs.core/js-obj)))
+                                 this#))
+           set-react-proto! `(set! (.-prototype ~name)
+                               (goog.object/clone js/React.Component.prototype))
+           ctor             (if (-> name meta :once)
+                              `(when-not (cljs.core/exists? ~name)
+                                 ~ctor
+                                 ~set-react-proto!)
+                              `(do
+                                 ~ctor
+                                 ~set-react-proto!))
+           display-name     (if env
+                              (str (-> env :ns :name) "/" name)
+                              'js/undefined)]
        `(do
           ~ctor
           (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
@@ -644,8 +555,7 @@
           (set! (.-cljs$lang$ctorStr ~name) ~(str fqn))
           (set! (.-cljs$lang$ctorPrWriter ~name)
             (fn [this# writer# opt#]
-              (cljs.core/-write writer# ~(str fqn))))
-          ~@closure-fix)))))
+              (cljs.core/-write writer# ~(str fqn)))))))))
 
 (defmacro defui [name & forms]
   (if (boolean (:ns &env))
@@ -2661,9 +2571,9 @@
    recomputing :shared."
   [reconciler]
   {:pre [(reconciler? reconciler)]}
-  (when-let [render (get @(:state reconciler) :render)] ; hot code reload can cause this to be nil
+  (when-let [render (get @(:state reconciler) :render)]     ; hot code reload can cause this to be nil
     (binding [*blindly-render* true]
-     (render))))
+      (render))))
 
 (defn tempid
   "Return a temporary id."
@@ -2832,21 +2742,21 @@
 
   WARNING: If a mutation tries to interact with more than one simultaneous remote, the current implementation will wait
   until the *first* one of them completes (selected in a non-deterministic fashion), not all."
-  ([tx] (pessimistic-transaction->transaction tx #{:remote}))
-  ([tx {:keys [valid-remotes env]
-        :or   {valid-remotes #{:remote} env {}}
+  ([tx] (pessimistic-transaction->transaction tx nil))
+  ([tx {:keys [valid-remotes env state-map]
+        :or   {valid-remotes #{:remote} env {} state-map {}}
         :as   options}]
    (let [ast-nodes             (:children (query->ast tx))
          {ast-calls true ast-reads false} (group-by #(= :call (:type %)) ast-nodes)
          ast-follow-on-reads   (ast->query {:type :root :children ast-reads})
          remote-for-ast-call   (fn [c] (let [dispatch-key (:dispatch-key c)
                                              get-remotes  (or (some-> (resolve 'fulcro.client.data-fetch/get-remotes) deref)
-                                                            (fn [sym]
-                                                              (log/error "FAILED TO FIND MUTATE. CANNOT DERIVE REMOTES FOR ptransact!")
+                                                            (fn [state-map sym]
+                                                              (log/error "FAILED TO FIND get-remotes. CANNOT DERIVE REMOTES FOR ptransact! Assuming :remote")
                                                               #{:remote}))
                                              remotes      (if (= "fallback" (name dispatch-key)) ; fallbacks are a special case
                                                             #{}
-                                                            (get-remotes dispatch-key))]
+                                                            (get-remotes state-map dispatch-key))]
                                          (when (seq remotes)
                                            (first remotes))))
          is-local?             (fn [c] (not (remote-for-ast-call c)))
@@ -2887,8 +2797,9 @@
      (ptransact! comp-or-reconciler ref tx)))
   ([comp-or-reconciler ref tx]
    (let [reconciler (if (reconciler? comp-or-reconciler) comp-or-reconciler (get-reconciler comp-or-reconciler))
+         state-map  @(app-state reconciler)
          remotes    (some-> reconciler :config :remotes set)
-         ptx        (pessimistic-transaction->transaction tx (cond-> {:valid-remotes remotes}
+         ptx        (pessimistic-transaction->transaction tx (cond-> {:valid-remotes remotes :state-map state-map}
                                                                ref (assoc :env {:ref ref})))]
      #?(:clj  (transact! comp-or-reconciler ptx)
         :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler ptx)) 0)))))

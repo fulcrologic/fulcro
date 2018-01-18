@@ -1,5 +1,4 @@
-Fulcro Developers Guide
-=======================
+= Fulcro Developers Guide
 :author: Tony Kay
 :revdate: Jan 3, 2018
 :revnumber: 1.0
@@ -2576,11 +2575,31 @@ but `clj->js` can convert dynamic things on the fly at runtime.
 When you start a Fulcro application your `:started-callback` will get the completed `app` as a parameter.
 
 Inside of this app is a reconciler under the key `:reconciler`. The reconciler is a central component in the system
-that is responsible for being the thing that reconciles the differences between the database and the UI. Therefore it
+that is responsible reconciling the differences between the database and the UI. Therefore it
 is involved in processing the queries, merging novel data into the database, network interactions, and tracking
 mounted components that might need refresh.
 
 You will see it mentioned in many places in this book, and we'll point out where you'll use it directly.
+
+=== Useful Reconciler Options
+
+When you create a new client you can pass options directly to the reconciler with `:reconciler-options`.
+There are a number of options that are used internally by the higher-level layers of Fulcro and should not
+really be used directly, but there are a number of options that can be quite useful.
+
+[horizontal]
+`:shared`::  A map of global (immutable) properties that will be visible to all components. See <<SharedState, Shared State>>.
+`:shared-fn`:: A function to compute shared properties from the root props on UI refresh. *only* recomputed on
+root-level refresh, such as a call to `force-root-render`. See <<SharedState, Shared State>>.
+`:root-render`::  The root render function. Defaults to ReactDOM.render. Useful for switching to React Native.
+`:root-unmount`:: The root unmount function. Defaults to ReactDOM.unmountComponentAtNode. Useful for React Native.
+`:render-mode`::  One of `:normal`, `:keyframe`, or `:brutal`. See below.
+`:lifecycle`::    A function (fn [component event]) that is called when react components either :mount or :unmount. Useful for debugging tools.
+`:tx-listen`::    A function of 2 arguments that will listen to transactions. Called when `transact!` runs. Gets the
+transaction and the environment. The environment includes `:old-state`, `:new-state`, the state atom, etc.
+`:instrument`:: A function that will wrap all rendering. `(fn [{:keys [props children class factory}] )` that
+is called instead of the real factory. You can use this to wrap all UI components for things like performance
+timing, tooling, etc.
 
 === Rendering Optimizations [[RenderingOptimizations]]
 
@@ -3864,6 +3883,45 @@ The fix is simple: make sure the component has a presence in the database, even 
   (ui-locale-selector locale-selector)) ; link query data is found/passed
 ```
 
+=== Using Shared State [[SharedState]]
+
+An alternative to ident and link queries is shared state. The first thing to note is that it is *not*
+a complete replacement for link queries. It is a low-level feature that is meant for two basic scenarios:
+
+* Data that needs to be visible to all components, but never changes once the app is mounted.
+* Data that is derived from the UI props (from root) or globals, but only updates on root-level renders (not component-local updates).
+
+The first use-case might be handy if you pass some data to your mount through the HTML page itself. The
+latter is useful for data that affects everything in your application, such as the current user.
+
+The primary thing to remember is that components that look at shared state will not see updates unless a
+root render occurs with those updates. This typically means calling `prim/force-root-render!`.
+
+Say we wanted all components to be able to see `:pi` (a constant) and `:current-user` (a value from
+the database). We could declare this as follows:
+
+```
+(fc/new-fulcro-client
+  :reconciler-options {:shared {:pi 3.14} ; never changes
+                       :shared-fn #(select-keys % :current-user)} ; updates on root render
+```
+
+Now *any* component can access these as follows:
+
+```
+(defsc C [this props]
+  (let [{:keys [pi current-user]} (prim/shared this)]
+    ; current-user will be DEnormalized...it comes from the root props (Root must query for it still)
+    ...))
+```
+
+WARNING: Remember that this is *not* equivalent to a link query for `[:current-user '_]`. There are two differences.
+The first is that pulling `:current-user` still requires that your root component query for it (or it
+won't even be in the props). Second, the shared value will not visibly change until a root render happens, where
+link queries *can* refresh locally with a component. The final difference is that *if* you use data in
+your shared-fn that is derived from anything other than the state database then it will not work correctly
+in the history support viewer.
+
 == Recursive Queries
 
 Fulcro's query syntax includes support for recursive queries. Recursion is *always* expressed on a join,
@@ -3947,7 +4005,6 @@ be shared among them. Try checking item `B.1` in either location.
 ----
 include::src/book/book/queries/recursive_demo_4.cljs[]
 ----
-
 
 == The AST
 
@@ -5703,6 +5760,12 @@ This can be combined with analysis of <<ReturnValues, mutation return values>> t
 (prim/ptransact! this `[(submit-my-form) (leave-form-if-ok)])
 ```
 
+WARNING: Use caution when using mutations with *conditional* remote behavior.
+`ptransact!` detects which mutations are remote by pre-running them (they are side-effect free)
+against the app state *as it is at the beginning of the transaction*. If you have a mutation in the middle
+that relies on the state modifications of a prior mutation in the same transaction in order to *decide* if
+it is remote then it will be mis-detected.
+
 === Using Loads as Mutations
 
 There is technically nothing wrong with issuing a load that has side-effects on the server (though one could argue that
@@ -6730,8 +6793,8 @@ include::src/book/book/server/ui_blocking_example.cljs[]
 === Fallbacks [[Fallbacks]]
 
 If you're running a mutation is likely to trigger server errors then you can explicitly encode a fallback behavior
-with the mutation. Fallbacks are triggered *if and only if* the mutation on the server *throws an error that is
-detectable as a _non-network_ error.*
+with the mutation. Fallbacks are triggered the mutation on the server throws an error that is
+detectable, or if there is a network error.
 
 The requirement for a server mutation to trigger fallbacks is for it to throw an `ex-info` exception and
 include `{:type :fulcro.client.primitives/abort}` in the data. Otherwise the server-side parser will swallow

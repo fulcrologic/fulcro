@@ -873,10 +873,13 @@
   (action [env] true))
 (defmutation L2 [params]
   (action [env] true))
+(defmutation C1 [params]
+  (remote [{:keys [state]}]
+    (get @state :go?)))
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "pessimistic-transaction->transaction"
+(specification "pessimistic-transaction->transaction" :focused
   (assertions
     "Returns the transaction if it only contains a single call"
     (prim/pessimistic-transaction->transaction `[(r1 {:x 1})]) => `[(r1 {:x 1})]
@@ -891,6 +894,12 @@
                                                     :tx     [(L)]})]})]
     "Is identity if all calls are local"
     (prim/pessimistic-transaction->transaction `[(L) (L) (L)]) => `[(L) (L) (L)]
+
+    "Correctly detects conditional remote mutations"
+    (prim/pessimistic-transaction->transaction `[(C1) (C1)]) => `[(C1) (C1)]
+    (prim/pessimistic-transaction->transaction `[(C1) (C1)] {:state-map {:go? true}})
+    => `[(C1) (fulcro.client.data-fetch/deferred-transaction {:remote :remote
+                                                              :tx     [(C1)]})]
 
     "Clusters prefixed fallbacks with following remote op"
     (prim/pessimistic-transaction->transaction `[(fulcro.client.data-fetch/fallback {:x 1}) (r1 {:x 1})])
@@ -940,8 +949,7 @@
          (df/deferred-transaction {:remote :remote
                                    :tx     [(r2) (df/deferred-transaction
                                                    {:remote :rest-remote
-                                                    :tx     [(L)]})]})]
-    ))
+                                                    :tx     [(L)]})]})]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; query spec, with generators for property-based tests
@@ -1913,25 +1921,3 @@
     (prim/has-ident? A) => false
     (prim/has-ident? AState) => false
     (prim/has-ident? AIdent) => true))
-
-#?(:clj (specification "defui advanced compile"
-          (assertions
-            "Avoids removal of statics by calling all arities of them via the class"
-            (last (prim/defui* 'Boo '(static prim/IQuery
-                                       (query [this] [:a])
-                                       (query [this arg] [:b])
-                                       static MyThing
-                                       (bah [this a b] :body)
-                                       static prim/Ident
-                                       (ident [this props] [:x 1])) nil))
-            => '(try
-                  (prim/query Boo)
-                  (prim/query Boo nil)
-                  (bah Boo nil nil)
-                  (prim/ident Boo nil)
-                  (catch :default e))
-
-            "Elides the try/catch where there are no static protocols"
-            (not= 'try (first (last (prim/defui* 'Boo '(Object
-                                                         (render [this] [:x 1])) nil))))
-            => true)))

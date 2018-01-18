@@ -196,8 +196,9 @@
     (app/initialize-internationalization rec)
     (app/initialize-global-error-callbacks completed-app)
     (app/start-network-sequential-processing completed-app)
-    (merge-alternate-union-elements! completed-app root-component)
     (prim/add-root! rec root-component node)
+    ; this has to come after add root so normalization is complete
+    (merge-alternate-union-elements! completed-app root-component)
     (when started-callback
       (started-callback completed-app))
     completed-app))

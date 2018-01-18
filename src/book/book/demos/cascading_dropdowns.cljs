@@ -72,5 +72,3 @@
         (bs/ui-dropdown model-dropdown
           :onSelect (fn [item] (log/info item))
           :stateful? true)))))
-
-

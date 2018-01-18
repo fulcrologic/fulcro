@@ -1,3 +1,14 @@
+2.1.2
+-----
+- Thomas Heller helped find a better fix for the compiler hack in defui. Statics and
+advanced compilataion are now much cleaner.
+
+2.1.1
+-----
+- Fixed remote detection in `ptransact!` to use application state so that
+it more reliably detects which mutations are remote in a tx.
+- Fixed bug related to union app state initialization 
+
 2.1.0
 -----
 - See betas below
