@@ -1922,24 +1922,40 @@
     (prim/has-ident? AState) => false
     (prim/has-ident? AIdent) => true))
 
-#?(:clj (specification "defui advanced compile"
-          (assertions
-            "Avoids removal of statics by calling all arities of them via the class"
-            (last (prim/defui* 'Boo '(static prim/IQuery
-                                       (query [this] [:a])
-                                       (query [this arg] [:b])
-                                       static MyThing
-                                       (bah [this a b] :body)
-                                       static prim/Ident
-                                       (ident [this props] [:x 1])) nil))
-            => '(try
-                  (prim/query Boo)
-                  (prim/query Boo nil)
-                  (bah Boo nil nil)
-                  (prim/ident Boo nil)
-                  (catch :default e))
+#?(:clj
+   (specification "defui advanced compile"
+     (component "gather-namespaced-protocol-calls"
+       (assertions
+         "Extracts the fully-qualified protocol method names"
+         (#'prim/gather-namespaced-protocol-calls '{:protocols [fulcro.client.primitives/InitialAppState
+                                                                (initial-state [clz params] {})
+                                                                fulcro.client.primitives/Ident
+                                                                (ident [this props] [:table :id])
+                                                                fulcro.client.primitives/IQuery
+                                                                (query [this] [:x])]})
+         => '[(fulcro.client.primitives/initial-state ([clz params] {}))
+              (fulcro.client.primitives/ident ([this props] [:table :id]))
+              (fulcro.client.primitives/query ([this] [:x]))]))
+     (assertions
+       "Avoids removal of statics by calling all arities of them via the class"
+       (last (prim/defui*
+               'Boo
+               '(static prim/IQuery
+                  (query [this] [:a])
+                  (query [this arg] [:b])
+                  static MyThing
+                  (bah [this a b] :body)
+                  static prim/Ident
+                  (ident [this props] [:x 1]))
+               {:ns 'xyz}))
+       => '(try
+             (prim/query Boo)
+             (prim/query Boo nil)
+             (bah Boo nil nil)
+             (prim/ident Boo nil)
+             (catch :default e))
 
-            "Elides the try/catch where there are no static protocols"
-            (not= 'try (first (last (prim/defui* 'Boo '(Object
-                                                         (render [this] [:x 1])) nil))))
-            => true)))
+       "Elides the try/catch where there are no static protocols"
+       (not= 'try (first (last (prim/defui* 'Boo '(Object
+                                                    (render [this] [:x 1])) nil))))
+       => true)))
