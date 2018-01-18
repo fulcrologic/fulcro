@@ -1,3 +1,8 @@
+2.1.2
+-----
+- Thomas Heller helped find a better fix for the compiler hack in defui. Statics and
+advanced compilataion are now much cleaner.
+
 2.1.1
 -----
 - Fixed remote detection in `ptransact!` to use application state so that
