@@ -2,6 +2,7 @@
   (:require
     fulcro.democards.load-cards
     fulcro.democards.manual-tests-of-dynamic-queries
+    fulcro.democards.forms-state-cards
     fulcro.democards.react-refs
     fulcro.democards.root-form-refresh
     fulcro.democards.parent-state-refresh
