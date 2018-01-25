@@ -2,16 +2,26 @@
   (:require [clojure.spec.alpha :as s]
     #?(:clj
             [clojure.future :refer :all])
+            [clojure.set :as set]
             [fulcro.client.logging :as log]
             [fulcro.client.mutations :refer [defmutation]]
             [fulcro.util :as util]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.dom :as dom]))
 
+(defprotocol IFormFields
+  (form-fields [this] "Returns a set of keywords that define the form fields of interest on an entity"))
+
+(defn get-form-fields [class]
+  #?(:clj  (when-let [ff (-> class meta :form-fields)]
+             (ff class))
+     :cljs (when (implements? IFormFields class)
+             (form-fields class))))
+
 (def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
 (s/def ::id (s/with-gen util/ident? ident-generator))       ; form config uses the entity's ident as an ID
 (s/def ::fields (s/every keyword? :kind set?))              ; a set of kws that are fields to track
-(s/def ::subforms (s/every keyword? :kind set?))            ; a set of kws that are subforms
+(s/def ::subforms (s/map-of keyword? any?))                 ; a map of subform field to component class
 (s/def ::pristine-state (s/map-of keyword? any?))           ; the saved state of the form
 (s/def ::complete? (s/every keyword? :kind set?))           ; the fields that have been interacted with
 (s/def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
@@ -67,11 +77,13 @@
   fields - A set of keywords on the entity that is the form.
   subforms - An optional set of keywords on the entity that is the form, for the joins to subforms."
   ([entity-ident fields]
-   (form-config entity-ident fields #{}))
+   (form-config entity-ident fields {}))
   ([entity-ident fields subforms]
    {::id       entity-ident
     ::fields   fields
-    ::subforms subforms}))
+    ::subforms (into {}
+                 (map (fn [[k v]] {k (with-meta {} {:component v})}))
+                 subforms)}))
 
 (s/fdef form-config
   :args (s/cat
@@ -81,7 +93,7 @@
   :ret ::config)
 
 (defn add-form-config
-  "Add form configuration data to a *normalized* entity (e.g. pre-merge). This is useful in
+  "Add form configuration data to a *denormalized* entity (e.g. pre-merge). This is useful in
   initial state or when using `merge-component!`. This function *will not* touch an entity
   that already has form config.
 
@@ -89,50 +101,77 @@
   to each of them, since this function is where you declare what fields have significance to the
   form state tracking.
 
-  The form config requires namespaced keys (use f/form-config to make one):
-
-  ::f/id - The ident of the entity your adding form configuration to.
-  ::f/fields - A set of keywords that indicate which things on the entity are to be treated as fields
-  ::f/subforms - A set of keywords that indicate which entity fields join to sub-forms (which must
-  be initialized separately with this same call).
+  The form config MUST be created with `f/form-config`.
 
   Returns the (possibly updated) denormalized entity, ready to merge."
-  [entity {:keys [::fields ::subforms] :as config}]
+  [class entity]
   (if (contains? entity ::config)
     entity
-    (let [pristine-state (select-keys entity fields)]
+    (let [all-fields         (get-form-fields class)
+          query-nodes        (some-> class
+                               (prim/get-query)
+                               (prim/query->ast)
+                               :children)
+          query-nodes-by-key (into {}
+                               (map (fn [n] [(:dispatch-key n) n]))
+                               query-nodes)
+          join-component     (fn [k] (get-in query-nodes-by-key [k :component]))
+          {props :prop joins :join} (group-by :type query-nodes)
+          join-keys          (map :dispatch-key joins)
+          prop-keys          (map :dispatch-key props)
+          fields             (set/intersection all-fields (set prop-keys))
+          subform-keys       (set/intersection all-fields (set join-keys))
+          subforms           (into {}
+                               (map (fn [k] [k (with-meta {} {:component (join-component k)})]))
+                               subform-keys)
+          config             {::id (prim/get-ident class entity) ::fields fields ::subforms subforms}
+          pristine-state     (select-keys entity fields)
+          subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (prim/get-ident entity)))
+          subform-keys       (-> subforms keys set)
+          subform-refs       (reduce
+                               (fn [refs k]
+                                 (let [items (get entity k)]
+                                   (cond
+                                     ; to-one
+                                     (map? items) (assoc refs k (subform-ident k items))
+                                     ; to-many
+                                     (vector? items) (assoc refs k (mapv #(subform-ident k %) items))
+                                     :else refs)))
+                               {}
+                               subform-keys)
+          pristine-state     (merge pristine-state subform-refs)]
       (merge entity {::config (assoc config ::pristine-state pristine-state
-                                            ::subforms (or subforms #{}))}))))
+                                            ::subforms (or subforms {}))}))))
 
 (s/fdef add-form-config
-  :args (s/cat :entity map? :config ::config)
+  :args (s/cat :class any? :entity map?)
   :ret (s/keys :req [::config]))
 
-(defn add-form-config*
-  "Identical to `add-form-config`, but works against normalized entities in the
-  app state (usable from a mutation). This operation is *not* recursive since
-  it requires different configuration data for each form.
+#_(defn add-form-config*
+    "Identical to `add-form-config`, but works against normalized entities in the
+    app state (usable from a mutation). This operation is *not* recursive since
+    it requires different configuration data for each form.
 
-  state-map - The application state database.
-  entity-ident - The ident of the normalized entity to augment.
-  form-config - The form configuration.
+    state-map - The application state database.
+    entity-ident - The ident of the normalized entity to augment.
+    form-config - The form configuration. MUST be created by `f/form-config`.
 
-  Returns an updated state map with normalized form configuration in place for the entity."
-  [state-map {:keys [::id ::fields ::subforms] :as config}]
-  (let [normalized-entity (get-in state-map id)
-        pristine-state    (select-keys normalized-entity fields)
-        form-config       (assoc config ::pristine-state pristine-state
-                                        ::subforms (or subforms #{}))
-        config-ident      [::forms-by-ident (form-id id)]]
-    (if (contains? normalized-entity ::config)
-      state-map
-      (-> state-map
-        (assoc-in (conj id ::config) config-ident)
-        (assoc-in config-ident form-config)))))
+    Returns an updated state map with normalized form configuration in place for the entity."
+    [state-map {:keys [::id ::fields ::subforms] :as config}]
+    (let [normalized-entity (get-in state-map id)
+          pristine-state    (select-keys normalized-entity fields)
+          form-config       (assoc config ::pristine-state pristine-state
+                                          ::subforms (or subforms {}))
+          config-ident      [::forms-by-ident (form-id id)]]
+      (if (contains? normalized-entity ::config)
+        state-map
+        (-> state-map
+          (assoc-in (conj id ::config) config-ident)
+          (assoc-in config-ident form-config)))))
 
-(s/fdef add-form-config*
-  :args (s/cat :state map? :config ::config)
-  :ret (s/keys :req [::config]))
+#_(s/fdef add-form-config*
+    :args (s/cat :state map? :config ::config)
+    :ret (s/keys :req [::config]))
 
 (defn immediate-subforms
   "Get the instances of the immediate subforms that are joined into the given entity by
@@ -164,7 +203,7 @@
   ([ui-entity-props]
    (let [{:keys [::subforms ::fields]} (::config ui-entity-props)
          dirty-field?     (fn [k] (dirty? ui-entity-props k))
-         subform-entities (immediate-subforms ui-entity-props subforms)]
+         subform-entities (immediate-subforms ui-entity-props (-> subforms (keys) (set)))]
      (boolean
        (or
          (some dirty-field? fields)
@@ -227,8 +266,8 @@
        (not (no-spec-or-valid? field (get ui-entity-props field))) :invalid
        :else :valid)))
   ([ui-entity-props]
-   (let [{{:keys [::fields ::subforms ::complete?]} ::config} ui-entity-props
-         immediate-subforms (immediate-subforms ui-entity-props subforms)
+   (let [{{:keys [::fields ::subforms]} ::config} ui-entity-props
+         immediate-subforms (immediate-subforms ui-entity-props (-> subforms keys set))
          field-validity     (fn [current-validity k] (merge-validity current-validity (get-validity ui-entity-props k)))
          subform-validities (map get-validity immediate-subforms)
          subform-validity   (reduce merge-validity :valid subform-validities)
@@ -298,7 +337,7 @@
         config         (get-in state-map config-ident)
         {:keys [::subforms]} config
         [updated-entity updated-config] (xform entity config)
-        subform-idents (immediate-subform-idents (get-in state-map starting-entity-ident) subforms)]
+        subform-idents (immediate-subform-idents (get-in state-map starting-entity-ident) (-> subforms keys set))]
     (as-> state-map sm
       (assoc-in sm starting-entity-ident updated-entity)
       (assoc-in sm config-ident updated-config)
@@ -335,22 +374,46 @@
   "
   [ui-entity as-delta?]
   (let [{:keys [::id ::fields ::pristine-state ::subforms] :as config} (get ui-entity ::config)
+        subform-keys       (-> subforms keys set)
+        subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (prim/get-ident entity)))
+        new-entity?        (prim/tempid? (second id))
         delta              (into {} (keep (fn [k]
                                             (let [before (get pristine-state k)
                                                   after  (get ui-entity k)]
-                                              (if (not= before after)
+                                              (if (or new-entity? (not= before after))
                                                 (if as-delta?
                                                   [k {:before before :after after}]
                                                   [k after])
                                                 nil))) fields))
-        local-dirty-fields {id delta}
+        delta-with-refs    (into delta
+                             (keep
+                               (fn [k]
+                                 (let [items         (get ui-entity k)
+                                       old-value     (get-in ui-entity [::config ::pristine-state k])
+                                       current-value (cond
+                                                       (map? items) (subform-ident k items)
+                                                       (vector? items) (mapv #(subform-ident k %) items)
+                                                       :else [])]
+                                   (if (not= old-value current-value)
+                                     (if as-delta?
+                                       [k {:before old-value :after current-value}]
+                                       [k current-value])
+                                     nil)))
+                               subform-keys))
+        local-dirty-fields {id delta-with-refs}
         complete-delta     (reduce
                              (fn [dirty-fields-so-far subform-join-field]
-                               (let [subform              (get ui-entity subform-join-field)
-                                     dirty-subform-fields (dirty-fields subform as-delta?)]
-                                 (merge dirty-fields-so-far dirty-subform-fields)))
+                               (let [subform (get ui-entity subform-join-field)]
+                                 (cond
+                                   ; to many
+                                   (vector? subform) (reduce (fn [d f] (merge d (dirty-fields f as-delta?))) dirty-fields-so-far subform)
+                                   ; to one
+                                   (map? subform) (let [dirty-subform-fields (dirty-fields subform as-delta?)]
+                                                    (merge dirty-fields-so-far dirty-subform-fields))
+                                   ; missing subform
+                                   :else dirty-fields-so-far)))
                              local-dirty-fields
-                             subforms)]
+                             subform-keys)]
     complete-delta))
 
 (s/fdef dirty-fields
@@ -370,7 +433,6 @@
                             (do
                               (log/error (str "FORM NOT NORMALIZED: " entity-ident))
                               form-config-path))
-         legal-fields     (get-in state-map (conj form-config-path ::fields) #{})
          complete-path    (conj form-config-path ::complete?)]
      (update-in state-map complete-path (fnil conj #{}) field)))
   ([state-map entity-ident]
@@ -409,8 +471,9 @@
 
   Returns the updated state-map (database)."
   [state-map entity-ident]
-  (update-forms state-map (fn commit-form-step [e {:keys [::fields] :as config}]
-                            (let [new-pristine-state (select-keys e fields)]
+  (update-forms state-map (fn commit-form-step [e {:keys [::fields ::subforms] :as config}]
+                            (let [subform-keys       (-> subforms keys set)
+                                  new-pristine-state (select-keys e (set/union subform-keys fields))]
                               [e (assoc config ::pristine-state new-pristine-state)])) entity-ident))
 
 (s/fdef entity->pristine*

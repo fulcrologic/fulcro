@@ -8,31 +8,36 @@
             [fulcro.ui.form-state :as f]))
 
 (defsc Locale [this props]
-  {:query [:db/id ::country f/form-config-join]
-   :ident [:locale/by-id :db/id]})
+  {:query     [:db/id ::country f/form-config-join]
+   :ident     [:locale/by-id :db/id]
+   :protocols [static f/IFormFields
+               (form-fields [this] #{::country})]})
 
 (s/def ::country keyword?)
 
 (defsc Phone [this props]
-  {:query [:db/id {::locale (prim/get-query Locale)}
-           f/form-config-join
-           ::phone-number]
-   :ident [:phone/by-id :db/id]})
+  {:query     [:db/id {::locale (prim/get-query Locale)}
+               ::phone-number
+               f/form-config-join]
+   :ident     [:phone/by-id :db/id]
+   :protocols [static f/IFormFields
+               (form-fields [this] #{::locale ::phone-number})]})
 
 (s/def ::phone-number (s/and string? #(re-matches #"[-0-9()]+" %)))
 
 (defsc Person [this props]
-  {:query [:db/id ::person-name
-           f/form-config-join
-           {::phone-numbers (prim/get-query Phone)}]
-   :ident [:person/by-id :db/id]})
+  {:query     [:db/id ::person-name ::person-age
+               {::phone-numbers (prim/get-query Phone)}
+               f/form-config-join]
+   :ident     [:person/by-id :db/id]
+   :protocols [static f/IFormFields
+               (form-fields [this] #{::person-name ::person-age ::phone-numbers})]})
 
 (s/def ::person-name (s/and string? #(not (empty? (str/trim %)))))
 
-(specification "add-form-config" :focused
+(specification "add-form-config"
   (let [person      {:db/id 3 ::person-name "J.B." ::person-age 49 ::phone-numbers []}
-        form        (f/add-form-config person {::f/id     (prim/get-ident Person person)
-                                               ::f/fields #{::person-name ::person-age}})
+        form        (f/add-form-config Person person)
         form-config (::f/config form)]
     (behavior "Lays out the given initial pristine state and config."
       (assertions
@@ -42,29 +47,22 @@
         "Returns something that looks like the regular entity"
         (dissoc form ::f/config) => person
         "Includes empty subforms if none are present"
-        (::f/subforms form-config) => #{}
+        (::f/subforms form-config) => {::phone-numbers {}}
         "Places (in pristine-state) just the original fields from the entity state that belong in the form"
-        (::f/pristine-state form-config) => (select-keys person #{::person-name ::person-age})))))
+        (::f/pristine-state form-config) => (select-keys person #{::person-name ::person-age ::phone-numbers})))))
 
 (let [locale                                  {:db/id 22 ::country :US}
-      locale                                  (f/add-form-config locale (f/form-config (prim/get-ident Locale locale) #{::country}))
+      locale                                  (f/add-form-config Locale locale)
       phone-numbers                           [{:db/id 2 ::phone-number "555-1212" ::locale locale} {:db/id 3 ::phone-number "555-1212"}]
-      phone-number-forms                      (mapv #(f/add-form-config % (f/form-config (prim/get-ident Phone %)
-                                                                            #{::phone-number}
-                                                                            #{::locale})) phone-numbers)
+      phone-number-forms                      (mapv #(f/add-form-config Phone %) phone-numbers)
       person                                  {:db/id 1 ::person-name "Bo" ::phone-numbers phone-number-forms}
-      person-form                             (f/add-form-config person (f/form-config (prim/get-ident Person person) #{::person-name} #{::phone-numbers}))
+      person-form                             (f/add-form-config Person person)
+      state-map                               (prim/tree->db [{:the-person (prim/get-query Person)}] {:the-person person-form} true)
       validated-person                        (-> person-form
-                                                (assoc-in [::f/config ::f/complete?] #{::person-name})
+                                                (assoc-in [::f/config ::f/complete?] #{::person-name ::person-age})
                                                 (assoc-in [::phone-numbers 0 ::f/config ::f/complete?] #{::phone-number})
                                                 (assoc-in [::phone-numbers 0 ::locale ::f/config ::f/complete?] #{::country})
                                                 (assoc-in [::phone-numbers 1 ::f/config ::f/complete?] #{::phone-number}))
-      state-map                               (prim/tree->db [{:the-person (prim/get-query Person)}] {:the-person person-form} true)
-      validated-tree                          (fn [class form-to-validate]
-                                                (as-> state-map sm
-                                                  (f/validate* sm form-to-validate)
-                                                  (prim/db->tree [{:k (prim/get-query class)}] sm sm)
-                                                  (get sm :k)))
       person-with-incomplete-name             (assoc-in validated-person [::f/config ::f/complete?] #{})
       person-with-incomplete-nested-form      (assoc-in validated-person [::phone-numbers 0 ::locale ::f/config ::f/complete?] #{})
       person-with-invalid-name                (assoc validated-person ::person-name "")
@@ -72,9 +70,45 @@
       person-ui-tree                          (fn [state id]
                                                 (get
                                                   (prim/db->tree [{[:person/by-id id] (prim/get-query Person)}] state state)
-                                                  [:person/by-id id]))]
+                                                  [:person/by-id id]))
+      new-phone-id                            (prim/tempid)
+      new-phone-number                        {:db/id new-phone-id ::phone-number "444-111-3333"}
+      new-phone-ident                         (prim/get-ident Phone new-phone-number)
+      formified-phone                         (f/add-form-config Phone new-phone-number)
+      edited-form-state-map                   (-> state-map
+                                                (assoc-in [:phone/by-id new-phone-id] formified-phone)
+                                                (assoc-in [:person/by-id 1 ::person-name] "New Name")
+                                                (update-in [:person/by-id 1 ::phone-numbers] conj new-phone-ident)
+                                                (assoc-in [:phone/by-id 3 ::phone-number] "555-9999"))]
 
-  (specification "dirty?" :focused
+  (specification "dirty-fields" :focused
+    (behavior "(as delta)"
+      (let [delta (f/dirty-fields (person-ui-tree edited-form-state-map 1) true)]
+        (assertions
+          "Reports all fields of any entity with a temporary ID"
+          (get-in delta [new-phone-ident ::phone-number :after]) => "444-111-3333"
+          "Reports the modified fields of entities with a regular ID"
+          (get-in delta [[:person/by-id 1] ::person-name :before]) => "Bo"
+          (get-in delta [[:person/by-id 1] ::person-name :after]) => "New Name"
+          (get-in delta [[:phone/by-id 3] ::phone-number :before]) => "555-1212"
+          (get-in delta [[:phone/by-id 3] ::phone-number :after]) => "555-9999"
+
+          "Includes the list of changes to subform idents"
+          (get-in delta [[:person/by-id 1] ::phone-numbers :before]) => [[:phone/by-id 2] [:phone/by-id 3]]
+          (get-in delta [[:person/by-id 1] ::phone-numbers :after]) => [[:phone/by-id 2] [:phone/by-id 3] [:phone/by-id new-phone-id]])))
+    (behavior "(not as delta)"
+      (let [delta (f/dirty-fields (person-ui-tree edited-form-state-map 1) false)]
+        (assertions
+          "Reports all fields of any entity with a temporary ID"
+          (get-in delta [new-phone-ident ::phone-number]) => "444-111-3333"
+          "Reports the modified fields of entities with a regular ID"
+          (get-in delta [[:person/by-id 1] ::person-name]) => "New Name"
+          (get-in delta [[:phone/by-id 3] ::phone-number]) => "555-9999"
+
+          "Includes the list of changes to subform idents"
+          (get-in delta [[:person/by-id 1] ::phone-numbers]) => [[:phone/by-id 2] [:phone/by-id 3] [:phone/by-id new-phone-id]]))))
+
+  (specification "dirty?"
     (behavior "is a UI (tree) operation for checking if the form has been modified from pristine"
       (assertions
         "is false if there are no changes"
@@ -86,7 +120,7 @@
         (f/dirty? (assoc-in person-form [::phone-numbers 0 ::locale ::country] :MX)) => true
         (f/dirty? (assoc-in person-form [::phone-numbers 1 ::phone-number] "555-1111")) => true)))
 
-  (specification "validity" :focused
+  (specification "validity"
     (behavior "is a UI (tree) operation for checking if the form (or fields) are valid. It:"
       (assertions
         "returns :unchecked if the fields have not been interacted with"
@@ -101,7 +135,7 @@
         (f/get-validity person-with-invalid-name) => :invalid
         "returns :invalid if any nexted property is invalid"
         (f/get-validity person-with-invalid-nested-phone-locale) => :invalid)))
-  (specification "valid?" :focused
+  (specification "valid?"
     (assertions
       "Returns true if validity is :valid"
       (f/valid? validated-person) => true
@@ -109,7 +143,7 @@
       (f/valid? person-with-incomplete-nested-form) => false
       "Returns false if validity is :invalid"
       (f/valid? person-with-invalid-name) => false))
-  (specification "checked?" :focused
+  (specification "checked?"
     (assertions
       "Returns true if validity is :valid or :invalid"
       (f/checked? validated-person) => true
@@ -117,7 +151,7 @@
       (f/checked? person-with-invalid-nested-phone-locale) => true
       "Returns false if validity is :unchecked"
       (f/checked? person-with-incomplete-nested-form) => false))
-  (specification "invalid?" :focused
+  (specification "invalid?"
     (assertions
       "Returns true if validity is :invalid"
       (f/invalid? person-with-invalid-name) => true
@@ -127,7 +161,7 @@
       "Returns false if validity is :valid"
       (f/invalid? validated-person) => false))
 
-  (specification "update-forms" :focused
+  (specification "update-forms"
     (behavior "Allows one to traverse a nested form set in the app state database and apply xforms to the form and config"
       (let [updated-state (f/update-forms state-map (fn [e c] [(assoc e ::touched true) (assoc c ::touched true)]) [:person/by-id 1])]
         (assertions
@@ -144,7 +178,7 @@
           (get-in updated-state [:phone/by-id 3 ::touched]) => true
           (get-in updated-state [:locale/by-id 22 ::touched]) => true))))
 
-  (specification "validate*" :focused
+  (specification "validate*"
     (behavior "is a state map operation that marks field(s) as complete, so validation checks can be applied"
       (let [get-person (fn [state id validate?] (let [validated-state (cond-> state
                                                                         validate? (f/validate* [:person/by-id id]))]
@@ -157,7 +191,7 @@
           (f/valid? (get-person state-map 1 false)) => false
           (f/valid? (get-person state-map 1 true)) => true))))
 
-  (specification "reset-form*" :focused
+  (specification "pristine->entity*"
     (behavior "is a state map operation that recursively undoes any entity state changes that differ from pristine"
       (let [modified-state-map (-> state-map
                                  (assoc-in [:phone/by-id 3 ::phone-number] "111")
@@ -168,7 +202,7 @@
           (not= modified-state-map state-map) => true
           reset-state-map => state-map))))
 
-  (specification "commit-form*" :focused
+  (specification "entity->pristine*"
     (behavior "is a state map operation that recursively updates any entity pristine form state so that the form is no longer dirty"
       (let [modified-state-map  (-> state-map
                                   (assoc-in [:phone/by-id 3 ::phone-number] "111")
