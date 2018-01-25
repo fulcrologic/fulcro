@@ -1,5 +1,5 @@
 (ns book.example-1
-  (:require [fulcro.client.primitives :as fp :refer [defsc]]
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.mutations :refer [defmutation]]
             [fulcro.client.dom :as dom]))
 
@@ -12,5 +12,5 @@
    :initial-state {:ui/number 0}}
   (dom/div nil
     (dom/h4 nil "This is an example.")
-    (dom/button #js {:onClick #(fp/transact! this `[(bump-number {})])}
+    (dom/button #js {:onClick #(prim/transact! this `[(bump-number {})])}
       "You've clicked this button " number " times.")))

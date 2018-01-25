@@ -51,12 +51,9 @@
   then you're looking at something that is running live in your browser. Much of the source you see in this document
   is also being pulled directly from the source files to help ensure they are in sync.
 
-  You have many choices when looking for running full-stack examples. The easiest and most approchable source of these
-  is in the Fulcro Github repository. You can clone it, and follow the instructions to run them. At the time of this
-  writing you should be able to find the source here:
-  [https://github.com/fulcrologic/fulcro/tree/develop/src/demos](https://github.com/fulcrologic/fulcro/tree/develop/src/demos)
+  Your primary reference (which includes a lot more running code) is the [Fulcro Developer's Guide](http://book.fulcrologic.com].
 
-  Some other things that show off more advanced features as standalone demos (or templates):
+  Some other things that show off more advanced features as standalone demos:
 
   - A Websocket Chat Application: [https://github.com/fulcrologic/websocket-demo](https://github.com/fulcrologic/websocket-demo)
   - The lein template `lein new fulcro my-app`. A minimal full-stack app, but includes a *lot* of production-necessary bits
@@ -67,21 +64,17 @@
   ## Why Clojure and Clojurescript?
 
   1. *Dramatically simpler language.*
-  +
   Clojure has very little syntax. At first this seems a liability until you realize the
   amount of boilerplate it eliminates. What's more, because the language is written
   as a data structure it means that metaprogramming (augmenting the compiler to do
   something new) is nearly as easy as writing regular code. This means things like
   domain-specific languages are easy to create for your specialized problems. A typical
   Clojure program is significantly shorter than what you're used to in Java or Javascript.
-  +
   2. *First-class immutable (persistent) data structures.*
-  +
   If you're coming from the non-functional world this seems like a very odd thing at
   first, but they are the basis of being able to clearly reason about code. Once you
   adjust to the fact that you can trust your values, you'll find a lot of bugs simply
   never happen!
-  +
   3. *Since the code itself is written in a data language it which means you can easily transmit it, store it, transform it, etc.*
   This leads to really interesting features, like richer on-the-wire protocols and our support viewer. No more sending
   home-grown JSON or string-encodings in deal with information!

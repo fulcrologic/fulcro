@@ -1,4 +1,4 @@
-(ns fulcro-tutorial.H10-Mutations
+(ns fulcro-tutorial.H10-Server-Side-Mutations
   (:require [devcards.core :as dc :refer-macros [defcard defcard-doc]]))
 
 (defcard-doc

@@ -212,7 +212,6 @@
 
   ## Further Reading
 
-  There are many examples of client-only and full-stack applications in the
-  [Fulcro Demos](https://github.com/fulcrologic/fulcro/tree/master/src/demos).
+  Please see the [Fulcro Developer's Guide](http://book.fulcrologic.com) for more details.
   ")
 

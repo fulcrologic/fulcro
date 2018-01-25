@@ -16,7 +16,7 @@
     fulcro-tutorial.G-Mutation-Solutions
     fulcro-tutorial.H02-Making-An-Easy-Server
     fulcro-tutorial.H05-Basic-Loading
-    fulcro-tutorial.H10-Mutations
+    fulcro-tutorial.H10-Server-Side-Mutations
     fulcro-tutorial.I-Exercise-on-Putting-It-Together
     fulcro-tutorial.J-Setting-Up-Easy-Server
     fulcro-tutorial.Z-Query-Quoting

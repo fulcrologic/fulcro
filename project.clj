@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.1.2"
+(defproject fulcrologic/fulcro "2.1.3"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -151,7 +151,7 @@
                                :optimizations :none}}]}
 
   :profiles {:book {:dependencies [[devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
+                                   [fulcrologic/fulcro-css "2.0.0"] ; demos
                                    [fulcrologic/fulcro-inspect "2.0.0-alpha4" :exclusions [fulcrologic/fulcro]]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
@@ -162,7 +162,7 @@
                     :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                     :dependencies [[binaryage/devtools "0.9.7"]
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-css "2.0.0-beta1"] ; demos
+                                   [fulcrologic/fulcro-css "2.0.0"] ; demos
                                    [fulcrologic/fulcro-inspect "2.0.0-alpha4" :exclusions [fulcrologic/fulcro]]
                                    [com.cemerick/piggieback "0.2.2"]
                                    [figwheel-sidecar "0.5.14"]
