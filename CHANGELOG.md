@@ -1,3 +1,11 @@
+2.1.3
+-----
+- Added common non-printable key code detectors in fulcro.events
+- Added all common HTML entities (unicode strings) like `&nbsp;` into fulcro.ui.html-entities
+- Some typo fixes
+- Some tutorial typos
+- Moved bootstrap docs to book
+
 2.1.2
 -----
 - Thomas Heller helped find a better fix for the compiler hack in defui. Statics and
