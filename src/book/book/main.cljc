@@ -35,6 +35,25 @@
                book.merge-component
                book.html-converter
                book.server.morphing-example
+               book.bootstrap.alerts
+               book.bootstrap.badges
+               book.bootstrap.breadcrumbs
+               book.bootstrap.button-groups
+               book.bootstrap.buttons
+               book.bootstrap.code
+               book.bootstrap.form-fields
+               book.bootstrap.grid
+               book.bootstrap.icons
+               book.bootstrap.images
+               book.bootstrap.jumbotron
+               book.bootstrap.pagination
+               book.bootstrap.panels
+               book.bootstrap.popover
+               book.bootstrap.progress
+               book.bootstrap.tables
+               book.bootstrap.thumbnails
+               book.bootstrap.typography
+               book.bootstrap.well
                book.demos.cascading-dropdowns
                book.demos.component-localized-css
                book.demos.declarative-mutation-refresh
@@ -217,6 +236,29 @@
 #?(:cljs (defexample "Dynamically Loaded Locales" book.demos.dynamic-i18n/Root "dynamic-i18n"
            :networking book.main/example-server
            :started-callback (fn [] (cljs.loader/set-loaded! :entry-point))))
+
+; Bootstrap CSS
+#?(:cljs (defexample "alerts" book.bootstrap.alerts/alerts "bootstrap-alerts"))
+#?(:cljs (defexample "badges" book.bootstrap.badges/badges "bootstrap-badges"))
+#?(:cljs (defexample "breadcrumbs" book.bootstrap.breadcrumbs/breadcrumbs "bootstrap-breadcrumbs"))
+#?(:cljs (defexample "button-groups" book.bootstrap.button-groups/button-groups "bootstrap-button-groups"))
+#?(:cljs (defexample "buttons" book.bootstrap.buttons/buttons "bootstrap-buttons"))
+#?(:cljs (defexample "code" book.bootstrap.code/FormattingCode "bootstrap-code"))
+#?(:cljs (defexample "form-fields" book.bootstrap.form-fields/form-fields "bootstrap-form-fields"))
+#?(:cljs (defexample "grid" book.bootstrap.grid/Grids "bootstrap-grid"))
+#?(:cljs (defexample "icons" book.bootstrap.icons/icons "bootstrap-icons"))
+#?(:cljs (defexample "images" book.bootstrap.images/images "bootstrap-images"))
+#?(:cljs (defexample "jumbotron" book.bootstrap.jumbotron/jumbotron "bootstrap-jumbotron"))
+#?(:cljs (defexample "pagination" book.bootstrap.pagination/pagination "bootstrap-pagination"))
+#?(:cljs (defexample "panels" book.bootstrap.panels/panels "bootstrap-panels"))
+#?(:cljs (defexample "popover" book.bootstrap.popover/Root "bootstrap-popover"))
+#?(:cljs (defexample "progress" book.bootstrap.progress/progress-bars "bootstrap-progress"))
+#?(:cljs (defexample "tables" book.bootstrap.tables/Tables "bootstrap-tables"))
+#?(:cljs (defexample "thumbnails" book.bootstrap.thumbnails/thumbnails-and-captions "bootstrap-thumbnails"))
+#?(:cljs (defexample "typography" book.bootstrap.typography/Typography "bootstrap-typography"))
+#?(:cljs (defexample "well" book.bootstrap.well/well "bootstrap-well"))
+
+; Bootstrap Components
 
 #?(:cljs (defexample "Loading Data Basics" book.demos.loading-data-basics/Root "loading-data-basics" :networking book.main/example-server :started-callback book.demos.loading-data-basics/initialize))
 #?(:cljs (defexample "Loading Data and Targeting Entities" book.demos.loading-data-targeting-entities/Root "loading-data-targeting-entities" :networking book.main/example-server))

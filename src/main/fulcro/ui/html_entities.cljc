@@ -1,4 +1,5 @@
-(ns fulcro.ui.html-entities)
+(ns fulcro.ui.html-entities
+  (:refer-clojure :exclude [quot divide and or not empty int]))
 
 (def AElig "\u00C6")
 (def Aacute "\u00C1")
@@ -139,6 +140,7 @@
 (def lArr "\u21D0")
 (def lambda "\u03BB")
 (def lang "\u2329")
+(def laqao "\u00AB")                                        ; sic
 (def laquo "\u00AB")
 (def larr "\u2190")
 (def lceil "\u2308")
@@ -199,6 +201,7 @@
 (def rArr "\u21D2")
 (def radic "\u221A")
 (def rang "\u232A")
+(def raqao "\u00BB")                                        ; sic
 (def raquo "\u00BB")
 (def rarr "\u2192")
 (def rceil "\u2309")

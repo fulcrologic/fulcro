@@ -10819,6 +10819,330 @@ removed, and the output indentation isn't ideal; Still, it turns the task into o
 include::src/book/book/html_converter.cljs[]
 ----
 
+= Bootstrap
+
+Fulcro include a set of CLJC wrappers for a good portion of Bootstrap 3. These should be considered of alpha quality,
+but they are used in many demos and can be useful in getting started quickly. The primary improvements that are
+needed would be easy contributions, and if you find them useful you can send a pull request to fix issues or
+extend them.
+
+NOTE: You must include version 3 of Bootstrap's CSS (and optionally theme), but *not* Javascript, in your HTML file.
+
+The CSS affects many DOM elements, which means you'll see examples that use DOM functions, which
+in turn require a JavaScript object as the first argument (for performance). The helper functions from the
+`bootstrap` namespace need to modify the incoming arguments, so the first argument (if it takes DOM props) is
+a cljs map instead.
+
+```
+; render a regular DOM element:
+(dom/div #js { :className \"a\" })
+; render a bootstrap element via one of these functions
+(b/button { :className \"b\"} \"Button label\")
+```
+
+The javascript object verion with regular DOM elements avoid data conversion overhead at runtime. The bootstrap functions
+in this library need to augment and manipulate the passed parameters, so they use cljs maps instead.
+
+This documentation covers the passive elements that largely add in proper structure and classnames for bootstrap rendering. The
+other sections on bootstrap cover active elements.
+
+Fulcro also includes `fulcro.ui.html-entities` (which we alias to `ent` here). These just give symbol names
+to HTML entities (e.g. `&times;` is `ent/times`) so they are easier to use in React.
+
+The examples in this section all render within iframes to prevent the bootstrap CSS from interfering with
+the book itself. Some of them intentionally go beyond their normal borders to show how they work on larger screens (even
+though your screen might not be that large).
+
+== Grids
+
+The four iframes below represent the widths of a large, medium, small, and xsmall screen. The content being
+rendered is:
+
+```
+(b/container-fluid {}
+  (b/row {}
+    (b/col {:xs 12 :md 8} \"xs 12 md 8\") (b/col {:xs 6 :md 4} \"xs 6 md 4\"))
+  (b/row {}
+    (b/col {:xs 6 :md 4} \"xs 6 md 4\")
+    (b/col {:xs 6 :md 4} \"xs 6 md 4\")
+    (b/col {:xs 6 :md 4} \"xs 6 md 4\"))
+  (b/row {} (b/col {:xs 6 } \"xs 6\") (b/col {:xs 6 } \"xs 6\")))
+```
+
+See the Bootstrap documetation for more details.
+
+++++
+<div class="example" id="bootstrap-grid"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-grid').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-grid source"]
+----
+include::src/book/book/bootstrap/grid.cljs[]
+----
+
+== Typography
+
+Various elements support modified typography.
+
+++++
+<div class="example" id="bootstrap-typography"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-typography').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-typography source"]
+----
+include::src/book/book/bootstrap/typography.cljs[]
+----
+
+== Formatting Code
+
+++++
+<div class="example" id="bootstrap-code"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-code').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-code source"]
+----
+include::src/book/book/bootstrap/code.cljs[]
+----
+
+== Tables
+
+++++
+<div class="example" id="bootstrap-tables"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-tables').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-tables source"]
+----
+include::src/book/book/bootstrap/tables.cljs[]
+----
+
+== Alerts
+
+++++
+<div class="example" id="bootstrap-alerts"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-alerts').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-alerts source"]
+----
+include::src/book/book/bootstrap/alerts.cljs[]
+----
+
+== Badges
+
+An inline badge that can be placed on other elements.
+
+++++
+<div class="example" id="bootstrap-badges"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-badges').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-badges source"]
+----
+include::src/book/book/bootstrap/badges.cljs[]
+----
+
+== Breadcrumbs
+
+++++
+<div class="example" id="bootstrap-breadcrumbs"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-breadcrumbs').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-breadcrumbs source"]
+----
+include::src/book/book/bootstrap/breadcrumbs.cljs[]
+----
+
+== Buttons
+
+++++
+<div class="example" id="bootstrap-buttons"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-buttons').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-buttons source"]
+----
+include::src/book/book/bootstrap/buttons.cljs[]
+----
+
+== Button Groups
+
+++++
+<div class="example" id="bootstrap-button-groups"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-button-groups').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-button-groups source"]
+----
+include::src/book/book/bootstrap/button_groups.cljs[]
+----
+
+== Form Fields
+
+++++
+<div class="example" id="bootstrap-form-fields"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-form-fields').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-form-fields source"]
+----
+include::src/book/book/bootstrap/form_fields.cljs[]
+----
+
+== Icons
+
+Glyphicon support through keyword names and the `b/glyphicon` function.
+E.g. `(b/glyphicon {} :arrow-left)`.
+
+++++
+<div class="example" id="bootstrap-icons"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-icons').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-icons source"]
+----
+include::src/book/book/bootstrap/icons.cljs[]
+----
+
+== Images
+
+++++
+<div class="example" id="bootstrap-images"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-images').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-images source"]
+----
+include::src/book/book/bootstrap/images.cljs[]
+----
+
+== Jumbotron
+
+A container that offsets the content. Note, this will not work if it isn't in the grid:
+
+++++
+<div class="example" id="bootstrap-jumbotron"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-jumbotron').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-jumbotron source"]
+----
+include::src/book/book/bootstrap/jumbotron.cljs[]
+----
+
+== Pagination
+
+++++
+<div class="example" id="bootstrap-pagination"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-pagination').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-pagination source"]
+----
+include::src/book/book/bootstrap/pagination.cljs[]
+----
+
+== Panels
+
+Panels use sub-elements to identify portions of the panel:
+
+```
+  (b/panel nil
+    (b/panel-heading nil \"Heading without title\")
+    (b/panel-body nil \"This is the body of the panel\")
+    (b/panel-footer nil \"The footer\"))
+  (b/panel {:kind :danger}
+    (b/panel-heading nil
+      (b/panel-title nil \"Panel Title of :danger panel\"))
+    (b/panel-body nil \"This is the body of the panel\"))))
+```
+
+NOTE: Tables can replace or follow the `panel-body`. They need not be placed within it.
+
+```
+(b/panel nil
+  (b/panel-heading nil
+    (b/panel-title nil \"Panel with a table and no panel-body\"))
+  (b/table nil
+    (dom/tbody nil
+      (dom/tr  nil
+        (dom/th nil \"Name\")
+        (dom/th nil \"Address\")
+        (dom/th nil \"Phone\"))
+      (dom/tr  nil
+        (dom/td nil \"Sally\")
+        (dom/td nil \"555 N Nowhere\")
+        (dom/td nil \"555-1212\")))))
+```
+
+++++
+<div class="example" id="bootstrap-panels"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-panels').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-panels source"]
+----
+include::src/book/book/bootstrap/panels.cljs[]
+----
+
+== Popovers
+
+Popovers are real React components (instead of just wrapper functions), thus the factory has a ui prefix.
+They do not have state, so they are fed their orientation and current state via props. You can include a
+single child (tree), and the popover will use that as its boundary for locating itself.
+
+(Only the Toggle All is hooked up in this example)
+
+++++
+<div class="example" id="bootstrap-popover"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-popover').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-popover source"]
+----
+include::src/book/book/bootstrap/popover.cljs[]
+----
+
+== Progress Bars
+
+++++
+<div class="example" id="bootstrap-progress"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-progress').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-progress source"]
+----
+include::src/book/book/bootstrap/progress.cljs[]
+----
+
+== Thumbnails
+
+++++
+<div class="example" id="bootstrap-thumbnails"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-thumbnails').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-thumbnails source"]
+----
+include::src/book/book/bootstrap/thumbnails.cljs[]
+----
+
+== Wells
+
+++++
+<div class="example" id="bootstrap-well"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-well').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-well source"]
+----
+include::src/book/book/bootstrap/well.cljs[]
+----
+
 = Demos
 
 This chapter includes some additional running demos with source that will give you insight on how to approach various problems. Remember
