@@ -879,7 +879,7 @@
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "pessimistic-transaction->transaction" :focused
+(specification "pessimistic-transaction->transaction"
   (assertions
     "Returns the transaction if it only contains a single call"
     (prim/pessimistic-transaction->transaction `[(r1 {:x 1})]) => `[(r1 {:x 1})]

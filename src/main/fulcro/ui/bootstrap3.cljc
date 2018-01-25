@@ -469,6 +469,9 @@
     (let [kpath (conj (dropdown-ident id) ::open?)]
       (swap! state assoc-in kpath open?))))
 
+(defn set-dropdown-item-active* [state-map dropdown-id item-id]
+  (assoc-in state-map (conj (dropdown-ident dropdown-id) ::active-item) item-id))
+
 (m/defmutation set-dropdown-item-active
   "Mutation. Set one of the items in a dropdown to active.
 
@@ -477,7 +480,7 @@
   "
   [{:keys [id item-id]}]
   (action [{:keys [state]}]
-    (swap! state update-in (dropdown-ident id) assoc ::active-item item-id)))
+    (swap! state set-dropdown-item-active* id item-id)))
 
 (defn- close-all-dropdowns-impl [dropdown-map]
   (reduce (fn [m id] (assoc-in m [id ::open?] false)) dropdown-map (keys dropdown-map)))

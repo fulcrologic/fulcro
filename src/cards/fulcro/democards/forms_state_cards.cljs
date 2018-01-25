@@ -2,6 +2,7 @@
   (:require [devcards.core :refer-macros [defcard-doc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.ui.elements :as ele]
+            [fulcro.server :as server]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.ui.form-state :as f]
             [fulcro.ui.bootstrap3 :as bs]
@@ -11,6 +12,10 @@
             [fulcro.ui.form-state :as fs]
             [clojure.spec.alpha :as s]
             [garden.core :as g]))
+
+(server/defmutation submit-phone [params]
+  (action [env]
+    (js/console.log :server-received-form-delta params)))
 
 (defcard-doc
   "# Fulcro Forms State Management
@@ -24,12 +29,15 @@
               [fulcro.ui.form-state :as f]))
   ```
 
-  The Forms State Management is a simplified and less intrusive set of forms helpers. Fulcro 1.0 forms are still available,
-  but you may want to try the state management first. It has a few advantages over the older forms support:
+  Forms state management is a much-simplified version of the original forms support. As its name indicates, it is
+  primarily concerned with state management (saving, generating a delta, validating, detecting if it is dirty, etc.).
+  It has no opinions or support for form rendering, and validation is done through clojure spec.
+
+  It has a few advantages over the older forms support:
 
   - It leverages Clojure spec for validation
   - It is less magical: it simply manages a pristine copy of your form's state, and gives you clean method
-  of interacting with it
+  of interacting with it.
   - The state management support makes it easier for you to build your own form rendering, or even reusable form
   components.
 
@@ -37,8 +45,8 @@
   of it.
 
   The extra data the the form state management uses is placed in a normalized database entry in your app. This
-  prevents the clutter you experienced in 1.0 forms. This does require that you give each form a unique ID, but since
-  forms are typically initialized on the fly it will be easy to do so (you can base the ID off of the entity being
+  prevents the clutter on your entity that happens in 1.0 forms. It does, however, require that you give each form a globally
+  unique ID, but since forms are typically initialized on the fly it will be easy to do so (you can base the ID off of the entity being
   edited).
 
   ## Basic Operation
@@ -101,7 +109,7 @@
         id           (str (first entity-ident) "-" (second entity-ident))
         is-dirty?    (f/dirty? form field)
         clean?       (not is-dirty?)
-        validity     (f/validity form field)
+        validity     (f/get-validity form field)
         is-invalid?  (= :invalid validity)
         value        (get form field "")]
     (renderer {:dirty?   is-dirty?
@@ -141,7 +149,7 @@
                      ; stop editing
                      (dissoc :root/phone)
                      ; revert to the pristine state
-                     (f/reset-form* [:phone/by-id id])))))
+                     (f/pristine->entity* [:phone/by-id id])))))
   (refresh [env] [:root/phone]))
 
 (defmutation submit-phone [{:keys [id delta]}]
@@ -152,18 +160,14 @@
                      ; stop editing
                      (dissoc :root/phone)
                      ; update the pristine state
-                     (f/commit-form* [:phone/by-id id])))))
+                     (f/entity->pristine* [:phone/by-id id])))))
   (remote [env] true)
   (refresh [env] [:root/phone [:phone/by-id id]]))
-
-(defmutation init-form! [{:keys [ident config]}]
-  (action [{:keys [state]}]
-    (swap! state f/init-form* ident config)))
 
 (defsc PhoneForm [this {:keys [:db/id ::phone-type ::phone-number] :as props}]
   {:query [:db/id ::phone-type ::phone-number
            {(bs/dropdown-ident :phone-type) (prim/get-query bs/Dropdown)} ;reusable dropdown, queried directly from table
-           (f/get-form-query)]
+           f/form-config-join]
    :ident [:phone/by-id :db/id]
    :css   [[:.modified {:color :red}]]}
   (let [{:keys [hidden]} (css/get-classnames Root)
@@ -180,9 +184,6 @@
       (bs/button {:onClick #(prim/transact! this `[(abort-phone-edit {:id ~id})])} "Cancel")
       (bs/button {:disabled (or (not (f/checked? props)) (f/invalid? props))
                   :onClick  #(prim/transact! this `[(submit-phone {:id ~id :delta ~(f/dirty-fields props true)})])} "Commit!"))))
-
-#_(prim/transact! this `[(init-form! {:config {::f/id "phone-form" ::f/fields #{::phone-number ::phone-type}}
-                                      :ident  ~(prim/get-ident this (prim/props this))})])
 
 (def ui-phone-form (prim/factory PhoneForm {:keyfn :db/id}))
 
@@ -216,15 +217,17 @@
 
 (defmutation edit-phone-number [{:keys [id]}]
   (action [{:keys [state]}]
-    (swap! state (fn [s]
-                   (-> s
-                     ; make sure the form config is with the entity
-                     (f/init-form* [:phone/by-id id] {::f/id     (str "phone-form-" id)
-                                                      ::f/fields #{::phone-number ::phone-type}})
-                     ; since we're editing an existing thing, we should start it out validated
-                     (f/validate* [:phone/by-id id])
-                     ; tell the root UI that we're editing a phone number by linking it in
-                     (assoc :root/phone [:phone/by-id id]))))))
+    (let [phone-type (get-in @state [:phone/by-id id ::phone-type])]
+      (swap! state (fn [s]
+                     (-> s
+                       ; make sure the form config is with the entity
+                       (f/add-form-config* {::f/id     [:phone/by-id id]
+                                            ::f/fields #{::phone-number ::phone-type}})
+                       ; since we're editing an existing thing, we should start it out validated
+                       (f/validate* [:phone/by-id id])
+                       (bs/set-dropdown-item-active* :phone-type phone-type)
+                       ; tell the root UI that we're editing a phone number by linking it in
+                       (assoc :root/phone [:phone/by-id id])))))))
 
 (defsc Root [this {:keys [:ui/react-key :root/phone :root/phonebook]}]
   {:query         [:ui/react-key
@@ -245,7 +248,10 @@
         (ui-phone-form phone)
         (ui-phone-book (prim/computed phonebook {:onSelect (fn [id] (prim/transact! this `[(edit-phone-number {:id ~id})]))}))))))
 
+(def mock-server (server/new-server-emulator))
+
 (defcard-fulcro form-state-card-1
   Root
   {}
-  {:inspect-data true})
+  {:inspect-data true
+   :fulcro       {:networking {:remote mock-server}}})
