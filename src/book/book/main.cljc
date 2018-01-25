@@ -54,6 +54,13 @@
                book.bootstrap.thumbnails
                book.bootstrap.typography
                book.bootstrap.well
+               book.bootstrap.components.accordian
+               book.bootstrap.components.collapse
+               book.bootstrap.components.dropdowns
+               book.bootstrap.components.modal-variations
+               book.bootstrap.components.modals
+               book.bootstrap.components.nav
+               book.bootstrap.components.nav-routing
                book.demos.cascading-dropdowns
                book.demos.component-localized-css
                book.demos.declarative-mutation-refresh
@@ -238,27 +245,34 @@
            :started-callback (fn [] (cljs.loader/set-loaded! :entry-point))))
 
 ; Bootstrap CSS
-#?(:cljs (defexample "alerts" book.bootstrap.alerts/alerts "bootstrap-alerts"))
+#?(:cljs (defexample "Alerts" book.bootstrap.alerts/alerts "bootstrap-alerts"))
 #?(:cljs (defexample "badges" book.bootstrap.badges/badges "bootstrap-badges"))
-#?(:cljs (defexample "breadcrumbs" book.bootstrap.breadcrumbs/breadcrumbs "bootstrap-breadcrumbs"))
-#?(:cljs (defexample "button-groups" book.bootstrap.button-groups/button-groups "bootstrap-button-groups"))
-#?(:cljs (defexample "buttons" book.bootstrap.buttons/buttons "bootstrap-buttons"))
-#?(:cljs (defexample "code" book.bootstrap.code/FormattingCode "bootstrap-code"))
-#?(:cljs (defexample "form-fields" book.bootstrap.form-fields/form-fields "bootstrap-form-fields"))
-#?(:cljs (defexample "grid" book.bootstrap.grid/Grids "bootstrap-grid"))
-#?(:cljs (defexample "icons" book.bootstrap.icons/icons "bootstrap-icons"))
-#?(:cljs (defexample "images" book.bootstrap.images/images "bootstrap-images"))
-#?(:cljs (defexample "jumbotron" book.bootstrap.jumbotron/jumbotron "bootstrap-jumbotron"))
-#?(:cljs (defexample "pagination" book.bootstrap.pagination/pagination "bootstrap-pagination"))
-#?(:cljs (defexample "panels" book.bootstrap.panels/panels "bootstrap-panels"))
-#?(:cljs (defexample "popover" book.bootstrap.popover/Root "bootstrap-popover"))
-#?(:cljs (defexample "progress" book.bootstrap.progress/progress-bars "bootstrap-progress"))
-#?(:cljs (defexample "tables" book.bootstrap.tables/Tables "bootstrap-tables"))
-#?(:cljs (defexample "thumbnails" book.bootstrap.thumbnails/thumbnails-and-captions "bootstrap-thumbnails"))
-#?(:cljs (defexample "typography" book.bootstrap.typography/Typography "bootstrap-typography"))
-#?(:cljs (defexample "well" book.bootstrap.well/well "bootstrap-well"))
+#?(:cljs (defexample "Breadcrumbs" book.bootstrap.breadcrumbs/breadcrumbs "bootstrap-breadcrumbs"))
+#?(:cljs (defexample "Button Groups" book.bootstrap.button-groups/button-groups "bootstrap-button-groups"))
+#?(:cljs (defexample "Buttons" book.bootstrap.buttons/buttons "bootstrap-buttons"))
+#?(:cljs (defexample "Code" book.bootstrap.code/FormattingCode "bootstrap-code"))
+#?(:cljs (defexample "Form Fields" book.bootstrap.form-fields/form-fields "bootstrap-form-fields"))
+#?(:cljs (defexample "Grid" book.bootstrap.grid/Grids "bootstrap-grid"))
+#?(:cljs (defexample "Icons" book.bootstrap.icons/icons "bootstrap-icons"))
+#?(:cljs (defexample "Images" book.bootstrap.images/images "bootstrap-images"))
+#?(:cljs (defexample "Jumbotron" book.bootstrap.jumbotron/jumbotron "bootstrap-jumbotron"))
+#?(:cljs (defexample "Pagination" book.bootstrap.pagination/pagination "bootstrap-pagination"))
+#?(:cljs (defexample "Panels" book.bootstrap.panels/panels "bootstrap-panels"))
+#?(:cljs (defexample "Popover" book.bootstrap.popover/Root "bootstrap-popover"))
+#?(:cljs (defexample "Progress" book.bootstrap.progress/progress-bars "bootstrap-progress"))
+#?(:cljs (defexample "Tables" book.bootstrap.tables/Tables "bootstrap-tables"))
+#?(:cljs (defexample "Thumbnails" book.bootstrap.thumbnails/thumbnails-and-captions "bootstrap-thumbnails"))
+#?(:cljs (defexample "Typography" book.bootstrap.typography/Typography "bootstrap-typography"))
+#?(:cljs (defexample "Well" book.bootstrap.well/well "bootstrap-well"))
 
 ; Bootstrap Components
+#?(:cljs (defexample "Accordian" book.bootstrap.components.accordian/CollapseGroupRoot "bootstrap-accordian"))
+#?(:cljs (defexample "Collapse" book.bootstrap.components.collapse/CollapseRoot "bootstrap-collapse"))
+#?(:cljs (defexample "Dropdowns" book.bootstrap.components.dropdowns/DropdownRoot "bootstrap-dropdowns"))
+#?(:cljs (defexample "Modal Variations" book.bootstrap.components.modal-variations/ModalRoot "bootstrap-modal-variations"))
+#?(:cljs (defexample "Modals" book.bootstrap.components.modals/ModalRoot "bootstrap-modals"))
+#?(:cljs (defexample "Nav" book.bootstrap.components.nav/NavRoot "bootstrap-nav"))
+#?(:cljs (defexample "Nav Routing" book.bootstrap.components.nav-routing/RouterRoot "bootstrap-nav-routing"))
 
 #?(:cljs (defexample "Loading Data Basics" book.demos.loading-data-basics/Root "loading-data-basics" :networking book.main/example-server :started-callback book.demos.loading-data-basics/initialize))
 #?(:cljs (defexample "Loading Data and Targeting Entities" book.demos.loading-data-targeting-entities/Root "loading-data-targeting-entities" :networking book.main/example-server))
