@@ -1,3 +1,7 @@
+2.1.4
+-----
+- Fixed a bug in load markers: placed incorrectly when using marker table
+
 2.1.3
 -----
 - Added common non-printable key code detectors in fulcro.events
