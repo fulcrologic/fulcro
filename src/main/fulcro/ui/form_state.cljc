@@ -105,73 +105,89 @@
 
   Returns the (possibly updated) denormalized entity, ready to merge."
   [class entity]
-  (if (contains? entity ::config)
-    entity
-    (let [all-fields         (get-form-fields class)
-          query-nodes        (some-> class
-                               (prim/get-query)
-                               (prim/query->ast)
-                               :children)
-          query-nodes-by-key (into {}
-                               (map (fn [n] [(:dispatch-key n) n]))
-                               query-nodes)
-          join-component     (fn [k] (get-in query-nodes-by-key [k :component]))
-          {props :prop joins :join} (group-by :type query-nodes)
-          join-keys          (map :dispatch-key joins)
-          prop-keys          (map :dispatch-key props)
-          fields             (set/intersection all-fields (set prop-keys))
-          subform-keys       (set/intersection all-fields (set join-keys))
-          subforms           (into {}
-                               (map (fn [k] [k (with-meta {} {:component (join-component k)})]))
-                               subform-keys)
-          config             {::id (prim/get-ident class entity) ::fields fields ::subforms subforms}
-          pristine-state     (select-keys entity fields)
-          subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (prim/get-ident entity)))
-          subform-keys       (-> subforms keys set)
-          subform-refs       (reduce
-                               (fn [refs k]
-                                 (let [items (get entity k)]
-                                   (cond
-                                     ; to-one
-                                     (map? items) (assoc refs k (subform-ident k items))
-                                     ; to-many
-                                     (vector? items) (assoc refs k (mapv #(subform-ident k %) items))
-                                     :else refs)))
-                               {}
-                               subform-keys)
-          pristine-state     (merge pristine-state subform-refs)]
-      (merge entity {::config (assoc config ::pristine-state pristine-state
-                                            ::subforms (or subforms {}))}))))
+  (let [query-nodes         (some-> class
+                              (prim/get-query)
+                              (prim/query->ast)
+                              :children)
+        query-nodes-by-key  (into {}
+                              (map (fn [n] [(:dispatch-key n) n]))
+                              query-nodes)
+        join-component      (fn [k] (get-in query-nodes-by-key [k :component]))
+        {props :prop joins :join} (group-by :type query-nodes)
+        join-keys           (->> joins (map :dispatch-key) set)
+        prop-keys           (->> props (map :dispatch-key) set)
+        queries-for-config? (contains? join-keys ::config)
+        all-fields          (get-form-fields class)
+        has-fields?         (seq all-fields)
+        fields              (set/intersection all-fields prop-keys)
+        subform-keys        (set/intersection all-fields join-keys)
+        subforms            (into {}
+                              (map (fn [k] [k (with-meta {} {:component (join-component k)})]))
+                              subform-keys)
+        local-entity        (if (contains? entity ::config)
+                              entity
+                              (let [config         {::id (prim/get-ident class entity) ::fields fields ::subforms subforms}
+                                    pristine-state (select-keys entity fields)
+                                    subform-ident  (fn [k entity] (some-> (get subforms k) meta :component (prim/get-ident entity)))
+                                    subform-keys   (-> subforms keys set)
+                                    subform-refs   (reduce
+                                                     (fn [refs k]
+                                                       (let [items (get entity k)]
+                                                         (cond
+                                                           ; to-one
+                                                           (map? items) (assoc refs k (subform-ident k items))
+                                                           ; to-many
+                                                           (vector? items) (assoc refs k (mapv #(subform-ident k %) items))
+                                                           :else refs)))
+                                                     {}
+                                                     subform-keys)
+                                    pristine-state (merge pristine-state subform-refs)]
+                                (merge entity {::config (assoc config ::pristine-state pristine-state
+                                                                      ::subforms (or subforms {}))})))]
+    (when-not queries-for-config?
+      (throw (ex-info (str "Attempt to add form configuration to " (prim/component-name class) ", but it does not query for config!")
+               {:offending-component class})))
+    (when-not has-fields?
+      (throw (ex-info (str "Attempt to add form configuration to " (prim/component-name class) ", but it does not declare any fields!")
+               {:offending-component class})))
+    (reduce
+      (fn [resulting-entity k]
+        (let [c     (some-> subforms (get k) meta :component)
+              child (get resulting-entity k)]
+          (try
+            (cond
+              (and c child (vector? child)) (assoc resulting-entity k (mapv #(add-form-config c %) child))
+              (and c child) (assoc resulting-entity k (add-form-config c child))
+              :else resulting-entity)
+            (catch #?(:clj Exception :cljs :default) e
+              (throw (ex-info (str "Subform " (prim/component-name c) " of " (prim/component-name class) " failed to initialize.")
+                       {:nested-exception e}))))))
+      local-entity
+      subform-keys)))
 
 (s/fdef add-form-config
   :args (s/cat :class any? :entity map?)
   :ret (s/keys :req [::config]))
 
-#_(defn add-form-config*
-    "Identical to `add-form-config`, but works against normalized entities in the
-    app state (usable from a mutation). This operation is *not* recursive since
-    it requires different configuration data for each form.
+(defn add-form-config*
+  "Identical to `add-form-config`, but works against normalized entities in the
+  app state (usable from a mutation).
 
-    state-map - The application state database.
-    entity-ident - The ident of the normalized entity to augment.
-    form-config - The form configuration. MUST be created by `f/form-config`.
+  state-map - The application state database.
+  class - The component class. Must have declared form fields.
+  entity-ident - The ident of the normalized entity to augment.
 
-    Returns an updated state map with normalized form configuration in place for the entity."
-    [state-map {:keys [::id ::fields ::subforms] :as config}]
-    (let [normalized-entity (get-in state-map id)
-          pristine-state    (select-keys normalized-entity fields)
-          form-config       (assoc config ::pristine-state pristine-state
-                                          ::subforms (or subforms {}))
-          config-ident      [::forms-by-ident (form-id id)]]
-      (if (contains? normalized-entity ::config)
-        state-map
-        (-> state-map
-          (assoc-in (conj id ::config) config-ident)
-          (assoc-in config-ident form-config)))))
+  Returns an updated state map with normalized form configuration in place for the entity."
+  [state-map class entity-ident]
+  (let [query               [{entity-ident (prim/get-query class state-map)}]
+        data-tree           (prim/db->tree query state-map state-map)
+        denormalized-entity (get data-tree entity-ident)
+        configured-form     (add-form-config class denormalized-entity)]
+    (prim/merge-component state-map class configured-form)))
 
-#_(s/fdef add-form-config*
-    :args (s/cat :state map? :config ::config)
-    :ret (s/keys :req [::config]))
+(s/fdef add-form-config*
+  :args (s/cat :state map? :class any? :ident ::id)
+  :ret map?)
 
 (defn immediate-subforms
   "Get the instances of the immediate subforms that are joined into the given entity by

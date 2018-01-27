@@ -23,33 +23,100 @@
    :protocols [static f/IFormFields
                (form-fields [this] #{::locale ::phone-number})]})
 
+(defsc UnusedForm [this props]
+  {:query     [:db/id ::data f/form-config-join]
+   :ident     [:unused/by-id :db/id]
+   :protocols [static f/IFormFields
+               (form-fields [this] #{::data})]}
+  )
+
 (s/def ::phone-number (s/and string? #(re-matches #"[-0-9()]+" %)))
 
 (defsc Person [this props]
   {:query     [:db/id ::person-name ::person-age
+               {::unused (prim/get-query UnusedForm)}
                {::phone-numbers (prim/get-query Phone)}
                f/form-config-join]
    :ident     [:person/by-id :db/id]
    :protocols [static f/IFormFields
-               (form-fields [this] #{::person-name ::person-age ::phone-numbers})]})
+               (form-fields [this] #{::person-name ::unused ::person-age ::phone-numbers})]})
+
+(defsc NonForm [this props]
+  {:query [:id :x]
+   :ident [:ntop :id]})
+
+(defsc FormNoFields [this props]
+  {:query [:id :x f/form-config-join]
+   :ident [:ntop :id]})
+
+(defsc BadlyNestedForm [this props]
+  {:query     [:id :name {:thing (prim/get-query NonForm)} f/form-config-join]
+   :ident     [:top :id]
+   :protocols [static f/IFormFields
+               (form-fields [this] #{:name :thing})]})
 
 (s/def ::person-name (s/and string? #(not (empty? (str/trim %)))))
 
 (specification "add-form-config"
-  (let [person      {:db/id 3 ::person-name "J.B." ::person-age 49 ::phone-numbers []}
-        form        (f/add-form-config Person person)
-        form-config (::f/config form)]
-    (behavior "Lays out the given initial pristine state and config."
+  (component "returns the entity with added configuration data, where:"
+    (let [data-tree       {:db/id          1
+                           ::person-name   "Joe"
+                           ::phone-numbers [{:db/id   2 ::phone-number "555-1212"
+                                             ::locale {:db/id 5 ::country "US"}}]}
+          configured-form (f/add-form-config Person data-tree)
+          form-config     (get configured-form ::f/config)]
       (assertions
-        "Places a valid form-config under the ::f/form-config key"
+        "::f/config is a spec-valid config"
         (s/valid? ::f/config form-config) => true
         (s/explain-data ::f/config form-config) => nil
-        "Returns something that looks like the regular entity"
-        (dissoc form ::f/config) => person
-        "Includes empty subforms if none are present"
-        (::f/subforms form-config) => {::phone-numbers {}}
-        "Places (in pristine-state) just the original fields from the entity state that belong in the form"
-        (::f/pristine-state form-config) => (select-keys person #{::person-name ::person-age ::phone-numbers})))))
+        "the original entity fields are unchanged"
+        (-> configured-form
+          (dissoc ::f/config)
+          (update-in [::phone-numbers 0] dissoc ::f/config)
+          (update-in [::phone-numbers 0 ::locale] dissoc ::f/config)) => data-tree
+        "the original fields (and subform idents) are saved to pristine state"
+        (::f/pristine-state form-config) => {::person-name   "Joe"
+                                             ::phone-numbers [[:phone/by-id 2]]}
+        "the entity's ident is the form's ID"
+        (get-in configured-form [::f/config ::f/id]) => [:person/by-id 1]
+        "has the scalar declared fields"
+        (get-in configured-form [::f/config ::f/fields]) => #{::person-name ::person-age}
+        "data about each populated subform is included (recursively)"
+        (some-> form-config ::f/subforms ::phone-numbers meta :component) => Phone
+        (some-> configured-form ::phone-numbers first ::f/config ::f/subforms ::locale meta :component) => Locale
+        "data about empty subforms is included"
+        (some-> form-config ::f/subforms ::unused meta :component) => UnusedForm
+        "each subform is recursively initialized"
+        (get-in configured-form [::phone-numbers 0 ::f/config ::f/id]) => [:phone/by-id 2]
+        (get-in configured-form [::phone-numbers 0 ::locale ::f/config ::f/id]) => [:locale/by-id 5])))
+  (component "error checking"
+    (let [data-tree {:id 1 :name "A" :thing {:id 2 :x 42}}]
+      (assertions
+        "throws an exception if the target fails to query for form config"
+        (f/add-form-config NonForm data-tree) =throws=> {:regex #"to .*NonForm, but it does not query for config"}
+        "throws an exception if the target fails to declare fields"
+        (f/add-form-config FormNoFields data-tree) =throws=> {:regex #"to .*FormNoFields, but it does not declare any fields"}
+        "does recursive checks on subforms"
+        (f/add-form-config BadlyNestedForm data-tree) =throws=> {:regex #"Subform .*NonForm of .*BadlyNestedForm"
+                                                                 :fn    (fn [e] (some-> e (ex-data) (contains? :nested-exception)))}))))
+
+(specification "add-form-config*" :focused
+  (let [state-map         {:person/by-id {1 {:db/id          1 ::person-name "Joe" :ui/checked? true
+                                             ::phone-numbers [[:phone/by-id 5]]}}
+                           :root-prop    99
+                           :phone/by-id  {5 {:db/id 5 ::phone-number "555-4444"
+                                             :ui/n  22}}}
+        configured-db     (f/add-form-config* state-map Person [:person/by-id 1])
+        fconfig-id-person [::f/forms-by-ident (f/form-id [:person/by-id 1])]
+        fconfig-id-phone  [::f/forms-by-ident (f/form-id [:phone/by-id 5])]]
+    (assertions
+      "Adds for configuration to normalized tables"
+      (get-in configured-db [:person/by-id 1 ::f/config]) => fconfig-id-person
+      (get-in configured-db [:phone/by-id 5 ::f/config]) => fconfig-id-phone
+      (get-in configured-db fconfig-id-person) =fn=> (fn [c] (contains? c ::f/id))
+      "leaves existing (non-form) data alone"
+      (get-in configured-db [:person/by-id 1 :ui/checked?]) => true
+      (get-in configured-db [:phone/by-id 5 :ui/n]) => 22)))
 
 (let [locale                                  {:db/id 22 ::country :US}
       locale                                  (f/add-form-config Locale locale)
@@ -81,7 +148,7 @@
                                                 (update-in [:person/by-id 1 ::phone-numbers] conj new-phone-ident)
                                                 (assoc-in [:phone/by-id 3 ::phone-number] "555-9999"))]
 
-  (specification "dirty-fields" :focused
+  (specification "dirty-fields"
     (behavior "(as delta)"
       (let [delta (f/dirty-fields (person-ui-tree edited-form-state-map 1) true)]
         (assertions

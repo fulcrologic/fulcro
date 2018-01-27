@@ -882,6 +882,11 @@
                  :cljs (satisfies? IMeta ret)))
       (with-meta qm))))
 
+(defn component-name
+  "Returns a string version of the given react component's name."
+  [class]
+  #?(:clj (str (-> class meta :component-ns) "/" (-> class meta :component-name))
+     :cljs (.-displayName class)))
 
 (defn query-id
   "Returns a string ID for the query of the given class with qualifier"

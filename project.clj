@@ -26,7 +26,7 @@
 
                  ;; test deps
                  [fulcrologic/fulcro-spec "2.0.0-beta3" :scope "test" :exclusions [fulcrologic/fulcro]]
-                 [lein-doo "0.1.7" :scope "test"]
+                 [lein-doo "0.1.8" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
   :source-paths ["src/main"]
