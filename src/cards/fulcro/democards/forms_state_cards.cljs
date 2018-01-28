@@ -166,6 +166,7 @@
   You'd then create a validator like so:
 
   ```
+  ; make a validator that will return :valid, :invalid, or :unchecked on form or field
   (def new-user-validator (f/make-validator new-user-field-valid?))
   ```
 
@@ -182,6 +183,12 @@
         (dom/button #js {:disabled (not= :valid (new-user-validator form))} \"Submit\")
         ...
   ```
+
+  ## Detecting Changes
+
+  ## New Forms (temporary IDs)
+
+  ## Sumbitting Forms
 
   ")
 
