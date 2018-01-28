@@ -885,7 +885,7 @@
 (defn component-name
   "Returns a string version of the given react component's name."
   [class]
-  #?(:clj (str (-> class meta :component-ns) "/" (-> class meta :component-name))
+  #?(:clj  (str (-> class meta :component-ns) "/" (-> class meta :component-name))
      :cljs (.-displayName class)))
 
 (defn query-id
@@ -2796,7 +2796,8 @@
   `ref` the ident (ref context) in which to run the transaction (including all deferrals)
 
   NOTE: `ptransact!` *is* safe to use from within mutations (e.g. for retry behavior).
-  WARNING: Mutations that interact with more than one remote *at the same time* will only wait for one of the remotes to finish."
+  WARNINGS: Mutations that interact with more than one remote *at the same time* will only wait for one of the remotes to finish.
+  Also, mutations that just issue loads should *not* be used. This function defers pessimistic *writes*, not reads."
   ([comp-or-reconciler tx]
    (let [ref (when (and (component? comp-or-reconciler) (has-ident? comp-or-reconciler)) (get-ident comp-or-reconciler))]
      (ptransact! comp-or-reconciler ref tx)))
@@ -3018,9 +3019,17 @@
 #?(:clj (s/def :fulcro.client.primitives.defsc/query (s/or :template vector? :method list?)))
 #?(:clj (s/def :fulcro.client.primitives.defsc/initial-state (s/or :template map? :method list?)))
 #?(:clj (s/def :fulcro.client.primitives.defsc/css (s/or :template vector? :method list?)))
-#?(:clj (s/def :fulcro.client.primitives.defsc/css-include (s/or :template (s/and vector? #(every? symbol? %)) :method list?)))
+#?(:clj (s/def :fulcro.client.primitives.defsc/css-include (s/or :template (s/coll-of symbol? :kind vector?) :method list?)))
+#?(:clj (s/def :fulcro.client.primitives.defsc/form-fields (s/or
+                                                             :form-field-set (s/coll-of keyword? :kind set?)
+                                                             :form-field-specs vector?)))
 
-#?(:clj (s/def :fulcro.client.primitives.defsc/options (s/keys :opt-un [:fulcro.client.primitives.defsc/query :fulcro.client.primitives.defsc/ident :fulcro.client.primitives.defsc/initial-state :fulcro.client.primitives.defsc/css :fulcro.client.primitives.defsc/css-include])))
+#?(:clj (s/def :fulcro.client.primitives.defsc/options (s/keys :opt-un [:fulcro.client.primitives.defsc/query
+                                                                        :fulcro.client.primitives.defsc/ident
+                                                                        :fulcro.client.primitives.defsc/initial-state
+                                                                        :fulcro.client.primitives.defsc/css
+                                                                        :fulcro.client.primitives.defsc/form-fields
+                                                                        :fulcro.client.primitives.defsc/css-include])))
 
 #?(:clj (s/def :fulcro.client.primitives.defsc/args (s/cat
                                                       :sym symbol?
@@ -3034,12 +3043,23 @@
 #?(:clj (s/def :fulcro.client.primitives.defsc/protocols (s/* (s/cat :static (s/? :fulcro.client.primitives.defsc/static) :protocol symbol? :methods (s/+ :fulcro.client.primitives.defsc/protocol-method)))))
 
 #?(:clj
-   (defn- build-form [form-fields]
-     (when form-fields
-       (when-not (vector? form-fields)
-         (throw (ex-info "Form fields must be a vector of form field definitions" {})))
-       `(~'static ~'fulcro.ui.forms/IForm
-          (~'form-spec [~'this] ~form-fields)))))
+   (defn- build-form [form-fields query]
+     (cond
+       (nil? form-fields) nil
+       (set? form-fields) (let [valid-key?           (if (vector? query)
+                                                       (legal-keys query)
+                                                       (constantly true))
+                                missing-form-config? (and (vector? query)
+                                                       (not (some #(= "form-config-join" (if (symbol? %) (name %))) query)))]
+                            (when-not (every? valid-key? form-fields)
+                              (throw (ex-info ":form-fields include keywords that are not in the query" {})))
+                            (when missing-form-config?
+                              (throw (ex-info "Form fields are declared, but the query does not contain form-config-join" {})))
+                            `(~'static fulcro.ui.form-state/IFormFields
+                               (~'form-fields [~'this] ~form-fields)))
+       (vector? form-fields) `(~'static fulcro.ui.forms/IForm
+                                (~'form-spec [~'this] ~form-fields))
+       :otherwise (throw (ex-info "Form fields must be a literal vector (if using forms) or a set (if using form-state)." {})))))
 
 #?(:clj
    (defn build-css [thissym {css-method :method css-template :template} {include-method :method include-template :template}]
@@ -3081,7 +3101,7 @@
            has-css?                         (or css css-include)
            ; TODO: validate-css?                    (and (map? csssym) (:template css))
            validate-query?                  (and (:template query-template-or-method) (not (some #{'*} (:template query-template-or-method))))
-           legal-key-cheker                 (if validate-query?
+           legal-key-checker                (if validate-query?
                                               (or (legal-keys (:template query-template-or-method)) #{})
                                               (complement #{}))
            parsed-protocols                 (when protocols (group-by :protocol (s/conform :fulcro.client.primitives.defsc/protocols protocols)))
@@ -3094,11 +3114,10 @@
                                                        (concat ['static (:protocol v)] (:methods v))
                                                        (concat [(:protocol v)] (:methods v)))))
                                               (mapcat identity))
-           ident-forms                      (build-ident thissym propsym ident-template-or-method legal-key-cheker)
-           has-ident?                       (seq ident-forms)
-           state-forms                      (build-initial-state sym thissym initial-state-template-or-method legal-key-cheker query-template-or-method (boolean (seq form-fields)))
+           ident-forms                      (build-ident thissym propsym ident-template-or-method legal-key-checker)
+           state-forms                      (build-initial-state sym thissym initial-state-template-or-method legal-key-checker query-template-or-method false #_(vector? form-fields))
            query-forms                      (build-query-forms sym thissym propsym query-template-or-method)
-           form-forms                       (build-form form-fields)
+           form-forms                       (build-form (some-> form-fields second) (:template query-template-or-method))
            css-forms                        (build-css thissym css-template-or-method css-include-template-or-method)
            render-forms                     (build-render sym thissym propsym computedsym csssym body)]
        (assert (or (nil? protocols) (s/valid? :fulcro.client.primitives.defsc/protocols protocols)) "Protocols must be valid protocol declarations")

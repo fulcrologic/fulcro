@@ -33,10 +33,6 @@
                           :ret (s/cat :entity map? :config ::config)))
 (s/def ::validity #{:valid :invalid :unchecked})
 (s/def ::denormalized-form (s/keys :req [::config]))
-(s/def ::form-predicate
-  (s/fspec
-    :args (s/cat :form ::denormalized-form)
-    :ret boolean?))
 
 (defn form-id
   "Returns the form database table ID for the given entity ident."
@@ -95,13 +91,11 @@
 (defn add-form-config
   "Add form configuration data to a *denormalized* entity (e.g. pre-merge). This is useful in
   initial state or when using `merge-component!`. This function *will not* touch an entity
-  that already has form config.
+  that already has form config but will recurse the entire form set. It can therefore be
+  invoked on the top-level of the form set when adding, for example, an instance of a sub-form.
 
-  If you have subforms, you *must* call this function on each of them in order to add configuration
-  to each of them, since this function is where you declare what fields have significance to the
-  form state tracking.
-
-  The form config MUST be created with `f/form-config`.
+  class - The component class
+  entity - A denormalized (tree) of data that matches the given component class.
 
   Returns the (possibly updated) denormalized entity, ready to merge."
   [class entity]
@@ -171,11 +165,11 @@
 
 (defn add-form-config*
   "Identical to `add-form-config`, but works against normalized entities in the
-  app state (usable from a mutation).
+  app state. This makes it ideal for composition within mutations.
 
-  state-map - The application state database.
+  state-map - The application state database (map, not atom).
   class - The component class. Must have declared form fields.
-  entity-ident - The ident of the normalized entity to augment.
+  entity-ident - The ident of the normalized entity of the given class that you wish to initialize.
 
   Returns an updated state map with normalized form configuration in place for the entity."
   [state-map class entity-ident]
@@ -228,14 +222,16 @@
 (s/def dirty? ::field-tester)
 
 (defn no-spec-or-valid?
-  "Returns true if the value is valid according to the spec for spec-key or there is no spec for it. Returns false
-  if there is a spec and the value is not valid."
-  [spec-key value]
-  (or (not (s/get-spec spec-key))
-    (s/valid? spec-key value)))
+  "Returns false if and only if the given key has a spec, and the spec is not valid for the value found in the given
+  map of entity props (e.g. `(s/valid? key (get entity-props key))`).
+
+  Returns true otherwise."
+  [entity-props key]
+  (or (not (s/get-spec key))
+    (s/valid? key (get entity-props key))))
 
 (s/fdef no-spec-or-valid?
-  :args (s/cat :k keyword? :v any?)
+  :args (s/cat :entity map? :k keyword?)
   :ret boolean?)
 
 (defn- merge-validity
@@ -261,63 +257,91 @@
   :args (s/cat :a ::validity :b ::validity)
   :ret ::validity)
 
-(defn get-validity
-  "Get the validity (:valid :invalid or :unchecked) for the given form/field.
+(defn make-validator
+  "Create a form/field validation function using a supplied field checker. The field checker will be given
+  then entire form (denormalized) and a single field key that is to be checked. It must return
+  a boolean indicating if that given field is valid.
 
-  ui-entity-props : A denormalized (UI) entity, which can have subforms.
-  field : Optional. Returns the validity of just the single field on the top-level form.
+  During a recursive check for a form, the validation function will be in the correct context (e.g. the form supplied will contain
+  the field. There is no need to search for it in subforms).
 
-  Returns `:invalid` if all of the fields have been interacted with, and *any* are invalid.
-  Returns `:unchecked` if any field is not yet been interacted with.
+  make-validator returns a dual arity function:
 
-  Fields are marked as having been interacted with by programmatic action on your part via
-  the validate* mutation helper can be used in a mutation to mark fields ready for validation.
+  (fn [form] ...) - Calling this version will return :unchecked, :valid, or :invalid for the entire form.
+  (fn [form field] ...) - Calling this version will return :unchecked, :valid, or :invalid for the single field.
 
-  If given a field then it checks just that field."
-  ([ui-entity-props field]
-   (let [{{complete? ::complete?} ::config} ui-entity-props
-         complete? (or complete? #{})]
-     (cond
-       (not (complete? field)) :unchecked
-       (not (no-spec-or-valid? field (get ui-entity-props field))) :invalid
-       :else :valid)))
-  ([ui-entity-props]
-   (let [{{:keys [::fields ::subforms]} ::config} ui-entity-props
-         immediate-subforms (immediate-subforms ui-entity-props (-> subforms keys set))
-         field-validity     (fn [current-validity k] (merge-validity current-validity (get-validity ui-entity-props k)))
-         subform-validities (map get-validity immediate-subforms)
-         subform-validity   (reduce merge-validity :valid subform-validities)
-         this-validity      (reduce field-validity :valid fields)]
-     (merge-validity this-validity subform-validity))))
+  Typical usage would be to show messages around the form fields:
 
-(s/def get-validity ::field-tester)
+  ```
+  (def field-valid? [form field] true) ; just say everything is valid
 
-(defn valid?
-  "Returns true if the denormalized (UI) form is :valid (recursively). Returns false if unchecked or invalid. Use checked?
-  or `validity` for better detail. This function runs `get-validity` which is a recursive check. You may wish to call
-  that function instead if your UI needs to make decisions across all three possible values."
-  [ui-form]
-  (= :valid (get-validity ui-form)))
+  (def my-validator (make-validator field-valid?))
 
-(s/def valid? ::form-predicate)
+  (defn valid? [form field]
+     (= :valid (my-validator form field)))
 
-(defn checked?
-  "Returns true if the denormalized (UI) form has been checked for validation. Until this returns true the form will neither
-  report :valid or :invalid as a validity, nor will valid? or invalid? return true. This function runs `get-validity` which is a recursive check. You may wish to call
-  that function instead if your UI needs to make decisions across all three possible values."
-  [ui-form]
-  (not= :unchecked (get-validity ui-form)))
+  (defn checked? [form field]
+     (not= :unchecked (my-validator form field)))
+  ```
+  "
+  [field-valid?]
+  (fn custom-get-validity*
+    ([ui-entity-props field]
+     (let [{{complete? ::complete?} ::config} ui-entity-props
+           complete? (or complete? #{})]
+       (cond
+         (not (complete? field)) :unchecked
+         (not (field-valid? ui-entity-props field)) :invalid
+         :else :valid)))
+    ([ui-entity-props]
+     (let [{{:keys [::fields ::subforms]} ::config} ui-entity-props
+           immediate-subforms (immediate-subforms ui-entity-props (-> subforms keys set))
+           field-validity     (fn [current-validity k] (merge-validity current-validity (custom-get-validity* ui-entity-props k)))
+           subform-validities (map custom-get-validity* immediate-subforms)
+           subform-validity   (reduce merge-validity :valid subform-validities)
+           this-validity      (reduce field-validity :valid fields)]
+       (merge-validity this-validity subform-validity)))))
 
-(s/def checked? ::form-predicate)
+(let [spec-validator (make-validator no-spec-or-valid?)]
+  (defn get-spec-validity
+    "Get the validity (:valid :invalid or :unchecked) for the given form/field using Clojure specs of the field keys.
 
-(defn invalid?
-  "Returns true if the denormalized (UI) form is :invalid (recursively). Returns false if :unchecked or :invalid.
-  Use checked? to detect if the form has been checked. Use the mutation helper `validate*` to validate the form. This function runs `get-validity` which is a recursive check. You may wish to call
-  that function instead if your UI needs to make decisions across all three possible values."
-  [ui-form]
-  (= :invalid (get-validity ui-form)))
+    ui-entity-props : A denormalized (UI) entity, which can have subforms.
+    field : Optional. Returns the validity of just the single field on the top-level form.
 
-(s/def invalid? ::form-predicate)
+    Returns `:invalid` if all of the fields have been interacted with, and *any* are invalid.
+    Returns `:unchecked` if any field is not yet been interacted with.
+
+    Fields are marked as having been interacted with by programmatic action on your part via
+    the validate* mutation helper can be used in a mutation to mark fields ready for validation.
+
+    If given a field then it checks just that field."
+    ([form] (spec-validator form))
+    ([form field] (spec-validator form field))))
+
+(s/def get-spec-validity ::field-tester)
+
+(defn valid-spec?
+  "Returns true if the given field (or the entire denormalized (UI) form recursively) is :valid
+  according to clojure specs. Returns false if unchecked or invalid. Use `checked-spec?` or `get-spec-validity`
+  for better detail."
+  ([ui-form] (= :valid (get-spec-validity ui-form)))
+  ([ui-form field] (= :valid (get-spec-validity ui-form field))))
+
+(defn invalid-spec?
+  "Returns true if the given field (or any field if only a form is given) in the denormalized (UI) form is :invalid
+  (recursively) according to clojure specs. Returns false if the field is marked unchecked. Use `checked-spec?` or
+  `get-spec-validity` for better detail."
+  ([ui-form] (= :invalid (get-spec-validity ui-form)))
+  ([ui-form field] (= :invalid (get-spec-validity ui-form field))))
+
+(let [do-not-care (constantly true)
+      carefree-validator (make-validator do-not-care)]
+  (defn checked?
+   "Returns true if the field (or entire denormalized (UI) form) is ready to be checked for validation.
+   Until this returns true validators will simply return :unchecked for a form/field."
+   ([ui-form] (not= :unchecked (carefree-validator ui-form)))
+   ([ui-form field] (not= :unchecked (carefree-validator ui-form field)))))
 
 (defn- immediate-subform-idents
   "Get the idents of the immediate subforms that are joined into entity by
@@ -343,7 +367,7 @@
 
   state-map : The application state map
   xform : A function (fn [entity form-config] [entity' form-config']) that is passed the normalized entity and form-config,
-    and must return an updated version of them. Should not affect fields that are not involved in that specific level of the form.
+    and must return an updated version of them.
   starting-entity-ident : An ident in the state map of an entity that has been initialized as a form.
 
   Returns the updated state map."
@@ -365,14 +389,20 @@
   :ret map?)
 
 (defn dirty-fields
-  "Obtains all of the dirty fields for the given (denormalized) ui-entity, recursively.
+  "Obtains all of the dirty fields for the given (denormalized) ui-entity, recursively. This works against UI props
+  because submission mutations should close over the data as parameters to a mutation. In other words, your form
+  submission to a server should be triggered from UI with the output of this function as parameters:
 
-  ui-entity - The entity (denormalized) from the UI
+  ```
+  (dom/input #js { :onClick #(prim/transact! this `[(some-submit-function {:diff ~(f/dirty-fields props true)})]) })
+  ```
+
+  ui-entity - The entity (denormalized) from the UI.
   as-delta? - If false, each field's reported (new) value will just be the new value. When true, each value will be a map with :before and :after keys
   with the old and new values (useful for optimistic transaction semantics).
 
-  Returns a map keyed by form ID (for each form/subform) whose values are maps that given key/value pairs of
-  changes. Fields containing temporary IDs will always be included.
+  Returns a map keyed by form ID (for each form/subform) whose values are maps of key/value pairs of
+  changes. Fields from entities that have a temporary IDs will always be included.
 
   In other words, a change that happened for an entity with ident `entity-ident` on field `:field`:
 
@@ -436,9 +466,9 @@
   :args (s/cat :entity ::denormalized-form :delta boolean?)
   :ret map?)
 
-(defn validate*
+(defn mark-complete*
   "Mark the fields complete so that validation checks will return values. This function works on a app state database
-  map (not atom) and is meant to be composed into mutations. See the `validate!` mutation if you do not need to combine
+  map (not atom) and is meant to be composed into mutations. See the `mark-complete!` mutation if you do not need to combine
   this with other operations.
 
   Follows the subforms recursively through state, unless a specific field is given."
@@ -453,10 +483,10 @@
      (update-in state-map complete-path (fnil conj #{}) field)))
   ([state-map entity-ident]
    (update-forms state-map
-     (fn validate*-step [e form-config]
+     (fn mark*-step [e form-config]
        [e (assoc form-config ::complete? (::fields form-config))]) entity-ident)))
 
-(s/fdef validate*
+(s/fdef mark-complete*
   :args (s/cat :state map? :entity-ident util/ident? :field (s/? keyword?))
   :ret map?)
 
@@ -503,11 +533,17 @@
   (action [{:keys [state]}]
     (swap! state pristine->entity* form-ident)))
 
-(defmutation validate!
-  "Mutation: Trigger validation for an entire (recursively) form, or just a field (optional). See `validate*`
-  for a function you can compose into your own mutations."
+(defmutation mark-complete!
+  "Mutation: Mark a given form (recursively) or field complete.
+
+  entity-ident - The ident of the entity to mark complete. This is optional, but if not supplied it will derive it from
+                 the ident of the invoking component.
+  field - (optional) limit the marking to a single field.
+
+  See `mark-complete*` for a function you can compose into your own mutations."
   [{:keys [entity-ident field]}]
-  (action [{:keys [state]}]
-    (if field
-      (swap! state validate* entity-ident field)
-      (swap! state validate* entity-ident))))
+  (action [{:keys [ref state]}]
+    (let [entity-ident (or entity-ident ref)]
+      (if field
+        (swap! state mark-complete* entity-ident field)
+        (swap! state mark-complete* entity-ident)))))

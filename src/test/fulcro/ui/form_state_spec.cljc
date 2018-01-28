@@ -57,7 +57,7 @@
 
 (s/def ::person-name (s/and string? #(not (empty? (str/trim %)))))
 
-(specification "add-form-config"
+(specification "add-form-config" :focused
   (component "returns the entity with added configuration data, where:"
     (let [data-tree       {:db/id          1
                            ::person-name   "Joe"
@@ -148,7 +148,7 @@
                                                 (update-in [:person/by-id 1 ::phone-numbers] conj new-phone-ident)
                                                 (assoc-in [:phone/by-id 3 ::phone-number] "555-9999"))]
 
-  (specification "dirty-fields"
+  (specification "dirty-fields" :focused
     (behavior "(as delta)"
       (let [delta (f/dirty-fields (person-ui-tree edited-form-state-map 1) true)]
         (assertions
@@ -175,7 +175,7 @@
           "Includes the list of changes to subform idents"
           (get-in delta [[:person/by-id 1] ::phone-numbers]) => [[:phone/by-id 2] [:phone/by-id 3] [:phone/by-id new-phone-id]]))))
 
-  (specification "dirty?"
+  (specification "dirty?" :focused
     (behavior "is a UI (tree) operation for checking if the form has been modified from pristine"
       (assertions
         "is false if there are no changes"
@@ -187,30 +187,30 @@
         (f/dirty? (assoc-in person-form [::phone-numbers 0 ::locale ::country] :MX)) => true
         (f/dirty? (assoc-in person-form [::phone-numbers 1 ::phone-number] "555-1111")) => true)))
 
-  (specification "validity"
+  (specification "get-spec-validity" :focused
     (behavior "is a UI (tree) operation for checking if the form (or fields) are valid. It:"
       (assertions
         "returns :unchecked if the fields have not been interacted with"
-        (f/get-validity person-form) => :unchecked
+        (f/get-spec-validity person-form) => :unchecked
         "returns :valid if all fields are complete and valid"
-        (f/get-validity validated-person) => :valid
+        (f/get-spec-validity validated-person) => :valid
         "returns :unchecked if any field is not marked as complete"
-        (f/get-validity person-with-incomplete-name) => :unchecked
+        (f/get-spec-validity person-with-incomplete-name) => :unchecked
         "returns :unchecked if any NESTED fields are not marked as complete"
-        (f/get-validity person-with-incomplete-nested-form) => :unchecked
+        (f/get-spec-validity person-with-incomplete-nested-form) => :unchecked
         "returns :invalid if any top-level property is invalid"
-        (f/get-validity person-with-invalid-name) => :invalid
+        (f/get-spec-validity person-with-invalid-name) => :invalid
         "returns :invalid if any nexted property is invalid"
-        (f/get-validity person-with-invalid-nested-phone-locale) => :invalid)))
-  (specification "valid?"
+        (f/get-spec-validity person-with-invalid-nested-phone-locale) => :invalid)))
+  (specification "valid-spec?" :focused
     (assertions
       "Returns true if validity is :valid"
-      (f/valid? validated-person) => true
+      (f/valid-spec? validated-person) => true
       "Returns false if validity is :unchecked"
-      (f/valid? person-with-incomplete-nested-form) => false
+      (f/valid-spec? person-with-incomplete-nested-form) => false
       "Returns false if validity is :invalid"
-      (f/valid? person-with-invalid-name) => false))
-  (specification "checked?"
+      (f/valid-spec? person-with-invalid-name) => false))
+  (specification "checked?" :focused
     (assertions
       "Returns true if validity is :valid or :invalid"
       (f/checked? validated-person) => true
@@ -218,17 +218,17 @@
       (f/checked? person-with-invalid-nested-phone-locale) => true
       "Returns false if validity is :unchecked"
       (f/checked? person-with-incomplete-nested-form) => false))
-  (specification "invalid?"
+  (specification "invalid?" :focused
     (assertions
       "Returns true if validity is :invalid"
-      (f/invalid? person-with-invalid-name) => true
-      (f/invalid? person-with-invalid-nested-phone-locale) => true
+      (f/invalid-spec? person-with-invalid-name) => true
+      (f/invalid-spec? person-with-invalid-nested-phone-locale) => true
       "Returns false if validity is :unchecked"
-      (f/invalid? person-with-incomplete-nested-form) => false
+      (f/invalid-spec? person-with-incomplete-nested-form) => false
       "Returns false if validity is :valid"
-      (f/invalid? validated-person) => false))
+      (f/invalid-spec? validated-person) => false))
 
-  (specification "update-forms"
+  (specification "update-forms" :focused
     (behavior "Allows one to traverse a nested form set in the app state database and apply xforms to the form and config"
       (let [updated-state (f/update-forms state-map (fn [e c] [(assoc e ::touched true) (assoc c ::touched true)]) [:person/by-id 1])]
         (assertions
@@ -245,20 +245,20 @@
           (get-in updated-state [:phone/by-id 3 ::touched]) => true
           (get-in updated-state [:locale/by-id 22 ::touched]) => true))))
 
-  (specification "validate*"
+  (specification "mark-complete*" :focused
     (behavior "is a state map operation that marks field(s) as complete, so validation checks can be applied"
       (let [get-person (fn [state id validate?] (let [validated-state (cond-> state
-                                                                        validate? (f/validate* [:person/by-id id]))]
+                                                                        validate? (f/mark-complete* [:person/by-id id]))]
                                                   (person-ui-tree validated-state id)))]
         (assertions
-          "Validating makes the form checked? = true"
+          "makes the form checked? = true"
           (f/checked? (get-person state-map 1 false)) => false
           (f/checked? (get-person state-map 1 true)) => true
-          "Valid forms become valid"
-          (f/valid? (get-person state-map 1 false)) => false
-          (f/valid? (get-person state-map 1 true)) => true))))
+          "valid forms become valid"
+          (f/valid-spec? (get-person state-map 1 false)) => false
+          (f/valid-spec? (get-person state-map 1 true)) => true))))
 
-  (specification "pristine->entity*"
+  (specification "pristine->entity*" :focused
     (behavior "is a state map operation that recursively undoes any entity state changes that differ from pristine"
       (let [modified-state-map (-> state-map
                                  (assoc-in [:phone/by-id 3 ::phone-number] "111")
@@ -269,7 +269,7 @@
           (not= modified-state-map state-map) => true
           reset-state-map => state-map))))
 
-  (specification "entity->pristine*"
+  (specification "entity->pristine*" :focused
     (behavior "is a state map operation that recursively updates any entity pristine form state so that the form is no longer dirty"
       (let [modified-state-map  (-> state-map
                                   (assoc-in [:phone/by-id 3 ::phone-number] "111")

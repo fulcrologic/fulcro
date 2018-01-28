@@ -29,37 +29,65 @@
               [fulcro.ui.form-state :as f]))
   ```
 
-  Forms state management is a much-simplified version of the original forms support. As its name indicates, it is
+  The forms state management is a simplified version of the original forms support. As its name indicates, it is
   primarily concerned with state management (saving, generating a delta, validating, detecting if it is dirty, etc.).
   It has no opinions or support for form rendering, and validation is done through clojure spec.
 
-  It has a few advantages over the older forms support:
+  This brings a few advantages over the other forms support:
 
-  - It leverages Clojure spec for validation
   - It is less magical: it simply manages a pristine copy of your form's state, and gives you clean method
   of interacting with it.
   - The state management support makes it easier for you to build your own form rendering, or even reusable form
   components.
+  - It includes pluggable support for validation, and includes Clojure spec support.
 
-  This means the forms support is largely just doing some data manipulation for you so you don't have to write that part
-  of it.
+  The extra data that the form state management uses is placed in a normalized database entry in your app.
+  This configuration data is normalized using the data from your entity's ident.
 
-  The extra data the the form state management uses is placed in a normalized database entry in your app. This
-  prevents the clutter on your entity that happens in 1.0 forms. It does, however, require that you give each form a globally
-  unique ID, but since forms are typically initialized on the fly it will be easy to do so (you can base the ID off of the entity being
-  edited).
+  ## Setting Up a Component for Form State Management
+
+  Here is a checklist for setting up a component for use with state management:
+
+  * Implement the protocol: fulcro.ui.form-state/IFormFields (use :form-fields on defsc).
+  * Include fulcro.ui.form-state/form-config-join in your component's query.
+  ** Include fields that are local props on the entity.
+  ** Include keys for components that are joined in as subforms.
+  * Add form configuration to the entity(s) with `add-form-config` or `add-form-config*`.
+
+  ```
+  (defsc MyForm [this props]
+    {:query [:id :name f/form-config-join]
+     :form-fields #{:name}
+     :ident [:form/by-id :id]}
+    ...)
+  ```
+
+  or with `defui`:
+
+  ```
+  (defui MyForm
+    static prim/IQuery
+    (query [this] [:id :name f/form-config-join])
+    static prim/Ident
+    (ident [this props] [:form/by-id (:id props)])
+    static f/IFormFields
+    (form-fields [this] #{:name})
+    ...)
+  ```
 
   ## Basic Operation
 
   The basic operation is for the state management to make a copy of your form fields, and keep track of which ones
-  are complete (have been interacted with by the user). The system has the following elements:
+  are complete (have been interacted with by the user).
 
-  - A copy of the pristine state of the form (db entity)
-  - Editable fields on the db entity (all other fields are ignored)
-  - Which fields are \"complete\". That is: the user has interacted with them, or you've marked them as such.
-     - Fields are not valid or invalid until they are complete (both return false)
-     - As soon as a field is marked complete, validation queries will start returning valid/invalid
-  - If any of the keys in the entity are links to entities that should be linked as sub-forms
+  The form configuration carries along:
+
+  * A copy of the pristine state of the form (db entity)
+  * A list of the editable fields (all other fields are ignored)
+  * A list of the keys in the query that are links to entities that should be considered sub-forms
+  * Which fields are \"complete\". That is: the user has interacted with them, or you've marked them as such.
+  ** Fields are not valid or invalid until they are complete (both return false).
+  ** As soon as a field is marked complete, validation queries will start returning valid/invalid
 
   ## The Entity Query
 
@@ -67,37 +95,93 @@
   your query:
 
   ```
-  [:db/id ::my-form-prop {::f/form-config (prim/get-query f/FormConfig)}]
+  [:db/id ::my-form-prop {::f/config (prim/get-query f/FormConfig)}]
   ```
 
-  there is a function `f/get-form-query` that will return that join to you so you can just write:
+  there is a var `f/form-config-join` that has the form config join already in it, so you can simply include that
+  instead:
 
   ```
   (defui MyForm
     static prim/IQuery
-    (query [this] [:db/id ::my-form-prop (f/get-form-query)])
+    (query [this] [:db/id ::my-form-prop f/form-config-join])
     ...
   ```
 
   ## The Form Configuration
 
-  You must add the form configuration to each entity that you wish to use as a form (as a normalized bit of state). This
+  You must add the form configuration to each entity that you wish to use as a form. This
   is no different that any other state mutation you've ever done, and there are some helpers to make the correct
   thing for you.
 
   Typically forms work against something you've loaded from the server (or something you're creating in response to a
-  user request). In either case: it won't be initial application state. It will be something that you've dynamically
+  user request). In either case: it won't be initial application state, but instead will be something that you've dynamically
   loaded or created.
 
-  The `f/init-form` function takes your entity's state and some form configuration parameters, and returns your entity
-  as a *denormalized* thing. It can be used in InitialAppState. This is rarely what you need, but is good for demos.
+  * f/add-form-config : Recursively adds form configuration to a *denormalized tree* (e.g. just arrived from the server,
+  or was created by some construction functions).
+  * f/add-form-config* : Recursively adds form configuration to *normalized state* (e.g. the entities are already in
+  your state database, but are not yet working as forms). Can be easily used from within mutations.
 
-  The `f/init-form*` function is for use within mutations. This is usually what you want. It can initialize the form
-  configuration for one entity at a time. Nested forms must use it on each entity in a form set.
-
-  Neither of these will re-init an entity's form config (unless you dissoc the ::f/form-config key first), so
+  Neither of these will update an entity's config (unless you dissoc the ::f/config key first), so
   they are safe to call if you're unsure that the form state is set up.
 
+  ## Validity
+
+  Form fields start out as \"incomplete\". This allows you to decide when to show error messages against fields.
+  The forms state support comes with Clojure Spec-based validation, but there it is also possible to provide
+  a custom validation mechanism very easily.
+
+  ### Validation with Spec
+
+  The following functions can be used to validate your form using Clojure specs on the propery keys of the fields:
+
+  * `(get-spec-validity form)` : Status of entire (recursive) form. Returns :valid, :invalid, or :unchecked.
+  * `(get-spec-validity form field)` : Status of the given form field. Returns :valid, :invalid, or :unchecked. Not recursive. You
+  must supply the (sub)form that contains the given field.
+  * `(valid-spec? form)` : Returns true if and only if the entire form is valid (nothing unchecked).
+  * `(valid-spec? form field)` : Returns true if and only if the specific field is valid (not unchecked).
+  * `(invalid-spec? form)` : Returns true if *any* fields of the form is invalid AND nothing is unchecked. A form is not
+  invalid until all fields are either valid or invalid.
+  * `(invalid-spec? form field)` : Returns true if the field is invalid (not unchecked).
+  * `(checked? form)` : Returns true if everything on the form is either valid or invalid.
+  * `(checked? form field)` : Returns true if the given field is either valid or invalid.
+
+  ### Custom Validator
+
+  A custom validator can be created with a simple function that you supply. The function will receive the entire
+  form and a field key (relative to the (sub)form). It returns true or false. For example, a form for taking
+  user sign-up information might use a validation function like this:
+
+  ```
+  (defn new-user-field-valid? [new-user-form field]
+     (let [v (get new-user-form field)
+           pw (get new-user-form :password)]
+       (case field
+         :username (seq v) ; required
+         :password (min-length v 8)
+         :password-2 (= v pw))))  ; passwords match
+  ```
+
+  You'd then create a validator like so:
+
+  ```
+  (def new-user-validator (f/make-validator new-user-field-valid?))
+  ```
+
+  which gives you a function that can be called on the entire form or a field:
+
+  ```
+  (defsc [this {:keys [username password password-2] :as form}]
+     { ... }
+     (dom/div nil
+        (dom/input #js {:value username ...})
+        (when (= :invalid (new-user-validator form :username))
+           (dom/span nil \"Username Required!\"))
+        ...
+        (dom/button #js {:disabled (not= :valid (new-user-validator form))} \"Submit\")
+        ...
+  ```
 
   ")
 
@@ -109,7 +193,7 @@
         id           (str (first entity-ident) "-" (second entity-ident))
         is-dirty?    (f/dirty? form field)
         clean?       (not is-dirty?)
-        validity     (f/get-validity form field)
+        validity     (f/get-spec-validity form field)
         is-invalid?  (= :invalid validity)
         value        (get form field "")]
     (renderer {:dirty?   is-dirty?
@@ -136,8 +220,8 @@
                           :id       id
                           :error    (when invalid? validation-string)
                           :warning  (when dirty? "(unsaved)")
-                          :onBlur   #(prim/transact! component `[(f/validate! {:entity-ident ~ident
-                                                                               :field        ~field})])
+                          :onBlur   #(prim/transact! component `[(f/mark-complete! {:entity-ident ~ident
+                                                                                    :field        ~field})])
                           :onChange #(m/set-string! component field :event %)} field-label)))))
 
 (s/def ::phone-number #(re-matches #"\(?[0-9]{3}[-.)]? *[0-9]{3}-?[0-9]{4}" %))
@@ -165,11 +249,12 @@
   (refresh [env] [:root/phone [:phone/by-id id]]))
 
 (defsc PhoneForm [this {:keys [:db/id ::phone-type ::phone-number] :as props}]
-  {:query [:db/id ::phone-type ::phone-number
-           {(bs/dropdown-ident :phone-type) (prim/get-query bs/Dropdown)} ;reusable dropdown, queried directly from table
-           f/form-config-join]
-   :ident [:phone/by-id :db/id]
-   :css   [[:.modified {:color :red}]]}
+  {:query       [:db/id ::phone-type ::phone-number
+                 {(bs/dropdown-ident :phone-type) (prim/get-query bs/Dropdown)} ;reusable dropdown, queried directly from table
+                 f/form-config-join]
+   :form-fields #{::phone-number ::phone-type}
+   :ident       [:phone/by-id :db/id]
+   :css         [[:.modified {:color :red}]]}
   (let [{:keys [hidden]} (css/get-classnames Root)
         dropdown (get props (bs/dropdown-ident :phone-type))]
     (dom/div #js {:className "form"}
@@ -182,7 +267,7 @@
             :onSelect (fn [v]
                         (m/set-value! this ::phone-type v)))))
       (bs/button {:onClick #(prim/transact! this `[(abort-phone-edit {:id ~id})])} "Cancel")
-      (bs/button {:disabled (or (not (f/checked? props)) (f/invalid? props))
+      (bs/button {:disabled (or (not (f/checked? props)) (f/invalid-spec? props))
                   :onClick  #(prim/transact! this `[(submit-phone {:id ~id :delta ~(f/dirty-fields props true)})])} "Commit!"))))
 
 (def ui-phone-form (prim/factory PhoneForm {:keyfn :db/id}))
@@ -221,10 +306,9 @@
       (swap! state (fn [s]
                      (-> s
                        ; make sure the form config is with the entity
-                       (f/add-form-config* {::f/id     [:phone/by-id id]
-                                            ::f/fields #{::phone-number ::phone-type}})
-                       ; since we're editing an existing thing, we should start it out validated
-                       (f/validate* [:phone/by-id id])
+                       (f/add-form-config* PhoneForm [:phone/by-id id])
+                       ; since we're editing an existing thing, we should start it out complete (validations apply)
+                       (f/mark-complete* [:phone/by-id id])
                        (bs/set-dropdown-item-active* :phone-type phone-type)
                        ; tell the root UI that we're editing a phone number by linking it in
                        (assoc :root/phone [:phone/by-id id])))))))
