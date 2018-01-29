@@ -255,27 +255,25 @@
   (remote [env] true)
   (refresh [env] [:root/phone [:phone/by-id id]]))
 
-(defsc PhoneForm [this {:keys [:db/id ::phone-type ::phone-number] :as props}]
+(defsc PhoneForm [this {:keys [:db/id ::phone-type root/dropdown] :as props}]
   {:query       [:db/id ::phone-type ::phone-number
-                 {(bs/dropdown-ident :phone-type) (prim/get-query bs/Dropdown)} ;reusable dropdown, queried directly from table
+                 {[:root/dropdown '_] (prim/get-query bs/Dropdown)} ;reusable dropdown
                  f/form-config-join]
    :form-fields #{::phone-number ::phone-type}
    :ident       [:phone/by-id :db/id]
    :css         [[:.modified {:color :red}]]}
-  (let [{:keys [hidden]} (css/get-classnames Root)
-        dropdown (get props (bs/dropdown-ident :phone-type))]
-    (dom/div #js {:className "form"}
-      (input-with-label this ::phone-number "Phone:" "10-digit phone number is required.")
-      (input-with-label this ::phone-type "Type:" ""
-        (fn [attrs]
-          (bs/ui-dropdown dropdown
-            :stateful? true
-            :value phone-type
-            :onSelect (fn [v]
-                        (m/set-value! this ::phone-type v)))))
-      (bs/button {:onClick #(prim/transact! this `[(abort-phone-edit {:id ~id})])} "Cancel")
-      (bs/button {:disabled (or (not (f/checked? props)) (f/invalid-spec? props))
-                  :onClick  #(prim/transact! this `[(submit-phone {:id ~id :delta ~(f/dirty-fields props true)})])} "Commit!"))))
+  (dom/div #js {:className "form"}
+    (input-with-label this ::phone-number "Phone:" "10-digit phone number is required.")
+    (input-with-label this ::phone-type "Type:" ""
+      (fn [attrs]
+        (bs/ui-dropdown dropdown
+          :stateful? true
+          :value phone-type
+          :onSelect (fn [v]
+                      (m/set-value! this ::phone-type v)))))
+    (bs/button {:onClick #(prim/transact! this `[(abort-phone-edit {:id ~id})])} "Cancel")
+    (bs/button {:disabled (or (not (f/checked? props)) (f/invalid-spec? props))
+                :onClick  #(prim/transact! this `[(submit-phone {:id ~id :delta ~(f/dirty-fields props true)})])} "Commit!")))
 
 (def ui-phone-form (prim/factory PhoneForm {:keyfn :db/id}))
 
@@ -322,14 +320,14 @@
 
 (defsc Root [this {:keys [:ui/react-key :root/phone :root/phonebook]}]
   {:query         [:ui/react-key
-                   {:root/dropdowns (prim/get-query bs/Dropdown)}
+                   {:root/dropdown (prim/get-query bs/Dropdown)}
                    {:root/phonebook (prim/get-query PhoneBook)}
                    {:root/phone (prim/get-query PhoneForm)}]
    :css           [[:.hidden {:display "none"}]]
    :css-include   [PhoneForm]
    :initial-state (fn [params]
-                    {:root/dropdowns [(bs/dropdown :phone-type "Type" [(bs/dropdown-item :work "Work")
-                                                                       (bs/dropdown-item :home "Home")])]
+                    {:root/dropdown  (bs/dropdown :phone-type "Type" [(bs/dropdown-item :work "Work")
+                                                                      (bs/dropdown-item :home "Home")])
                      :root/phonebook (prim/get-initial-state PhoneBook {})})}
   (ele/ui-iframe {:frameBorder 0 :width 500 :height 200}
     (dom/div #js {:key react-key}

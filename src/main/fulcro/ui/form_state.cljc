@@ -173,11 +173,82 @@
 
   Returns an updated state map with normalized form configuration in place for the entity."
   [state-map class entity-ident]
-  (let [query               [{entity-ident (prim/get-query class state-map)}]
-        data-tree           (prim/db->tree query state-map state-map)
-        denormalized-entity (get data-tree entity-ident)
-        configured-form     (add-form-config class denormalized-entity)]
-    (prim/merge-component state-map class configured-form)))
+  (let [query-nodes         (some-> class
+                              (prim/get-query)
+                              (prim/query->ast)
+                              :children)
+        query-nodes-by-key  (into {}
+                              (map (fn [n] [(:dispatch-key n) n]))
+                              query-nodes)
+        join-component      (fn [k] (get-in query-nodes-by-key [k :component]))
+        {props :prop joins :join} (group-by :type query-nodes)
+        join-keys           (->> joins (map :dispatch-key) set)
+        prop-keys           (->> props (map :dispatch-key) set)
+        queries-for-config? (contains? join-keys ::config)
+        all-fields          (get-form-fields class)
+        has-fields?         (seq all-fields)
+        fields              (set/intersection all-fields prop-keys)
+        subform-keys        (set/intersection all-fields join-keys)
+        subforms            (into {}
+                              (map (fn [k] [k (with-meta {} {:component (join-component k)})]))
+                              subform-keys)
+        entity              (get-in state-map entity-ident)
+        updated-state-map   (if (contains? entity ::config)
+                              state-map
+                              (let [
+                                    pristine-state (select-keys entity fields)
+                                    subform-ident  (fn [k entity] (some-> (get subforms k) meta :component (prim/get-ident entity)))
+                                    subform-keys   (-> subforms keys set)
+                                    subform-refs   (reduce
+                                                     (fn [refs k]
+                                                       (let [idents (get entity k)
+                                                             items  (cond
+                                                                      ; to-many, normalized
+                                                                      (every? util/ident? idents) (map #(get-in state-map %) idents)
+                                                                      ; to-one, normalized
+                                                                      (util/ident? idents) (get-in state-map idents)
+                                                                      :otherwise idents)]
+                                                         (cond
+                                                           ; to-one
+                                                           (map? items) (assoc refs k (subform-ident k items))
+                                                           ; to-many
+                                                           (vector? items) (assoc refs k (mapv #(subform-ident k %) items))
+                                                           :else refs)))
+                                                     {}
+                                                     subform-keys)
+                                    pristine-state (merge pristine-state subform-refs)
+                                    config         {::id             entity-ident
+                                                    ::fields         fields
+                                                    ::pristine-state pristine-state
+                                                    ::subforms       (or subforms {})}
+                                    cfg-ident      [::forms-by-ident (form-id entity-ident)]]
+                                (-> state-map
+                                  (assoc-in cfg-ident config)
+                                  (assoc-in (conj entity-ident ::config) cfg-ident))))]
+    (when-not queries-for-config?
+      (throw (ex-info (str "Attempt to add form configuration to " (prim/component-name class) ", but it does not query for config!")
+               {:offending-component class})))
+    (when-not has-fields?
+      (throw (ex-info (str "Attempt to add form configuration to " (prim/component-name class) ", but it does not declare any fields!")
+               {:offending-component class})))
+    (reduce
+      (fn [smap k]
+        (let [c              (some-> subforms (get k) meta :component)
+              subform-target (get-in smap k)]
+          (try
+            (cond
+              (and c subform-target (every? util/ident? subform-target))
+              (reduce (fn [s eid] (add-form-config* s c eid)) smap subform-target)
+
+              (and c (util/ident? subform-target))
+              (add-form-config* smap c subform-target)
+
+              :else smap)
+            (catch #?(:clj Exception :cljs :default) e
+              (throw (ex-info (str "Subform " (prim/component-name c) " of " (prim/component-name class) " failed to initialize.")
+                       {:nested-exception e}))))))
+      updated-state-map
+      subform-keys)))
 
 (s/fdef add-form-config*
   :args (s/cat :state map? :class any? :ident ::id)
@@ -335,13 +406,13 @@
   ([ui-form] (= :invalid (get-spec-validity ui-form)))
   ([ui-form field] (= :invalid (get-spec-validity ui-form field))))
 
-(let [do-not-care (constantly true)
+(let [do-not-care        (constantly true)
       carefree-validator (make-validator do-not-care)]
   (defn checked?
-   "Returns true if the field (or entire denormalized (UI) form) is ready to be checked for validation.
-   Until this returns true validators will simply return :unchecked for a form/field."
-   ([ui-form] (not= :unchecked (carefree-validator ui-form)))
-   ([ui-form field] (not= :unchecked (carefree-validator ui-form field)))))
+    "Returns true if the field (or entire denormalized (UI) form) is ready to be checked for validation.
+    Until this returns true validators will simply return :unchecked for a form/field."
+    ([ui-form] (not= :unchecked (carefree-validator ui-form)))
+    ([ui-form field] (not= :unchecked (carefree-validator ui-form field)))))
 
 (defn- immediate-subform-idents
   "Get the idents of the immediate subforms that are joined into entity by
