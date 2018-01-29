@@ -11,7 +11,8 @@
             [fulcro.ui.form-state :as fs]
             [clojure.string :as str]
             [cljs.spec.alpha :as s]
-            [fulcro.client.data-fetch :as df]))
+            [fulcro.client.data-fetch :as df]
+            [fulcro.client.logging :as log]))
 
 (server/defquery-entity :person/by-id
   (value [env id params]
@@ -20,6 +21,10 @@
      ::person-age    56
      ::phone-numbers [{:db/id 1 ::phone-number "555-111-1212" ::phone-type :work}
                       {:db/id 2 ::phone-number "555-333-1212" ::phone-type :home}]}))
+
+(server/defmutation submit-person [params]
+  (action [env]
+    (js/console.log "Server received form submission with content: " params)))
 
 (s/def ::person-name (s/and string? #(seq (str/trim %))))
 (s/def ::person-age #(s/int-in-range? 1 120 %))
@@ -60,7 +65,8 @@
                           :error    (when invalid? validation-string)
                           :warning  (when dirty? "(unsaved)")
                           :onBlur   #(prim/transact! component `[(f/mark-complete! {:entity-ident ~ident
-                                                                                    :field        ~field})])
+                                                                                    :field        ~field})
+                                                                 :root/person])
                           :onChange (if (integer-fields field)
                                       #(m/set-integer! component field :event %)
                                       #(m/set-string! component field :event %))} field-label)))))
@@ -78,10 +84,11 @@
     (input-with-label this ::phone-type "Type:" ""
       (fn [attrs]
         (bs/ui-dropdown dropdown
-          :stateful? true
           :value phone-type
           :onSelect (fn [v]
-                      (m/set-value! this ::phone-type v)))))))
+                      (m/set-value! this ::phone-type v)
+                      (prim/transact! this `[(fs/mark-complete! {:field ::phone-type})
+                                             :root/person])))))))
 
 (def ui-phone-form (prim/factory PhoneForm {:keyfn :db/id}))
 
@@ -168,7 +175,11 @@
       (fn [s] (-> s
                 (assoc :root/person [:person/by-id person-id])
                 (fs/add-form-config* PersonForm [:person/by-id person-id])
+                (fs/mark-complete* [:person/by-id person-id])
                 (add-dropdowns* person-id))))))
+
+(defmutation submit-person [params]
+  (remote [env] true))
 
 (defsc Root [this {:keys [root/person]}]
   {:query         [{:root/person (prim/get-query PersonForm)}]
@@ -182,7 +193,13 @@
         "Simulate Edit (existing) Person from Server")
       (bs/button {:onClick #(prim/transact! this `[(edit-new-person {})])} "Simulate New Person Creation")
       (when (::person-name person)
-        (ui-person-form person)))))
+        (ui-person-form person))
+      (dom/div nil
+        (bs/button {:onClick  #(prim/transact! this `[(fs/reset-form! {:form-ident [:person/by-id ~(:db/id person)]})])
+                    :disabled (not (fs/dirty? person))} "Reset")
+        (bs/button {:disabled (or
+                                (fs/invalid-spec? person)
+                                (not (fs/dirty? person)))} "Submit")))))
 
 (def mock-server (server/new-server-emulator))
 
@@ -190,4 +207,5 @@
   Root
   {}
   {:inspect-data true
-   :fulcro       {:networking {:remote mock-server}}})
+   :fulcro       {:reconciler-options {:rendering-mode :keyframe}
+                  :networking         {:remote mock-server}}})

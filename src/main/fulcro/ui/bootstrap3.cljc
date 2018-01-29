@@ -530,11 +530,17 @@
   Object
   (render [this]
     (let [{:keys [::id ::label ::active-item ::items ::open?]} (prim/props this)
-          {:keys [onSelect kind stateful?]} (prim/get-computed this)
+          {:keys [onSelect kind stateful? value]} (prim/get-computed this)
           active-item-label (->> items
                               (some #(and (= active-item (::id %)) %))
                               ::label)
-          label             (if (and active-item-label stateful?) active-item-label label)
+          value-label       (->> items
+                              (some #(and (= value (::id %)) %))
+                              ::label)
+          label             (cond
+                              (and value value-label) value-label
+                              (and active-item-label stateful?) active-item-label
+                              :otherwise label)
           onSelect          (fn [item-id]
                               (prim/transact! this `[(close-all-dropdowns {}) (set-dropdown-item-active ~{:id id :item-id item-id})])
                               (when onSelect (onSelect item-id)))
@@ -547,7 +553,9 @@
                               kind (str " btn-" (name kind))) :aria-haspopup true :aria-expanded open? :onClick open-menu}
           (tr-unsafe label) " " (dom/span #js {:className "caret"}))
         (dom/ul #js {:className "dropdown-menu"}
-          (map #(ui-dropdown-item % :onSelect onSelect :active? (and stateful? (= (::id %) active-item))) items))))))
+          (map #(ui-dropdown-item % :onSelect onSelect :active? (cond
+                                                                  stateful? (= (::id %) active-item)
+                                                                  value (= value (::id %)))) items))))))
 
 (let [ui-dropdown-factory (prim/factory Dropdown {:keyfn ::id})]
   (defn ui-dropdown
@@ -557,7 +565,7 @@
     onSelect - The function to call when a menu item is selected
     stateful? - If set to true, the dropdown will remember the selection and show it.
     kind - The kind of dropdown. See `button`."
-    [props & {:keys [onSelect kind stateful?] :as attrs}]
+    [props & {:keys [onSelect kind value stateful?] :as attrs}]
     (ui-dropdown-factory (prim/computed props attrs))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
