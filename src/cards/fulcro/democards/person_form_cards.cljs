@@ -20,11 +20,14 @@
      ::person-name   (str "User " id)
      ::person-age    56
      ::phone-numbers [{:db/id 1 ::phone-number "555-111-1212" ::phone-type :work}
-                      {:db/id 2 ::phone-number "555-333-1212" ::phone-type :home}]}))
+                      {:db/id 2 ::phone-number "555-333-4444" ::phone-type :home}]}))
 
 (server/defmutation submit-person [params]
   (action [env]
-    (js/console.log "Server received form submission with content: " params)))
+    (js/console.log "Server received form submission with content: " (cljs.pprint/pprint params))
+    (let [ids    (map (fn [[k v]] (second k)) (:diff params))
+          remaps (into {} (map-indexed (fn [i v] [v i]) ids))]
+      {:tempids remaps})))
 
 (s/def ::person-name (s/and string? #(seq (str/trim %))))
 (s/def ::person-age #(s/int-in-range? 1 120 %))
@@ -111,7 +114,7 @@
     (-> state-map
       (update-in [:person/by-id person-id ::phone-numbers] (fnil conj []) phone-ident)
       (assoc-in phone-ident new-phone-entity)
-      (add-phone-dropdown* phone-id :home))))
+      (add-phone-dropdown* phone-id type))))
 
 (defmutation add-phone
   "Mutation: Add a phone number to a person, and initialize it as a working form."
@@ -121,7 +124,7 @@
       (swap! state (fn [s]
                      (-> s
                        (add-phone* phone-id person-id :home "")
-                       (fs/add-form-config* PhoneForm [:phone/by-id])))))))
+                       (fs/add-form-config* PhoneForm [:phone/by-id phone-id])))))))
 
 (defsc PersonForm [this {:keys [:db/id ::phone-numbers]}]
   {:query       [:db/id ::person-name ::person-age
@@ -174,11 +177,14 @@
     (swap! state
       (fn [s] (-> s
                 (assoc :root/person [:person/by-id person-id])
-                (fs/add-form-config* PersonForm [:person/by-id person-id])
-                (fs/mark-complete* [:person/by-id person-id])
+                (fs/add-form-config* PersonForm [:person/by-id person-id]) ; will not re-add config to entities that were present
+                (fs/entity->pristine* [:person/by-id person-id]) ; just in case we're re-loading it
+                (fs/mark-complete* [:person/by-id person-id]) ; it just came from server, all fields should be valid
                 (add-dropdowns* person-id))))))
 
-(defmutation submit-person [params]
+(defmutation submit-person [{:keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state fs/entity->pristine* [:person/by-id id]))
   (remote [env] true))
 
 (defsc Root [this {:keys [root/person]}]
@@ -188,6 +194,7 @@
     (dom/div #js {}
       (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       (bs/button {:onClick #(df/load this [:person/by-id 21] PersonForm {:target               [:root/person]
+                                                                         :marker               false
                                                                          :post-mutation        `edit-existing-person
                                                                          :post-mutation-params {:person-id 21}})}
         "Simulate Edit (existing) Person from Server")
@@ -197,7 +204,8 @@
       (dom/div nil
         (bs/button {:onClick  #(prim/transact! this `[(fs/reset-form! {:form-ident [:person/by-id ~(:db/id person)]})])
                     :disabled (not (fs/dirty? person))} "Reset")
-        (bs/button {:disabled (or
+        (bs/button {:onClick  #(prim/transact! this `[(submit-person {:id ~(:db/id person) :diff ~(fs/dirty-fields person false)})])
+                    :disabled (or
                                 (fs/invalid-spec? person)
                                 (not (fs/dirty? person)))} "Submit")))))
 
@@ -206,6 +214,5 @@
 (defcard-fulcro person-form-card
   Root
   {}
-  {:inspect-data true
-   :fulcro       {:reconciler-options {:rendering-mode :keyframe}
-                  :networking         {:remote mock-server}}})
+  {:inspect-data false
+   :fulcro       {:networking {:remote mock-server}}})

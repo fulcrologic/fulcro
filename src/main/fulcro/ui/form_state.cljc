@@ -478,7 +478,7 @@
                                        [k current-value])
                                      nil)))
                                subform-keys))
-        local-dirty-fields {id delta-with-refs}
+        local-dirty-fields (if (empty? delta-with-refs) {} {id delta-with-refs})
         complete-delta     (reduce
                              (fn [dirty-fields-so-far subform-join-field]
                                (let [subform (get ui-entity subform-join-field)]
