@@ -498,6 +498,26 @@
   :args (s/cat :entity ::denormalized-form :delta boolean?)
   :ret map?)
 
+(defn clear-complete*
+  "Mark the fields incomplete so that validation checks will no longer return values. This function works on a app state database
+  map (not atom) and is meant to be composed into mutations. See the `mark-incomplete!` mutation if you do not need to combine
+  this with other operations.
+
+  Follows the subforms recursively through state, unless a specific field is given."
+  ([state-map entity-ident field]
+   (let [form-config-path (conj entity-ident ::config)
+         form-config-path (if (util/ident? (get-in state-map form-config-path))
+                            (get-in state-map form-config-path)
+                            (do
+                              (log/error (str "FORM NOT NORMALIZED: " entity-ident))
+                              form-config-path))
+         complete-path    (conj form-config-path ::complete?)]
+     (update-in state-map complete-path (fnil disj #{}) field)))
+  ([state-map entity-ident]
+   (update-forms state-map
+     (fn mark*-step [e form-config]
+       [e (assoc form-config ::complete? #{})]) entity-ident)))
+
 (defn mark-complete*
   "Mark the fields complete so that validation checks will return values. This function works on a app state database
   map (not atom) and is meant to be composed into mutations. See the `mark-complete!` mutation if you do not need to combine
@@ -579,3 +599,18 @@
       (if field
         (swap! state mark-complete* entity-ident field)
         (swap! state mark-complete* entity-ident)))))
+
+(defmutation clear-complete!
+  "Mutation: Mark a given form (recursively) or field incomplete.
+
+  entity-ident - The ident of the entity to mark. This is optional, but if not supplied it will derive it from
+                 the ident of the invoking component.
+  field - (optional) limit the marking to a single field.
+
+  See `clear-complete*` for a function you can compose into your own mutations."
+  [{:keys [entity-ident field]}]
+  (action [{:keys [ref state]}]
+    (let [entity-ident (or entity-ident ref)]
+      (if field
+        (swap! state clear-complete* entity-ident field)
+        (swap! state clear-complete* entity-ident)))))
