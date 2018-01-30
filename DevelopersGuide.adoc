@@ -8282,7 +8282,7 @@ added complexity.
 
 Both are fully supported, though the form state support is considered the cleaner implementation.
 
-= Form State Support [[FormState]]
+= Form State Support [[FormState]] (ALPHA. On 2.1.4-SNAPSHOT)
 
 The namespace `fulcro.ui.form-state` includes all of the functions and mutations for working with your form as pure
 normalized data.
@@ -8577,6 +8577,17 @@ This demo lists some phone numbers. Clicking on one:
 * Switches the UI to the form editor
 * Switches back to the (updated) list on save
 
+++++
+<div class="example" id="form-state-demo-1"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.form-state-demo-1').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="form-state-demo-1 source"]
+----
+include::src/book/book/forms/form_state_demo_1.cljs[]
+----
+
+
 
 === Loading or Creating Something New
 
@@ -8589,6 +8600,16 @@ delta. The other button will create a new person, and submissions will send all 
 
 The load case, as you can see in the code, is very similar to the prior example, but just includes some extra
 code to show you how to put it together with a load interaction.
+
+++++
+<div class="example" id="form-state-demo-2"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.form-state-demo-2').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="form-state-demo-2 source"]
+----
+include::src/book/book/forms/form_state_demo_2.cljs[]
+----
 
 
 = Full Form Management (Older Support) [[FullForm]]

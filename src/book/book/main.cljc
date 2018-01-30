@@ -23,6 +23,8 @@
                book.queries.recursive-demo-2
                book.queries.recursive-demo-3
                book.queries.recursive-demo-4
+               book.forms.form-state-demo-1
+               book.forms.form-state-demo-2
                book.forms.forms-demo-1
                book.forms.forms-demo-2
                book.forms.forms-demo-3
@@ -198,6 +200,9 @@
 #?(:cljs (defexample "HTML Converter" book.html-converter/Root "html-converter"))
 
 ;; Forms
+#?(:cljs (defexample "Editing Existing Data" book.forms.form-state-demo-1/Root "form-state-demo-1" :networking book.main/example-server))
+#?(:cljs (defexample "Network Interactions and Forms" book.forms.form-state-demo-2/Root "form-state-demo-2" :networking book.main/example-server))
+
 #?(:cljs (defexample "Basic Form" book.forms.forms-demo-1/Root "forms-demo-1" :networking book.main/example-server))
 #?(:cljs (defexample "Validated Form" book.forms.forms-demo-2/Root "forms-demo-2" :networking book.main/example-server))
 #?(:cljs (defexample "Validated Form" book.forms.forms-demo-3/Root "forms-demo-3" :networking book.main/example-server))
