@@ -18,7 +18,8 @@
     #?@(:cljs [[goog.object :as gobj]])
             [fulcro.client.impl.protocols :as p]
             [fulcro.util :as util]
-            [clojure.walk :as walk])
+            [clojure.walk :as walk]
+            [fulcro.ui.form-state :as f])
   #?(:clj
      (:import (clojure.lang ExceptionInfo))))
 
@@ -879,7 +880,7 @@
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "pessimistic-transaction->transaction" :focused
+(specification "pessimistic-transaction->transaction"
   (assertions
     "Returns the transaction if it only contains a single call"
     (prim/pessimistic-transaction->transaction `[(r1 {:x 1})]) => `[(r1 {:x 1})]
@@ -1022,7 +1023,7 @@
   (behavior "Maintain their backward-compatible functionality" :manual-test))
 
 #?(:clj
-   (specification "defsc helpers"
+   (specification "defsc helpers" :focused
      (component "legal-keys"
        (assertions
          "Finds all of the top-level props in a query"
@@ -1037,8 +1038,7 @@
          (#'prim/legal-keys '[(:a {:n 1})]) => #{:a}
          (#'prim/legal-keys '[({:a [:x]} {:n 1})]) => #{:a}
          (#'prim/legal-keys '[([:x '_] {:n 1})]) => #{:x}
-         (#'prim/legal-keys '[({[:x '_] [:a]} {:n 1})]) => #{:x}
-         ))
+         (#'prim/legal-keys '[({[:x '_] [:a]} {:n 1})]) => #{:x}))
      (component "build-query-forms"
        (assertions
          "Support a method form"
@@ -1134,6 +1134,21 @@
                (include-children [th] [CrapTastic]))
          "Omits the entire protocol if neiter are supplied"
          (#'prim/build-css 'th nil nil) => nil))
+     (component "build-form (on specs)"
+       (assertions
+         "generates IForm protocol for given field specs"
+         (#'prim/build-form '[(f/field :a)] #{})
+         => '[static fulcro.ui.forms/IForm
+              (form-spec [this] [(f/field :a)])]))
+     (component "build-form (on set)"
+       (assertions
+         "generates IFormField protocol for given field specs"
+         (#'prim/build-form #{:a :b} [:a :b :c 'f/form-config-join])
+         => '[static fulcro.ui.form-state/IFormFields
+              (form-fields [this] #{:a :b})]
+         "Error-checks the field set against the keys in the query"
+         (#'prim/build-form #{:a :b} [:a 'f/form-config-join])
+         =throws=> (ExceptionInfo #":form-fields include keywords that are not in the query")))
      (component "build-render"
        (assertions
          "emits a list of forms for the render itself"
@@ -1283,7 +1298,7 @@
              {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
-   (specification "defsc"
+   (specification "defsc" :focused
      (component "css"
        (assertions
          "warns if the css destructuring is included, but no css option has been"
@@ -1500,6 +1515,30 @@
                  [props (fulcro.client.primitives/props this)]
                  (fulcro.client.dom/div nil "THIS COMPONENT HAS NO DECLARED UI")))
              (shouldComponentUpdate [this props state] false))
+       "can add fulcro 1.0 form spec"
+       (prim/defsc* '(Person [this {:keys [a]}] {:form-fields [(f/text-input :a)]
+                                                 :query       [:a]} (dom/div nil "TODO")))
+       => '(fulcro.client.primitives/defui Person
+             static fulcro.client.primitives/IQuery
+             (query [this] [:a])
+             static fulcro.ui.forms/IForm
+             (form-spec [this] [(f/text-input :a)])
+             Object
+             (render [this]
+               (clojure.core/let [{:keys [a]} (fulcro.client.primitives/props this)]
+                 (dom/div nil "TODO"))))
+       "can add fulcro 2.0 form state fields"
+       (prim/defsc* '(Person [this {:keys [a]}] {:form-fields #{:a}
+                                                 :query       [:a f/form-config-join]} (dom/div nil "TODO")))
+       => '(fulcro.client.primitives/defui Person
+             static fulcro.client.primitives/IQuery
+             (query [this] [:a f/form-config-join])
+             static fulcro.ui.form-state/IFormFields
+             (form-fields [this] #{:a})
+             Object
+             (render [this]
+               (clojure.core/let [{:keys [a]} (fulcro.client.primitives/props this)]
+                 (dom/div nil "TODO"))))
        "allows other protocols"
        (prim/defsc* '(Person
                        [this props computed]
