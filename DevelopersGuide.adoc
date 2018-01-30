@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: Jan 3, 2018
-:revnumber: 1.0
+:revdate: Jan 31, 2018
+:revnumber: 1.1
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -8246,7 +8246,388 @@ such a composition:
 
 See the fulcro-template on github. It supports HTML5 routing with a demo tree.
 
-= Forms
+= Forms Overview
+
+On the surface forms are trivial: you have DOM input fields, users put stuff in them, and you submit that to a server.
+For really simple forms you already have sufficient tools and you can simply code them however you see fit.
+
+The next most critical thing you'll want is some help with managing the meta-state that goes with most form
+interactions:
+
+* When is the content of a field valid?
+* When should you show a validation error message? E.g. you should not tell a user that they made a mistake
+on a field they have yet to touch.
+* How do you "reset" the form if the user changes their mind or cancels an edit?
+* How do you ensure that just the data that has changed is sent to the server?
+
+These more advanced interactions require that you track a few things:
+
+* The validation rules
+* Which fields are "complete" (ready for validation)?
+* What was the state of the form fields *before* the user started interacting with it?
+* How do you transition states (e.g. indicate that the updated form is now the new "real state"?
+
+You will also commonly need a way to deal with the fact that a form may cross several entities in your database,
+generating a more global top-level form concern: are all of the entities in this form valid?
+
+Again, you can certainly code all of this by hand, but Fulcro includes two different namespaces of helpers that
+can make dealing with these aspects of forms a little easier. The reason there are two is that the older
+version was not easy to change without breaking existing code, so new functions were written in a new namespace
+as an alternative.
+
+The <<FormState, form state>> support concentrates just on providing utilities to manage the data, and has validation
+that is based on Clojure Spec but is completely pluggable. The <<FullForm, full form management>> support is the older
+version that attempts to isolate your components a bit more from the event and state management, but at the expense of some
+added complexity.
+
+Both are fully supported, though the form state support is considered the cleaner implementation.
+
+= Form State Support [[FormState]] (ALPHA. verstion 2.1.4+)
+
+The namespace `fulcro.ui.form-state` (aliased to `fs` in this chapter) includes functions and mutations for
+working with your entity as a form. This support brings functions for dealing with common state storage and form transitions
+with minimal opinion or additional complexity.
+
+Your UI is still built and rendered identically to what you're already used to. The form state support simply
+adds some additional state tracking that can help you manage things like field validation and minimal delta
+submissions to the server.
+
+== Defining the Form Component
+
+A component that wishes to act as a form must have an ident and a query.
+There are two additional steps you must do to prepare your component to work with form state management:
+
+. Add a form configuration join to your query.
+. Declare which of your props/joins are part of the form.
+
+So, a minimal form-state-compatible component looks like this:
+
+```
+(defsc NameForm [this props]
+  {:query [:id :name fs/form-config-join] ; fs is fulcro.ui.form-state
+   :ident [:name-form/by-id :id]
+   :form-fields #{:name}} ; MUST be a set of keywords from your query
+  ...)
+```
+
+Technically this adds a protocol to the generated component. If you're using `defui`, it looks like this:
+
+```
+(defui NameForm
+  static fs/IFormFields
+  (form-field [this] #{:name})
+  ...)
+```
+
+next, you'll want to populate your state with some data. Of course during this step you'll need to populate that
+form configuration data.
+
+== Form Configuration
+
+Form state is stored in a form configuration entity in your app state database. This configuration entity includes:
+
+* The "pristine" state of your entity.
+* Which properties (and joins) of your entity are part of the form.
+* Which properties are "complete" (ready for validation).
+* A map of which parts of the form come from which declared component.
+
+The form state is normalized into your state database. There are two ways of adding this configuration:
+
+. Add it to a tree of initial (or incoming) state, and merge that (which will normalize it all).
+. Add it directly to your state database.
+
+both methods are supported:
+
+=== Initializing a Tree of Data
+
+This case occurs when you have either some initial state or a function on the client side that generate a new
+entity (i.e. with a tempid) and you want to immediately use it with a form. Forms can be nested into
+a group, and the functions automatically support initializing the configuration recursively for a given form set.
+
+Say you have a person with multiple (normalized) phone numbers. You want to make a new person and set them up
+with an initial phone number to fill out. The tree for that data might look like this:
+
+```
+(def person-tree
+  { :db/id (prim/tempid)
+    :person/name "Joe"
+    :person/phone-numbers [{:db/id (prim/tempid) :phone/number "555-1212"}]})
+```
+
+with components like:
+
+```
+(defsc PhoneForm [this props]
+  {:query [:db/id :phone/number fs/form-config-join]
+   :ident [:phone/by-id :db/id]
+   :form-fields #{:phone/number}}
+  ...)
+
+(defsc PersonForm [this props]
+  {:query [:db/id :person/name {:person/phone-numbers (prim/get-query PhoneForm)}
+           fs/form-config-join]
+   :ident [:person/by-id :db/id]
+   :form-fields #{:person/name :person/phone-numbers}}
+  ...)
+```
+
+Normally you might throw this into your application state with something like:
+
+```
+(prim/merge-component! reconciler Person person-tree)
+```
+
+which will insert and normalize the person and phone number.
+
+You can first augment the form with form configuration like so:
+
+```
+(def person-tree-with-form-support (fs/add-form-config Person person-tree))
+(prim/merge-component! reconciler Person person-tree-with-form-support)
+```
+
+IMPORTANT: `add-form-config` will look at all of the form (and subforms reachable from that form), but it will
+only add config to the ones that are missing it. This means the current form state is *not* reset by this call.
+
+=== Initializing in a Mutation
+
+The other very common case is this: You've loaded something from the server, and you'd like to use it as the basis
+for form fields. In this case the data is already normalized in your state database, and you'll need to work on
+it via a mutation.
+
+The `add-form-config*` function is your helper for that. The common pattern for using it is:
+
+```
+(defmutation use-person-as-form [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (swap! state (fn [s]
+                   (-> s
+                     (fs/add-form-config* Person [:person/by-id person-id]) ; this will get phone as well
+                     (assoc-in [:component :person-editor :person-to-edit] [:person/by-id person-id]) ; hook it into an editor?
+                     ...))))) ; other setup code
+```
+
+IMPORTANT: `add-form-config*` will look at all of the form (and subforms reachable from that form), but it will
+only add config to the ones that are missing it. This means the current form state is *not* reset by this call.
+
+== Validation
+
+Validation is completely customizable. There is built-in support for working with Clojure Spec as your validation
+layer. In order for this to be effective you should be sure to namespace all of your properties in a globally-unique
+way, and then simply write normal specs for them. The section on <<CustomValidators, custom validators>> describes
+the other supported mechanism for validation.
+
+The central function for using specs is `fs/get-spec-validity`, which can be used on an entire form or a single field.
+This function returns one of `#{:valid, :invalid, :unchecked}`.
+Initially, a form's fields are marked as incomplete. When in this state the validity will *always* be `:unchecked`.
+
+Some additional helpers are useful for concise UI code:
+
+* `(invalid-spec? form field)` - Field is optional. Returns true if the form (field) is complete *and* invalid.
+* `(valid-spec? form field)` - Field is optional. Returns true if the form (field) is complete *and* valid.
+* `(checked? form field)` - Field is optional. Returns true if the form (field) is complete. This function works no matter
+what validator you're using.
+* `(dirty? form field)` - Field is optional. Returns true if the pristine copy of the form (field) doesn't match the current entity.
+
+```
+(defsc PersonForm [this {:keys [person/name] :as props}]
+   ...
+   (dom/input #js { :value name :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
+   (when (fs/invalid-spec? props :person/name)
+      (dom/span nil "Invalid username!")
+   ...)
+```
+
+and the error message won't show until the user has "blurred" out of that field, and then only if the field's value
+does not match the spec for `:person/name`.
+
+As you can see, the idea of "complete" is important to validation.
+
+=== Completing Fields
+
+Initially the form config will not consider *any* of the form fields to be complete. The idea of field "completion" is
+so that you can prevent validation on a field until you feel it is a good time. No one wants to see error messages about
+fields that they have yet to interact with!
+
+However, depending on what you are editing, you may have different ideas about when fields should be considered complete.
+For example, if you just loaded a saved entity from a server, then all of the fields are probably complete by definition,
+meaning that you need a way to mark all fields (recursively) complete.
+
+When you *first* add form config to an entity, all fields are "incomplete". You can iteratively mark fields
+complete as the user interacts with them, or trigger a completion "event" all at once. There is a support function
+and a mutation for this.
+
+The `mark-complete*` is meant to be used from within mutations against the app state database. It requires the
+state map (not atom), the entity's ident, and which field you want to mark complete.  If you omit the field, then
+it marks everything (recursively) complete form that form down.
+
+So, in our earlier example of loading a person for editing, we'd augment that mutation like so:
+
+```
+(defmutation use-person-as-form [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (swap! state (fn [s]
+                   (-> s
+                     (fs/add-form-config* Person [:person/by-id person-id]) ; this will get phone as well
+                     (fs/mark-complete* [:person/by-id person-id]) ; MUST come after config is added!
+                     (assoc-in [:component :person-editor :person-to-edit] [:person/by-id person-id]))))))
+```
+
+this will cause all validations to immediately apply in the UI.
+
+The `mark-complete!` mutation can be used for the exact same purpose from the UI. Typically, it is used in things like
+`:onBlur` handlers to indicate that a field is ready for validation. It takes an `:entity-ident` and `:field`, but the
+`:entity-ident` is optional if the transaction is invoked on the form component of that field:
+
+```
+(defsc PersonForm [this {:keys [db/id person/name]}]
+  ... ; as before
+  (dom/input #js {:value name
+                  :onBlur #(prim/transact! this `[(fs/mark-complete! {:entity-ident [:person/by-id ~id]})])})
+  ...)
+```
+
+The inverse operations are `clear-complete!` and `clear-complete*`.
+
+=== Using non-spec Validators [[CustomValidators]]
+
+You may not wish to use the longer names of properties that are required in order to get stable Clojure Spec support
+simply for form validation. In this case you'd still like to use the idea of field completion and validation, but
+you'll want to supply the mechanism whereby validity is determined.
+
+The form traversal code for validation is already in the form state code, and a helper function is provided so
+you can leverage it to create your own form validation system. It is quite simple:
+
+. Write a function `(fn [form field] ...)` that returns true if the given field (a keyword) is valid on the given form
+(a map of the props for the form that contains that field).
+. Generate a validator with `fs/make-validator`
+
+The returned validator works identically to `get-spec-validity`, but it uses your custom function instead of specs to
+determine validity.
+
+For example, you might want to make a simple new user form validation that looks something like this:
+
+```
+(defn new-user-form-valid [form field]
+  (let [v (get form field)]
+    (case field
+      :username (and (string? v) (seq (str/trim v))) ; not empty
+      :password (> (count v) 8)                      ; longer than 8
+      :password-2 (= v (:password form)))))          ; passwords match
+
+(def validator (fs/make-validator new-user-form-valid))
+
+(defsc NewUser [this {:keys [username password password-2] :as props}]
+   ...
+   (dom/input #js {:name "password-2" :value password-2 :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
+   (when (= :invalid (validator props :password-2))
+      (dom/span nil "Passwords do not match!")
+   ...)
+```
+
+As before: you won't see the error message on an invalid entry until your code has marked the field complete. This moves
+a decent amount of clutter out of the primary UI code and into the form support itself.
+
+== Submitting Data
+
+Once your form is valid and the user indicates a desire to save your interest of course is to send that data to the
+server. The `dirty-fields` function should be used from the UI in order to calculate this and pass it as a parameter
+to a mutation. The mutation can then update the local pristine state of form config and indicate a remote operation.
+
+The `dirty-fields` function returns a map from ident to fields that have changed. If the ident includes a temporary ID,
+then all fields for that form will be included. If the ID is not a temp id, then it will only include those fields that
+differ from the pristine copy of the original. This will include subform references as to-one or to-many idents (to
+indicate the addition or removal of subform instances).
+
+You can ask `dirty-fields` to either send the explicit new values (only), or a before/after picture of each field. The
+latter is particularly useful for easily deriving the addition/removal of references, but is also quite useful if you
+would like to do optimistic concurrency (e.g. not apply a change to a server where the old value wasn't still in the
+database).
+
+```
+(defmutation submit-person [{:keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state fs/entity->pristine* [:person/by-id id])) ; updates form state to think the form is now in pristine shape
+  (remote [env] true)) ; diff goes over the network as a parameter from the UI layer
+
+(defsc Person [this props]
+   ... ; as before
+   (dom/button #js {:onClick #(prim/transact! this `[(submit-person ~{:id id :diff (fs/dirty-fields props true)})])} "Submit")
+   ...)
+```
+
+If you'd like to wait until the server indicates everything is ok, then you can use `ptransact!` and `returning` to get back
+some submission information, and move the `entity->pristine*` step to a later mutation:
+
+```
+(defmutation submit-person [{:keys [id]}]
+  (remote [{:keys [ast state]] (fulcro.client.mutations/returning ast @state SubmissionStatus))
+
+(defmutation finish-person-submission [{:keys [id]}]
+  (action [{:keys [state]}]
+     (if (= :ok (get-in @state [:submission-status/by-id id :status]))
+       (swap! state fs/entity->pristine* [:person/by-id id])
+       ...)))
+
+...
+
+(ptransact! this `[(submit-person ~{:id id :diff (fs/dirty-fields props true)})
+                   (finish-person-submission ~{:id id})])
+```
+
+See <<PTransact, pessimistic transactions>> for more details.
+
+== Form State Demos
+
+The following two fully-functional demos show you complete code for two scenarios.
+
+=== Selecting an Entity for Edit
+
+A very common use case is the scenario where the entities are already loaded and are displayed in the UI. The user
+clicks on an entry, and you take them to a form where they can edit the item.
+
+This demo lists some phone numbers. Clicking on one:
+
+* Adds form configuration to the entity
+* Switches the UI to the form editor
+* Switches back to the (updated) list on save
+
+++++
+<div class="example" id="form-state-demo-1"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.form-state-demo-1').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="form-state-demo-1 source"]
+----
+include::src/book/book/forms/form_state_demo_1.cljs[]
+----
+
+
+
+=== Loading or Creating Something New
+
+This example shows the case where a graph of entities (a person and multiple phone numbers) are to be
+created in a UI, or are to be loaded from a server. This is a full-stack example, though it doesn't actually persist
+the data (it just prints what the server receives in the Javascript console).
+
+There are two buttons. One will load an existing entity into the editor, and of course submissions will send a minimal
+delta. The other button will create a new person, and submissions will send all fields.
+
+The load case, as you can see in the code, is very similar to the prior example, but just includes some extra
+code to show you how to put it together with a load interaction.
+
+++++
+<div class="example" id="form-state-demo-2"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.form-state-demo-2').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="form-state-demo-2 source"]
+----
+include::src/book/book/forms/form_state_demo_2.cljs[]
+----
+
+
+= Full Form Management (Older Support) [[FullForm]]
 
 Fulcro includes support for working with forms. The core purpose of the support is to help you with
 the fact that you usually need roughly the same pattern for each form:

@@ -570,7 +570,7 @@
                             (swap! app-state (fn [s]
                                                (cond-> s
                                                  (and (data-marker? item) (keyword? (data-marker item))) (update-in [marker-table (data-marker item)] set-failed! error)
-                                                 (data-marker? item) (update-in (conj (data-path item) :ui/fetch-state) set-failed! error)
+                                                 (and (data-marker? item) (identical? true (data-marker item))) (update-in (conj (data-path item) :ui/fetch-state) set-failed! error)
                                                  :always (update :fulcro/loads-in-progress disj (data-uuid item)))))))
           run-fallbacks (fn [] (doseq [item loading-items]
                                  (when-let [fallback-symbol (::fallback item)]

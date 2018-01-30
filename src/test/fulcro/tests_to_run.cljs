@@ -1,5 +1,6 @@
 (ns fulcro.tests-to-run
   (:require
+    [clojure.spec.test.alpha :as st]
     fulcro.client.impl.application-spec
     fulcro.client.impl.data-targeting-spec
     fulcro.client.impl.parser-spec
@@ -13,6 +14,7 @@
     fulcro.client.util-spec
     fulcro.history-spec
     fulcro.ui.forms-spec
+    fulcro.ui.form-state-spec
     fulcro.server-render-spec
     fulcro.i18n-spec))
 
@@ -23,3 +25,4 @@
 ; everything as well.
 ;********************************************************************************
 
+;(st/instrument)

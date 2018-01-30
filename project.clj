@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.1.3"
+(defproject fulcrologic/fulcro "2.1.4"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -26,7 +26,7 @@
 
                  ;; test deps
                  [fulcrologic/fulcro-spec "2.0.0-beta3" :scope "test" :exclusions [fulcrologic/fulcro]]
-                 [lein-doo "0.1.7" :scope "test"]
+                 [lein-doo "0.1.8" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
   :source-paths ["src/main"]
