@@ -8284,8 +8284,8 @@ Both are fully supported, though the form state support is considered the cleane
 
 = Form State Support [[FormState]] (ALPHA. verstion 2.1.4+)
 
-The namespace `fulcro.ui.form-state` includes all of the functions and mutations for working with your entity as
-a form. This support brings functions for dealing with common state storage and form transitions
+The namespace `fulcro.ui.form-state` (aliased to `fs` in this chapter) includes functions and mutations for
+working with your entity as a form. This support brings functions for dealing with common state storage and form transitions
 with minimal opinion or additional complexity.
 
 Your UI is still built and rendered identically to what you're already used to. The form state support simply
@@ -8307,6 +8307,15 @@ So, a minimal form-state-compatible component looks like this:
   {:query [:id :name fs/form-config-join] ; fs is fulcro.ui.form-state
    :ident [:name-form/by-id :id]
    :form-fields #{:name}} ; MUST be a set of keywords from your query
+  ...)
+```
+
+Technically this adds a protocol to the generated component. If you're using `defui`, it looks like this:
+
+```
+(defui NameForm
+  static fs/IFormFields
+  (form-field [this] #{:name})
   ...)
 ```
 
@@ -8403,11 +8412,12 @@ only add config to the ones that are missing it. This means the current form sta
 
 == Validation
 
-Validation in form state management include some utilities for working with Clojure Spec as your validation
+Validation is completely customizable. There is built-in support for working with Clojure Spec as your validation
 layer. In order for this to be effective you should be sure to namespace all of your properties in a globally-unique
-way, and then simply write normal specs for them.
+way, and then simply write normal specs for them. The section on <<CustomValidators, custom validators>> describes
+the other supported mechanism for validation.
 
-The central function is `fs/get-spec-validity`, which can be used on an entire form or a single field.
+The central function for using specs is `fs/get-spec-validity`, which can be used on an entire form or a single field.
 This function returns one of `#{:valid, :invalid, :unchecked}`.
 Initially, a form's fields are marked as incomplete. When in this state the validity will *always* be `:unchecked`.
 
@@ -8479,7 +8489,7 @@ The `mark-complete!` mutation can be used for the exact same purpose from the UI
 
 The inverse operations are `clear-complete!` and `clear-complete*`.
 
-=== Using non-spec Validators
+=== Using non-spec Validators [[CustomValidators]]
 
 You may not wish to use the longer names of properties that are required in order to get stable Clojure Spec support
 simply for form validation. In this case you'd still like to use the idea of field completion and validation, but

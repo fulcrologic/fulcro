@@ -2,6 +2,7 @@
 -----
 - Alpha release of new form state support
 - Fixed a bug in load markers: placed incorrectly when using marker table
+- Expanded defsc to support new form fields
 
 2.1.3
 -----
