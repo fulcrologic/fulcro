@@ -54,10 +54,10 @@
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
-  [server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation post-mutation-params
-                                                  fallback remote without initialize]
-                                           :or   {remote     :remote marker true parallel false refresh [] without #{}
-                                                  initialize false}}]
+  [state-map server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation post-mutation-params
+                                                            fallback remote without initialize]
+                                                     :or   {remote     :remote marker true parallel false refresh [] without #{}
+                                                            initialize false}}]
   {:pre [(or (nil? target) (vector? target))
          (or (nil? marker) (bool? marker) (keyword? marker))
          (or (nil? post-mutation) (symbol? post-mutation))
@@ -70,8 +70,8 @@
          (or (nil? SubqueryClass) #?(:cljs (implements? prim/IQuery SubqueryClass)
                                      :clj  (satisfies? prim/IQuery SubqueryClass)))]}
   (let [query (cond
-                (and SubqueryClass (map? params)) `[({~server-property-or-ident ~(prim/get-query SubqueryClass)} ~params)]
-                SubqueryClass [{server-property-or-ident (prim/get-query SubqueryClass)}]
+                (and SubqueryClass (map? params)) `[({~server-property-or-ident ~(prim/get-query SubqueryClass state-map)} ~params)]
+                SubqueryClass [{server-property-or-ident (prim/get-query SubqueryClass state-map)}]
                 (map? params) [(list server-property-or-ident params)]
                 :else [server-property-or-ident])]
     {:query                query
@@ -163,7 +163,9 @@
                                         :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler))
                                    (get app-or-comp-or-reconciler :reconciler)
                                    app-or-comp-or-reconciler)
-         mutation-args           (load-params* server-property-or-ident SubqueryClass config)]
+         reconciler              (if (prim/reconciler? component-or-reconciler) component-or-reconciler (prim/get-reconciler component-or-reconciler))
+         state                   (prim/app-state reconciler)
+         mutation-args           (load-params* @state server-property-or-ident SubqueryClass config)]
      (prim/transact! component-or-reconciler (load-mutation mutation-args)))))
 
 #?(:cljs
@@ -192,8 +194,9 @@
      ([env server-property-or-ident SubqueryClass] (load-action env server-property-or-ident SubqueryClass {}))
      ([env server-property-or-ident SubqueryClass config]
       {:pre [(and (map? env) (contains? env :state))]}
-      (let [config (merge {:marker true :parallel false :refresh [] :without #{}} config)]
-        (impl/mark-ready (assoc (load-params* server-property-or-ident SubqueryClass config) :env env))))))
+      (let [config    (merge {:marker true :parallel false :refresh [] :without #{}} config)
+            state-map @(:state env)]
+        (impl/mark-ready (assoc (load-params* state-map server-property-or-ident SubqueryClass config) :env env))))))
 
 (defn load-field
   "Load a field of the current component. Runs `prim/transact!`.
@@ -219,14 +222,15 @@
   improve your frame rate because we will not have to run a full root query.
   "
   [component field & params]
-  (let [params (if (map? (first params)) (first params) params)
+  (let [params    (if (map? (first params)) (first params) params)
         {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
-         :or   {remote :remote refresh [] marker true}} params]
+         :or   {remote :remote refresh [] marker true}} params
+        state-map (some-> component prim/get-reconciler prim/app-state deref)]
     (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
     (prim/transact! component (into [(list 'fulcro/load
                                        {:ident                (prim/get-ident component)
                                         :field                field
-                                        :query                (prim/focus-query (prim/get-query component) [field])
+                                        :query                (prim/focus-query (prim/get-query component state-map) [field])
                                         :params               params
                                         :without              without
                                         :remote               remote
@@ -259,16 +263,18 @@
   be available for post mutations and fallbacks.
   "
   [env-or-app-state component-class ident field & params]
-  (let [params (if (map? (first params)) (first params) params)
+  (let [params    (if (map? (first params)) (first params) params)
         {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
-         :or   {remote :remote refresh [] marker true}} params]
+         :or   {remote :remote refresh [] marker true}} params
+        env       (if (and (map? env-or-app-state) (contains? env-or-app-state :state))
+                    env-or-app-state
+                    {:state env-or-app-state})
+        state-map (some-> env :state deref)]
     (impl/mark-ready
-      {:env                  (if (and (map? env-or-app-state) (contains? env-or-app-state :state))
-                               env-or-app-state
-                               {:state env-or-app-state})
+      {:env                  env
        :field                field
        :ident                ident
-       :query                (prim/focus-query (prim/get-query component-class) [field])
+       :query                (prim/focus-query (prim/get-query component-class state-map) [field])
        :params               params
        :remote               remote
        :without              without
