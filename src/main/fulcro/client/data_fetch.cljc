@@ -54,10 +54,10 @@
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
-  [state-map server-property-or-ident SubqueryClass {:keys [target params marker refresh parallel post-mutation post-mutation-params
-                                                            fallback remote without initialize]
-                                                     :or   {remote     :remote marker true parallel false refresh [] without #{}
-                                                            initialize false}}]
+  [state-map server-property-or-ident class-or-factory {:keys [target params marker refresh parallel post-mutation post-mutation-params
+                                                               fallback remote without initialize]
+                                                        :or   {remote     :remote marker true parallel false refresh [] without #{}
+                                                               initialize false}}]
   {:pre [(or (nil? target) (vector? target))
          (or (nil? marker) (bool? marker) (keyword? marker))
          (or (nil? post-mutation) (symbol? post-mutation))
@@ -66,12 +66,10 @@
          (vector? refresh)
          (or (nil? params) (map? params))
          (set? without)
-         (or (util/ident? server-property-or-ident) (keyword? server-property-or-ident))
-         (or (nil? SubqueryClass) #?(:cljs (implements? prim/IQuery SubqueryClass)
-                                     :clj  (satisfies? prim/IQuery SubqueryClass)))]}
+         (or (util/ident? server-property-or-ident) (keyword? server-property-or-ident))]}
   (let [query (cond
-                (and SubqueryClass (map? params)) `[({~server-property-or-ident ~(prim/get-query SubqueryClass state-map)} ~params)]
-                SubqueryClass [{server-property-or-ident (prim/get-query SubqueryClass state-map)}]
+                (and class-or-factory (map? params)) `[({~server-property-or-ident ~(prim/get-query class-or-factory state-map)} ~params)]
+                class-or-factory [{server-property-or-ident (prim/get-query class-or-factory state-map)}]
                 (map? params) [(list server-property-or-ident params)]
                 :else [server-property-or-ident])]
     {:query                query
@@ -80,11 +78,13 @@
      :without              without
      :post-mutation        post-mutation
      :post-mutation-params post-mutation-params
-     :initialize           (when (and initialize SubqueryClass server-property-or-ident)
-                             {server-property-or-ident (cond
-                                                         (map? initialize) initialize
-                                                         (and initialize (prim/has-initial-app-state? SubqueryClass)) (prim/get-initial-state SubqueryClass {})
-                                                         :else {})})
+     :initialize           (when (and initialize class-or-factory server-property-or-ident)
+                             (let [class (if-let [c (-> class-or-factory meta :class)]
+                                           c class-or-factory)]
+                               {server-property-or-ident (cond
+                                                           (map? initialize) initialize
+                                                           (and initialize (prim/has-initial-app-state? class)) (prim/get-initial-state class {})
+                                                           :else {})}))
      :refresh              (computed-refresh refresh server-property-or-ident target)
      :marker               marker
      :parallel             parallel
@@ -107,7 +107,7 @@
   components that are waiting for data. The `:target` parameter can be used to place the data somewhere besides app
   state root (which is the default).
 
-  The server will receive a query of the form: [({server-property (prim/get-query SubqueryClass)} params)], which
+  The server will receive a query of the form: [({server-property (prim/get-query class-or-factory)} params)], which
   a Fulcro parser will correctly parse as a join on server-property with the given subquery and params. See the AST and
   instructions on parsing queries in the developer's guide.
 
@@ -115,8 +115,8 @@
   - `app-or-comp-or-reconciler` : A component instance, Fulcro application, or reconciler
   - `server-property-or-ident` : A keyword or ident that represents the root of the query to send to the server. If this is an ident
   you are loading a specific entity from the database into a local app db table. A custom target will be ignored.
-  - `SubqueryClass` : A component that implements IQuery. This will be combined with `server-property` into a join for the server query. Needed to normalize results.
-    SubqueryClass can be nil, in which case the resulting server query will not be a join.
+  - `class-or-factory` : A component that implements IQuery, or a factory for it (if using dynamic queries). This will be combined with `server-property` into a join for the server query. Needed to normalize results.
+    class-or-factory can be nil, in which case the resulting server query will not be a join.
   - `config` : A map of load configuration parameters.
 
   Config (all optional):
@@ -124,9 +124,9 @@
     Can also be special targets (multiple-targets, append-to,
     prepend-to, or replace-at). If you are loading by keyword (into root), then this relocates the result (ident or value) after load.
     When loading an entity (by ident), then this option will place additional idents at the target path(s) that point to that entity.
-  - `initialize` - Optional. If `true`, uses `get-initial-state` on SubqueryClass to  get a basis for merge of the result. This allows you
+  - `initialize` - Optional. If `true`, uses `get-initial-state` on class-or-factory to  get a basis for merge of the result. This allows you
     to use initial state to pre-populate loads with things like UI concerns. If `:initialize` is passed a map, then it uses that as
-    the base target merge value for SubqueryClass instead.
+    the base target merge value for class-or-factory instead.
   - `remote` - Optional. Keyword name of the remote that this load should come from.
   - `params` - Optional parameters to add to the generated query
   - `marker` - Boolean to determine if you want a fetch-state marker in your app state. Defaults to true. Add `:ui/fetch-state` to the
@@ -152,8 +152,8 @@
   In all cases, any explicit refresh things you include will not be dropped. The computed refresh list
   is essentially a `(-> original-refresh-list set add-computed-bits vec)`.
   "
-  ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass] (load app-or-comp-or-reconciler server-property-or-ident SubqueryClass {}))
-  ([app-or-comp-or-reconciler server-property-or-ident SubqueryClass config]
+  ([app-or-comp-or-reconciler server-property-or-ident class-or-factory] (load app-or-comp-or-reconciler server-property-or-ident class-or-factory {}))
+  ([app-or-comp-or-reconciler server-property-or-ident class-or-factory config]
    {:pre [(or (prim/component? app-or-comp-or-reconciler)
             (prim/reconciler? app-or-comp-or-reconciler)
             #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
@@ -165,7 +165,7 @@
                                    app-or-comp-or-reconciler)
          reconciler              (if (prim/reconciler? component-or-reconciler) component-or-reconciler (prim/get-reconciler component-or-reconciler))
          state                   (prim/app-state reconciler)
-         mutation-args           (load-params* @state server-property-or-ident SubqueryClass config)]
+         mutation-args           (load-params* @state server-property-or-ident class-or-factory config)]
      (prim/transact! component-or-reconciler (load-mutation mutation-args)))))
 
 #?(:cljs
@@ -220,6 +220,11 @@
   query for that attribute near the root of your UI. Instead, create some leaf component with an ident that queries for :ui/loading-data
   using a link  query (e.g. `[:ui/loading-data '_]`). The presence of the ident on components will enable query optimization, which can
   improve your frame rate because we will not have to run a full root query.
+
+  WARNING: If you're using dynamic queries, you won't really know what factory your parent is using,
+  nor can you pass it as a parameter to this function. Therefore, it is not recommended to use load-field from within
+  a component that has a dynamic query unless you can base it on the original static query (which
+  is what this function will use).
   "
   [component field & params]
   (let [params    (if (map? (first params)) (first params) params)
