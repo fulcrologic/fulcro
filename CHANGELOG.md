@@ -1,3 +1,7 @@
+2.1.6
+-----
+- Made parent-with-context work with SSR
+
 2.1.5
 -----
 - Added `prim/with-parent-context` for cases where you're using child-as-a-function
