@@ -203,7 +203,7 @@ The most basic HTML file you can start with (and it won't get much bigger) is:
 <!DOCTYPE html>
 <html>
     <body>
-        <div id="app-1"></div>
+        <div id="app"></div>
         <script src="js/app.js" type="text/javascript"></script>
     </body>
 </html>
@@ -307,13 +307,13 @@ The basic code to build a simple component has the following form:
 ```
 (defsc ComponentName
   ; optional: "docstring"
-  [this props] ; parameters. Availble in body, and in *some* of the options
+  [this props] ; parameters. Available in body, and in *some* of the options
   ; optional:  { ...options... }
   (dom/div #js {:className "a"}
     (dom/p nil "Hello")))
 ```
 
-for our purposes we won't be saying much about the React lifecycle methods, though they can be added. The basic
+For our purposes we won't be saying much about the React lifecycle methods, though they can be added. The basic
 intention of this macro's syntax is to declare a component that can render UI and participate in our
 data-driven story.
 
@@ -840,7 +840,7 @@ context that needs refreshed. But for general knowledge UI Refresh is triggered 
 
 - Running a data modification transaction on a component (which will re-render the subtree of that component), and
 refresh only the DOM for those bits that had actual changes.
-- Telling Fulcro that some specific data changed (e.g. :person/name).
+- Telling Fulcro that some specific data changed (e.g. `:person/name`).
 
 The former is most common, but the latter is often needed when a change executed in one part of the application
 modifies data that some UI component elsewhere in the tree needs to respond to.
@@ -2683,7 +2683,7 @@ separate let:
 
 === Options – Lambda vs. Template
 
-The core options (:query, :ident, :initial-state, :css, and :css-include) of `defsc` support both a lambda and a template
+The core options (`:query`, `:ident`, `:initial-state`, `:css`, and `:css-include`) of `defsc` support both a lambda and a template
 form. The template form is shorter and enables some sanity checks; however, it is not expressive enough to cover all
 possible cases. The lambda form is slightly more verbose, but enables full flexibility at the expense of the sanity checks.
 
@@ -8282,7 +8282,7 @@ added complexity.
 
 Both are fully supported, though the form state support is considered the cleaner implementation.
 
-= Form State Support [[FormState]] (ALPHA. verstion 2.1.4+)
+= Form State Support [[FormState]] (ALPHA. version 2.1.4+)
 
 The namespace `fulcro.ui.form-state` (aliased to `fs` in this chapter) includes functions and mutations for
 working with your entity as a form. This support brings functions for dealing with common state storage and form transitions

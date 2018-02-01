@@ -112,28 +112,28 @@
 
 #?(:cljs
    (specification "Load parameters"
-     (let [query-with-params       (:query (df/load-params* :prop Person {:params {:n 1}}))
-           ident-query-with-params (:query (df/load-params* [:person/by-id 1] Person {:params {:n 1}}))]
+     (let [query-with-params       (:query (df/load-params* {} :prop Person {:params {:n 1}}))
+           ident-query-with-params (:query (df/load-params* {} [:person/by-id 1] Person {:params {:n 1}}))]
        (assertions
          "Always include a vector for refresh"
-         (df/load-params* :prop Person {}) =fn=> #(vector? (:refresh %))
-         (df/load-params* [:person/by-id 1] Person {}) =fn=> #(vector? (:refresh %))
+         (df/load-params* {} :prop Person {}) =fn=> #(vector? (:refresh %))
+         (df/load-params* {} [:person/by-id 1] Person {}) =fn=> #(vector? (:refresh %))
          "Accepts nil for subquery and params"
-         (:query (df/load-params* [:person/by-id 1] nil {})) => [[:person/by-id 1]]
+         (:query (df/load-params* {} [:person/by-id 1] nil {})) => [[:person/by-id 1]]
          "Constructs query with parameters when subquery is nil"
-         (:query (df/load-params* [:person/by-id 1] nil {:params {:x 1}})) => '[([:person/by-id 1] {:x 1})]
+         (:query (df/load-params* {} [:person/by-id 1] nil {:params {:x 1}})) => '[([:person/by-id 1] {:x 1})]
          "Constructs a JOIN query (without params)"
-         (:query (df/load-params* :prop Person {})) => [{:prop (prim/get-query Person)}]
-         (:query (df/load-params* [:person/by-id 1] Person {})) => [{[:person/by-id 1] (prim/get-query Person)}]
+         (:query (df/load-params* {} :prop Person {})) => [{:prop (prim/get-query Person)}]
+         (:query (df/load-params* {} [:person/by-id 1] Person {})) => [{[:person/by-id 1] (prim/get-query Person)}]
          "Honors target for property-based join"
-         (:target (df/load-params* :prop Person {:target [:a :b]})) => [:a :b]
+         (:target (df/load-params* {} :prop Person {:target [:a :b]})) => [:a :b]
          "Constructs a JOIN query (with params)"
          query-with-params =fn=> (fn [q] (= q `[({:prop ~(prim/get-query Person)} {:n 1})]))
          ident-query-with-params =fn=> (fn [q] (= q `[({[:person/by-id 1] ~(prim/get-query Person)} {:n 1})])))
        (provided "uses computed-refresh to augment the refresh list"
          (df/computed-refresh explicit k t) =1x=> :computed-refresh
 
-         (let [params (df/load-params* :k Person {})]
+         (let [params (df/load-params* {} :k Person {})]
            (assertions
              "includes the computed refresh list as refresh"
              (:refresh params) => :computed-refresh))))
@@ -145,8 +145,8 @@
          "Honors simpler way of specifying parameters"
          (-> state-marker-new ::prim/query) => '[({:x [:a]} {:p 2})]))
      (behavior "When initialize is:"
-       (let [params                  (df/load-params* :root/comp InitTestComponent {:initialize true})
-             params-with-init-params (df/load-params* :root/comp InitTestComponent {:initialize {:z 42}})]
+       (let [params                  (df/load-params* {} :root/comp InitTestComponent {:initialize true})
+             params-with-init-params (df/load-params* {} :root/comp InitTestComponent {:initialize {:z 42}})]
          (assertions
            "true: load params get initial state for component"
            (:initialize params) => {:root/comp {:x 1 :child {:y 2}}}
@@ -190,7 +190,9 @@
 
 (specification "The load function"
   (when-mocking
-    (df/load-params* key query config) => :mutation-args
+    (prim/reconciler? r) => true
+    (prim/app-state r) => (atom {})
+    (df/load-params* sm key query config) => :mutation-args
     (df/load-mutation args) => (do
                                  (assertions
                                    "creates mutation arguments"
@@ -209,7 +211,7 @@
    (specification "The load-action function"
      (let [state-atom (atom {})]
        (when-mocking
-         (df/load-params* key query config) => {:refresh [] :query [:x]}
+         (df/load-params* sm key query config) => {:refresh [] :query [:x]}
 
          (df/load-action {:state state-atom} :x Person {})
 
@@ -224,7 +226,9 @@
       (let [query (prim/get-query Item)]
         (provided "properly calls transact"
           (prim/get-ident c) =2x=> [:item/by-id 10]
-          (prim/get-query c) =1x=> query
+          (prim/get-query c s) =1x=> query
+          (prim/get-reconciler c) => :r
+          (prim/app-state r) => (atom {})
           (prim/transact! c tx) =1x=> (let [params          (-> tx first second)
                                             follow-on-reads (set (-> tx rest))]
                                         (assertions
@@ -257,7 +261,9 @@
       (let [query (prim/get-query Item)]
         (provided "properly calls transact"
           (prim/get-ident c) =2x=> [:item/by-id 10]
-          (prim/get-query c) =1x=> query
+          (prim/get-query c sm) =1x=> query
+          (prim/get-reconciler c) => :r
+          (prim/app-state r) => (atom {})
           (prim/transact! c tx) =1x=> (let [params          (-> tx first second)
                                             follow-on-reads (set (-> tx rest))]
                                         (assertions
@@ -455,7 +461,7 @@
 
 #?(:cljs
    (specification "Query Response with :initialize (load ... {:initialize true})"
-     (let [item      (dfi/set-loading! (dfi/ready-state (df/load-params* :root/comp InitTestComponent {:initialize true})))
+     (let [item      (dfi/set-loading! (dfi/ready-state (df/load-params* {} :root/comp InitTestComponent {:initialize true})))
            state     (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}})
            items     [item]
            loaded-cb (#'dfi/loaded-callback :reconciler)
