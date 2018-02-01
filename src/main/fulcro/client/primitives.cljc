@@ -3407,3 +3407,21 @@
     new-state))
 
 
+(defmacro with-parent-context
+  "Wraps the given body with the correct internal bindings of the parent so that Fulcro internals
+  will work when that body is embedded in unusual ways (e.g. as the body in a child-as-a-function
+  React pattern)."
+  [outer-parent & body]
+  `(let [parent# ~outer-parent
+         r#      (or fulcro.client.primitives/*reconciler* (fulcro.client.primitives/get-reconciler parent#))
+         d#      (or fulcro.client.primitives/*depth* (inc (fulcro.client.primitives/depth parent#)))
+         s#      (or fulcro.client.primitives/*shared* (fulcro.client.primitives/shared parent#))
+         i#      (or fulcro.client.primitives/*instrument* (fulcro.client.primitives/instrument parent#))
+         p#      (or fulcro.client.primitives/*parent* parent#)]
+     (binding [fulcro.client.primitives/*reconciler* r#
+               fulcro.client.primitives/*depth*      d#
+               fulcro.client.primitives/*shared*     s#
+               fulcro.client.primitives/*instrument* i#
+               fulcro.client.primitives/*parent*     p#]
+       ~@body)))
+

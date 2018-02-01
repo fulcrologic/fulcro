@@ -1,3 +1,8 @@
+2.1.5
+-----
+- Added `prim/with-parent-context` for cases where you're using child-as-a-function
+react pattern and the Fulcro internal bindings are lost.
+
 2.1.4
 -----
 - Alpha release of new form state support
