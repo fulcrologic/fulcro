@@ -2,6 +2,7 @@
 -----
 - Added `prim/with-parent-context` for cases where you're using child-as-a-function
 react pattern and the Fulcro internal bindings are lost.
+- Made load work with dynamic queries
 
 2.1.4
 -----
