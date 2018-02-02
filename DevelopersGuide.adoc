@@ -3315,6 +3315,49 @@ The running code and source are below:
 include::src/book/book/ui/victory_example.cljs[]
 ----
 
+=== The Function-As-a-Child Pattern
+
+A common pattern in React libraries is to use a function as a single child instead of an actual element. This
+is an accepted and widely used pattern, but you need to do a simple extra step for it to work properly with
+Fulcro. You see, Fulcro components use some behind-the-scenes bindings to allow for targeted UI rendering 
+optimizations, and when you embed them in a function that is invoked from external JS out of that context, things
+won't work correctly.
+
+For example, the `react-motion` library gives you React tools that can animate DOM motion. It animates variables
+that you apply to nested DOM, and it does this through the function-as-a-child pattern. Here's an example from
+a https://github.com/awkay/fulcro-react-motion[demo project] (which uses shadow-cljs to get easy access to NPM
+libraries):
+
+```
+(ns sample
+  (:require ["react-motion" :refer [Motion spring]]
+            [fulcro.client.primitives :as prim :refer [defsc]]
+            [fulcro.client.dom :as dom]
+            [goog.object :as gobj]))
+
+(def ui-motion (factory-apply Motion))
+
+
+(defsc Demo [this {:keys [ui/slid? block]}]
+  {:query         [:ui/slid? {:block (prim/get-query Block)}]
+   :initial-state {:ui/slid? false :block {:id 1 :name "N"}}
+   :ident         (fn [] [:control :demo])}
+  (dom/div nil
+    (dom/button #js {:onClick (fn [] (m/toggle! this :ui/slid?))} "Toggle")
+    (ui-motion (clj->js {:style {"x" (spring (if slid? 400 0))}})
+      (fn [p]
+        (let [x (gobj/get p "x")]
+          ; The binding wrapper ensures that internal fulcro bindings are held within the lambda
+          (prim/with-parent-context this
+            (dom/div #js {:className "demo"}
+              (ui-block (prim/computed block {:x x})))))))))
+```
+
+The key is the call to `with-parent-context`. It causes the enclosed elements to have bindings pulled 
+from the component passed as the first parameter (in this case `this`).  Rendering will work 
+correctly without this wrapper, but interactions (particularly `transact!`) will not operate correctly 
+without it.
+
 == Demo: An Image Clip Tool
 
 Fulcro has the start of an image clip tool. Right now it is mainly for demonstration purposes, but it is in the main
