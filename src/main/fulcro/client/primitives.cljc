@@ -3376,8 +3376,6 @@
             (let [default-initial-state   (and parent-union (has-initial-app-state? parent-union) (get-initial-state parent-union {}))
                   to-many?                (vector? default-initial-state)
                   component-initial-state (and component (has-initial-app-state? component) (get-initial-state component {}))]
-              (when-not default-initial-state
-                (log/warn "WARNING: Subelements of union " (.. parent-union -displayName) " have initial state. This means your default branch of the union will not have initial application state."))
               (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
                 (merge-fn parent-union component-initial-state))))]
     (walk-ast
