@@ -1,6 +1,5 @@
 (ns fulcro.ui.forms-spec
   (:require
-    #?(:clj [taoensso.timbre :as timbre])
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
     [fulcro.client :as fc]
@@ -9,8 +8,6 @@
     [fulcro.client.util :as uu]
     [fulcro.ui.forms :as f]
     [fulcro.client.data-fetch :as df]))
-
-#?(:clj (timbre/set-level! :error))
 
 (defui Stub
   static prim/IQuery
@@ -891,14 +888,14 @@
              (component "reset-from-entity! - api function"
                (when-mocking
                  (prim/transact! _ tx) => (let [[reset-mutation follow-on-read] tx]
-                                          (assertions
-                                            "Issues a transaction to reset the entity via the composable mutation."
-                                            reset-mutation =fn=> list?
-                                            (first reset-mutation) => `f/reset-from-entity
-                                            "which has params with the form-id as the ident of the form to reset"
-                                            (second reset-mutation) => {:form-id [:people/by-id 3]}
-                                            "and a follow-on read of the form root key for re-rendering the top-level form"
-                                            follow-on-read => f/form-root-key))
+                                            (assertions
+                                              "Issues a transaction to reset the entity via the composable mutation."
+                                              reset-mutation =fn=> list?
+                                              (first reset-mutation) => `f/reset-from-entity
+                                              "which has params with the form-id as the ident of the form to reset"
+                                              (second reset-mutation) => {:form-id [:people/by-id 3]}
+                                              "and a follow-on read of the form root key for re-rendering the top-level form"
+                                              follow-on-read => f/form-root-key))
 
                  (f/reset-from-entity! :some-component basic-person)))
              (component "reset-entity (helper function)"

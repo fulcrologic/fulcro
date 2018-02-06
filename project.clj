@@ -20,7 +20,6 @@
                  [ring/ring-core "1.6.3" :exclusions [commons-codec]]
                  [bk/ring-gzip "0.2.1"]
                  [com.stuartsierra/component "0.3.2"]
-                 [com.taoensso/timbre "4.10.0"]
                  [bidi "2.1.2"]                             ; needed by easy-server
                  [com.taoensso/sente "1.11.0"]              ; websockets
 

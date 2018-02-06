@@ -2,8 +2,8 @@
   (:require
     [com.stuartsierra.component :as component]
     [ring.util.response :as ring]
-    [taoensso.timbre :as timbre]
-    [fulcro.easy-server :as h]))
+    [fulcro.easy-server :as h]
+    [fulcro.client.logging :as log]))
 
 ; Exercises 1 and 2 are mainly about the runtime JVM args. There is no real code.
 
@@ -14,7 +14,7 @@
   component/Lifecycle
   (start [this]
     (let [my-config (-> config :value :sample)]
-      (timbre/info "Configuring sample component with " my-config))
+      (log/info "Configuring sample component with " my-config))
     this)
   (stop [this] this))
 
@@ -35,7 +35,7 @@
     {:action (fn []
                (let [config (-> e :config :value)
                      n (-> config :sample :n)]
-                 (timbre/info "Triggered. Config value is " n)))})
+                 (log/info "Triggered. Config value is " n)))})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Exercise 6
@@ -45,7 +45,7 @@
 ;;               :handlers {:sample handle-sample}}
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn handle-sample [env match]
-  (timbre/info "Route hit " env)
+  (log/info "Route hit " env)
   (let [config (-> env :config :value)
         n (-> config :sample :n)]
     (-> (str "Hello world! Config says: " n)
@@ -63,7 +63,7 @@
   component/Lifecycle
   (start [this]
     (let [old-pre-hook (h/get-pre-hook handler)]
-      (timbre/info "Wrapping User Handler")
+      (log/info "Wrapping User Handler")
       (h/set-pre-hook! handler (comp wrap-user old-pre-hook)))
     this)
   (stop [this] this))
@@ -75,7 +75,7 @@
 
 ; the replacement for the BIDI route handler:
 (defn handle-sample-with-user [env match]
-  (timbre/info "Route hit " env)
+  (log/info "Route hit " env)
   (let [config (-> env :config :value)
         n (-> config :sample :n)
         user (-> env :request :user)]
@@ -89,7 +89,7 @@
 ; the replacement for the BIDI route handler:
 (defn handle-sample-with-ring-wrapper [env match]
   ((-> (fn [req]
-         (timbre/info "Route hit " env)
+         (log/info "Route hit " env)
          (let [config (-> env :config :value)
                n (-> config :sample :n)
                user (-> req :user)]

@@ -1,11 +1,10 @@
 (ns fulcro.ui.form-state-spec
   (:require
-    #?(:clj [taoensso.timbre :as timbre])
-            [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [fulcro.ui.form-state :as f]))
+    [fulcro.client.primitives :as prim :refer [defsc]]
+    [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
+    [clojure.spec.alpha :as s]
+    [clojure.string :as str]
+    [fulcro.ui.form-state :as f]))
 
 (defsc Locale [this props]
   {:query     [:db/id ::country f/form-config-join]

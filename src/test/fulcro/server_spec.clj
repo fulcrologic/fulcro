@@ -5,10 +5,10 @@
             [fulcro.easy-server :as easy :refer [make-web-server]]
             [org.httpkit.server :refer [run-server]]
             [com.stuartsierra.component :as component]
-            [taoensso.timbre :as timbre]
             [fulcro.client.primitives :as prim]
             [clojure.spec.alpha :as s]
-            [clojure.set :as set])
+            [clojure.set :as set]
+            [fulcro.client.logging :as log])
   (:import (clojure.lang ExceptionInfo)
            (java.io File)))
 
@@ -201,10 +201,9 @@
       =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*Module/components"))))
 
 (t/use-fixtures
-  :once #(timbre/with-merged-config
-           {:level        :fatal
-            :ns-blacklist ["fulcro.easy-server" "fulcro.server.impl.components.config"]}
-           (%)))
+  :once #((log/set-level :none)
+           (%)
+           (log/set-level :all)))
 
 (specification "generate-response"
   (assertions

@@ -63,7 +63,7 @@
   (ns app.my-component
     (:require
       [com.stuartsierra.component :as component]
-      [taoensso.timbre :as timbre]))
+      [fulcro.client.logging :as log))
 
   ; include config as something you expect to be in your component
   (defrecord SampleComponent [config]
@@ -98,7 +98,7 @@
     :sample { :n 1 }}
   ```
 
-  Your component should pull the value of `:n` from this file and log it (using `timbre/info`).
+  Your component should pull the value of `:n` from this file and log it (e.g. using `log/info`).
 
   Install the component in the source, `(reset)` your server, and verify you can see the config.
 
@@ -172,7 +172,7 @@
 
   Make sure `src/server/app/system.clj` injects the config into the parser.
 
-  Then, in `src/server/app/api.clj` add a mutation (use `defmethod`) that logs your configuration value `:sample :n` using timbre from the
+  Then, in `src/server/app/api.clj` add a mutation (use `defmethod`) that logs your configuration value `:sample :n` using logging from the
   `:action` of a new mutation named `(exercise5/trigger)`.
 
   The devcard below is a simple fulcro app that can trigger your mutation.

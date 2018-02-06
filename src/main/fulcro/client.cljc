@@ -128,7 +128,7 @@
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state mutation-merge started-callback networking reconciler-options
+  [& {:keys [initial-state mutation-merge started-callback networking reconciler-options logger
              read-local request-transform network-error-callback migrate transit-handlers shared]
       :or   {initial-state {} read-local (constantly false) started-callback (constantly nil) network-error-callback (constantly nil)
              migrate       nil shared nil}}]

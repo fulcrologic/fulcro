@@ -9,11 +9,10 @@
     [cognitect.transit :as ct]
     [ring.util.response :as resp]
     [ring.util.request :as req]
-    [taoensso.timbre :as log]
     [fulcro.transit :as transit]
     [fulcro.client.impl.parser :as parser]
     [fulcro.util :as util]
-    [taoensso.timbre :as timbre])
+    [fulcro.client.logging :as log])
   (:import (clojure.lang ExceptionInfo)
            [java.io ByteArrayOutputStream File]))
 
@@ -62,11 +61,11 @@
   "Calls load-edn on `file-path`,
   and throws an ex-info if that failed."
   [file-path]
-  (timbre/info "Reading configuration file at " file-path)
+  (log/info "Reading configuration file at " file-path)
   (if-let [edn (some-> file-path load-edn)]
     edn
     (do
-      (timbre/error "Unable to read configuration file " file-path)
+      (log/error "Unable to read configuration file " file-path)
       (throw (ex-info (str "Invalid config file at '" file-path "'")
                {:file-path file-path})))))
 
@@ -105,7 +104,7 @@
   component/Lifecycle
   (start [this]
     (let [config (or value (load-config {:config-path config-path}))]
-      (timbre/debug "Loaded configuration: " (pr-str config))
+      (log/debug "Loaded configuration: " (pr-str config))
       (assoc this :value config)))
   (stop [this] this))
 

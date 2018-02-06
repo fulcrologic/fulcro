@@ -1840,7 +1840,6 @@ up looking like this (don't forget the require to get access to the people db):
 ```
 (ns app.api.mutations
   (:require
-    [taoensso.timbre :as timbre]
     [app.api.read :refer [people-db]]
     [fulcro.server :refer [defmutation]]))
 
@@ -1849,7 +1848,7 @@ up looking like this (don't forget the require to get access to the people db):
   "Server Mutation: Handles deleting a person on the server"
   [{:keys [person-id]}]
   (action [{:keys [state]}]
-    (timbre/info "Server deleting person" person-id)
+    (log/info "Server deleting person" person-id)
     (swap! people-db dissoc person-id)))
 ```
 
@@ -7302,7 +7301,7 @@ can handle any request just by injecting the above `CustomMiddleware` into it. H
             middleware     (:full-server-middleware server-middleware-component)
             ; install the middleware and start the server
             started-server (run-server middleware server-opts)]
-        (timbre/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
+        (log/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
         (assoc this :port port :server started-server))
       (catch Exception e
         (println "Failed to start web server " e)
@@ -10035,8 +10034,8 @@ accomplishes the rendering of a given tree of UI props via:
        html          (String/valueOf result)]
    html)
  (catch ScriptException e
-   (timbre/debug "Server-side render failed. This is an expected error when not running from a production build with adv optimizations.")
-   (timbre/trace "Rendering exception:" e))))
+   (log/debug "Server-side render failed. This is an expected error when not running from a production build with adv optimizations.")
+   (log/trace "Rendering exception:" e))))
 ```
 
 There is a `nashorn` branch on the github `fulcro-template` project that demonstrates the setup and rendering code.
@@ -12562,7 +12561,6 @@ The complete source for this demo is:
   (:require
     #?@(:clj [[fulcro-sql.core :as sql]
               [clojure.java.jdbc :as jdbc]
-              [taoensso.timbre :as timbre]])
               [com.stuartsierra.component :as component]
               [fulcro.client.dom :as dom]
               [fulcro.easy_server :refer [make-fulcro-server]]
@@ -12592,7 +12590,7 @@ The complete source for this demo is:
      (value [{:keys [sqldb query]} params]
        (let [db              (sql/get-dbspec sqldb :accounts)
              all-account-ids (jdbc/query db ["select id from account"] {:row-fn :id :result-set-fn set})]
-         (timbre/info all-account-ids)
+         (log/info all-account-ids)
          (if (seq all-account-ids)
            (sql/run-query db schema :account/id query all-account-ids)
            [])))))
