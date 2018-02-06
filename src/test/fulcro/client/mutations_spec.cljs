@@ -7,13 +7,12 @@
     [fulcro.client.impl.data-fetch :as df]
     [fulcro.client]
     [fulcro.client.dom :as dom]
-    [goog.log :as glog]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [clojure.test :refer [is]]
-    [fulcro.client.logging :as log :refer [*logger*]]
     [clojure.string :as str]
     [fulcro.client.impl.application :as app]
-    [fulcro.test-helpers :as th]))
+    [fulcro.test-helpers :as th]
+    [fulcro.client.logging :as log]))
 
 (defmutation sample
   "Doc string"
