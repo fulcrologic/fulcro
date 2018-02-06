@@ -1,3 +1,8 @@
+2.1.7
+-----
+- Fixed network history tracking. Was clogging up due to bug in remote activity tracking.
+- Corrected counting on active remotes (more than one remote interaction can happen per tx time)
+
 2.1.6
 -----
 - Made parent-with-context work with SSR

@@ -430,7 +430,6 @@
            state           (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}
                                   :item                     {2 {:id :original-data}}})
            items           [item]
-           queued          (atom [])
            rendered        (atom false)
            merged          (atom false)
            globally-marked (atom false)
@@ -438,7 +437,6 @@
            response        {:id 2}]
        (when-mocking
          (prim/app-state r) => state
-         (prim/get-history r) => (atom empty-history)
          (prim/merge! r resp query) => (reset! merged true)
          (util/force-render r ks) => (reset! rendered ks)
          (dfi/tick! r) => nil
@@ -468,7 +466,6 @@
            response  {:root/comp {:z 55 :child {:y 77}}}]
        (when-mocking
          (prim/app-state r) => state
-         (prim/get-history r) => (atom empty-history)
          (prim/merge! r resp query) => (do
                                          (assertions
                                            "Response is deep merged with initialized data before being merged with app state"
@@ -495,7 +492,6 @@
          (prim/app-state r) => state
          (dfi/tick! r) => nil
          (prim/merge! r resp query) => (reset! merged true)
-         (prim/get-history r) => (atom empty-history)
          (util/force-render r items) => (reset! queued (set items))
          (dfi/set-global-loading! r) => (reset! globally-marked true)
 
@@ -532,9 +528,7 @@
            response        {:id 2}]
        (when-mocking
          (dfi/callback-env r req orig) => {:state state}
-         (prim/get-history r) => (atom empty-history)
          (prim/app-state r) => state
-         (dfi/record-network-error! r i e) => nil
          (dfi/tick! r) => nil
          (dfi/set-global-loading! r) => (reset! globally-marked true)
          (prim/force-root-render! r) => (assertions

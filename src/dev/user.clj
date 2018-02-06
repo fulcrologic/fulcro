@@ -8,7 +8,10 @@
     [com.stuartsierra.component :as component]
     [fulcro-spec.selectors :as sel]
     [fulcro.democards.upload-server :as upload]
+    [clojure.spec.test.alpha :as st]
     [fulcro-spec.suite :as suite]))
+
+(st/instrument)
 
 (suite/def-test-suite server-test-server
   {:config       {:port 8888}

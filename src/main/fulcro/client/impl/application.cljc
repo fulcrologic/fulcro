@@ -40,13 +40,31 @@
 
 (defn real-send
   "Do a properly-plumbed network send. This function recursively strips ui attributes from the tx and pushes the tx over
-  the network. It installs the given on-load and on-error handlers to deal with the network response."
+  the network. It installs the given on-load and on-error handlers to deal with the network response. DEPRECATED: If
+  you're doing something really low-level with networking, use send-with-history-tracking."
   [net tx on-done on-error on-load]
   ; server-side rendering doesn't do networking. Don't care.
   (if #?(:clj  false
          :cljs (implements? net/ProgressiveTransfer net))
     (net/updating-send net (prim/strip-ui tx) on-done on-error on-load)
     (net/send net (prim/strip-ui tx) on-done on-error)))
+
+(defn send-with-history-tracking
+  "Does a real send but includes history activity tracking to prevent the gc of history that is related to active
+  network requests. If you're doing something really low level in the networking, you want this over real-send."
+  [payload net tx on-done on-error on-load]
+  (let [{:keys [::hist/history-atom ::hist/tx-time ::prim/remote]} payload
+        with-history-recording (fn [handler]
+                                 (fn [resp items]
+                                   (when (and history-atom remote tx-time)
+                                     (swap! history-atom hist/remote-activity-finished remote tx-time))
+                                   (handler resp items)))
+        on-done                (with-history-recording on-done)
+        on-error               (with-history-recording on-error)]
+    (if (and history-atom tx-time remote)
+      (swap! history-atom hist/remote-activity-started remote tx-time)
+      (log/warn "Payload had no history details: "))
+    (real-send net tx on-done on-error on-load)))
 
 (defn split-mutations
   "Split a tx that contains mutations. Returns a vector that contains at least one tx (the original).
@@ -112,8 +130,6 @@
                                                               ; (p/queue! reconciler refresh-set remote)
                                                               (cb result tx remote))
                                         ::f/on-error        (fn [result] (fallback result))})]
-        (when history
-          (swap! history hist/remote-activity-started remote tx-time))
         (doseq [tx tx-list]
           (when (has-mutations? tx)
             (enqueue queue (payload tx))))))))
@@ -138,7 +154,7 @@
               on-error' #(on-error % load-descriptors)]
           ; TODO: queries cannot report progress, yet. Could update the payload marker in app state.
           ; FIXME: History activity tracking!
-          (real-send network query on-load' on-error' nil)))
+          (send-with-history-tracking parallel-payload network query on-load' on-error' nil)))
       (loop [fetch-payload (f/mark-loading remote reconciler)]
         (when fetch-payload
           (enqueue queue (assoc fetch-payload :networking network))
@@ -182,7 +198,7 @@
         on-done    (comp send-complete merge-data)]
     (if (f/is-deferred-transaction? query)
       (on-done {})                                          ; immediately let the deferred tx go by pretending that the load is done
-      (real-send network query on-done on-error on-update))))
+      (send-with-history-tracking payload network query on-done on-error on-update))))
 
 (defn is-sequential? [network]
   (if (and #?(:clj false :cljs (implements? net/NetworkBehavior network)))
@@ -209,8 +225,6 @@
             (send-payload network payload send-complete)    ; async call. Calls send-complete when done
             (when sequential?
               (async/<! response-channel))                  ; block until send-complete
-            (when (and history-atom tx-time)
-              (swap! history-atom hist/remote-activity-finished remote tx-time))
             (recur (async/<! queue))))))))
 
 (defn initialize-internationalization
