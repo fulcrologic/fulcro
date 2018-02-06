@@ -201,7 +201,8 @@
       =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*Module/components"))))
 
 (t/use-fixtures
-  :once #((log/set-level :none)
+  :once #(do
+           (log/set-level :none)
            (%)
            (log/set-level :all)))
 

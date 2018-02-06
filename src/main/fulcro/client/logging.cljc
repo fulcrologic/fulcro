@@ -4,14 +4,14 @@
              [goog.debug.Logger.Level :as level]))
   #?(:cljs (:import [goog.debug Console])))
 
-(def logging-priority {:all 100 :debug 5 :info 4 :warn 3 :error 2 :none 0})
+(def logging-priority {:all 100 :debug 5 :info 4 :warn 3 :error 2 :fatal 1 :none 0})
 (defonce current-logging-level (atom 0))
 (defonce logger (atom (fn [level message & args]
                         (when (< (get logging-priority @current-logging-level 0) (get logging-priority level 0))
                           (apply println message args)))))
 
 (defn set-level [log-level]
-  "Takes a keyword (:all, :debug, :info, :warn, :error, :none) and changes the log level accordingly.
+  "Takes a keyword (:all, :debug, :info, :warn, :error, :fatal, :none) and changes the log level accordingly.
   Note that the log levels are listed from least restrictive level to most restrictive. "
   (reset! current-logging-level (get logging-priority log-level 2)))
 
@@ -49,3 +49,9 @@
   [& data]
   (when @logger
     (apply @logger :error data)))
+
+(defn fatal
+  "output an FATAL level message to the logger"
+  [& data]
+  (when @logger
+    (apply @logger :fatal data)))
