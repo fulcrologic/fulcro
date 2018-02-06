@@ -75,7 +75,7 @@
   target=\"_blank\">devcard</a>, which makes fine tuning them as pure UI dead simple:
 
   ```
-  (defcard widget-card (widget {}))
+  (defcard widget-card (ui-widget {}))
   ```
 
   The resulting card looks like this:")
