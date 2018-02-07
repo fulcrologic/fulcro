@@ -1,3 +1,7 @@
+2.1.8
+-----
+- Removed accidental premature release of logging changes
+
 2.1.7
 -----
 - Fixed network history tracking. Was clogging up due to bug in remote activity tracking.
