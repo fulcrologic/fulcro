@@ -17,13 +17,20 @@
   [{:keys [send-fn listeners parser] :as websockets} event]
   (let [env (merge {:push          send-fn
                     :websockets    websockets
+                    :cid           (:client-id event)       ; legacy. might be removed
+                    :user-id       (:uid event)
+                    :request       (:ring-req event)        ; legacy. might be removed
                     :sente-message event}
               (dissoc websockets :server-options :ring-ajax-get-or-ws-handshake :ring-ajax-post
                 :ch-recv :send-fn :stop-fn :listeners))
         {:keys [?reply-fn id uid ?data]} event]
     (case id
-      :chsk/uidport-open (doseq [^WSListener l @listeners] (client-added l websockets uid))
-      :chsk/uidport-close (doseq [^WSListener l @listeners] (client-dropped l websockets uid))
+      :chsk/uidport-open (doseq [^WSListener l @listeners]
+                           (log/debug (str "Notifying listener that client " uid " connected"))
+                           (client-added l websockets uid))
+      :chsk/uidport-close (doseq [^WSListener l @listeners]
+                            (log/debug (str "Notifying listener that client " uid " disconnected"))
+                            (client-dropped l websockets uid))
       :fulcro.client/API (let [result (server/handle-api-request parser env ?data)]
                            (if ?reply-fn
                              (?reply-fn result)

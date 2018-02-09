@@ -22,7 +22,7 @@
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.10.0" :scope "provided"] ; only needed by deprecated client logging
                  [bidi "2.1.2"]                             ; needed by easy-server
-                 [com.taoensso/sente "1.11.0"]              ; websockets
+                 [com.taoensso/sente "1.12.0"]              ; websockets
 
                  ;; test deps
                  [fulcrologic/fulcro-spec "2.0.0-beta3" :scope "test" :exclusions [fulcrologic/fulcro]]
