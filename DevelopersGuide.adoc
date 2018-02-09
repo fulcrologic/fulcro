@@ -11386,19 +11386,6 @@ to extract the location using compile-time info, and the compile-time info of yo
 little use in your actual logs. The macros in Fulcro's internal logging will have already extract the relevant
 information into the location argument.
 
-== Log Formatting
-
-The built-in logging will format the arguments of a log statement as follows:
-
-The log entry will indicate where the log statement is in source code (namespace and line), the
-log level, and *Each* item in the argument list will be formatted as:
-
-- Exceptions: a large delimited block with the exception details
-- Collections: Using `pr-str`
-- Other things: Using `str`
-
-Use `set-logger!` to customize any of this. The default argument formatting is defined by `format-arguments`.
-
 == Eliding Logging Code
 
 The `set-level!` function changes runtime behavior of logging statements in the code base; however, you may wish
