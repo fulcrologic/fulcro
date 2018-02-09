@@ -8,8 +8,7 @@
             [book.macros :refer [defexample]]
             [fulcro.ui.bootstrap3 :as b]
             [fulcro.ui.elements :as ele]
-            [fulcro.ui.forms :as f]
-            [fulcro.client.logging :as log]))
+            [fulcro.ui.forms :as f]))
 
 (defn person-ident
   "Generate an ident from a person."

@@ -7,8 +7,7 @@
     [fulcro.client.dom :as dom]
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]
-    [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]))
+    [fulcro.client.data-fetch :as df]))
 
 (defrecord MockNetwork []
   net/FulcroNetwork

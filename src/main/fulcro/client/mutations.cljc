@@ -3,7 +3,7 @@
   (:require
     [clojure.spec.alpha :as s]
     [fulcro.util :refer [conform! join-key join-value join?]]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.client.primitives :as prim]
     [fulcro.i18n :as i18n]
     #?(:cljs [cljs.loader :as loader])
@@ -133,7 +133,7 @@
                      (set-locale!))
       valid-locale? (set-locale!)
       :otherwise (do
-                   (log/error (str "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module."))
+                   (log/error "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module.")
                    state-map))))
 
 #?(:cljs
@@ -167,7 +167,7 @@
 
 (defmethod mutate :default [{:keys [target]} k _]
   (when (nil? target)
-    (log/error (log/value-message "Unknown app state mutation. Have you required the file with your mutations?" k))))
+    (log/error "Unknown app state mutation. Have you required the file with your mutations?" k)))
 
 
 (defn toggle!
@@ -270,7 +270,7 @@
      (remote [{:keys [reconciler state ast]}]
        (let [history (-> reconciler (prim/get-history) deref)
              params  (assoc params :history history)]
-         (log/debug (str "Sending " (count (:history-steps history)) " history steps to the server."))
+         (log/debug "Sending " (count (:history-steps history)) " history steps to the server.")
          (assoc ast :params params)))))
 
 (defn returning

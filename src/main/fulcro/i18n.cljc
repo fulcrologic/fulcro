@@ -2,7 +2,7 @@
   ;; IMPORTANT: DO NOT REQUIRE A BUNCH OF STUFF HERE!!! It can adversely affect code splitting, since translations have to pull this NS in in order to complete loads
   #?(:cljs (:require-macros fulcro.i18n))
   (:require
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     #?(:cljs yahoo.intl-messageformat-with-locales))
   #?(:clj
      (:import (com.ibm.icu.text MessageFormat)

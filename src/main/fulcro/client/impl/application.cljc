@@ -1,5 +1,5 @@
 (ns fulcro.client.impl.application
-  (:require [fulcro.client.logging :as log]
+  (:require [fulcro.logging :as log]
             [fulcro.client.primitives :as prim]
             [fulcro.i18n :as i18n]
             [fulcro.client.mutations :as m]
@@ -25,7 +25,7 @@
   (fn [error]
     (swap! (prim/app-state reconciler) assoc :fulcro/server-error error)
     (if-let [q (prim/fallback-tx query error)]
-      (do (log/warn (log/value-message "Transaction failed. Running fallback." q))
+      (do (log/warn "Transaction failed. Running fallback." q)
           (prim/transact! reconciler q))
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
 
@@ -166,7 +166,7 @@
         item-remotes    (into #{} (map f/data-remote all-items))
         all-remotes     (set (keys send-queues))
         invalid-remotes (clojure.set/difference item-remotes all-remotes)]
-    (when (not-empty invalid-remotes) (log/error (str "Use of invalid remote(s) detected! " invalid-remotes)))))
+    (when (not-empty invalid-remotes) (log/error "Use of invalid remote(s) detected! " invalid-remotes))))
 
 (defn server-send
   "Puts queries/mutations (and their corresponding callbacks) onto the send queue. The networking code will pull these
@@ -330,7 +330,7 @@
   (let [rv     (try
                  (m/mutate env k params)
                  (catch #?(:cljs :default :clj Exception) e
-                   (log/error (str "Mutation " k " failed with exception") e)
+                   (log/error "Mutation " k " failed with exception" e)
                    nil))
         action (:action rv)]
     (if action
@@ -339,10 +339,10 @@
                             (let [action-result (action env k params)]
                               (try
                                 (m/post-mutate env k params)
-                                (catch #?(:cljs :default :clj Exception) e (log/error (str "Post mutate failed on dispatch to " k))))
+                                (catch #?(:cljs :default :clj Exception) e (log/error "Post mutate failed on dispatch to " k)))
                               action-result)
                             (catch #?(:cljs :default :clj Exception) e
-                              (log/error (str "Mutation " k " failed with exception") e)
+                              (log/error "Mutation " k " failed with exception" e)
                               (throw e)))))
       rv)))
 

@@ -3,7 +3,6 @@
     [com.stuartsierra.component :as component]
     [clojure.set :as set]
     [clojure.java.io :as io]
-    [taoensso.timbre :as timbre]
     [fulcro.server :as server]
     [bidi.bidi :as bidi]
     [org.httpkit.server :refer [run-server]]
@@ -11,7 +10,8 @@
     [ring.middleware.gzip :refer [wrap-gzip]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
     [ring.middleware.resource :refer [wrap-resource]]
-    [ring.util.response :as rsp :refer [response file-response resource-response]])
+    [ring.util.response :as rsp :refer [response file-response resource-response]]
+    [fulcro.logging :as log])
   (:gen-class))
 
 (defn index [req]
@@ -118,7 +118,7 @@
       (str "You asked to inject " injected-keys
         " but " (set/difference injected-keys (set (keys component)))
         " do not exist."))
-    (timbre/info "Creating web server handler.")
+    (log/info "Creating web server handler.")
     (let [om-parsing-env (select-keys component injected-keys)
           req-handler    (handler api-parser om-parsing-env extra-routes app-name
                            @pre-hook @fallback-hook)]
@@ -126,7 +126,7 @@
       (assoc component :env om-parsing-env
                        :middleware (fn [req] (@stack req)))))
   (stop [component]
-    (timbre/info "Tearing down web server handler.")
+    (log/info "Tearing down web server handler.")
     (assoc component :middleware nil :stack nil :pre-hook nil :fallback-hook nil))
 
   IHandler
@@ -178,15 +178,15 @@
       (let [server-opts    (select-keys (-> this :config :value) http-kit-opts)
             port           (:port server-opts)
             started-server (run-server (:middleware handler) server-opts)]
-        (timbre/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
+        (log/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
         (assoc this :port port :server started-server))
       (catch Exception e
-        (timbre/fatal "Failed to start web server " e)
+        (log/fatal "Failed to start web server " e)
         (throw e))))
   (stop [this]
     (if-not server this
                    (do (server)
-                       (timbre/info "web server stopped.")
+                       (log/info "web server stopped.")
                        (assoc this :server nil)))))
 
 (defn make-web-server

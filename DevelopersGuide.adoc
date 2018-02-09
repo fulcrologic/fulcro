@@ -176,11 +176,11 @@ The actual mount is done by code that figwheel is configured to load/run in
     [app.client :as core]
     [app.ui.root :as root]
     [cljs.pprint :refer [pprint]]
-    [fulcro.client.logging :as log]))
+    [fulcro.logging :as log]))
 
 (enable-console-print!)
 
-(log/set-level :all)
+(log/set-level! :all)
 
 (defn mount []
   (reset! core/app (fc/mount @core/app root/Root "app")))
@@ -1981,7 +1981,7 @@ itself, rather than the work you have to do. Create a new namespace `src/main/ap
 ```
 (ns app.rest
   (:refer-clojure :exclude [send])
-  (:require [fulcro.client.logging :as log]
+  (:require [fulcro.logging :as log]
             [fulcro.client.network :as net]
             [cognitect.transit :as ct]
             [goog.events :as events]
@@ -11182,6 +11182,77 @@ comparison fails, your UI changed. Have a human check that specific item and app
 
 See the section on <<DevCards, Dev Cards>> for more information.
 
+= Logging
+
+Fulcro's internal logging on the client and server are handled by a small set of logging functions. The
+logging itself can be modified to use any logging system that you wish to integrate, or you could choose
+to use the internal facility.
+
+The internal facility is meant to be used for Fulcro and related libraries so that no external logging \
+dependency is necessary.
+
+You can plug in your own output function (which can format and send log messages however you wish).
+
+The basic API is (assume cljc file):
+
+```
+(ns app
+  (:require [fulcro.logging :as log]))
+
+(log/set-level! :error) ; prevent any logging messages except :error and :fatal
+(log/set-logger! (fn [source-location log-level & args] (apply println args))) ; change the function that outputs the messages
+
+(log/fatal "PROBLEM!") ; log a fatal error.
+(log/debug "Doing something." [1 2 3] #{1 2} 22 "Hello" (ex-info "error" {})) ; log a debug message with a bunch of data
+```
+
+WARNING: Fulcro includes a legacy namespace (`fulcro.client.logging`) that should not be used.
+
+== Making Fulcro Log Through External Libraries
+
+You can make this logging facility delegate to another via `set-logger!`. It's as simple as something like:
+
+```
+(ns startup
+  (:require [taoensso.timbre :as timbre
+             fulcro.logging :as log]))
+
+(log/set-logger!
+  (fn [{:keys [file line] :as location} level & args]
+    (timbre/log! level :p [args] {:?ns-str file :?line line})))
+```
+
+Be sure you're using your loggers low-level logging function, and not the macros. The macros will typically try
+to extract the location using compile-time info, and the compile-time info of your call to `set-logger!` is of
+little use in your actual logs. The macros in Fulcro's internal logging will have already extract the relevant
+information into the location argument.
+
+== Log Formatting
+
+The built-in logging will format the arguments of a log statement as follows:
+
+The log entry will indicate where the log statement is in source code (namespace and line), the
+log level, and *Each* item in the argument list will be formatted as:
+
+- Exceptions: a large delimited block with the exception details
+- Collections: Using `pr-str`
+- Other things: Using `str`
+
+Use `set-logger!` to customize any of this. The default argument formatting is defined by `format-arguments`.
+
+== Eliding Logging Code
+
+The `set-level!` function changes runtime behavior of logging statements in the code base; however, you may wish
+to completely remove logging statements from your production code below certain levels like debug.
+
+The logging library will remove logging statements from code if you specify the JVM argument `-Dfulcro.logging=<level>`,
+where `<level>` is a level like `debug` or `error`. Logging *statements* below that level will not generate code
+in the resulting compiled program.
+
+Of course, if you've removed logging statements this way then `set-level!` cannot magically re-add them. Therefore
+using `-Dfulcro.logging=error` and doing `(set-level! :debug)` at runtime is not going to suddenly re-add the debug
+logging statements.
+
 = Deploying to Heroku
 
 As an example of sending a complete Fulcro application to the cloud we'll walk you through the steps
@@ -12568,7 +12639,7 @@ The complete source for this demo is:
               [fulcro.easy_server :refer [make-fulcro-server]]
               [fulcro.server :as server :refer [defquery-root server-read server-mutate]]
               [fulcro.client.data-fetch :as df]
-              [fulcro.client.logging :as log]
+              [fulcro.logging :as log]
               [fulcro.client :as fc]
               [fulcro.ui.bootstrap3 :as b]
               [fulcro.client.primitives :as prim :refer [defsc]]))

@@ -3,20 +3,15 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.impl.data-fetch :as dfi]
     [fulcro.client.util :as util]
-    #?@(:cljs
-        [[goog.log :as glog]])
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [clojure.test :refer [is are]]
-    [fulcro-spec.core :refer
-     [specification behavior assertions provided component when-mocking]]
+    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.logging :as log]
     [fulcro.client.impl.protocols :as omp]
     [fulcro.client :as fc]
     [fulcro.client.impl.data-fetch :as f]
     [fulcro.history :as hist]
     [fulcro.client.impl.protocols :as p]))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP
@@ -767,25 +762,22 @@
   (throw (ex-info "Boo!" {})))
 
 (specification "get-remotes"
-  (when-mocking
-    (log/error & m) => nil                                  ; suppress logging during test
-
-    (assertions
-      "Returns the correct remote for a given mutation"
-      (df/get-remotes {} `f) => #{:remote}
-      (df/get-remotes {} `g) => #{:rest-remote}
-      "Returns all remotes that are active for the given mutation"
-      (df/get-remotes {} `i) => #{:remote :rest-remote}
-      "Returns all remotes that are active even if the mutation responds via target (as long as legal remotes list is passed in)"
-      (df/get-remotes {} `j #{:remote :rest-remote}) => #{:remote :rest-remote}
-      "Returns #{:remote} if the mutation throws an exception"
-      (df/get-remotes {} `unhappy-mutation) => #{:remote}
-      "Returns an empty set if the mutation is not remote"
-      (df/get-remotes {} `h) => #{}
-      "Conditionally remote mutations are not included if they return false from the remote."
-      (df/get-remotes {} `conditional-mutation) => #{}
-      "Conditionally remote mutations are included if they return true from the remote."
-      (df/get-remotes {:go? true} `conditional-mutation) => #{:remote})))
+  (assertions
+    "Returns the correct remote for a given mutation"
+    (df/get-remotes {} `f) => #{:remote}
+    (df/get-remotes {} `g) => #{:rest-remote}
+    "Returns all remotes that are active for the given mutation"
+    (df/get-remotes {} `i) => #{:remote :rest-remote}
+    "Returns all remotes that are active even if the mutation responds via target (as long as legal remotes list is passed in)"
+    (df/get-remotes {} `j #{:remote :rest-remote}) => #{:remote :rest-remote}
+    "Returns #{:remote} if the mutation throws an exception"
+    (df/get-remotes {} `unhappy-mutation) => #{:remote}
+    "Returns an empty set if the mutation is not remote"
+    (df/get-remotes {} `h) => #{}
+    "Conditionally remote mutations are not included if they return false from the remote."
+    (df/get-remotes {} `conditional-mutation) => #{}
+    "Conditionally remote mutations are included if they return true from the remote."
+    (df/get-remotes {:go? true} `conditional-mutation) => #{:remote}))
 
 (specification "fallback (the mutation)"
   (behavior "On parse (run of `transact!`)"

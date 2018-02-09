@@ -5,7 +5,7 @@
             [fulcro.client.util :refer [force-render]]
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
-            [fulcro.client.logging :as log]
+            [fulcro.logging :as log]
             [fulcro.history :as hist]
             [fulcro.client.mutations :as m]
             [fulcro.client.impl.protocols :as p]

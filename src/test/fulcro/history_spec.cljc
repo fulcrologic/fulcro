@@ -20,14 +20,14 @@
        "in clj"
        (hist/is-timestamp? (java.util.Date.)) => true)))
 
-(specification "Oldest active network request" :focused
+(specification "Oldest active network request"
   (assertions
     "is the maximum long if there are none active"
     (hist/oldest-active-network-request empty-history) => hist/max-tx-time
     "is the smallest tx time from the active remotes"
     (hist/oldest-active-network-request (assoc empty-history ::hist/active-remotes {:a {5 1 7 1} :b {3 1 42 1}})) => 3))
 
-(specification "Garbage collecting history" :focused
+(specification "Garbage collecting history"
   (let [steps                           {1 mock-step 2 mock-step 3 mock-step 4 mock-step 5 mock-step 6 mock-step}
         history                         (assoc empty-history ::hist/history-steps steps)
         history-with-active-remotes     (assoc history ::hist/max-size 3 ::hist/active-remotes {:a {3 1 6 1}})
@@ -43,7 +43,7 @@
       "does not trim history steps that are still needed by active remotes"
       (-> new-history-with-active-remotes ::hist/history-steps keys set) => #{3 4 5 6})))
 
-(specification "Compressible transactions" :focused
+(specification "Compressible transactions"
   (assertions
     "can be marked with compressible-tx"
     (hist/compressible-tx? (hist/compressible-tx [])) => true
@@ -57,7 +57,7 @@
 
     (prim/compressible-transact! :mock-reconciler [])))
 
-(specification "Last tx time" :focused
+(specification "Last tx time"
   (let [steps   {1 mock-step 2 mock-step 3 mock-step 4 mock-step 5 mock-step}
         history (assoc empty-history ::hist/history-steps steps)]
     (assertions
@@ -66,7 +66,7 @@
       "Is the largest of the recorded tx time in history"
       (hist/last-tx-time history) => 5)))
 
-(specification "Recording history steps" :focused
+(specification "Recording history steps"
   (let [time      14
         history   (hist/record-history-step empty-history time mock-step)
         history-1 (hist/record-history-step (assoc empty-history ::hist/max-size 100) time mock-step)
@@ -93,7 +93,7 @@
         set)
       => #{time time-2 time-3})))
 
-(specification "Remote activity tracking" :focused
+(specification "Remote activity tracking"
   (let [h1 (hist/remote-activity-started empty-history :a 4)
         h2 (hist/remote-activity-started h1 :b 6)
         h3 (hist/remote-activity-started h2 :a 9)
@@ -114,7 +114,7 @@
       "once all activity is finished, reflects that as max-tx-time"
       (hist/oldest-active-network-request h8) => hist/max-tx-time)))
 
-(specification "History lookup (get-step)" :focused
+(specification "History lookup (get-step)"
   (let [time         14
         history-1    (hist/record-history-step (assoc empty-history ::hist/max-size 100) time (with-meta mock-step {:step 1}))
         time-missing (inc time)
@@ -135,7 +135,7 @@
       "returns the step just before the given time if no step exists for that exact time"
       (step (hist/get-step history-4 time-missing)) => 1)))
 
-(specification "History Navigator" :focused
+(specification "History Navigator"
   (let [time         14
         history-1    (hist/record-history-step (assoc empty-history ::hist/max-size 100) time (with-meta mock-step {:step 1}))
         time-missing (inc time)
@@ -157,7 +157,7 @@
       (step (-> nav (hist/focus-previous) (hist/focus-previous) (hist/focus-previous) (hist/current-step))) => 1
       (step (-> nav hist/focus-next hist/current-step)) => 4)))
 
-(specification "nav-position" :focused
+(specification "nav-position"
   (let [time         14
         history-1    (hist/record-history-step (assoc empty-history ::hist/max-size 100) time (with-meta mock-step {:step 1}))
         time-missing (inc time)

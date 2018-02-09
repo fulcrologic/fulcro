@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.1.7-SNAPSHOT"
+(defproject fulcrologic/fulcro "2.2.0-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -20,7 +20,7 @@
                  [ring/ring-core "1.6.3" :exclusions [commons-codec]]
                  [bk/ring-gzip "0.2.1"]
                  [com.stuartsierra/component "0.3.2"]
-                 [com.taoensso/timbre "4.10.0"]
+                 [com.taoensso/timbre "4.10.0" :scope "provided"] ; only needed by deprecated client logging
                  [bidi "2.1.2"]                             ; needed by easy-server
                  [com.taoensso/sente "1.11.0"]              ; websockets
 

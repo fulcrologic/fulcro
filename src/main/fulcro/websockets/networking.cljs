@@ -7,7 +7,7 @@
             [fulcro.client.primitives :as prim]
             [fulcro.transit :as t]
             [fulcro.client.network :refer [FulcroNetwork]]
-            [fulcro.client.logging :as log]
+            [fulcro.logging :as log]
             [fulcro.websockets.transit-packer :as tp]))
 
 (defprotocol ChannelSocket

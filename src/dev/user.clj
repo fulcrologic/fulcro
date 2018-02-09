@@ -11,7 +11,7 @@
     [clojure.spec.test.alpha :as st]
     [fulcro-spec.suite :as suite]))
 
-(st/instrument)
+;(st/instrument)
 
 (suite/def-test-suite server-test-server
   {:config       {:port 8888}

@@ -8,7 +8,7 @@
             [fulcro.client.cards :refer [defcard-fulcro]]
             [devcards.core :as dc :refer-macros [defcard defcard-doc]]
             [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.client.logging :as log]
+            [fulcro.logging :as log]
             [fulcro.client.data-fetch :as df]))
 
 (defsc Counter [this                                        ; the react component itself

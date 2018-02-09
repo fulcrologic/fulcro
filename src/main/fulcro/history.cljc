@@ -1,6 +1,6 @@
 (ns fulcro.history
   (:require #?(:clj [clojure.future :refer :all])
-                    [fulcro.client.logging :as log]
+                    [fulcro.logging :as log]
                     [fulcro.util :as util]
                     [clojure.set :as set]
                     [clojure.spec.alpha :as s]))
@@ -79,10 +79,9 @@
           proposed-keeper-keys         (drop overage ordered-step-keys)
           real-keeper-keys             (if (> (first proposed-keeper-keys) oldest-required-history-step)
                                          (do
-                                           (log/info "WARNING: History has grown beyond max size due to network congestion.")
+                                           (log/warn "History has grown beyond max size due to network congestion.")
                                            (drop-while (fn [t] (< t oldest-required-history-step)) ordered-step-keys))
                                          proposed-keeper-keys)]
-      (log/debug (str "Compressing history from " (count history-steps) " steps to " (count real-keeper-keys) ". Max size is " max-size))
       (update history ::history-steps select-keys real-keeper-keys))
     history))
 

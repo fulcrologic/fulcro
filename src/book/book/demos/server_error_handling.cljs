@@ -3,7 +3,7 @@
     [fulcro.client :as fc]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.server :as server]

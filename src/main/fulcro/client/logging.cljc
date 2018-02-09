@@ -1,10 +1,19 @@
 (ns fulcro.client.logging
-  #?(:clj
-     (:require [taoensso.timbre :as timbre]))
+  "DEPRECATED: Will be removed in a future release."
   #?(:cljs (:require
              [goog.log :as glog]
              [goog.debug.Logger.Level :as level]))
   #?(:cljs (:import [goog.debug Console])))
+
+#?(:clj
+   (do
+     (println "fulcro.client.logging is DEPRECATED. Please discontinue using it. If you're seeing this message
+     then some Clojure code is requiring fulcro.client.logging. It is recommended that you use a dedicated logging
+     library like timbre (clj/cljs).
+
+     If you see an error related to taoensso.timbre, it is because that dependency is no longer included in Fulcro and
+     you're using this deprecated logging.")
+     (require 'taoensso.timbre)))
 
 #?(:clj (def ^:dynamic *logger* (fn [this & args] (apply println args)))
    :cljs
@@ -20,7 +29,7 @@
           (.setLevel *logger*
             (level/getPredefinedLevel
               (case log-level :all "ALL" :debug "FINE" :info "INFO" :warn "WARNING" :error "SEVERE" :none "OFF"))))
-   :clj (defn set-level [l] (timbre/set-level! l)))
+   :clj (defn set-level [l] (taoensso.timbre/set-level! l)))
 
 #?(:cljs
    (defn value-message
@@ -38,8 +47,8 @@
           ([value] (glog/fine *logger* (value-message "DEBUG" value)) value)
           ([msg value] (glog/fine *logger* (value-message msg value)) value))
    :clj (defn debug
-          ([v] (timbre/debug v))
-          ([m v] (timbre/debug m v))))
+          ([v] (taoensso.timbre/debug v))
+          ([m v] (taoensso.timbre/debug m v))))
 
 #?(:cljs
    (defn info
@@ -48,7 +57,7 @@
      (glog/info *logger* (apply str (interpose " " data))))
    :clj
    (defn info [& data]
-     (timbre/info (apply str (interpose " " data)))))
+     (taoensso.timbre/info (apply str (interpose " " data)))))
 
 #?(:cljs
         (defn warn
@@ -58,11 +67,11 @@
    :clj (defn warn
           "output a WARNING level message to the logger"
           [& data]
-          (timbre/warn (apply str (interpose " " data)))))
+          (taoensso.timbre/warn (apply str (interpose " " data)))))
 
 #?(:cljs
         (defn error
           "output an ERROR level message to the logger"
           [& data]
           (glog/error *logger* (apply str (interpose " " data))))
-   :clj (defn error [& data] (timbre/error (apply str (interpose " " data)))))
+   :clj (defn error [& data] (taoensso.timbre/error (apply str (interpose " " data)))))

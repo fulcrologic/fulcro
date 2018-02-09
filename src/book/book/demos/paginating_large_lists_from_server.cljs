@@ -5,7 +5,6 @@
     [fulcro.client.dom :as dom]
     [fulcro.server :as server]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]
     [fulcro.client :as fc]
     [fulcro.client.primitives :as prim]))
 

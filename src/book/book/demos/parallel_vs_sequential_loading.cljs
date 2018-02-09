@@ -2,7 +2,6 @@
   (:require
     yahoo.intl-messageformat-with-locales
     [fulcro.server :refer [defquery-root defquery-entity defmutation]]
-    [fulcro.client.logging :as log]
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.dom :as dom]

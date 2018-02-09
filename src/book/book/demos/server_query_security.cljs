@@ -9,7 +9,7 @@
     [fulcro.server :as server]
     [com.stuartsierra.component :as c]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.client :as fc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

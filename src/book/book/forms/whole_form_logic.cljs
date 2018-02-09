@@ -7,8 +7,7 @@
     [fulcro.ui.icons :as i]
     [fulcro.ui.forms :as f]
     [fulcro.client.data-fetch :as df]
-    [fulcro.ui.bootstrap3 :as b]
-    [fulcro.client.logging :as log]))
+    [fulcro.ui.bootstrap3 :as b]))
 
 ;; SERVER
 (def users #{"tony" "sam"})

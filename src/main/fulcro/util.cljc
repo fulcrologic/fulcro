@@ -3,7 +3,7 @@
   (:require
     [clojure.spec.alpha :as s]
     clojure.walk
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     #?(:clj
     [clojure.spec.gen.alpha :as sg]))
   #?(:clj

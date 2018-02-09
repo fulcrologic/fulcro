@@ -14,7 +14,7 @@
     [fulcro.client.primitives :as prim+]
     [fulcro.util :as uu :refer [conform!]]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]))
 
 #?(:clj (def clj->js identity))

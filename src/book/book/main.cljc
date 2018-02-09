@@ -90,7 +90,7 @@
     [fulcro.client.network :as fcn]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.dom :as dom]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [book.example-1 :as ex1]
     [fulcro.client.data-fetch :as df]
     [fulcro.client :as fc]))

@@ -12,7 +12,7 @@
     [fulcro.ui.icons :as icons]
     [fulcro.client.mutations :refer [defmutation]]
     [fulcro.client.network :as net]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     #?(:clj
     [ring.util.response :as resp])
     #?(:clj

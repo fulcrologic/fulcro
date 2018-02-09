@@ -11,7 +11,7 @@
             [clojure.string :as str]
             [clojure.set :as set]
             [fulcro.client :as fc]
-            [fulcro.client.logging :as log]
+            [fulcro.logging :as log]
             [fulcro.client.util :as util]))
 
 #?(:clj (defn- clj->js [m] m))

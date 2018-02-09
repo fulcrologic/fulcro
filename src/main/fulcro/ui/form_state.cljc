@@ -3,7 +3,7 @@
     #?(:clj
             [clojure.future :refer :all])
             [clojure.set :as set]
-            [fulcro.client.logging :as log]
+            [fulcro.logging :as log]
             [fulcro.client.mutations :refer [defmutation]]
             [fulcro.util :as util]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
