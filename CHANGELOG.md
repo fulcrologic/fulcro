@@ -1,3 +1,8 @@
+2.2.0
+-----
+- Make logging no longer require timbre. fulcro.client.logging is deprecated
+- Added fulcro.logging: allows you to plug in a logger to log messages from internal fulcro functions
+
 2.1.7
 -----
 - Fixed network history tracking. Was clogging up due to bug in remote activity tracking.
