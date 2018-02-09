@@ -19,8 +19,8 @@
 
   ")
 
-(defn person [{:keys [person/name person/mate]}]
-  (dom/li nil
+(defn person [{:keys [ui/react-key person/name person/mate]}]
+  (dom/li #js {:key react-key}
     (dom/input #js {:type "checkbox"})
     name
     (dom/button nil "X")
@@ -30,7 +30,9 @@
   (dom/div nil
     (dom/button nil "Save")
     (dom/button nil "Refresh List")
-    (dom/ul nil (map #(person %) people))))
+    (dom/ul nil (map-indexed (fn [index item]
+                               (person (merge item {:ui/react-key index})))
+                             people))))
 
 (defn root [state-atom]
   (let [{:keys [last-error people new-person] :as ui-data} @state-atom]
