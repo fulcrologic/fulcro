@@ -210,7 +210,10 @@
       (assoc component :router (stop-f)))))
 
 (defn make-channel-server
-  "Creates `ChannelServer`.
+  "
+  DEPRECATED! Do not use for new code. See websockets.cljc.
+
+  Creates `ChannelServer`.
 
   Params:
   - `handshake-data-fn` (Optional) - Used by sente for adding data at the handshake.
