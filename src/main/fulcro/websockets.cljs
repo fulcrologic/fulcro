@@ -14,7 +14,7 @@
       :api/server-push (when push-handler (push-handler ?data))
       (log/debug "Unsupported message " id))))
 
-(defrecord Websockets [channel-socket push-handler url host state-callback global-error-callback transit-handlers req-params stop app]
+(defrecord Websockets [channel-socket push-handler url host state-callback global-error-callback transit-handlers req-params stop app auto-retry?]
   FulcroNetwork
   (send [this edn ok err]
     (let [{:keys [send-fn]} @channel-socket]
@@ -28,15 +28,19 @@
                   (err body)
                   (when global-error-callback
                     (global-error-callback resp)))))
-            (do
-              ; possibly useful to handle these separately
-              #_(case resp
-                :chsk/closed (println "Connection closed...")
-                :chsk/error (println "Connection error...")
-                :chsk/timeout (println "Connection timeout...")
-                (println "Unknown resp: " resp))
-              ; retry...probably don't need a back-off, but YMMV
-              (js/setTimeout #(fulcro.client.network/send this edn ok err) 1000)))))))
+            (if auto-retry?
+              (do
+                ; possibly useful to handle these separately
+                #_(case resp
+                    :chsk/closed (println "Connection closed...")
+                    :chsk/error (println "Connection error...")
+                    :chsk/timeout (println "Connection timeout...")
+                    (println "Unknown resp: " resp))
+                ; retry...probably don't need a back-off, but YMMV
+                (js/setTimeout #(fulcro.client.network/send this edn ok err) 1000))
+              (let [body {:fulcro.server/error :network-disconnect}]
+                (err body)
+                (global-error-callback {:status 408 :body body}))))))))
   (start [this]
     (let [{:keys [ch-recv state] :as cs} (sente/make-channel-socket! url ; path on server
                                            {:packer         (tp/make-packer transit-handlers)
@@ -69,11 +73,13 @@
   - `state-callback` (Optional) - Callback that runs when the websocket state of the websocket changes.
       The function takes an old state parameter and a new state parameter (arity 2 function).
       `state-callback` can be either a function, or an atom containing a function.
-  - `global-error-callback` - A function (fn [resp] ...) that is called when returned status code from
-  the server is not 200.
+  - `global-error-callback` - A function (fn [resp] ...) that is called when returned status code from the server is not 200.
+  - `auto-retry?` - A boolean (default false). If set to true any network disconnects will lead to infinite retries until
+  the network returns. All remote mutations should be idempotent.
   "
-  [url & {:keys [global-error-callback push-handler host req-params state-callback transit-handlers]}]
+  [url & {:keys [global-error-callback push-handler host req-params state-callback transit-handlers auto-retry?]}]
   (map->Websockets {:channel-socket        (atom nil)
+                    :auto-retry?           auto-retry?
                     :url                   url
                     :push-handler          push-handler
                     :host                  host

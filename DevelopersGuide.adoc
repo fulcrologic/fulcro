@@ -10142,138 +10142,297 @@ sort of networking component to deal with things like incoming streaming data.
 
 See the <<RESTAPI, REST API>> section of the Getting Started chapter for an example of working with REST.
 
-= Websockets
+= Websockets (ALPHA. Released in 2.2.0+. Older support is deprecated.) [Websockets]
 
 Fulcro includes support for using https://github.com/ptaoussanis/sente[Sente] to set up websockets as a remote
 for your applications.
 
-== Usage
+== Server Side
 
-The namespaces of interest are
-aliased in the following sections as:
-
-```
-(ns your-app
-  (:require
-    [fulcro.websockets.networking :as wn]
-    [fulcro.websockets.protocols :refer [WSNet WSListen push]]
-    [fulcro.websockets.components.channel-server :as cs]))
-```
-=== Server
-
-There are two protocols on the server side:
+There are two protocols in `fulcro.websockets.protocols` on the server side:
 
 ```
 (defprotocol WSNet
-  (add-listener [this ^WSListener listener]
-    "Add a `WSListen` listener")
-  (remove-listener [this ^WSListener listener]
-    "Remove a `WSListen` listener")
-  (push [this cid verb edn]
-    "Push from server"))
+  (add-listener [this ^WSListener listener] "Add a `WSListen` listener")
+  (remove-listener [this ^WSListener listener] "Remove a `WSListen` listener")
+  (push [this cid verb edn] "Push from server"))
 
 (defprotocol WSListener
-  (client-added [this ws-net cid]
-    "Listener for dealing with client added events.")
-  (client-dropped [this ws-net cid]
-    "listener for dealing with client dropped events."))
+  (client-added [this ws-net cid] "Listener for dealing with client added events.")
+  (client-dropped [this ws-net cid] "listener for dealing with client dropped events."))
 ```
 
-`WSNet` is implemented by the `ChannelServer`.
+`WSNet` is implemented by the `Websockets` component.
 
-`WSListener` is for you to implement. It allows for listening to client added and dropped (closed) actions. An example might look like this.
+`WSListener` is for you to implement. It allows for listening to client added and dropped (closed) actions. An example might look like this:
 
 ```
-(require '[fulcro.websockets.components.channel-server :as cs])
-(require '[app.api :as api]) ;; see below.
+(ns app
+  (:require
+    [com.stuartsierra.component :as component]
+    [fulcro.websockets.protocols :as wp :refer [WSListener WSNet add-listener remove-listener client-added client-dropped]]))
 
-(defrecord ChannelListener [channel-server]
-  cs/WSListener
+(defrecord ChannelListener [websockets]
+  WSListener
   (client-dropped [this ws-net cid]
-    (remove-user-to-db cid)
-    (api/notify-others ws-net cid :user/left {:user cid}))
+    (println "Client disconnected " cid))
   (client-added [this ws-net cid]
-    (add-user cid)
-    (api/notify-others ws-net cid :user/entered {:user cid}))
+    (println "Client connected " cid))
 
   component/Lifecycle
   (start [component]
-    (cs/add-listener channel-server component)
-    component))
+    (add-listener websockets component)
+    component)
   (stop [component]
-    (cs/remove-listener channel-server component)
+    (remove-listener websockets component)
     component))
 
 (defn make-channel-listener []
   (component/using
-    (map->ChannelWrapper {})
-    [:channel-server]))
+    (map->ChannelListener {})
+    [:websockets]))
 ```
 
-Hooking Fulcro websockets into the system is simple. We will add the `ChannelServer` component and the `ChannelListener` component from above, and then define the route:
+These encompass the core interface that is usable from the server.
+
+The following sections show how to set up a server.
+
+=== Easy Server
+
+If you're using the easy server you need only add two components, and then inject the websockets wherever you need
+to do client push from:
 
 ```
-(defn make-system []
-  (core/make-fulcro-server
-    :config-path "config/app.edn"
-    :parser (prim/parser {:read logging-query :mutate logging-mutate})
-    :parser-injections #{}
-    :components {:channel-server  (cs/make-channel-server)
-                 :channel-wrapper (make-channel-listener)}
-    :extra-routes {:routes   ["" {["/chsk"] :web-socket}]
-                   :handlers {:web-socket cs/route-handlers}}))
+(ns app
+  (:require
+    [fulcro.server :as server]
+    [fulcro.websockets :as fw]
+    [fulcro.easy-server :as easy])
+
+(defn build-easy-server [path]
+  (easy/make-fulcro-server
+    :config-path path
+    :components {:websockets       (fw/make-websockets (server/fulcro-parser))
+                 :channel-listener (make-channel-listener)
+                 :broadcaster      (make-broadcaster)      ; See below
+                 :ws-adapter       (fw/make-easy-server-adapter)}))
 ```
 
-The listing for `:extra-routes` is the endpoint for your websocket. `route-handlers` is defined in `fulcro.websockets.components.channel-server`. This will leave the default "/api" route in tact in case you need to use if for other clients/reasons.
+If you need push access from the parser, simply inject the websockets component and call `push` on it.
 
-In your api you may add something like this:
+NOTE: The parsing environment does *not* support parser injections of easy server. See <<WSComponent, server details>> below
+for more information on how to customize your API parsing environment with web sockets and easy server.
+
+=== Custom Server
+
+A custom server is similarly simple. You'll have some kind of component system with a web server (http-kit is the
+default sente adapter), middleware, etc.
+
+The websockets component is the same, you just need to place it into your middleware like so:
 
 ```
-(defn notify-others [ws-net cid verb edn]
-  (let [clients (:any @(:connected-uids ws-net))]
-    (doall (map (fn [id]
-                  (push ws-net id verb edn)) ;; Use the push protocol function on the ws-net to send to clients.
-                (disj clients cid)))))
+(defrecord Middleware [ring-stack websockets]
+  component/Lifecycle
+  (start [this]
+    (assoc this :ring-stack
+                (-> (not-found-handler)
+                  (fulcro.websockets/wrap-api websockets)
+                  (wrap-keyword-params) ;required
+                  (wrap-params) ; required
+                  ...
+                  (wrap-not-modified)
+                  (wrap-gzip))))
+  (stop [this]))
 
-(defmulti apimutate prim/dispatch)
-
-(defmethod apimutate 'datum/add [{:keys [ws-net cid] :as env} _ params] ;; ws-net is the protocol defined in fulcro-websockets and it is added to the environment for use by mutations and components.
-  {:action (fn []
-             (swap! db update :data conj params)
-             (notify-others ws-net cid :app/data-update params) ;; Push to topic with data (params) excluding cid
-             {})})
+(defn make-middleware []
+  (component/using (map->Middleware {})
+    [:websockets]))
 ```
 
-=== Client
+where your component system map includes the websockets component:
 
-In the client we need to override the default networking:
+```
+(defrecord WebServer [config middleware stop-fn]
+  component/Lifecycle
+  (start [this]
+    (let [port (get-in config [:value :port] 0)
+          [port stop-fn] (let [stop-fn (http-kit/run-server (:ring-stack middleware) {:port port})]
+                           [(:local-port (meta stop-fn)) (fn [] (stop-fn :timeout 100))])
+          uri  (format "http://localhost:%s/" port)]
+      (println "Web server running at " uri)
+      (assoc this :stop-fn stop-fn)))
+  (stop [this]
+    (when stop-fn
+      (stop-fn))
+    this))
 
-```clojure
-(def cs-net (wn/make-channel-client "/chsk" :global-error-callback (constantly nil)))
+(defn make-server []
+  (component/using
+    (map->WebServer {})
+    [:middleware :config]))
 
-(defonce app (atom (fc/new-fulcro-client
-                     :networking cs-net
-                     :initial-state initial-state
-                     ; IMPORTANT: install the push handlers once started! push-received won't work unless you do this.
-                     :started-callback (fn [app] (wn/install-push-handlers cs-net app)))))
+(defn build-server
+  [{:keys [config] :or {config "config/dev.edn"}}]
+  (component/system-map
+    :config (server/new-config config) ; from fulcro server
+    :middleware (make-middleware) ; see above
+    :websockets (fw/make-websockets (server/fulcro-parser))
+    :channel-listener (make-channel-listener) ; see above
+    :broadcaster (make-broadcaster) ; see below
+    :web-server (make-server))) ; see above
 ```
 
-We override the default network with our own implementation of a network. We hook the client up to use "/chsk" as the route for communicating with the server, and we give a callback for global errors.
+=== The Websockets Component [WSComponent]
 
-We will also need to extend the `fulcro.websockets.networking/push-received` multimethods, for handling pushed messages.
+The component implements the `WSNet` protocol, so you can call `push` directly on it. It wraps Sente's operations and
+internals, but quite a bit of those are easily accessible, and some of them are necessary for most features
+you'd want to write.
 
-```clojure
-(require '[fulcro.websockets.networking :as fwn])
+You can pass the contruction method three arguments:
 
-(defmethod fwn/push-received :app/data-update [{:keys [reconciler] :as app} {:keys [topic msg] :as message}] ;; message => {:topic verb :msg edn}
-  (prim/transact! reconciler `[(do.with/data {:data msg}) :data]))
+* `parser` - A fulcro parser (usually `(server/fulcro-parser)`)
+* `adapter` - A sente HTTP adapter (See Sente docs). Defaults to http-kit.
+* `sente-options` - A map of options that is passed directly to the sente websocket channel construction.
+
+NOTE: If you supply a packer in the sente options you'll need to make sure tempids are supported (this is done by default, but if you override it, it is up to you.
+The default user id mapping is to use the internally generated UUID of the client. Use sente's `:user-id-fn` option
+to override this.
+
+The web sockets component has a couple of useful fields that you can also access anywhere you inject it:
+
+[Horizontal]
+`parser`:: The Fulcro API parser you installed.
+`connected-uids`:: The Sente connected IDs atom. This is a read-only atom of user IDs (which defaults to the client UUID). See Sente docs for how to customize this.
+
+The web socket component is also responsible for running your API parser, and you may want custom things to
+be in your parsing environment.
+
+WARNING: Easy server's `:parser-injections` *will not work!*.
+
+However, anything injected as a dependency of this component will be added to your parser environment (in addition to the parser itself).
+Thus, if you'd like some other component (like a database) to be there, simply add something like this to do your component entry:
+
+```
+...
+   :websockets (component/using (make-websockets (fulcro.server/fulcro-parser)) [:sql-database :sessions])
+   :sql-database (some-db-component)
+   :sessions (some-session-component)
+...
 ```
 
-Note that you have access to the reconciler (for that matter the entire app) here. You can call `(fulcro.client.primitives/merge! reconciler ...)` or `(fulcro.client.primitives/transact! reconciler ...)` alternatively. That part is up to you.
+and when the system starts it will inject those components in and make them part of the parsing `env`.
 
-== Chat Demo
+NOTE: It is a good idea to use namespaced keywords for your component identifiers to prevent data collisions.
 
-There is a full https://github.com/fulcrologic/websocket-demo[chat demo application] on github.
+Additionally, the parser environment will include:
+
+[Horizontal]
+`:websockets`:: The channel server component itself
+`:push`::          A function that can send push messages to any connected client of this server. (just a shortcut to send-fn in websockets)
+`:parser`::        The parser you supplied
+`:sente-message`:: The raw sente event. This will include things like the client and user ID of the source message. See Sente documentation for complete details.
+
+The most useful items in the sente message are:
+
+[Horizontal]
+`:client-id`::      The unique websocket client connection ID (typically a UUID)
+`:connected-uids`:: The sente connected client ID list.
+`:uid`::            The client's user ID (will be same as client ID unless you override it)
+`:ring-req`:: The ring request of the websocket.
+
+=== Push Notifications
+
+You can send push notifications to clients by injecting the websockets in other components and using the
+`push` method. Here's a sample component that broadcasts server time updates:
+
+```
+(defrecord Broadcaster [websockets ^Thread thread]
+  component/Lifecycle
+  (start [this]
+    (let [t (new Thread (fn []
+                          (Thread/sleep 1000)
+                          (let [cids (some-> websockets :connected-uids deref :any)]
+                            (doseq [cid cids]
+                              (wp/push websockets cid :time-change {:time (Date.)})))
+                          (recur)))]
+      (.start t)
+      (assoc this :thread t)))
+  (stop [this] (.stop thread)))
+
+(defn make-broadcaster []
+  (component/using
+    (map->Broadcaster {})
+    [:websockets]))
+```
+
+The server `push` method takes a `topic` and an EDN `message`. It sends both to the client, and they're received
+as a map with keys `:topic` and `:msg` for the message.
+
+See the Sente documentation for information on connected UIDs.
+
+== Client Side
+
+Installing websockets on the client is equally trivial:
+
+```
+(fc/new-fulcro-client
+   :networking {:remote (fw/make-websocket-networking "/chsk"
+   :push-handler push-handler
+   :state-callback state-callback
+   :global-error-callback (fn [& args] (apply println "Network error " args)))})
+```
+
+The `push-handler` is a function that will receive server push notifications (as a map with `:topic` and `:msg` keys),
+and `state-callback` is a function that will be told with the networking of the client is connected or not.
+
+Usually you'll want to transact against your application on push and state changes, so if you save your app to
+an atom you can easily write the callbacks to use it:
+
+```
+(defonce app (atom nil))
+
+(defn push-handler [msg]
+  (when-let [reconciler (some-> app deref :reconciler)]
+    (prim/transact! reconciler `[(process-push {:message ~msg})])))
+
+(defn state-callback
+  [_ {:keys [open?] :as new-state}]
+  (when-let [reconciler (some-> app deref :reconciler)]
+    (prim/transact! reconciler `[(set-network-status {:up? ~open?})])))
+
+(defn mount []
+  (reset! app (fc/mount @app root/Root "app")))
+
+(defn ^:export init []
+  (reset! app (fc/new-fulcro-client
+                ; replace the default remote with websockets
+                :networking {:remote (fw/make-websocket-networking "/chsk"
+                                       :push-handler push-handler
+                                       :state-callback state-callback
+                                       :global-error-callback (fn [& args]
+                                                                (apply println "Network error " args)))}))
+  (mount))
+```
+
+=== Network Errors
+
+Normally a network error results in an immediate client error (triggering fallbacks, etc.).
+
+If the `auto-retry?` option of `make-websocket-networking` on the client is set to true then it will detect
+network disconnects and go into auto-reconnect and retry mode. This
+means that you must ensure that your mutations are idempotent, as there is a small chance that a mutation could have
+made it to the server, run, but not responded before the network problem. The retry support could therefore consider
+it "failed" and run it again. On a flaky network with a slow server this could degrade into running
+the mutation any number of times.
+
+If you choose to use auto retry it is recommended that you block your UI when the networking is down. Technically (as long as you
+don't need to read) you could allow the user to continue working and the pending remote mutations will all run
+in sequence once the network returns. However, without more novel history management you might not be able to
+respond to API errors in a way that makes sense to the user.
+
+== Chat Demo (outdated)
+
+OUTDATED: There is a full https://github.com/fulcrologic/websocket-demo[chat demo application] on github.
 
 = Internationalization
 
