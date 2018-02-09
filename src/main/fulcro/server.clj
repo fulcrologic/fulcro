@@ -300,7 +300,7 @@ default-malformed-response
                          (instance? ExceptionInfo error) (parser-read-error->response error)
                          (instance? Exception error) (unknow-error->response error)
                          :else (parser-mutate-error->response error))]
-    (log/error error "Parser error:\n" (with-out-str (clojure.pprint/pprint error-response)))
+    (log/error error "Parser error:\n" error-response)
     error-response))
 
 (defn valid-response? [result]
