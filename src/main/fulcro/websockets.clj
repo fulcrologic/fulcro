@@ -11,25 +11,24 @@
     [fulcro.logging :as log]
     [fulcro.easy-server :as easy]))
 
-(defn- make-event-handler
-  "Builds a sente event handler that connects the websockets support up to the parser via the
+(defn sente-event-handler
+  "A sente event handler that connects the websockets support up to the parser via the
   :fulcro.client/API event, and also handles notifying listeners that clients connected and dropped."
-  [{:keys [send-fn listeners parser] :as websockets}]
-  (fn [event]
-    (let [env (merge {:push          send-fn
-                      :websockets    websockets
-                      :sente-message event}
-                (dissoc websockets :server-options :ring-ajax-get-or-ws-handshake :ring-ajax-post
-                  :ch-recv :send-fn :stop-fn :listeners))
-          {:keys [?reply-fn id uid ?data]} event]
-      (case id
-        :chsk/uidport-open (doseq [l ^WSListener @listeners] (client-added l websockets uid))
-        :chsk/uidport-close (doseq [l ^WSListener @listeners] (client-dropped l websockets uid))
-        :fulcro.client/API (let [result (server/handle-api-request parser env ?data)]
-                             (if ?reply-fn
-                               (?reply-fn result)
-                               (log/error "Reply function missing on API call!")))
-        (do :nothing-by-default)))))
+  [{:keys [send-fn listeners parser] :as websockets} event]
+  (let [env (merge {:push          send-fn
+                    :websockets    websockets
+                    :sente-message event}
+              (dissoc websockets :server-options :ring-ajax-get-or-ws-handshake :ring-ajax-post
+                :ch-recv :send-fn :stop-fn :listeners))
+        {:keys [?reply-fn id uid ?data]} event]
+    (case id
+      :chsk/uidport-open (doseq [^WSListener l @listeners] (client-added l websockets uid))
+      :chsk/uidport-close (doseq [^WSListener l @listeners] (client-dropped l websockets uid))
+      :fulcro.client/API (let [result (server/handle-api-request parser env ?data)]
+                           (if ?reply-fn
+                             (?reply-fn result)
+                             (log/error "Reply function missing on API call!")))
+      (do :nothing-by-default))))
 
 (defn- is-wsrequest? [{:keys [uri]}] (= "/chsk" uri))
 
@@ -68,8 +67,10 @@
 (defrecord Websockets [parser server-adapter server-options ring-ajax-post ring-ajax-get-or-ws-handshake ch-recv send-fn connected-uids stop-fn listeners]
   WSNet
   (add-listener [this listener]
+    (log/info "Adding channel listener to websockets")
     (swap! listeners conj listener))
   (remove-listener [this listener]
+    (log/info "Removing channel listener from websockets")
     (swap! listeners disj listener))
   (push [this cid verb edn]
     (send-fn cid [:api/server-push {:topic verb :msg edn}]))
@@ -87,7 +88,7 @@
                         :send-fn send-fn
                         :listeners (atom #{})
                         :connected-uids connected-uids)
-          stop        (sente/start-server-chsk-router! ch-recv (make-event-handler result))]
+          stop        (sente/start-server-chsk-router! ch-recv (partial sente-event-handler result))]
       (log/info "Started Sente websockets event loop.")
       (assoc result :stop-fn stop)))
   (stop [this]
