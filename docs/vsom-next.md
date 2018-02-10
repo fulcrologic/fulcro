@@ -209,9 +209,13 @@ load progress markers, etc.
 
 ## Other Features
 
-Fulcro attempts to include solutions for most of the common problems that business webapps are
-trying to solve: testing, i18n, and advanced system for generating full-stack forms, CSS,
-file uploads, standing up a server.
+In addition to the base client-side constructs Fulcro includes solutions for most of the
+common problems that business projects need: testing, i18n, tools for making full-stack forms, CSS,
+file uploads, debugging tools, support history viewer (unique to Fulcro at the time of this writing),
+core server operations, automatic serialization of remote requests, network activity indicators,
+automatic response merge conflict resolution, optional websocket integration, pre-constructed
+primitives for triggering loads along with data targeting, UI routers, and
+dynamic routers to support code splitting.
 
 All of these are things you have to "plug in" with Om Next.
 

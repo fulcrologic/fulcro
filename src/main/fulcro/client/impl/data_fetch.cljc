@@ -5,7 +5,7 @@
             [fulcro.client.util :refer [force-render]]
             [clojure.walk :refer [prewalk]]
             [clojure.set :as set]
-            [fulcro.client.logging :as log]
+            [fulcro.logging :as log]
             [fulcro.history :as hist]
             [fulcro.client.mutations :as m]
             [fulcro.client.impl.protocols :as p]
@@ -128,6 +128,7 @@
                              (assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items))))
       (for [item items-to-load]
         {::prim/query        (full-query [item])
+         ::prim/remote       remote-name
          ::hist/tx-time      tx-time
          ::hist/history-atom history-atom
          ::on-load           ok
@@ -213,19 +214,17 @@
         ; CAUTION: We use the earliest time of all items, so that we don't accidentally clear history for something we have not even sent.
         tx-time                 (earliest-load-time all-items)]
     (when-not (empty? items-to-load-now)
-      (let [history-atom (prim/get-history reconciler)]
-        (when history-atom
-          (swap! history-atom hist/remote-activity-started remote tx-time))
-        (swap! state (fn [s]
-                       (-> s
-                         (place-load-markers items-to-load-now)
-                         (assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items))))
-        {::prim/query        (full-query items-to-load-now)
-         ::hist/history-atom (prim/get-history reconciler)
-         ::hist/tx-time      tx-time
-         ::on-load           (loaded-callback reconciler)
-         ::on-error          (error-callback reconciler)
-         ::load-descriptors  items-to-load-now}))))
+      (swap! state (fn [s]
+                     (-> s
+                       (place-load-markers items-to-load-now)
+                       (assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items))))
+      {::prim/query        (full-query items-to-load-now)
+       ::hist/history-atom (prim/get-history reconciler)
+       ::prim/remote       remote
+       ::hist/tx-time      tx-time
+       ::on-load           (loaded-callback reconciler)
+       ::on-error          (error-callback reconciler)
+       ::load-descriptors  items-to-load-now})))
 
 (s/fdef mark-loading
   :args (s/cat :remote keyword? :reconciler prim/reconciler?)
@@ -320,9 +319,7 @@
      ::original-env         (with-meta {} env)
      ::hist/tx-time         (if (some-> env :reconciler)
                               (prim/get-current-time (:reconciler env))
-                              (do
-                                (log/warn "Data fetch request created without a reconciler. No history time available. This could affect auto-error recovery operation.")
-                                hist/max-tx-time))}))
+                              (do hist/max-tx-time))}))
 
 (defn mark-ready
   "Place a ready-to-load marker into the application state. This should be done from
@@ -472,14 +469,6 @@
                 refresh (assoc :refresh refresh)
                 fallback (assoc :fallback fallback))})))
 
-(defn clear-history-activity!
-  "Update the history atom with a new history that does not include activity for the given load markers"
-  [history-atom load-markers]
-  (when history-atom
-    (swap! history-atom (fn [h]
-                          (reduce (fn [hist {:keys [::prim/remote ::hist/tx-time]}]
-                                    (hist/remote-activity-finished hist (or remote :remote) tx-time)) h load-markers)))))
-
 (defn- tick! "Ability to mock in tests"
   [r]
   (p/tick! r))
@@ -515,8 +504,6 @@
                                                           (cond-> s
                                                             :always (update :fulcro/loads-in-progress disj (data-uuid item))
                                                             (data-marker? item) (remove-marker item))))))
-          history             (prim/get-history reconciler)
-
           run-post-mutations! (fn [] (doseq [item loading-items]
                                        (when-let [mutation-symbol (::post-mutation item)]
                                          (reset! ran-mutations true)
@@ -526,7 +513,6 @@
                                              :action
                                              (apply []))))))]
       (remove-markers!)
-      (clear-history-activity! history loading-items)
       (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)
       (run-post-mutations!)
@@ -536,15 +522,6 @@
         (prim/force-root-render! reconciler)
         (force-render reconciler to-refresh)))))
 
-(defn record-network-error!
-  "Record a network error in history"
-  [reconciler items error]
-  (when-let [history (prim/get-history reconciler)]
-    (tick! reconciler)
-    (swap! history hist/record-history-step (p/basis-t reconciler) {::hist/db-before      @(prim/app-state reconciler)
-                                                                    ::hist/network-result {::load-descriptors items
-                                                                                           ::network-error    error}
-                                                                    ::hist/db-after       @(prim/app-state reconciler)})))
 (defn- error-callback
   "Generates a callback that is used whenever a hard server error occurs (status code 400+ or network error).
 
@@ -557,13 +534,12 @@
   "
   [reconciler]
   (fn [error items]
-    (record-network-error! reconciler items error)
     (let [loading-items (into #{} (map set-loading! items))
           app-state     (prim/app-state reconciler)
-          refresh-set   (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
-          to-refresh    (vec refresh-set)
+          ; TODO: currently forcing root refresh, so these are not needed. Perhaps that should be optimized?
+          ;refresh-set   (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
+          ;to-refresh    (vec refresh-set)
           ran-fallbacks (atom false)
-          history       (prim/get-history reconciler)
           mark-errors   (fn []
                           (swap! app-state assoc :fulcro/server-error error)
                           (doseq [item loading-items]
@@ -584,7 +560,6 @@
       (mark-errors)
       (run-fallbacks)
       (set-global-loading! reconciler)
-      (clear-history-activity! history loading-items)
       (tick! reconciler)
       (prim/force-root-render! reconciler))))
 

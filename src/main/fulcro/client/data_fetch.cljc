@@ -6,7 +6,7 @@
     [fulcro.client.impl.data-fetch :as impl]
     [fulcro.client.impl.data-targeting :as targeting]
     [fulcro.client.mutations :as m :refer [mutate defmutation]]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.client.dom :as dom]
     [fulcro.client :as fc]
     [fulcro.util :as util]
@@ -399,7 +399,7 @@
                                                           :post-mutation-params {:tx         tx
                                                                                  :ref        ref
                                                                                  :reconciler (with-meta {} {:reconciler reconciler})}})
-        (log/error (str "Cannot defer transaction. Reconciler was not available. Tx = " tx)))))
+        (log/error "Cannot defer transaction. Reconciler was not available. Tx = " tx))))
   (remote [env] (remote-load env)))
 
 (defn- fallback-action*
@@ -448,6 +448,6 @@
                        active-now?      #(get mutation-map % false)]
                    (into remotes (filter active-now? possible-remotes)))
                  (catch #?(:clj Throwable :cljs :default) e
-                   (log/error (str "Attempting to get the remotes for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!") e)
+                   (log/error  "Attempting to get the remotes for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!" e)
                    (reduced (if (seq remotes) remotes #{:remote})))))
        #{} legal-remotes))))

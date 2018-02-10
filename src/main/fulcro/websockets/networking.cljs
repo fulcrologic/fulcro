@@ -1,4 +1,5 @@
 (ns fulcro.websockets.networking
+  "DEPRECATED: Do not use this namespace for new projects."
   (:require-macros [cljs.core.async.macros :refer (go go-loop)])
   (:require [cljs.core.async :as async :refer (<! >! put! chan)]
             [cognitect.transit :as ct]
@@ -7,7 +8,7 @@
             [fulcro.client.primitives :as prim]
             [fulcro.transit :as t]
             [fulcro.client.network :refer [FulcroNetwork]]
-            [fulcro.client.logging :as log]
+            [fulcro.logging :as log]
             [fulcro.websockets.transit-packer :as tp]))
 
 (defprotocol ChannelSocket
@@ -86,7 +87,10 @@
 
 
 (defn make-channel-client
-  "Creates a client side networking component for use in place of the default fulcro networking component.
+  "
+  DEPRECATED! Do not use for new code. See websockets.cljc.
+
+  Creates a client side networking component for use in place of the default fulcro networking component.
 
   Params:
   - `url` - The url to handle websocket traffic on. (ex. \"\\chsk\")

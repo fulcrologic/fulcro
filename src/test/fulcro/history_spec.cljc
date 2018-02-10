@@ -24,22 +24,22 @@
   (assertions
     "is the maximum long if there are none active"
     (hist/oldest-active-network-request empty-history) => hist/max-tx-time
-    "is the smalled tx time from the active remotes"
-    (hist/oldest-active-network-request (assoc empty-history ::hist/active-remotes {:a #{5 7} :b #{3 42}})) => 3))
+    "is the smallest tx time from the active remotes"
+    (hist/oldest-active-network-request (assoc empty-history ::hist/active-remotes {:a {5 1 7 1} :b {3 1 42 1}})) => 3))
 
 (specification "Garbage collecting history"
   (let [steps                           {1 mock-step 2 mock-step 3 mock-step 4 mock-step 5 mock-step 6 mock-step}
         history                         (assoc empty-history ::hist/history-steps steps)
-        history-with-active-remotes     (assoc history ::hist/max-size 3 ::hist/active-remotes {:a #{3 6}})
+        history-with-active-remotes     (assoc history ::hist/max-size 3 ::hist/active-remotes {:a {3 1 6 1}})
         new-history                     (hist/gc-history history)
-        new-history-with-active-remotes (hist/gc-history history-with-active-remotes) ]
+        new-history-with-active-remotes (hist/gc-history history-with-active-remotes)]
     (assertions
       "trims the history to the max-size most recent items  "
       (-> new-history ::hist/history-steps keys set) => #{2 3 4 5 6}
       "Multiple applicatiosn of gc does not affect history"
       (-> history hist/gc-history hist/gc-history hist/gc-history) => new-history
       "retains the ::max-size entry in history"
-      (-> new-history ::hist/max-size) => 5
+      (-> history hist/gc-history ::hist/max-size) => 5
       "does not trim history steps that are still needed by active remotes"
       (-> new-history-with-active-remotes ::hist/history-steps keys set) => #{3 4 5 6})))
 
@@ -80,7 +80,18 @@
       "records the given step into the history under the current time"
       (-> history ::hist/history-steps (get time)) => mock-step
       "causes the removal of the most recent entry if both it and the new step are compressible"
-      (-> history-4 ::hist/history-steps keys set) => #{time time-2 time-4})))
+      (-> history-4 ::hist/history-steps keys set) => #{time time-2 time-4}
+
+      "unless that removal would remove a step that is in the active remotes"
+      (-> history
+        (hist/record-history-step time mock-step)
+        (hist/record-history-step time-2 compressible-step)
+        (hist/remote-activity-started :remote time-2)
+        (hist/record-history-step time-3 compressible-step)
+        ::hist/history-steps
+        keys
+        set)
+      => #{time time-2 time-3})))
 
 (specification "Remote activity tracking"
   (let [h1 (hist/remote-activity-started empty-history :a 4)
@@ -93,7 +104,7 @@
         h8 (hist/remote-activity-finished h7 :b 6)]
     (assertions
       "records data such that the oldest active request is available"
-      (hist/oldest-active-network-request h1) => 4
+     (hist/oldest-active-network-request h1) => 4
       (hist/oldest-active-network-request h2) => 4
       (hist/oldest-active-network-request h3) => 4
       (hist/oldest-active-network-request h4) => 4

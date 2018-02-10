@@ -5,7 +5,7 @@
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro.client.impl.protocols :as omp]
     [clojure.core.async :as async]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.client.util :as fcu]
     [fulcro.util :as util]))
 
@@ -42,8 +42,8 @@
            state            (atom {})]
        (behavior "Logs an error if the supplied component does not implement InitialAppState"
          (when-mocking
-           (log/error e) => (assertions
-                              e => "The specified root component does not implement InitialAppState!")
+           (log/-log location level & args) => (assertions
+                                                 (first args) => "The specified root component does not implement InitialAppState!")
            (fc/reset-app! mock-app BadResetAppRoot nil)))
 
        (behavior "On a proper app root"

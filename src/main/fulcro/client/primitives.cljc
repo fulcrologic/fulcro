@@ -8,12 +8,11 @@
                [clojure.reflect :as reflect]
                [cljs.util]]
         :cljs [[goog.string :as gstring]
-               [goog.log :as glog]
                [goog.object :as gobj]])
                [clojure.core.async :as async]
                [clojure.set :as set]
                [fulcro.history :as hist]
-               [fulcro.client.logging :as log]
+               [fulcro.logging :as log]
                [fulcro.tempid :as tempid]
                [fulcro.transit :as transit]
                [clojure.zip :as zip]
@@ -28,8 +27,7 @@
                [clojure.future :refer :all])
                [cognitect.transit :as t])
   #?(:clj
-           (:import [java.io Writer])
-     :cljs (:import [goog.debug Console])))
+     (:import [java.io Writer])))
 
 (declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root! component?
   integrate-ident)
@@ -574,7 +572,7 @@
 (def ^{:dynamic true} *raf* nil)
 (def ^{:dynamic true} *reconciler* nil)
 (def ^{:dynamic true} *parent* nil)
-(def ^{:dynamic true} *blindly-render* false) ; when true: shouldComponentUpdate will return true even if their data/state hasn't changed
+(def ^{:dynamic true} *blindly-render* false)               ; when true: shouldComponentUpdate will return true even if their data/state hasn't changed
 (def ^{:dynamic true} *shared* nil)
 (def ^{:dynamic true} *instrument* nil)
 (def ^{:dynamic true} *depth* 0)
@@ -1886,10 +1884,10 @@
                         (let [ident (ident c (props c))]
                           (when-not (util/ident? ident)
                             (log/info
-                              (str "malformed Ident. An ident must be a vector of "
-                                "two elements (a keyword and an EDN value). Check "
-                                "the Ident implementation of component `"
-                                (.. c -constructor -displayName) "`.")))
+                              "malformed Ident. An ident must be a vector of "
+                              "two elements (a keyword and an EDN value). Check "
+                              "the Ident implementation of component `"
+                              (.. c -constructor -displayName) "`."))
                           (when-not (some? (second ident))
                             (log/info
                               (str "component " (.. c -constructor -displayName)
@@ -2032,7 +2030,7 @@
       (try
         (.forceUpdate c cb)
         (catch :default e
-          (js/console.log "Component" c "threw an exception while rendering " e))))
+          (log/error "Component" c "threw an exception while rendering " e))))
      ([c]
       (force-update c nil))))
 
@@ -2454,6 +2452,7 @@
    {:pre [(or (component? x)
             (reconciler? x))
           (vector? tx)]}
+   (log/debug "running transaction: " tx)
    (let [tx (cond-> tx
               (and (component? x) (satisfies? Ident x))
               (annotate-mutations (get-ident x)))]
@@ -3376,8 +3375,6 @@
             (let [default-initial-state   (and parent-union (has-initial-app-state? parent-union) (get-initial-state parent-union {}))
                   to-many?                (vector? default-initial-state)
                   component-initial-state (and component (has-initial-app-state? component) (get-initial-state component {}))]
-              (when-not default-initial-state
-                (log/warn "WARNING: Subelements of union " (.. parent-union -displayName) " have initial state. This means your default branch of the union will not have initial application state."))
               (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
                 (merge-fn parent-union component-initial-state))))]
     (walk-ast

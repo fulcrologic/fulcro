@@ -4,7 +4,7 @@
     [fulcro.client.impl.application :as app]
     #?(:cljs fulcro.client.mutations)                       ; DO NOT REMOVE. Ensures built-in mutations load on start
     [fulcro.client.network :as net]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     #?(:clj
     [clojure.core.async :as async] :cljs [cljs.core.async :as async])
     [fulcro.client.impl.protocols :as proto]

@@ -10,7 +10,7 @@
     [goog.log :as glog]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [clojure.test :refer [is]]
-    [fulcro.client.logging :as log :refer [*logger*]]
+    [fulcro.logging :as log]
     [clojure.string :as str]
     [fulcro.client.impl.application :as app]
     [fulcro.test-helpers :as th]))
@@ -104,9 +104,11 @@
         parser     (partial (prim/parser {:read (partial app/read-local (constantly false)) :mutate m/mutate}))
         reconciler (prim/reconciler {:state  state
                                      :parser parser})]
-    (behavior "report an error if an undefined multi-method is called."
+    (behavior "reports an error if an undefined multi-method is called."
       (when-mocking
-        (log/error msg) => (is (re-find #"Unknown app state mutation." msg))
+        (log/-log loc level & args) =1x=> :debug
+        (log/-log loc level & args) =1x=> (assertions (first args) =fn=> #(str/starts-with? % "Unknown app state mutation"))
+
         (prim/transact! reconciler `[(not-a-real-transaction!)])))))
 
 (specification "Change locale mutation"
@@ -147,9 +149,9 @@
                                   "the loadable check is passed a keyword version of the locale"
                                   l => :ja)
                                 false)
-    (log/error error) => (assertions
-                           "Logs a console error"
-                           error =fn=> #(str/starts-with? % "Attempt to change locale to ja"))
+    (log/-log loc level & error) => (assertions
+                                      "Logs a console error"
+                                      (first error) =fn=> #(str/starts-with? % "Attempt to change locale to"))
 
     (let [new-state (m/change-locale-impl {:x 1} "ja")]
 
@@ -170,7 +172,7 @@
                                  (assertions
                                    (:ui/locale (cb)) => "ja"
                                    "the loader callback updates the locale atom (whose watch will refresh the UI)"
-                                   (deref i18n/*current-locale*) => "ja" ) )
+                                   (deref i18n/*current-locale*) => "ja"))
 
     (let [new-state (m/change-locale-impl {} "ja")]
       (assertions

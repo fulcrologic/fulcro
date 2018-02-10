@@ -6,12 +6,13 @@
     fulcro.client.impl.parser-spec
     fulcro.client-spec
     fulcro.client.data-fetch-spec
-    fulcro.client.logging-spec
+    fulcro.logging-spec
     fulcro.client.mutations-spec
     fulcro.client.network-spec
     fulcro.client.primitives-spec
     fulcro.client.routing-spec
     fulcro.client.util-spec
+    fulcro.client.logging-spec
     fulcro.history-spec
     fulcro.ui.forms-spec
     fulcro.ui.form-state-spec

@@ -3,7 +3,7 @@
   (:require
     [fulcro.client.network :as net]
     [fulcro.util :as util]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.client.primitives :as prim]))
 
 ;; This namespace is useful for building mock servers in cljs demos

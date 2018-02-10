@@ -9,11 +9,10 @@
     [cognitect.transit :as ct]
     [ring.util.response :as resp]
     [ring.util.request :as req]
-    [taoensso.timbre :as log]
     [fulcro.transit :as transit]
     [fulcro.client.impl.parser :as parser]
     [fulcro.util :as util]
-    [taoensso.timbre :as timbre])
+    [fulcro.logging :as log])
   (:import (clojure.lang ExceptionInfo)
            [java.io ByteArrayOutputStream File]))
 
@@ -62,11 +61,11 @@
   "Calls load-edn on `file-path`,
   and throws an ex-info if that failed."
   [file-path]
-  (timbre/info "Reading configuration file at " file-path)
+  (log/info "Reading configuration file at " file-path)
   (if-let [edn (some-> file-path load-edn)]
     edn
     (do
-      (timbre/error "Unable to read configuration file " file-path)
+      (log/error "Unable to read configuration file " file-path)
       (throw (ex-info (str "Invalid config file at '" file-path "'")
                {:file-path file-path})))))
 
@@ -105,7 +104,7 @@
   component/Lifecycle
   (start [this]
     (let [config (or value (load-config {:config-path config-path}))]
-      (timbre/debug "Loaded configuration: " (pr-str config))
+      (log/debug "Loaded configuration: " (pr-str config))
       (assoc this :value config)))
   (stop [this] this))
 
@@ -301,7 +300,7 @@ default-malformed-response
                          (instance? ExceptionInfo error) (parser-read-error->response error)
                          (instance? Exception error) (unknow-error->response error)
                          :else (parser-mutate-error->response error))]
-    (log/error error "Parser error:\n" (with-out-str (clojure.pprint/pprint error-response)))
+    (log/error error "Parser error:\n" error-response)
     error-response))
 
 (defn valid-response? [result]
@@ -337,7 +336,7 @@ default-malformed-response
     (update :headers assoc "Content-Type" "application/transit+json")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Module-based composable server
+;; Module-based composable server : DEPRECATED
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol Module
@@ -381,7 +380,10 @@ default-malformed-response
      :mutate (constantly nil)}
     (rseq modules)))
 
-(defn handle-api-request [parser env query]
+(defn handle-api-request
+  "Given a parser, a parser environment, and a query: Runs the parser on the query,
+   and generates a standard Fulcro-compatible response."
+  [parser env query]
   (generate-response
     (let [parse-result (try (raise-response (parser env query)) (catch Exception e e))]
       (if (valid-response? parse-result)
@@ -426,7 +428,9 @@ default-malformed-response
       (reduce (fn [m1 m2] (reduce merge-entry (or m1 {}) (seq m2))) maps))))
 
 (defn fulcro-system
-  "More powerful variant of `make-fulcro-server` that allows for libraries to provide
+  "DEPRECATED. Do not use in new code. Library composition is better accomplished using the standard parser hooks.
+
+  More powerful variant of `make-fulcro-server` that allows for libraries to provide
    components and api methods (by implementing `components` and `APIHandler` respectively).
    However note that `fulcro-system` does not include any components for you,
    so you'll have to include things like a web-server (eg: `make-web-server`), middleware,

@@ -2,7 +2,6 @@
   (:require
     [fulcro.client.dom :as dom]
     [fulcro.client.mutations :as m]
-    [fulcro.client.logging :as log]
     [fulcro.client :as fc]
     [fulcro.client.primitives :as prim :refer [defsc]]))
 

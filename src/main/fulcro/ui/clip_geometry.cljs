@@ -1,5 +1,5 @@
 (ns fulcro.ui.clip-geometry
-  (:require [fulcro.client.logging :as log]))
+  (:require [fulcro.logging :as log]))
 
 (defrecord Point [x y])
 (defrecord Rectangle [ul lr])

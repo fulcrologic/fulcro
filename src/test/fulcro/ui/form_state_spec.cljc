@@ -1,11 +1,10 @@
 (ns fulcro.ui.form-state-spec
   (:require
-    #?(:clj [taoensso.timbre :as timbre])
-            [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [fulcro.ui.form-state :as f]))
+    [fulcro.client.primitives :as prim :refer [defsc]]
+    [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
+    [clojure.spec.alpha :as s]
+    [clojure.string :as str]
+    [fulcro.ui.form-state :as f]))
 
 (defsc Locale [this props]
   {:query     [:db/id ::country f/form-config-join]
@@ -57,7 +56,7 @@
 
 (s/def ::person-name (s/and string? #(not (empty? (str/trim %)))))
 
-(specification "add-form-config" :focused
+(specification "add-form-config"
   (component "returns the entity with added configuration data, where:"
     (let [data-tree       {:db/id          1
                            ::person-name   "Joe"
@@ -100,7 +99,7 @@
         (f/add-form-config BadlyNestedForm data-tree) =throws=> {:regex #"Subform .*NonForm of .*BadlyNestedForm"
                                                                  :fn    (fn [e] (some-> e (ex-data) (contains? :nested-exception)))}))))
 
-(specification "add-form-config*" :focused
+(specification "add-form-config*"
   (let [state-map         {:person/by-id {1 {:db/id          1 ::person-name "Joe" :ui/checked? true
                                              ::phone-numbers [[:phone/by-id 5]]}}
                            :root-prop    99
@@ -148,7 +147,7 @@
                                                 (update-in [:person/by-id 1 ::phone-numbers] conj new-phone-ident)
                                                 (assoc-in [:phone/by-id 3 ::phone-number] "555-9999"))]
 
-  (specification "dirty-fields" :focused
+  (specification "dirty-fields"
     (behavior "(as delta)"
       (let [delta (f/dirty-fields (person-ui-tree edited-form-state-map 1) true)]
         (assertions
@@ -175,7 +174,7 @@
           "Includes the list of changes to subform idents"
           (get-in delta [[:person/by-id 1] ::phone-numbers]) => [[:phone/by-id 2] [:phone/by-id 3] [:phone/by-id new-phone-id]]))))
 
-  (specification "dirty?" :focused
+  (specification "dirty?"
     (behavior "is a UI (tree) operation for checking if the form has been modified from pristine"
       (assertions
         "is false if there are no changes"
@@ -187,7 +186,7 @@
         (f/dirty? (assoc-in person-form [::phone-numbers 0 ::locale ::country] :MX)) => true
         (f/dirty? (assoc-in person-form [::phone-numbers 1 ::phone-number] "555-1111")) => true)))
 
-  (specification "get-spec-validity" :focused
+  (specification "get-spec-validity"
     (behavior "is a UI (tree) operation for checking if the form (or fields) are valid. It:"
       (assertions
         "returns :unchecked if the fields have not been interacted with"
@@ -202,7 +201,7 @@
         (f/get-spec-validity person-with-invalid-name) => :invalid
         "returns :invalid if any nexted property is invalid"
         (f/get-spec-validity person-with-invalid-nested-phone-locale) => :invalid)))
-  (specification "valid-spec?" :focused
+  (specification "valid-spec?"
     (assertions
       "Returns true if validity is :valid"
       (f/valid-spec? validated-person) => true
@@ -210,7 +209,7 @@
       (f/valid-spec? person-with-incomplete-nested-form) => false
       "Returns false if validity is :invalid"
       (f/valid-spec? person-with-invalid-name) => false))
-  (specification "checked?" :focused
+  (specification "checked?"
     (assertions
       "Returns true if validity is :valid or :invalid"
       (f/checked? validated-person) => true
@@ -218,7 +217,7 @@
       (f/checked? person-with-invalid-nested-phone-locale) => true
       "Returns false if validity is :unchecked"
       (f/checked? person-with-incomplete-nested-form) => false))
-  (specification "invalid?" :focused
+  (specification "invalid?"
     (assertions
       "Returns true if validity is :invalid"
       (f/invalid-spec? person-with-invalid-name) => true
@@ -228,7 +227,7 @@
       "Returns false if validity is :valid"
       (f/invalid-spec? validated-person) => false))
 
-  (specification "update-forms" :focused
+  (specification "update-forms"
     (behavior "Allows one to traverse a nested form set in the app state database and apply xforms to the form and config"
       (let [updated-state (f/update-forms state-map (fn [e c] [(assoc e ::touched true) (assoc c ::touched true)]) [:person/by-id 1])]
         (assertions
@@ -245,7 +244,7 @@
           (get-in updated-state [:phone/by-id 3 ::touched]) => true
           (get-in updated-state [:locale/by-id 22 ::touched]) => true))))
 
-  (specification "mark-complete*" :focused
+  (specification "mark-complete*"
     (behavior "is a state map operation that marks field(s) as complete, so validation checks can be applied"
       (let [get-person (fn [state id validate?] (let [validated-state (cond-> state
                                                                         validate? (f/mark-complete* [:person/by-id id]))]
@@ -258,7 +257,7 @@
           (f/valid-spec? (get-person state-map 1 false)) => false
           (f/valid-spec? (get-person state-map 1 true)) => true))))
 
-  (specification "pristine->entity*" :focused
+  (specification "pristine->entity*"
     (behavior "is a state map operation that recursively undoes any entity state changes that differ from pristine"
       (let [modified-state-map (-> state-map
                                  (assoc-in [:phone/by-id 3 ::phone-number] "111")
@@ -269,7 +268,7 @@
           (not= modified-state-map state-map) => true
           reset-state-map => state-map))))
 
-  (specification "entity->pristine*" :focused
+  (specification "entity->pristine*"
     (behavior "is a state map operation that recursively updates any entity pristine form state so that the form is no longer dirty"
       (let [modified-state-map  (-> state-map
                                   (assoc-in [:phone/by-id 3 ::phone-number] "111")

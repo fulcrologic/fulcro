@@ -1,7 +1,8 @@
 (ns fulcro.history
   (:require #?(:clj [clojure.future :refer :all])
-                    [fulcro.client.logging :as log]
+                    [fulcro.logging :as log]
                     [fulcro.util :as util]
+                    [clojure.set :as set]
                     [clojure.spec.alpha :as s]))
 
 (defn is-timestamp? [t]
@@ -18,17 +19,25 @@
 (s/def ::network-sends (s/map-of keyword? vector?))         ; map of sends that became active due to this tx
 (s/def ::history-step (s/keys :req [::db-after ::db-before] :opt [::tx ::tx-result :fulcro.client.impl.data-fetch/network-result ::network-sends ::client-time]))
 (s/def ::history-steps (s/map-of int? ::history-step))
-(s/def ::active-remotes (s/map-of keyword? set?))           ; map of remote to the tx-time of any send(s) that are still active
+(s/def ::active-remotes (s/map-of keyword? (s/map-of pos-int? pos-int?))) ; map of remote to the tx-time of any send(s) that are still active
 (s/def ::history (s/keys :opt [::active-remotes] :req [::max-size ::history-steps]))
 (s/def ::history-atom (s/and #(util/atom? %) #(s/valid? ::history (deref %))))
 
 (def max-tx-time #?(:clj Long/MAX_VALUE :cljs 9200000000000000000))
 
+(defn- decrement-or-remove [m k]
+  (if (= 1 (get m k 1))
+    (dissoc m k)
+    (update m k dec)))
+
+(defn add-or-increment [m k]
+  (update m k (fnil inc 0)))
+
 (defn remote-activity-started
   "Record that remote activity started for the given remote at the given tx-time. Returns a new history."
   [history remote tx-time]
   (if (and remote tx-time)
-    (update-in history [::active-remotes remote] (fnil conj #{}) tx-time)
+    (update-in history [::active-remotes remote] add-or-increment tx-time)
     history))
 
 (s/fdef remote-activity-started
@@ -39,7 +48,7 @@
   "Record that remote activity finished for the given remote at the given tx-time. Returns a new history."
   [history remote tx-time]
   (if (and remote tx-time)
-    (update-in history [::active-remotes remote] disj tx-time)
+    (update-in history [::active-remotes remote] decrement-or-remove tx-time)
     history))
 
 (s/fdef remote-activity-finished
@@ -49,7 +58,7 @@
 (defn oldest-active-network-request
   "Returns the tx time for the oldest in-flight send that is active. Returns Long/MAX_VALUE if none are active."
   [{:keys [::active-remotes] :as history}]
-  (reduce min max-tx-time (apply concat (vals active-remotes))))
+  (reduce min max-tx-time (apply concat (some->> active-remotes vals (map keys)))))
 
 (s/fdef oldest-active-network-request
   :args (s/cat :hist ::history)
@@ -70,10 +79,9 @@
           proposed-keeper-keys         (drop overage ordered-step-keys)
           real-keeper-keys             (if (> (first proposed-keeper-keys) oldest-required-history-step)
                                          (do
-                                           (log/info "WARNING: History has grown beyond max size due to network congestion.")
+                                           (log/warn "History has grown beyond max size due to network congestion.")
                                            (drop-while (fn [t] (< t oldest-required-history-step)) ordered-step-keys))
                                          proposed-keeper-keys)]
-      (log/debug (str "Compressing history from " (count history-steps) " steps to " (count real-keeper-keys) ". Max size is " max-size))
       (update history ::history-steps select-keys real-keeper-keys))
     history))
 
@@ -107,17 +115,17 @@
 
 (defn record-history-step
   "Record a history step in the reconciler. "
-  [{:keys [::history-steps] :as history} tx-time
+  [{:keys [::history-steps ::active-remotes] :as history} tx-time
    {:keys [::tx] :as step}]
-  (let [last-time     (last-tx-time history)
-        gc?           (= 0 (mod tx-time 10))
-        last-tx       (get-in history-steps [last-time ::tx] [])
-        compressible? (and (compressible-tx? tx) (compressible-tx? last-tx))
-        new-history   (cond-> (assoc-in history [::history-steps tx-time] step)
-                        compressible? (update ::history-steps dissoc last-time))]
-    (when-not (or (nil? last-tx) (> tx-time last-time))
-      (log/error "Time did not move forward! History may have been lost."))
-    (util/soft-invariant (or (nil? last-tx) (> tx-time last-time)) "Time moved forward.")
+  (let [last-time        (last-tx-time history)
+        gc?              (= 0 (mod tx-time 10))
+        last-tx          (get-in history-steps [last-time ::tx] [])
+        all-active-steps (reduce set/union #{} (some->> active-remotes vals (map (comp set keys))))
+        compressible?    (and (compressible-tx? tx)
+                           (compressible-tx? last-tx)
+                           (-> (contains? all-active-steps last-time) not))
+        new-history      (cond-> (assoc-in history [::history-steps tx-time] step)
+                           compressible? (update ::history-steps dissoc last-time))]
     (if gc?
       (gc-history new-history)
       new-history)))

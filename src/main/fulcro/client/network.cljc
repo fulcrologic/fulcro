@@ -1,6 +1,6 @@
 (ns fulcro.client.network
   (:refer-clojure :exclude [send])
-  (:require [fulcro.client.logging :as log]
+  (:require [fulcro.logging :as log]
             [cognitect.transit :as ct]
     #?(:cljs [goog.events :as events])
             [fulcro.transit :as t]

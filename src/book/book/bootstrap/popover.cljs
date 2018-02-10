@@ -21,7 +21,6 @@
     (b/container nil
       (b/row nil
         (b/col {:xs-offset 2 :xs 2}
-          (js/console.log active)
           (b/ui-popover {:active active :orientation :left}
             (b/ui-popover-title {} (dom/b nil "Some ") (dom/i nil "Title"))
             (b/ui-popover-content {} "Left Bubble")

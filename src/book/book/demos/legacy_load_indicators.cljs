@@ -2,7 +2,7 @@
   (:require
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.server :refer [defquery-entity]]
     [fulcro.client.dom :as dom]))
 

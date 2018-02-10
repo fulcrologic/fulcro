@@ -1023,7 +1023,7 @@
   (behavior "Maintain their backward-compatible functionality" :manual-test))
 
 #?(:clj
-   (specification "defsc helpers" :focused
+   (specification "defsc helpers"
      (component "legal-keys"
        (assertions
          "Finds all of the top-level props in a query"
@@ -1298,7 +1298,7 @@
              {:person/jobs :JOB} {:jobs [{:id 1} {:id 2}]}) => {:person/jobs [:A :B]})))))
 
 #?(:clj
-   (specification "defsc" :focused
+   (specification "defsc"
      (component "css"
        (assertions
          "warns if the css destructuring is included, but no css option has been"

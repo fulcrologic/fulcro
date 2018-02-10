@@ -176,11 +176,11 @@ The actual mount is done by code that figwheel is configured to load/run in
     [app.client :as core]
     [app.ui.root :as root]
     [cljs.pprint :refer [pprint]]
-    [fulcro.client.logging :as log]))
+    [fulcro.logging :as log]))
 
 (enable-console-print!)
 
-(log/set-level :all)
+(log/set-level! :all)
 
 (defn mount []
   (reset! core/app (fc/mount @core/app root/Root "app")))
@@ -1981,7 +1981,7 @@ itself, rather than the work you have to do. Create a new namespace `src/main/ap
 ```
 (ns app.rest
   (:refer-clojure :exclude [send])
-  (:require [fulcro.client.logging :as log]
+  (:require [fulcro.logging :as log]
             [fulcro.client.network :as net]
             [cognitect.transit :as ct]
             [goog.events :as events]
@@ -3314,6 +3314,49 @@ The running code and source are below:
 ----
 include::src/book/book/ui/victory_example.cljs[]
 ----
+
+=== The Function-As-a-Child Pattern
+
+A common pattern in React libraries is to use a function as a single child instead of an actual element. This
+is an accepted and widely used pattern, but you need to do a simple extra step for it to work properly with
+Fulcro. You see, Fulcro components use some behind-the-scenes bindings to allow for targeted UI rendering 
+optimizations, and when you embed them in a function that is invoked from external JS out of that context, things
+won't work correctly.
+
+For example, the `react-motion` library gives you React tools that can animate DOM motion. It animates variables
+that you apply to nested DOM, and it does this through the function-as-a-child pattern. Here's an example from
+a https://github.com/awkay/fulcro-react-motion[demo project] (which uses shadow-cljs to get easy access to NPM
+libraries):
+
+```
+(ns sample
+  (:require ["react-motion" :refer [Motion spring]]
+            [fulcro.client.primitives :as prim :refer [defsc]]
+            [fulcro.client.dom :as dom]
+            [goog.object :as gobj]))
+
+(def ui-motion (factory-apply Motion))
+
+
+(defsc Demo [this {:keys [ui/slid? block]}]
+  {:query         [:ui/slid? {:block (prim/get-query Block)}]
+   :initial-state {:ui/slid? false :block {:id 1 :name "N"}}
+   :ident         (fn [] [:control :demo])}
+  (dom/div nil
+    (dom/button #js {:onClick (fn [] (m/toggle! this :ui/slid?))} "Toggle")
+    (ui-motion (clj->js {:style {"x" (spring (if slid? 400 0))}})
+      (fn [p]
+        (let [x (gobj/get p "x")]
+          ; The binding wrapper ensures that internal fulcro bindings are held within the lambda
+          (prim/with-parent-context this
+            (dom/div #js {:className "demo"}
+              (ui-block (prim/computed block {:x x})))))))))
+```
+
+The key is the call to `with-parent-context`. It causes the enclosed elements to have bindings pulled 
+from the component passed as the first parameter (in this case `this`).  Rendering will work 
+correctly without this wrapper, but interactions (particularly `transact!`) will not operate correctly 
+without it.
 
 == Demo: An Image Clip Tool
 
@@ -4823,10 +4866,10 @@ a clean data-driven structure. At first the new concepts can be challenging, but
 In fact, now that you've completed the materials of this guide on the graph database, queries, idents, and
 normalization, it turns out that the server interactions become nearly trivial!
 
-Not only is the *structure* of server interaction well-defined, Fulcro come with two pre-written server-side code bases
+Not only is the *structure* of server interaction well-defined, Fulcro come with pre-written server-side code
 that handle all of the Fulcro plumbing for you. You can choose to provide as little or as much as you like. The easy
-server code provides everything in a Ring-based stack, and the modular style of server code provides something you can
-plug into just about anything (though it assumes it can behave a bit like Ring).
+server code provides everything in a Ring-based stack, and you can also choose to hand-build your server using
+a simple API handler for the Fulcro API route.
 
 Even then, there are a lot of possible pitfalls when writing distributed applications. People often underestimate just how hard
 it is to get web applications right because they forget that.
@@ -5467,7 +5510,7 @@ The Ring stack is supplied for you in the server code and most responses are sim
 of for you; however, there are times when you need to modify something about the low-level response itself (such
 as adding a cookie).
 
-If you're using the Fulcro server tools (handle API request, easy or modular server) then you can add a fully general
+If you're using the Fulcro server tools (handle API request or the easy server) then you can add a fully general
 response transform to your EDN response as follows:
 
 ```
@@ -6870,13 +6913,12 @@ will associate the first two fallbacks with remote call `R`, and the last one wi
 
 In the Getting Started chapter you saw a little on how to build and use Fulcro's easy server. That server is acually
 flexible enough for many production needs, but Fulcro also
-comes with pre-built server components that allow you to very quickly get the server side of your
-application up and running. In this chapter we'll give you more detail on the three main approaches to
+comes with code to help you very quickly get a custom server for your
+application up and running. In this chapter we'll give you more detail on these two main approaches to
 the server-side of Fulcro:
 
 - How to use the pre-built bits to manually build your own server.
 - More details on the easy server.
-- A more involved pre-written modular approach that has more overall flexibility.
 
 == Rolling Your Own Server
 
@@ -6950,6 +6992,16 @@ In a REPL, you could start this one up with:
 solutions.tiny-server=> (my-tiny-server)
 ```
 
+=== Configuration
+
+Since you'll still need to configure your web server, it might be useful to note that the configuration used
+by the easy server is a component you can inject into your own server. A number of add-on components for Fulcro
+assume a `:config` keyed component will be in your system, so if you choose to use such components you can
+create a config component via `fulcro.server/new-config`.
+
+It supports pulling in values from the system environment, overriding configs with a JVM option, and more. See
+the section in easy server about <<ServerConfig, configuration>>, and the docstrings on `new-config` for more details.
+
 == The "Easy" Server [[EasyServer]]
 
 The pre-built easy server component for Fulcro uses Stuart Sierra's Component library. The server has no
@@ -6982,7 +7034,7 @@ The base server is trivial to create:
     :components {}))
 ```
 
-=== Configuring the server
+=== Configuring the server [ServerConfig]
 
 Server configuration requires two EDN files:
 
@@ -7112,232 +7164,6 @@ The easy server also supplies a way to add in URI handlers via BIDI:
 The extra routes are processed right *after* the pre-hook, but just before the
 resource (filesystem) serving. Thus, you can respond to any URI that isn't already
 handled by your pre-hook.
-
-
-== Modular Server
-
-Fulcro's easy server support is an attempt to get you going quickly, but it suffers from a few drawbacks:
-
-* The Ring stack can only be modified at pre-hook and post-hook locations.
-* Adding new features to easy-server API would lead to a swiss-army knife API with a dizzying array of options.
-
-So when you outgrow the easy server Fulcro provides you with a more modular approach. This leads to
-more control, clearer extension points, and a simple API.
-
-The hope is that as library authors start building full-stack additions (like image libraries, for example) they might
-need to be able to hook into your existing server. The modular server design is intended to make this easier. Note that
-after the modular server API was developed (pre 1.x), Fulcro 1.x has since standardized a server-side parser with
-`defquery` and `defmutation` support. This already allows library authors to add support for handling namespaced keywords
-without having to plug into your server at all, and the modular server support
-may turn out to be less useful for that concern.
-
-In either case the modular server gives you an approach to building the server that is more open than the easy server.
-It does, however, require a bit more work to get started.
-
-=== Overall Structure
-
-The modular server still uses components to make sure your code is reloadable. The primary difference is that the
-modular server makes no assumptions about how you want to build the web server itself. You could do anything from
-build a `ring-defaults` handler and augment it and drop the resulting processing pipeline into a Java Servlet. The options
-are endless.
-
-You must build three things:
-
-* A Module to handle API requests
-* Middleware to join the API processing with the rest of your request processing
-* Something to get you on the network (web server, servlet, etc.)
-
-The modules get composed into an API handler (which is found by injecting its well-known component), the API handler
-is injected into the middleware component (where you hook it into the correct place), and finally your middleware
-is injected into the network capable thing.
-
-The basic overall picture is shown below. Note the dotted arrows are meant to be injection, the solid lines are
-composition, and the dashed colored lines are the request/response flow.
-
-image::/svg/modular-server.svg[]
-
-==== Step 1: A Module
-
-```
-(defrecord APIModule []
-  fulcro.server/Module
-  (system-key [this] :api-module)          ; this module will be known in the component system as :api-module. Allows you to inject the module.
-  (components [this] {})                   ; Additional components to build. This allows library modules to inject other dependencies that it needs into the system. Commonly empty.
-  fulcro.server/APIHandler
-  (api-read [this] core/server-read)       ; read/mutate handlers (as function) Here we're using the fulcro multimethods so defmutation et al will work.
-  (api-mutate [this] core/server-mutate))
-```
-
-The `fulcro.server/Module` protocol is required, and allows the component to appear in the module list.
-
-NOTE: Your module will be treated as a Stuart Sierra component, so you may also add the `Lifecycle` protocol and
-participate in the `start/stop` sequence if you need to.
-
-===== The System Key
-
-The `(system-key)` protocol method must return a keyword. The module itself gets composed together with other modules
-to make a single request handler, but this keyword will be used as the dependency name for this *specific* module
-in the Stuart Sierra component system. This allows your modules to have inter-dependencies. For example, you
-could have a module that provides API parsing and one that provides utility support for image processing. Not only do you need such
-a component to end up in the processing chain, other components (like the web server itself) might need to access
-the component to obtain things like raw image data for image serving through traditional image URLs.
-
-If you're writing a module for a reusable library then it is suggested that you namespace this keyword to avoid collision.
-
-===== The Components
-
-The `(components)` method must return a map that conforms to the Stuart Sierra component's definition of a dependency
-map. The keys of such a map indicate what keyword you'd like the dependency to be known **as**, and the value
-must be a component that you want created (or the keyword of a component that you know will exist elsewhere in the
-system on startup). This allows library modules to declare, create, or otherwise hook to other things in your system.
-
-Most basic applications can just return nil or an empty map.
-
-==== The APIHandler Protocol
-
-The APIHandler protocol is how you hook into the API requests. The methods of this protocol need to return
-a **function** due to the need for module composition by Fulcro.
-
-If you'd like to use the macros like `defquery-root`, then you should provide a module that returns
-`fulcro.server/server-read` and `fulcro.server/server-mutate` respectively. You may, however, return
-any function you please.
-
-=== Step 2 – The Middleware Stack
-
-When the Fulcro modular server starts it will compose all known modules into an internal component known under the
-key `:fulcro.server/api-handler`. This component contains the key `:middleware` which holds a Ring middleware
-wrapping function that can handle Fulcro API requests. So, to build *your* middleware you simply inject the
-`:fulcro.server/api-handler` component into your own middleware component and create your Ring stack:
-
-```
-; We'll use a trick in a moment to inject the :fulcro.server/api-handler AS :api-handler here
-; :full-server-middleware is where we'll store our resulting middleware stack for the web server's use
-(defrecord CustomMiddleware [full-server-middleware api-handler]
-  component/Lifecycle
-  (start [this]
-    (let [wrap-api (:middleware api-handler)] ; pull the middleware function out
-      (assoc this :full-server-middleware
-                  (-> not-found
-                    (wrap-resource "public")
-                    wrap-api                            ; from fulcro-system modules. Handles /api
-                    fulcro.server/wrap-transit-params   ; REQUIRED
-                    fulcro.server/wrap-transit-response ; REQUIRED
-                    wrap-content-type ; REQUIRED
-                    wrap-not-modified ; these are recommended
-                    wrap-params
-                    wrap-gzip))))
-  (stop [this] (dissoc this :full-server-middleware)))
-```
-
-This component would be set up to have the API handler injected by wrapping its creation in `component/using` like
-so:
-
-```
-(component/using
-  (map->CustomMiddleware {})
-  ; Inject (and remap) the generated api handler AS api-handler
-  {:api-handler   :fulcro.server/api-handler })
-```
-
-The rename makes it possible to refer to the simpler name within the `CustomMiddleware`. If you don't rename it, then
-instead of using a declared field of the `defrecord` you'd have to pull it out via `(:fulcro.server/api-handler this)`.
-
-=== Step 3 – The Web Server
-
-Now that you have Ring middleware, you can do whatever you want. You have a simple way to get a function that
-can handle any request just by injecting the above `CustomMiddleware` into it. Here's an example using HTTP Kit:
-
-```
-; server-middleware-component will be an injected instance of CustomMiddleware
-(defrecord WebServer [^CustomMiddleware server-middleware-component server port]
-  component/Lifecycle
-  (start [this]
-    (try
-      (let [server-opts    {:port 4000}
-            port           (:port server-opts)
-            ; pull out the middleware function from the component
-            middleware     (:full-server-middleware server-middleware-component)
-            ; install the middleware and start the server
-            started-server (run-server middleware server-opts)]
-        (timbre/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
-        (assoc this :port port :server started-server))
-      (catch Exception e
-        (println "Failed to start web server " e)
-        (throw e))))
-  (stop [this]
-    (if-not server this
-                   (do (server)
-                       (println "web server stopped.")
-                       (assoc this :server nil)))))
-```
-
-=== Putting it All Together
-
-The only thing that remains is to set up your overall system so that the components are all known by the names
-you've assumed for them.
-
-```
-(defn make-system []
-  (fulcro.server/fulcro-system
-    {:components {:server-middleware-component (component/using
-                                                 (map->CustomMiddleware {})
-                                                 ; inject (and rename) the generated API handler
-                                                 {:api-handler   :fulcro.server/api-handler })
-                  ; The web server itself, which needs the config and full-stack middleware.
-                  :web-server                  (component/using (map->WebServer {})
-                                                 [:config :server-middleware-component])}
-     ; The Modules (automatically injected as :fulcro.server/api-handler)
-     :modules    [(map->APIModule {})]}))
-```
-
-=== Module Composition
-
-Modules are composed for you when you supply them to the `fulcro-system`:
-
-```
-(def your-server
-  (fulcro.server/fulcro-system
-    {:components { ... }
-     :modules [(make-mod1) (make-mod2) ...]}))
-```
-
-When an API request comes in, **each** query element (prop, join, mutation) will be sent (one at a time)
-into the API handler that appears first in this vector.
-
-* If the API handler returns nil, it will try the next and so on in a chain until one returns non-nil
-* If all return nil, then the remainder of the web processing will be sent the request
-
-=== Parsing Environment
-
-In the easy server you have explicity `:parser-injections`. In the module system, Fulcro will merge your module itself
-**into** the parsing `env` before calling your API handler functions. This means that anything you inject into the
-**module** will be visible in the `env`.
-
-```
-(def your-server
-  (fulcro.server/fulcro-system
-    {:components { ... }
-     :modules [(component/using (make-mod1) [:user-db])
-               (component/using (make-mod2) [:session-store]) ...]}))
-```
-
-In the example above module 1 will see `:user-db` in `env`, and module 2 will see the `:session-store`.
-
-== Application Configuration
-
-Since you'll still need to configure your web server, it might be useful to note that the configuration used
-by the easy server is a component you can inject into your modular server!
-
-```
-(core/fulcro-system
-  {:components {:config (fulcro.server/new-config config-path)
-                :server (component/using (make-server) [:config])}
-   :modules [(make-mod1)]})
-```
-
-It supports pulling in values from the system environment, overriding configs with a JVM option, and more.
-
-See the docstrings on `new-config` for more details.
 
 = Dynamic Queries [[DynamicQueries]]
 
@@ -10099,138 +9925,310 @@ sort of networking component to deal with things like incoming streaming data.
 
 See the <<RESTAPI, REST API>> section of the Getting Started chapter for an example of working with REST.
 
-= Websockets
+= Websockets [[Websockets]]
 
 Fulcro includes support for using https://github.com/ptaoussanis/sente[Sente] to set up websockets as a remote
-for your applications.
+for your applications. The support documented here is relatively new, and supercedes a prior version as of 2.2.0.
 
-== Usage
+== Server Side
 
-The namespaces of interest are
-aliased in the following sections as:
-
-```
-(ns your-app
-  (:require
-    [fulcro.websockets.networking :as wn]
-    [fulcro.websockets.protocols :refer [WSNet WSListen push]]
-    [fulcro.websockets.components.channel-server :as cs]))
-```
-=== Server
-
-There are two protocols on the server side:
+There are two protocols in `fulcro.websockets.protocols` on the server side:
 
 ```
 (defprotocol WSNet
-  (add-listener [this ^WSListener listener]
-    "Add a `WSListen` listener")
-  (remove-listener [this ^WSListener listener]
-    "Remove a `WSListen` listener")
-  (push [this cid verb edn]
-    "Push from server"))
+  (add-listener [this ^WSListener listener] "Add a `WSListen` listener")
+  (remove-listener [this ^WSListener listener] "Remove a `WSListen` listener")
+  (push [this cid verb edn] "Push from server"))
 
 (defprotocol WSListener
-  (client-added [this ws-net cid]
-    "Listener for dealing with client added events.")
-  (client-dropped [this ws-net cid]
-    "listener for dealing with client dropped events."))
+  (client-added [this ws-net cid] "Listener for dealing with client added events.")
+  (client-dropped [this ws-net cid] "listener for dealing with client dropped events."))
 ```
 
-`WSNet` is implemented by the `ChannelServer`.
+`WSNet` is implemented by the `Websockets` component.
 
-`WSListener` is for you to implement. It allows for listening to client added and dropped (closed) actions. An example might look like this.
+`WSListener` is for you to implement. It allows for listening to client added and dropped (closed) actions. An example might look like this:
 
 ```
-(require '[fulcro.websockets.components.channel-server :as cs])
-(require '[app.api :as api]) ;; see below.
+(ns app
+  (:require
+    [com.stuartsierra.component :as component]
+    [fulcro.websockets.protocols :as wp :refer [WSListener WSNet add-listener remove-listener client-added client-dropped]]))
 
-(defrecord ChannelListener [channel-server]
-  cs/WSListener
+(defrecord ChannelListener [websockets]
+  WSListener
   (client-dropped [this ws-net cid]
-    (remove-user-to-db cid)
-    (api/notify-others ws-net cid :user/left {:user cid}))
+    (println "Client disconnected " cid))
   (client-added [this ws-net cid]
-    (add-user cid)
-    (api/notify-others ws-net cid :user/entered {:user cid}))
+    (println "Client connected " cid))
 
   component/Lifecycle
   (start [component]
-    (cs/add-listener channel-server component)
-    component))
+    (add-listener websockets component)
+    component)
   (stop [component]
-    (cs/remove-listener channel-server component)
+    (remove-listener websockets component)
     component))
 
 (defn make-channel-listener []
   (component/using
-    (map->ChannelWrapper {})
-    [:channel-server]))
+    (map->ChannelListener {})
+    [:websockets]))
 ```
 
-Hooking Fulcro websockets into the system is simple. We will add the `ChannelServer` component and the `ChannelListener` component from above, and then define the route:
+These encompass the core interface that is usable from the server.
+
+The following sections show how to set up a server.
+
+=== Easy Server
+
+If you're using the easy server you need only add two components, and then inject the websockets wherever you need
+to do client push from:
 
 ```
-(defn make-system []
-  (core/make-fulcro-server
-    :config-path "config/app.edn"
-    :parser (prim/parser {:read logging-query :mutate logging-mutate})
-    :parser-injections #{}
-    :components {:channel-server  (cs/make-channel-server)
-                 :channel-wrapper (make-channel-listener)}
-    :extra-routes {:routes   ["" {["/chsk"] :web-socket}]
-                   :handlers {:web-socket cs/route-handlers}}))
+(ns app
+  (:require
+    [fulcro.server :as server]
+    [fulcro.websockets :as fw]
+    [fulcro.easy-server :as easy])
+
+(defn build-easy-server [path]
+  (easy/make-fulcro-server
+    :config-path path
+    :components {:websockets       (fw/make-websockets (server/fulcro-parser))
+                 :channel-listener (make-channel-listener)
+                 :broadcaster      (make-broadcaster)      ; See below
+                 :ws-adapter       (fw/make-easy-server-adapter)}))
 ```
 
-The listing for `:extra-routes` is the endpoint for your websocket. `route-handlers` is defined in `fulcro.websockets.components.channel-server`. This will leave the default "/api" route in tact in case you need to use if for other clients/reasons.
+If you need push access from the parser, simply inject the websockets component and call `push` on it.
 
-In your api you may add something like this:
+NOTE: The parsing environment does *not* support parser injections of easy server. See <<WSComponent, server details>> below
+for more information on how to customize your API parsing environment with web sockets and easy server.
+
+=== Custom Server
+
+A custom server is similarly simple. You'll have some kind of component system with a web server (http-kit is the
+default sente adapter), middleware, etc.
+
+The websockets component is the same, you just need to place it into your middleware like so:
 
 ```
-(defn notify-others [ws-net cid verb edn]
-  (let [clients (:any @(:connected-uids ws-net))]
-    (doall (map (fn [id]
-                  (push ws-net id verb edn)) ;; Use the push protocol function on the ws-net to send to clients.
-                (disj clients cid)))))
+(defrecord Middleware [ring-stack websockets]
+  component/Lifecycle
+  (start [this]
+    (assoc this :ring-stack
+                (-> (not-found-handler)
+                  (fulcro.websockets/wrap-api websockets)
+                  (wrap-keyword-params) ;required
+                  (wrap-params) ; required
+                  ...
+                  (wrap-not-modified)
+                  (wrap-gzip))))
+  (stop [this]))
 
-(defmulti apimutate prim/dispatch)
-
-(defmethod apimutate 'datum/add [{:keys [ws-net cid] :as env} _ params] ;; ws-net is the protocol defined in fulcro-websockets and it is added to the environment for use by mutations and components.
-  {:action (fn []
-             (swap! db update :data conj params)
-             (notify-others ws-net cid :app/data-update params) ;; Push to topic with data (params) excluding cid
-             {})})
+(defn make-middleware []
+  (component/using (map->Middleware {})
+    [:websockets]))
 ```
 
-=== Client
+where your component system map includes the websockets component:
 
-In the client we need to override the default networking:
+```
+(defrecord WebServer [config middleware stop-fn]
+  component/Lifecycle
+  (start [this]
+    (let [port (get-in config [:value :port] 0)
+          [port stop-fn] (let [stop-fn (http-kit/run-server (:ring-stack middleware) {:port port})]
+                           [(:local-port (meta stop-fn)) (fn [] (stop-fn :timeout 100))])
+          uri  (format "http://localhost:%s/" port)]
+      (println "Web server running at " uri)
+      (assoc this :stop-fn stop-fn)))
+  (stop [this]
+    (when stop-fn
+      (stop-fn))
+    this))
 
-```clojure
-(def cs-net (wn/make-channel-client "/chsk" :global-error-callback (constantly nil)))
+(defn make-server []
+  (component/using
+    (map->WebServer {})
+    [:middleware :config]))
 
-(defonce app (atom (fc/new-fulcro-client
-                     :networking cs-net
-                     :initial-state initial-state
-                     ; IMPORTANT: install the push handlers once started! push-received won't work unless you do this.
-                     :started-callback (fn [app] (wn/install-push-handlers cs-net app)))))
+(defn build-server
+  [{:keys [config] :or {config "config/dev.edn"}}]
+  (component/system-map
+    :config (server/new-config config) ; from fulcro server
+    :middleware (make-middleware) ; see above
+    :websockets (fw/make-websockets (server/fulcro-parser))
+    :channel-listener (make-channel-listener) ; see above
+    :broadcaster (make-broadcaster) ; see below
+    :web-server (make-server))) ; see above
 ```
 
-We override the default network with our own implementation of a network. We hook the client up to use "/chsk" as the route for communicating with the server, and we give a callback for global errors.
+=== The Websockets Component [WSComponent]
 
-We will also need to extend the `fulcro.websockets.networking/push-received` multimethods, for handling pushed messages.
+The component implements the `WSNet` protocol, so you can call `push` directly on it. It wraps Sente's operations and
+internals, but quite a bit of those are easily accessible, and some of them are necessary for most features
+you'd want to write.
 
-```clojure
-(require '[fulcro.websockets.networking :as fwn])
+You can pass the contruction method three arguments:
 
-(defmethod fwn/push-received :app/data-update [{:keys [reconciler] :as app} {:keys [topic msg] :as message}] ;; message => {:topic verb :msg edn}
-  (prim/transact! reconciler `[(do.with/data {:data msg}) :data]))
+* `parser` - A fulcro parser (usually `(server/fulcro-parser)`)
+* `adapter` - A sente HTTP adapter (See Sente docs). Defaults to http-kit.
+* `sente-options` - A map of options that is passed directly to the sente websocket channel construction.
+
+NOTE: If you supply a packer in the sente options you'll need to make sure tempids are supported (this is done by default, but if you override it, it is up to you.
+The default user id mapping is to use the internally generated UUID of the client. Use sente's `:user-id-fn` option
+to override this.
+
+The web sockets component has a couple of useful fields that you can also access anywhere you inject it:
+
+[Horizontal]
+`parser`:: The Fulcro API parser you installed.
+`connected-uids`:: The Sente connected IDs atom. This is a read-only atom of user IDs (which defaults to the client UUID). See Sente docs for how to customize this.
+
+The web socket component is also responsible for running your API parser, and you may want custom things to
+be in your parsing environment.
+
+WARNING: Easy server's `:parser-injections` *will not work!*.
+
+However, anything injected as a dependency of this component will be added to your parser environment (in addition to the parser itself).
+Thus, if you'd like some other component (like a database) to be there, simply add something like this to do your component entry:
+
+```
+...
+   :websockets (component/using (make-websockets (fulcro.server/fulcro-parser)) [:sql-database :sessions])
+   :sql-database (some-db-component)
+   :sessions (some-session-component)
+...
 ```
 
-Note that you have access to the reconciler (for that matter the entire app) here. You can call `(fulcro.client.primitives/merge! reconciler ...)` or `(fulcro.client.primitives/transact! reconciler ...)` alternatively. That part is up to you.
+and when the system starts it will inject those components in and make them part of the parsing `env`.
 
-== Chat Demo
+NOTE: It is a good idea to use namespaced keywords for your component identifiers to prevent data collisions.
+
+Additionally, the parser environment will include:
+
+[Horizontal]
+`:websockets`:: The channel server component itself
+`:push`::          A function that can send push messages to any connected client of this server. (just a shortcut to send-fn in websockets)
+`:parser`::        The parser you supplied
+`:sente-message`:: The raw sente event. This will include things like the client and user ID of the source message. See Sente documentation for complete details.
+
+The most useful items in the sente message are:
+
+[Horizontal]
+`:client-id`::      The unique websocket client connection ID (typically a UUID)
+`:connected-uids`:: The sente connected client ID list.
+`:uid`::            The client's user ID (will be same as client ID unless you override it)
+`:ring-req`:: The ring request of the websocket.
+
+=== Push Notifications
+
+You can send push notifications to clients by injecting the websockets in other components and using the
+`push` method. Here's a sample component that broadcasts server time updates:
+
+```
+(defrecord Broadcaster [websockets ^Thread thread]
+  component/Lifecycle
+  (start [this]
+    (let [t (new Thread (fn []
+                          (Thread/sleep 1000)
+                          (let [cids (some-> websockets :connected-uids deref :any)]
+                            (doseq [cid cids]
+                              (wp/push websockets cid :time-change {:time (Date.)})))
+                          (recur)))]
+      (.start t)
+      (assoc this :thread t)))
+  (stop [this] (.stop thread)))
+
+(defn make-broadcaster []
+  (component/using
+    (map->Broadcaster {})
+    [:websockets]))
+```
+
+The server `push` method takes a `topic` and an EDN `message`. It sends both to the client, and they're received
+as a map with keys `:topic` and `:msg` for the message.
+
+See the Sente documentation for information on connected UIDs.
+
+== Client Side
+
+Installing websockets on the client is equally trivial:
+
+```
+(fc/new-fulcro-client
+   :networking {:remote (fw/make-websocket-networking "/chsk"
+                :push-handler push-handler
+                :state-callback state-callback
+                :global-error-callback (fn [& args] (apply println "Network error " args)))})
+```
+
+The `push-handler` is a function that will receive server push notifications (as a map with `:topic` and `:msg` keys),
+and `state-callback` is a function that will be told with the networking of the client is connected or not.
+
+Usually you'll want to transact against your application on push and state changes, so if you save your app to
+an atom you can easily write the callbacks to use it:
+
+```
+(defonce app (atom nil))
+
+(defn push-handler [msg]
+  (when-let [reconciler (some-> app deref :reconciler)]
+    (prim/transact! reconciler `[(process-push {:message ~msg})])))
+
+(defn state-callback
+  [_ {:keys [open?] :as new-state}]
+  (when-let [reconciler (some-> app deref :reconciler)]
+    (prim/transact! reconciler `[(set-network-status {:up? ~open?})])))
+
+(defn mount []
+  (reset! app (fc/mount @app root/Root "app")))
+
+(defn ^:export init []
+  (reset! app (fc/new-fulcro-client
+                ; replace the default remote with websockets
+                :networking {:remote (fw/make-websocket-networking "/chsk"
+                                       :push-handler push-handler
+                                       :state-callback state-callback
+                                       :global-error-callback (fn [& args]
+                                                                (apply println "Network error " args)))}))
+  (mount))
+```
+
+=== Network Errors
+
+Normally a network error results in an immediate client error (triggering fallbacks, etc.).
+
+If the `auto-retry?` option of `make-websocket-networking` on the client is set to true then it will detect
+network disconnects and go into auto-reconnect and retry mode. This
+means that you must ensure that your mutations are idempotent, as there is a small chance that a mutation could have
+made it to the server, run, but not responded before the network problem. The retry support could therefore consider
+it "failed" and run it again. On a flaky network with a slow server this could degrade into running
+the mutation any number of times.
+
+If you choose to use auto retry it is recommended that you block your UI when the networking is down. Technically (as long as you
+don't need to read) you could allow the user to continue working and the pending remote mutations will all run
+in sequence once the network returns. However, without more novel history management you might not be able to
+respond to API errors in a way that makes sense to the user.
+
+== Chat Demo (outdated)
 
 There is a full https://github.com/fulcrologic/websocket-demo[chat demo application] on github.
+
+== Porting From Older Websockets
+
+If you were using the older websockets support in Fulcro, then the following changes are necessary:
+
+- Modify your server to set up websockets as shown in earlier sections.
+- The `:cid` parameter in the *server* env was misnamed in the original support (it was really a user id, but the original support
+defaulted the user id to the client id). The parameter is still there (but is undocumented), but it is now truly the client id, not the user id.
+You should port to using the raw `sente-message` for this concern.
+- The `:connected-cids` of the original had the same naming problem. The name has been corrected to `:connected-uids`.
+- The client is simpler. Push notifications are *no longer* received by the built-in multimethod `push-received`.  If you
+want that, then store your application in a top level atom (e.g. `app`) and use this as your new `push-method` parameter
+when creating the networking: `(fn [m] (when @app (fulcro.websockets.networking/push-received @app m)))`.
 
 = Internationalization
 
@@ -11138,6 +11136,64 @@ that verifies your UI, without having to have ugly and hard-to-maintain browser 
 comparison fails, your UI changed. Have a human check that specific item and approve the change.
 
 See the section on <<DevCards, Dev Cards>> for more information.
+
+= Logging
+
+Fulcro's internal logging on the client and server are handled by a small set of logging functions. The
+logging itself can be modified to use any logging system that you wish to integrate, or you could choose
+to use the internal facility.
+
+The internal facility is meant to be used for Fulcro and related libraries so that no external logging \
+dependency is necessary.
+
+You can plug in your own output function (which can format and send log messages however you wish).
+
+The basic API is (assume cljc file):
+
+```
+(ns app
+  (:require [fulcro.logging :as log]))
+
+(log/set-level! :error) ; prevent any logging messages except :error and :fatal
+(log/set-logger! (fn [source-location log-level & args] (apply println args))) ; change the function that outputs the messages
+
+(log/fatal "PROBLEM!") ; log a fatal error.
+(log/debug "Doing something." [1 2 3] #{1 2} 22 "Hello" (ex-info "error" {})) ; log a debug message with a bunch of data
+```
+
+WARNING: Fulcro includes a legacy namespace (`fulcro.client.logging`) that should not be used.
+
+== Making Fulcro Log Through External Libraries
+
+You can make this logging facility delegate to another via `set-logger!`. It's as simple as something like:
+
+```
+(ns startup
+  (:require [taoensso.timbre :as timbre
+             fulcro.logging :as log]))
+
+(log/set-logger!
+  (fn [{:keys [file line] :as location} level & args]
+    (timbre/log! level :p [args] {:?ns-str file :?line line})))
+```
+
+Be sure you're using your loggers low-level logging function, and not the macros. The macros will typically try
+to extract the location using compile-time info, and the compile-time info of your call to `set-logger!` is of
+little use in your actual logs. The macros in Fulcro's internal logging will have already extract the relevant
+information into the location argument.
+
+== Eliding Logging Code
+
+The `set-level!` function changes runtime behavior of logging statements in the code base; however, you may wish
+to completely remove logging statements from your production code below certain levels like debug.
+
+The logging library will remove logging statements from code if you specify the JVM argument `-Dfulcro.logging=<level>`,
+where `<level>` is a level like `debug` or `error`. Logging *statements* below that level will not generate code
+in the resulting compiled program.
+
+Of course, if you've removed logging statements this way then `set-level!` cannot magically re-add them. Therefore
+using `-Dfulcro.logging=error` and doing `(set-level! :debug)` at runtime is not going to suddenly re-add the debug
+logging statements.
 
 = Deploying to Heroku
 
@@ -12525,7 +12581,7 @@ The complete source for this demo is:
               [fulcro.easy_server :refer [make-fulcro-server]]
               [fulcro.server :as server :refer [defquery-root server-read server-mutate]]
               [fulcro.client.data-fetch :as df]
-              [fulcro.client.logging :as log]
+              [fulcro.logging :as log]
               [fulcro.client :as fc]
               [fulcro.ui.bootstrap3 :as b]
               [fulcro.client.primitives :as prim :refer [defsc]]))

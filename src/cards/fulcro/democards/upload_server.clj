@@ -1,26 +1,26 @@
 (ns fulcro.democards.upload-server
-  (:require [taoensso.timbre :as timbre]
-            [fulcro.client.impl.parser :as op]
-            [fulcro.server :as server :refer [defmutation defquery-root defquery-entity]]
-            [fulcro.easy-server :as easy]
-            [fulcro.client.primitives :as prim]
-            fulcro.server
-            [ring.util.io :as ring-io]
-            [ring.util.request :as ru]
-            [ring.middleware.content-type :refer [wrap-content-type]]
-            [ring.middleware.gzip :refer [wrap-gzip]]
-            [ring.middleware.not-modified :refer [wrap-not-modified]]
-            [ring.middleware.params :refer [wrap-params]]
-            [ring.middleware.multipart-params :refer [wrap-multipart-params]]
-            [ring.middleware.resource :refer [wrap-resource]]
-            [org.httpkit.server :refer [run-server]]
-            [clojure.tools.namespace.repl :refer [disable-reload! refresh clear]]
-            [com.stuartsierra.component :as component]
-            [taoensso.timbre :as timbre]
-            [fulcro.ui.file-upload :as upload]
-            [clojure.string :as str]
-            [ring.util.response :as resp]
-            [cognitect.transit :as transit])
+  (:require
+    [fulcro.client.impl.parser :as op]
+    [fulcro.server :as server :refer [defmutation defquery-root defquery-entity]]
+    [fulcro.easy-server :as easy]
+    [fulcro.client.primitives :as prim]
+    fulcro.server
+    [ring.util.io :as ring-io]
+    [ring.util.request :as ru]
+    [ring.middleware.content-type :refer [wrap-content-type]]
+    [ring.middleware.gzip :refer [wrap-gzip]]
+    [ring.middleware.not-modified :refer [wrap-not-modified]]
+    [ring.middleware.params :refer [wrap-params]]
+    [ring.middleware.multipart-params :refer [wrap-multipart-params]]
+    [ring.middleware.resource :refer [wrap-resource]]
+    [org.httpkit.server :refer [run-server]]
+    [clojure.tools.namespace.repl :refer [disable-reload! refresh clear]]
+    [com.stuartsierra.component :as component]
+    [fulcro.ui.file-upload :as upload]
+    [clojure.string :as str]
+    [ring.util.response :as resp]
+    [cognitect.transit :as transit]
+    [fulcro.logging :as log])
   (:import (java.io File FileInputStream)))
 
 ; A Test server for trying out file upload
@@ -38,15 +38,15 @@
       (let [server-opts    (select-keys (-> this :config :value) http-kit-opts)
             port           (:port server-opts)
             started-server (run-server (:middleware handler) server-opts)]
-        (timbre/info "Web server started successfully. With options:" server-opts)
+        (log/info "Web server started successfully. With options:" server-opts)
         (assoc this :port port :server started-server))
       (catch Exception e
-        (timbre/fatal "Failed to start web server " e)
+        (log/fatal "Failed to start web server " e)
         (throw e))))
   (stop [this]
     (if-not server this
                    (do (server)
-                       (timbre/info "web server stopped.")
+                       (log/info "web server stopped.")
                        (assoc this :server nil)))))
 
 ; This is both a server module AND hooks into the parser for the incoming /api read/mutate requests. The
@@ -98,7 +98,7 @@
         (let [uri (ru/path-info r)
               id  (-> uri (str/split #"/") last Integer/parseInt)
               {:keys [tempfile content-type size]} (get @image-database id)]
-          (timbre/info "Request for image with ID " id ". Found " tempfile " with content type " content-type)
+          (log/info "Request for image with ID " id ". Found " tempfile " with content type " content-type)
           (if tempfile
             (-> (resp/response (new FileInputStream tempfile))
               (resp/content-type content-type))
@@ -141,7 +141,7 @@
   "Save an image in the in-memory database. Returns the ID under which it was stored"
   [{:keys [tempfile filename content-type size] :as filedesc}]
   (let [id (next-image-id)]
-    (timbre/info "File to save: " filename " - stored in java.io.File " tempfile " with size " size " and content-type" content-type)
+    (log/info "File to save: " filename " - stored in java.io.File " tempfile " with size " size " and content-type" content-type)
     ; If you're using form submission, you can move the tempfile then. If this is the end of the line, then you should
     ; move the image from the tempfile to a more permanent store.
     (swap! image-database assoc id filedesc)

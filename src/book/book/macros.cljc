@@ -6,7 +6,7 @@
     #?(:cljs [goog.object :as obj])
     fulcro-css.css
     [fulcro.client.dom :as dom]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.primitives :as prim :refer [defsc]]))
 
@@ -36,8 +36,8 @@
                                          (if-let [target-div (obj/get this "appdiv")]
                                            (let [app (fc/mount app root target-div)]
                                              (watch-state this app))
-                                           (js/console.log "App holder: Target div not found."))
-                                         (js/console.log "App holder: Not given an app or root" :app app :root root)))))}
+                                           (log/fatal "App holder: Target div not found."))
+                                         (log/fatal "App holder: Not given an app or root" :app app :root root)))))}
   #?(:clj  (dom/div nil "")
      :cljs (dom/div #js {:className app-holder :ref (fn [r] (obj/set this "appdiv" r))} "")))
 

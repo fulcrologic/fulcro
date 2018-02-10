@@ -1,7 +1,7 @@
 (ns book.demos.cascading-dropdowns
   (:require
     [fulcro.ui.bootstrap3 :as bs]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.client.data-fetch :as df]
     [fulcro.ui.bootstrap3 :as bs]
     [fulcro.client.mutations :refer [defmutation]]

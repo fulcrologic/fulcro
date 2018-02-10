@@ -1,3 +1,15 @@
+2.2.0
+-----
+- Possible breaking change: Make logging no longer require timbre. fulcro.client.logging is deprecated. If you
+were accidentally relying on Fulcro's import of timbre, you may have to manually add it to your dependencies now.
+- Added fulcro.logging: allows you to plug in a logger to log messages from internal fulcro functions
+- Added new version of websockets. Deprecated old.
+
+2.1.7
+-----
+- Fixed network history tracking. Was clogging up due to bug in remote activity tracking.
+- Corrected counting on active remotes (more than one remote interaction can happen per tx time)
+
 2.1.6
 -----
 - Made parent-with-context work with SSR

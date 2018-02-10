@@ -4,7 +4,7 @@
     [fulcro.client.dom :as dom]
     [fulcro.client.routing :as r :refer [defrouter]]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.ui.forms :as f]
     [fulcro.client.data-fetch :as df]
     [cljs.reader :refer [read-string]]

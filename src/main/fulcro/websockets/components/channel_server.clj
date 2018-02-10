@@ -1,6 +1,5 @@
 (ns fulcro.websockets.components.channel-server
   (:require [com.stuartsierra.component :as component]
-            [taoensso.timbre :as timbre]
             [taoensso.sente :as sente]
             [taoensso.sente.server-adapters.http-kit :refer [sente-web-server-adapter]]
             [ring.middleware.params :as params]
@@ -8,7 +7,8 @@
             [fulcro.easy-server :refer [api get-pre-hook set-pre-hook!]]
             [fulcro.websockets.transit-packer :as tp]
             [fulcro.websockets.protocols :refer [WSNet WSListener client-added client-dropped]]
-            [fulcro.server :as server]))
+            [fulcro.server :as server]
+            [fulcro.logging :as log]))
 
 (def post-handler (atom nil))
 
@@ -68,11 +68,11 @@
                     (catch Exception e
                       (let [message (.getMessage e)
                             type    (str (type e))]
-                        (timbre/error "Sente handler error: " type message)
+                        (log/error "Sente handler error: " type message)
                         {:status 500
                          :body   {:type type :message message}})))
                (do
-                 (timbre/info request)
+                 (log/info request)
                  {:status 500
                   :body   "invalid client id"}))
         :post (ring-ajax-post request))
@@ -153,7 +153,7 @@
 
   component/Lifecycle
   (start [component]
-    (timbre/info "Starting Channel Server.")
+    (log/info "Starting Channel Server.")
     (let [pre-hook  (get-pre-hook handler)
           {:keys [api-parser
                   env]} handler
@@ -182,7 +182,7 @@
         (comp pre-hook wrap-web-socket))
 
       (defmethod message-received :default [message]
-        (timbre/error (str "Received message " message ", but no receiver wanted it!")))
+        (log/error (str "Received message " message ", but no receiver wanted it!")))
 
       (defmethod message-received :api/parse [{:keys [client-id ?data ring-req uid] :as message}]
         (let [result (api {:transit-params (:content ?data)
@@ -191,16 +191,16 @@
           (send-fn uid [:api/parse result])))
 
       (defmethod message-received :chsk/uidport-open [{:keys [client-id ?data ring-req uid state] :as message}]
-        (timbre/debug "Port opened by client: " uid)
-        (timbre/debug "Port state: " state)
+        (log/debug "Port opened by client: " uid)
+        (log/debug "Port state: " state)
         (notify-listeners client-added listeners component uid))
 
       (defmethod message-received :chsk/uidport-close [{:keys [client-id ?data ring-req uid] :as message}]
-        (timbre/debug "Connection closed" client-id)
+        (log/debug "Connection closed" client-id)
         (notify-listeners client-dropped listeners component uid))
 
       (defmethod message-received :chsk/ws-ping [{:keys [client-id ?data ring-req uid] :as message}]
-        (timbre/trace "Ping from client" client-id))
+        (log/trace "Ping from client" client-id))
 
       component))
 
@@ -210,7 +210,10 @@
       (assoc component :router (stop-f)))))
 
 (defn make-channel-server
-  "Creates `ChannelServer`.
+  "
+  DEPRECATED! Do not use for new code. See websockets.cljc.
+
+  Creates `ChannelServer`.
 
   Params:
   - `handshake-data-fn` (Optional) - Used by sente for adding data at the handshake.
@@ -253,7 +256,7 @@
 
   component/Lifecycle
   (start [component]
-    (timbre/info "Starting Channel Server.")
+    (log/info "Starting Channel Server.")
     (let [{:keys [ajax-get-or-ws-handshake-fn
                   ajax-post-fn
                   ch-recv
@@ -277,23 +280,22 @@
       (reset! ajax-get-or-ws-handler ajax-get-or-ws-handshake-fn)
 
       (defmethod message-received :default [message]
-        (timbre/error (str "Received message " message ", but no receiver wanted it!")))
+        (log/error (str "Received message " message ", but no receiver wanted it!")))
 
       (defmethod message-received :api/parse [{:keys [client-id ?data ring-req uid] :as message}]
         (let [result (server/handle-api-request parser (assoc env :cid uid :request ring-req) (:content ?data))]
           (send-fn uid [:api/parse result])))
 
       (defmethod message-received :chsk/uidport-open [{:keys [client-id ?data ring-req uid state] :as message}]
-        (timbre/debug "Port opened by client: " uid)
-        (timbre/debug "Port state: " state)
+        (log/debug "Port opened by client: " uid)
+        (log/debug "Port state: " state)
         (notify-listeners client-added listeners component uid))
 
       (defmethod message-received :chsk/uidport-close [{:keys [client-id ?data ring-req uid] :as message}]
-        (timbre/debug "Connection closed" client-id)
+        (log/debug "Connection closed" client-id)
         (notify-listeners client-dropped listeners component uid))
 
-      (defmethod message-received :chsk/ws-ping [{:keys [client-id ?data ring-req uid] :as message}]
-        (timbre/trace "Ping from client" client-id))
+      (defmethod message-received :chsk/ws-ping [{:keys [client-id ?data ring-req uid] :as message}] )
 
       component))
 

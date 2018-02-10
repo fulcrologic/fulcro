@@ -12,7 +12,7 @@
     [clojure.string :as str]
     [hickory.core :as hc]
     [fulcro.ui.file-upload :refer [FileUploadInput file-upload-input file-upload-networking]]
-    [fulcro.client.logging :as log]
+    [fulcro.logging :as log]
     [fulcro.ui.bootstrap3 :as b]
     [clojure.set :as set]
     [devcards.util.edn-renderer :as edn]))

@@ -6,10 +6,10 @@
             [fulcro.client.impl.protocols :as p]
             fulcro.client.dom
     #?(:cljs [cljs.loader :as loader])
-            [fulcro.client.logging :as log]
+            [fulcro.logging :as log]
             [fulcro.util :as util]
             [clojure.spec.alpha :as s]
-            [fulcro.client.logging :as log]))
+            [fulcro.logging :as log]))
 
 #?(:clj
    (s/def ::mutation-args
