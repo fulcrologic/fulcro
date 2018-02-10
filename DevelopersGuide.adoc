@@ -10213,7 +10213,7 @@ don't need to read) you could allow the user to continue working and the pending
 in sequence once the network returns. However, without more novel history management you might not be able to
 respond to API errors in a way that makes sense to the user.
 
-== Chat Demo (outdated)
+== Chat Demo
 
 There is a full https://github.com/fulcrologic/websocket-demo[chat demo application] on github.
 
