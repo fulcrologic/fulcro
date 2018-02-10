@@ -12,8 +12,8 @@ Fulcro 2.0 is a library for building data-driven full-stack applications for the
 Clojure and Clojurescript (so it has first-class functional abilities with immutable data) which leads to a clean
 synchronous story for the UI. The primary design goals are:
 
-- Provide structure and patterns that encourage simplicity in overall design.
-- Provide an out-of-the box experience that is as easy as possible, except where it conflicts with the first goal.
+. Provide structure and patterns that encourage simplicity in overall design.
+. Provide an out-of-the box experience that is as easy as possible, except where it conflicts with the first goal.
 
 Fulcro 1.0 is still supported but is only getting bug fix releases at this point. Version 1.0 was an
 add-on library for Om Next. Fulcro 2.0 no longer has a dependency on Om Next, though the surface API
