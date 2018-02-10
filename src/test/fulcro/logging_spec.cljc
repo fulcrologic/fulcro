@@ -35,10 +35,12 @@
 
       (log/log :fatal "Hello world" 1 2 3))))
 
-(specification "logging helper macros"
+(specification "logging helper macros" :focused
   (if (log/should-log? (log/system-log-level) :fatal)
     (when-mocking
       (log/-log n l & args) =1x=> (assertions
+                                    "Include the line number"
+                                    (:line n) => 47
                                     "fatal emits a fatal message"
                                     args => ["Message"]
                                     l => :fatal)

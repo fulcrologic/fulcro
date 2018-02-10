@@ -43,9 +43,9 @@
     (atom (fn built-in-logger [{:keys [file line]} level & args]
             (when (should-log? @current-logging-level level)
               (let [location (str (or file "?") ":" (or line "?"))]
-                #?(:cljs (let [logger  (glog/getLogger file)
+                #?(:cljs (let [logger          (glog/getLogger file)
                                first-exception (first (filter #(instance? js/Error %) args))
-                               message (str/join " " args)]
+                               message         (str/join " " args)]
                            (.log logger (get level-map level (:info level-map)) message first-exception))
                    :clj  (println (str (-> level name str/upper-case) " [" location "] : " (str/join " " args))))))))))
 
@@ -65,6 +65,8 @@
 
 (defn- log* [])
 
+(defn fline [and-form] (some-> and-form meta :line))
+
 #?(:clj
    (defmacro log
      "Logs to the current global logging function, which can be set in the top-level logger atom.
@@ -72,18 +74,19 @@
      If you set the JVM option to something like -Dfulcro.logging=error then this macro will not output
      any code for logging below that level.
 
-     level - one of :trace, :debug, :info, :warn, :error, or :fatal
+     level - one of :trace, :debug, :info, :warn, :error, or :fatal.
      things-to-include - Any number of additional things to log. The logging function may give special treatment
      to certain types (e.g. exceptions).
 
-     See `set-logger!`.
-     "
-     [level & things-to-include]
-     (let [l      (system-log-level)
-           elide? (and l (not (should-log? l level)))]
+     See `set-logger!`."
+     [logging-level & things-to-include]
+     (let [l            (system-log-level)
+           has-options? (map? logging-level)
+           level        (if has-options? (:level logging-level) logging-level)
+           elide?       (and l (not (should-log? l level)))]
        (when-not elide?
          (let [file     (or (some-> &env :ns :name str) (some-> *ns* ns-name str) "?")
-               line     (or (some-> &form meta :line) "?")
+               line     (or (and has-options? (:line logging-level)) (fline &form) "?")
                js?      (some-> &env :ns :name)
                location {:file file :line line}]
            `(try
@@ -104,9 +107,9 @@
   [log-fn]
   (reset! logger log-fn))
 
-(defmacro trace [& args] `(log :trace ~@args))
-(defmacro debug [& args] `(log :debug ~@args))
-(defmacro info [& args] `(log :info ~@args))
-(defmacro warn [& args] `(log :warn ~@args))
-(defmacro error [& args] `(log :error ~@args))
-(defmacro fatal [& args] `(log :fatal ~@args))
+(defmacro trace [& args] `(log {:line ~(fline &form) :level :trace} ~@args))
+(defmacro debug [& args] `(log {:line ~(fline &form) :level :debug} ~@args))
+(defmacro info [& args] `(log {:line ~(fline &form) :level :info} ~@args))
+(defmacro warn [& args] `(log {:line ~(fline &form) :level :warn} ~@args))
+(defmacro error [& args] `(log {:line ~(fline &form) :level :error} ~@args))
+(defmacro fatal [& args] `(log {:line ~(fline &form) :level :fatal} ~@args))

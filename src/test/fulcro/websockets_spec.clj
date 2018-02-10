@@ -5,7 +5,7 @@
             [fulcro.server :as server])
   (:import (fulcro.websockets.protocols WSListener)))
 
-(specification "sente-event-handler" :focused
+(specification "sente-event-handler"
   (let [parser-calls    (atom 0)
         parser          (fn [& args] (swap! parser-calls inc))
         adds            (atom #{})
