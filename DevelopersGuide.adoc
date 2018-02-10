@@ -9925,10 +9925,10 @@ sort of networking component to deal with things like incoming streaming data.
 
 See the <<RESTAPI, REST API>> section of the Getting Started chapter for an example of working with REST.
 
-= Websockets (ALPHA. Released in 2.2.0+. Older support is deprecated.) [Websockets]
+= Websockets [[Websockets]]
 
 Fulcro includes support for using https://github.com/ptaoussanis/sente[Sente] to set up websockets as a remote
-for your applications.
+for your applications. The support documented here is relatively new, and supercedes a prior version as of 2.2.0.
 
 == Server Side
 
@@ -10160,9 +10160,9 @@ Installing websockets on the client is equally trivial:
 ```
 (fc/new-fulcro-client
    :networking {:remote (fw/make-websocket-networking "/chsk"
-   :push-handler push-handler
-   :state-callback state-callback
-   :global-error-callback (fn [& args] (apply println "Network error " args)))})
+                :push-handler push-handler
+                :state-callback state-callback
+                :global-error-callback (fn [& args] (apply println "Network error " args)))})
 ```
 
 The `push-handler` is a function that will receive server push notifications (as a map with `:topic` and `:msg` keys),
@@ -10215,7 +10215,20 @@ respond to API errors in a way that makes sense to the user.
 
 == Chat Demo (outdated)
 
-OUTDATED: There is a full https://github.com/fulcrologic/websocket-demo[chat demo application] on github.
+There is a full https://github.com/fulcrologic/websocket-demo[chat demo application] on github.
+
+== Porting From Older Websockets
+
+If you were using the older websockets support in Fulcro, then the following changes are necessary:
+
+- Modify your server to set up websockets as shown in earlier sections.
+- The `:cid` parameter in the *server* env was misnamed in the original support (it was really a user id, but the original support
+defaulted the user id to the client id). The parameter is still there (but is undocumented), but it is now truly the client id, not the user id.
+You should port to using the raw `sente-message` for this concern.
+- The `:connected-cids` of the original had the same naming problem. The name has been corrected to `:connected-uids`.
+- The client is simpler. Push notifications are *no longer* received by the built-in multimethod `push-received`.  If you
+want that, then store your application in a top level atom (e.g. `app`) and use this as your new `push-method` parameter
+when creating the networking: `(fn [m] (when @app (fulcro.websockets.networking/push-received @app m)))`.
 
 = Internationalization
 
