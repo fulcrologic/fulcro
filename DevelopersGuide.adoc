@@ -4866,10 +4866,10 @@ a clean data-driven structure. At first the new concepts can be challenging, but
 In fact, now that you've completed the materials of this guide on the graph database, queries, idents, and
 normalization, it turns out that the server interactions become nearly trivial!
 
-Not only is the *structure* of server interaction well-defined, Fulcro come with two pre-written server-side code bases
+Not only is the *structure* of server interaction well-defined, Fulcro come with pre-written server-side code
 that handle all of the Fulcro plumbing for you. You can choose to provide as little or as much as you like. The easy
-server code provides everything in a Ring-based stack, and the modular style of server code provides something you can
-plug into just about anything (though it assumes it can behave a bit like Ring).
+server code provides everything in a Ring-based stack, and you can also choose to hand-build your server using
+a simple API handler for the Fulcro API route.
 
 Even then, there are a lot of possible pitfalls when writing distributed applications. People often underestimate just how hard
 it is to get web applications right because they forget that.
@@ -5510,7 +5510,7 @@ The Ring stack is supplied for you in the server code and most responses are sim
 of for you; however, there are times when you need to modify something about the low-level response itself (such
 as adding a cookie).
 
-If you're using the Fulcro server tools (handle API request, easy or modular server) then you can add a fully general
+If you're using the Fulcro server tools (handle API request or the easy server) then you can add a fully general
 response transform to your EDN response as follows:
 
 ```
@@ -6913,13 +6913,12 @@ will associate the first two fallbacks with remote call `R`, and the last one wi
 
 In the Getting Started chapter you saw a little on how to build and use Fulcro's easy server. That server is acually
 flexible enough for many production needs, but Fulcro also
-comes with pre-built server components that allow you to very quickly get the server side of your
-application up and running. In this chapter we'll give you more detail on the three main approaches to
+comes with code to help you very quickly get a custom server for your
+application up and running. In this chapter we'll give you more detail on these two main approaches to
 the server-side of Fulcro:
 
 - How to use the pre-built bits to manually build your own server.
 - More details on the easy server.
-- A more involved pre-written modular approach that has more overall flexibility.
 
 == Rolling Your Own Server
 
@@ -6993,6 +6992,16 @@ In a REPL, you could start this one up with:
 solutions.tiny-server=> (my-tiny-server)
 ```
 
+=== Configuration
+
+Since you'll still need to configure your web server, it might be useful to note that the configuration used
+by the easy server is a component you can inject into your own server. A number of add-on components for Fulcro
+assume a `:config` keyed component will be in your system, so if you choose to use such components you can
+create a config component via `fulcro.server/new-config`.
+
+It supports pulling in values from the system environment, overriding configs with a JVM option, and more. See
+the section in easy server about <<ServerConfig, configuration>>, and the docstrings on `new-config` for more details.
+
 == The "Easy" Server [[EasyServer]]
 
 The pre-built easy server component for Fulcro uses Stuart Sierra's Component library. The server has no
@@ -7025,7 +7034,7 @@ The base server is trivial to create:
     :components {}))
 ```
 
-=== Configuring the server
+=== Configuring the server [ServerConfig]
 
 Server configuration requires two EDN files:
 
@@ -7155,232 +7164,6 @@ The easy server also supplies a way to add in URI handlers via BIDI:
 The extra routes are processed right *after* the pre-hook, but just before the
 resource (filesystem) serving. Thus, you can respond to any URI that isn't already
 handled by your pre-hook.
-
-
-== Modular Server
-
-Fulcro's easy server support is an attempt to get you going quickly, but it suffers from a few drawbacks:
-
-* The Ring stack can only be modified at pre-hook and post-hook locations.
-* Adding new features to easy-server API would lead to a swiss-army knife API with a dizzying array of options.
-
-So when you outgrow the easy server Fulcro provides you with a more modular approach. This leads to
-more control, clearer extension points, and a simple API.
-
-The hope is that as library authors start building full-stack additions (like image libraries, for example) they might
-need to be able to hook into your existing server. The modular server design is intended to make this easier. Note that
-after the modular server API was developed (pre 1.x), Fulcro 1.x has since standardized a server-side parser with
-`defquery` and `defmutation` support. This already allows library authors to add support for handling namespaced keywords
-without having to plug into your server at all, and the modular server support
-may turn out to be less useful for that concern.
-
-In either case the modular server gives you an approach to building the server that is more open than the easy server.
-It does, however, require a bit more work to get started.
-
-=== Overall Structure
-
-The modular server still uses components to make sure your code is reloadable. The primary difference is that the
-modular server makes no assumptions about how you want to build the web server itself. You could do anything from
-build a `ring-defaults` handler and augment it and drop the resulting processing pipeline into a Java Servlet. The options
-are endless.
-
-You must build three things:
-
-* A Module to handle API requests
-* Middleware to join the API processing with the rest of your request processing
-* Something to get you on the network (web server, servlet, etc.)
-
-The modules get composed into an API handler (which is found by injecting its well-known component), the API handler
-is injected into the middleware component (where you hook it into the correct place), and finally your middleware
-is injected into the network capable thing.
-
-The basic overall picture is shown below. Note the dotted arrows are meant to be injection, the solid lines are
-composition, and the dashed colored lines are the request/response flow.
-
-image::/svg/modular-server.svg[]
-
-==== Step 1: A Module
-
-```
-(defrecord APIModule []
-  fulcro.server/Module
-  (system-key [this] :api-module)          ; this module will be known in the component system as :api-module. Allows you to inject the module.
-  (components [this] {})                   ; Additional components to build. This allows library modules to inject other dependencies that it needs into the system. Commonly empty.
-  fulcro.server/APIHandler
-  (api-read [this] core/server-read)       ; read/mutate handlers (as function) Here we're using the fulcro multimethods so defmutation et al will work.
-  (api-mutate [this] core/server-mutate))
-```
-
-The `fulcro.server/Module` protocol is required, and allows the component to appear in the module list.
-
-NOTE: Your module will be treated as a Stuart Sierra component, so you may also add the `Lifecycle` protocol and
-participate in the `start/stop` sequence if you need to.
-
-===== The System Key
-
-The `(system-key)` protocol method must return a keyword. The module itself gets composed together with other modules
-to make a single request handler, but this keyword will be used as the dependency name for this *specific* module
-in the Stuart Sierra component system. This allows your modules to have inter-dependencies. For example, you
-could have a module that provides API parsing and one that provides utility support for image processing. Not only do you need such
-a component to end up in the processing chain, other components (like the web server itself) might need to access
-the component to obtain things like raw image data for image serving through traditional image URLs.
-
-If you're writing a module for a reusable library then it is suggested that you namespace this keyword to avoid collision.
-
-===== The Components
-
-The `(components)` method must return a map that conforms to the Stuart Sierra component's definition of a dependency
-map. The keys of such a map indicate what keyword you'd like the dependency to be known **as**, and the value
-must be a component that you want created (or the keyword of a component that you know will exist elsewhere in the
-system on startup). This allows library modules to declare, create, or otherwise hook to other things in your system.
-
-Most basic applications can just return nil or an empty map.
-
-==== The APIHandler Protocol
-
-The APIHandler protocol is how you hook into the API requests. The methods of this protocol need to return
-a **function** due to the need for module composition by Fulcro.
-
-If you'd like to use the macros like `defquery-root`, then you should provide a module that returns
-`fulcro.server/server-read` and `fulcro.server/server-mutate` respectively. You may, however, return
-any function you please.
-
-=== Step 2 – The Middleware Stack
-
-When the Fulcro modular server starts it will compose all known modules into an internal component known under the
-key `:fulcro.server/api-handler`. This component contains the key `:middleware` which holds a Ring middleware
-wrapping function that can handle Fulcro API requests. So, to build *your* middleware you simply inject the
-`:fulcro.server/api-handler` component into your own middleware component and create your Ring stack:
-
-```
-; We'll use a trick in a moment to inject the :fulcro.server/api-handler AS :api-handler here
-; :full-server-middleware is where we'll store our resulting middleware stack for the web server's use
-(defrecord CustomMiddleware [full-server-middleware api-handler]
-  component/Lifecycle
-  (start [this]
-    (let [wrap-api (:middleware api-handler)] ; pull the middleware function out
-      (assoc this :full-server-middleware
-                  (-> not-found
-                    (wrap-resource "public")
-                    wrap-api                            ; from fulcro-system modules. Handles /api
-                    fulcro.server/wrap-transit-params   ; REQUIRED
-                    fulcro.server/wrap-transit-response ; REQUIRED
-                    wrap-content-type ; REQUIRED
-                    wrap-not-modified ; these are recommended
-                    wrap-params
-                    wrap-gzip))))
-  (stop [this] (dissoc this :full-server-middleware)))
-```
-
-This component would be set up to have the API handler injected by wrapping its creation in `component/using` like
-so:
-
-```
-(component/using
-  (map->CustomMiddleware {})
-  ; Inject (and remap) the generated api handler AS api-handler
-  {:api-handler   :fulcro.server/api-handler })
-```
-
-The rename makes it possible to refer to the simpler name within the `CustomMiddleware`. If you don't rename it, then
-instead of using a declared field of the `defrecord` you'd have to pull it out via `(:fulcro.server/api-handler this)`.
-
-=== Step 3 – The Web Server
-
-Now that you have Ring middleware, you can do whatever you want. You have a simple way to get a function that
-can handle any request just by injecting the above `CustomMiddleware` into it. Here's an example using HTTP Kit:
-
-```
-; server-middleware-component will be an injected instance of CustomMiddleware
-(defrecord WebServer [^CustomMiddleware server-middleware-component server port]
-  component/Lifecycle
-  (start [this]
-    (try
-      (let [server-opts    {:port 4000}
-            port           (:port server-opts)
-            ; pull out the middleware function from the component
-            middleware     (:full-server-middleware server-middleware-component)
-            ; install the middleware and start the server
-            started-server (run-server middleware server-opts)]
-        (timbre/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
-        (assoc this :port port :server started-server))
-      (catch Exception e
-        (println "Failed to start web server " e)
-        (throw e))))
-  (stop [this]
-    (if-not server this
-                   (do (server)
-                       (println "web server stopped.")
-                       (assoc this :server nil)))))
-```
-
-=== Putting it All Together
-
-The only thing that remains is to set up your overall system so that the components are all known by the names
-you've assumed for them.
-
-```
-(defn make-system []
-  (fulcro.server/fulcro-system
-    {:components {:server-middleware-component (component/using
-                                                 (map->CustomMiddleware {})
-                                                 ; inject (and rename) the generated API handler
-                                                 {:api-handler   :fulcro.server/api-handler })
-                  ; The web server itself, which needs the config and full-stack middleware.
-                  :web-server                  (component/using (map->WebServer {})
-                                                 [:config :server-middleware-component])}
-     ; The Modules (automatically injected as :fulcro.server/api-handler)
-     :modules    [(map->APIModule {})]}))
-```
-
-=== Module Composition
-
-Modules are composed for you when you supply them to the `fulcro-system`:
-
-```
-(def your-server
-  (fulcro.server/fulcro-system
-    {:components { ... }
-     :modules [(make-mod1) (make-mod2) ...]}))
-```
-
-When an API request comes in, **each** query element (prop, join, mutation) will be sent (one at a time)
-into the API handler that appears first in this vector.
-
-* If the API handler returns nil, it will try the next and so on in a chain until one returns non-nil
-* If all return nil, then the remainder of the web processing will be sent the request
-
-=== Parsing Environment
-
-In the easy server you have explicity `:parser-injections`. In the module system, Fulcro will merge your module itself
-**into** the parsing `env` before calling your API handler functions. This means that anything you inject into the
-**module** will be visible in the `env`.
-
-```
-(def your-server
-  (fulcro.server/fulcro-system
-    {:components { ... }
-     :modules [(component/using (make-mod1) [:user-db])
-               (component/using (make-mod2) [:session-store]) ...]}))
-```
-
-In the example above module 1 will see `:user-db` in `env`, and module 2 will see the `:session-store`.
-
-== Application Configuration
-
-Since you'll still need to configure your web server, it might be useful to note that the configuration used
-by the easy server is a component you can inject into your modular server!
-
-```
-(core/fulcro-system
-  {:components {:config (fulcro.server/new-config config-path)
-                :server (component/using (make-server) [:config])}
-   :modules [(make-mod1)]})
-```
-
-It supports pulling in values from the system environment, overriding configs with a JVM option, and more.
-
-See the docstrings on `new-config` for more details.
 
 = Dynamic Queries [[DynamicQueries]]
 

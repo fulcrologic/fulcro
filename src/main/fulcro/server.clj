@@ -336,7 +336,7 @@ default-malformed-response
     (update :headers assoc "Content-Type" "application/transit+json")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Module-based composable server
+;; Module-based composable server : DEPRECATED
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol Module
@@ -380,7 +380,10 @@ default-malformed-response
      :mutate (constantly nil)}
     (rseq modules)))
 
-(defn handle-api-request [parser env query]
+(defn handle-api-request
+  "Given a parser, a parser environment, and a query: Runs the parser on the query,
+   and generates a standard Fulcro-compatible response."
+  [parser env query]
   (generate-response
     (let [parse-result (try (raise-response (parser env query)) (catch Exception e e))]
       (if (valid-response? parse-result)
@@ -425,7 +428,9 @@ default-malformed-response
       (reduce (fn [m1 m2] (reduce merge-entry (or m1 {}) (seq m2))) maps))))
 
 (defn fulcro-system
-  "More powerful variant of `make-fulcro-server` that allows for libraries to provide
+  "DEPRECATED. Do not use in new code. Library composition is better accomplished using the standard parser hooks.
+
+  More powerful variant of `make-fulcro-server` that allows for libraries to provide
    components and api methods (by implementing `components` and `APIHandler` respectively).
    However note that `fulcro-system` does not include any components for you,
    so you'll have to include things like a web-server (eg: `make-web-server`), middleware,
