@@ -68,7 +68,7 @@
 
 
 (defn new-fulcro-client
-  "Entrypoint for creating a new fulcro client. Instantiates an Application with default values, unless
+  "Entry point for creating a new fulcro client. Instantiates an Application with default values, unless
   overridden by the parameters. If you do not supply a networking object, one will be provided that connects to the
   same server the application was served from, at `/api`.
 
@@ -167,7 +167,7 @@
   update the network map with this value. Returns possibly updated `network-map`."
   [network-map]
   #?(:cljs (into {} (for [[k remote] network-map
-                          :let [started (net/start remote)
+                          :let [started (when (implements? net/FulcroNetwork remote) (net/start remote))
                                 valid   (if (implements? net/FulcroNetwork started) started remote)]]
                       [k valid]))
      :clj  {}))

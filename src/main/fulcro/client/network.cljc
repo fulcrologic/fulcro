@@ -18,12 +18,12 @@
 #?(:cljs
    (defn xhrio-abort [xhrio] (.abort xhrio)))
 #?(:cljs
-   (defn xhrio-send [xhrio url verb body headers] (.send xhrio url verb body headers)))
+   (defn xhrio-send [xhrio url verb body headers] (.send xhrio url verb body (some-> headers clj->js))))
 
 
 ; Newer protocol that should be used for new networking remotes.
 (defprotocol FulcroHTTPRemoteI
-  (transmit [this request complete-fn update-fn error-fn]
+  (transmit [this request complete-fn error-fn update-fn]
     "Send the given `request`, which will contain:
      - `:fulcro.client.network/edn` : The actual API tx to send.
 
@@ -44,9 +44,8 @@
        :middleware-failed - The middleware failed to provide a well-formed request. `detail` will be the errant output of the middleware.
        :network-failed - The request did not complete at the network layer. `detail` will include
                          :error-code and :error-text. :error-code will be one of :exception, http-error, :timeout, or :abort.")
-  (cancel [this kw-or-id]
-    "Cancel the network activity for the given request, by request-id or load marker keyword. May be a no-op if
-     the request wasn't tracked or is already done.")
+  (cancel [this id]
+    "Cancel the network activity for the given request id, supplied during submission.")
   (network-behavior [this]
     "Returns flags indicating how this remote should behave in the Fulcro stack. Returned flags can include:
 
@@ -58,45 +57,63 @@
   body to a transit+json encoded body. addl-transit-handlers is a map from data type to transit handler (like
   you would pass using the `:handlers` option of transit). The
   additional handlers are used to encode new data types into transit. See transit documentation for more details."
-  ([middleware addl-transit-handlers]
+  ([handler addl-transit-handlers]
     #?(:clj identity
        :cljs
             (let [writer (t/writer (if addl-transit-handlers {:handlers addl-transit-handlers} {}))]
               (fn [{:keys [headers body] :as request}]
+                (log/info "Request is " request)
                 (let [body    (ct/write writer body)
                       headers (assoc headers "Content-Type" "application/transit+json")]
-                  (middleware (merge request {:body body :headers headers})))))))
-  ([middleware] (wrap-fulcro-request middleware nil))
+                  (log/info "Passing modified request up the chain: " body headers)
+                  (handler (merge request {:body body :headers headers :method :post})))))))
+  ([handler] (wrap-fulcro-request handler nil))
   ([] (wrap-fulcro-request identity nil)))
 
 (defn wrap-fulcro-response
   "Client remote middleware to transform a network response to a standard Fulcro form.
 
+
+  This returns a function that will decode a transit response iff the resulting status code is 200 and the
+  body is not empty. For errant status codes and empty body: the response body will become an empty map.
+
+  No arguments: Returns a function that can process responses, that is not further chained.
+  handler: If supplied, the result of this transformation will be passed through the `handler`.
   addl-transit-handlers is equivalent to the :handlers option in transit: a map from data type to handler.
   "
   ([] (wrap-fulcro-response identity))
-  ([middleware] (wrap-fulcro-response identity nil))
-  ([middleware addl-transit-handlers]
+  ([handler] (wrap-fulcro-response handler nil))
+  ([handler addl-transit-handlers]
     #?(:clj identity
        :cljs
             (let [base-handlers {"f" (fn [v] (js/parseFloat v)) "u" cljs.core/uuid}
                   handlers      (if (map? addl-transit-handlers) (merge base-handlers addl-transit-handlers) base-handlers)
                   reader        (t/reader {:handlers handlers})]
-              (fn [{:keys [body status-code status-text error-code error-text] :as request}]
-                (try (let [new-body (if (str/blank? body)
-                                      status-code
-                                      (ct/read reader body))]
-                       (assoc request :body new-body))
-                     (catch js/Object e
-                       (log/error "Transit decode failed!" e)
-                       request)))))))
+              (fn [{:keys [body status-code] :as response}]
+                (handler
+                  (try
+                    (log/info "Middleware processing server response " response)
+                    (let [new-body (if (str/blank? body)
+                                     {}
+                                     (ct/read reader body))
+                          response (assoc response :body new-body)]
+                      (log/info "middleware passing up " response)
+                      response)
+                    (catch js/Object e
+                      (log/error "Transit decode failed!" e)
+                      response))))))))
 
 #?(:cljs
-   (def xhrio-error-states {(.-NO_ERROR ErrorCode)   :none
-                            (.-EXCEPTION ErrorCode)  :exception
-                            (.-HTTP_ERROR ErrorCode) :http-error
-                            (.-ABORT ErrorCode)      :abort
-                            (.-TIMEOUT ErrorCode)    :timeout}))
+   (def xhrio-error-states {(.-NO_ERROR ErrorCode)        :none
+                            (.-EXCEPTION ErrorCode)       :exception
+                            (.-HTTP_ERROR ErrorCode)      :http-error
+                            (.-ABORT ErrorCode)           :abort
+                            (.-ACCESS_DENIED ErrorCode)   :access-denied
+                            (.-FILE_NOT_FOUND ErrorCode)  :not-found
+                            (.-FF_SILENT_ERROR ErrorCode) :silent
+                            (.-CUSTOM_ERROR ErrorCode)    :custom
+                            (.-OFFLINE ErrorCode)         :offline
+                            (.-TIMEOUT ErrorCode)         :timeout}))
 (defn extract-response
   "Generate a response map from the status of the given xhrio object, which could be in a complete or error state."
   [tx request xhrio]
@@ -108,6 +125,10 @@
             :status-text      (.getStatusText xhrio)
             :error            (get xhrio-error-states (.getLastErrorCode xhrio) :unknown)
             :error-text       (.getLastError xhrio)}))
+
+(defn was-network-error?
+  "Returns true if the given response looks like a low-level network error."
+  [{:keys [status-code error]}] (and (= 0 status-code) (= :http-error error)))
 
 (defn clear-request* [active-requests id xhrio]
   (if (every? #(= xhrio %) (get active-requests id))
@@ -130,6 +151,7 @@
   #?(:cljs (fn []
              (when abort-id
                (swap! active-requests clear-request* abort-id xhrio))
+             (log/info "Disposing of XHRIO")
              (xhrio-dispose xhrio))))
 
 (defn ok-routine*
@@ -155,24 +177,27 @@
 
 (defn error-routine*
   [get-response progress-fn error-fn]
-  (fn []
+  (fn [evt]
     (progress-fn :failed {})
-    (error-fn :network-error (get-response))))
+    (let [r    (get-response)
+          kind (if (was-network-error? r) :network-error (:error r))]
+      (error-fn kind r))))
 
-(defrecord FulcroHTTPRemote [url request-middleware response-middleware active-requests]
+(defrecord FulcroHTTPRemote [url request-middleware response-middleware active-requests serial?]
   FulcroHTTPRemoteI
   (transmit [this {:keys [::edn ::abort-id] :as raw-request} complete-fn error-fn update-fn]
     #?(:cljs
        (let [base-request   {:headers {} :body edn :url url :method :post}
              real-request   (request-middleware base-request)
              xhrio          (make-xhrio)
-             {:keys [body headers url method incremental?]} real-request
+             {:keys [body headers url method]} real-request
              http-verb      (-> (or method :post) name str/upper-case)
              get-response   (response-extractor* response-middleware edn real-request xhrio)
              cleanup        (cleanup-routine* abort-id active-requests xhrio)
              progress-fn    (progress-routine* update-fn)
              response-ok    (ok-routine* progress-fn get-response complete-fn error-fn)
-             response-error (error-routine* get-response progress-fn error-fn)]
+             response-error (error-routine* get-response progress-fn error-fn)
+             with-cleanup   (fn [f] (fn [] (try (f) (finally (cleanup)))))]
          (when abort-id
            (swap! active-requests update abort-id (fnil conj #{}) xhrio))
          (log/debug (str "Sending " real-request " with headers " headers " to " url " via " http-verb))
@@ -180,14 +205,13 @@
            (xhrio-enable-progress-events xhrio)
            (events/listen xhrio (.-DOWNLOAD_PROGRESS EventType) #(progress-fn :receiving %))
            (events/listen xhrio (.-UPLOAD_PROGRESS EventType) #(progress-fn :sending %)))
-         (events/listen xhrio (.-COMPLETE EventType) cleanup)
-         (events/listen xhrio (.-SUCCESS EventType) response-ok)
-         (events/listen xhrio (.-ERROR EventType) response-error)
+         (events/listen xhrio (.-SUCCESS EventType) (with-cleanup response-ok))
+         (events/listen xhrio (.-ERROR EventType) (with-cleanup response-error))
          (xhrio-send xhrio url http-verb body headers))))
   (cancel [this id]
-    (when-let [xhrio (get @active-requests id)]
-      (xhrio-abort xhrio)))
-  (network-behavior [this] {::serial? true}))
+    #?(:cljs (when-let [xhrio (get @active-requests id)]
+               (xhrio-abort xhrio))))
+  (network-behavior [this] {::serial? serial?}))
 
 (defn fulcro-http-remote
   "Create a remote that (by default) communicates with the given url.
@@ -210,11 +234,21 @@
   A result with a 200 status code will result in a merge using the resulting response's `:original-tx` as the query,
   and the `:body` as the EDN to merge. If the status code is anything else then the details of the response will be
   used when triggering the built-in error handling (e.g. fallbacks, global error handler, etc.)."
-  [{:keys [url request-middleware response-middleware] :or {url                 "/api"
-                                                            response-middleware (wrap-fulcro-response)
-                                                            request-middleware  (wrap-fulcro-request)} :as options}]
-  (map->FulcroHTTPRemote (merge options {:active-requests (atom {})})))
+  [{:keys [url request-middleware response-middleware serial?] :or {url                 "/api"
+                                                                    response-middleware (wrap-fulcro-response)
+                                                                    serial?             true
+                                                                    request-middleware  (wrap-fulcro-request)} :as options}]
+  (map->FulcroHTTPRemote (merge options {:request-middleware  request-middleware
+                                         :response-middleware response-middleware
+                                         :active-requests     (atom {})})))
 
+(comment
+  (log/set-level! :all)
+  (let [r (net/fulcro-http-remote {:url "http://localhost:8085/api"})
+        c (fn [r] (js/console.log :complete r))
+        e (fn [e v] (js/console.log :error e v))
+        u (fn [u] (js/console.log :update u))]
+    (net/transmit r {::edn [:howdy]} c e u)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Everything below this is DEPRECATED. Use code above this in new programs

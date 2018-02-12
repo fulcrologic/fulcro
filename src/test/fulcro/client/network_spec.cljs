@@ -154,26 +154,41 @@
                      :status   {:detail 1}})))
 
   (component "error-routine*"
-    (let [middleware?     (atom false)
-          progress-update (atom nil)
-          error-report    (atom nil)
-          errant-response {:status 500}
-          get-response-fn (fn []
-                            (reset! middleware? true)
-                            errant-response)
-          progress-fn     (fn [why detail] (reset! progress-update {:why why :detail detail}))
-          error-fn        (fn [why detail] (reset! error-report {:why why :detail detail}))
-          error           (net/error-routine* get-response-fn progress-fn error-fn)]
+    (behavior "when there is a legal status code"
+      (let [middleware?     (atom false)
+            progress-update (atom nil)
+            error-report    (atom nil)
+            errant-response {:status-code 500 :error :http-error}
+            get-response-fn (fn []
+                              (reset! middleware? true)
+                              errant-response)
+            progress-fn     (fn [why detail] (reset! progress-update {:why why :detail detail}))
+            error-fn        (fn [why detail] (reset! error-report {:why why :detail detail}))
+            error           (net/error-routine* get-response-fn progress-fn error-fn)]
 
-      (error)
+        (error)
 
-      (assertions
-        "Indicates failure to the progress routine"
-        @progress-update => {:why    :failed
-                             :detail {}}
-        "Reports the error to the error handler"
-        @error-report => {:why    :network-error
-                          :detail errant-response})))
+        (assertions
+          "Indicates failure to the progress routine"
+          @progress-update => {:why    :failed
+                               :detail {}}
+          "Reports the :error to the error handler"
+          @error-report => {:why    :http-error
+                            :detail errant-response})))
+    (behavior "when it looks like a low-level network error"
+      (let [error-report    (atom nil)
+            errant-response {:status-code 0 :error :http-error}
+            get-response-fn (fn [] errant-response)
+            progress-fn     identity
+            error-fn        (fn [why detail] (reset! error-report {:why why :detail detail}))
+            error           (net/error-routine* get-response-fn progress-fn error-fn)]
+
+        (error)
+
+        (assertions
+          "Reports the :error as a low-level :network-error to the error handler"
+          @error-report => {:why    :network-error
+                            :detail errant-response}))))
 
   (component "FulcroHTTPRemote"
     (component "transmit"
@@ -198,17 +213,11 @@
                                                             error => :fulcro-error-fn)
                                                           :error-function)
         (events/listen x ev fn) =1x=> (assertions
-                                        "registers for completion events on the cleanup helper"
-                                        ev => (.-COMPLETE EventType)
-                                        fn => :cleanup-function)
-        (events/listen x ev fn) =1x=> (assertions
                                         "registers for success events on the ok helper"
-                                        ev => (.-SUCCESS EventType)
-                                        fn => :ok-function)
+                                        ev => (.-SUCCESS EventType))
         (events/listen x ev fn) =1x=> (assertions
                                         "registers for error events on the error helper"
-                                        ev => (.-ERROR EventType)
-                                        fn => :error-function)
+                                        ev => (.-ERROR EventType))
         (net/xhrio-send x u v b h) => (assertions
                                         "Sends the computed network request"
                                         x => :mock-xhrio
