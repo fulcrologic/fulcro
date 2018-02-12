@@ -300,3 +300,20 @@
   "Modify an AST containing a single mutation, changing it's parameters to those given as an argument."
   [ast params]
   (assoc ast :params params))
+
+(defn with-progressive-updates
+  "Modifies the AST node to enable progressive updates (if available) about the response download progress.
+  `progress-mutation` is the symbol of the mutation that will be triggered on each progress step. It will receive
+  one call when the request is sent, followed by zero or more progress events from the low-level network layer,
+  and one call when the request is done (with any status). The first and last calls are guaranteed."
+  [ast progress-mutation]
+  {:pre [(symbol? (-> ast :key))]}
+  (update ast :key vary-meta assoc :fulcro.client.network/progress-mutation progress-mutation))
+
+(defn with-abort-id
+  "Modifies the mutation to enable network-level aborts. The id is a user-defined ID (any type) that identifies
+  things that can be aborted on networking. IDs need not be unique per node, though aborting an ID that refers to
+  more than one in-flight request will abort them all."
+  [ast id]
+  {:pre [(symbol? (-> ast :key))]}
+  (update ast :key vary-meta assoc :fulcro.client.network/abort-id id))

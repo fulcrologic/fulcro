@@ -35,7 +35,7 @@
 
       (log/log :fatal "Hello world" 1 2 3))))
 
-(specification "logging helper macros" :focused
+(specification "logging helper macros"
   (if (log/should-log? (log/system-log-level) :fatal)
     (when-mocking
       (log/-log n l & args) =1x=> (assertions
