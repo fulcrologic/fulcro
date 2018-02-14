@@ -276,6 +276,7 @@
              (events/listen xhrio (.-DOWNLOAD_PROGRESS EventType) #(progress-routine :receiving %))
              (events/listen xhrio (.-UPLOAD_PROGRESS EventType) #(progress-routine :sending %)))
            (events/listen xhrio (.-SUCCESS EventType) (with-cleanup ok-routine))
+           (events/listen xhrio (.-ABORT EventType) (with-cleanup #(raw-ok-fn {})))
            (events/listen xhrio (.-ERROR EventType) (with-cleanup error-routine))
            (xhrio-send xhrio url http-verb body headers))
          (raw-error-fn {:error :abort :error-text "Transmission was aborted because the request middleware threw an exception"}))))
