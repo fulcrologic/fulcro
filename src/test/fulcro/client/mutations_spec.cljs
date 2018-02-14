@@ -13,7 +13,9 @@
     [fulcro.logging :as log]
     [clojure.string :as str]
     [fulcro.client.impl.application :as app]
-    [fulcro.test-helpers :as th]))
+    [fulcro.test-helpers :as th]
+    [fulcro.client.impl.parser :as parser]
+    [fulcro.server :as server]))
 
 (defmutation sample
   "Doc string"
@@ -315,3 +317,50 @@
                                      :key          'f
                                      :params       {:y 2}
                                      :type         :call})))
+
+(defmutation f [params] (remote [{:keys [ast]}] (-> ast
+                                                  (m/with-abort-id :abort-id)
+                                                  (m/with-progressive-updates '(f-progress {:f 2})))))
+(defmutation g [params] (remote [{:keys [ast]}] (m/with-abort-id ast :abort-id)))
+(defmutation h [params] (remote [{:keys [ast]}] (-> ast
+                                                  (m/with-abort-id :other-abort-id)
+                                                  (m/with-progressive-updates `(g)))))
+
+(specification "with-progressive-updates"
+  (let [tx              `[(f)]
+        expr            (first tx)
+        ast             (parser/expr->ast expr)
+        ast-2           (m/with-progressive-updates ast '(g))
+        parsed-mutation (parser/ast->expr ast-2)]
+
+    (assertions
+      "adds progress mutation expression to the remote AST"
+      (some-> parsed-mutation first meta :fulcro.client.network/progress-mutation) => '(g))))
+
+(specification "progressive-update-transaction" :focused
+  (let [parser      (parser/parser {:read (constantly nil) :mutate m/mutate})
+        tx          (parser {} `[(f) (g) (h) :read-1] :remote)
+        progress    {:progress :complete :status {}}
+        progress-tx (m/progressive-update-transaction tx progress)]
+    (assertions
+      "constructs a progress mutation that includes the progress status update parameter"
+      progress-tx => `[(~'f-progress {:f 2 :fulcro.client.network/progress ~progress})
+                       (g {:fulcro.client.network/progress ~progress})])))
+
+(specification "with-abort-id"
+  (let [tx              `[(f)]
+        expr            (first tx)
+        ast             (parser/expr->ast expr)
+        ast-2           (m/with-abort-id ast :thing)
+        parsed-mutation (parser/ast->expr ast-2)]
+
+    (assertions
+      "adds an abort ID to the remote AST"
+      (some-> parsed-mutation first meta :fulcro.client.network/abort-id) => :thing)))
+
+(specification "abort-ids" :focused
+  (let [parser (parser/parser {:read (constantly nil) :mutate m/mutate})
+        tx     (parser {} `[(f) (g) (h) :read-1] :remote)]
+    (assertions
+      "extracts the set of distinct abort IDs for the mutations in a transaction"
+      (m/abort-ids tx) => #{:abort-id :other-abort-id})))

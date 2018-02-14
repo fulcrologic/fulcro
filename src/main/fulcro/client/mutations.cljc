@@ -7,7 +7,8 @@
     [fulcro.client.primitives :as prim]
     [fulcro.i18n :as i18n]
     #?(:cljs [cljs.loader :as loader])
-    [fulcro.client.impl.protocols :as p]))
+    [fulcro.client.impl.protocols :as p]
+    [fulcro.client.impl.parser :as parser]))
 
 
 #?(:clj (s/def ::action (s/cat
@@ -301,14 +302,38 @@
   [ast params]
   (assoc ast :params params))
 
+(defn is-call? [expr]
+  (and (list? expr)
+    (symbol? (first expr))
+    (or (= 1 (count expr))
+      (map? (second expr)))))
+
 (defn with-progressive-updates
   "Modifies the AST node to enable progressive updates (if available) about the response download progress.
-  `progress-mutation` is the symbol of the mutation that will be triggered on each progress step. It will receive
+  `progress-mutation` is a call expression (e.g. `(f {})`) for a mutation, which can include the normal parameter
+  map. This mutation mutation will be triggered on each progress step. It will receive
   one call when the request is sent, followed by zero or more progress events from the low-level network layer,
-  and one call when the request is done (with any status). The first and last calls are guaranteed."
+  and one call when the request is done (with any status). The first and last calls are guaranteed.
+
+  An extra parameter keyed at `fulcro.client.network/progress` will be included that contains a :progress key
+  (:sending, :receiving, :complete, or :failed), and a status that will be dependent on the network implementation
+  (e.g. a google XhrIO progress event)."
   [ast progress-mutation]
-  {:pre [(symbol? (-> ast :key))]}
+  {:pre [(symbol? (-> ast :key)) (is-call? progress-mutation)]}
   (update ast :key vary-meta assoc :fulcro.client.network/progress-mutation progress-mutation))
+
+(defn progressive-update-transaction
+  "Given a remote transaction containing one or more remote mutations, returns a local transaction of zero or
+  more mutations that should be run to provide a progress update. The `progress` argument will be added to
+  each resulting mutation in parameters as `:fulcro.client.network/progress`."
+  [network-transaction progress]
+  (let [add-progress (fn [expr]
+                       (let [ast   (parser/expr->ast expr)
+                             ast-2 (update ast :params assoc :fulcro.client.network/progress progress)]
+                         (parser/ast->expr ast-2)))]
+    (vec (keep
+           (fn [m] (some-> m seq first meta :fulcro.client.network/progress-mutation add-progress))
+           network-transaction))))
 
 (defn with-abort-id
   "Modifies the mutation to enable network-level aborts. The id is a user-defined ID (any type) that identifies
@@ -317,3 +342,10 @@
   [ast id]
   {:pre [(symbol? (-> ast :key))]}
   (update ast :key vary-meta assoc :fulcro.client.network/abort-id id))
+
+(defn abort-ids
+  "Returns a set of abort IDs from the given transaction."
+  [tx]
+  (set (keep
+         (fn [m] (some-> m seq first meta :fulcro.client.network/abort-id))
+         tx)))

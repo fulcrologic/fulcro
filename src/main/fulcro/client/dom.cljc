@@ -284,6 +284,7 @@
 
 (defn ^:private gen-react-dom-fn [tag]
   `(defn ~tag [opts# & children#]
+     {:style/indent 1}
      (.apply ~(symbol "js" "React.createElement") nil
        (cljs.core/into-array
          (cons ~(name tag) (cons opts# (cljs.core/map fulcro.util/force-children children#)))))))

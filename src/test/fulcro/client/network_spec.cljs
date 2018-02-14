@@ -15,6 +15,34 @@
       (get net/xhrio-error-states 7) => :abort
       (get net/xhrio-error-states 8) => :timeout))
 
+  (component "xhrio-error-code"
+    (when-mocking
+      (net/xhrio-status-code x) => 0
+      (net/xhrio-raw-error x) =1x=> (.-ABORT ErrorCode)
+      (net/xhrio-raw-error x) =1x=> (.-EXCEPTION ErrorCode)
+      (net/xhrio-raw-error x) =1x=> (.-TIMEOUT ErrorCode)
+
+      (assertions
+        "Normally maps xhrio errors to keywords"
+        (net/xhrio-error-code :mock-xhrio) => :abort
+        (net/xhrio-error-code :mock-xhrio) => :exception
+        (net/xhrio-error-code :mock-xhrio) => :timeout) )
+
+    (when-mocking
+      (net/xhrio-status-code x) => 404
+      (net/xhrio-raw-error x) => (.-HTTP_ERROR ErrorCode)
+
+      (assertions
+        "Uses :http-error when there is a non-zero status code for an error"
+        (net/xhrio-error-code :mock-xhrio) => :http-error))
+    (when-mocking
+      (net/xhrio-status-code x) => 0
+      (net/xhrio-raw-error x) => (.-HTTP_ERROR ErrorCode)
+
+      (assertions
+        "Converts a zero status code and HTTP ERROR to :network-error"
+        (net/xhrio-error-code :mock-xhrio) => :network-error)))
+
   (component "extract-response"
     (let [xhrio (net/make-xhrio)]
       (try
@@ -30,7 +58,7 @@
             (contains? r :error) => true
             (contains? r :error-text) => true
             "Includes the original tx"
-            (:original-tx r) => [:a?]
+            (:transaction r) => [:a?]
             "Includes the outgoing request"
             (:outgoing-request r) => {:a? false}))
         (finally
@@ -69,7 +97,6 @@
             response => extracted-response
             (meta response) => {:middleware true}))
 
-
         (behavior "on middleware exceptions:"
           (let [bad-middleware (fn [r]
                                  (reset! middleware-called true)
@@ -80,7 +107,8 @@
             (assertions
               "merges the middleware exception with the raw response"
               (select-keys response #{:status-code :body}) => extracted-response
-              (contains? response :middleware-failure) => true))))))
+              (contains? response :middleware-exception) => true
+              (:error response) => :middleware-failure))))))
 
   (component "cleanup-routine*"
     (when-mocking
@@ -106,10 +134,10 @@
           reset-test                 (fn [] (reset! progress {}) (reset! complete? false) (reset! failed? false))
           ok-response                {:status 200 :body "OK"}
           get-ok-resp                (fn [] (with-meta ok-response {:middleware true}))
-          faulty-middleware          (fn [] {:middleware-failure :mock-exception})
-          progress-fn                (fn [type detail] (reset! progress {type detail}))
+          faulty-middleware          (fn [] {:error :middleware-failure})
+          progress-fn                (fn [phase event] (reset! progress {phase event}))
           complete-fn                #(reset! complete? %)
-          fail-fn                    #(reset! failed? {:why %1 :detail %2})
+          fail-fn                    #(reset! failed? %1)
 
           ok-with-good-response      (net/ok-routine* progress-fn get-ok-resp complete-fn fail-fn)
           ok-with-middleware-failure (net/ok-routine* progress-fn faulty-middleware complete-fn fail-fn)]
@@ -117,31 +145,32 @@
       (behavior "Handling a good response:"
 
         (reset-test)
-        (ok-with-good-response)
+        (ok-with-good-response {:xhrio :event})
 
         (assertions
           "Calls the completion function with the middleware response"
           @complete? => ok-response
           (meta @complete?) => {:middleware true}
           "Indicates that progress is compelete"
-          @progress => {:complete {}}))
+          @progress => {:complete {:xhrio :event}}))
 
       (behavior "Handling a middleware failure:"
 
         (reset-test)
-        (ok-with-middleware-failure)
+        (ok-with-middleware-failure {:xhrio :event})
 
         (assertions
           "Calls the progress function with :failure"
-          @progress => {:failed {}}
-          "calls the failure function with :middleware-aborted and the exception."
+          @progress => {:failed {:xhrio :event}}
+          "calls the failure function with the original response but will error set to
+           :middleware-failure."
           @complete? => false
-          @failed? => {:why :middleware-aborted :detail :mock-exception}))))
+          @failed? => {:error :middleware-failure}))))
 
   (component "progress-routine*"
-    (let [no-progress (net/progress-routine* nil)
+    (let [no-progress (net/progress-routine* (constantly {:mock :response}) nil)
           updated     (atom {})
-          progress    (net/progress-routine* (fn [evt] (reset! updated evt)))]
+          progress    (net/progress-routine* (constantly {:mock :response}) (fn [evt] (reset! updated evt)))]
       (assertions
         "Can be used even if constructed with a nil callback"
         (no-progress :x {}) => nil)
@@ -149,9 +178,10 @@
       (progress :sending {:detail 1})
 
       (assertions
-        "Reports the given progress to the supplied progress function, when supplied"
-        @updated => {:progress :sending
-                     :status   {:detail 1}})))
+        "Merges the progress phase and event with the current response (in progress)"
+        @updated => {:mock           :response
+                     :progress-phase :sending
+                     :progress-event {:detail 1}})))
 
   (component "error-routine*"
     (behavior "when there is a legal status code"
@@ -162,33 +192,32 @@
             get-response-fn (fn []
                               (reset! middleware? true)
                               errant-response)
-            progress-fn     (fn [why detail] (reset! progress-update {:why why :detail detail}))
-            error-fn        (fn [why detail] (reset! error-report {:why why :detail detail}))
+            progress-fn     (fn [phase event] (reset! progress-update {phase event}))
+            error-fn        (fn [resp] (reset! error-report resp))
             error           (net/error-routine* get-response-fn progress-fn error-fn)]
 
-        (error)
+        (error {:xhrio :event})
 
         (assertions
           "Indicates failure to the progress routine"
-          @progress-update => {:why    :failed
-                               :detail {}}
+          @progress-update => {:failed {:xhrio :event}}
+          "Passes the error resposne through the response middleware"
+          @middleware? => true
           "Reports the :error to the error handler"
-          @error-report => {:why    :http-error
-                            :detail errant-response})))
+          @error-report => errant-response)))
     (behavior "when it looks like a low-level network error"
-      (let [error-report    (atom nil)
-            errant-response {:status-code 0 :error :http-error}
-            get-response-fn (fn [] errant-response)
-            progress-fn     identity
-            error-fn        (fn [why detail] (reset! error-report {:why why :detail detail}))
-            error           (net/error-routine* get-response-fn progress-fn error-fn)]
+      (let [error-report     (atom nil)
+            errant-response  {:status-code 0 :error :http-error}
+            get-response-fn  (fn [] errant-response)
+            progress-routine identity
+            error-fn         (fn [resp] (reset! error-report resp))
+            error            (net/error-routine* get-response-fn progress-routine error-fn)]
 
-        (error)
+        (error {:xhrio :event})
 
         (assertions
           "Reports the :error as a low-level :network-error to the error handler"
-          @error-report => {:why    :network-error
-                            :detail errant-response}))))
+          @error-report => errant-response))))
 
   (component "FulcroHTTPRemote"
     (component "transmit"
