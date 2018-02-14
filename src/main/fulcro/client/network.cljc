@@ -38,6 +38,39 @@
 #?(:cljs (defn xhrio-error-text [xhrio] (.getLastError xhrio)))
 #?(:cljs (defn xhrio-response-text [xhrio] (.getResponseText xhrio)))
 
+(defn xhrio-progress
+  "Given an xhrio progress event, returns a map with keys :loaded and :total, where loaded is the
+  number of bytes transferred in the given phase (upload/download) and total is the total number
+  of bytes to transfer (if known). "
+  [event]
+  {:loaded (.-loaded event) :total (.-total event)})
+
+#?(:cljs
+   (defn progress%
+     "Takes a map containing :fulcro.client.network/progress (the params map from a progress report mutation)
+     and returns a number between 0 and 100. `phase` can be `:overall`, `:sending`, or `:receiving`. When
+     set to `:overall` then the send phase will count for progress points between 0 and 49, and receiving phase
+     will account for 50 to 100. When set to :sending or :receiving the entire range will count for that phase only
+     (i.e. once sending is complete this function would return 100 throughout the receiving phase.)
+
+     If total is unknown, then this function returns 0."
+     ([progress] (progress% progress :overall))
+     ([progress phase]
+      (let [current-phase (some-> progress ::progress :progress-phase)
+            {:keys [loaded total] :or {total 0 loaded 0}} (some-> progress ::progress :progress-event xhrio-progress)
+            [base max-pct] (cond
+                             (= current-phase :complete) [100 100]
+                             (= current-phase :failed) [0 0]
+                             (and (= current-phase :sending) (= :overall phase)) [0 49]
+                             (and (= current-phase :receiving) (= :overall phase)) [50 100]
+                             (and (= current-phase :sending) (= :sending phase)) [0 100]
+                             (and (= current-phase :receiving) (= :sending phase)) [100 100]
+                             (and (= current-phase :sending) (= :receiving phase)) [0 0]
+                             (and (= current-phase :receiving) (= :receiving phase)) [0 100])
+            slope         (- max-pct base)
+            x             (if (= 0 total) 1 (/ loaded total))]
+        (js/Math.floor (+ base (* x slope)))))))
+
 (defn extract-response
   "Generate a response map from the status of the given xhrio object, which could be in a complete or error state."
   [tx request xhrio]

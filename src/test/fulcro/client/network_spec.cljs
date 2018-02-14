@@ -1,6 +1,6 @@
 (ns fulcro.client.network-spec
   (:require
-    [fulcro.client.network :as net]
+    [fulcro.client.network :as net :refer [progress%]]
     [goog.events :as events]
     [fulcro-spec.core :refer-macros [specification behavior assertions provided component when-mocking]])
   (:import [goog.net XhrIo EventType ErrorCode]))
@@ -26,7 +26,7 @@
         "Normally maps xhrio errors to keywords"
         (net/xhrio-error-code :mock-xhrio) => :abort
         (net/xhrio-error-code :mock-xhrio) => :exception
-        (net/xhrio-error-code :mock-xhrio) => :timeout) )
+        (net/xhrio-error-code :mock-xhrio) => :timeout))
 
     (when-mocking
       (net/xhrio-status-code x) => 404
@@ -245,6 +245,9 @@
                                         "registers for success events on the ok helper"
                                         ev => (.-SUCCESS EventType))
         (events/listen x ev fn) =1x=> (assertions
+                                        "registers for abort events on the error helper"
+                                        ev => (.-ABORT EventType))
+        (events/listen x ev fn) =1x=> (assertions
                                         "registers for error events on the error helper"
                                         ev => (.-ERROR EventType))
         (net/xhrio-send x u v b h) => (assertions
@@ -319,7 +322,63 @@
           (assertions "Adds the xhrio object to active requests under that ID"
             (some-> remote :active-requests deref) => {:ID #{:mock-xhrio}}))))))
 
+(specification "progress% calculator"
+  (let [total            (atom 0)
+        loaded           (atom 0)
+        current-progress (fn [phase l t]
+                           (reset! total t)
+                           (reset! loaded l)
+                           {::net/progress {:progress-event :mock-event
+                                            :progress-phase phase}})]
+    (when-mocking
+      (net/xhrio-progress p) => {:total @total :loaded @loaded}
 
+      (component "overall progress"
+        (assertions
+          "reports 0 when just started sending"
+          (progress% (current-progress :sending 0 6) :overall) => 0
+          "reports numbers in range 0-49 during sends"
+          (progress% (current-progress :sending 3 6) :overall) => 24
+          (progress% (current-progress :sending 6 6) :overall) => 49
+          "reports numbers 50-100 during receive"
+          (progress% (current-progress :receiving 0 10) :overall) => 50
+          (progress% (current-progress :receiving 5 10) :overall) => 75
+          (progress% (current-progress :receiving 10 10) :overall) => 100
+          "reports 100 if phase is complete"
+          (progress% (current-progress :complete 9 10) :overall) => 100
+          "reports 0 if phase is failed"
+          (progress% (current-progress :failed 9 10) :overall) => 0))
+
+      (component "send progress"
+        (assertions
+          "reports 0 when just started sending"
+          (progress% (current-progress :sending 0 6) :sending) => 0
+          "reports numbers in range 0-100 during sends"
+          (progress% (current-progress :sending 3 6) :sending) => 50
+          (progress% (current-progress :sending 6 6) :sending) => 100
+          "reports 100 during receive"
+          (progress% (current-progress :receiving 0 10) :sending) => 100
+          (progress% (current-progress :receiving 5 10) :sending) => 100
+          (progress% (current-progress :receiving 10 10) :sending) => 100
+          "reports 100 if phase is complete"
+          (progress% (current-progress :complete 9 10) :sending) => 100
+          "reports 0 if phase is failed"
+          (progress% (current-progress :failed 9 10) :sending) => 0))
+
+      (component "receive progress"
+        (assertions
+          "reports 0 when sending"
+          (progress% (current-progress :sending 0 6) :receiving) => 0
+          (progress% (current-progress :sending 3 6) :receiving) => 0
+          (progress% (current-progress :sending 6 6) :receiving) => 0
+          "reports numbers in range 0-100 during receive"
+          (progress% (current-progress :receiving 0 6) :receiving) => 0
+          (progress% (current-progress :receiving 3 6) :receiving) => 50
+          (progress% (current-progress :receiving 6 6) :receiving) => 100
+          "reports 100 if phase is complete"
+          (progress% (current-progress :complete 9 10) :receiving) => 100
+          "reports 0 if phase is failed"
+          (progress% (current-progress :failed 9 10) :receiving) => 0)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Specs for largely-deprecated API:
