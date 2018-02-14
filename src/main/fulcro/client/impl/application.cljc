@@ -42,11 +42,10 @@
   "Do a properly-plumbed network send. This function recursively strips ui attributes from the tx and pushes the tx over
   the network. It installs the given on-load and on-error handlers to deal with the network response. DEPRECATED: If
   you're doing something really low-level with networking, use send-with-history-tracking."
-  ([net {:keys [reconciler tx on-done on-error on-load]}]
+  ([net {:keys [reconciler tx on-done on-error on-load abort-id]}]
     ; server-side rendering doesn't do networking. Don't care.
     #?(:cljs
        (let [progress-tx #(m/progressive-update-transaction tx %)
-             abort-id    (some-> (m/abort-ids tx) first)    ; FIXME: should split mutations on abort IDs
              tx          (prim/strip-ui tx)]
          (cond
            (implements? net/ProgressiveTransfer net) (net/updating-send net tx on-done on-error on-load)
@@ -62,7 +61,7 @@
 (defn send-with-history-tracking
   "Does a real send but includes history activity tracking to prevent the gc of history that is related to active
   network requests. If you're doing something really low level in the networking, you want this over real-send."
-  ([net {:keys [reconciler payload tx on-done on-error on-load]}]
+  ([net {:keys [reconciler payload tx on-done on-error on-load abort-id]}]
    (let [{:keys [::hist/history-atom ::hist/tx-time ::prim/remote]} payload
          with-history-recording (fn [handler]
                                   (fn [resp items]
@@ -74,7 +73,7 @@
      (if (and history-atom tx-time remote)
        (swap! history-atom hist/remote-activity-started remote tx-time)
        (log/warn "Payload had no history details."))
-     (real-send net {:reconciler reconciler :tx tx :on-done on-done :on-error on-error :on-load on-load})))
+     (real-send net {:reconciler reconciler :tx tx :on-done on-done :on-error on-error :on-load on-load :abort-id abort-id})))
   ([payload net tx on-done on-error on-load]
    (send-with-history-tracking net {:payload payload :tx tx :on-done on-done :on-error on-error :on-load on-load})))
 
@@ -133,16 +132,18 @@
             ; todo: split remote mutations
             has-mutations?           (fn [tx] (> (count tx) 0))
             payload                  (fn [tx]
-                                       {::prim/query        tx
-                                        ::hist/tx-time      tx-time
-                                        ::hist/history-atom history
-                                        ::prim/remote       remote
-                                        ::f/on-load         (fn [result]
-                                                              ; NOTE: We could queue refreshes that we got back
-                                                              ; from the server, if we can send metadata, or something.
-                                                              ; (p/queue! reconciler refresh-set remote)
-                                                              (cb result tx remote))
-                                        ::f/on-error        (fn [result] (fallback result))})]
+                                       (let [abort-id (some-> tx m/abort-ids first)]
+                                         {::prim/query        tx
+                                          ::hist/tx-time      tx-time
+                                          ::hist/history-atom history
+                                          ::prim/remote       remote
+                                          ::net/abort-id      abort-id
+                                          ::f/on-load         (fn [result]
+                                                                ; NOTE: We could queue refreshes that we got back
+                                                                ; from the server, if we can send metadata, or something.
+                                                                ; (p/queue! reconciler refresh-set remote)
+                                                                (cb result tx remote))
+                                          ::f/on-error        (fn [result] (fallback result))}))]
         (doseq [tx tx-list]
           (when (has-mutations? tx)
             (enqueue queue (payload tx))))))))
@@ -162,12 +163,12 @@
     (let [queue            (get send-queues remote)
           network          (get networking remote)
           parallel-payload (f/mark-parallel-loading! remote reconciler)]
-      (doseq [{:keys [::prim/query ::f/on-load ::f/on-error ::f/load-descriptors] :as payload} parallel-payload]
+      (doseq [{:keys [::prim/query ::f/on-load ::f/on-error ::f/load-descriptors ::net/abort-id] :as payload} parallel-payload]
         (let [on-load'  #(on-load % load-descriptors)
               on-error' #(on-error % load-descriptors)]
           ; TODO: Update reporting is now possible with new FulcroRemote. Need to plumb (just for parallel loads, done in queue otherwise).
           (send-with-history-tracking network {:payload payload :reconciler reconciler :tx query
-                                               :on-done on-load' :on-error on-error'})))
+                                               :on-done on-load' :on-error on-error' :abort-id abort-id})))
       (loop [fetch-payload (f/mark-loading remote reconciler)]
         (when fetch-payload
           (enqueue queue (assoc fetch-payload :networking network))
@@ -203,7 +204,7 @@
   [network reconciler payload send-complete]
   ; Note, only data-fetch reads will have load-descriptors,
   ; in which case the payload on-load is data-fetch/loaded-callback, and cannot handle updates.
-  (let [{:keys [::prim/query ::f/on-load ::f/on-error ::f/load-descriptors]} payload
+  (let [{:keys [::prim/query ::f/on-load ::f/on-error ::f/load-descriptors ::net/abort-id]} payload
         merge-data (if load-descriptors #(on-load % load-descriptors) on-load)
         on-update  (if load-descriptors identity merge-data) ; TODO: queries cannot handle progress
         on-error   (if load-descriptors #(on-error % load-descriptors) on-error)
@@ -213,7 +214,7 @@
       (on-done {})                                          ; immediately let the deferred tx go by pretending that the load is done
       (send-with-history-tracking network {:payload payload :tx query :reconciler reconciler
                                            :on-done on-done :on-error on-error
-                                           :on-load on-update}))))
+                                           :on-load on-update :abort-id abort-id}))))
 
 (defn is-sequential? [network]
   (if (and #?(:clj false :cljs (implements? net/NetworkBehavior network)))
@@ -234,11 +235,10 @@
                              identity)]
       (go
         (loop [payload (async/<! queue)]
-          (let [{:keys [::hist/tx-time ::hist/history-atom ::prim/remote]} payload]
-            (send-payload network reconciler payload send-complete) ; async call. Calls send-complete when done
-            (when sequential?
-              (async/<! response-channel))                  ; block until send-complete
-            (recur (async/<! queue))))))))
+          (send-payload network reconciler payload send-complete) ; async call. Calls send-complete when done
+          (when sequential?
+            (async/<! response-channel))                    ; block until send-complete
+          (recur (async/<! queue)))))))
 
 (defn initialize-internationalization
   "Configure a re-render when the locale changes and also when the translations arrive from a module load.

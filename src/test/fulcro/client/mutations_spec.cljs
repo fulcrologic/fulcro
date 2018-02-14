@@ -337,7 +337,7 @@
       "adds progress mutation expression to the remote AST"
       (some-> parsed-mutation first meta :fulcro.client.network/progress-mutation) => '(g))))
 
-(specification "progressive-update-transaction" :focused
+(specification "progressive-update-transaction"
   (let [parser      (parser/parser {:read (constantly nil) :mutate m/mutate})
         tx          (parser {} `[(f) (g) (h) :read-1] :remote)
         progress    {:progress :complete :status {}}
@@ -358,7 +358,7 @@
       "adds an abort ID to the remote AST"
       (some-> parsed-mutation first meta :fulcro.client.network/abort-id) => :thing)))
 
-(specification "abort-ids" :focused
+(specification "abort-ids"
   (let [parser (parser/parser {:read (constantly nil) :mutate m/mutate})
         tx     (parser {} `[(f) (g) (h) :read-1] :remote)]
     (assertions

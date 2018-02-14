@@ -1,12 +1,13 @@
 (ns fulcro.client
+  #?(:cljs (:require-macros
+             [cljs.core.async.macros :refer [go]]))
   (:require
     [fulcro.client.primitives :as prim]
     [fulcro.client.impl.application :as app]
     #?(:cljs fulcro.client.mutations)                       ; DO NOT REMOVE. Ensures built-in mutations load on start
     [fulcro.client.network :as net]
     [fulcro.logging :as log]
-    #?(:clj
-    [clojure.core.async :as async] :cljs [cljs.core.async :as async])
+    [clojure.core.async :as async]
     [fulcro.client.impl.protocols :as proto]
     [fulcro.util :as util]
     [fulcro.client.util :as cutil]
@@ -16,7 +17,8 @@
     #?(:cljs [goog.dom :as gdom])
     [clojure.spec.alpha :as s]
     [fulcro.history :as hist]
-    [fulcro.client.impl.protocols :as p])
+    [fulcro.client.impl.protocols :as p]
+    [fulcro.client.mutations :as m])
   #?(:cljs (:import goog.Uri)))
 
 (declare map->Application merge-alternate-union-elements! merge-state! new-fulcro-client new-fulcro-test-client)
@@ -48,7 +50,9 @@
   (swap! fulcro-tools assoc tool-id tool-registry))
 
 (defn- normalize-network [networking]
-  #?(:cljs (if (implements? net/FulcroNetwork networking) {:remote networking} networking)
+  #?(:cljs (if (or
+                 (implements? net/FulcroHTTPRemoteI networking)
+                 (implements? net/FulcroNetwork networking)) {:remote networking} networking)
      :clj  {}))
 
 (defn- add-tools [original-start original-net original-tx-listen original-instrument]
@@ -160,6 +164,7 @@
   (clear-pending-remote-requests! [this remotes] "Remove all pending network requests on the given remote(s). Useful on failures to eliminate cascading failures. Remote can be a keyword, set, or nil. `nil` means all remotes.")
   (refresh [this] "Refresh the UI (force re-render).")
   (history [this] "Return the current UI history of the application, suitable for network transfer")
+  (abort-request! [this abort-id] "Abort the given request on all remotes. abort-id is a self-assigned ID for the remote interaction.")
   (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
 (defn- start-networking
@@ -210,6 +215,17 @@
     (when element
       (recur (async/poll! queue)))))
 
+(defn- abort-items-on-queue
+  [queue abort-id]
+  (let [elements (atom [])]
+    (loop [element (async/poll! queue)]
+      (when element
+        (when-not (some-> element ::net/abort-id (= abort-id))
+          (swap! elements conj element))
+        (recur (async/poll! queue))))
+    (doseq [e @elements]
+      (async/offer! queue e))))
+
 (defn reset-history-impl
   "Needed for mocking in tests. Use FulcroApplication protocol methods instead."
   [{:keys [reconciler]}]
@@ -241,7 +257,8 @@
                                     :otherwise {})]
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
-(defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues response-channels reconciler read-local parser mounted? reconciler-options]
+(defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues
+                        response-channels reconciler read-local parser mounted? reconciler-options]
   FulcroApplication
   (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 
@@ -268,6 +285,16 @@
                     :else remotes)]
       (doseq [r remotes]
         (clear-queue (get send-queues r)))))
+
+  (abort-request! [this abort-id]
+    #?(:cljs
+       (doseq [r (keys networking)]
+         (let [remote-net (get networking r)]
+           (if (implements? net/FulcroHTTPRemoteI remote-net)
+             (do
+               (net/abort remote-net abort-id)
+               (abort-items-on-queue (get send-queues r) abort-id))
+             (log/error "Cannot abort requests on remote " r ". It isn't a FulcroHTTPRemote."))))))
 
   (history [this] (prim/get-history reconciler))
   (reset-history! [this]

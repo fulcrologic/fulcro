@@ -5,7 +5,7 @@
     [fulcro-spec.core :refer-macros [specification behavior assertions provided component when-mocking]])
   (:import [goog.net XhrIo EventType ErrorCode]))
 
-(specification "Fulcro HTTP Remote" :focused
+(specification "Fulcro HTTP Remote"
   (component "error state map"
     (assertions
       "Contains mappings for the XhrIO error result states"
@@ -225,7 +225,7 @@
         (net/make-xhrio) => :mock-xhrio
         (net/response-extractor* middleware edn request xhrio) => :response-extractor
         (net/cleanup-routine* abort-id requests xhrio) => :cleanup-function
-        (net/progress-routine* update-fn) => :progress-reporter
+        (net/progress-routine* r update-fn) => :progress-reporter
         (net/ok-routine* progress-fn get-response-fn complete-fn error-fn) => (do
                                                                                 (assertions
                                                                                   "constructs ok routine with the correct helpers"
@@ -271,7 +271,7 @@
                                                   x => :mock-xhrio)
         (net/response-extractor* middleware edn request xhrio) => :response-extractor
         (net/cleanup-routine* abort-id requests xhrio) => :cleanup-function
-        (net/progress-routine* update-fn) => :progress-reporter
+        (net/progress-routine* r update-fn) => :progress-reporter
         (net/ok-routine* progress-fn get-response-fn complete-fn error-fn) => :ok-function
         (net/error-routine* get-resp progress error) => :error-function
         (events/listen x ev fn) =1x=> (assertions
@@ -302,7 +302,7 @@
         (net/make-xhrio) => :mock-xhrio
         (net/response-extractor* middleware edn request xhrio) => :response-extractor
         (net/cleanup-routine* abort-id requests xhrio) => :cleanup-function
-        (net/progress-routine* update-fn) => :progress-reporter
+        (net/progress-routine* r update-fn) => :progress-reporter
         (net/ok-routine* progress-fn get-response-fn complete-fn error-fn) => :ok-function
         (net/error-routine* get-resp progress error) => :error-function
         (events/listen x ev fn) => :ok
@@ -318,16 +318,6 @@
 
           (assertions "Adds the xhrio object to active requests under that ID"
             (some-> remote :active-requests deref) => {:ID #{:mock-xhrio}}))))))
-
-
-
-
-
-
-
-
-
-
 
 
 

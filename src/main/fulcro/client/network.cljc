@@ -25,7 +25,9 @@
 #?(:cljs (defn make-xhrio [] (XhrIo.)))
 #?(:cljs (defn xhrio-dispose [xhrio] (.dispose xhrio)))
 #?(:cljs (defn xhrio-enable-progress-events [xhrio] (.setProgressEventsEnabled xhrio true)))
-#?(:cljs (defn xhrio-abort [xhrio] (.abort xhrio)))
+#?(:cljs (defn xhrio-abort [xhrio]
+           (js/console.log xhrio)
+           (.abort xhrio)))
 #?(:cljs (defn xhrio-send [xhrio url verb body headers] (.send xhrio url verb body (some-> headers clj->js))))
 #?(:cljs (defn xhrio-status-code [xhrio] (.getStatus xhrio)))
 #?(:cljs (defn xhrio-status-text [xhrio] (.getStatusText xhrio)))
@@ -74,7 +76,7 @@
        :middleware-failed - The middleware failed to provide a well-formed request. `detail` will be the errant output of the middleware.
        :network-failed - The request did not complete at the network layer. `detail` will include
                          :error-code and :error-text. :error-code will be one of :exception, http-error, :timeout, or :abort.")
-  (cancel [this id]
+  (abort [this abort-id]
     "Cancel the network activity for the given request id, supplied during submission.")
   (network-behavior [this]
     "Returns flags indicating how this remote should behave in the Fulcro stack. Returned flags can include:
@@ -131,6 +133,7 @@
 
 (s/def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
 (s/def ::url string?)
+(s/def ::abort-id any?)
 (s/def ::headers (s/map-of string? string?))
 (s/def ::body any?)
 (s/def ::request (s/keys :req_un [::method ::body ::url ::headers]))
@@ -276,9 +279,10 @@
            (events/listen xhrio (.-ERROR EventType) (with-cleanup error-routine))
            (xhrio-send xhrio url http-verb body headers))
          (raw-error-fn {:error :abort :error-text "Transmission was aborted because the request middleware threw an exception"}))))
-  (cancel [this id]
-    #?(:cljs (when-let [xhrio (get @active-requests id)]
-               (xhrio-abort xhrio))))
+  (abort [this id]
+    #?(:cljs (when-let [xhrios (get @active-requests id)]
+               (doseq [xhrio xhrios]
+                 (xhrio-abort xhrio)))))
   (network-behavior [this] {::serial? serial?}))
 
 (s/fdef transmit

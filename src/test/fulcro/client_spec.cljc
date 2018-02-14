@@ -1,12 +1,15 @@
 (ns fulcro.client-spec
   (:require
-    [fulcro.client.primitives :as prim :refer [defui defsc]]
-    [fulcro.client :as fc]
-    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
-    [fulcro.client.impl.protocols :as omp]
     [clojure.core.async :as async]
-    [fulcro.logging :as log]
+    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
+    [fulcro.client :as fc]
+    [fulcro.client.impl.parser :as parser]
+    [fulcro.client.impl.protocols :as omp]
+    [fulcro.client.mutations :as m]
+    [fulcro.client.network :as net]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.util :as fcu]
+    [fulcro.logging :as log]
     [fulcro.util :as util]))
 
 #?(:cljs
@@ -151,4 +154,21 @@
                (fc/mount* mock-app RootWithState :dom-id))))))))
 
 
+#?(:cljs
+   (specification "Aborting items on the remote queue" :focused
+     (let [queue     (async/chan 1024)
+           payload-1 {:id 1 ::prim/query '[(h)]}
+           payload-2 {:id 2 ::net/abort-id :X}
+           payload-3 {:id 3 ::prim/query '[(g)]}]
 
+       (async/offer! queue payload-1)
+       (async/offer! queue payload-2)
+       (async/offer! queue payload-3)
+
+       (fc/abort-items-on-queue queue :X)
+
+       (assertions
+         "Removes just the items that have transactions with that abort id"
+         (async/poll! queue) => payload-1
+         (async/poll! queue) => payload-3
+         (async/poll! queue) => nil))))
