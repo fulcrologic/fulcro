@@ -51,7 +51,7 @@
   then you're looking at something that is running live in your browser. Much of the source you see in this document
   is also being pulled directly from the source files to help ensure they are in sync.
 
-  Your primary reference (which includes a lot more running code) is the [Fulcro Developer's Guide](http://book.fulcrologic.com].
+  Your primary reference (which includes a lot more running code) is the [Fulcro Developer's Guide](http://book.fulcrologic.com).
 
   Some other things that show off more advanced features as standalone demos:
 
@@ -102,12 +102,12 @@
   Fulcro has always meant to be for production use, but Om Next has been more of an experimental library.
   It took 2 years to get to a beta1, and has been sitting idle at that same spot for six months at the
   time of this writing due to other demands on David's time. So in late 2017 Fulcro 2.0
-  became a standalone library in 2017 in order to
-  expand a number of things and address some prevailing issues of using Om Next as a basis for production code and
+  became a standalone library in order to expand a number of things and address some prevailing issues
+  of using Om Next as a basis for production code and
   provide users with a better overall experience and more reliable updates.
 
-  Fulcro 2.0 is has a look-alike internal API based upon Om Next.
-  and has introduced facilities that enabled features that were not possible with Om Next's internals.
+  Fulcro 2.0 has a look-alike internal API based upon Om Next,
+  but has introduced facilities that enable features that were not possible with Om Next's internals.
 
   ## About this Tutorial
 
