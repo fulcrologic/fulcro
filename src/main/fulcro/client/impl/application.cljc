@@ -51,7 +51,7 @@
          (cond
            (implements? net/ProgressiveTransfer net) (net/updating-send net tx on-done on-error on-load)
            (implements? net/FulcroNetwork net) (net/send net tx on-done on-error)
-           (implements? net/FulcroHTTPRemote net)
+           (implements? net/FulcroHTTPRemoteI net)
            (let [on-done  (fn [{:keys [body]}] (on-done body))
                  on-error (fn [{:keys [body]}] (on-error body))
                  on-load  (fn [progress] (when reconciler (prim/transact! reconciler (progress-tx progress))))]
