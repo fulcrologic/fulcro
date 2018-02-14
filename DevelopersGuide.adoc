@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: Jan 31, 2018
+:revdate: Feb 15, 2018
 :revnumber: 1.1
 :lang: en
 :encoding: UTF-8
@@ -9824,11 +9824,140 @@ accomplishes the rendering of a given tree of UI props via:
 
 There is a `nashorn` branch on the github `fulcro-template` project that demonstrates the setup and rendering code.
 
-= The Network Layer [[Networking]]
 
-Many Fulcro applications will never have to say anything at all about the networking layer. However, if you
-have a client that needs to use an alternate (non-EDN) protocol or talk to multiple servers then this section
-is for you!
+= Client Networking with Fulcro HTTP Remote (version 2.3+) [[Networking]]
+
+Fulcro 2.3 and above has an implementation that uses Google's XhrIO to implement a networking layer for Fulcro that is
+much easier to extend than earlier Fulcro versions.
+
+This new version also brings a few new features:
+
+* It uses middleware for the request and response so you can customize the entire communication pipeline without having to deal with
+low-level networking. A remote can now manipulate everything from the request headers to the URL and even the raw data on the wire.
+* It allows you to give network requests and ID, and later abort them if desired.
+* It includes support for progress updates on mutations, which are commonly used for things like file uploads.
+
+=== Creating a Remote
+
+The basic API ...
+
+=== Aborting a Request
+
+The first thing you need to do is assign an abort ID to the request. The `load` API allows an `:abort-id` parameter.
+Mutations use the AST mechanism of the mutation API:
+
+```
+(defmutation do-something [params]
+   ...
+   (remote [{:keys [ast]}]
+     (m/with-abort-id ast :SOME-ID)))
+```
+
+The API for aborting a request is on the `FulcroApplication` protocol, which means you need access to the applcation
+in order to run aborts. The recommended way to deal with aborts is:
+
+* Hold your mounted app in an atom, say in your `client` namespace.
+* Write a mutation in your client namespace that can access this `app` atom.
+
+```
+(ns my-client
+  (:require [fulcro.client :as fc]
+            [fulcro.client.mutations :refer [defmutation]]
+            [loading.ui.root :as root]
+            [fulcro.client.network :as net]))
+
+(defonce app (atom nil))
+
+(defn abort* [id]
+  (when @app
+    (fc/abort-request! @app id)))
+
+(defmutation abort [{:keys [id]}]
+  (action [env]
+    (abort* id)))
+...
+```
+
+Then you can either directly call the function (if it does not create a circular require) or just
+invoke this mutation from anywhere (since mutations are just symbol data):
+
+```
+(transact! component `[(my-client/abort {:id :ID})]`)
+```
+
+Aborting a request that has yet to start networking results in no change to app state. It simply removes the
+request from the queue.
+
+Aborting an active request stops the network transaction, and acts as if the requested data resulted in an
+empty map from the server (so that auto-merge will overwrite the target).
+
+TODO: Should the abort behavior be to trigger an error instead?
+
+=== Progress Updates
+
+Progress updates are currently supported on mutations. Support for load progress is possible, but not yet
+implemented.
+
+Obtaining progress updates are requested the same way as abort IDs: through AST manipulation on the mutation:
+
+```
+(defmutation some-mutation [params]
+  (remote [{:keys [ast]}]
+     (m/with-progressive-updates ast `(some-mutation {:x 1}))))
+```
+
+Progress updates are sent to the given mutation (which will always receive the parameters you specified). The parameters
+will be augmented with information about the current progress:
+
+* `:progress-phase` - will be one of :sending, :receiving, :complete, or :failed.
+* `:progress-event` - the raw XhrIO event (which has loading progress data)
+* `:transaction` - The transaction that is running
+* `:body` - The current low-level body (out or in). Body is processed through the middleware, and could be partial.
+* `:status-code` - The HTTP status code if receiving.
+
+=== Request Middleware
+
+The request will, by default, be sent through pre-written middleware `fulcro.client.network/wrap-fulcro-request`. This
+middleware will convert the body to a json-encoded transit form and add content-type headers. If you specify request
+middleware you will want to compose that middleware in or normal API requests won't work.
+
+Additional middleware can do any number of things:
+
+* Re-route requests to an alternate URI
+* Change the content type and encode the body
+* Short-circuit the result of the middleware stack
+
+Middleware is just a function `(fn [handler] (fn [req] ...))`. The inner function can choose to modify the request
+and pass it through the remaining `handler`, or just return a request as the final thing to process. This is
+similar to Ring middleware on the server.
+
+The request is a map that must include:
+
+* `:body` - The raw data that will be given to XhrIO send
+* `:headers` - A clj map from string to string. It will be converted to a jsobj and given as the headers to the request.
+* `:url` - A string. Can be relative or a complete URL, assuming you have security set to allow you to talk to the given server.
+* `:method` - An HTTP verb as a keyword, such as `:post`.
+
+=== Response Middleware
+
+The response will, by default, be sent through the pre-written middleware function `fulcro.client.network/wrap-fulcro-response`
+which contains the logic to properly decode an API response (which is essentially just a transit decode). If you specify
+response middleware you will want to compose that middleware in or normal API responses won't work.
+
+Raw responses from the remote will include:
+
+* `:body` - The data that will be given back to Fulcro as the response from the server
+* `:transaction` - The transaction that body is a response to. If you modify this for queries you can manipulate the final merge.
+* `:status-code` - The HTTP status code
+* `:status-text` - The HTTP status text
+* `:error` - An error code. Typically one of `:network-error`, `:http-error`, `:timeout`, etc.
+* `:error-text` - A string describing the error
+* `:outgoing-request` - The request that this is a response to.
+
+The final response body will be the data given the Fulcro to merge. At the moment, then `:transaction` cannot
+be manipulated (TODO: changing the transaction would allow middleware to accomplish arbitrarily merge of generated normalized data).
+
+= The Client Network Layer (DEPRECATED)
 
 == Adding Additional Remotes
 

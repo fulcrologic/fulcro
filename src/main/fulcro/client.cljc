@@ -289,9 +289,12 @@
   (abort-request! [this abort-id]
     #?(:cljs
        (doseq [r (keys networking)]
+         (js/console.log :r)
          (let [remote-net (get networking r)]
+           (js/console.log :remote-net)
            (if (implements? net/FulcroHTTPRemoteI remote-net)
              (do
+               (js/console.log :abort)
                (net/abort remote-net abort-id)
                (abort-items-on-queue (get send-queues r) abort-id))
              (log/error "Cannot abort requests on remote " r ". It isn't a FulcroHTTPRemote."))))))

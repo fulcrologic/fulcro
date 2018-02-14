@@ -61,8 +61,8 @@
 (defn send-with-history-tracking
   "Does a real send but includes history activity tracking to prevent the gc of history that is related to active
   network requests. If you're doing something really low level in the networking, you want this over real-send."
-  ([net {:keys [reconciler payload tx on-done on-error on-load abort-id]}]
-   (let [{:keys [::hist/history-atom ::hist/tx-time ::prim/remote]} payload
+  ([net {:keys [reconciler payload tx on-done on-error on-load]}]
+   (let [{:keys [::hist/history-atom ::hist/tx-time ::prim/remote ::net/abort-id]} payload
          with-history-recording (fn [handler]
                                   (fn [resp items]
                                     (when (and history-atom remote tx-time)

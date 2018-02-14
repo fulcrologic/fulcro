@@ -25,9 +25,7 @@
 #?(:cljs (defn make-xhrio [] (XhrIo.)))
 #?(:cljs (defn xhrio-dispose [xhrio] (.dispose xhrio)))
 #?(:cljs (defn xhrio-enable-progress-events [xhrio] (.setProgressEventsEnabled xhrio true)))
-#?(:cljs (defn xhrio-abort [xhrio]
-           (js/console.log xhrio)
-           (.abort xhrio)))
+#?(:cljs (defn xhrio-abort [xhrio] (.abort xhrio)))
 #?(:cljs (defn xhrio-send [xhrio url verb body headers] (.send xhrio url verb body (some-> headers clj->js))))
 #?(:cljs (defn xhrio-status-code [xhrio] (.getStatus xhrio)))
 #?(:cljs (defn xhrio-status-text [xhrio] (.getStatusText xhrio)))
@@ -102,7 +100,6 @@
 
 (defn wrap-fulcro-response
   "Client remote middleware to transform a network response to a standard Fulcro form.
-
 
   This returns a function that will decode a transit response iff the resulting status code is 200 and the
   body is not empty. For errant status codes and empty body: the response body will become an empty map.
