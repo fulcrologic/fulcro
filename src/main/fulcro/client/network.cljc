@@ -85,7 +85,7 @@
            :error-text       (xhrio-error-text xhrio)}))
 
 ; Newer protocol that should be used for new networking remotes.
-(defprotocol FulcroHTTPRemoteI
+(defprotocol FulcroRemoteI
   (transmit [this request complete-fn error-fn update-fn]
     "Send the given `request`, which will contain:
      - `:fulcro.client.network/edn` : The actual API tx to send.
@@ -190,10 +190,6 @@
                               :ret ::request))
 (s/def ::active-requests (s/map-of any? set?))
 
-
-
-
-
 (s/fdef extract-response
   :args (s/cat :tx ::transaction :req ::request :xhrio ::xhrio)
   :ret ::response)
@@ -283,7 +279,7 @@
 (s/fdef error-routine* :args (s/cat :get fn? :progress fn? :error fn?))
 
 (defrecord FulcroHTTPRemote [url request-middleware response-middleware active-requests serial?]
-  FulcroHTTPRemoteI
+  FulcroRemoteI
   (transmit [this {:keys [::edn ::abort-id] :as raw-request} raw-ok-fn raw-error-fn raw-progress-fn]
     #?(:cljs
        (if-let [real-request (try (request-middleware {:headers {} :body edn :url url :method :post})

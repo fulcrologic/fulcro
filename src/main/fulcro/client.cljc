@@ -51,7 +51,7 @@
 
 (defn- normalize-network [networking]
   #?(:cljs (if (or
-                 (implements? net/FulcroHTTPRemoteI networking)
+                 (implements? net/FulcroRemoteI networking)
                  (implements? net/FulcroNetwork networking)) {:remote networking} networking)
      :clj  {}))
 
@@ -292,12 +292,12 @@
          (js/console.log :r)
          (let [remote-net (get networking r)]
            (js/console.log :remote-net)
-           (if (implements? net/FulcroHTTPRemoteI remote-net)
+           (if (implements? net/FulcroRemoteI remote-net)
              (do
                (js/console.log :abort)
                (net/abort remote-net abort-id)
                (abort-items-on-queue (get send-queues r) abort-id))
-             (log/error "Cannot abort requests on remote " r ". It isn't a FulcroHTTPRemote."))))))
+             (log/error "Cannot abort requests on remote " r ". It isn't a FulcroRemoteI."))))))
 
   (history [this] (prim/get-history reconciler))
   (reset-history! [this]

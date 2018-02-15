@@ -6079,7 +6079,7 @@ asynchrony out of the UI. The processing pipeline is always: update the database
 If you want to make use of the returned values from the server then you need to add something to remedy the
 lack of a query.
 
-=== Using Mutation Joins
+=== Using Mutation Joins [[MutationJoins]]
 
 The solution might be obvious to you: include the query with the mutation! This is called a *mutation join*.
 The explicit syntax for a mutation join looks like this:
@@ -9837,24 +9837,42 @@ low-level networking. A remote can now manipulate everything from the request he
 * It allows you to give network requests and ID, and later abort them if desired.
 * It includes support for progress updates on mutations, which are commonly used for things like file uploads.
 
-=== Creating a Remote
+== Creating a Remote
 
-The basic API ...
+A remote with these new features requires very little code:
 
-=== Aborting a Request
+```
+(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {})})
+```
+
+This will give you support for the abort and progress features.
+
+You may include a `:url` parameter to specify what the server endpoint is (defaults to "/api"). You
+may also specify `:serial?` as a boolean (default true). If you supply false, then Fulcro will not
+run requests for that remote through a sequential queue, and any requests submitted will immediately
+be started, with back-pressure provided by the browser limit on simultaneous connections).
+
+NOTE: non-sequential operation is not yet implemented.
+
+== Aborting a Request
 
 The first thing you need to do is assign an abort ID to the request. The `load` API allows an `:abort-id` parameter.
 Mutations use the AST mechanism of the mutation API:
 
 ```
+(load this :thing Thing {:abort-id :thing})
+
+...
+
 (defmutation do-something [params]
    ...
    (remote [{:keys [ast]}]
      (m/with-abort-id ast :SOME-ID)))
 ```
 
-The API for aborting a request is on the `FulcroApplication` protocol, which means you need access to the applcation
-in order to run aborts. The recommended way to deal with aborts is:
+The API for aborting a request is on the `FulcroApplication` protocol (networking is coordinated at the
+application level), which means you need access to the applcation in order to run aborts.
+The recommended way to deal with aborts is:
 
 * Hold your mounted app in an atom, say in your `client` namespace.
 * Write a mutation in your client namespace that can access this `app` atom.
@@ -9875,11 +9893,10 @@ in order to run aborts. The recommended way to deal with aborts is:
 (defmutation abort [{:keys [id]}]
   (action [env]
     (abort* id)))
-...
 ```
 
-Then you can either directly call the function (if it does not create a circular require) or just
-invoke this mutation from anywhere (since mutations are just symbol data):
+Then you can either directly call the `abort*` function (if it does not create a circular require) or
+just invoke the mutation from anywhere (since mutations are just symbol data):
 
 ```
 (transact! component `[(my-client/abort {:id :ID})]`)
@@ -9888,22 +9905,19 @@ invoke this mutation from anywhere (since mutations are just symbol data):
 Aborting a request that has yet to start networking results in no change to app state. It simply removes the
 request from the queue.
 
-Aborting an active request stops the network transaction, and acts as if the requested data resulted in an
-empty map from the server (so that auto-merge will overwrite the target).
+Aborting an active request stops the network transaction and acts as if the requested data resulted in an
+empty map from the server (so that load merge will overwrite the target with nothing). If this is a problem
+then target the load to a placeholder location and use a post-mutation to move it when load
+completes.
 
-TODO: Should the abort behavior be to trigger an error instead?
+== Progress Updates
 
-=== Progress Updates
-
-Progress updates are currently supported on mutations. Support for load progress is possible, but not yet
-implemented.
-
-Obtaining progress updates are requested the same way as abort IDs: through AST manipulation on the mutation:
+Obtaining progress updates on mutations are requested the same way as abort IDs: through AST manipulation on the mutation:
 
 ```
 (defmutation some-mutation [params]
   (remote [{:keys [ast]}]
-     (m/with-progressive-updates ast `(some-mutation {:x 1}))))
+     (m/with-progressive-updates ast `(progress-mutation {:x 1}))))
 ```
 
 Progress updates are sent to the given mutation (which will always receive the parameters you specified). The parameters
@@ -9915,7 +9929,30 @@ will be augmented with information about the current progress:
 * `:body` - The current low-level body (out or in). Body is processed through the middleware, and could be partial.
 * `:status-code` - The HTTP status code if receiving.
 
-=== Request Middleware
+The `fulcro.client.network/progress%` function can be used to convert this into a number between 0 and 100.
+
+Progress updates are currently supported on mutations. Support for progress directly on loads is possible,
+but not yet implemented. The workaround for the moment to get progress for a load is to use <<MutationJoins,mutation joins>>
+to return a value from a mutation:
+
+```
+(defmutation some-mutation [params]
+  (remote [{:keys [ast state]}]
+    (-> ast
+      (m/with-progressive-updates `(progress {}))
+      (m/returning state Thing))))
+```
+
+where `Thing` is some component that defines the query for the data being returned from the mutation.
+
+In general progress updates are only really useful for larger requests, such as file uploads. Triggering
+downloads to the user's machine should probably be done using tricks that force the item into the
+normal browser download mechanisms (external to Fulcro).
+
+File uploads also require that you augment the new client network middleware, since there is no
+reliable way to encode an image of arbitrary size into a transaction.
+
+== Request Middleware
 
 The request will, by default, be sent through pre-written middleware `fulcro.client.network/wrap-fulcro-request`. This
 middleware will convert the body to a json-encoded transit form and add content-type headers. If you specify request
@@ -9931,14 +9968,94 @@ Middleware is just a function `(fn [handler] (fn [req] ...))`. The inner functio
 and pass it through the remaining `handler`, or just return a request as the final thing to process. This is
 similar to Ring middleware on the server.
 
-The request is a map that must include:
+Fulcro will supply the middleware with a request that contains:
+
+* `:body` - The EDN transaction to send (query or mutations).
+* `:headers` - An empty map.
+* `:url` - The default URL this remote talks to.
+* `:method` - The HTTP verb as a keyword. All Fulcro requests default to `:post`.
+
+Middleware should return a map with the same keys that is passed on to the next layer. It may
+add any keys it wishes. The final result of the middleware stack will be used as follows:
 
 * `:body` - The raw data that will be given to XhrIO send
 * `:headers` - A clj map from string to string. It will be converted to a jsobj and given as the headers to the request.
-* `:url` - A string. Can be relative or a complete URL, assuming you have security set to allow you to talk to the given server.
-* `:method` - An HTTP verb as a keyword, such as `:post`.
+* `:url` - The network target. Can be relative or a complete URL, assuming you have security set to allow you to talk to the given server.
+* `:method` - Converted to an upper-case HTTP verb as a string.
 
-=== Response Middleware
+=== File Uploads
+
+Fulcro will soon include pre-written middleware to accomplish file upload encoding for you.
+
+The basic scheme is as follows:
+
+* Attach a `js/File` object to a mutation's parameters (typically as metadata to avoid various tool overhead)
+   * Include a tempid in the parameters
+* The mutation should using an altered network object that has custom middleware
+   * The local side of the mutation puts the file information into app state with a tempid
+* The remote's middleware encodes the headers/body into a proper multipart form upload, and
+includes the tempid
+* Progress reports are handled as usual. The parameters of the progress mutation should include the tempid so that
+  progress can be written to the file's state.
+* The remote uses normal Fulcro response middleware (which can decode tempid remappings)
+* The server accepts the file, assigns it a real ID, and returns a transit response with tempid
+  remapping to that real ID.
+
+When complete, the UI has an ID for the uploaded file, and can interact with the server via that ID
+(e.g. for generating file serving URLs for images, send delete mutations, etc.).
+
+Something like this is close:
+
+```
+; params will automatically include progress data
+(defmutation upload-progress [{:keys [id] :as params}]
+  (action [{:keys [state]}]
+    (swap! assoc-in [:file/by-id id] (net/progress% params))))
+
+(defmutation upload-file [{:keys [id file]}]
+  (action [{:keys [state]}]
+     (swap! state assoc-in [:file/by-id id] {:db/id id ...}))
+  (file-upload [{:keys ast}]
+    (m/with-progressive-updates ast `(upload-progress {:id ~id})))
+
+(defn wrap-file-upload []
+  (fn [req]
+    (let [mutation (some-> req :body prim/query->ast1)
+          params   (:params mutation)
+          id       (:id params)
+          js-file  (some-> params :file meta :js-file)
+          form (js/FormData.)]
+      (.append form "file" js-file)
+      (.append form "id" (util/transit-clj->str id))
+      (asoc req :body form :headers {} :method :post))))
+
+(def file-upload-middleware (wrap-file-upload))
+
+; client creation
+(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {})
+                                   :file-upload (net/fulcro-http-remote {:url "/file-uploads"
+                                                                         :request-middleware file-upload-middleware})})
+
+; an input triggering upload(s)
+(let [onChange (fn [evt]
+                 (let [js-file-list (.. evt -target -files)]
+                   (prim/transact! this
+                     (mapv (fn [file-idx]
+                             (let [fid     (prim/tempid)
+                                   js-file (with-meta {} {:js-file (.item js-file-list file-idx)})]
+                               `(upload-file ~{:id fid :file js-file})))
+                       (range (.-length js-file-list))))))]
+  (dom/input #js {:multiple true :onChange onChange}))
+```
+
+The server for this would need middleware watching for file uploads at `/file-uploads`, that
+returns a transit+json encoded map for the mutation:
+
+```
+{`upload-file {:tempids {file-temp-id newly-assigned-id}}}
+```
+
+== Response Middleware
 
 The response will, by default, be sent through the pre-written middleware function `fulcro.client.network/wrap-fulcro-response`
 which contains the logic to properly decode an API response (which is essentially just a transit decode). If you specify
@@ -9954,8 +10071,8 @@ Raw responses from the remote will include:
 * `:error-text` - A string describing the error
 * `:outgoing-request` - The request that this is a response to.
 
-The final response body will be the data given the Fulcro to merge. At the moment, then `:transaction` cannot
-be manipulated (TODO: changing the transaction would allow middleware to accomplish arbitrarily merge of generated normalized data).
+The final response body and transaction combo will be given to Fulcro for merge. If you modify
+the transaction be sure to use a query from components so that normalization is done properly.
 
 = The Client Network Layer (DEPRECATED)
 
