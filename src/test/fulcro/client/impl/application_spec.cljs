@@ -11,7 +11,8 @@
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]
     [fulcro.history :as hist]
-    [fulcro.client.impl.protocols :as p]))
+    [fulcro.client.impl.protocols :as p]
+    [fulcro.client.impl.parser :as parser]))
 
 (defui ^:once Thing
   static prim/Ident
@@ -377,6 +378,8 @@
     (app/is-sequential? (MockNetwork-Parallel.)) => false
     (app/is-sequential? (MockNetwork-ExplicitSequential.)) => true))
 
+(defn- with-abort-id [expr id] (some-> expr parser/expr->ast (m/with-abort-id id) parser/ast->expr))
+
 (specification "split-mutations"
   (behavior "Takes a tx and splits it into a vector of one or more txes that have no duplicate mutation names"
     (assertions
@@ -391,8 +394,17 @@
       "Resets 'seen mutations' at each split, so prior mutations do not cause extra splitting"
       (app/split-mutations '[(f) (g) (f) (k) (g)]) => '[[(f) (g)] [(f) (k) (g)]]
       "Can split mutation joins"
-      (app/split-mutations '[{(f) [:x]} (g) (f) (k) (g)]) => '[[{(f) [:x]} (g)] [(f) (k) (g)]]
-      )))
+      (app/split-mutations '[{(f) [:x]} (g) (f) (k) (g)]) => '[[{(f) [:x]} (g)] [(f) (k) (g)]]))
+  (behavior "splits mutations into groups that share the same abort IDs, preserving execution order"
+    (assertions
+      "preserves order, even if it has to be split into extra mutations"
+      (app/split-mutations [(with-abort-id '(f) :a) '(g) (with-abort-id '(h) :a)]) => '[[(f)] [(g)] [(h)]]
+      "groups adjacent mutations that have no abort ID"
+      (app/split-mutations [(with-abort-id '(f) :a) '(g) '(h)]) => '[[(f)] [(g) (h)]]
+      "groups adjacent mutations that have the same abort ID"
+      (app/split-mutations [(with-abort-id '(f) :a) (with-abort-id '(h) :a) '(g)]) => '[[(f) (h)] [(g)]]
+      "splits adjacent mutations that have differing abort ID"
+      (app/split-mutations [(with-abort-id '(f) :a) (with-abort-id '(h) :b) '(g)]) => '[[(f)] [(h)] [(g)]])))
 
 (specification "enqueue-mutations"
   (behavior "enqueues a payload with query, load, and error callbacks"

@@ -4,6 +4,7 @@
             [fulcro.i18n :as i18n]
             [fulcro.client.mutations :as m]
             [fulcro.history :as hist]
+            [clojure.set :as set]
             [fulcro.client.impl.data-fetch :as f]
             [fulcro.util :as futil]
             [fulcro.client.util :as util]
@@ -77,7 +78,6 @@
   ([payload net tx on-done on-error on-load]
    (send-with-history-tracking net {:payload payload :tx tx :on-done on-done :on-error on-error :on-load on-load})))
 
-; TODO: split on abort ids
 (defn split-mutations
   "Split a tx that contains mutations. Returns a vector that contains at least one tx (the original).
 
@@ -85,7 +85,12 @@
    [(f) (g)] => [[(f) (g)]]
    [(f) (g) (f) (k)] => [[(f) (g)] [(f) (k)]]
    [(f) (g) (f) (k) (g)] => [[(f) (g)] [(f) (k) (g)]]
-   "
+
+   This function splits any mutation that uses the same dispatch symbol more than once (since returns from server go
+   into a map, and that is the only way to get return values from both), and also when the mutations do not share abort
+   IDs (so that mutations do not get grouped into a transaction that could cause them to get cancelled incorrectly).
+
+   Returns a sequence that contains one or more transactions."
   [tx]
   (if-not (and (vector? tx) (every? (fn [t] (or (futil/mutation-join? t) (and (list? t) (symbol? (first t))))) tx))
     (do
@@ -93,19 +98,35 @@
       [tx])
     (if (empty? tx)
       []
-      (let [mutation-name (fn [m]
-                            (cond
-                              (list? m) (first m)
-                              (futil/mutation-join? m) (-> m keys ffirst)
-                              :otherwise 'unrecongnized-mutation))
-            {:keys [accumulator current-tx]}
-            (reduce (fn [{:keys [seen accumulator current-tx]} mutation]
-                      (if (contains? seen (mutation-name mutation))
-                        {:seen #{} :accumulator (conj accumulator current-tx) :current-tx [mutation]}
-                        {:seen        (conj seen (mutation-name mutation))
-                         :accumulator accumulator
-                         :current-tx  (conj current-tx mutation)})) {:seen #{} :accumulator [] :current-tx []} tx)]
-        (conj accumulator current-tx)))))
+      (let [dispatch-symbols  (fn [tx]
+                                (into #{}
+                                  (comp (map :key) (filter symbol?))
+                                  (some-> tx prim/query->ast :children)))
+            compatible-abort? (fn [tx1 tx2]
+                                (let [a1 (m/abort-ids tx1)
+                                      a2 (m/abort-ids tx2)]
+                                  (or
+                                    (and (= 1 (count a1)) (= a1 a2))
+                                    (and (empty? a1) (empty? a2)))))
+            can-be-included?  (fn [tx expr]
+                                (or
+                                  (empty? tx)
+                                  (and
+                                    (compatible-abort? tx [expr])
+                                    (empty? (set/intersection (dispatch-symbols tx) (dispatch-symbols [expr]))))))
+            {:keys [transactions current]} (reduce
+                                             (fn [{:keys [current] :as acc} expr]
+                                               #?(:cljs (js/console.log :c current :e expr :dc (m/abort-ids current) :de (m/abort-ids [expr])))
+                                               (if (can-be-included? current expr)
+                                                 (update acc :current conj expr)
+                                                 (-> acc
+                                                   (update :transactions conj current)
+                                                   (assoc :current [expr]))))
+                                             {:transactions [] :current []}
+                                             tx)]
+        (if (empty? current)
+          transactions
+          (conj transactions current))))))
 
 (defn enqueue-mutations
   "Splits out the (remote) mutations and fallbacks in a transaction, creates an error handler that can
