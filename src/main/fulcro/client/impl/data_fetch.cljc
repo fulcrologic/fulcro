@@ -242,7 +242,6 @@
        ::hist/tx-time                  tx-time
        ::on-load                       (loaded-callback reconciler)
        ::on-error                      (error-callback reconciler)
-       ; FIXME: This isn't right. It will cancel the batched set! The split logic above needs to be expanded to handle abort IDs on loads
        :fulcro.client.network/abort-id (first (keep :fulcro.client.network/abort-id items-to-load-now))
        ::load-descriptors              items-to-load-now})))
 

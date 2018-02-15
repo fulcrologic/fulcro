@@ -52,7 +52,7 @@
            (implements? net/ProgressiveTransfer net) (net/updating-send net tx on-done on-error on-load)
            (implements? net/FulcroNetwork net) (net/send net tx on-done on-error)
            (implements? net/FulcroHTTPRemoteI net)
-           (let [on-done  (fn [{:keys [body]}] (on-done body))
+           (let [on-done  (fn [{:keys [body transaction]}] (on-done body transaction))
                  on-error (fn [{:keys [body]}] (on-error body))
                  on-load  (fn [progress] (when reconciler (prim/transact! reconciler (progress-tx progress))))]
              (net/transmit net {::net/edn tx ::net/abort-id abort-id} on-done on-error on-load))))))
@@ -65,10 +65,10 @@
   ([net {:keys [reconciler payload tx on-done on-error on-load]}]
    (let [{:keys [::hist/history-atom ::hist/tx-time ::prim/remote ::net/abort-id]} payload
          with-history-recording (fn [handler]
-                                  (fn [resp items]
+                                  (fn [resp items-or-tx]
                                     (when (and history-atom remote tx-time)
                                       (swap! history-atom hist/remote-activity-finished remote tx-time))
-                                    (handler resp items)))
+                                    (handler resp items-or-tx)))
          on-done                (with-history-recording on-done)
          on-error               (with-history-recording on-error)]
      (if (and history-atom tx-time remote)
@@ -79,7 +79,7 @@
    (send-with-history-tracking net {:payload payload :tx tx :on-done on-done :on-error on-error :on-load on-load})))
 
 (defn split-mutations
-  "Split a tx that contains mutations. Returns a vector that contains at least one tx (the original).
+  "Split a tx that contains mutations.
 
    Examples:
    [(f) (g)] => [[(f) (g)]]
@@ -149,7 +149,6 @@
             fallback                 (fallback-handler app full-remote-transaction)
             desired-remote-mutations (prim/remove-loads-and-fallbacks full-remote-transaction)
             tx-list                  (split-mutations desired-remote-mutations)
-            ; todo: split remote mutations
             has-mutations?           (fn [tx] (> (count tx) 0))
             payload                  (fn [tx]
                                        (let [abort-id (some-> tx m/abort-ids first)]
@@ -158,10 +157,8 @@
                                           ::hist/history-atom history
                                           ::prim/remote       remote
                                           ::net/abort-id      abort-id
-                                          ::f/on-load         (fn [result]
-                                                                ; NOTE: We could queue refreshes that we got back
-                                                                ; from the server, if we can send metadata, or something.
-                                                                ; (p/queue! reconciler refresh-set remote)
+                                          ::f/on-load         (fn [result tx]
+                                                                ; middleware can modify tx, so we have to take as a param
                                                                 (cb result tx remote))
                                           ::f/on-error        (fn [result] (fallback result))}))]
         (doseq [tx tx-list]
@@ -225,8 +222,8 @@
   ; Note, only data-fetch reads will have load-descriptors,
   ; in which case the payload on-load is data-fetch/loaded-callback, and cannot handle updates.
   (let [{:keys [::prim/query ::f/on-load ::f/on-error ::f/load-descriptors ::net/abort-id]} payload
-        merge-data (if load-descriptors #(on-load % load-descriptors) on-load)
-        on-update  (if load-descriptors identity merge-data) ; TODO: queries cannot handle progress
+        merge-data (if load-descriptors #(on-load % load-descriptors) #(on-load %1 %2))
+        on-update  (if load-descriptors identity merge-data)
         on-error   (if load-descriptors #(on-error % load-descriptors) on-error)
         on-error   (comp send-complete on-error)
         on-done    (comp send-complete merge-data)]
