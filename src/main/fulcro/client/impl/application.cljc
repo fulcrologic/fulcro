@@ -116,7 +116,6 @@
                                     (empty? (set/intersection (dispatch-symbols tx) (dispatch-symbols [expr]))))))
             {:keys [transactions current]} (reduce
                                              (fn [{:keys [current] :as acc} expr]
-                                               #?(:cljs (js/console.log :c current :e expr :dc (m/abort-ids current) :de (m/abort-ids [expr])))
                                                (if (can-be-included? current expr)
                                                  (update acc :current conj expr)
                                                  (-> acc

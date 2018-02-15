@@ -175,18 +175,35 @@
   asks for `[{:entitlements [:bar]}]`. Fulcro merges these into a single query
   [{:entitlements [:foo]} {:entitlements [:bar]}]. However, the response to a query
   is a map, and such a query would result in the backend parser being called twice (once per key in the subquery)
-  but one would stomp on the other. Thus, this function ensures such accidental collisions are
-  not combined into a single network request."
+  but one would stomp on the other.
+
+  The other potential collision is if a load includes and abort ID. In this case such a load should not be batched
+  with others because aborting it would take others down with it.
+
+  Thus, this function ensures such accidental collisions are not combined into a single network request.
+
+  This functions returns a list of the load items that can be batched (from the beginning, in order) and the
+  remainder of the items which must be deferred to another request."
   [items-ready-to-load]
-  (let [items-to-load-now (->> items-ready-to-load
-                            (dedupe-by (fn [item]
-                                         (->> (data-query item)
-                                           (map join-key-or-nil))))
-                            vec)
-        is-loading-now?   (set items-to-load-now)
-        items-to-defer    (->> items-ready-to-load
-                            (remove is-loading-now?)
-                            (vec))]
+  (let [item-keys          (fn [item] (set (keep join-key-or-nil (data-query item))))
+        abort-id-conflict? (fn [items-going? active-abort-id abort-id]
+                             (and items-going? (or abort-id active-abort-id) (not= active-abort-id abort-id)))
+        can-go-now?        (fn [{:keys [items current-keys current-abort-id]} item]
+                             (let [abort-id (:fulcro.client.network/abort-id item)]
+                               (and
+                                 (not (abort-id-conflict? (seq items) current-abort-id abort-id))
+                                 (empty? (set/intersection current-keys (item-keys item))))))
+        {items-to-load-now :items} (reduce
+                                     (fn [acc item]
+                                       (if (can-go-now? acc item)
+                                         (cond-> acc
+                                           (:fulcro.client.network/abort-id item) (assoc :current-abort-id (:fulcro.client.network/abort-id item))
+                                           :always (update :current-keys set/union (item-keys item))
+                                           :always (update :items conj item))
+                                         (reduced acc)))
+                                     {:current-keys #{} :current-abort-id nil :items []}
+                                     items-ready-to-load)
+        items-to-defer     (->> items-ready-to-load (drop (count items-to-load-now)) vec)]
     [items-to-load-now items-to-defer]))
 
 (defn mark-loading
