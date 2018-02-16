@@ -11484,7 +11484,7 @@ a generated `pom.xml` as well as a `project.clj` file, or your project might get
 
 == Sample Project
 
-The [fulcro-template](http://github.com/fulcrologic/fulcro-template) is pre-configured for easy deployment to Heroku.
+The http://github.com/fulcrologic/fulcro-template[fulcro-template] is pre-configured for easy deployment to Heroku.
 
 = Converting HTML to Fulcro
 
