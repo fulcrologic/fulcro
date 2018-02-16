@@ -55,7 +55,7 @@
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [state-map server-property-or-ident class-or-factory {:keys [target params marker refresh parallel post-mutation post-mutation-params
-                                                               fallback remote without initialize]
+                                                               fallback remote without initialize abort-id]
                                                         :or   {remote     :remote marker true parallel false refresh [] without #{}
                                                                initialize false}}]
   {:pre [(or (nil? target) (vector? target))
@@ -88,6 +88,7 @@
      :refresh              (computed-refresh refresh server-property-or-ident target)
      :marker               marker
      :parallel             parallel
+     :abort-id             abort-id
      :fallback             fallback}))
 
 (defn load-mutation
@@ -139,6 +140,7 @@
   - `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
   - `fallback` - A mutation (symbol) to run if there is a server/network error. The `env` of the fallback will be the env of the load (if available), but will also include `:load-request`.
   - `without` - An optional set of keywords that should (recursively) be removed from the query.
+  - `abort-id` - An ID (typically a keyword) that you can use to cancel the load via `fulcro.client/abort`.
 
   Notes on UI Refresh:
   The refresh list will automatically include what you load (as a non-duplicate):
@@ -215,6 +217,7 @@
     - `marker`: See `load`
     - `remote`: See `load`
     - `refresh`: See `load`
+    - `abort-id`: See `load`
 
   NOTE: The :ui/loading-data attribute is always included in refresh. This means you probably don't want to
   query for that attribute near the root of your UI. Instead, create some leaf component with an ident that queries for :ui/loading-data
@@ -228,7 +231,7 @@
   "
   [component field & params]
   (let [params    (if (map? (first params)) (first params) params)
-        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
+        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker abort-id]
          :or   {remote :remote refresh [] marker true}} params
         state-map (some-> component prim/get-reconciler prim/app-state deref)]
     (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
@@ -244,6 +247,7 @@
                                         :parallel             parallel
                                         :marker               marker
                                         :refresh              refresh
+                                        :abort-id             abort-id
                                         :fallback             fallback}) :ui/loading-data :ui.fulcro.client.data-fetch.load-markers/by-id (prim/get-ident component)] refresh))))
 
 (defn load-field-action
@@ -269,7 +273,7 @@
   "
   [env-or-app-state component-class ident field & params]
   (let [params    (if (map? (first params)) (first params) params)
-        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker]
+        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker abort-id]
          :or   {remote :remote refresh [] marker true}} params
         env       (if (and (map? env-or-app-state) (contains? env-or-app-state :state))
                     env-or-app-state
@@ -288,6 +292,7 @@
        :marker               marker
        :post-mutation        post-mutation
        :post-mutation-params post-mutation-params
+       :abort-id             abort-id
        :fallback             fallback})))
 
 (defn remote-load
@@ -448,6 +453,6 @@
                        active-now?      #(get mutation-map % false)]
                    (into remotes (filter active-now? possible-remotes)))
                  (catch #?(:clj Throwable :cljs :default) e
-                   (log/error  "Attempting to get the remotes for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!" e)
+                   (log/error "Attempting to get the remotes for mutation " dispatch-symbol " threw an exception. Make sure that mutation is side-effect free!" e)
                    (reduced (if (seq remotes) remotes #{:remote})))))
        #{} legal-remotes))))

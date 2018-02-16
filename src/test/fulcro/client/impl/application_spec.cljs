@@ -11,7 +11,8 @@
     [fulcro.client.network :as net]
     [fulcro.client.mutations :as m]
     [fulcro.history :as hist]
-    [fulcro.client.impl.protocols :as p]))
+    [fulcro.client.impl.protocols :as p]
+    [fulcro.client.impl.parser :as parser]))
 
 (defui ^:once Thing
   static prim/Ident
@@ -239,14 +240,14 @@
           mutate-payload {::prim/query query ::f/on-load on-update ::f/on-error on-error}]
       (behavior "On queries (with load-descriptor payloads)"
         (provided "When real send completes without updates or errors"
-          (app/real-send net tx send-done send-error send-update) => (do
-                                                                       (assertions
-                                                                         "Sends the transaction to the network handler"
-                                                                         net => :network
-                                                                         tx => :the-tx)
-                                                                       (send-done))
+          (app/real-send net options) => (let [{:keys [tx on-done]} options]
+                                           (assertions
+                                             "Sends the transaction to the network handler"
+                                             net => :network
+                                             tx => :the-tx)
+                                           (on-done))
 
-          (app/send-payload :network load-payload send-complete)
+          (app/send-payload :network :reconciler load-payload send-complete)
 
           (assertions
             "Triggers update and send-complete once"
@@ -257,14 +258,14 @@
         (reset-test)
 
         (provided "When real send completes with an error"
-          (app/real-send net tx send-done send-error send-update) => (do
-                                                                       (assertions
-                                                                         "Sends the transaction to the network handler"
-                                                                         net => :network
-                                                                         tx => :the-tx)
-                                                                       (send-error))
+          (app/real-send net options) => (let [{:keys [tx on-error]} options]
+                                           (assertions
+                                             "Sends the transaction to the network handler"
+                                             net => :network
+                                             tx => :the-tx)
+                                           (on-error))
 
-          (app/send-payload :network load-payload send-complete)
+          (app/send-payload :network :reconciler load-payload send-complete)
 
           (assertions
             "Triggers error and send-complete once"
@@ -275,17 +276,17 @@
         (reset-test)
 
         (provided "When real send triggers multiple updates"
-          (app/real-send net tx send-done send-error send-update) => (do
-                                                                       (assertions
-                                                                         "Sends the transaction to the network handler"
-                                                                         net => :network
-                                                                         tx => :the-tx)
-                                                                       (send-update)
-                                                                       (send-update)
-                                                                       (send-update)
-                                                                       (send-done))
+          (app/real-send net options) => (let [{:keys [tx on-done on-load on-error]} options]
+                                           (assertions
+                                             "Sends the transaction to the network handler"
+                                             net => :network
+                                             tx => :the-tx)
+                                           (on-load)
+                                           (on-load)
+                                           (on-load)
+                                           (on-done))
 
-          (app/send-payload :network load-payload send-complete)
+          (app/send-payload :network :reconciler load-payload send-complete)
 
           (assertions
             "Only one update is actually done."
@@ -296,14 +297,14 @@
       (reset-test)
       (behavior "On mutations (no load-descriptor payloads)"
         (provided "When real send completes without updates or errors"
-          (app/real-send net tx send-done send-error send-update) => (do
-                                                                       (assertions
-                                                                         "Sends the transaction to the network handler"
-                                                                         net => :network
-                                                                         tx => :the-tx)
-                                                                       (send-done))
+          (app/real-send net options) => (let [{:keys [tx on-done on-load on-error]} options]
+                                           (assertions
+                                             "Sends the transaction to the network handler"
+                                             net => :network
+                                             tx => :the-tx)
+                                           (on-done))
 
-          (app/send-payload :network mutate-payload send-complete)
+          (app/send-payload :network :reconciler mutate-payload send-complete)
 
           (assertions
             "Triggers update and send-complete once"
@@ -314,14 +315,14 @@
         (reset-test)
 
         (provided "When real send completes with an error"
-          (app/real-send net tx send-done send-error send-update) => (do
-                                                                       (assertions
-                                                                         "Sends the transaction to the network handler"
-                                                                         net => :network
-                                                                         tx => :the-tx)
-                                                                       (send-error))
+          (app/real-send net options) => (let [{:keys [tx on-done on-load on-error]} options]
+                                           (assertions
+                                             "Sends the transaction to the network handler"
+                                             net => :network
+                                             tx => :the-tx)
+                                           (on-error))
 
-          (app/send-payload :network mutate-payload send-complete)
+          (app/send-payload :network :reconciler mutate-payload send-complete)
 
           (assertions
             "Triggers error and send-complete once"
@@ -332,17 +333,17 @@
         (reset-test)
 
         (provided "When real send triggers multiple updates"
-          (app/real-send net tx send-done send-error send-update) => (do
-                                                                       (assertions
-                                                                         "Sends the transaction to the network handler"
-                                                                         net => :network
-                                                                         tx => :the-tx)
-                                                                       (send-update)
-                                                                       (send-update)
-                                                                       (send-update)
-                                                                       (send-done))
+          (app/real-send net options) => (let [{:keys [tx on-done on-load on-error]} options]
+                                           (assertions
+                                             "Sends the transaction to the network handler"
+                                             net => :network
+                                             tx => :the-tx)
+                                           (on-load)
+                                           (on-load)
+                                           (on-load)
+                                           (on-done))
 
-          (app/send-payload :network mutate-payload send-complete)
+          (app/send-payload :network :reconciler mutate-payload send-complete)
 
           (assertions
             "Updates are triggered for each update and once at completion"
@@ -377,6 +378,8 @@
     (app/is-sequential? (MockNetwork-Parallel.)) => false
     (app/is-sequential? (MockNetwork-ExplicitSequential.)) => true))
 
+(defn- with-abort-id [expr id] (some-> expr parser/expr->ast (m/with-abort-id id) parser/ast->expr))
+
 (specification "split-mutations"
   (behavior "Takes a tx and splits it into a vector of one or more txes that have no duplicate mutation names"
     (assertions
@@ -391,8 +394,17 @@
       "Resets 'seen mutations' at each split, so prior mutations do not cause extra splitting"
       (app/split-mutations '[(f) (g) (f) (k) (g)]) => '[[(f) (g)] [(f) (k) (g)]]
       "Can split mutation joins"
-      (app/split-mutations '[{(f) [:x]} (g) (f) (k) (g)]) => '[[{(f) [:x]} (g)] [(f) (k) (g)]]
-      )))
+      (app/split-mutations '[{(f) [:x]} (g) (f) (k) (g)]) => '[[{(f) [:x]} (g)] [(f) (k) (g)]]))
+  (behavior "splits mutations into groups that share the same abort IDs, preserving execution order"
+    (assertions
+      "preserves order, even if it has to be split into extra mutations"
+      (app/split-mutations [(with-abort-id '(f) :a) '(g) (with-abort-id '(h) :a)]) => '[[(f)] [(g)] [(h)]]
+      "groups adjacent mutations that have no abort ID"
+      (app/split-mutations [(with-abort-id '(f) :a) '(g) '(h)]) => '[[(f)] [(g) (h)]]
+      "groups adjacent mutations that have the same abort ID"
+      (app/split-mutations [(with-abort-id '(f) :a) (with-abort-id '(h) :a) '(g)]) => '[[(f) (h)] [(g)]]
+      "splits adjacent mutations that have differing abort ID"
+      (app/split-mutations [(with-abort-id '(f) :a) (with-abort-id '(h) :b) '(g)]) => '[[(f)] [(h)] [(g)]])))
 
 (specification "enqueue-mutations"
   (behavior "enqueues a payload with query, load, and error callbacks"

@@ -26,7 +26,8 @@
 (s/def ::fallback (optional symbol?))
 (s/def ::original-env map?)
 (s/def ::load-marker (s/keys :req [::type ::uuid ::prim/query ::original-env ::hist/tx-time]
-                       :opt [::target ::prim/remote ::prim/ident ::field ::post-mutation-params ::post-mutation ::refresh ::marker ::parallel ::fallback]))
+                       :opt [::target ::prim/remote ::prim/ident ::field ::post-mutation-params ::post-mutation
+                             ::refresh ::marker ::parallel ::fallback :fulcro.client.network/abort-id]))
 
 (s/def ::on-load fn?)
 (s/def ::on-error fn?)
@@ -174,18 +175,35 @@
   asks for `[{:entitlements [:bar]}]`. Fulcro merges these into a single query
   [{:entitlements [:foo]} {:entitlements [:bar]}]. However, the response to a query
   is a map, and such a query would result in the backend parser being called twice (once per key in the subquery)
-  but one would stomp on the other. Thus, this function ensures such accidental collisions are
-  not combined into a single network request."
+  but one would stomp on the other.
+
+  The other potential collision is if a load includes and abort ID. In this case such a load should not be batched
+  with others because aborting it would take others down with it.
+
+  Thus, this function ensures such accidental collisions are not combined into a single network request.
+
+  This functions returns a list of the load items that can be batched (from the beginning, in order) and the
+  remainder of the items which must be deferred to another request."
   [items-ready-to-load]
-  (let [items-to-load-now (->> items-ready-to-load
-                            (dedupe-by (fn [item]
-                                         (->> (data-query item)
-                                           (map join-key-or-nil))))
-                            vec)
-        is-loading-now?   (set items-to-load-now)
-        items-to-defer    (->> items-ready-to-load
-                            (remove is-loading-now?)
-                            (vec))]
+  (let [item-keys          (fn [item] (set (keep join-key-or-nil (data-query item))))
+        abort-id-conflict? (fn [items-going? active-abort-id abort-id]
+                             (and items-going? (or abort-id active-abort-id) (not= active-abort-id abort-id)))
+        can-go-now?        (fn [{:keys [items current-keys current-abort-id]} item]
+                             (let [abort-id (:fulcro.client.network/abort-id item)]
+                               (and
+                                 (not (abort-id-conflict? (seq items) current-abort-id abort-id))
+                                 (empty? (set/intersection current-keys (item-keys item))))))
+        {items-to-load-now :items} (reduce
+                                     (fn [acc item]
+                                       (if (can-go-now? acc item)
+                                         (cond-> acc
+                                           (:fulcro.client.network/abort-id item) (assoc :current-abort-id (:fulcro.client.network/abort-id item))
+                                           :always (update :current-keys set/union (item-keys item))
+                                           :always (update :items conj item))
+                                         (reduced acc)))
+                                     {:current-keys #{} :current-abort-id nil :items []}
+                                     items-ready-to-load)
+        items-to-defer     (->> items-ready-to-load (drop (count items-to-load-now)) vec)]
     [items-to-load-now items-to-defer]))
 
 (defn mark-loading
@@ -218,13 +236,14 @@
                      (-> s
                        (place-load-markers items-to-load-now)
                        (assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items))))
-      {::prim/query        (full-query items-to-load-now)
-       ::hist/history-atom (prim/get-history reconciler)
-       ::prim/remote       remote
-       ::hist/tx-time      tx-time
-       ::on-load           (loaded-callback reconciler)
-       ::on-error          (error-callback reconciler)
-       ::load-descriptors  items-to-load-now})))
+      {::prim/query                    (full-query items-to-load-now)
+       ::hist/history-atom             (prim/get-history reconciler)
+       ::prim/remote                   remote
+       ::hist/tx-time                  tx-time
+       ::on-load                       (loaded-callback reconciler)
+       ::on-error                      (error-callback reconciler)
+       :fulcro.client.network/abort-id (first (keep :fulcro.client.network/abort-id items-to-load-now))
+       ::load-descriptors              items-to-load-now})))
 
 (s/fdef mark-loading
   :args (s/cat :remote keyword? :reconciler prim/reconciler?)
@@ -287,7 +306,8 @@
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."
-  [{:keys [ident field params remote without query post-mutation post-mutation-params fallback parallel refresh marker target env initialize]
+  [{:keys [ident field params remote without query post-mutation post-mutation-params fallback parallel refresh marker
+           target env initialize abort-id]
     :or   {remote :remote without #{} refresh [] marker true}}]
   (assert (or field query) "You must supply a query or a field/ident pair")
   (assert (or (not field) (and field (util/ident? ident))) "Field requires ident")
@@ -300,26 +320,27 @@
         key         (if (util/join? query-field) (util/join-key query-field) query-field)
         query'      (prim/ast->query ast)]
     (assert (or (not field) (= field key)) "Component fetch query does not match supplied field.")
-    {::type                 :ready
-     ::uuid                 #?(:cljs (str (cljs.core/random-uuid))
-                               :clj  (str (System/currentTimeMillis)))
-     ::target               target
-     ::prim/remote          remote
-     ::prim/ident           ident                           ; only for component-targeted loads
-     ::field                field                           ; for component-targeted load
-     ::prim/query           query'                          ; query, relative to root of db OR component
-     ::post-mutation        post-mutation
-     ::post-mutation-params post-mutation-params
-     ::initialize           initialize
-     ::refresh              refresh
-     ::marker               marker
-     ::parallel             parallel
-     ::fallback             fallback
+    {::type                          :ready
+     ::uuid                          #?(:cljs (str (cljs.core/random-uuid))
+                                        :clj  (str (System/currentTimeMillis)))
+     ::target                        target
+     ::prim/remote                   remote
+     ::prim/ident                    ident                  ; only for component-targeted loads
+     ::field                         field                  ; for component-targeted load
+     ::prim/query                    query'                 ; query, relative to root of db OR component
+     ::post-mutation                 post-mutation
+     ::post-mutation-params          post-mutation-params
+     ::initialize                    initialize
+     ::refresh                       refresh
+     ::marker                        marker
+     ::parallel                      parallel
+     ::fallback                      fallback
      ; stored on metadata so it doesn't interfere with serializability (this marker ends up in state)
-     ::original-env         (with-meta {} env)
-     ::hist/tx-time         (if (some-> env :reconciler)
-                              (prim/get-current-time (:reconciler env))
-                              (do hist/max-tx-time))}))
+     ::original-env                  (with-meta {} env)
+     :fulcro.client.network/abort-id abort-id
+     ::hist/tx-time                  (if (some-> env :reconciler)
+                                       (prim/get-current-time (:reconciler env))
+                                       (do hist/max-tx-time))}))
 
 (defn mark-ready
   "Place a ready-to-load marker into the application state. This should be done from

@@ -1,3 +1,25 @@
+NOTE: Version numbers use the following scheme:
+
+x.y.z
+- (inc x) = Major change that could break you program. Every attempt is made to keep these breaks
+small and tractable.
+- (inc y) = Intrusive change that should not break anything, but should be heavily tested.
+- (inc z) = additions, bug fixes, etc.
+
+2.3.0
+-----
+- The remote plumbing layer had somewhat intrusive internals change that should have no
+  external visible effects, but rigorous testing is recommended.
+- NOTE: Fulcro Inspect must be upgraded. It required changes to support the new remoting.
+- New remoting protocol and implementation: FuclroRemoteI and FulcroHTTPRemote
+    - Supports aborting any remote request (load/mutation) from queue or active network
+    - Supports giving progress updates via a general transaction
+    - Support request and response middleware
+- Updated developer's guide to include new remoting
+- Requires an update to Fulcro Inspect
+- Client still defaults to *old* networking code. Using abort, progress,
+and middleware is opt-in for now.
+
 2.2.0
 -----
 - Possible breaking change: Make logging no longer require timbre. fulcro.client.logging is deprecated. If you
