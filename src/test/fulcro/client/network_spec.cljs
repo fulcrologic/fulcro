@@ -265,7 +265,9 @@
                                                                              {:body :middleware-body :headers :middleware-headers}))
                                               :response-middleware (fn [r] (merge r {:middleware-in true}))})]
 
-          (net/transmit remote {} :fulcro-complete-fn :fulcro-error-fn nil)))
+          (net/transmit remote {::net/ok-handler       :fulcro-complete-fn
+                                ::net/error-handler    :fulcro-error-fn
+                                ::net/progress-handler nil})))
 
       (provided "Updates are requested"
         (net/make-xhrio) => :mock-xhrio
@@ -299,7 +301,9 @@
                                                                              {:body :middleware-body :headers :middleware-headers}))
                                               :response-middleware (fn [r] (merge r {:middleware-in true}))})]
 
-          (net/transmit remote {} :fulcro-complete-fn :fulcro-error-fn :fulcro-update-fn)))
+          (net/transmit remote {::net/ok-handler       :fulcro-complete-fn
+                                ::net/error-handler    :fulcro-error-fn
+                                ::net/progress-handler :fulcro-update-fn})))
 
       (provided "An abort ID is supplied"
         (net/make-xhrio) => :mock-xhrio
@@ -317,7 +321,11 @@
                                                                              {:body :middleware-body :headers :middleware-headers}))
                                               :response-middleware (fn [r] (merge r {:middleware-in true}))})]
 
-          (net/transmit remote {::net/edn [] ::net/abort-id :ID} :fulcro-complete-fn :fulcro-error-fn nil)
+          (net/transmit remote {::net/edn              []
+                                ::net/abort-id         :ID
+                                ::net/ok-handler       :fulcro-complete-fn
+                                ::net/error-handler    :fulcro-error-fn
+                                ::net/progress-handler nil})
 
           (assertions "Adds the xhrio object to active requests under that ID"
             (some-> remote :active-requests deref) => {:ID #{:mock-xhrio}}))))))
