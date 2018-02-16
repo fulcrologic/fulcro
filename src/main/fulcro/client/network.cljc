@@ -86,9 +86,12 @@
 
 ; Newer protocol that should be used for new networking remotes.
 (defprotocol FulcroRemoteI
-  (transmit [this request complete-fn error-fn update-fn]
+  (transmit [this request]
     "Send the given `request`, which will contain:
      - `:fulcro.client.network/edn` : The actual API tx to send.
+     - `:fulcro.client.network/ok-handler` : complete-fn
+     - `:fulcro.client.network/error-handler` : error-fn
+     - `:fulcro.client.network/progress-handler` : update-fn
 
      It may also optionally include:
      - `:fulcro.client.network/abort-id` : An ID to remember the network request by, to enable user-level API abort
@@ -280,7 +283,7 @@
 
 (defrecord FulcroHTTPRemote [url request-middleware response-middleware active-requests serial?]
   FulcroRemoteI
-  (transmit [this {:keys [::edn ::abort-id] :as raw-request} raw-ok-fn raw-error-fn raw-progress-fn]
+  (transmit [this {:keys [::edn ::abort-id ::ok-handler ::error-handler ::progress-handler] :as raw-request}]
     #?(:cljs
        (if-let [real-request (try (request-middleware {:headers {} :body edn :url url :method :post})
                                   (catch :default e
@@ -291,21 +294,21 @@
                http-verb            (-> (or method :post) name str/upper-case)
                extract-response     (response-extractor* response-middleware edn real-request xhrio)
                gc-network-resources (cleanup-routine* abort-id active-requests xhrio)
-               progress-routine     (progress-routine* extract-response raw-progress-fn)
-               ok-routine           (ok-routine* progress-routine extract-response raw-ok-fn raw-error-fn)
-               error-routine        (error-routine* extract-response progress-routine raw-error-fn)
+               progress-routine     (progress-routine* extract-response progress-handler)
+               ok-routine           (ok-routine* progress-routine extract-response ok-handler error-handler)
+               error-routine        (error-routine* extract-response progress-routine error-handler)
                with-cleanup         (fn [f] (fn [evt] (try (f evt) (finally (gc-network-resources)))))]
            (when abort-id
              (swap! active-requests update abort-id (fnil conj #{}) xhrio))
-           (when raw-progress-fn
+           (when progress-handler
              (xhrio-enable-progress-events xhrio)
              (events/listen xhrio (.-DOWNLOAD_PROGRESS EventType) #(progress-routine :receiving %))
              (events/listen xhrio (.-UPLOAD_PROGRESS EventType) #(progress-routine :sending %)))
            (events/listen xhrio (.-SUCCESS EventType) (with-cleanup ok-routine))
-           (events/listen xhrio (.-ABORT EventType) (with-cleanup #(raw-ok-fn {})))
+           (events/listen xhrio (.-ABORT EventType) (with-cleanup #(ok-handler {})))
            (events/listen xhrio (.-ERROR EventType) (with-cleanup error-routine))
            (xhrio-send xhrio url http-verb body headers))
-         (raw-error-fn {:error :abort :error-text "Transmission was aborted because the request middleware threw an exception"}))))
+         (error-handler {:error :abort :error-text "Transmission was aborted because the request middleware threw an exception"}))))
   (abort [this id]
     #?(:cljs (when-let [xhrios (get @active-requests id)]
                (doseq [xhrio xhrios]
@@ -315,10 +318,8 @@
 (s/fdef transmit
   :args (s/cat
           :remote any?
-          :raw-request (s/keys :req [::edn] :opt [::abort-id])
-          :complete-fn ::ok-handler
-          :error-fn ::error-handler
-          :update-fn ::progress-handler))
+          :raw-request (s/keys :req [::edn ::ok-handler ::error-handler ::progress-handler]
+                         :opt [::abort-id])))
 
 (defn fulcro-http-remote
   "Create a remote that (by default) communicates with the given url.
@@ -356,7 +357,7 @@
         c (fn [r] (js/console.log :complete r))
         e (fn [e v] (js/console.log :error e v))
         u (fn [u] (js/console.log :update u))]
-    (transmit r {::edn [:hello]} c e u)))
+    (transmit r {::edn [:hello] ::ok-handler c ::error-handler e ::progress-handler u})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Everything below this is DEPRECATED. Use code above this in new programs
@@ -492,7 +493,7 @@
         c (fn [r] (js/console.log :complete r))
         e (fn [e v] (js/console.log :error e v))
         u (fn [u] (js/console.log :update u))]
-    (transmit r {::edn [:hello]} c e u))
+    (transmit r {::edn [:hello] ::ok-handler c ::error-handler e ::progress-handler u}))
   (let [r (make-fulcro-network "http://localhost:8085/api")
         c (fn [r] (js/console.log :complete r))
         e (fn [e v] (js/console.log :error e v))]
