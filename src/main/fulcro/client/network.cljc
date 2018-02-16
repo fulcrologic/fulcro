@@ -217,14 +217,14 @@
 (defn response-extractor*
   [response-middleware edn real-request xhrio]
   #?(:cljs
-     (fn []
-       (let [r (extract-response edn real-request xhrio)]
-         (try
-           (response-middleware r)
-           (catch :default e
-             (log/error "Client response middleware threw an exception. " e ". Defaulting to raw response.")
-             (merge r {:error                (if (contains? #{nil :none} (:error r)) :middleware-failure (:error r))
-                       :middleware-exception e})))))))
+     (memoize (fn []
+        (let [r (extract-response edn real-request xhrio)]
+          (try
+            (response-middleware r)
+            (catch :default e
+              (log/error "Client response middleware threw an exception. " e ". Defaulting to raw response.")
+              (merge r {:error                (if (contains? #{nil :none} (:error r)) :middleware-failure (:error r))
+                        :middleware-exception e}))))))))
 
 (s/fdef response-extractor*
   :args (s/cat :mw ::response-middleware :tx any? :req ::request :xhrio ::xhrio)
@@ -273,13 +273,15 @@
 (defn error-routine*
   "Returns a (fn [xhrio-evt]) that pulls the progress and reports it to the progress routine and the raw
   error handler."
-  [get-response progress-routine raw-error-handler]
+  [get-response ok-routine progress-routine raw-error-handler]
   (fn [evt]
-    (let [r (get-response)]
+    (let [r (get-response)] ; middleware can rewrite to be ok...
       (progress-routine :failed evt)
-      (raw-error-handler r))))
+      (if (= 200 (:status-code r))
+        (ok-routine evt)
+        (raw-error-handler r)))))
 
-(s/fdef error-routine* :args (s/cat :get fn? :progress fn? :error fn?))
+(s/fdef error-routine* :args (s/cat :get fn? :ok fn? :progress fn? :error fn?))
 
 (defrecord FulcroHTTPRemote [url request-middleware response-middleware active-requests serial?]
   FulcroRemoteI
@@ -296,7 +298,7 @@
                gc-network-resources (cleanup-routine* abort-id active-requests xhrio)
                progress-routine     (progress-routine* extract-response progress-handler)
                ok-routine           (ok-routine* progress-routine extract-response ok-handler error-handler)
-               error-routine        (error-routine* extract-response progress-routine error-handler)
+               error-routine        (error-routine* extract-response ok-routine progress-routine error-handler)
                with-cleanup         (fn [f] (fn [evt] (try (f evt) (finally (gc-network-resources)))))]
            (when abort-id
              (swap! active-requests update abort-id (fnil conj #{}) xhrio))

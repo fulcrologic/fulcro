@@ -194,7 +194,7 @@
                               errant-response)
             progress-fn     (fn [phase event] (reset! progress-update {phase event}))
             error-fn        (fn [resp] (reset! error-report resp))
-            error           (net/error-routine* get-response-fn progress-fn error-fn)]
+            error           (net/error-routine* get-response-fn identity progress-fn error-fn)]
 
         (error {:xhrio :event})
 
@@ -211,7 +211,7 @@
             get-response-fn  (fn [] errant-response)
             progress-routine identity
             error-fn         (fn [resp] (reset! error-report resp))
-            error            (net/error-routine* get-response-fn progress-routine error-fn)]
+            error            (net/error-routine* get-response-fn identity progress-routine error-fn)]
 
         (error {:xhrio :event})
 
@@ -234,7 +234,7 @@
                                                                                   complete-fn => :fulcro-complete-fn
                                                                                   error-fn => :fulcro-error-fn)
                                                                                 :ok-function)
-        (net/error-routine* get-resp progress error) => (do
+        (net/error-routine* get-resp ok progress error) => (do
                                                           (assertions
                                                             "constructs error routine with correct helpers"
                                                             get-resp => :response-extractor
@@ -278,7 +278,7 @@
         (net/cleanup-routine* abort-id requests xhrio) => :cleanup-function
         (net/progress-routine* r update-fn) => :progress-reporter
         (net/ok-routine* progress-fn get-response-fn complete-fn error-fn) => :ok-function
-        (net/error-routine* get-resp progress error) => :error-function
+        (net/error-routine* get-resp ok progress error) => :error-function
         (events/listen x ev fn) =1x=> (assertions
                                         "registers for download progress events"
                                         ev => (.-DOWNLOAD_PROGRESS EventType))
@@ -311,7 +311,7 @@
         (net/cleanup-routine* abort-id requests xhrio) => :cleanup-function
         (net/progress-routine* r update-fn) => :progress-reporter
         (net/ok-routine* progress-fn get-response-fn complete-fn error-fn) => :ok-function
-        (net/error-routine* get-resp progress error) => :error-function
+        (net/error-routine* get-resp ok progress error) => :error-function
         (events/listen x ev fn) => :ok
         (net/xhrio-send x u v b h) => :sent
 
