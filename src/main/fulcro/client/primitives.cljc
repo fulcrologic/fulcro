@@ -1459,7 +1459,6 @@
                     join        (cond-> join
                                   (util/ident? join) (hash-map '[*]))
                     [key sel]   (util/join-entry join)
-                    key         (if (list? key) (first key) key) ; handles {(:key {:param 42}) [:subquery]}
                     recurse?    (util/recursion? sel)
                     recurse-key (when recurse? key)
                     v           (if (util/ident? key)
