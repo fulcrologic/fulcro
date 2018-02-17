@@ -1961,7 +1961,7 @@
     (prim/has-ident? AState) => false
     (prim/has-ident? AIdent) => true))
 
-(specification "db->tree" :focused
+(specification "db->tree"
   (assertions
     (prim/db->tree [:foo] {:foo 42} {})
     => {:foo 42}

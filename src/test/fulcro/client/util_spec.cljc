@@ -108,13 +108,13 @@
       (doseq [sample samples]
         (is (= sample (util/transit-str->clj (util/transit-clj->str sample))))))))
 
-(specification "join-entry" :focused
+(specification "join-entry"
   (assertions
     (primutil/join-entry {:foo [:bar]}) => [:foo [:bar]]
     (primutil/join-entry '({:foo [:bar]} {:param "bar"})) => [:foo [:bar]]
     (primutil/join-entry '{(:foo {:param "bar"}) [:bar]}) => [:foo [:bar]]))
 
-(specification "join-key" :focused
+(specification "join-key"
   (assertions
     (primutil/join-key {:foo [:bar]}) => :foo
     (primutil/join-key '({:foo [:bar]} {:param "bar"})) => :foo
