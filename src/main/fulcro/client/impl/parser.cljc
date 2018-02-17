@@ -263,7 +263,7 @@
   (fn self
     ([env query] (self env query nil))
     ([env query target]
-     (let [target (or (:target env) target)
+     (let [target (or target (:target env))
            {:keys [path] :as env}
            (cond-> (assoc env :parser self :target target :query-root :fulcro.client.primitives/root)
              (not (contains? env :path)) (assoc :path []))]
