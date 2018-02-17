@@ -263,9 +263,9 @@
   (fn self
     ([env query] (self env query nil))
     ([env query target]
-     (let [{:keys [path] :as env}
-           (cond-> (assoc env :parser self :query-root :fulcro.client.primitives/root)
-             target (assoc :target target)
+     (let [target (or (:target env) target)
+           {:keys [path] :as env}
+           (cond-> (assoc env :parser self :target target :query-root :fulcro.client.primitives/root)
              (not (contains? env :path)) (assoc :path []))]
        (letfn [(step [ret expr]
                  (let [{query' :query :keys [key dispatch-key params] :as ast} (expr->ast expr)
