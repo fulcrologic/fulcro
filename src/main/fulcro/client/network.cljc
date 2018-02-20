@@ -111,12 +111,7 @@
        :network-failed - The request did not complete at the network layer. `detail` will include
                          :error-code and :error-text. :error-code will be one of :exception, http-error, :timeout, or :abort.")
   (abort [this abort-id]
-    "Cancel the network activity for the given request id, supplied during submission.")
-  (network-behavior [this]
-    "Returns flags indicating how this remote should behave in the Fulcro stack. Returned flags can include:
-
-     `:fulcro.client.network/serial?` - Should Fulcro create a FIFO queue for requests to this remote, or should all
-                                        requests be allowed to go immediately? If not supplied it defaults to true."))
+    "Cancel the network activity for the given request id, supplied during submission."))
 
 (defn wrap-fulcro-request
   "Client Remote Middleware to add transit encoding for normal Fulcro requests. Sets the content type and transforms an EDN
@@ -217,14 +212,14 @@
 (defn response-extractor*
   [response-middleware edn real-request xhrio]
   #?(:cljs
-     (memoize (fn []
-        (let [r (extract-response edn real-request xhrio)]
-          (try
-            (response-middleware r)
-            (catch :default e
-              (log/error "Client response middleware threw an exception. " e ". Defaulting to raw response.")
-              (merge r {:error                (if (contains? #{nil :none} (:error r)) :middleware-failure (:error r))
-                        :middleware-exception e}))))))))
+     (fn []
+       (let [r (extract-response edn real-request xhrio)]
+         (try
+           (response-middleware r)
+           (catch :default e
+             (log/error "Client response middleware threw an exception. " e ". Defaulting to raw response.")
+             (merge r {:error                (if (contains? #{nil :none} (:error r)) :middleware-failure (:error r))
+                       :middleware-exception e})))))))
 
 (s/fdef response-extractor*
   :args (s/cat :mw ::response-middleware :tx any? :req ::request :xhrio ::xhrio)
@@ -275,7 +270,7 @@
   error handler."
   [get-response ok-routine progress-routine raw-error-handler]
   (fn [evt]
-    (let [r (get-response)] ; middleware can rewrite to be ok...
+    (let [r (get-response)]                                 ; middleware can rewrite to be ok...
       (progress-routine :failed evt)
       (if (= 200 (:status-code r))
         (ok-routine evt)
@@ -314,8 +309,7 @@
   (abort [this id]
     #?(:cljs (when-let [xhrios (get @active-requests id)]
                (doseq [xhrio xhrios]
-                 (xhrio-abort xhrio)))))
-  (network-behavior [this] {::serial? serial?}))
+                 (xhrio-abort xhrio))))))
 
 (s/fdef transmit
   :args (s/cat
@@ -344,18 +338,16 @@
   A result with a 200 status code will result in a merge using the resulting response's `:transaction` as the query,
   and the `:body` as the EDN to merge. If the status code is anything else then the details of the response will be
   used when triggering the built-in error handling (e.g. fallbacks, global error handler, etc.)."
-  [{:keys [url request-middleware response-middleware serial?] :or {url                 "/api"
-                                                                    response-middleware (wrap-fulcro-response)
-                                                                    serial?             true
-                                                                    request-middleware  (wrap-fulcro-request)} :as options}]
+  [{:keys [url request-middleware response-middleware] :or {url                 "/api"
+                                                            response-middleware (wrap-fulcro-response)
+                                                            request-middleware  (wrap-fulcro-request)} :as options}]
   (map->FulcroHTTPRemote (merge options {:request-middleware  request-middleware
                                          :response-middleware response-middleware
                                          :active-requests     (atom {})})))
 
-
 (comment
   (log/set-level! :all)
-  (let [r (fulcro-http-remote {:url "http://localhost:8085/api"})
+  (let [r (fulcro-http-remote {:url "http://www.google.com/q=hello"})
         c (fn [r] (js/console.log :complete r))
         e (fn [e v] (js/console.log :error e v))
         u (fn [u] (js/console.log :update u))]

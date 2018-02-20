@@ -8,8 +8,8 @@ small and tractable.
 
 2.3.0
 -----
-- The remote plumbing layer had somewhat intrusive internals change that should have no
-  external visible effects, but rigorous testing is recommended.
+- The remote plumbing layer had a few intrusive internals change that should have no
+  external visible effects.
 - NOTE: Fulcro Inspect must be upgraded. It required changes to support the new remoting.
 - New remoting protocol and implementation: FuclroRemoteI and FulcroHTTPRemote
     - Supports aborting any remote request (load/mutation) from queue or active network
@@ -21,10 +21,13 @@ small and tractable.
 and middleware is opt-in for now.
 - Made a set-route mutation in routing (augments the set-route mutation helper)
 - Made routing param helper public
-- Added support for custom read parsers on the database, instead of just read helper.
-  This allows for easy integration of things like pathom to more easily customize
-  the client database engine.
+- Added support for custom database query interpreter on the *client* database,
+  instead of just a read helper. See the `:query-interpreter` parameter on client creation.
+  This allows for easy integration of things like pathom to more easily customize the entire
+  client database engine.
 - Added support for putting params on a join key, instead of in a list outside of the join.
+- Removed some dead code in primitives
+
 
 2.2.0
 -----
