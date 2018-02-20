@@ -174,6 +174,12 @@ of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
   [state-map router-id screen-ident]
   (assoc-in state-map [routers-table router-id ::current-route] screen-ident))
 
+(defmutation set-route
+  "Mutation: Explicitly set the route of a given router to the target screen ident."
+  [{:keys [router-id target-screen-ident]}]
+  (action [{:keys [state]}]
+    (swap! state set-route router-id target-screen-ident)))
+
 (declare DynamicRouter get-dynamic-router-target)
 
 (defn- set-routing-query
