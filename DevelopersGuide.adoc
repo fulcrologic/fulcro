@@ -9827,8 +9827,6 @@ There is a `nashorn` branch on the github `fulcro-template` project that demonst
 
 = Client Networking with Fulcro HTTP Remote (version 2.3+) [[Networking]]
 
-WARNING: This new API is in flux. It is not yet safe to rely on, as it may change.
-
 Fulcro 2.3 and above has an implementation that uses Google's XhrIO to implement a networking layer for Fulcro that is
 much easier to extend than earlier Fulcro versions.
 
