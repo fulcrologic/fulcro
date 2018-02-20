@@ -184,6 +184,18 @@
                       [k valid]))
      :clj  {}))
 
+(defn- split-parser
+  "Generate a parser that splits reads and writes across two parsers: the supplied query parser for queries, and the built-in
+  parser for mutations."
+  [query-parser]
+  (let [mutation-parser (prim/parser {:read (constantly nil) :mutate app/write-entry-point})]
+    (fn split-parser*
+      ([env query target]
+       (if (every? #(or (keyword? %) (and (list? %) (symbol? (ffirst %)))) query)
+         (mutation-parser env query target)
+         (query-parser env query target)))
+      ([env query] (split-parser* env query nil)))))
+
 (defn- initialize
   "Initialize the fulcro Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
@@ -195,8 +207,8 @@
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels   (zipmap remotes (map #(async/chan) remotes))
-        parser              (or parser
-                                (prim/parser {:read (partial app/read-local read-local) :mutate app/write-entry-point}))
+        parser              (or (split-parser parser)
+                              (prim/parser {:read (partial app/read-local read-local) :mutate app/write-entry-point}))
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
                                        :parser parser :mounted? true)
         app-with-networking (assoc initial-app :networking (start-networking network-map))
