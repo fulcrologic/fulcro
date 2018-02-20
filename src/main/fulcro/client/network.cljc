@@ -320,8 +320,8 @@
 (s/fdef transmit
   :args (s/cat
           :remote any?
-          :raw-request (s/keys :req [::edn ::ok-handler ::error-handler ::progress-handler]
-                         :opt [::abort-id])))
+          :raw-request (s/keys :req [::edn ::ok-handler ::error-handler]
+                         :opt [::progress-handler ::abort-id])))
 
 (defn fulcro-http-remote
   "Create a remote that (by default) communicates with the given url.

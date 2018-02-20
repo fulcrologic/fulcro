@@ -342,17 +342,16 @@
   (if-let [custom-result (user-read env dkey params)]
     custom-result
     (when (not target)
-      (case dkey
-        (let [top-level-prop (nil? query)
-              key            (or (:key ast) dkey)
-              by-ident?      (futil/ident? key)
-              union?         (map? query)
-              data           (if by-ident? (get-in @state key) (get @state key))]
-          {:value
-           (cond
-             union? (get (prim/db->tree [{key query}] @state @state) key)
-             top-level-prop data
-             :else (prim/db->tree query data @state))})))))
+      (let [top-level-prop (nil? query)
+            key            (or (:key ast) dkey)
+            by-ident?      (futil/ident? key)
+            union?         (map? query)
+            data           (if by-ident? (get-in @state key) (get @state key))]
+        {:value
+         (cond
+           union? (get (prim/db->tree [{key query}] @state @state) key)
+           top-level-prop data
+           :else (prim/db->tree query data @state))}))))
 
 (defn write-entry-point
   "This is the entry point for writes. In general this is simply a call to the multi-method

@@ -183,6 +183,26 @@
 
         (app/server-send :the-app :transactions :merge-callback)))))
 
+(def parser (prim/parser {:read prim/dispatch :mutate fc/mutate}))
+
+(specification "Fulcro Application (custom parser)"
+  (let [startup-called    (atom false)
+        thing-1           {:id 1 :name "A"}
+        state             {:things [thing-1 {:id 2 :name "B"}]}
+        callback          (fn [app] (reset! startup-called (:initial-state app)))
+        unmounted-app     (fc/new-fulcro-client
+                            :parser parser
+                            :initial-state state
+                            :started-callback callback
+                            :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
+        app               (fc/mount unmounted-app Root "application-mount-point")]
+
+    (component "Initialization"
+      (behavior "returns fulcro client app record with"
+        (assertions
+          "users custom parser"
+          (:parser app) => parser)))))
+
 (specification "Fulcro Application (multiple remotes)"
   (let [state             {}
         unmounted-app     (fc/new-fulcro-client
