@@ -1960,3 +1960,14 @@
     (prim/has-ident? A) => false
     (prim/has-ident? AState) => false
     (prim/has-ident? AIdent) => true))
+
+(specification "db->tree"
+  (assertions
+    (prim/db->tree [:foo] {:foo 42} {})
+    => {:foo 42}
+
+    (prim/db->tree [{:foo [:bar]}] {:foo [:item 123]} {:item {123 {:bar "baz"}}})
+    => {:foo {:bar "baz"}}
+
+    (prim/db->tree [{'(:foo {:param "123"}) [:bar]}] {:foo [:item 123]} {:item {123 {:bar "baz"}}})
+    => {:foo {:bar "baz"}}))

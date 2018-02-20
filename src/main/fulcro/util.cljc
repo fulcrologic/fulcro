@@ -34,9 +34,10 @@
     (keyword? (nth x 0))))
 
 (defn join-entry [expr]
-  (if (seq? expr)
-    (ffirst expr)
-    (first expr)))
+  (let [[k v] (if (seq? expr)
+                (ffirst expr)
+                (first expr))]
+    [(if (list? k) (first k) k) v]))
 
 (defn join-key [expr]
   (cond
