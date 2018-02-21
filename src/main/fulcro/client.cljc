@@ -118,9 +118,10 @@
   NOTE: *it will be allowed* to trigger remote reads. This is not recommended, as you will probably have to augment the networking layer to
   get it to do what you mean. Use `load` instead. You have been warned. Triggering remote reads is allowed, but discouraged and unsupported.
 
-  `:parser` (optional). A customer parser. Using this option will override the Fulcro original parser, it's your
-  responsability to put something compatible with Fulcro structure here. You must use the same Fulcro
-  mutation function (fulcro.client/mutate), otherwise the mutation process will not work.
+  `:query-interpreter` (optional). A custom query engine (parser and interpreter) that will be used to satisfy all
+  local client queries from the local state database. Cannot be used with `:read-local`.
+  It must be a `(fn [env query] )` that returns the result for the given query. It will not be given mutations.
+  The `env` will contain the `:state` atom, `:shared`, and `:parser`. It may also contain the `:reconciler`.
 
   `:networking` (optional). An instance of FulcroNetwork that will act as the default remote (named :remote). If
   you want to support multiple remotes, then this should be a map whose keys are the keyword names of the remotes
@@ -138,7 +139,7 @@
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state mutation-merge started-callback networking reconciler-options parser
+  [& {:keys [initial-state mutation-merge started-callback networking reconciler-options query-interpreter
              read-local request-transform network-error-callback migrate transit-handlers shared]
       :or   {initial-state {} read-local (constantly false) started-callback (constantly nil) network-error-callback (constantly nil)
              migrate       nil shared nil}}]
@@ -153,7 +154,7 @@
                        :mutation-merge     mutation-merge
                        :started-callback   started-callback
                        :lifecycle          lifecycle
-                       :parser             parser
+                       :query-interpreter  query-interpreter
                        :reconciler-options (merge (cond-> {}
                                                     tx-listen (assoc :tx-listen tx-listen)
                                                     instrument (assoc :instrument instrument)
@@ -162,7 +163,6 @@
                                                     shared (assoc :shared shared))
                                              reconciler-options)
                        :networking         networking})))
-
 
 (defprotocol FulcroApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
@@ -184,6 +184,21 @@
                       [k valid]))
      :clj  {}))
 
+(defn- mutation-query? [tx]
+  (boolean (some #(util/mutation? %) tx)))
+
+(defn- split-parser
+  "Generate a parser that splits reads and writes across two parsers: the supplied query parser for queries, and the built-in
+  parser for mutations."
+  [query-parser]
+  (let [mutation-parser (prim/parser {:read (constantly nil) :mutate app/write-entry-point})]
+    (fn split-parser*
+      ([env query target]
+       (if (mutation-query? query)
+         (mutation-parser env query target)
+         (query-parser env query)))
+      ([env query] (split-parser* env query nil)))))
+
 (defn- initialize
   "Initialize the fulcro Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
@@ -195,8 +210,9 @@
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels   (zipmap remotes (map #(async/chan) remotes))
-        parser              (or parser
-                                (prim/parser {:read (partial app/read-local read-local) :mutate app/write-entry-point}))
+        parser              (if parser
+                              (split-parser parser)
+                              (prim/parser {:read (partial app/read-local read-local) :mutate app/write-entry-point}))
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
                                        :parser parser :mounted? true)
         app-with-networking (assoc initial-app :networking (start-networking network-map))
@@ -266,7 +282,7 @@
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
 (defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues
-                        response-channels reconciler read-local parser mounted? reconciler-options]
+                        response-channels reconciler read-local query-interpreter mounted? reconciler-options]
   FulcroApplication
   (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 

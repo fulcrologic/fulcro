@@ -9847,12 +9847,7 @@ A remote with these new features requires very little code:
 
 This will give you support for the abort and progress features.
 
-You may include a `:url` parameter to specify what the server endpoint is (defaults to "/api"). You
-may also specify `:serial?` as a boolean (default true). If you supply false, then Fulcro will not
-run requests for that remote through a sequential queue, and any requests submitted will immediately
-be started, with back-pressure provided by the browser limit on simultaneous connections).
-
-NOTE: non-sequential operation is not yet implemented.
+You may include a `:url` parameter to specify what the server endpoint is (defaults to "/api").
 
 == Aborting a Request
 

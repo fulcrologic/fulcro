@@ -24,6 +24,24 @@
          "Removes any pending items in the network queue channel"
          (async/poll! channel) => nil))))
 
+#?(:cljs
+   (specification "mutation-query?"
+     (behavior "Detects mutations"
+       (assertions
+         "containing mutation joins"
+         (fc/mutation-query? '[{(f) [:x]}]) => true
+         (fc/mutation-query? '[(g) {(f) [:x]}]) => true
+         "even if they contain keyword follow-on reads"
+         (fc/mutation-query? '[(h) :x :y]) => true))
+     (behavior "Detects queries"
+       (assertions
+         "that contain props and joins"
+         (fc/mutation-query? '[:x {:y [:z]}]) => false
+         "that contain nothing but props"
+         (fc/mutation-query? '[:x]) => false
+         "that are parameterized"
+         (fc/mutation-query? '[(:y {:p 1})]) => false))))
+
 (defui ^:once BadResetAppRoot
   Object
   (render [this] nil))

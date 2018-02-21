@@ -1445,10 +1445,8 @@
       ;; map case
       (if (= '[*] query)
         data
-        (let [{props false joins true} (group-by #(or (util/join? %)
-                                                      (util/ident? %)
-                                                      (and (seq? %)
-                                                           (util/ident? (first %))))
+        (let [{props false joins true} (group-by #(or (util/join? %) (util/ident? %)
+                                                    (and (seq? %) (util/ident? (first %))))
                                          query)
               props (mapv #(cond-> % (seq? %) first) props)]
           (loop [joins (seq joins) ret {}]
@@ -1458,7 +1456,7 @@
                                   (seq? join) first)
                     join        (cond-> join
                                   (util/ident? join) (hash-map '[*]))
-                    [key sel]   (util/join-entry join)
+                    [key sel] (util/join-entry join)
                     recurse?    (util/recursion? sel)
                     recurse-key (when recurse? key)
                     v           (if (util/ident? key)
@@ -1923,7 +1921,7 @@
 
 (defn- to-env [x]
   (let [config (if (reconciler? x) (:config x) x)]
-    (select-keys config [:state :shared :parser :pathopt])))
+    (select-keys config [:state :shared :parser])))
 
 (defn gather-sends
   "Given an environment, a query and a set of remotes return a hash map of remotes
@@ -2176,24 +2174,6 @@
                    (p/tick! this)
                    (schedule-render! this))))))
         (parsef)
-        (when-let [sel (get-query rctor (-> config :state deref))]
-          (let [env  (to-env config)
-                snds (gather-sends env sel (:remotes config) 0)]
-            (when-not (empty? snds)
-              (when-let [send (:send config)]
-                (send snds
-                  (fn send-cb
-                    ([resp]
-                     (merge! this resp nil)
-                     (renderf ((:parser config) env sel)))
-                    ([resp query]
-                     (merge! this resp query)
-                     (renderf ((:parser config) env sel)))
-                    ([resp query remote]
-                     (when-not (nil? remote)
-                       (p/queue! this (keys resp) remote))
-                     (merge! this resp query remote)
-                     (p/reconcile! this remote))))))))
         @ret)))
 
   (remove-root! [_ target]
