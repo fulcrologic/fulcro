@@ -282,9 +282,14 @@
 
 #?(:clj (gen-react-dom-inline-fns))
 
+#?(:clj
+   (defn valid-opts? [opts]
+     (or (nil? opts) (map? opts))))
+
 (defn ^:private gen-react-dom-fn [tag]
   `(defn ~tag [opts# & children#]
      {:style/indent 1}
+     (assert (valid-opts? opts#) ~(str "first argument to " tag " must be either nil or a js object"))
      (.apply ~(symbol "js" "React.createElement") nil
        (cljs.core/into-array
          (cons ~(name tag) (cons opts# (cljs.core/map fulcro.util/force-children children#)))))))
@@ -302,6 +307,10 @@
     `(do
        ~@(clojure.core/map gen-react-dom-fn tags)
        ~@extra-inputs)))
+
+; (gen-react-dom-fn "link")
+
+
 
 ;; ===================================================================
 ;; Server-side rendering

@@ -58,6 +58,9 @@
         (js/React.createElement element (.-state this))))
     (js/React.createFactory ctor)))
 
+(defn valid-opts? [opts]
+  (or (nil? opts) (object? opts)))
+
 (dom/gen-react-dom-fns)
 
 (defn render
