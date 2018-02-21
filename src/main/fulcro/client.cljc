@@ -196,7 +196,7 @@
       ([env query target]
        (if (mutation-query? query)
          (mutation-parser env query target)
-         (query-parser (assoc env :target target) query)))
+         (query-parser env query)))
       ([env query] (split-parser* env query nil)))))
 
 (defn- initialize
