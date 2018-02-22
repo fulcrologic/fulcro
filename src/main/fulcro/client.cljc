@@ -202,7 +202,7 @@
 (defn- initialize
   "Initialize the fulcro Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
-  [{:keys [networking read-local started-callback parser] :as app} initial-state root-component dom-id-or-node reconciler-options]
+  [{:keys [networking read-local started-callback query-interpreter] :as app} initial-state root-component dom-id-or-node reconciler-options]
   (let [network-map         (normalize-network networking)
         reconciler-options  (if (-> reconciler-options :id not)
                               (assoc reconciler-options :id (if (string? dom-id-or-node) dom-id-or-node (util/unique-key)))
@@ -210,8 +210,8 @@
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels   (zipmap remotes (map #(async/chan) remotes))
-        parser              (if parser
-                              (split-parser parser)
+        parser              (if query-interpreter
+                              (split-parser query-interpreter)
                               (prim/parser {:read (partial app/read-local read-local) :mutate app/write-entry-point}))
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
                                        :parser parser :mounted? true)
