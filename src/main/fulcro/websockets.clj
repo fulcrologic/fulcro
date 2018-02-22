@@ -37,7 +37,8 @@
                              (log/error "Reply function missing on API call!")))
       (do :nothing-by-default))))
 
-(defn- is-wsrequest? [{:keys [uri]}] (= "/chsk" uri))
+(defn- is-wsrequest? [{:keys [websockets-uri]} {:keys [uri]}]
+  (= websockets-uri uri))
 
 (defrecord EasyServerAdapter [handler websockets]
   component/Lifecycle
@@ -48,7 +49,7 @@
             new-hook     (fn [ring-handler]
                            (let [base-request-handler (old-pre-hook ring-handler)]
                              (fn [{:keys [request-method] :as req}]
-                               (if (is-wsrequest? req)
+                               (if (is-wsrequest? websockets req)
                                  (let [request (-> req params-request keyword-params-request)
                                        {:keys [ring-ajax-post ring-ajax-get-or-ws-handshake]} websockets]
                                    (case request-method
@@ -71,7 +72,9 @@
     (map->EasyServerAdapter {})
     [:handler :websockets]))
 
-(defrecord Websockets [parser server-adapter server-options ring-ajax-post ring-ajax-get-or-ws-handshake ch-recv send-fn connected-uids stop-fn listeners]
+(defrecord Websockets [parser server-adapter server-options transit-handlers
+                       ring-ajax-post ring-ajax-get-or-ws-handshake websockets-uri
+                       ch-recv send-fn connected-uids stop-fn listeners]
   WSNet
   (add-listener [this listener]
     (log/info "Adding channel listener to websockets")
@@ -85,7 +88,10 @@
   component/Lifecycle
   (start [this]
     (log/info "Starting Sente websockets support")
-    (let [chsk-server (sente/make-channel-socket-server! server-adapter (merge {:packer (tp/make-packer {})} server-options))
+    (let [transit-handlers (or transit-handlers {})
+          chsk-server (sente/make-channel-socket-server!
+                       server-adapter (merge {:packer (tp/make-packer transit-handlers)}
+                                             server-options))
           {:keys [ch-recv send-fn connected-uids
                   ajax-post-fn ajax-get-or-ws-handshake-fn]} chsk-server
           result      (assoc this
@@ -132,21 +138,21 @@
 
   If you don't supply a server adapter, it defaults to http-kit.
   "
-  ([parser]
-   (make-websockets parser nil {}))
-  ([parser http-server-adapter sente-socket-server-options]
-   (map->Websockets {:server-options (merge {:user-id-fn (fn [r] (:client-id r))} sente-socket-server-options)
-                     :server-adapter (or http-server-adapter (hk/get-sch-adapter))
-                     :parser         parser})))
+  [parser websockets-uri {:keys [http-server-adapter transit-handlers sente-options]}]
+  (map->Websockets {:server-options   (merge {:user-id-fn (fn [r] (:client-id r))} sente-options)
+                    :transit-handlers (or transit-handlers {})
+                    :websockets-uri   websockets-uri
+                    :server-adapter   (or http-server-adapter (hk/get-sch-adapter))
+                    :parser           parser}))
 
 (defn wrap-api
   "Add API support to a Ring middleware chain. The websockets argument is an initialized Websockets component. Basically
   inject websockets into the component where you define your middleware, and (-> handler ... (wrap-api websockets) ...).
 
   NOTE: You must have wrap-keyword-params and wrap-params in the middleware chain!"
-  [handler {:keys [ring-ajax-post ring-ajax-get-or-ws-handshake] :as websockets}]
+  [handler {:keys [ring-ajax-post ring-ajax-get-or-ws-handshake websockets-uri] :as websockets}]
   (fn [{:keys [request-method uri] :as req}]
-    (let [is-ws? (= "/chsk" uri)]
+    (let [is-ws? (= websockets-uri uri)]
       (if is-ws?
         (case request-method
           :get (ring-ajax-get-or-ws-handshake req)
