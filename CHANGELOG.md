@@ -28,7 +28,7 @@ and middleware is opt-in for now.
   client database engine.
 - Added support for putting params on a join key, instead of in a list outside of the join.
 - Removed some dead code in primitives
-
+- Removed dom dependencies in routing and data fetch, to enable easier use with React Native
 
 2.2.0
 -----
