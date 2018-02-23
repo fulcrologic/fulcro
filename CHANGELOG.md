@@ -8,6 +8,7 @@ small and tractable.
 
 2.3.0
 -----
+- Fixed bug in dirty-fields for form state, where relations were not properly reported.
 - The remote plumbing layer had a few intrusive internals change that should have no
   external visible effects.
 - NOTE: Fulcro Inspect must be upgraded. It required changes to support the new remoting.
