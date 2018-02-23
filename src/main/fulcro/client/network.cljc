@@ -96,20 +96,13 @@
      It may also optionally include:
      - `:fulcro.client.network/abort-id` : An ID to remember the network request by, to enable user-level API abort
 
-     Exactly one call of complete-fn or error-fn will happen to indicate how the request finished (aborted requests call
-     error-fn).
+     When you implement this protocol, you MUST call the `ok-handler` or `error-handler` exactly once. You *may*
+     call the `progress-handler` any number of times (including none).
 
-     Two or more calls to update-fn will occur `(fn [progress] )`. Once when the request is sent, once when the overall request is complete (any
-     status), and zero or more times during data transfer. It will receive a single map containing the keys
-     :progress and :status. The former will be one of `:sending`, `:receiving`, `:failed`, or `:complete`. The latter will
-     be the low-level XhrIo progress event.
-
-     complete-fn will be called with a (middleware) response and a query.
-     error-fn is `(fn [reason detail])`. Reason will be one of:
-       :middleware-aborted - The middleware threw an exception. `detail` will be an exception thrown by the middleware.
-       :middleware-failed - The middleware failed to provide a well-formed request. `detail` will be the errant output of the middleware.
-       :network-failed - The request did not complete at the network layer. `detail` will include
-                         :error-code and :error-text. :error-code will be one of :exception, http-error, :timeout, or :abort.")
+     ok-hander - A (fn [{:keys [transaction body]}] ...) that will merge the edn result using the given transaction (query)
+     error-handler - A (fn [{:keys [body]}] ...) that will report an error to Fulcro. The body is EDN that will be placed into the state as the error.
+     progress-handler - A (fn [progress] ...) that will run all registered progress mutations, and will include `progress` in the parameters of each progress mutation.
+     ")
   (abort [this abort-id]
     "Cancel the network activity for the given request id, supplied during submission."))
 
