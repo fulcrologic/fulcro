@@ -145,7 +145,10 @@
                                                 (assoc-in [:phone/by-id new-phone-id] formified-phone)
                                                 (assoc-in [:person/by-id 1 ::person-name] "New Name")
                                                 (update-in [:person/by-id 1 ::phone-numbers] conj new-phone-ident)
-                                                (assoc-in [:phone/by-id 3 ::phone-number] "555-9999"))]
+                                                (assoc-in [:phone/by-id 3 ::phone-number] "555-9999"))
+      new-person-id                           (prim/tempid)
+      new-person-to-many                      (f/add-form-config Person {:db/id new-person-id ::person-name "New" ::person-age 22 ::phone-numbers [new-phone-number]})
+      new-person-to-one                       (f/add-form-config Person {:db/id new-person-id ::person-name "New" ::person-age 22 ::phone-numbers new-phone-number})]
 
   (specification "dirty-fields"
     (behavior "(as delta)"
@@ -172,7 +175,12 @@
           (get-in delta [[:phone/by-id 3] ::phone-number]) => "555-9999"
 
           "Includes the list of changes to subform idents"
-          (get-in delta [[:person/by-id 1] ::phone-numbers]) => [[:phone/by-id 2] [:phone/by-id 3] [:phone/by-id new-phone-id]]))))
+          (get-in delta [[:person/by-id 1] ::phone-numbers]) => [[:phone/by-id 2] [:phone/by-id 3] [:phone/by-id new-phone-id]])))
+    (behavior "Brand new forms with relations"
+      (assertions
+        "Includes subform idents"
+        (get-in (f/dirty-fields new-person-to-many false) [[:person/by-id new-person-id] ::phone-numbers]) => [[:phone/by-id new-phone-id]]
+        (get-in (f/dirty-fields new-person-to-one false) [[:person/by-id new-person-id] ::phone-numbers]) => [:phone/by-id new-phone-id])))
 
   (specification "dirty?"
     (behavior "is a UI (tree) operation for checking if the form has been modified from pristine"
