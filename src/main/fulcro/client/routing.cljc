@@ -4,7 +4,6 @@
             [fulcro.client :as fc]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.impl.protocols :as p]
-            fulcro.client.dom
     #?(:cljs [cljs.loader :as loader])
       [fulcro.logging :as log]
       [fulcro.util :as util]
@@ -40,7 +39,7 @@
               (let [page# (first (fulcro.client.primitives/get-ident ~'this))]
                 (case page#
                   ~@render-stmt
-                  (fulcro.client.dom/div nil (str "Cannot route: Unknown Screen " page#)))))))
+                  (str "Cannot route: Unknown Screen " page#))))))
        (catch Exception e `(def ~sym (log/error "BROKEN ROUTER!"))))))
 
 #?(:clj

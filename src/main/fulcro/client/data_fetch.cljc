@@ -7,7 +7,6 @@
     [fulcro.client.impl.data-targeting :as targeting]
     [fulcro.client.mutations :as m :refer [mutate defmutation]]
     [fulcro.logging :as log]
-    [fulcro.client.dom :as dom]
     [fulcro.client :as fc]
     [fulcro.util :as util]
     [clojure.set :as set]))
@@ -358,9 +357,9 @@
   (def ui-thing2 (prim/factory Thing2))
   ```"
   [data-render props & {:keys [ready-render loading-render failed-render not-present-render]
-                        :or   {loading-render (fn [_] (dom/div (clj->js {"className" "lazy-loading-load"}) "Loading..."))
-                               ready-render   (fn [_] (dom/div (clj->js {"className" "lazy-loading-ready"}) "Queued"))
-                               failed-render  (fn [_] (dom/div (clj->js {"className" "lazy-loading-failed"}) "Loading error!"))}}]
+                        :or   {loading-render (fn [_] "Loading...")
+                               ready-render   (fn [_] "Queued")
+                               failed-render  (fn [_] "Loading error!")}}]
 
   (let [state (:ui/fetch-state props)]
     (cond
