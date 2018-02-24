@@ -77,7 +77,7 @@
   - `auto-retry?` - A boolean (default false). If set to true any network disconnects will lead to infinite retries until
   the network returns. All remote mutations should be idempotent.
   "
-  [& {:keys [websockets-uri global-error-callback push-handler host req-params state-callback transit-handlers auto-retry?]}]
+  [{:keys [websockets-uri global-error-callback push-handler host req-params state-callback transit-handlers auto-retry?]}]
   (map->Websockets {:channel-socket        (atom nil)
                     :auto-retry?           auto-retry?
                     :websockets-uri        (or websockets-uri "/chsk")
