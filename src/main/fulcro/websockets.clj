@@ -137,11 +137,12 @@
   The `wrap-api` function can be used to do that.
 
   If you don't supply a server adapter, it defaults to http-kit.
+  If you don't supply websockets-uri, it defaults to \"/chsk\".
   "
-  [parser websockets-uri {:keys [http-server-adapter transit-handlers sente-options]}]
+  [parser {:keys [websockets-uri http-server-adapter transit-handlers sente-options]}]
   (map->Websockets {:server-options   (merge {:user-id-fn (fn [r] (:client-id r))} sente-options)
                     :transit-handlers (or transit-handlers {})
-                    :websockets-uri   websockets-uri
+                    :websockets-uri   (or websockets-uri "/chsk")
                     :server-adapter   (or http-server-adapter (hk/get-sch-adapter))
                     :parser           parser}))
 
