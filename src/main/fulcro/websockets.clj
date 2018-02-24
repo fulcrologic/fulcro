@@ -89,19 +89,19 @@
   (start [this]
     (log/info "Starting Sente websockets support")
     (let [transit-handlers (or transit-handlers {})
-          chsk-server (sente/make-channel-socket-server!
-                       server-adapter (merge {:packer (tp/make-packer transit-handlers)}
-                                             server-options))
+          chsk-server      (sente/make-channel-socket-server!
+                             server-adapter (merge {:packer (tp/make-packer transit-handlers)}
+                                              server-options))
           {:keys [ch-recv send-fn connected-uids
                   ajax-post-fn ajax-get-or-ws-handshake-fn]} chsk-server
-          result      (assoc this
-                        :ring-ajax-post ajax-post-fn
-                        :ring-ajax-get-or-ws-handshake ajax-get-or-ws-handshake-fn
-                        :ch-rech ch-recv
-                        :send-fn send-fn
-                        :listeners (atom #{})
-                        :connected-uids connected-uids)
-          stop        (sente/start-server-chsk-router! ch-recv (partial sente-event-handler result))]
+          result           (assoc this
+                             :ring-ajax-post ajax-post-fn
+                             :ring-ajax-get-or-ws-handshake ajax-get-or-ws-handshake-fn
+                             :ch-rech ch-recv
+                             :send-fn send-fn
+                             :listeners (atom #{})
+                             :connected-uids connected-uids)
+          stop             (sente/start-server-chsk-router! ch-recv (partial sente-event-handler result))]
       (log/info "Started Sente websockets event loop.")
       (assoc result :stop-fn stop)))
   (stop [this]
@@ -136,6 +136,8 @@
   The websockets component must be joined into a real network server via a ring stack. This implementation assumes http-kit.
   The `wrap-api` function can be used to do that.
 
+  All of the options in the options map are optional.
+
   If you don't supply a server adapter, it defaults to http-kit.
   If you don't supply websockets-uri, it defaults to \"/chsk\".
   "
@@ -151,11 +153,12 @@
   inject websockets into the component where you define your middleware, and (-> handler ... (wrap-api websockets) ...).
 
   NOTE: You must have wrap-keyword-params and wrap-params in the middleware chain!"
-  [handler {:keys [ring-ajax-post ring-ajax-get-or-ws-handshake websockets-uri] :as websockets}]
-  (fn [{:keys [request-method uri] :as req}]
-    (let [is-ws? (= websockets-uri uri)]
-      (if is-ws?
-        (case request-method
-          :get (ring-ajax-get-or-ws-handshake req)
-          :post (ring-ajax-post req))
-        (handler req)))))
+  [handler websockets]
+  (let [{:keys [ring-ajax-post ring-ajax-get-or-ws-handshake websockets-uri]} websockets]
+    (fn [{:keys [request-method uri] :as req}]
+      (let [is-ws? (= websockets-uri uri)]
+        (if is-ws?
+          (case request-method
+            :get (ring-ajax-get-or-ws-handshake req)
+            :post (ring-ajax-post req))
+          (handler req))))))

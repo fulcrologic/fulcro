@@ -29,6 +29,7 @@ and middleware is opt-in for now.
 - Added support for putting params on a join key, instead of in a list outside of the join.
 - Removed some dead code in primitives
 - Removed dom dependencies in routing and data fetch, to enable easier use with React Native
+- BREAKING CHANGE: new Websockets API support refined and improved a bit, but the argument lists for construction changed slightly.
 
 2.2.0
 -----

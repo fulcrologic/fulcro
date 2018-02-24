@@ -40,7 +40,8 @@
                 (js/setTimeout #(fulcro.client.network/send this edn ok err) 1000))
               (let [body {:fulcro.server/error :network-disconnect}]
                 (err body)
-                (global-error-callback {:status 408 :body body}))))))))
+                (when global-error-callback
+                  (global-error-callback {:status 408 :body body})))))))))
   (start [this]
     (let [{:keys [ch-recv state] :as cs} (sente/make-channel-socket! websockets-uri ; path on server
                                            {:packer         (tp/make-packer transit-handlers)
@@ -61,8 +62,6 @@
 (defn make-websocket-networking
   "Creates a websocket-based networking component for use as a Fulcro remote.
 
-  ALPHA QUALITY: Feel free to copy the source into your project and expand it as needed.
-
   Params:
   - `websockets-uri` - The uri to handle websocket traffic on. (ex. \"/chsk\", which is the default value)
   - `push-handler` - A function (fn [{:keys [topic msg]}] ...) that can handle a push message.
@@ -77,15 +76,16 @@
   - `auto-retry?` - A boolean (default false). If set to true any network disconnects will lead to infinite retries until
   the network returns. All remote mutations should be idempotent.
   "
-  [{:keys [websockets-uri global-error-callback push-handler host req-params state-callback transit-handlers auto-retry?]}]
-  (map->Websockets {:channel-socket        (atom nil)
-                    :auto-retry?           auto-retry?
-                    :websockets-uri        (or websockets-uri "/chsk")
-                    :push-handler          push-handler
-                    :host                  host
-                    :state-callback        state-callback
-                    :global-error-callback global-error-callback
-                    :transit-handlers      transit-handlers
-                    :app                   (atom nil)
-                    :stop                  (atom nil)
-                    :req-params            req-params}))
+  ([] (make-websocket-networking {}))
+  ([{:keys [websockets-uri global-error-callback push-handler host req-params state-callback transit-handlers auto-retry?]}]
+   (map->Websockets {:channel-socket        (atom nil)
+                     :auto-retry?           auto-retry?
+                     :websockets-uri        (or websockets-uri "/chsk")
+                     :push-handler          push-handler
+                     :host                  host
+                     :state-callback        state-callback
+                     :global-error-callback global-error-callback
+                     :transit-handlers      transit-handlers
+                     :app                   (atom nil)
+                     :stop                  (atom nil)
+                     :req-params            req-params})))
