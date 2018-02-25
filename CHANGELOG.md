@@ -1,3 +1,7 @@
+2.2.1
+-----
+- Improved UI routing documentation and API.
+
 2.2.0
 -----
 - Possible breaking change: Make logging no longer require timbre. fulcro.client.logging is deprecated. If you

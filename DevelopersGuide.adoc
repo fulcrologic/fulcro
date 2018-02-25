@@ -7793,44 +7793,107 @@ The solution is easy: use union queries with to-one relations to ensure only the
 query that are active on the UI are processed.
 
 Unfortunately many people find hand-writing union components a litle challenging. Fulcro provides a nice
-pre-written facility that can write much of the code for you, making the process more conceptual: UI Routing.
+pre-written facility that can write much of the code for you, making the process more conceptual as UI Routing.
+
+== A Basic Router [[BasicRouter]]
+
+A basic router looks like this:
+
+```
+(defsc Index [this {:keys [db/id router/page]}]
+  {:query         [:db/id :router/page]
+   :ident         (fn [] [page id])
+   :initial-state {:db/id 1 :router/page :PAGE/index}}
+  ...)
+
+(defsc Settings [this {:keys [db/id router/page]}]
+  {:query         [:db/id :router/page]
+   :ident         (fn [] [page id])
+   :initial-state {:db/id 1 :router/page :PAGE/settings}}
+  ...)
+
+(defrouter RootRouter :root/router
+  ; OR (fn [t p] [(:router/page p) (:db/id p)])
+  [:router/page :db/id]
+  :PAGE/index Index
+  :PAGE/settings Settings)
+```
+
+The important points are:
+
+. The ident generator for the components and router must all work the same. The router uses the first element of the
+ident to pick the screen.
+. The list of screens to route to in the router are keyed by that first element of the ident.
+. The components that act as screens should:
+.. Have initial state that will work with ident
+.. Use an ident function that returns the same thing that the router will extract.
+
+The router itself then works like any other Fulcro component. You make a factory for it, join it into your query, and render it
+by passing the queried props to it.
+
+WARNING: The `defrouter` macro allows you to specify a vector for the ident argument where *both* keys are looked up in
+the component's props; However, the `defsc` macro assumes that a vector shorthand for idents contains a table name and
+something to look up. This is the most convenient behavior for both, but since it does not match use this rule: If you're
+using `defsc` to make a screen component that will be used with a router then you *always* want the lambda form, not
+the vector template in that `defsc`.
+
+++++
+<div class="example" id="simple-router-1"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-1').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-simple-router-1 source"]
+----
+include::src/book/book/simple_router_1.cljs[]
+----
+
+Be sure to look at the database view in the example above. Notice that all that has to happen is a change
+of a single ident. This as the effect of switching the rendering, and choosing the
+subquery for the remainder of the visible UI.
+
+It is very easy from here to compose together as many of these as you'd like in order to
+build a more complicated UI. For example, the settings could have several subscreens as in this
+example:
+
+++++
+<div class="example" id="simple-router-2"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-2').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-simple-router-2 source"]
+----
+include::src/book/book/simple_router_2.cljs[]
+----
+
+This allows you to build up a tree of routers that keeps your query minimal, and allows for very nice dynamic
+structuring of the applicataion at runtime.
+
+If you have screens that could have different instances (for example, different reports), then each report could
+have an ID, and routing would involve selecting the screen's table, as well as a distinct ID.
+
+The problem, of course, is that managing all of these routers in your application logic becomes
+somewhat of a chore. Also, it is common to want to mix UI routing with HTML5 history, where only a single
+"route" is spelled out, but you may need to logically "switch" any number of these UI routers to reach
+the indicated screen.
+
+For example, one could imagine wanting to go to `/settings/colors` as a URI for the previous example. That single
+URI *as a concept* is a single route to a screen, but the transaction you'd trigger would be to `set-route` on
+two different routers.
+
+== Routing Tree Support
+
+Fulcro includes some routing tree primitives to do the mapping from single conceptual "routes" like `/settings/colors`
+to a set of instructions that you need to send to your UI routers. There is an additional concern as well: route
+parameters. It is quite common to want to interpret URIs like `/user/436` as a route that populates a given screen
+with some data.
+
+Thus, the tree support is based on the concept of a Route Handler and Route Parameters.
 
 Defining routes requires just a few steps:
 
-* Designate the idents of all screens that will be controlled by routers. The first element of the idents MUST be
-unique for a given router, and will identify which screen to render. The second element can be a literal value (keyword or number),
-or a keyword in the namespace `param`. In the latter case, `route-params` will be used during UI route updates
-to set that member to a value derived from the UI interactions.
-* Decide on a flat or tree structure. If you use only a single router, then all of your screens will be set up
-such that only one can be on the screen at a time. If you want to nest routers so that you can control subscreens
-within a given screen you'll need to define that.
-* Give each of the routers in your design an ID. For example :top-router and :report-router, along with an ident
-function that can extract the proper ident from the components it will route to.
-+
-Here is an example of a "main" screen and a UI router that can route to it (and some others that we're
-not showing yet):
-+
-```
-(defsc Main [this {:keys [label]}]
-  {:initial-state {:page :main :label "MAIN"}
-   :query         [:page :label]}
-  (dom/div #js {:style #js {:backgroundColor "red"}}
-    label))
-
-(defrouter TopRouter :top-router
-  (ident [this props] [(:page props) :top])
-  :main Main
-  :login Login
-  :new-user NewUser
-  :report ReportsMain)
-```
-+
-in the example above, the ident function of `TopRouter` will be used against the screens (e.g. `Main`) to produce idents
-like `[:main :top]`
-+
-* Give each routable screen in your tree a handler name. For example, if screen A will show a subscreen B or C, then
-B and C will need app-wide unique names. If screen A were also (at times) a leaf (not showing B or C), it should also have
- a handler name.
+. Define routers as shown in <<BasicRouter, the prior section>>, giving each router a distinct ID.
+. Give each *routable screen (i.e. URI)* in your tree a handler name.  The example below shows two routers with
+5 conceptual target screen. The screens have *handler names* `:main`, `:login`, etc.
 +
 ----
               (top-router w/id :top-router)
@@ -7844,20 +7907,21 @@ B and C will need app-wide unique names. If screen A were also (at times) a leaf
                                       :status  :graph
 ----
 +
-* Define your routing tree. This is a data structure that gives instructions to one-or-more routers that are necessary to
- display the screen for a given handler name. For example, you need to tell the top router and report router in the above
- example to change what they are showing in order to get a `:status` or `:graph` on the screen.
+. Define your routing tree. This is a data structure that gives instructions to one-or-more routers that are necessary to
+ display the screen with a given handler name. In the above example you need to tell *both* the top router and report router
+ to change what they are showing in order to get a `:status` or `:graph` onto the screen.
 +
 ```
 (def routing-tree
-  "A map of route handling instructions. The top key is the handler name of the route which can be
-  thought of as the terminal leaf in the UI graph of the screen that should be visible".
+  "A map of route handling instructions. A given route has a handler name (e.g. `:main`) which is
+  thought of as the target of a routing operation (i.e. interpretation of a URI). It also has a vector
+  of `router-instruction`s, which say
 
-  The value is a vector of routing-instructions to tell the UI routers which ident
-  of the route that should be made visible.
+  1. which router should be changed
+  2. What component instance that router should point to (by ident)
 
-  A value in this ident using the `param` namespace will be replaced with the incoming route parameter
-  (without the namespace). E.g. the incoming route-param :report-id will replace :param/report-id"
+  The routing tree for the diagram above is therefore:
+  "
   (r/routing-tree
     (r/make-route :main [(r/router-instruction :top-router [:main :top])])
     (r/make-route :login [(r/router-instruction :top-router [:login :top])])
@@ -7868,47 +7932,20 @@ B and C will need app-wide unique names. If screen A were also (at times) a leaf
                            (r/router-instruction :report-router [:status-report :param/report-id])])))
 ```
 +
-* Compose your top-level router into your root, and place the routing tree into the top-level app state (e.g.
-using initial-state). The routing tree is considered singleton data and is not needed in the query.
-+
-* You may place nested routers wherever you like, though they cannot be directly nested in other routers, since
-the parent router needs to use an ident function that is different from the ident of the routers. This should not
-be a problem since the only reason to nest routers is to show some portion of the parent screen while routing to
-a sub-screen. For example, a reports sub-screen can nest using something like this:
-+
-```
-(defrouter ReportRouter :report-router
-  ; This router expects numerous possible status and graph reports. The :id in the props of the report will determine
-  ; which specific data set is used for the screen (though the UI of the screen will be either StatusReport or GraphingReport
-  ; IMPORTANT: Make sure your components (e.g. StatusReport) queries for what the ident needs (i.e. in this example
-  ; :page and :id at a minimum)
-  (ident [this props] [(:page props) (:id props)])
-  :status-report StatusReport
-  :graphing-report GraphingReport)
-
-(def ui-report-router (prim/factory ReportRouter))
-
-; BIG GOTCHA: Make sure you query for the prop (in this case :page) that the union needs in order to decide. It won't pull it itself!
-(defsc ReportsMain [this {:keys [report-router]}]
-  ; nest the router under any arbitrary key, just be consistent in your query and props extraction.
-  {:initial-state (fn [params] {:page :report :report-router (prim/get-initial-state ReportRouter {})})
-   :query         [:page {:report-router (prim/get-query ReportRouter)}]}
-  (dom/div #js {:style #js {:backgroundColor "grey"}}
-    ; Screen-specific content to be shown "around" or "above" the subscreen
-    "REPORT MAIN SCREEN"
-    ; Render the sub-router. You can also def a factory for the router (e.g. ui-report-router)
-    (ui-report-router report-router)))
-```
+. Compose the application as normal, placing the routers as shown in <<BasicRouter, the prior section>>.
 
 == Using the Routing Tree
 
-The routing library includes a Fulcro mutation for placing a specific screen front-and-center. It is namespaced
-to the fulcro.client.routing namespace, and takes a :handler and optional :route-params argument:
+The routing namespace includes a Fulcro mutation for triggering the routing tree handler.
+It takes a `:handler` (e.g. `:main`)  and an optional `:route-params` argument:
 
 ```
 ; assumes you've aliased fulcro.client.routing to r
 (prim/transact! `[(r/route-to {:handler :main})])
 ```
+
+Running this mutation will run all of the `router-instruction`, and will also do route parameter substitution on the
+resulting idents.
 
 === Route Parameters
 
@@ -7967,7 +8004,7 @@ table) to check the route:
 
 == A Complete UI Routing Example
 
-The following example shows the above code and tree in a complete running example.
+The following shows the example routing tree in a complete running demo:
 
 ++++
 <div class="example" id="ui-routing"> </div>
@@ -8108,7 +8145,7 @@ added complexity.
 
 Both are fully supported, though the form state support is considered the cleaner implementation.
 
-= Form State Support [[FormState]] (ALPHA. version 2.1.4+)
+= Form State Support [[FormState]] (version 2.1.4+)
 
 The namespace `fulcro.ui.form-state` (aliased to `fs` in this chapter) includes functions and mutations for
 working with your entity as a form. This support brings functions for dealing with common state storage and form transitions
