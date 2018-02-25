@@ -9958,7 +9958,7 @@ will be augmented with information about the current progress:
 * `:progress-phase` - will be one of :sending, :receiving, :complete, or :failed.
 * `:progress-event` - the raw XhrIO event (which has loading progress data)
 * `:transaction` - The transaction that is running
-* `:body` - The current low-level body (out or in). Body is processed through the middleware, and could be partial.
+* `:body` - The current low-level body. Body is NOT processed through the middleware, and could be partial.
 * `:status-code` - The HTTP status code if receiving.
 
 The `fulcro.client.network/progress%` function can be used to convert this into a number between 0 and 100.
