@@ -8145,7 +8145,7 @@ added complexity.
 
 Both are fully supported, though the form state support is considered the cleaner implementation.
 
-= Form State Support [[FormState]] (ALPHA. version 2.1.4+)
+= Form State Support [[FormState]] (version 2.1.4+)
 
 The namespace `fulcro.ui.form-state` (aliased to `fs` in this chapter) includes functions and mutations for
 working with your entity as a form. This support brings functions for dealing with common state storage and form transitions
