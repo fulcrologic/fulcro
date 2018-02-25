@@ -6,22 +6,23 @@
             [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.mutations :as m]))
 
-(defsc Index [this props]
+(defsc Index [this {:keys [db/id router/page]}]
   {:query         [:db/id :router/page]
-   :ident         [:router/page :db/id]
-   :initial-state {:db/id 1 :router/page :index}}
+   :ident         (fn [] [page id]) ; IMPORTANT! Look up both things, don't use the shorthand for idents on screens!
+   :initial-state {:db/id 1 :router/page :PAGE/index}}
   (dom/div nil "Index Page"))
 
-(defsc Settings [this props]
+(defsc Settings [this {:keys [db/id router/page]}]
   {:query         [:db/id :router/page]
-   :ident         [:router/page :db/id]
-   :initial-state {:db/id 1 :router/page :settings}}
+   :ident         (fn [] [page id])
+   :initial-state {:db/id 1 :router/page :PAGE/settings}}
   (dom/div nil "Settings Page"))
 
 (defrouter RootRouter :root/router
+  ; OR (fn [t p] [(:router/page p) (:db/id p)])
   [:router/page :db/id]
-  :index Index
-  :settings Settings)
+  :PAGE/index Index
+  :PAGE/settings Settings)
 
 (def ui-root-router (prim/factory RootRouter))
 
@@ -29,8 +30,12 @@
   {:initial-state (fn [p] {:router (prim/get-initial-state RootRouter {})})
    :query         [{:router (prim/get-query RootRouter)}]}
   (dom/div nil
-    (dom/a #js {:onClick #(prim/transact! this `[(r/set-route! {:router :root/router :target [:index 1]})])} "Index") " | "
-    (dom/a #js {:onClick #(prim/transact! this `[(r/set-route! {:router :root/router :target [:settings 1]})])} "New User") " | "
+    (dom/a #js {:onClick #(prim/transact! this
+                            `[(r/set-route {:router :root/router
+                                            :target [:PAGE/index 1]})])} "Index") " | "
+    (dom/a #js {:onClick #(prim/transact! this
+                            `[(r/set-route {:router :root/router
+                                            :target [:PAGE/settings 1]})])} "Settings")
     (ui-root-router router)))
 
 

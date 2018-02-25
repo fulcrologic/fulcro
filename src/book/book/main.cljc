@@ -34,6 +34,7 @@
                book.basic-i18n
                book.ui-routing
                book.simple-router-1
+               book.simple-router-2
                book.tree-to-db
                book.merge-component
                book.html-converter
@@ -223,6 +224,7 @@
 #?(:cljs (defexample "Internationalization Demo" book.basic-i18n/Root "basic-i18n"))
 #?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
 #?(:cljs (defexample "Simple Router" book.simple-router-1/Root "simple-router-1"))
+#?(:cljs (defexample "Nested Router" book.simple-router-2/Root "simple-router-2"))
 #?(:cljs (defexample "Tree to DB with Queries" book.tree-to-db/Root "tree-to-db" :networking book.main/example-server))
 #?(:cljs (defexample "Merging with a Component" book.merge-component/Root "merge-component" :networking book.main/example-server))
 #?(:cljs (defexample "HTML Converter" book.html-converter/Root "html-converter"))

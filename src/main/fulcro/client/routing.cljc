@@ -41,7 +41,10 @@
             (~'query [~'this] ~query)
             ~'Object
             (~'render [~'this]
-              (let [page# (first (fulcro.client.primitives/get-ident ~'this))]
+              (let [props# (fulcro.client.primitives/props ~'this)
+                    ident# (fulcro.client.primitives/get-ident ~'this props#)
+                    page#  (first ident#)]
+                (js/console.log :t ~'this :p props# :i ident#)
                 (case page#
                   ~@render-stmt
                   (fulcro.client.dom/div nil (str "Cannot route: Unknown Screen " page#)))))))
@@ -179,8 +182,8 @@ NOTES:
     (and (string? v) (seq (re-seq #"^[a-zA-Z]" v))) (keyword v)
     :else v))
 
-(defn- set-ident-route-params
-  "Replace any keywords of the form :params/X with the value of (get route-params :X). By default the value
+(defn set-ident-route-params
+  "Replace any keywords of the form :params/X with the value of (get route-params :X) in the given ident. By default the value
   of the parameter (which comes in as a string) will be converted to an int if it is all digits, and will be
   converted to a keyword if it is all letters. If you want to customize the coercion, just:
 
@@ -195,11 +198,20 @@ NOTES:
             element))
     ident))
 
-(defn set-route
+(defn set-route*
   "Set the given screen-ident as the current route on the router with the given ID. Returns a new application
   state map."
   [state-map router-id screen-ident]
   (assoc-in state-map [routers-table router-id ::current-route] screen-ident))
+
+; legacy name support
+(def set-route set-route*)
+
+(defmutation set-route
+  "Mutation: Explicitly set the route of a given router to the target screen ident."
+  [{:keys [router target]}]
+  (action [{:keys [state]}]
+    (swap! state set-route* router target)))
 
 (declare DynamicRouter get-dynamic-router-target)
 
@@ -245,7 +257,7 @@ NOTES:
       (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
       (reduce (fn [m {:keys [target-router target-screen]}]
                 (let [parameterized-screen-ident (set-ident-route-params target-screen route-params)]
-                  (set-route m target-router parameterized-screen-ident))) state-map routing-instructions))))
+                  (set-route* m target-router parameterized-screen-ident))) state-map routing-instructions))))
 
 (defmulti get-dynamic-router-target
   "Get the component that renders the given screen type. The parameter is simply the keyword of the module/component.
