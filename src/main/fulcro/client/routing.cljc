@@ -29,7 +29,7 @@
                                      (-> cases
                                        (conj kw (screen-render sym)))) [] kws-and-screens)
              ident-fn      (if (list? ident-arg)
-                             `(~'ident ~(rest ident-arg))
+                             `(~'ident ~@(rest ident-arg))
                              (let [[table-prop id-prop] ident-arg]
                                `(~'ident [this# props#] [(get props# ~table-prop) (get props# ~id-prop)])))]
          `(fulcro.client.primitives/defui ~(vary-meta sym assoc :once true)
@@ -44,7 +44,6 @@
               (let [props# (fulcro.client.primitives/props ~'this)
                     ident# (fulcro.client.primitives/get-ident ~'this props#)
                     page#  (first ident#)]
-                (js/console.log :t ~'this :p props# :i ident#)
                 (case page#
                   ~@render-stmt
                   (fulcro.client.dom/div nil (str "Cannot route: Unknown Screen " page#)))))))
