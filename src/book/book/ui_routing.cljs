@@ -41,7 +41,7 @@
   ; which specific data set is used for the screen (though the UI of the screen will be either StatusReport or GraphingReport
   ; IMPORTANT: Make sure your components (e.g. StatusReport) query for what ident needs (i.e. in this example
   ; :page and :id at a minimum)
-  (ident [this props] [(:page props) (:id props)])
+  [:page :id]
   :status-report StatusReport
   :graphing-report GraphingReport)
 
@@ -59,7 +59,7 @@
     (ui-report-router report-router)))
 
 (defrouter TopRouter :top-router
-  (ident [this props] [(:page props) :top])
+  (fn [this props] [(:page props) :top])
   :main Main
   :login Login
   :new-user NewUser
@@ -85,12 +85,12 @@
     (r/make-route :status [(r/router-instruction :top-router [:report :top])
                            (r/router-instruction :report-router [:status-report :param/report-id])])))
 
-(defsc Root [this {:keys [ui/react-key top-router]}]
+(defsc Root [this {:keys [top-router]}]
   ; r/routing-tree-key implies the alias of fulcro.client.routing as r.
   {:initial-state (fn [params] (merge routing-tree
                                  {:top-router (prim/get-initial-state TopRouter {})}))
-   :query         [:ui/react-key {:top-router (prim/get-query TopRouter)}]}
-  (dom/div #js {:key react-key}
+   :query         [{:top-router (prim/get-query TopRouter)}]}
+  (dom/div nil
     ; Sample nav mutations
     (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
     (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "

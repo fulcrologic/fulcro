@@ -7793,7 +7793,53 @@ The solution is easy: use union queries with to-one relations to ensure only the
 query that are active on the UI are processed.
 
 Unfortunately many people find hand-writing union components a litle challenging. Fulcro provides a nice
-pre-written facility that can write much of the code for you, making the process more conceptual: UI Routing.
+pre-written facility that can write much of the code for you, making the process more conceptual as UI Routing.
+
+== A Basic Router
+
+A basic router looks like this:
+
+```
+(defsc Index [t p]
+  {:query [:page :id ]
+   :initial-state {:page :index :id 1}
+   :ident [:page :id]}
+  ...)
+
+(defsc Preferences [t p]
+  {:query [:page :id ]
+   :initial-state {:page :prefs :id 1}
+   :ident [:page :id]}
+  ...)
+
+(defrouter MyRouter :my-router
+  [:page :id]
+  :index Index
+  :prefs Preferences)
+```
+
+The important points are:
+
+. The ident generator for the components and router must all work the same. The router uses the first element of the
+ident to pick the screen.
+. The list of screens to route to in the router are keyed by that first element of the ident.
+. The components that act as screens should have initial state that will work to generate a legal ident that will work with the router's
+ident generator.
+
+The router itself then works like any other Fulcro component. You make a factory for it, join it into your query, and render it
+by passing the queried props to it.
+
+++++
+<div class="example" id="simple-router-1"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-1').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="bootstrap-simple-router-1 source"]
+----
+include::src/book/book/simple_router_1.cljs[]
+----
+
+== Larger Application Routing
 
 Defining routes requires just a few steps:
 

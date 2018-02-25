@@ -20,14 +20,18 @@
        :body (s/+ (constantly true)))))
 
 #?(:clj
-   (defn- emit-union-element [sym ident-fn kws-and-screens]
+   (defn- emit-union-element [sym ident-arg kws-and-screens]
      (try
        (let [query         (reduce (fn [q {:keys [kw sym]}] (assoc q kw `(fulcro.client.primitives/get-query ~sym))) {} kws-and-screens)
              first-screen  (-> kws-and-screens first :sym)
              screen-render (fn [cls] `((fulcro.client.primitives/factory ~cls {:keyfn (fn [props#] ~(name cls))}) (fulcro.client.primitives/props ~'this)))
              render-stmt   (reduce (fn [cases {:keys [kw sym]}]
                                      (-> cases
-                                       (conj kw (screen-render sym)))) [] kws-and-screens)]
+                                       (conj kw (screen-render sym)))) [] kws-and-screens)
+             ident-fn      (if (list? ident-arg)
+                             `(~'ident ~(rest ident-arg))
+                             (let [[table-prop id-prop] ident-arg]
+                               `(~'ident [this# props#] [(get props# ~table-prop) (get props# ~id-prop)])))]
          `(fulcro.client.primitives/defui ~(vary-meta sym assoc :once true)
             ~'static fulcro.client.primitives/InitialAppState
             (~'initial-state [~'clz ~'params] (fulcro.client.primitives/get-initial-state ~first-screen ~'params))
@@ -63,24 +67,47 @@
    (s/def ::router-args (s/cat
                           :sym symbol?
                           :router-id keyword?
-                          :ident-fn (constantly true)
+                          :ident-fn (s/or :method list? :template (s/coll-of keyword? :min-count 2 :max-count 2 :kind vector?))
                           :kws-and-screens (s/+ (s/cat :kw keyword? :sym symbol?)))))
 
 #?(:clj
-   (defmacro ^{:doc      "Generates a component with a union query that can route among the given screen, which MUST be
-in cljc files. The first screen listed will be the 'default' screen that the router will be initialized to show.
+   (defmacro ^{:doc      "Generates a component with a union query that can route among the given screens.
 
-- All screens *must* implement InitialAppState
-- All screens *must* have a UI query
-- All screens *must* have state that the ident-fn can use to determine which query to run. E.g. the left member
-of running (ident-fn Screen initial-screen-state) => [:kw-for-screen some-id]
+```
+(defrouter ComponentName keyword-for-router-id
+  ident-generator
+  kw Component
+  kw2 Component2
+  ...)
+```
+
+The first screen listed will be the 'default' screen that the router will be initialized to show.
+
+The `ident-generator` can be:
+
+. A lamba receiving `this` and `props` that must return a legal ident from the props of any of the listed components
+. A vector listing the table prop and id prop that will be in the state of the screen
+
+Examples:
+
+(fn [this props] [(:screen props) (:id props)])  ; General-purpose
+[:screen :id]                                    ; shorthand for prior example
+(fn [t p] [(:screen p :constant-id])             ; must use fn form if id is some kind of constant
+(ident [t p] [(:screen p) :x])                   ; name of the lambda is ignored (fn is recommended)
+...
+
+NOTES:
+- All Component screens *must* have initial state
+- All Component screens *must* have a query
+- All Component screens *must* have state that the ident-fn can use to generate a proper ident from your ident generator.
 "
-               :arglists '([sym router-id ident-fn & kws-and-screens])} defrouter
+               :arglists '([sym router-id ident-generator & kws-and-screens])} defrouter
      [& args]
      (let [{:keys [sym router-id ident-fn kws-and-screens]} (util/conform! ::router-args args)
+           ident-arg (second ident-fn)
            union-sym (symbol (str (name sym) "-Union"))]
        `(do
-          ~(emit-union-element union-sym ident-fn kws-and-screens)
+          ~(emit-union-element union-sym ident-arg kws-and-screens)
           ~(emit-router router-id sym union-sym)))))
 
 (def routing-tree-key ::routing-tree)
