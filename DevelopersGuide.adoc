@@ -7842,7 +7842,7 @@ the vector template in that `defsc`.
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-1').toggle()">Show/Hide Source</a>
 ++++
 
-[source,clojure,role="bootstrap-simple-router-1 source"]
+[source,clojure,role="simple-router-1 source"]
 ----
 include::src/book/book/simple_router_1.cljs[]
 ----
@@ -7860,7 +7860,7 @@ example:
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-2').toggle()">Show/Hide Source</a>
 ++++
 
-[source,clojure,role="bootstrap-simple-router-2 source"]
+[source,clojure,role="simple-router-2 source"]
 ----
 include::src/book/book/simple_router_2.cljs[]
 ----
@@ -7877,8 +7877,12 @@ somewhat of a chore. Also, it is common to want to mix UI routing with HTML5 his
 the indicated screen.
 
 For example, one could imagine wanting to go to `/settings/colors` as a URI for the previous example. That single
-URI *as a concept* is a single route to a screen, but the transaction you'd trigger would be to `set-route` on
-two different routers.
+URI *as a concept* is a single route to a screen, but the mutation you'd trigger would be to `set-route` on
+two different routers:
+
+```
+(prim/transact! this `[(r/set-route ...) (r/set-route ...)])
+```
 
 == Routing Tree Support
 
@@ -7949,13 +7953,25 @@ resulting idents.
 
 === Route Parameters
 
-Anything you pass in the `:route-params` map will get plugged into the parameter placeholders in your
-routing tree instructions. By default anything that looks like an integer (only digits) will
+Anything you pass in the `:route-params` map will get automatically plugged into the parameter
+placeholders in your routing tree instructions. By default anything that looks like an integer (only digits) will
 be coerced to an integer. Anything that contains only letters will map to a keyword.
 
-If the default coercion isn't sufficient, then you can customize it.
+If the default coercion isn't sufficient then you can customize it using <<ParamCoercion, parameter coercion>>.
 
-==== Parameter Coercion
+It is a very common task to need to convert incoming strings (e.g. from a URL) to elements of an ident. If you'd like
+to use this support in your own code then use `(r/set-ident-route-params ident params)` which
+supports the coercion and replacement:
+
+```
+(r/set-ident-route-params [:param/table :param/id] {:table "a" :id "1"})
+; => [:a 1]
+```
+
+Note that the params argument is just what you'd get from a URL when using something like bidi (everything will come
+in as strings).
+
+==== Parameter Coercion [[ParamCoercion]]
 
 The default coercion converts integer-looking things to integers, and string-looking things to keywords.
 
@@ -7964,7 +7980,9 @@ whatever you return. You customize coercion simply by adding your own coercion f
 a parameter by name:
 
 ```
-(defmethod r/coerce-param :param/NAME [k incoming-string-value] (transform-it incoming-string-value))
+(defmethod r/coerce-param :param/NAME
+  [k incoming-string-value]
+  (transform-it incoming-string-value))
 ```
 
 Of course, be sure that your namespace with the `defmethod` is loaded so that your methods get installed.
@@ -12070,7 +12088,7 @@ and render them both. Something like this will work:
 === Changing the Visible Screen
 
 This is now a component that can display whichever screen is currently active. The `fulcro.client.routing` namespace
-includes a helper functions called `set-route` that can be composed into a mutation to change the current screen of
+includes a helper functions called `set-route*` that can be composed into a mutation to change the current screen of
 a router:
 
 ```
@@ -12078,7 +12096,7 @@ a router:
   "Select the given tab"
   [{:keys [tab]}]
   (action [{:keys [state]}]
-    (swap! state routing/set-route :main-router [tab :singleton])))
+    (swap! state routing/set-route* :main-router [tab :singleton])))
 ```
 
 Of course, we could also be using the routing tree mechanisms, which would be similar (though you'd use the
@@ -12101,7 +12119,7 @@ updates with that same mutation:
   (action [{:keys [state]}]
     (swap! state (fn [s]
                    (-> s
-                     (routing/set-route :main-router [tab :singleton])
+                     (routing/set-route* :main-router [tab :singleton])
                      (b/set-active-nav-link* :main-nav tab))))))
 ```
 
@@ -12450,7 +12468,7 @@ for building that, so the mutation just looks like this:
 
 ```
 (m/defmutation choose-tab [{:keys [tab]}]
-  (action [{:keys [state]}] (swap! state r/set-route :ui-router [tab :tab])))
+  (action [{:keys [state]}] (swap! state r/set-route* :ui-router [tab :tab])))
 ```
 
 The transaction to go to the settings tab is more interesting. It switches tabs but also runs another mutation to
