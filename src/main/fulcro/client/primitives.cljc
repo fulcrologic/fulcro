@@ -840,19 +840,26 @@
       :else (recur (parent c)))))
 
 (defn get-ident
-  "Given a mounted component with assigned props, return the ident for the
-   component. 2-arity version works on client or server using a component and
-   explicit props."
+  "Get the ident for a mounted component OR using a component class.
+
+  That arity-2 will return the ident using the supplied props map.
+
+  The single-arity version should only be used with a mounted component (e.g. `this` from `render`), and will derive the
+  props that were sent to it most recently."
   ([x]
    {:pre [(component? x)]}
-   (let [m (props x)]
-     (assert (not (nil? m)) "get-ident invoked on component with nil props")
-     (ident x m)))
+   (if-let [m (props x)]
+     (ident x m)
+     (log/warn "get-ident was invoked on component with nil props (this could mean it wasn't yet mounted): " x)))
   ([class props]
-    #?(:clj  (when-let [ident (-> class meta :ident)]
-               (ident class props))
-       :cljs (when (implements? Ident class)
-               (ident class props)))))
+    #?(:clj  (if-let [ident (if (component? class)
+                              ident
+                              (-> class meta :ident))]
+               (ident class props)
+               (log/warn "get-ident called with something that is either not a class or does not implement ident: " class))
+       :cljs (if (implements? Ident class)
+               (ident class props)
+               (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)))))
 
 (defn- var? [x]
   (and (symbol? x)

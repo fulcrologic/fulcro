@@ -31,6 +31,11 @@ and middleware is opt-in for now.
 - Removed dom dependencies in routing and data fetch, to enable easier use with React Native
 - BREAKING CHANGE: new Websockets API support refined and improved a bit, but the argument lists for construction changed slightly.
 
+2.2.2
+-----
+- Fix to SSR on routing changes
+- Improved get-ident to work consistently on server and client
+
 2.2.1
 -----
 - Improved UI routing documentation and API.
