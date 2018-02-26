@@ -41,9 +41,7 @@
             (~'query [~'this] ~query)
             ~'Object
             (~'render [~'this]
-              (let [props# (fulcro.client.primitives/props ~'this)
-                    ident# (fulcro.client.primitives/get-ident ~'this props#)
-                    page#  (first ident#)]
+              (let [page# (first (fulcro.client.primitives/get-ident ~'this))]
                 (case page#
                   ~@render-stmt
                   (fulcro.client.dom/div nil (str "Cannot route: Unknown Screen " page#)))))))

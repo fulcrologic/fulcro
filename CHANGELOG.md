@@ -1,3 +1,8 @@
+2.2.2
+-----
+- Fix to SSR on routing changes
+- Improved get-ident to work consistently on server and client
+
 2.2.1
 -----
 - Improved UI routing documentation and API.
