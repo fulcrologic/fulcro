@@ -91,7 +91,7 @@
                                 (js/IntlMessageFormat. translation (current-locale) custom-formats)
                                 (js/IntlMessageFormat. translation (current-locale)))]
            (.format formatter (clj->js argmap)))
-         (catch :default e
+         (catch (:cljs :default) e
            (log/error "Unable to format trf output " e)
            "???")))))
 

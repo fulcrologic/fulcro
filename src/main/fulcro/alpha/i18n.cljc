@@ -110,12 +110,11 @@
          formatter   (get prim/*shared* ::message-formatter (fn [{:keys [::localized-format-string]}] localized-format-string))]
      (if (empty? (dissoc options ::context))
        translation
-       #?(:clj  translation                                 ; FIXME: SSR trf
-          :cljs (try
-                  (formatter {::localized-format-string translation ::locale locale ::format-options options})
-                  (catch :default e
-                    (lg/error "Unable to format output " e)
-                    "???")))))))
+       (try
+         (formatter {::localized-format-string translation ::locale locale ::format-options options})
+         (catch #?(:cljs :default :clj Throwable) e
+           (lg/error "Unable to format output " e)
+           "???"))))))
 
 (defsc LocaleSelector
   "A reusable locale selector. Generates a simple `dom/select` with CSS class fulcro$i18n$locale_selector.
@@ -225,3 +224,35 @@
      [format & args]
      (assert (string? format) "Format argument to trf must be a literal string.")
      (if (:ns &env) `(js/trf_alpha ~format ~@args) `(trf-ssr ~format ~@args))))
+
+#?(:clj
+   (defmacro with-locale
+     "Establish a message formatting and locale context for rendering. Can be used on the client or server to
+      force a given locale and message formatting context for the enclosed elements.
+
+      It is typically used for server-side rendering like this:
+
+      ```
+      (defn message-formatter ...) ; a server-side message formatter, like IBM's ICU library
+
+      (defn generate-index-html [state-db app-html]
+        (let [initial-state-script (ssr/initial-state->script-tag state-db)]
+          (str \"<html><head>\" initial-state-script \"</head><body><div id='app'>\" app-html \"</div></body></html>\")))
+
+      (let [initial-tree     (prim/get-initial-state Root {})
+            es-locale        (i18n/load-locale \"my-po-files\" :es)
+            tree-with-locale (assoc initial-tree ::i18n/current-locale es-locale)
+            initial-db       (ssr/build-initial-state tree-with-locale Root) ; embed this as initial state in the HTML
+            ui-root          (prim/factory Root)]
+        (generate-index-html initial-db  ; some function that generates the complete wrapped HTML. See server-side rendering for more detail
+          (i18n/with-server-locale message-formatter es-locale
+            (dom/render-to-str (ui-root tree-with-locale)))))
+      ```
+
+      Note: `locale` can technically contain anything that the given UI needs in `shared` props, since this macro will
+      completely override shared props with the given information.
+      "
+     [message-formatter locale & render-body]
+     `(let [shared-props# (merge {:fulcro.alpha.i18n/message-formatter ~message-formatter} ~locale)]
+        (binding [fulcro.client.primitives/*shared* shared-props#]
+         ~@render-body))))

@@ -10793,6 +10793,58 @@ as an HTML select with the CSS class "fulcro$i18n$locale_selector".
 
 See also `src/cards/fulcro/democards/i18n_alpha_cards.cljs` in the main Fulcro source.
 
+== Server-Side Rendering
+
+Server side rendering of the default locale require no additinal code, because the strings
+you need are already the strings in the code. If you wish to pre-render a page using a
+specific locale then there is just a little bit more to do.
+
+The steps are:
+
+. Load the locale from a po file.
+. Generate initial db to embed in the HTML that contains the proper normalized `::i18n/current-locale`.
+. Use `i18n/with-locale` to wrap the server render.
+
+```
+(defn message-formatter ...) ; a server-side message formatter, e.g. use IBM's ICU library
+
+(defn generate-index-html [state-db app-html]
+  (let [initial-state-script (ssr/initial-state->script-tag state-db)]
+    (str "<html><head>" initial-state-script "</head><body><div id='app'>" app-html "</div></body></html>")))
+
+(defn index-html []
+  (let [initial-tree     (prim/get-initial-state Root {})
+        es-locale        (i18n/load-locale "po-directory" :es)
+        tree-with-locale (assoc initial-tree ::i18n/current-locale es-locale)
+        initial-db       (ssr/build-initial-state tree-with-locale Root)
+        ui-root          (prim/factory Root)]
+    (generate-index-html initial-db
+      (i18n/with-locale message-formatter es-locale
+        (dom/render-to-str (ui-root tree-with-locale))))))
+```
+
+If you use Yahoo's FormatJS on the client, then a good choice on the server is
+http://site.icu-project.org/[com.ibm.icu/icu4j] since it uses the same syntax for
+format strings.
+
+The message formatter could be:
+
+```
+(ns your-server-ns
+  (:import (com.ibm.icu.text MessageFormat)
+           (java.util Locale)))
+
+(defn message-formatter [{:keys [::i18n/localized-format-string
+                                 ::i18n/locale ::i18n/format-options]}]
+  (let [locale-str (name locale)]
+    (try
+      (let [formatter (new MessageFormat localized-format-string (Locale/forLanguageTag locale-str))]
+        (.format formatter format-options))
+      (catch Exception e
+        (log/error "Formatting failed!" e)
+        "???"))))
+```
+
 = Internationalization (DEPRECATED. See <<I18NAlpha, Internationalization 2 (ALPHA)>>)
 
 NOTE: As of 2.3.2 this version of i18n support is deprecated. New i18n support is in alpha testing and shares much of the
@@ -10818,7 +10870,7 @@ The i18n support of Fulcro does *not* add overhead to your application if you do
 
 == Polyfills
 
-If you use the internationalization support of Fulcro then you must load 
+If you use the internationalization support of Fulcro then you must load
 Yahoo's FormatJS. Fulcro includes a version of this library so you can
 just require it from at one of your namespaces:
 
@@ -11277,7 +11329,7 @@ the card layout or other cards.
 = Support Viewer
 
 Fulcro automatically tracks the sequence of steps in the UI in history, including what transactions ran to move your
-application from state to state. This enables you to do time travel for things like debugging and 
+application from state to state. This enables you to do time travel for things like debugging and
 error handling, but also allows you to serialize the history and send it to your servers for debugging sessions against
 real user interactions!
 
