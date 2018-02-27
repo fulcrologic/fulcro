@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.3.0-SNAPSHOT"
+(defproject fulcrologic/fulcro "2.3.0"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -10,7 +10,7 @@
                  [cljsjs/react-dom "15.6.2-1"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.243"]
-                 [org.clojure/core.async "0.3.443" :exclusions [org.clojure/tools.reader]]
+                 [org.clojure/core.async "0.3.465" :exclusions [org.clojure/tools.reader]]
                  [com.ibm.icu/icu4j "59.1"]                 ; needed for i18n on server-side rendering
 
                  [clojure-future-spec "1.9.0-beta4"]
