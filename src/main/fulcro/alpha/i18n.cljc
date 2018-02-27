@@ -72,12 +72,10 @@
 (defn t
   "Translate a string in the context of the given component.
 
-  The string may include ICU format placeholder, in which case the data for those placeholders
-  should be passed in options:
+  INTERNAL USE: You should use `tr`, `trc`, or `trf`, as those enable string extraction. This function is an internal
+  implementation detail.
 
-  (t \"Hello, {name}\" {:name \"Sam\"})
-
-  options may include ::i18n/context to give context to translators.
+  Options is sent to the configured formatter, and may also include ::i18n/context to represent translation context.
   "
   ([string]
    (let [k           ["" string]

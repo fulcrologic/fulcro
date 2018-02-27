@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.3.1
+-----
+- Added fulcro.alpha.i18n. A rewrite-in-progress of i18n support.
+
 2.3.0
 -----
 - Fixed bug in dirty-fields for form state, where relations were not properly reported.
