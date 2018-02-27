@@ -4091,17 +4091,18 @@ For more on mutations see the chapter on <<MutationsChapter, Handling Mutations>
 When starting any application one thing has to be done before just about anything else: Establish a starting state. In Fulcro
 this just means generating a client-side application database (normalized). Other parts of this guide have talked about
 the <<GraphDB, Graph Database>>. You can well imagine that hand-coding one of these for a large application's starting
-state could be kind of a pain. Actually, coding it would turn out to be less of a pain than maintaining such
-a hand-coded thing it as you refactor and evolve your UI!
+state could be kind of a pain. Actually, even though coding it would be a pain, it turns out that the *bigger* pain
+happens later when you want to refactor! That can become a real mess!
 
-However, Fulcro already knows how to normalize a tree of data, and your UI is the tree you're interested in. So, Fulcro
-encourages you to co-locate initial application state with the components that need the state and compose it towards
-the root, just like you do for queries. This gives some nice results:
+However, Fulcro already knows how to normalize a tree of data, and your UI is already the tree you're interested in.
+So, Fulcro encourages you to co-locate initial application state with the components that need the state and compose
+it towards the root, just like you do for queries. This gives some nice results:
 
-* Your initial application state is reasoned about local to each component, just like the queries.
+* Your initial application state is reasoned about locally to each component, just like the queries.
 * Refactoring the UI just means modifying the *local* composition of queries and initial state from one place
 to another in the UI.
-* Fulcro understands unions (you can only initialize one branch of a to-one relation), and can scan for and initialize alternate branches.
+* Fulcro understands unions (you can only initialize one branch of a to-one relation), and can scan
+for and initialize alternate branches.
 
 == Adding Initial State to Components
 
