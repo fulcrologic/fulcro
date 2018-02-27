@@ -1,12 +1,13 @@
 (ns fulcro.client
+  #?(:cljs (:require-macros
+             [cljs.core.async.macros :refer [go]]))
   (:require
     [fulcro.client.primitives :as prim]
     [fulcro.client.impl.application :as app]
     #?(:cljs fulcro.client.mutations)                       ; DO NOT REMOVE. Ensures built-in mutations load on start
     [fulcro.client.network :as net]
     [fulcro.logging :as log]
-    #?(:clj
-    [clojure.core.async :as async] :cljs [cljs.core.async :as async])
+    [clojure.core.async :as async]
     [fulcro.client.impl.protocols :as proto]
     [fulcro.util :as util]
     [fulcro.client.util :as cutil]
@@ -16,7 +17,8 @@
     #?(:cljs [goog.dom :as gdom])
     [clojure.spec.alpha :as s]
     [fulcro.history :as hist]
-    [fulcro.client.impl.protocols :as p])
+    [fulcro.client.impl.protocols :as p]
+    [fulcro.client.mutations :as m])
   #?(:cljs (:import goog.Uri)))
 
 (declare map->Application merge-alternate-union-elements! merge-state! new-fulcro-client new-fulcro-test-client)
@@ -48,7 +50,9 @@
   (swap! fulcro-tools assoc tool-id tool-registry))
 
 (defn- normalize-network [networking]
-  #?(:cljs (if (implements? net/FulcroNetwork networking) {:remote networking} networking)
+  #?(:cljs (if (or
+                 (implements? net/FulcroRemoteI networking)
+                 (implements? net/FulcroNetwork networking)) {:remote networking} networking)
      :clj  {}))
 
 (defn- add-tools [original-start original-net original-tx-listen original-instrument]
@@ -66,9 +70,11 @@
       [started net listen nil nil]
       (vals @fulcro-tools))))
 
+; easier to access, so the user don't have to require a impl namespace to reference
+(def mutate app/write-entry-point)
 
 (defn new-fulcro-client
-  "Entrypoint for creating a new fulcro client. Instantiates an Application with default values, unless
+  "Entry point for creating a new fulcro client. Instantiates an Application with default values, unless
   overridden by the parameters. If you do not supply a networking object, one will be provided that connects to the
   same server the application was served from, at `/api`.
 
@@ -112,6 +118,11 @@
   NOTE: *it will be allowed* to trigger remote reads. This is not recommended, as you will probably have to augment the networking layer to
   get it to do what you mean. Use `load` instead. You have been warned. Triggering remote reads is allowed, but discouraged and unsupported.
 
+  `:query-interpreter` (optional). A custom query engine (parser and interpreter) that will be used to satisfy all
+  local client queries from the local state database. Cannot be used with `:read-local`.
+  It must be a `(fn [env query] )` that returns the result for the given query. It will not be given mutations.
+  The `env` will contain the `:state` atom, `:shared`, and `:parser`. It may also contain the `:reconciler`.
+
   `:networking` (optional). An instance of FulcroNetwork that will act as the default remote (named :remote). If
   you want to support multiple remotes, then this should be a map whose keys are the keyword names of the remotes
   and whose values are FulcroNetwork instances.
@@ -128,7 +139,7 @@
   There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
   via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state mutation-merge started-callback networking reconciler-options
+  [& {:keys [initial-state mutation-merge started-callback networking reconciler-options query-interpreter
              read-local request-transform network-error-callback migrate transit-handlers shared]
       :or   {initial-state {} read-local (constantly false) started-callback (constantly nil) network-error-callback (constantly nil)
              migrate       nil shared nil}}]
@@ -143,6 +154,7 @@
                        :mutation-merge     mutation-merge
                        :started-callback   started-callback
                        :lifecycle          lifecycle
+                       :query-interpreter  query-interpreter
                        :reconciler-options (merge (cond-> {}
                                                     tx-listen (assoc :tx-listen tx-listen)
                                                     instrument (assoc :instrument instrument)
@@ -152,7 +164,6 @@
                                              reconciler-options)
                        :networking         networking})))
 
-
 (defprotocol FulcroApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
   (reset-state! [this new-state] "Replace the entire app state with the given (pre-normalized) state.")
@@ -160,6 +171,7 @@
   (clear-pending-remote-requests! [this remotes] "Remove all pending network requests on the given remote(s). Useful on failures to eliminate cascading failures. Remote can be a keyword, set, or nil. `nil` means all remotes.")
   (refresh [this] "Refresh the UI (force re-render).")
   (history [this] "Return the current UI history of the application, suitable for network transfer")
+  (abort-request! [this abort-id] "Abort the given request on all remotes. abort-id is a self-assigned ID for the remote interaction.")
   (reset-history! [this] "Returns the application with history reset to its initial, empty state. Resets application history to its initial, empty state. Suitable for resetting the app for situations such as user log out."))
 
 (defn- start-networking
@@ -167,15 +179,30 @@
   update the network map with this value. Returns possibly updated `network-map`."
   [network-map]
   #?(:cljs (into {} (for [[k remote] network-map
-                          :let [started (net/start remote)
+                          :let [started (when (implements? net/FulcroNetwork remote) (net/start remote))
                                 valid   (if (implements? net/FulcroNetwork started) started remote)]]
                       [k valid]))
      :clj  {}))
 
+(defn- mutation-query? [tx]
+  (boolean (some #(util/mutation? %) tx)))
+
+(defn- split-parser
+  "Generate a parser that splits reads and writes across two parsers: the supplied query parser for queries, and the built-in
+  parser for mutations."
+  [query-parser]
+  (let [mutation-parser (prim/parser {:read (constantly nil) :mutate app/write-entry-point})]
+    (fn split-parser*
+      ([env query target]
+       (if (mutation-query? query)
+         (mutation-parser env query target)
+         (query-parser env query)))
+      ([env query] (split-parser* env query nil)))))
+
 (defn- initialize
   "Initialize the fulcro Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
-  [{:keys [networking read-local started-callback] :as app} initial-state root-component dom-id-or-node reconciler-options]
+  [{:keys [networking read-local started-callback query-interpreter] :as app} initial-state root-component dom-id-or-node reconciler-options]
   (let [network-map         (normalize-network networking)
         reconciler-options  (if (-> reconciler-options :id not)
                               (assoc reconciler-options :id (if (string? dom-id-or-node) dom-id-or-node (util/unique-key)))
@@ -183,7 +210,9 @@
         remotes             (keys network-map)
         send-queues         (zipmap remotes (map #(async/chan 1024) remotes))
         response-channels   (zipmap remotes (map #(async/chan) remotes))
-        parser              (prim/parser {:elide-paths true :read (partial app/read-local read-local) :mutate app/write-entry-point})
+        parser              (if query-interpreter
+                              (split-parser query-interpreter)
+                              (prim/parser {:read (partial app/read-local read-local) :mutate app/write-entry-point}))
         initial-app         (assoc app :send-queues send-queues :response-channels response-channels
                                        :parser parser :mounted? true)
         app-with-networking (assoc initial-app :networking (start-networking network-map))
@@ -209,6 +238,17 @@
   (loop [element (async/poll! queue)]
     (when element
       (recur (async/poll! queue)))))
+
+(defn- abort-items-on-queue
+  [queue abort-id]
+  (let [elements (atom [])]
+    (loop [element (async/poll! queue)]
+      (when element
+        (when-not (some-> element ::net/abort-id (= abort-id))
+          (swap! elements conj element))
+        (recur (async/poll! queue))))
+    (doseq [e @elements]
+      (async/offer! queue e))))
 
 (defn reset-history-impl
   "Needed for mocking in tests. Use FulcroApplication protocol methods instead."
@@ -241,7 +281,8 @@
                                     :otherwise {})]
       (initialize app state root-component dom-id-or-node reconciler-options))))
 
-(defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues response-channels reconciler read-local parser mounted? reconciler-options]
+(defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues
+                        response-channels reconciler read-local query-interpreter mounted? reconciler-options]
   FulcroApplication
   (mount [this root-component dom-id-or-node] (mount* this root-component dom-id-or-node))
 
@@ -268,6 +309,16 @@
                     :else remotes)]
       (doseq [r remotes]
         (clear-queue (get send-queues r)))))
+
+  (abort-request! [this abort-id]
+    #?(:cljs
+       (doseq [r (keys networking)]
+         (let [remote-net (get networking r)]
+           (if (implements? net/FulcroRemoteI remote-net)
+             (do
+               (net/abort remote-net abort-id)
+               (abort-items-on-queue (get send-queues r) abort-id))
+             (log/error "Cannot abort requests on remote " r ". It isn't a FulcroRemoteI."))))))
 
   (history [this] (prim/get-history reconciler))
   (reset-history! [this]

@@ -1,12 +1,15 @@
 (ns fulcro.client-spec
   (:require
-    [fulcro.client.primitives :as prim :refer [defui defsc]]
-    [fulcro.client :as fc]
-    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
-    [fulcro.client.impl.protocols :as omp]
     [clojure.core.async :as async]
-    [fulcro.logging :as log]
+    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
+    [fulcro.client :as fc]
+    [fulcro.client.impl.parser :as parser]
+    [fulcro.client.impl.protocols :as omp]
+    [fulcro.client.mutations :as m]
+    [fulcro.client.network :as net]
+    [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.util :as fcu]
+    [fulcro.logging :as log]
     [fulcro.util :as util]))
 
 #?(:cljs
@@ -20,6 +23,24 @@
        (assertions
          "Removes any pending items in the network queue channel"
          (async/poll! channel) => nil))))
+
+#?(:cljs
+   (specification "mutation-query?"
+     (behavior "Detects mutations"
+       (assertions
+         "containing mutation joins"
+         (fc/mutation-query? '[{(f) [:x]}]) => true
+         (fc/mutation-query? '[(g) {(f) [:x]}]) => true
+         "even if they contain keyword follow-on reads"
+         (fc/mutation-query? '[(h) :x :y]) => true))
+     (behavior "Detects queries"
+       (assertions
+         "that contain props and joins"
+         (fc/mutation-query? '[:x {:y [:z]}]) => false
+         "that contain nothing but props"
+         (fc/mutation-query? '[:x]) => false
+         "that are parameterized"
+         (fc/mutation-query? '[(:y {:p 1})]) => false))))
 
 (defui ^:once BadResetAppRoot
   Object
@@ -151,4 +172,21 @@
                (fc/mount* mock-app RootWithState :dom-id))))))))
 
 
+#?(:cljs
+   (specification "Aborting items on the remote queue" :focused
+     (let [queue     (async/chan 1024)
+           payload-1 {:id 1 ::prim/query '[(h)]}
+           payload-2 {:id 2 ::net/abort-id :X}
+           payload-3 {:id 3 ::prim/query '[(g)]}]
 
+       (async/offer! queue payload-1)
+       (async/offer! queue payload-2)
+       (async/offer! queue payload-3)
+
+       (fc/abort-items-on-queue queue :X)
+
+       (assertions
+         "Removes just the items that have transactions with that abort id"
+         (async/poll! queue) => payload-1
+         (async/poll! queue) => payload-3
+         (async/poll! queue) => nil))))

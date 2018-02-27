@@ -1,3 +1,36 @@
+NOTE: Version numbers use the following scheme:
+
+x.y.z
+- (inc x) = Major change that could break you program. Every attempt is made to keep these breaks
+small and tractable.
+- (inc y) = Intrusive change that should not break anything, but should be heavily tested.
+- (inc z) = additions, bug fixes, etc.
+
+2.3.0
+-----
+- Fixed bug in dirty-fields for form state, where relations were not properly reported.
+- The remote plumbing layer had a few intrusive internals change that should have no
+  external visible effects.
+- NOTE: Fulcro Inspect must be upgraded. It required changes to support the new remoting.
+- New remoting protocol and implementation: FuclroRemoteI and FulcroHTTPRemote
+    - Supports aborting any remote request (load/mutation) from queue or active network
+    - Supports giving progress updates via a general transaction
+    - Support request and response middleware
+- Updated developer's guide to include new remoting
+- Requires an update to Fulcro Inspect
+- Client still defaults to *old* networking code. Using abort, progress,
+and middleware is opt-in for now.
+- Made a set-route mutation in routing (augments the set-route mutation helper)
+- Made routing param helper public
+- Added support for custom database query interpreter on the *client* database,
+  instead of just a read helper. See the `:query-interpreter` parameter on client creation.
+  This allows for easy integration of things like pathom to more easily customize the entire
+  client database engine.
+- Added support for putting params on a join key, instead of in a list outside of the join.
+- Removed some dead code in primitives
+- Removed dom dependencies in routing and data fetch, to enable easier use with React Native
+- BREAKING CHANGE: new Websockets API support refined and improved a bit, but the argument lists for construction changed slightly.
+
 2.2.2
 -----
 - Fix to SSR on routing changes

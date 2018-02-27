@@ -471,8 +471,11 @@
                                        current-value (cond
                                                        (map? items) (subform-ident k items)
                                                        (vector? items) (mapv #(subform-ident k %) items)
-                                                       :else [])]
-                                   (if (not= old-value current-value)
+                                                       :else [])
+                                       has-tempids?  (if (every? util/ident? current-value)
+                                                       (some #(prim/tempid? (second %)) current-value)
+                                                       (prim/tempid? (second current-value)))]
+                                   (if (or has-tempids? (not= old-value current-value))
                                      (if as-delta?
                                        [k {:before old-value :after current-value}]
                                        [k current-value])

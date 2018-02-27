@@ -4,12 +4,11 @@
             [fulcro.client :as fc]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.impl.protocols :as p]
-            fulcro.client.dom
     #?(:cljs [cljs.loader :as loader])
-            [fulcro.logging :as log]
-            [fulcro.util :as util]
-            [clojure.spec.alpha :as s]
-            [fulcro.logging :as log]))
+      [fulcro.logging :as log]
+      [fulcro.util :as util]
+      [clojure.spec.alpha :as s]
+      [fulcro.logging :as log]))
 
 #?(:clj
    (s/def ::mutation-args
@@ -44,7 +43,7 @@
               (let [page# (first (fulcro.client.primitives/get-ident ~'this))]
                 (case page#
                   ~@render-stmt
-                  (fulcro.client.dom/div nil (str "Cannot route: Unknown Screen " page#)))))))
+                  (str "Cannot route: Unknown Screen " page#))))))
        (catch Exception e `(def ~sym (log/error "BROKEN ROUTER!"))))))
 
 #?(:clj
@@ -375,22 +374,22 @@ NOTES:
   ([state-atom pending-route-handler route-to-load finish-fn]
    (load-dynamic-route state-atom pending-route-handler route-to-load finish-fn 0 0))
   ([state-atom pending-route-handler route-to-load finish attempt delay]
-    #?(:cljs (js/setTimeout
-               (fn []
-                 (let [current-pending-route (get @state-atom ::pending-route)]
-                   (when (and pending-route-handler (= current-pending-route pending-route-handler))
+   #?(:cljs (js/setTimeout
+              (fn []
+                (let [current-pending-route (get @state-atom ::pending-route)]
+                  (when (and pending-route-handler (= current-pending-route pending-route-handler))
                      ; if the load succeeds, finish will be called to finish the route instruction
-                     (let [deferred-result (loader/load route-to-load)
+                    (let [deferred-result (loader/load route-to-load)
                            ;; see if the route is no longer needed (pending has changed)
-                           next-delay      (min 10000 (* 2 (max 1000 delay)))]
+                          next-delay      (min 10000 (* 2 (max 1000 delay)))]
                        ; if the load fails, retry
-                       (.addCallback deferred-result finish)
-                       (.addErrback deferred-result
-                         (fn [_]
-                           (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
+                      (.addCallback deferred-result finish)
+                      (.addErrback deferred-result
+                        (fn [_]
+                          (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
                            ; TODO: We're tracking attempts..but I don't see a reason to stop trying if the route is still pending...
-                           (load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))))
-               delay))))
+                          (load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))))
+              delay))))
 
 (defn- load-routes [{:keys [state] :as env} routes]
   #?(:clj (log/info "Dynamic loading of routes is not done on the server itself.")

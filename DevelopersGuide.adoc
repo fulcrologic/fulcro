@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: Jan 31, 2018
-:revnumber: 1.1
+:revdate: Feb 26, 2018
+:revnumber: 1.2
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -6079,7 +6079,7 @@ asynchrony out of the UI. The processing pipeline is always: update the database
 If you want to make use of the returned values from the server then you need to add something to remedy the
 lack of a query.
 
-=== Using Mutation Joins
+=== Using Mutation Joins [[MutationJoins]]
 
 The solution might be obvious to you: include the query with the mutation! This is called a *mutation join*.
 The explicit syntax for a mutation join looks like this:
@@ -7842,7 +7842,7 @@ the vector template in that `defsc`.
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-1').toggle()">Show/Hide Source</a>
 ++++
 
-[source,clojure,role="bootstrap-simple-router-1 source"]
+[source,clojure,role="simple-router-1 source"]
 ----
 include::src/book/book/simple_router_1.cljs[]
 ----
@@ -7860,7 +7860,7 @@ example:
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-2').toggle()">Show/Hide Source</a>
 ++++
 
-[source,clojure,role="bootstrap-simple-router-2 source"]
+[source,clojure,role="simple-router-2 source"]
 ----
 include::src/book/book/simple_router_2.cljs[]
 ----
@@ -7877,8 +7877,12 @@ somewhat of a chore. Also, it is common to want to mix UI routing with HTML5 his
 the indicated screen.
 
 For example, one could imagine wanting to go to `/settings/colors` as a URI for the previous example. That single
-URI *as a concept* is a single route to a screen, but the transaction you'd trigger would be to `set-route` on
-two different routers.
+URI *as a concept* is a single route to a screen, but the mutation you'd trigger would be to `set-route` on
+two different routers:
+
+```
+(prim/transact! this `[(r/set-route ...) (r/set-route ...)])
+```
 
 == Routing Tree Support
 
@@ -7949,13 +7953,25 @@ resulting idents.
 
 === Route Parameters
 
-Anything you pass in the `:route-params` map will get plugged into the parameter placeholders in your
-routing tree instructions. By default anything that looks like an integer (only digits) will
+Anything you pass in the `:route-params` map will get automatically plugged into the parameter
+placeholders in your routing tree instructions. By default anything that looks like an integer (only digits) will
 be coerced to an integer. Anything that contains only letters will map to a keyword.
 
-If the default coercion isn't sufficient, then you can customize it.
+If the default coercion isn't sufficient then you can customize it using <<ParamCoercion, parameter coercion>>.
 
-==== Parameter Coercion
+It is a very common task to need to convert incoming strings (e.g. from a URL) to elements of an ident. If you'd like
+to use this support in your own code then use `(r/set-ident-route-params ident params)` which
+supports the coercion and replacement:
+
+```
+(r/set-ident-route-params [:param/table :param/id] {:table "a" :id "1"})
+; => [:a 1]
+```
+
+Note that the params argument is just what you'd get from a URL when using something like bidi (everything will come
+in as strings).
+
+==== Parameter Coercion [[ParamCoercion]]
 
 The default coercion converts integer-looking things to integers, and string-looking things to keywords.
 
@@ -7964,7 +7980,9 @@ whatever you return. You customize coercion simply by adding your own coercion f
 a parameter by name:
 
 ```
-(defmethod r/coerce-param :param/NAME [k incoming-string-value] (transform-it incoming-string-value))
+(defmethod r/coerce-param :param/NAME
+  [k incoming-string-value]
+  (transform-it incoming-string-value))
 ```
 
 Of course, be sure that your namespace with the `defmethod` is loaded so that your methods get installed.
@@ -9861,11 +9879,256 @@ accomplishes the rendering of a given tree of UI props via:
 
 There is a `nashorn` branch on the github `fulcro-template` project that demonstrates the setup and rendering code.
 
-= The Network Layer [[Networking]]
 
-Many Fulcro applications will never have to say anything at all about the networking layer. However, if you
-have a client that needs to use an alternate (non-EDN) protocol or talk to multiple servers then this section
-is for you!
+= Client Networking with Fulcro HTTP Remote (version 2.3+) [[Networking]]
+
+Fulcro 2.3 and above has an implementation that uses Google's XhrIO to implement a networking layer for Fulcro that is
+much easier to extend than earlier Fulcro versions.
+
+This new version also brings a few new features:
+
+* It uses middleware for the request and response so you can customize the entire communication pipeline without having to deal with
+low-level networking. A remote can now manipulate everything from the request headers to the URL and even the raw data on the wire.
+* It allows you to give network requests and ID, and later abort them if desired.
+* It includes support for progress updates on mutations, which are commonly used for things like file uploads.
+
+== Creating a Remote
+
+A remote with these new features requires very little code:
+
+```
+(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {})})
+```
+
+This will give you support for the abort and progress features.
+
+You may include a `:url` parameter to specify what the server endpoint is (defaults to "/api").
+
+== Aborting a Request
+
+The first thing you need to do is assign an abort ID to the request. The `load` API allows an `:abort-id` parameter.
+Mutations use the AST mechanism of the mutation API:
+
+```
+(load this :thing Thing {:abort-id :thing})
+
+...
+
+(defmutation do-something [params]
+   ...
+   (remote [{:keys [ast]}]
+     (m/with-abort-id ast :SOME-ID)))
+```
+
+The API for aborting a request is on the `FulcroApplication` protocol (networking is coordinated at the
+application level), which means you need access to the applcation in order to run aborts.
+The recommended way to deal with aborts is:
+
+* Hold your mounted app in an atom, say in your `client` namespace.
+* Write a mutation in your client namespace that can access this `app` atom.
+
+```
+(ns my-client
+  (:require [fulcro.client :as fc]
+            [fulcro.client.mutations :refer [defmutation]]
+            [loading.ui.root :as root]
+            [fulcro.client.network :as net]))
+
+(defonce app (atom nil))
+
+(defn abort* [id]
+  (when @app
+    (fc/abort-request! @app id)))
+
+(defmutation abort [{:keys [id]}]
+  (action [env]
+    (abort* id)))
+```
+
+Then you can either directly call the `abort*` function (if it does not create a circular require) or
+just invoke the mutation from anywhere (since mutations are just symbol data):
+
+```
+(transact! component `[(my-client/abort {:id :ID})]`)
+```
+
+Aborting a request that has yet to start networking results in no change to app state. It simply removes the
+request from the queue.
+
+Aborting an active request stops the network transaction and acts as if the requested data resulted in an
+empty map from the server (so that load merge will overwrite the target with nothing). If this is a problem
+then target the load to a placeholder location and use a post-mutation to move it when load
+completes.
+
+== Progress Updates
+
+Obtaining progress updates on mutations are requested the same way as abort IDs: through AST manipulation on the mutation:
+
+```
+(defmutation some-mutation [params]
+  (remote [{:keys [ast]}]
+     (m/with-progressive-updates ast `(progress-mutation {:x 1}))))
+```
+
+Progress updates are sent to the given mutation (which will always receive the parameters you specified). The parameters
+will be augmented with information about the current progress:
+
+* `:progress-phase` - will be one of :sending, :receiving, :complete, or :failed.
+* `:progress-event` - the raw XhrIO event (which has loading progress data)
+* `:transaction` - The transaction that is running
+* `:body` - The current low-level body. Body is NOT processed through the middleware, and could be partial.
+* `:status-code` - The HTTP status code if receiving.
+
+The `fulcro.client.network/progress%` function can be used to convert this into a number between 0 and 100.
+
+Progress updates are currently supported on mutations. Support for progress directly on loads is possible,
+but not yet implemented. The workaround for the moment to get progress for a load is to use <<MutationJoins,mutation joins>>
+to return a value from a mutation:
+
+```
+(defmutation some-mutation [params]
+  (remote [{:keys [ast state]}]
+    (-> ast
+      (m/with-progressive-updates `(progress {}))
+      (m/returning state Thing))))
+```
+
+where `Thing` is some component that defines the query for the data being returned from the mutation.
+
+In general progress updates are only really useful for larger requests, such as file uploads. Triggering
+downloads to the user's machine should probably be done using tricks that force the item into the
+normal browser download mechanisms (external to Fulcro).
+
+File uploads also require that you augment the new client network middleware, since there is no
+reliable way to encode an image of arbitrary size into a transaction.
+
+== Request Middleware
+
+The request will, by default, be sent through pre-written middleware `fulcro.client.network/wrap-fulcro-request`. This
+middleware will convert the body to a json-encoded transit form and add content-type headers. If you specify request
+middleware you will want to compose that middleware in or normal API requests won't work.
+
+Additional middleware can do any number of things:
+
+* Re-route requests to an alternate URI
+* Change the content type and encode the body
+* Short-circuit the result of the middleware stack
+
+Middleware is just a function `(fn [handler] (fn [req] ...))`. The inner function can choose to modify the request
+and pass it through the remaining `handler`, or just return a request as the final thing to process. This is
+similar to Ring middleware on the server.
+
+Fulcro will supply the middleware with a request that contains:
+
+* `:body` - The EDN transaction to send (query or mutations).
+* `:headers` - An empty map.
+* `:url` - The default URL this remote talks to.
+* `:method` - The HTTP verb as a keyword. All Fulcro requests default to `:post`.
+
+Middleware should return a map with the same keys that is passed on to the next layer. It may
+add any keys it wishes. The final result of the middleware stack will be used as follows:
+
+* `:body` - The raw data that will be given to XhrIO send
+* `:headers` - A clj map from string to string. It will be converted to a jsobj and given as the headers to the request.
+* `:url` - The network target. Can be relative or a complete URL, assuming you have security set to allow you to talk to the given server.
+* `:method` - Converted to an upper-case HTTP verb as a string.
+
+=== File Uploads
+
+Fulcro will soon include pre-written middleware to accomplish file upload encoding for you.
+
+The basic scheme is as follows:
+
+* Attach a `js/File` object to a mutation's parameters (typically as metadata to avoid various tool overhead)
+   * Include a tempid in the parameters
+* The mutation should using an altered network object that has custom middleware
+   * The local side of the mutation puts the file information into app state with a tempid
+* The remote's middleware encodes the headers/body into a proper multipart form upload, and
+includes the tempid
+* Progress reports are handled as usual. The parameters of the progress mutation should include the tempid so that
+  progress can be written to the file's state.
+* The remote uses normal Fulcro response middleware (which can decode tempid remappings)
+* The server accepts the file, assigns it a real ID, and returns a transit response with tempid
+  remapping to that real ID.
+
+When complete, the UI has an ID for the uploaded file, and can interact with the server via that ID
+(e.g. for generating file serving URLs for images, send delete mutations, etc.).
+
+Something like this is close:
+
+```
+; params will automatically include progress data
+(defmutation upload-progress [{:keys [id] :as params}]
+  (action [{:keys [state]}]
+    (swap! assoc-in [:file/by-id id] (net/progress% params))))
+
+(defmutation upload-file [{:keys [id file]}]
+  (action [{:keys [state]}]
+     (swap! state assoc-in [:file/by-id id] {:db/id id ...}))
+  (file-upload [{:keys ast}]
+    (m/with-progressive-updates ast `(upload-progress {:id ~id})))
+
+(defn wrap-file-upload []
+  (fn [req]
+    (let [mutation (some-> req :body prim/query->ast1)
+          params   (:params mutation)
+          id       (:id params)
+          js-file  (some-> params :file meta :js-file)
+          form (js/FormData.)]
+      (.append form "file" js-file)
+      (.append form "id" (util/transit-clj->str id))
+      (asoc req :body form :headers {} :method :post))))
+
+(def file-upload-middleware (wrap-file-upload))
+
+; client creation
+(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {})
+                                   :file-upload (net/fulcro-http-remote {:url "/file-uploads"
+                                                                         :request-middleware file-upload-middleware})})
+
+; an input triggering upload(s)
+(let [onChange (fn [evt]
+                 (let [js-file-list (.. evt -target -files)]
+                   (prim/transact! this
+                     (mapv (fn [file-idx]
+                             (let [fid     (prim/tempid)
+                                   js-file (with-meta {} {:js-file (.item js-file-list file-idx)})]
+                               `(upload-file ~{:id fid :file js-file})))
+                       (range (.-length js-file-list))))))]
+  (dom/input #js {:multiple true :onChange onChange}))
+```
+
+The server for this would need middleware watching for file uploads at `/file-uploads`, that
+returns a transit+json encoded map for the mutation:
+
+```
+{`upload-file {:tempids {file-temp-id newly-assigned-id}}}
+```
+
+== Response Middleware
+
+The response will, by default, be sent through the pre-written middleware function `fulcro.client.network/wrap-fulcro-response`
+which contains the logic to properly decode an API response (which is essentially just a transit decode). If you specify
+response middleware you will want to compose that middleware in or normal API responses won't work.
+
+Raw responses from the remote will include:
+
+* `:body` - The data that will be given back to Fulcro as the response from the server
+* `:transaction` - The transaction that body is a response to. If you modify this for queries you can manipulate the final merge.
+* `:status-code` - The HTTP status code
+* `:status-text` - The HTTP status text
+* `:error` - An error code. Typically one of `:network-error`, `:http-error`, `:timeout`, etc.
+* `:error-text` - A string describing the error
+* `:outgoing-request` - The request that this is a response to.
+
+The final response body and transaction combo will be given to Fulcro for merge. If you modify
+the transaction be sure to use a query from components so that normalization is done properly.
+
+Response middleware is allowed to rewrite an errant response to an OK one (by clearing the error fields and
+setting :status-code to 200). This would allow you, for example, to merge
+specific errors into state as you see fit instead of relying on Fulcro's built-in error handling model.
+
+= The Client Network Layer (DEPRECATED)
 
 == Adding Additional Remotes
 
@@ -10250,7 +10513,7 @@ don't need to read) you could allow the user to continue working and the pending
 in sequence once the network returns. However, without more novel history management you might not be able to
 respond to API errors in a way that makes sense to the user.
 
-== Chat Demo (outdated)
+== Chat Demo
 
 There is a full https://github.com/fulcrologic/websocket-demo[chat demo application] on github.
 
@@ -11275,7 +11538,7 @@ a generated `pom.xml` as well as a `project.clj` file, or your project might get
 
 == Sample Project
 
-The [fulcro-template](http://github.com/fulcrologic/fulcro-template) is pre-configured for easy deployment to Heroku.
+The http://github.com/fulcrologic/fulcro-template[fulcro-template] is pre-configured for easy deployment to Heroku.
 
 = Converting HTML to Fulcro
 
@@ -11825,7 +12088,7 @@ and render them both. Something like this will work:
 === Changing the Visible Screen
 
 This is now a component that can display whichever screen is currently active. The `fulcro.client.routing` namespace
-includes a helper functions called `set-route` that can be composed into a mutation to change the current screen of
+includes a helper functions called `set-route*` that can be composed into a mutation to change the current screen of
 a router:
 
 ```
@@ -11833,7 +12096,7 @@ a router:
   "Select the given tab"
   [{:keys [tab]}]
   (action [{:keys [state]}]
-    (swap! state routing/set-route :main-router [tab :singleton])))
+    (swap! state routing/set-route* :main-router [tab :singleton])))
 ```
 
 Of course, we could also be using the routing tree mechanisms, which would be similar (though you'd use the
@@ -11856,7 +12119,7 @@ updates with that same mutation:
   (action [{:keys [state]}]
     (swap! state (fn [s]
                    (-> s
-                     (routing/set-route :main-router [tab :singleton])
+                     (routing/set-route* :main-router [tab :singleton])
                      (b/set-active-nav-link* :main-nav tab))))))
 ```
 
@@ -12205,7 +12468,7 @@ for building that, so the mutation just looks like this:
 
 ```
 (m/defmutation choose-tab [{:keys [tab]}]
-  (action [{:keys [state]}] (swap! state r/set-route :ui-router [tab :tab])))
+  (action [{:keys [state]}] (swap! state r/set-route* :ui-router [tab :tab])))
 ```
 
 The transaction to go to the settings tab is more interesting. It switches tabs but also runs another mutation to

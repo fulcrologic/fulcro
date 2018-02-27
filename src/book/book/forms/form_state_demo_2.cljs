@@ -122,9 +122,9 @@
   (let [phone-ident      [:phone/by-id phone-id]
         new-phone-entity {:db/id phone-id ::phone-type type ::phone-number number}]
     (-> state-map
-      (update-in [:person/by-id person-id ::phone-numbers] (fnil conj []) phone-ident) ; add the phone ident to the person
-      (assoc-in phone-ident new-phone-entity))))            ; add the phone to the db table
-
+      (update-in [:person/by-id person-id ::phone-numbers] (fnil conj []) phone-ident)
+      (assoc-in phone-ident new-phone-entity)
+      (add-phone-dropdown* phone-id type))))
 
 (defmutation add-phone
   "Mutation: Add a phone number to a person, and initialize it as a working form."
@@ -133,9 +133,8 @@
     (let [phone-id (prim/tempid)]
       (swap! state (fn [s]
                      (-> s
-                       (add-phone* phone-id person-id :home "") ; add the actual data
-                       (add-phone-dropdown* phone-id :home) ; add the dropdown for the form
-                       (fs/add-form-config* PhoneForm [:phone/by-id phone-id]))))))) ; add the form config itself
+                       (add-phone* phone-id person-id :home "")
+                       (fs/add-form-config* PhoneForm [:phone/by-id phone-id])))))))
 
 (defsc PersonForm [this {:keys [:db/id ::phone-numbers]}]
   {:query       [:db/id ::person-name ::person-age
@@ -169,7 +168,7 @@
         (fn [s] (-> s
                   (add-person* person-id "" 0)
                   (add-phone* phone-id person-id :home "")
-                  (assoc :root/person person-ident) ; join it into the UI as the person to edit
+                  (assoc :root/person person-ident)         ; join it into the UI as the person to edit
                   (fs/add-form-config* PersonForm [:person/by-id person-id])))))))
 
 (defn add-dropdowns* [state-map person-id]
@@ -191,7 +190,7 @@
                 (fs/add-form-config* PersonForm [:person/by-id person-id]) ; will not re-add config to entities that were present
                 (fs/entity->pristine* [:person/by-id person-id]) ; in case we're re-loading it, make sure the pristine copy it up-to-date
                 (fs/mark-complete* [:person/by-id person-id]) ; it just came from server, so all fields should be valid
-                (add-dropdowns* person-id)))))) ; each phone number needs a dropdown
+                (add-dropdowns* person-id))))))             ; each phone number needs a dropdown
 
 (defmutation submit-person [{:keys [id]}]
   (action [{:keys [state]}]

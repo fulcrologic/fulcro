@@ -43,7 +43,7 @@
      (swap! figwheel component/start)
      (fig/cljs-repl (:figwheel-system @figwheel)))))
 
-(set-refresh-dirs "src/main" "src/test" "src/dev" "src/tutorial")
+(set-refresh-dirs "src/main" "src/test" "src/dev" "src/tutorial" "src/cards")
 
 (defn run-upload-server
   "Load and start the server that can handle the file upload form examples."

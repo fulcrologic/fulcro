@@ -3,6 +3,7 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.impl.data-fetch :as dfi]
     [fulcro.client.util :as util]
+    [fulcro.client.network :as net]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [clojure.test :refer [is are]]
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
@@ -683,19 +684,31 @@
         @vectarget-state-atom => {:obj {1 {:boo [[:x 1]]}}}))))
 
 (specification "Splits items to load by join key / ident kind."
-  (let [q-a-x  {::prim/query [{:a [:x]}]}
-        q-a-y  {::prim/query [{:a [:y]}]}
-        q-a-z  {::prim/query [{:a [:z]}]}
-        q-a-w  {::prim/query [{:a [:w]}]}
-        q-b-x  {::prim/query [{:b [:x]}]}
-        q-c-x  {::prim/query [{[:c 999] [:x]}]}
-        q-c-y  {::prim/query [{[:c 999] [:y]}]}
-        q-c-z  {::prim/query [{[:c 998] [:z]}]}
-        q-c-w  {::prim/query [{[:c 998] [:w]}]}
-        q-ab-x {::prim/query [{:a [:x]} {:b [:x]}]}
-        q-bc-x {::prim/query [{:b [:x]} {:c [:x]}]}
-        q-cd-x {::prim/query [{:c [:x]} {:d [:x]}]}
-        q-de-x {::prim/query [{:d [:x]} {:e [:x]}]}]
+  (let [q-a-x       {::prim/query [{:a [:x]}]}
+        q-a-y       {::prim/query [{:a [:y]}]}
+        q-a-z       {::prim/query [{:a [:z]}]}
+        q-a-w       {::prim/query [{:a [:w]}]}
+        q-b-x       {::prim/query [{:b [:x]}]}
+        q-c-x       {::prim/query [{[:c 999] [:x]}]}
+        q-c-y       {::prim/query [{[:c 999] [:y]}]}
+        q-c-z       {::prim/query [{[:c 998] [:z]}]}
+        q-c-w       {::prim/query [{[:c 998] [:w]}]}
+        q-ab-x      {::prim/query [{:a [:x]} {:b [:x]}]}
+        q-bc-x      {::prim/query [{:b [:x]} {:c [:x]}]}
+        q-cd-x      {::prim/query [{:c [:x]} {:d [:x]}]}
+        q-de-x      {::prim/query [{:d [:x]} {:e [:x]}]}
+        q-1-abort-1 {::prim/query [{:x [:y]}] ::net/abort-id 1}
+        q-2-abort-1 {::prim/query [{:t [:n]}] ::net/abort-id 1}
+        q-3-abort-2 {::prim/query [{:z [:m]}] ::net/abort-id 2}]
+
+    (assertions
+      "ensures that queries without abort IDs are separated from those with abort IDs"
+      (dfi/split-items-ready-to-load [q-a-x q-1-abort-1]) => [[q-a-x] [q-1-abort-1]]
+      "allows non-conflicting reads with the same abort id to remain combined"
+      (dfi/split-items-ready-to-load [q-1-abort-1 q-2-abort-1]) => [[q-1-abort-1 q-2-abort-1] []]
+      "splits reads with differing abort IDs"
+      (dfi/split-items-ready-to-load [q-1-abort-1 q-3-abort-2]) => [[q-1-abort-1] [q-3-abort-2]])
+
     (assertions
       "loads all items immediately when no join key conflicts, preserving order"
       (dfi/split-items-ready-to-load [q-a-x]) => [[q-a-x] []]
@@ -717,12 +730,11 @@
 
       "defers loading when any key conflicts, preserving order where possible"
       (dfi/split-items-ready-to-load
-        [q-a-x q-a-y q-a-z
-         q-b-x
-         q-c-x q-c-y q-c-z]) => [[q-a-x q-b-x q-c-x] [q-a-y q-a-z q-c-y q-c-z]]
+        [q-a-x q-a-y q-a-z q-b-x q-c-x q-c-y q-c-z])
+      => [[q-a-x] [q-a-y q-a-z q-b-x q-c-x q-c-y q-c-z]]
 
       "defers loading when join keys partially conflict, preserving order where possible"
-      (dfi/split-items-ready-to-load [q-ab-x q-bc-x q-cd-x q-de-x]) => [[q-ab-x q-cd-x] [q-bc-x q-de-x]]
+      (dfi/split-items-ready-to-load [q-ab-x q-bc-x q-cd-x q-de-x]) => [[q-ab-x] [q-bc-x q-cd-x q-de-x]]
       (dfi/split-items-ready-to-load [q-bc-x q-de-x]) => [[q-bc-x q-de-x] []])))
 
 (specification "is-deferred-transaction?"
