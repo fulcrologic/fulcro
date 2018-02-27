@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
 :revdate: Feb 26, 2018
-:revnumber: 1.2
+:revnumber: 1.3
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -10545,6 +10545,63 @@ The new support:
 * Includes server tools to directly read locales from GNU gettext PO files (no more code generation).
 * Still supports string extraction from the compiled UI code.
 * Supports a pluggable message formatting system instead of being tied to FormatJS.
+
+== The Core API
+
+The following functions and macros make up the core of the API:
+
+[[Horizontal]]
+`tr`:: A macro that looks up the given string and returns the translation based on the current locale.
+`trc`:: A macro that looks up the given string with a translation context (note to the translator) and returns the translation based on the current locale.
+`trf`:: A macro that looks up the given string, and passes it and additional options through to a message formatter.
+`tr-unsafe`:: All three of the above have an `unsafe` version. The main three require literal strings for their arguments
+because string extraction won't work correctly otherwise. The unsafe versions are for situations where this is insufficient,
+but you still need some kind of marker to let you know where translation might be needed.
+
+Examples:
+
+```
+(tr "Hello") ; might return "Hola"
+(trc "Abbreviation for Male" "M") ; might return M (translator sees the other string as a note)
+(trf "Hi {name}" {:name n}) ; passes a translated version of "Hi {name}" to the message formatter along with the options map.
+
+(tr-unsafe current-selection) ; allows a non-literal to be sent through lookup. The possible values of current-selection will need to be extracted elsewhere.
+```
+
+=== Dealing with "Unsafe" Usage
+
+When you use an `unsafe` variant, it simply means that GNU gettext is not going to be able to extract a string
+(because extraction is a static analysis of compiled code). There are two common approaches for dealing with this.
+
+Usually, this comes up when you have something like a dropdown that needs to display translated strings. One approach
+is to simply call `tr` on the literal values in some unreachable code. Whitespace optimizations will *not* remove
+these, so extraction will find them, whereas advanced optimizations will see that they are not directly called and
+will remove them:
+
+```
+(defn do-not-call []
+  (tr "Yes") ; these are here for extraction only
+  (tr "No"))
+
+(def options {:yes "Yes" :no "No})
+
+(defn render-option [o]
+   (tr-unsafe (get options o)))
+```
+
+IMPORTANT: It is tempting to wrap the options in tr, but that is a bad idea.
+
+```
+(def options {:yes (tr "Yes") :no (tr "No")}) ; BAD IDEA!
+```
+
+This is a problem because your program can break for unexpected reasons. If you changed the locale before
+that code executed then your `options` map might contain the *translations* instead of the default locale keys
+(e.g. `{:yes "Oi" :no "Non"}`) which are *not* the correct keys for the later calls to `tr`!
+
+Remember that your string extraction is done against the real string you embed on the UI (your default locale), and
+those become the lookup keys for runtime. If you change those lookup keys based on the runtime locale, things will
+break.
 
 == Polyfills and Message Formatters
 
