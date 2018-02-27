@@ -1,5 +1,19 @@
 (ns fulcro.alpha.i18n
-  "An i18n rewrite. Current considered ALPHA."
+  "An i18n rewrite. Current considered ALPHA.
+
+  This support allows translations to stay in raw gettext PO file format, and be served as normal API data loads.
+
+  To use this support:
+
+  1. Use `tr`, `trf`, `trc`, etc. to embed messages in your UI.
+  2. Embed a locale selector, such as the one provided.
+  3. Configure your server to serve locales.
+  4. Compile the source of your application with whitespace optimizations.
+  5. Use `xgettext` (GNU CLI utility) to extract the strings from the js output of (4).
+        xgettext --from-code=UTF-8 --debug -k -ktr_alpha:1 -ktrc_alpha:1c,2 -ktrf_alpha:1 -o messages.pot application.js
+  6. Have translators generate PO files for each locale you desire, and place those where your server can serve them.
+
+  See the Developer's Guide for more details."
   #?(:cljs (:require-macros fulcro.alpha.i18n))
   (:require
     [fulcro.client.mutations :refer [defmutation]]
@@ -9,7 +23,9 @@
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [clojure.string :as str]
-    #?@(:clj ( [fulcro.gettext :as gt] [clojure.java.io :as io]))))
+    #?@(:clj (
+    [fulcro.gettext :as gt]
+    [clojure.java.io :as io]))))
 
 #?(:clj
    (defn load-locale
@@ -22,19 +38,24 @@
      "
      [po-dir locale]
      {:pre [(string? po-dir) (keyword? locale)]}
-     (let [po-file      (str po-dir "/" (name locale))
+     (let [po-file      (str po-dir "/" (name locale) ".po")
            input        (if (str/starts-with? po-file "/")
                           (io/as-file po-file)
                           (io/resource po-file))
-           translations (map gt/block->translation (gt/get-blocks input))]
-       {:msgctxt "Abbreviation for Monday" :msgid "M" :msgstr ""}
-       )))
+           translations (try
+                          (map gt/block->translation (gt/get-blocks input))
+                          (catch Throwable e
+                            (lg/error "Failed to load translations for locale " locale po-file e)
+                            nil))]
+       (when translations
+         {::locale       locale
+          ::translations (into {} (map (fn [t] [[(or (:msgctxt t) "") (:msgid t)] (:msgstr t)])) translations)}))))
 
 (defsc Locale
   "Represents the data of a locale in app state. Normalized by locale ID."
   [this props]
-  {:query         [::locale ::locale-name ::translations]
-   :initial-state {::locale :param/locale ::locale-name :param/name ::translations :param/translations}
+  {:query         [::locale :ui/locale-name ::translations]
+   :initial-state {::locale :param/locale :ui/locale-name :param/name ::translations :param/translations}
    :ident         [::locale-by-id ::locale]})
 
 (defmutation translations-loaded
@@ -72,8 +93,9 @@
 (defn t
   "Translate a string in the context of the given component.
 
-  INTERNAL USE: You should use `tr`, `trc`, or `trf`, as those enable string extraction. This function is an internal
-  implementation detail.
+  This is a general-purpose function for doing everything that tr, trc, and trf do; however, it does not allow for
+  source-level string extraction with GNU gettext. It is recommended that you use
+  use `tr`, `trc`, and such instead.
 
   Options is sent to the configured formatter, and may also include ::i18n/context to represent translation context.
   "
@@ -110,10 +132,96 @@
                      :onChange  (fn [evt] #?(:cljs (prim/transact! this `[(change-locale {:locale ~(locale-kw (.. evt -target -value))})])))
                      :value     locale}
       (map-indexed
-        (fn [i {:keys [::locale ::locale-name]}]
+        (fn [i {:keys [::locale :ui/locale-name]}]
           (dom/option #js {:key i :value locale} locale-name))
         available-locales))))
 
 (def ui-locale-selector (prim/factory LocaleSelector))
 
 
+#?(:clj
+   (defn tr-ssr [msg] (t msg))
+   :cljs
+   (set! js/tr_alpha (fn tr [msg] (t msg))))
+
+#?(:clj
+   (defn trc-ssr [ctxt msg] (t msg {::context ctxt}))
+   :cljs
+   (set! js/trc_alpha (fn [ctxt msg] (t msg {::context ctxt}))))
+
+#?(:clj
+   (defn trf-ssr
+     [fmt & rawargs]
+     (let [args   (if (and (map? (first rawargs)) (= 1 (count rawargs)))
+                    (first rawargs)
+                    (into {} (mapv vec (partition 2 rawargs))))
+           argmap (into {} (map (fn [[k v]] [(name k) v]) args))]
+       (t fmt argmap)))
+   :cljs
+   (set! js/trf_alpha
+     (fn trf [fmt & args]
+       (let [argmap (if (and (map? (first args)) (= 1 (count args)))
+                      (first args)
+                      (into {} (mapv vec (partition 2 args))))]
+         (t fmt argmap)))))
+
+#?(:clj
+   (defmacro tr-unsafe
+     "Look up the given message. Using this function without a literal string will make string extraction from source
+     impossible. This means you have to use some other mechanism to make sure the string ends up in translation
+     files (such as manually calling tr on the various raw string values elsewhere in your program)."
+     [msg]
+     (if (:ns &env) `(js/tr_alpha ~msg) `(tr-ssr ~msg))))
+
+#?(:clj
+   (defmacro tr
+     "Translate the given literal string. The argument MUST be a literal string so that it can be properly extracted
+     for use in gettext message files as the message key. This macro throws a detailed assertion error if you
+     violate this restriction. See trf for generating translations that require formatting (e.g. construction from
+     variables)."
+     [msg]
+     (let [{:keys [line]} (meta &form)
+           msg (if (string? msg)
+                 msg
+                 (str "ERROR: tr requires a literal string on line " line " in " (str *ns*)))]
+       (if (:ns &env) `(js/tr_alpha ~msg) `(tr-ssr ~msg)))))
+
+#?(:clj
+   (defmacro trc
+     "Same as tr, but include a context message to the translator. This is recommended when asking for a
+     translation to something vague.
+
+     For example:
+
+            (tr \"M\")
+
+     is the same as asking a translator to translate the letter 'M'.
+
+     Using:
+
+            (trc \"abbreviation for male gender\" \"M\")
+
+     lets the translator know what you want. Of course, the msg key is the default language value (US English)
+     "
+     [context msg]
+     (assert (and (string? context) (string? msg)) "Context and message must be literal strings for trc. Use trc-unsafe if you know what you're doing and actually need to do this.")
+     (if (:ns &env) `(js/trc_alpha ~context ~msg) `(trc-ssr ~context ~msg))))
+
+#?(:clj
+   (defmacro trc-unsafe
+     "Same as trc, but does not check for literal strings for arguments. THIS MEANS strings extraction from source for
+      these values will not be possible, and you will have to manually ensure they are included in translations."
+     [context msg]
+     (if (:ns &env) `(js/trc_alpha ~context ~msg) `(trc-ssr ~context ~msg))))
+
+#?(:clj
+   (defmacro trf
+     "Translate a format string, then use it to format a message with the given arguments. The format MUST be a literal
+     string for extraction by gettext. The arguments should a map of keyword/value pairs that will match the embedded
+     items to format.
+
+     (trf \"{name} owes {amount, currency)\" {:name who :amount amt})
+     "
+     [format & args]
+     (assert (string? format) "Format argument to trf must be a literal string.")
+     (if (:ns &env) `(js/trf_alpha ~format ~@args) `(trf-ssr ~format ~@args))))

@@ -7,19 +7,15 @@
             [fulcro.client.impl.parser :as p]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.data-fetch :as df]
-            [fulcro.alpha.i18n :as i18n :refer [t]]
+            [fulcro.alpha.i18n :as i18n :refer [tr trc trf]]
             [fulcro.client.logging :as log]))
 
 (def mock-server-networking (server/new-server-emulator))
 
 (defquery-root ::i18n/translations
   (value [env {:keys [locale]}]
+    ; in clj, you can put the PO files on the classpath or disk and use i18n/load-locale, which will return exactly this format
     {::i18n/locale       locale
-     ::i18n/locale-name  (case locale
-                           :es "Espanol"
-                           :de "Deutsch"
-                           :en "English"
-                           "Unknown")
      ::i18n/translations (cond
                            (= :es locale) {["" "Hello"]          "Ola"
                                            ["" "It is {n,date}"] "Es {n,date}"
@@ -32,9 +28,10 @@
   {:query         [:ui/checked?]
    :initial-state {:ui/checked? false}}
   (dom/div nil
-    (dom/p nil (t "Hello, {name}" {:name "Sam"}))
-    (dom/p nil (t "It is {n,date}" {:n (js/Date.)}))
-    (t "Hello")))
+    (dom/p nil (trf "Hello, {name}" {:name "Sam"}))
+    (dom/p nil (trf "It is {n,date}" {:n (js/Date.)}))
+    (dom/p nil (trc "Gender abbreviation" "M"))
+    (tr "Hello")))
 
 (def ui-child (prim/factory Child))
 
