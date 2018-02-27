@@ -8,7 +8,7 @@ small and tractable.
 
 2.3.1
 -----
-- Added fulcro.alpha.i18n. A rewrite-in-progress of i18n support.
+- Added fulcro.alpha.i18n. A rewrite of i18n support.
 
 2.3.0
 -----
