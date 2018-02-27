@@ -10571,9 +10571,10 @@ Examples:
 === Dealing with "Unsafe" Usage
 
 When you use an `unsafe` variant, it simply means that GNU gettext is not going to be able to extract a string
-(because extraction is a static analysis of compiled code). There are two common approaches for dealing with this.
+(because extraction is a static analysis of compiled code). One approach
+is simply to make notes for your translator. That approach isn't very scalable.
 
-Usually, this comes up when you have something like a dropdown that needs to display translated strings. One approach
+Usually, this comes up when you have something like a dropdown that needs to display translated strings. Another approach
 is to simply call `tr` on the literal values in some unreachable code. Whitespace optimizations will *not* remove
 these, so extraction will find them, whereas advanced optimizations will see that they are not directly called and
 will remove them:
@@ -10583,13 +10584,13 @@ will remove them:
   (tr "Yes") ; these are here for extraction only
   (tr "No"))
 
-(def options {:yes "Yes" :no "No})
+(def options {:yes "Yes" :no "No"})
 
 (defn render-option [o]
    (tr-unsafe (get options o)))
 ```
 
-IMPORTANT: It is tempting to wrap the options in tr, but that is a bad idea.
+WARNING: It is tempting to wrap the values of `options` in `tr`, but that is a bad idea.
 
 ```
 (def options {:yes (tr "Yes") :no (tr "No")}) ; BAD IDEA!
