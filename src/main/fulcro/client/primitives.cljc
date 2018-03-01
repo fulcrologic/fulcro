@@ -875,17 +875,12 @@
     expr))
 
 (defn- bind-query [query params]
-  (let [qm  (meta query)
-        tr  (map #(bind-query % params))
-        ret (cond
-              (seq? query) (apply list (into [] tr query))
-              #?@(:clj [(instance? clojure.lang.IMapEntry query) (into [] tr query)])
-              (coll? query) (into (empty query) tr query)
-              :else (replace-var query params))]
-    (cond-> ret
-      (and qm #?(:clj  (instance? clojure.lang.IObj ret)
-                 :cljs (satisfies? IMeta ret)))
-      (with-meta qm))))
+    (let [qm  (meta query)
+          ret (clojure.walk/prewalk #(replace-var % params) query)]
+      (cond-> ret
+        (and qm #?(:clj  (instance? clojure.lang.IObj ret)
+                   :cljs (satisfies? IMeta ret)))
+        (with-meta qm))))
 
 (defn component-name
   "Returns a string version of the given react component's name."
@@ -1061,9 +1056,8 @@
 
 (defn link-element [element]
   (prewalk (fn link-element-helper [ele]
-             (if-let [{:keys [queryid]} (meta ele)]
-               queryid
-               ele)) element))
+             (let [{:keys [queryid]} (meta ele)]
+               (if queryid queryid ele))) element))
 
 (defn deep-merge [& xs]
   "Merges nested maps without overwriting existing keys."
@@ -1076,7 +1070,7 @@
   Returns the new state map."
   [state-map query]
   (reduce (fn normalize-query-elements-reducer [state ele]
-            (let [parameterized? (list? ele)
+            (let [parameterized? (seq? ele) ; not using list? because it could show up as a lazyseq
                   raw-element    (if parameterized? (first ele) ele)]
               (cond
                 (util/union? raw-element) (let [union-alternates            (first (vals raw-element))
@@ -1120,15 +1114,15 @@
                   (nil? ui-factory-class-or-queryid) nil
                   (string? ui-factory-class-or-queryid) ui-factory-class-or-queryid
                   (some-> ui-factory-class-or-queryid meta (contains? :queryid)) (some-> ui-factory-class-or-queryid meta :queryid)
-                  :otherwise (query-id ui-factory-class-or-queryid nil))]
+                  :otherwise (query-id ui-factory-class-or-queryid nil))
+        setq*   (fn [state] (normalize-query (update state ::queries dissoc queryid) (with-meta query {:queryid queryid})))
+        setp*   (fn [state-map]
+                  (let [params (get-in state-map [::queries queryid :params] params)]
+                    (assoc-in state-map [::queries queryid :params] params)))]
     (if (string? queryid)
-      (do
-        ; we have to dissoc the old one, because normalize won't overwrite by default
-        (let [new-state (normalize-query (update state-map ::queries dissoc queryid) (with-meta query {:queryid queryid}))
-              params    (get-in new-state [::queries queryid :params] params)]
-          (if params
-            (assoc-in new-state [::queries queryid :params] params)
-            new-state)))
+      (cond-> state-map
+        (seq query) (setq*)
+        (map? params) (setp*))
       (do
         (log/error "Set query failed. There was no query ID.")
         state-map))))
