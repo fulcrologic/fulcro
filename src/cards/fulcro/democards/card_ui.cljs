@@ -1,6 +1,7 @@
 (ns fulcro.democards.card-ui
   (:require
     [clojure.spec.test.alpha :as st]
+    fulcro.democards.alpha.dom
     fulcro.democards.load-cards
     fulcro.democards.i18n-alpha-cards
     fulcro.democards.manual-tests-of-dynamic-queries
