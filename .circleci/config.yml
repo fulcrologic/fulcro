@@ -1,7 +1,8 @@
 version: 2
 jobs:
   cljs:
-    docker: image: circleci/clojure:lein-2.8.1-node-browsers
+    docker: 
+      - image: circleci/clojure:lein-2.8.1-node-browsers
     steps:
       - checkout
       - run: npm install 
