@@ -11,3 +11,10 @@ jobs:
     steps:
       - checkout
       - run: lein test-refresh :run-once
+workflows:
+  version: 2
+  fullstack:
+    jobs:
+      - clj
+      - cljs
+
