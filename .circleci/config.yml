@@ -8,7 +8,8 @@ jobs:
       - run: npm install 
       - run: lein doo firefox automated-tests once
   clj:
-    docker: image: circleci/clojure:lein-2.8.1-node-browsers
+    docker: 
+      - image: circleci/clojure:lein-2.8.1-node-browsers
     steps:
       - checkout
       - run: lein test-refresh :run-once
