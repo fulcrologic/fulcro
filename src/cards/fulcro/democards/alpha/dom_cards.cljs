@@ -1,4 +1,4 @@
-(ns fulcro.democards.alpha.dom
+(ns fulcro.democards.alpha.dom-cards
   (:require [devcards.core :as dc]
             [fulcro.client :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
