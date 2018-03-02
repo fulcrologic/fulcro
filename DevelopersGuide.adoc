@@ -3131,9 +3131,6 @@ at something valid.
 
 See https://facebook.github.io/react/docs/forms.html[React Forms] for more details.
 
-NOTE: Fulcro 2.0 and lower had wrapped inputs to fix some IE bugs. You can disable the wrapping in 2.0 with
-the JVM option `-DrawInputs`. Future versions will drop this legacy wrapping by default.
-
 == React Lifecycle Examples [[ReactLifecycle]]
 
 There are some common use-cases that can only be solved by working directly with the React Lifecycle methods.
@@ -3178,9 +3175,10 @@ This example could also cache that in component local state like this:
   ...
 ```
 
-WARNING: The wrapped inputs of Fulcro 2.0 and earlier do not work with the functional ref technique.
-The `ref` with a function only works on form elements in Fulcro 2.0.0 and older if you supply the
-JVM with `-DrawInputs`. This will become the default in later versions of Fulcro.
+However, The wrapped inputs of Fulcro 2.3.0 and earlier (which fixed a different issue with React) did
+not work with the functional ref technique (use strings and `dom/node`
+instead). *As of 2.3.1 this is fixed*, and while inputs still have the internal wrapping to prevent "lost keys" bugs,
+they work with both the older string support or functional refs.
 
 === Taking control of the sub-DOM (D3, etc)
 
