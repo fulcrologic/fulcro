@@ -3,18 +3,22 @@
             [fulcro.client :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.dom :as old-dom]
-            [fulcro.client.alpha.dom :as dom]
+            [fulcro.client.alpha.dom :as dom :refer [div span]]
             [goog.object :as gobj]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]))
 
 (defsc AttrStatic [this props]
-  (dom/div nil
-    (dom/div nil "Attr is nil")
-    (dom/div {} "Attr is empty object")
-    (dom/div #js {} "Attr is empty js-object")
-    (dom/div {:className "foo"} "Attr adds css class")
-    (dom/div {:style #js {:backgroundColor "red"}} "Attr has nested inline style")))
+  (div
+    (div "Attr is missing with a string child")
+    (div
+      (span "attrs missing with a child element 1,")
+      (span " and a child element 2"))
+    (div nil "Attr is nil")
+    (div {} "Attr is empty object")
+    (div #js {} "Attr is empty js-object")
+    (div {:className "foo"} "Attr adds css class")
+    (div {:style #js {:backgroundColor "red"}} "Attr has nested inline style")))
 
 (defcard-fulcro attr-static-enumeration
   "These attrs can be reasoned about at compile time."
@@ -26,12 +30,12 @@
         z          #js {}
         klass-info {:className "foo"}
         styles     #js {:backgroundColor "red"}]
-    (dom/div nil
-      (dom/div x "Attr is nil")
-      (dom/div y "Attr is empty object")
-      (dom/div z "Attr is empty js-object")
-      (dom/div klass-info "Attr adds css class")
-      (dom/div {:style styles} "Attr has nested inline style"))))
+    (div
+      (div x "Attr is nil")
+      (div y "Attr is empty object")
+      (div z "Attr is empty js-object")
+      (div klass-info "Attr adds css class")
+      (div {:style styles} "Attr has nested inline style"))))
 
 (defcard-fulcro attr-symbolic-enumeration
   "Part or all of these attrs are symbolic and resolved at runtime."
