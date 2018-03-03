@@ -18,24 +18,26 @@
     (div {} "Attr is empty object")
     (div #js {} "Attr is empty js-object")
     (div {:className "foo"} "Attr adds css class")
-    (div {:style #js {:backgroundColor "red"}} "Attr has nested inline style")))
+    (div {:style {:backgroundColor "red"}} "Attr has nested inline style")))
 
 (defcard-fulcro attr-static-enumeration
   "These attrs can be reasoned about at compile time."
   AttrStatic)
 
 (defsc AttrSymbolic [this props]
-  (let [x          nil
-        y          {}
-        z          #js {}
-        klass-info {:className "foo"}
-        styles     #js {:backgroundColor "red"}]
+  (let [x             nil
+        y             {}
+        z             #js {}
+        klass-info    {:className "foo"}
+        styles        {:backgroundColor "red"}
+        symbolic-attr {:style {:backgroundColor "green"}}]
     (div
       (div x "Attr is nil")
       (div y "Attr is empty object")
       (div z "Attr is empty js-object")
       (div klass-info "Attr adds css class")
-      (div {:style styles} "Attr has nested inline style"))))
+      (div {:style styles} "Attr has nested inline symbolic style")
+      (div symbolic-attr "Attr has nested inline style and is all symbolic"))))
 
 (defcard-fulcro attr-symbolic-enumeration
   "Part or all of these attrs are symbolic and resolved at runtime."
