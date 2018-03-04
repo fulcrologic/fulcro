@@ -709,13 +709,18 @@
                     m)))
 
 #?(:clj
-   (s/def ::dom-element-args (s/cat
-                              :css (s/? keyword?)
-                              :attrs (s/? (s/or :nil       nil?
-                                                :map       map?
-                                                :js-object #(instance? JSValue %)
-                                                :symbol    symbol?))
-                              :children (s/* any?))))
+   (s/def ::dom-element-args
+     (s/cat
+      :css (s/? keyword?)
+      :attrs (s/? (s/or :nil       nil?
+                        :map       map?
+                        :js-object #(instance? JSValue %)
+                        :symbol    symbol?))
+      :children (s/* (s/or :string string?
+                           :number number?
+                           :symbol symbol?
+                           :nil    nil?
+                           :list   list?)))))
 
 #?(:clj
    (defn merge-css [attr-map id classes]
@@ -734,6 +739,7 @@
               {attrs#    :attrs
                children# :children
                css#      :css} conformed-args#
+              children#        (mapv second children#)
 
               attrs-type#  (or (first attrs#) :nil) ; attrs omitted == nil
               attrs-value# (or (second attrs#) {})
