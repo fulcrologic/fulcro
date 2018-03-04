@@ -723,12 +723,11 @@
                            :list   list?)))))
 
 #?(:clj
-   (defn merge-css [attr-map id classes]
-     (let [classes-in-map (or (:class attr-map)
-                              (:className attr-map))
-           id-in-map      (:id attr-map)]
+   (defn compiler-merge-css [attr-map {:keys [id className]}]
+     (let [className-in-map (:className attr-map)
+           id-in-map        (:id attr-map)]
        (assoc attr-map
-              :className (str classes-in-map " " classes)
+              :className (str className-in-map " " className)
               :id (or id id-in-map)))))
 
 #?(:clj
@@ -739,13 +738,11 @@
               {attrs#    :attrs
                children# :children
                css#      :css} conformed-args#
-              children#        (mapv second children#)
 
+              children#    (mapv second children#)
               attrs-type#  (or (first attrs#) :nil) ; attrs omitted == nil
               attrs-value# (or (second attrs#) {})
-
-              {css-id#      :id
-               class-names# :classes} (css/parse css#)
+              css#         (css/parse css#)
 
               cljs?# (boolean (:ns ~'&env))]
           (if cljs?#
@@ -757,24 +754,20 @@
               :map
               `(fulcro.client.alpha.dom/macro-create-element*
                 ~(JSValue. (into [tag# (-> attrs-value#
-                                           (merge-css css-id# class-names#)
+                                           (compiler-merge-css css#)
                                            clj-map->js-object)]
                                  children#)))
 
               :nil
               `(fulcro.client.alpha.dom/macro-create-element*
-                ~(JSValue. (into [tag# (JSValue. {:className class-names#
-                                                  :id        css-id#})]
-                                 children#)))
+                ~(JSValue. (into [tag# (JSValue. css#)] children#)))
 
               `(fulcro.client.alpha.dom/macro-create-element
-                ~tag# ~(JSValue. (into [attrs-value#] children#))
-                ~{:className class-names#
-                  :id        css-id#}))
+                ~tag# ~(JSValue. (into [attrs-value#] children#)) ~css#))
             `(element {:tag       (quote ~name)
                        :attrs     (-> ~'attrs-value#
                                       (dissoc :ref :key)
-                                      (merge-css css-id# class-names#))
+                                      (compiler-merge-css css#))
                        :react-key (:key ~'attrs-value#)
                        :children  ~'children#}))))))
 

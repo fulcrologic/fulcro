@@ -14,13 +14,13 @@
   "Parse CSS shorthand keyword and return map of id/classes.
 
   (parse :.klass3#some-id.klass1.klass2)
-  => {:id      \"some-id\"
-      :classes \"klass3 klass1 klass2\"}"
+  => {:id        \"some-id\"
+      :className \"klass3 klass1 klass2\"}"
   [k]
   (if k
-    (let [tokens (get-tokens k)
+    (let [tokens  (get-tokens k)
           id      (->> tokens (filter #(re-matches #"^#.*" %)) first)
           classes (->> tokens (filter #(re-matches #"^\..*" %)))]
-      {:id      (remove-separators id)
-       :classes (str/join " " (map remove-separators classes))})
+      {:id        (remove-separators id)
+       :className (str/join " " (map remove-separators classes))})
     {}))
