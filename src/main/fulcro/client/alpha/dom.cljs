@@ -70,31 +70,45 @@
 (defn arr-append [arr tail]
   (reduce arr-append* arr tail))
 
+(defn add-css [attr-map {:keys [id className]}]
+  (let [classes-in-map (or (:class attr-map)
+                           (:className attr-map))
+        id-in-map      (:id attr-map)]
+    (assoc attr-map
+           :className (str classes-in-map " " className)
+           :id (or id id-in-map))))
+
 ;; fallback if the macro didn't do this
-(defn macro-create-element [type args]
-  (let [[head & tail] args]
-    (cond
-      (map? head)
-      (macro-create-element*
-        (doto #js [type (convert-props head)]
+(defn macro-create-element
+  ([type args] (macro-create-element type args {}))
+  ([type args css]
+   (let [[head & tail] args]
+     (cond
+       (map? head)
+       (macro-create-element*
+        (doto #js [type (clj->js (add-css head css))]
           (arr-append tail)))
 
-      (nil? head)
-      (macro-create-element*
+       (nil? head)
+       (macro-create-element*
+        ;; TODO add css
         (doto #js [type nil]
           (arr-append tail)))
 
-      (element? head)
-      (macro-create-element*
+       (element? head)
+       ;; TODO add css
+       (macro-create-element*
         (doto #js [type nil]
           (arr-append args)))
 
-      (object? head)
-      (macro-create-element*
+       (object? head)
+       ;; TODO add css
+       (macro-create-element*
         (doto #js [type head]
           (arr-append tail)))
 
-      :else
-      (macro-create-element*
+       :else
+       ;; TODO add css
+       (macro-create-element*
         (doto #js [type nil]
-          (arr-append args))))))
+          (arr-append args)))))))

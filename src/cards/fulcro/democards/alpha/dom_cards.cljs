@@ -15,7 +15,7 @@
       (span "attrs missing with a child element 1,")
       (span " and a child element 2"))
     (div nil "Attr is nil")
-    (div {} "Attr is empty object")
+    (div {} "Attr is empty map")
     (div #js {} "Attr is empty js-object")
     (div {:className "foo"} "Attr adds css class")
     (div {:style {:backgroundColor "red"}} "Attr has nested inline style")))
@@ -33,7 +33,7 @@
         symbolic-attr {:style {:backgroundColor "green"}}]
     (div
       (div x "Attr is nil")
-      (div y "Attr is empty object")
+      (div y "Attr is empty map")
       (div z "Attr is empty js-object")
       (div klass-info "Attr adds css class")
       (div {:style styles} "Attr has nested inline symbolic style")
@@ -42,6 +42,25 @@
 (defcard-fulcro attr-symbolic-enumeration
   "Part or all of these attrs are symbolic and resolved at runtime."
   AttrSymbolic)
+
+(defsc CssShorthand [this props]
+  (let [symbolic-attr {:style {:backgroundColor "yellow"}} ]
+    (div
+      (dom/style "#the-id {background-color: coral;}")
+      (dom/style ".border-klass {border-style: solid;}")
+      (dom/style ".color-klass {background-color: pink;}")
+
+      (div :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
+      (div :.border-klass {:className "color-klass"}
+        "Has a shorthand CSS for border class and pink color class in attrs")
+      (div :.border-klass {:style {:backgroundColor "violet"}}
+        "Has a shorthand CSS for border class and violet background inline styles")
+      (div :.border-klass symbolic-attr
+        "Has a shorthand CSS for border class and yellow background symbolic inline styles"))))
+
+(defcard-fulcro css-shorthand
+  "These dom elements use the CSS id/class (both shorthand and in attrs) with style tags."
+  CssShorthand)
 
 (defsc Form [this {:keys [:db/id :form/value] :as props}]
   {:query             [:db/id :form/value]

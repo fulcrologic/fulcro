@@ -3,8 +3,12 @@
   #?(:clj
      (:require [clojure.string :as str]
                [fulcro.client.impl.protocols :as p]
+               [clojure.spec.alpha :as s]
+               [clojure.future :refer :all]
                [clojure.core.reducers :as r]
                [clojure.walk :as walk]
+               [fulcro.util :as util]
+               [fulcro.client.alpha.css-parser :as css]
                [fulcro.checksums :as chk]))
   #?(:clj (:import (cljs.tagged_literals JSValue))))
 
@@ -705,29 +709,68 @@
                     m)))
 
 #?(:clj
+   (s/def ::dom-element-args (s/cat
+                              :css (s/? keyword?)
+                              :attrs (s/? (s/or :nil       nil?
+                                                :map       map?
+                                                :js-object #(instance? JSValue %)
+                                                :symbol    symbol?))
+                              :children (s/* any?))))
+
+#?(:clj
+   (defn merge-css [attr-map id classes]
+     (let [classes-in-map (or (:class attr-map)
+                              (:className attr-map))
+           id-in-map      (:id attr-map)]
+       (assoc attr-map
+              :className (str classes-in-map " " classes)
+              :id (or id id-in-map)))))
+
+#?(:clj
    (defn gen-dom-macro [name]
      `(defmacro ~name [& args#]
-        (let [tag#            ~(str name)
-              [head# & tail#] args#
+        (let [tag#             ~(str name)
+              conformed-args#  (util/conform! ::dom-element-args args#)
+              {attrs#    :attrs
+               children# :children
+               css#      :css} conformed-args#
+
+              attrs-type#  (or (first attrs#) :nil) ; attrs omitted == nil
+              attrs-value# (or (second attrs#) {})
+
+              {css-id#      :id
+               class-names# :classes} (css/parse css#)
+
               cljs?# (boolean (:ns ~'&env))]
           (if cljs?#
-            (cond
-             (instance? JSValue head#)
-             `(fulcro.client.alpha.dom/macro-create-element* ~(JSValue. (into [tag# head#] tail#)))
+            (case attrs-type#
+              :js-object
+              `(fulcro.client.alpha.dom/macro-create-element*
+                ~(JSValue. (into [tag# attrs-value#] children#)))
 
-             (map? head#)
-             `(fulcro.client.alpha.dom/macro-create-element*
-               ~(JSValue. (into [tag# (clj-map->js-object head#)] tail#)))
+              :map
+              `(fulcro.client.alpha.dom/macro-create-element*
+                ~(JSValue. (into [tag# (-> attrs-value#
+                                           (merge-css css-id# class-names#)
+                                           clj-map->js-object)]
+                                 children#)))
 
-             (= 'nil head#)
-             `(fulcro.client.alpha.dom/macro-create-element* ~(JSValue. (into [tag# nil] tail#)))
+              :nil
+              `(fulcro.client.alpha.dom/macro-create-element*
+                ~(JSValue. (into [tag# (JSValue. {:className class-names#
+                                                  :id        css-id#})]
+                                 children#)))
 
-             :else
-             `(fulcro.client.alpha.dom/macro-create-element ~tag# ~(JSValue. args#)))
+              `(fulcro.client.alpha.dom/macro-create-element
+                ~tag# ~(JSValue. (into [attrs-value#] children#))
+                ~{:className class-names#
+                  :id        css-id#}))
             `(element {:tag       (quote ~name)
-                       :attrs     (dissoc ~'head :ref :key)
-                       :react-key (:key ~'head)
-                       :children  ~'tail}))))))
+                       :attrs     (-> ~'attrs-value#
+                                      (dissoc :ref :key)
+                                      (merge-css css-id# class-names#))
+                       :react-key (:key ~'attrs-value#)
+                       :children  ~'children#}))))))
 
 #?(:clj
    (defmacro gen-dom-macros []
