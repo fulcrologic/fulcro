@@ -81,7 +81,7 @@
 ;; fallback if the macro didn't do this
 (defn macro-create-element
   ([type args] (macro-create-element type args {}))
-  ([type args css]
+  ([type args {:keys [id className] :as css}]
    (let [[head & tail] args]
      (cond
        (map? head)
@@ -91,24 +91,20 @@
 
        (nil? head)
        (macro-create-element*
-        ;; TODO add css
-        (doto #js [type nil]
+        (doto #js [type #js {:id id :className className}]
           (arr-append tail)))
 
        (element? head)
-       ;; TODO add css
        (macro-create-element*
-        (doto #js [type nil]
+        (doto #js [type #js {:id id :className className}]
           (arr-append args)))
 
        (object? head)
-       ;; TODO add css
        (macro-create-element*
         (doto #js [type head]
           (arr-append tail)))
 
        :else
-       ;; TODO add css
        (macro-create-element*
-        (doto #js [type nil]
+        (doto #js [type #js {:id id :className className}]
           (arr-append args)))))))

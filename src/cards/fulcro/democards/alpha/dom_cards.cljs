@@ -44,7 +44,8 @@
   AttrSymbolic)
 
 (defsc CssShorthand [this props]
-  (let [symbolic-attr {:style {:backgroundColor "yellow"}} ]
+  (let [x             nil
+        symbolic-attr {:style {:backgroundColor "yellow"}} ]
     (div
       (dom/style "#the-id {background-color: coral;}")
       (dom/style ".border-klass {border-style: solid;}")
@@ -55,6 +56,10 @@
         "Has a shorthand CSS for border class and pink color class in attrs")
       (div :.border-klass {:style {:backgroundColor "violet"}}
         "Has a shorthand CSS for border class and violet background inline styles")
+      (div :.border-klass x
+        "Has a shorthand CSS for border class and symbolic nil attrs")
+      (div :.border-klass nil
+        "Has a shorthand CSS for border class and nil attrs")
       (div :.border-klass symbolic-attr
         "Has a shorthand CSS for border class and yellow background symbolic inline styles"))))
 
