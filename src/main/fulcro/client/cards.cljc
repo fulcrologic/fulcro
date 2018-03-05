@@ -2,6 +2,7 @@
   #?(:cljs (:require-macros fulcro.client.cards))           ; this enables implicit macro loading
   (:require
     fulcro.client
+    [fulcro.client.primitives :as prim]
     fulcro.util))
 
 ; At the time of this writing, devcards is not server-rendering compatible, and dom-node is a cljs-only thing.
@@ -91,3 +92,19 @@
              fulcro-options (reduce concat fulcro-kvpairs)]
          (devcards.core/card vname docu `(fulcro-application ~app-sym ~root-component ~@fulcro-options) initial-data options)))))
 
+#?(:cljs
+   (defn make-root
+     "Make a root for use in a devcard. This allows you to embed a component with an ident into a devcard without having
+     to manually create a placeholder root component. The params are passed to `get-initial-state` of the component
+     class."
+     [component-class params]
+     (prim/ui
+       static prim/InitialAppState
+       (initial-state [t p] {:ROOT (prim/get-initial-state component-class params)})
+       static prim/IQuery
+       (query [this] [{:ROOT (prim/get-query component-class)}])
+       Object
+       (render [this]
+         (let [f (prim/factory component-class)
+               p (get (prim/props this) :ROOT)]
+           (f p))))))

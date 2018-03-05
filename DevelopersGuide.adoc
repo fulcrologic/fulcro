@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
 :revdate: Feb 26, 2018
-:revnumber: 1.2
+:revnumber: 1.3
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -3131,9 +3131,6 @@ at something valid.
 
 See https://facebook.github.io/react/docs/forms.html[React Forms] for more details.
 
-NOTE: Fulcro 2.0 and lower had wrapped inputs to fix some IE bugs. You can disable the wrapping in 2.0 with
-the JVM option `-DrawInputs`. Future versions will drop this legacy wrapping by default.
-
 == React Lifecycle Examples [[ReactLifecycle]]
 
 There are some common use-cases that can only be solved by working directly with the React Lifecycle methods.
@@ -3178,9 +3175,10 @@ This example could also cache that in component local state like this:
   ...
 ```
 
-WARNING: The wrapped inputs of Fulcro 2.0 and earlier do not work with the functional ref technique.
-The `ref` with a function only works on form elements in Fulcro 2.0.0 and older if you supply the
-JVM with `-DrawInputs`. This will become the default in later versions of Fulcro.
+However, The wrapped inputs of Fulcro 2.3.0 and earlier (which fixed a different issue with React) did
+not work with the functional ref technique (use strings and `dom/node`
+instead). *As of 2.3.1 this is fixed*, and while inputs still have the internal wrapping to prevent "lost keys" bugs,
+they work with both the older string support or functional refs.
 
 === Taking control of the sub-DOM (D3, etc)
 
@@ -4091,17 +4089,18 @@ For more on mutations see the chapter on <<MutationsChapter, Handling Mutations>
 When starting any application one thing has to be done before just about anything else: Establish a starting state. In Fulcro
 this just means generating a client-side application database (normalized). Other parts of this guide have talked about
 the <<GraphDB, Graph Database>>. You can well imagine that hand-coding one of these for a large application's starting
-state could be kind of a pain. Actually, coding it would turn out to be less of a pain than maintaining such
-a hand-coded thing it as you refactor and evolve your UI!
+state could be kind of a pain. Actually, even though coding it would be a pain, it turns out that the *bigger* pain
+happens later when you want to refactor! That can become a real mess!
 
-However, Fulcro already knows how to normalize a tree of data, and your UI is the tree you're interested in. So, Fulcro
-encourages you to co-locate initial application state with the components that need the state and compose it towards
-the root, just like you do for queries. This gives some nice results:
+However, Fulcro already knows how to normalize a tree of data, and your UI is already the tree you're interested in.
+So, Fulcro encourages you to co-locate initial application state with the components that need the state and compose
+it towards the root, just like you do for queries. This gives some nice results:
 
-* Your initial application state is reasoned about local to each component, just like the queries.
+* Your initial application state is reasoned about locally to each component, just like the queries.
 * Refactoring the UI just means modifying the *local* composition of queries and initial state from one place
 to another in the UI.
-* Fulcro understands unions (you can only initialize one branch of a to-one relation), and can scan for and initialize alternate branches.
+* Fulcro understands unions (you can only initialize one branch of a to-one relation), and can scan
+for and initialize alternate branches.
 
 == Adding Initial State to Components
 
@@ -10530,7 +10529,325 @@ You should port to using the raw `sente-message` for this concern.
 want that, then store your application in a top level atom (e.g. `app`) and use this as your new `push-method` parameter
 when creating the networking: `(fn [m] (when @app (fulcro.websockets.networking/push-received @app m)))`.
 
-= Internationalization
+= Internationalization 2 (ALPHA) [[I18NAlpha]]
+
+Fulcro has had internationalization support since inception. That original support worked well from the call-site; however,
+many lessons were learned about storing, transmitting, and structuring the actual data.
+An internal rewrite is now available in `fulcro.alpha.i18n`. This support improves the failing of the prior support, while
+still using the same basic calls from the UI.
+
+The new support:
+
+* Leverages normal application state as the location to house loaded translations.
+* Allows the server to serve locales via a normal query.
+* Includes server tools to directly read locales from GNU gettext PO files (no more code generation).
+* Still supports string extraction from the compiled UI code.
+* Supports a pluggable message formatting system instead of being tied to FormatJS.
+
+== The Core API
+
+The following functions and macros make up the core of the API:
+
+[[Horizontal]]
+`tr`:: A macro that looks up the given string and returns the translation based on the current locale.
+`trc`:: A macro that looks up the given string with a translation context (note to the translator) and returns the translation based on the current locale.
+`trf`:: A macro that looks up the given string, and passes it and additional options through to a message formatter.
+`tr-unsafe`:: All three of the above have an `unsafe` version. The main three require literal strings for their arguments
+because string extraction won't work correctly otherwise. The unsafe versions are for situations where this is insufficient,
+but you still need some kind of marker to let you know where translation might be needed.
+
+Examples:
+
+```
+(tr "Hello") ; might return "Hola"
+(trc "Abbreviation for Male" "M") ; might return M (translator sees the other string as a note)
+(trf "Hi {name}" {:name n}) ; passes a translated version of "Hi {name}" to the message formatter along with the options map.
+
+(tr-unsafe current-selection) ; allows a non-literal to be sent through lookup. The possible values of current-selection will need to be extracted elsewhere.
+```
+
+=== Dealing with "Unsafe" Usage
+
+When you use an `unsafe` variant, it simply means that GNU gettext is not going to be able to extract a string
+(because extraction is a static analysis of compiled code). One approach
+is simply to make notes for your translator. That approach isn't very scalable.
+
+Usually, this comes up when you have something like a dropdown that needs to display translated strings. Another approach
+is to simply call `tr` on the literal values in some unreachable code. Whitespace optimizations will *not* remove
+these, so extraction will find them, whereas advanced optimizations will see that they are not directly called and
+will remove them:
+
+```
+(defn do-not-call []
+  (tr "Yes") ; these are here for extraction only
+  (tr "No"))
+
+(def options {:yes "Yes" :no "No"})
+
+(defn render-option [o]
+   (tr-unsafe (get options o)))
+```
+
+WARNING: It is tempting to wrap the values of `options` in `tr`, but that is a bad idea.
+
+```
+(def options {:yes (tr "Yes") :no (tr "No")}) ; BAD IDEA!
+```
+
+This is a problem because your program can break for unexpected reasons. If you changed the locale before
+that code executed then your `options` map might contain the *translations* instead of the default locale keys
+(e.g. `{:yes "Oi" :no "Non"}`) which are *not* the correct keys for the later calls to `tr`!
+
+Remember that your string extraction is done against the real string you embed on the UI (your default locale), and
+those become the lookup keys for runtime. If you change those lookup keys based on the runtime locale, things will
+break.
+
+== Polyfills and Message Formatters
+
+Fulcro's i18n support is designed to make it easy to code and extract translatable strings in your UI. It is not, itself,
+interested in doing message, number, currency, or date formatting. There are plenty of libraries, including Google Closure,
+that can already fill that role.
+
+Fulcro does one central task: it takes a string in the UI, looks up an alternate string (based on the locale) from a PO
+file, and pushes that alternate string through the rest of the i18n processing chain (which you define).
+
+The macro:
+
+```
+(tr "Hello")
+```
+
+will use the combination of the current locale and loaded locale data to return the correct translation for "Hello". A
+call to:
+
+```
+(trf "Hi {name}" {:name "Joe"})
+```
+
+will look up "Hi {name}" in the translations, find something like "Hola, {name}", and will then pass that translation
+through to a message formatter that can substitute the supplied parameters for the placeholders.
+
+For this to work you must load whatever polyfills and tools you need for message formatting, and then install your
+message formatter into Fulcro's i18n system.
+
+== Configuring I18N
+
+Your first step is to define a function that can format messages. If you want to use Yahoo's FormatJS, then you'd use something
+like this:
+
+```
+(ns appns
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]
+            yahoo.intl-messageformat-with-locales
+            [fulcro.alpha.i18n :as i18n :refer [tr trc trf]]))
+
+(defn message-formatter [{:keys [::i18n/localized-format-string ::i18n/locale ::i18n/format-options]}]
+  (let [locale-str (name locale)
+        formatter  (js/IntlMessageFormat. localized-format-string locale-str)]
+    (.format formatter (clj->js format-options))))
+```
+
+The message formatter receives a single map with namespaced keys. The `locale` will be a keyword, the `localized-format-string`
+will be the already-translated base string, and the `format-options` will be whatever map was passed along to `trf`.
+
+Fulcro's i18n uses `shared` properties to communicate the current locale, message formatter, and translations to the
+UI components. This is a feature of the low-level reconciler.
+
+When creating your client:
+
+. Include these options on the client:
++
+```
+(ns appns
+  (:require [fulcro.client :as fc]
+            [fulcro.alpha.i18n :as i18n]))
+
+(defn message-formatter ...)
+
+(defonce app (atom (fc/new-fulcro-client
+                     :reconciler-options {:shared    {::i18n/message-formatter message-formatter}
+                                          :shared-fn ::i18n/current-locale}}})))
+```
++
+. Your `Root` UI component *MUST* query for `::i18n/current-locale` and should also set the initial locale in
+application state. The `shared-fn` extracts denormalized data from your UI root's props. This also sets the "default" locale of your application.
+
+== Setting the "Default Locale" [[DefaultLocale]]
+
+Your root component should place a locale in the `::i18n/current-locale`. This is normalized state, so the root
+component query should join on the `Locale` component:
+
+```
+(defsc Root [this props]
+  {:query         [{::i18n/current-locale (prim/get-query i18n/Locale)}]
+   :initial-state (fn [p] {::i18n/current-locale (prim/get-initial-state i18n/Locale {:locale :en :translations {}})})}
+```
+
+== Accessing the Current Locale
+
+Shared properties are visible to all UI components via `(prim/shared this)`. You will find the property `::i18n/current-locale`
+in there as well as your message formatter.
+
+Mutations have the state database, and can simply look for the top-level key `::i18n/current-locale`.
+
+== Changing the Locale
+
+The are a few aspects to changing the locale:
+
+. Ensuring that the locale's translations are loaded.
+. Changing the locale in app state.
+. Force rendering the entire UI to refresh displayed strings.
+
+All of these tasks are handled for you by the `i18n/change-locale` mutation, which you can embed anywhere in your
+application:
+
+```
+(prim/transact! this `[(i18n/change-locale {:locale :es})])
+```
+
+There is a pre-built <<LocaleSelector, locale selector>> for your convenience.
+
+== Responding to Locale Loading Queries on Your Server [[ServingLocales]]
+
+Of course, triggering a change locale that tries to load missing translations will fail if your server doesn't respond
+to the query! Fortunately, configuring your server to serve these is very easy!
+
+. Place all of your `.po` files on disk or in your applications classpath. The names of the PO files must be `LOCALE.po`,
+where `LOCALE` matches the locale keyword (minus the `:`), case sensitive.
+. Add a root query like this:
+
+```
+(defquery-root ::i18n/translations
+  (value [env {:keys [locale]}]
+    (if-let [translations (i18n/load-locale "po-files" locale)]
+      {::i18n/locale       locale
+       ::i18n/translations translations}
+      nil)))
+```
+
+of course you can augment this to log errors or whatever else you want it to do. The `"po-files"` argument is the location
+of the po files. If it is a relative path, the resources will be searched (CLASSPATH). If it is an absolute path, then
+the local disk will be searched instead.
+
+== Extracting Strings
+
+You can extract the strings from your UI for translation using GNU's CLI utility `xgettext` (available via Brew, etc).
+
+The *alpha* version steps are (the primary difference is the inclusion of `_alpha` in the arguments):
+
+. Compile your application with whitespace optimizations.
+. Run this on the resulting js file:
++
+```bash
+$ xgettext --from-code=UTF-8 --debug -k -ktr_alpha:1 \
+           -ktrc_alpha:1c,2 -ktrf_alpha:1 -o messages.pot application.js
+```
+
+== Generating Locale Translation Files
+
+See GNU's gettext documentation for full details. Here are some basics:
+
+Applications like https://poedit.net/[POEdit] can be used to generate a new locale from the `messages.pot` in the prior step.
+Once you have the output (a file like `es.po`) you simply copy that to your server's PO directory as described
+in the section on <<ServingLocales, serving locales>>.
+
+When your application changes, you want to keep the existing translations. The gettext utility `msgmerge` is
+useful for this. It takes the new `messages.pot` file and old PO files and generates new PO files that include
+as many of the old translations as possible. This allows your translator to just deal with the changes.
+
+Something like this will update a PO file:
+
+```
+$ msgmerge --force-po --no-wrap -U es.po messages.pot
+```
+
+Again send that off to your translator, and when they return it place the updated PO file on your server.
+
+== Prebuilt Locale Selector [[LocaleSelector]]
+
+The i18n support comes with a convenient `LocaleSelector` component that you can use. You can, of course, write your
+own and invoke the `change-locale` mutation, but the pre-written one can be used as follows:
+
+```
+(defsc Root [this {:keys [locale-selector]}]
+  {:query         [{:locale-selector (prim/get-query i18n/LocaleSelector)}
+                   {::i18n/current-locale (prim/get-query i18n/Locale)}]
+   :initial-state {::i18n/current-locale {:locale :en :translations {}}
+                   :locale-selector      {:locales [{:locale :en :name "English"}
+                                                    {:locale :es :name "Espanol"}
+                                                    {:locale :de :name "Deutsch"}]}}}
+  (dom/div nil
+    (i18n/ui-locale-selector locale-selector)
+    ...))
+```
+
+The initialization parameters (shown here in initial-state's template form) are a list of the locales that
+are available on your server. You could, of course, load these at startup and fill out app state; however,
+since you have to know what locales you're supporting in order to work with translators, it's probably just
+as easy to hard-code them.
+
+Each locale must be given a name (UTF8) to be show in the resulting select drop-down. This renders
+as an HTML select with the CSS class "fulcro$i18n$locale_selector".
+
+See also `src/cards/fulcro/democards/i18n_alpha_cards.cljs` in the main Fulcro source.
+
+== Server-Side Rendering
+
+Server side rendering of the default locale require no additinal code, because the strings
+you need are already the strings in the code. If you wish to pre-render a page using a
+specific locale then there is just a little bit more to do.
+
+The steps are:
+
+. Load the locale from a po file.
+. Generate initial db to embed in the HTML that contains the proper normalized `::i18n/current-locale`.
+. Use `i18n/with-locale` to wrap the server render.
+
+```
+(defn message-formatter ...) ; a server-side message formatter, e.g. use IBM's ICU library
+
+(defn generate-index-html [state-db app-html]
+  (let [initial-state-script (ssr/initial-state->script-tag state-db)]
+    (str "<html><head>" initial-state-script "</head><body><div id='app'>" app-html "</div></body></html>")))
+
+(defn index-html []
+  (let [initial-tree     (prim/get-initial-state Root {})
+        es-locale        (i18n/load-locale "po-directory" :es)
+        tree-with-locale (assoc initial-tree ::i18n/current-locale es-locale)
+        initial-db       (ssr/build-initial-state tree-with-locale Root)
+        ui-root          (prim/factory Root)]
+    (generate-index-html initial-db
+      (i18n/with-locale message-formatter es-locale
+        (dom/render-to-str (ui-root tree-with-locale))))))
+```
+
+If you use Yahoo's FormatJS on the client, then a good choice on the server is
+http://site.icu-project.org/[com.ibm.icu/icu4j] since it uses the same syntax for
+format strings.
+
+The message formatter could be:
+
+```
+(ns your-server-ns
+  (:import (com.ibm.icu.text MessageFormat)
+           (java.util Locale)))
+
+(defn message-formatter [{:keys [::i18n/localized-format-string
+                                 ::i18n/locale ::i18n/format-options]}]
+  (let [locale-str (name locale)]
+    (try
+      (let [formatter (new MessageFormat localized-format-string (Locale/forLanguageTag locale-str))]
+        (.format formatter format-options))
+      (catch Exception e
+        (log/error "Formatting failed!" e)
+        "???"))))
+```
+
+= Internationalization (DEPRECATED. See <<I18NAlpha, Internationalization 2 (ALPHA)>>)
+
+NOTE: As of 2.3.2 this version of i18n support is deprecated. New i18n support is in alpha testing and shares much of the
+API. Porting to it at the UI layer should be relatively painless (mostly a change of requires). This version is still in
+place to prevent breakage of existing users until the new support is stable.
 
 Fulcro combines together a few tools and libraries to give a consistent and easy-to-use method of internationalizing
 your application. The approach includes the following features:
@@ -10551,7 +10868,7 @@ The i18n support of Fulcro does *not* add overhead to your application if you do
 
 == Polyfills
 
-If you use the internationalization support of Fulcro then you must load 
+If you use the internationalization support of Fulcro then you must load
 Yahoo's FormatJS. Fulcro includes a version of this library so you can
 just require it from at one of your namespaces:
 
@@ -11010,7 +11327,7 @@ the card layout or other cards.
 = Support Viewer
 
 Fulcro automatically tracks the sequence of steps in the UI in history, including what transactions ran to move your
-application from state to state. This enables you to do time travel for things like debugging and 
+application from state to state. This enables you to do time travel for things like debugging and
 error handling, but also allows you to serialize the history and send it to your servers for debugging sessions against
 real user interactions!
 

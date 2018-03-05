@@ -248,7 +248,10 @@
                           union-child-a-id {:id    union-child-a-id
                                             :query [:L]}
                           child-id         {:query [:x]
-                                            :id    child-id}}})))
+                                            :id    child-id}}}
+      "Can normalize parameterized union queries."
+      (prim/get-query ui-rootp (prim/normalize-query {} (prim/get-query ui-rootp {})))
+      => '[:a ({:join [:x]} {:join-params 2}) ({:union {:u1 [(:L {:child-params 1})] :u2 [:M]}} {:union-params 3})])))
 
 (specification "get-query*"
   (assertions
@@ -281,16 +284,16 @@
         "without state (raw static query)"
         (prim/get-query Root) => [:a {:join [:x]} {:union {:u1 [:L] :u2 [:M]}}]))))
 
-(specification "Normalization preserves query"
+(specification "Normalization"
   (let [query               (prim/get-query ui-root {})
         parameterized-query (prim/get-query ui-rootp {})
         state               (prim/normalize-query {} query)
         state-parameterized (prim/normalize-query {} parameterized-query)]
     (assertions
-      "When parameters are not present"
+      "Preserves the query when parameters are not present"
       (prim/get-query ui-root state) => query
-      "When parameters are present"
-      (prim/get-query ui-rootp state) => parameterized-query)))
+      "Preserves the query when parameters are present"
+      (prim/get-query ui-rootp state-parameterized) => parameterized-query)))
 
 ; TODO: This would be a great property-based check  (marshalling/unmarshalling) if we had generators that would work...
 
@@ -1971,3 +1974,42 @@
 
     (prim/db->tree [{'(:foo {:param "123"}) [:bar]}] {:foo [:item 123]} {:item {123 {:bar "baz"}}})
     => {:foo {:bar "baz"}}))
+
+(defsc QPA [t p]
+  {:query     (fn [] '[{:a ?a} {:b ?b}])
+   :protocols [static prim/IQueryParams (params [t] {:a [:x] :b [:y]})]})
+
+(defsc QPB [t p]
+  {:query     (fn [] '[?x])
+   :protocols [static prim/IQueryParams (params [t] {:x {:boo [:z]}})]})
+
+(defsc QPC [t p]
+  {:query     (fn [] '[?c])
+   :protocols [static prim/IQueryParams (params [t] {})]})
+
+(defsc QPD [t p] {:query (fn [] '[?c])})
+
+(defsc QPE [t p]
+  {:query     (fn [] '[({?x ?y} {:p ?p})])
+   :protocols [static prim/IQueryParams (params [t] {:x :join :y [:m] :p 22})]})
+
+(defsc QPU [t p]
+  {:query     (fn [] '[({:union {:u1 [(?jk {:child-params 1})] :u2 [:M]}} {:union-params ?p})])
+   :protocols [static prim/IQueryParams (params [t] {:jk :join :p 22})]})
+
+(specification "Binding Query Parameters" :focused
+  (assertions
+    "Binds the initial parameters into the query"
+    (vector? (prim/get-query QPA {})) => true
+    (prim/get-query QPA {}) => '[{:a [:x]} {:b [:y]}]
+    "Supports replacing a parameter with a more complex expression"
+    (prim/get-query QPB {}) => '[{:boo [:z]}]
+    "Supports replacing a parameter on parameterized unions"
+    (prim/get-query QPU {}) => '[({:union {:u1 [(:join {:child-params 1})] :u2 [:M]}} {:union-params 22})]
+    "Leaves unresolved symbols in place"
+    (prim/get-query QPC {}) => '[?c]
+    "Works even if initial query params are not included."
+    (prim/get-query QPD (prim/set-query* {} QPD {:params {:c :x}})) => '[:x]
+    "Works on arbitrarily nested query expressions"
+    (vector? (prim/get-query QPE {})) => true
+    (prim/get-query QPE {}) => '[({:join [:m]} {:p 22})]))

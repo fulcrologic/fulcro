@@ -10,18 +10,23 @@
   "Updates the state of the wrapped input element."
   [component next-props value]
   (let [on-change  (gobj/getValueByKeys component "state" "onChange")
-        next-state #js {}]
+        next-state #js {}
+        inputRef   (gobj/get next-props "inputRef")]
     (gobj/extend next-state next-props #js {:onChange on-change})
     (gobj/set next-state "value" value)
+    (when inputRef
+      (gobj/remove next-state "inputRef")
+      (gobj/set next-state "ref" inputRef))
     (.setState component next-state)))
 
 (defn wrap-form-element [element]
   (let [ctor (fn [props]
                (this-as this
                  (set! (.-state this)
-                   (let [state #js {}]
+                   (let [state #js {:ref (gobj/get props "inputRef")}]
                      (->> #js {:onChange (goog/bind (gobj/get this "onChange") this)}
                        (gobj/extend state props))
+                     (gobj/remove state "inputRef")
                      state))
                  (.apply js/React.Component this (js-arguments))))]
     (set! (.-displayName ctor) (str "wrapped-" element))
@@ -38,25 +43,23 @@
       (componentWillReceiveProps [this new-props]
         (let [state-value   (gobj/getValueByKeys this "state" "value")
               element-value (gobj/get (js/ReactDOM.findDOMNode this) "value")]
-          ;; On IE, onChange event might come after actual value of
-          ;; an element have changed. We detect this and render
-          ;; element as-is, hoping that next onChange will
-          ;; eventually come and bring our modifications anyways.
-          ;; Ignoring this causes skipped letters in controlled
-          ;; components
-          ;; https://github.com/facebook/react/issues/7027
-          ;; https://github.com/reagent-project/reagent/issues/253
-          ;; https://github.com/tonsky/rum/issues/86
-          ;; TODO: Find a better solution, since this conflicts
-          ;; with controlled/uncontrolled inputs.
-          ;; https://github.com/r0man/sablono/issues/148
           (if (not= state-value element-value)
             (update-state this new-props element-value)
             (update-state this new-props (gobj/get new-props "value")))))
 
       (render [this]
         (js/React.createElement element (.-state this))))
-    (js/React.createFactory ctor)))
+    (let [real-factory (js/React.createFactory ctor)]
+      (fn [props & children]
+        (if-let [r (gobj/get props "ref")]
+          (if (string? r)
+            (apply real-factory props children)
+            (let [p #js{}]
+              (gobj/extend p props)
+              (gobj/set p "inputRef" r)
+              (gobj/remove p "ref")
+              (real-factory p)))
+          (apply real-factory props children))))))
 
 (dom/gen-react-dom-fns)
 

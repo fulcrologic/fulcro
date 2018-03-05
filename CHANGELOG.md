@@ -6,6 +6,13 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.3.1
+-----
+- Added fulcro.alpha.i18n. A rewrite of i18n support.
+- Fixed problem related to a change in CLJS 1.10+
+- Fixed `:ref` support on wrapped inputs
+- Added a `make-root` helper to the fulcro.client.cards ns for helping with devcard creation
+
 2.3.0
 -----
 - Fixed bug in dirty-fields for form state, where relations were not properly reported.
