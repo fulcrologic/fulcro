@@ -255,4 +255,4 @@
      [message-formatter locale & render-body]
      `(let [shared-props# (merge {:fulcro.alpha.i18n/message-formatter ~message-formatter} ~locale)]
         (binding [fulcro.client.primitives/*shared* shared-props#]
-         ~@render-body))))
+          ~@render-body))))

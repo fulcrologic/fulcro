@@ -50,16 +50,16 @@
       (render [this]
         (js/React.createElement element (.-state this))))
     (let [real-factory (js/React.createFactory ctor)]
-      (fn [props]
+      (fn [props & children]
         (if-let [r (gobj/get props "ref")]
           (if (string? r)
-            (real-factory props)
+            (apply real-factory props children)
             (let [p #js{}]
               (gobj/extend p props)
               (gobj/set p "inputRef" r)
               (gobj/remove p "ref")
               (real-factory p)))
-          (real-factory props))))))
+          (apply real-factory props children))))))
 
 (dom/gen-react-dom-fns)
 
