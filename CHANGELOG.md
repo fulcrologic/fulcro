@@ -10,6 +10,7 @@ small and tractable.
 -----
 - Added fulcro.alpha.i18n. A rewrite of i18n support.
 - Fixed problem related to a change in CLJS 1.10+
+- Fixed `:ref` support on wrapped inputs
 - Added a `make-root` helper to the fulcro.client.cards ns for helping with devcard creation
 
 2.3.0
