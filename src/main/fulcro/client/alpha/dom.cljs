@@ -84,25 +84,25 @@
   ([type args {:keys [id className] :as css}]
    (let [[head & tail] args]
      (cond
+       (nil? head)
+       (macro-create-element*
+         (doto #js [type #js {:id id :className className}]
+           (arr-append tail)))
+
+       (object? head)
+       (macro-create-element*
+         (doto #js [type head]
+           (arr-append tail)))
+
        (map? head)
        (macro-create-element*
         (doto #js [type (clj->js (add-css head css))]
-          (arr-append tail)))
-
-       (nil? head)
-       (macro-create-element*
-        (doto #js [type #js {:id id :className className}]
           (arr-append tail)))
 
        (element? head)
        (macro-create-element*
         (doto #js [type #js {:id id :className className}]
           (arr-append args)))
-
-       (object? head)
-       (macro-create-element*
-        (doto #js [type head]
-          (arr-append tail)))
 
        :else
        (macro-create-element*

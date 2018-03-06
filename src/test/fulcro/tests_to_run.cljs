@@ -18,6 +18,7 @@
     fulcro.ui.form-state-spec
     fulcro.server-render-spec
     fulcro.alpha.i18n-spec
+    fulcro.client.alpha.dom-spec
     fulcro.i18n-spec))
 
 ;********************************************************************************

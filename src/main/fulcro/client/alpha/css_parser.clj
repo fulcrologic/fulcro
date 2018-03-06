@@ -18,9 +18,10 @@
       :className \"klass3 klass1 klass2\"}"
   [k]
   (if k
-    (let [tokens  (get-tokens k)
-          id      (->> tokens (filter #(re-matches #"^#.*" %)) first)
-          classes (->> tokens (filter #(re-matches #"^\..*" %)))]
-      {:id        (remove-separators id)
-       :className (str/join " " (map remove-separators classes))})
+    (let [tokens       (get-tokens k)
+          id           (->> tokens (filter #(re-matches #"^#.*" %)) first)
+          classes      (->> tokens (filter #(re-matches #"^\..*" %)))
+          sanitized-id (remove-separators id)]
+      (cond-> {:className (str/join " " (map remove-separators classes))}
+        sanitized-id (assoc :id sanitized-id)))
     {}))
