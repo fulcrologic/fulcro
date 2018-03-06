@@ -287,7 +287,11 @@
      {:style/indent 1}
      (.apply ~(symbol "js" "React.createElement") nil
        (cljs.core/into-array
-         (cons ~(name tag) (cons opts# (cljs.core/map fulcro.util/force-children children#)))))))
+         (cons ~(name tag) (cons (cond
+                                   (or (cljs.core/nil? opts#) (cljs.core/object? opts#)) opts#
+                                   (cljs.core/map? opts#) (cljs.core/clj->js opts#)
+                                   :else (throw ~(str "Invalid props on " tag)))
+                             (cljs.core/map fulcro.util/force-children children#)))))))
 
 (defmacro ^:private gen-react-dom-fns []
   (let [raw-inputs?  (boolean (System/getProperty "rawInputs" nil))
