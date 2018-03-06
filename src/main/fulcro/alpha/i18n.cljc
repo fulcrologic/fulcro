@@ -55,7 +55,7 @@
   "Represents the data of a locale in app state. Normalized by locale ID."
   [this props]
   {:query         [::locale :ui/locale-name ::translations]
-   :initial-state {::locale :param/locale :ui/locale-name :param/name ::translations :param/translations}
+   :initial-state (fn [{:keys [locale name translations]}] {::locale locale :ui/locale-name name ::translations translations})
    :ident         [::locale-by-id ::locale]})
 
 (defmutation translations-loaded
@@ -124,7 +124,7 @@
   [this {:keys [::available-locales ::current-locale]}]
   {:query         [{::available-locales (prim/get-query Locale)}
                    {[::current-locale '_] (prim/get-query Locale)}]
-   :initial-state {::available-locales :param/locales}}
+   :initial-state (fn [{:keys [locales]}] {::available-locales locales})}
   (let [{:keys [::locale]} current-locale
         locale-kw (fn [l] (-> l (str/replace #":" "") keyword))]
     (dom/select #js {:className "fulcro$i18n$locale_selector"
