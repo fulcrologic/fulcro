@@ -3,7 +3,12 @@
   #?(:clj
      (:require [clojure.string :as str]
                [fulcro.client.impl.protocols :as p]
+               [clojure.spec.alpha :as s]
+               [clojure.future :refer :all]
                [clojure.core.reducers :as r]
+               [clojure.walk :as walk]
+               [fulcro.util :as util]
+               [fulcro.client.alpha.css-parser :as css]
                [fulcro.checksums :as chk]))
   #?(:clj (:import (cljs.tagged_literals JSValue))))
 
@@ -270,36 +275,6 @@
     radialGradient
     stop
     tspan])
-
-;; (defmacro ^:private gen-react-dom-inline-fns []
-;;   (when (boolean (:ns &env))
-;;     `(do
-;;        ;; ~@(clojure.core/map gen-react-dom-inline-fn tags)
-;;        ~@(clojure.core/map gen-dom-macro tags)
-;;        )))
-
-;; #?(:clj (gen-react-dom-inline-fns))
-
-;; (defn ^:private gen-react-dom-fn [tag]
-;;   `(defn ~tag [opts# & children#]
-;;      {:style/indent 1}
-;;      (.apply ~(symbol "js" "React.createElement") nil
-;;        (cljs.core/into-array
-;;          (cons ~(name tag) (cons opts# (cljs.core/map fulcro.util/force-children children#)))))))
-
-;; (defmacro ^:private gen-react-dom-fns []
-;;   (let [raw-inputs?  (boolean (System/getProperty "rawInputs" nil))
-;;         tags         (if raw-inputs?
-;;                        (concat tags '[input textarea select option])
-;;                        tags)
-;;         extra-inputs (when-not raw-inputs?
-;;                        '[(def input (wrap-form-element "input"))
-;;                          (def textarea (wrap-form-element "textarea"))
-;;                          (def option (wrap-form-element "option"))
-;;                          (def select (wrap-form-element "select"))])]
-;;     `(do
-;;        ~@(clojure.core/map gen-react-dom-fn tags)
-;;        ~@extra-inputs)))
 
 ;; ===================================================================
 ;; Server-side rendering
@@ -722,31 +697,79 @@
               ;; In CLJS we generate these separately
               (into tags '[input textarea option select]))))))
 
-;; #?(:clj (gen-all-tags))
+#?(:clj
+   (defn clj-map->js-object
+     "Recursively convert a map to a JS object. For use in macro expansion."
+     [m]
+     (walk/postwalk (fn [x]
+                      (cond
+                        (map? x)    (JSValue. x)
+                        (symbol? x) `(cljs.core/clj->js ~x)
+                        :else       x))
+                    m)))
+
+#?(:clj
+   (s/def ::dom-element-args
+     (s/cat
+      :css (s/? keyword?)
+      :attrs (s/? (s/or :nil       nil?
+                        :map       map?
+                        :js-object #(instance? JSValue %)
+                        :symbol    symbol?))
+      :children (s/* (s/or :string string?
+                           :number number?
+                           :symbol symbol?
+                           :nil    nil?
+                           :list   list?)))))
+
+#?(:clj
+   (defn compiler-merge-css [attr-map {:keys [id className]}]
+     (let [className-in-map (:className attr-map)
+           id-in-map        (:id attr-map)]
+       (assoc attr-map
+              :className (str className-in-map " " className)
+              :id (or id id-in-map)))))
 
 #?(:clj
    (defn gen-dom-macro [name]
      `(defmacro ~name [& args#]
-        (let [tag#            ~(str name)
-              [head# & tail#] args#
+        (let [tag#             ~(str name)
+              conformed-args#  (util/conform! ::dom-element-args args#)
+              {attrs#    :attrs
+               children# :children
+               css#      :css} conformed-args#
+
+              children#    (mapv second children#)
+              attrs-type#  (or (first attrs#) :nil) ; attrs omitted == nil
+              attrs-value# (or (second attrs#) {})
+              css#         (css/parse css#)
+
               cljs?# (boolean (:ns ~'&env))]
           (if cljs?#
-            (cond
-             (instance? JSValue head#)
-             `(fulcro.client.alpha.dom/macro-create-element* ~(JSValue. (into [tag# head#] tail#)))
+            (case attrs-type#
+              :js-object
+              `(fulcro.client.alpha.dom/macro-create-element*
+                ~(JSValue. (into [tag# attrs-value#] children#)))
 
-             (map? head#)
-             `(fulcro.client.alpha.dom/macro-create-element* ~(JSValue. (into [tag# (JSValue. head#)] tail#)))
+              :map
+              `(fulcro.client.alpha.dom/macro-create-element*
+                ~(JSValue. (into [tag# (-> attrs-value#
+                                           (compiler-merge-css css#)
+                                           clj-map->js-object)]
+                                 children#)))
 
-             (= 'nil head#)
-             `(fulcro.client.alpha.dom/macro-create-element* ~(JSValue. (into [tag# nil] tail#)))
+              :nil
+              `(fulcro.client.alpha.dom/macro-create-element*
+                ~(JSValue. (into [tag# (JSValue. css#)] children#)))
 
-             :else
-             `(fulcro.client.alpha.dom/macro-create-element ~tag# ~(JSValue. args#)))
+              `(fulcro.client.alpha.dom/macro-create-element
+                ~tag# ~(JSValue. (into [attrs-value#] children#)) ~css#))
             `(element {:tag       (quote ~name)
-                       :attrs     (dissoc ~'head :ref :key)
-                       :react-key (:key ~'head)
-                       :children  ~'tail}))))))
+                       :attrs     (-> ~'attrs-value#
+                                      (dissoc :ref :key)
+                                      (compiler-merge-css css#))
+                       :react-key (:key ~'attrs-value#)
+                       :children  ~'children#}))))))
 
 #?(:clj
    (defmacro gen-dom-macros []
