@@ -245,7 +245,7 @@
             initial-db       (ssr/build-initial-state tree-with-locale Root) ; embed this as initial state in the HTML
             ui-root          (prim/factory Root)]
         (generate-index-html initial-db  ; some function that generates the complete wrapped HTML. See server-side rendering for more detail
-          (i18n/with-server-locale message-formatter es-locale
+          (i18n/with-locale message-formatter es-locale
             (dom/render-to-str (ui-root tree-with-locale)))))
       ```
 

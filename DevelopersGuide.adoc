@@ -10719,9 +10719,8 @@ where `LOCALE` matches the locale keyword (minus the `:`), case sensitive.
 ```
 (defquery-root ::i18n/translations
   (value [env {:keys [locale]}]
-    (if-let [translations (i18n/load-locale "po-files" locale)]
-      {::i18n/locale       locale
-       ::i18n/translations translations}
+    (if-let [locale (i18n/load-locale "po-files" locale)]
+      locale
       nil)))
 ```
 
