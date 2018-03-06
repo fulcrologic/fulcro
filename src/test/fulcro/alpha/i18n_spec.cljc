@@ -140,7 +140,7 @@
         (trf "Hi, {name}" {:name "Tony"}) => "Hi, Tony"))))
 
 #?(:clj
-   (specification "Locale loading from PO files." :focused
+   (specification "Locale loading from PO files."
      (when-mocking
        (log/-log l lvl & args) => (assertions
                                     "Logs an error when no locale is found"

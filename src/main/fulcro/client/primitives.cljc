@@ -90,10 +90,17 @@
 (defn get-initial-state
   "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
   [class params]
-  #?(:clj  (when-let [initial-state (-> class meta :initial-state)]
-             (initial-state class params))
-     :cljs (when (implements? InitialAppState class)
-             (initial-state class params))))
+  (some->
+    #?(:clj  (when-let [initial-state (-> class meta :initial-state)]
+               (initial-state class params))
+       :cljs (when (implements? InitialAppState class)
+               (initial-state class params)))
+    (with-meta {:computed true})))
+
+(defn computed-initial-state?
+  "Returns true if the given initial state was computed from a call to get-initial-state."
+  [s]
+  (and (map? s) (some-> s meta :computed)))
 
 (s/def ::remote keyword?)
 (s/def ::ident (s/or :missing nil? :ident util/ident?))
@@ -875,12 +882,12 @@
     expr))
 
 (defn- bind-query [query params]
-    (let [qm  (meta query)
-          ret (clojure.walk/prewalk #(replace-var % params) query)]
-      (cond-> ret
-        (and qm #?(:clj  (instance? clojure.lang.IObj ret)
-                   :cljs (satisfies? IMeta ret)))
-        (with-meta qm))))
+  (let [qm  (meta query)
+        ret (clojure.walk/prewalk #(replace-var % params) query)]
+    (cond-> ret
+      (and qm #?(:clj  (instance? clojure.lang.IObj ret)
+                 :cljs (satisfies? IMeta ret)))
+      (with-meta qm))))
 
 (defn component-name
   "Returns a string version of the given react component's name."
@@ -1070,7 +1077,7 @@
   Returns the new state map."
   [state-map query]
   (reduce (fn normalize-query-elements-reducer [state ele]
-            (let [parameterized? (seq? ele) ; not using list? because it could show up as a lazyseq
+            (let [parameterized? (seq? ele)                 ; not using list? because it could show up as a lazyseq
                   raw-element    (if parameterized? (first ele) ele)]
               (cond
                 (util/union? raw-element) (let [union-alternates            (first (vals raw-element))
@@ -2914,25 +2921,44 @@
   (let [join-keys (set (keys children-by-query-key))
         init-keys (set (keys initial-state))
         is-child? (fn [k] (contains? join-keys k))
-        value-of  (fn value-of* [[k v]]
+        value-of  (fn value-of* [[isk isv]]
                     (let [param-name    (fn [v] (and (keyword? v) (= "param" (namespace v)) (keyword (name v))))
                           substitute    (fn [ele] (if-let [k (param-name ele)]
                                                     (get params k)
                                                     ele))
-                          param-key     (param-name v)
+                          param-key     (param-name isv)
                           param-exists? (contains? params param-key)
                           param-value   (get params param-key)
-                          child-class   (get children-by-query-key k)]
+                          child-class   (get children-by-query-key isk)]
                       (cond
+                        ; parameterized lookup with no value
                         (and param-key (not param-exists?)) nil
-                        (and (map? v) (is-child? k)) [k (get-initial-state child-class (into {} (keep value-of* v)))]
-                        (map? v) [k (into {} (keep value-of* v))]
-                        (and (vector? v) (is-child? k)) [k (mapv (fn [m] (get-initial-state child-class (into {} (keep value-of* m)))) v)]
-                        (and (vector? param-value) (is-child? k)) [k (mapv (fn [params] (get-initial-state child-class params)) param-value)]
-                        (vector? v) [k (mapv (fn [ele] (substitute ele)) v)]
-                        (and param-key (is-child? k) param-exists?) [k (get-initial-state child-class param-value)]
-                        param-key [k param-value]
-                        :else [k v])))]
+
+                        ; to-one join, where initial state is a map to be used as child initial state *parameters* (enforced by defsc macro)
+                        ; and which may *contain* parameters
+                        (and (map? isv) (is-child? isk)) [isk (get-initial-state child-class (into {} (keep value-of* isv)))]
+
+                        ; not a join. Map is literal initial value.
+                        (map? isv) [isk (into {} (keep value-of* isv))]
+
+                        ; to-many join. elements MUST be parameters (enforced by defsc macro)
+                        (and (vector? isv) (is-child? isk)) [isk (mapv (fn [m] (get-initial-state child-class (into {} (keep value-of* m)))) isv)]
+
+                        ; to-many join. elements might be parameter maps or already-obtained initial-state
+                        (and (vector? param-value) (is-child? isk)) [isk (mapv (fn [params]
+                                                                                 (if (computed-initial-state? params)
+                                                                                   params
+                                                                                   (get-initial-state child-class params))) param-value)]
+
+                        ; vector of non-children
+                        (vector? isv) [isk (mapv (fn [ele] (substitute ele)) isv)]
+
+                        ; to-one join with parameter. value might be params, or an already-obtained initial-state
+                        (and param-key (is-child? isk) param-exists?) [isk (if (computed-initial-state? param-value)
+                                                                             param-value
+                                                                             (get-initial-state child-class param-value))]
+                        param-key [isk param-value]
+                        :else [isk isv])))]
     (into {} (keep value-of initial-state))))
 
 #?(:clj

@@ -1578,6 +1578,38 @@
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))))))
 
+(defsc MMChild [this {:keys [:db/id] :as props}]
+  {:query         [:db/id]
+   :initial-state {:db/id :param/id}})
+
+(defsc MMParent [this {:keys [:db/id] :as props}]
+  {:query         [:db/id {:main-child (prim/get-query MMChild)} {:children (prim/get-query MMChild)}]
+   :initial-state {:db/id :param/id :main-child :param/main :children :param/children}})
+
+(specification "Mixed Mode Initial State"
+  (component "defsc components that use template initial state"
+    (assertions
+      "Accept maps of child parameters and automatically construct children from them"
+      (prim/get-initial-state MMParent {:id 1 :main {:id 1} :children [{:id 1}]})
+      => {:db/id      1
+          :main-child {:db/id 1}
+          :children   [{:db/id 1}]}
+      "Allow to-one children to be initialized directly with a call to get-initial-state"
+      (prim/get-initial-state MMParent {:id 1 :main (prim/get-initial-state MMChild {:id 1}) :children [{:id 1}]})
+      => {:db/id      1
+          :main-child {:db/id 1}
+          :children   [{:db/id 1}]}
+      "Allow to-many children to be initialized directly with calls to get-initial-state"
+      (prim/get-initial-state MMParent {:id 1 :main {:id 1} :children [(prim/get-initial-state MMChild {:id 1})]})
+      => {:db/id      1
+          :main-child {:db/id 1}
+          :children   [{:db/id 1}]}
+      "Allow to-many children to be initialized with a mix of maps and calls to get-initial-state"
+      (prim/get-initial-state MMParent {:id 1 :main {:id 1} :children [{:id 3} (prim/get-initial-state MMChild {:id 1})]})
+      => {:db/id      1
+          :main-child {:db/id 1}
+          :children   [{:db/id 3} {:db/id 1}]})))
+
 (defui ^:once MergeTestChild
   static prim/Ident
   (ident [this props] [:child/by-id (:id props)])
@@ -1997,7 +2029,7 @@
   {:query     (fn [] '[({:union {:u1 [(?jk {:child-params 1})] :u2 [:M]}} {:union-params ?p})])
    :protocols [static prim/IQueryParams (params [t] {:jk :join :p 22})]})
 
-(specification "Binding Query Parameters" :focused
+(specification "Binding Query Parameters"
   (assertions
     "Binds the initial parameters into the query"
     (vector? (prim/get-query QPA {})) => true
