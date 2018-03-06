@@ -102,11 +102,12 @@
   ([string]
    (let [k           ["" string]
          translation (get-in prim/*shared* [::translations k] string)]
-     translation))
+     (if (= "" translation) string translation)))
   ([string {:keys [::context] :as options}]
    (let [k           [(or context "") string]
-         locale      (get-in prim/*shared* [::locale])
-         translation (get-in prim/*shared* [::translations k] string)
+         locale      (get-in prim/*shared* [::locale] :en) ; some locale needed or formatter might crash
+         entry       (get-in prim/*shared* [::translations k] string)
+         translation (if (= "" entry) string entry)
          formatter   (get prim/*shared* ::message-formatter (fn [{:keys [::localized-format-string]}] localized-format-string))]
      (if (empty? (dissoc options ::context))
        translation
@@ -151,7 +152,7 @@
 #?(:clj
    (defn trf-ssr
      [fmt & rawargs]
-     (let [args   (if (and (map? (first rawargs)) (= 1 (count rawargs)))
+     (let [args   (if (and (= 1 (count rawargs)) (map? (first rawargs)))
                     (first rawargs)
                     (into {} (mapv vec (partition 2 rawargs))))
            argmap (into {} (map (fn [[k v]] [(name k) v]) args))]
@@ -159,7 +160,7 @@
    :cljs
    (set! js/trf_alpha
      (fn trf [fmt & args]
-       (let [argmap (if (and (map? (first args)) (= 1 (count args)))
+       (let [argmap (if (and (= 1 (count args)) (map? (first args)))
                       (first args)
                       (into {} (mapv vec (partition 2 args))))]
          (t fmt argmap)))))
@@ -203,8 +204,11 @@
      lets the translator know what you want. Of course, the msg key is the default language value (US English)
      "
      [context msg]
-     (assert (and (string? context) (string? msg)) "Context and message must be literal strings for trc. Use trc-unsafe if you know what you're doing and actually need to do this.")
-     (if (:ns &env) `(js/trc_alpha ~context ~msg) `(trc-ssr ~context ~msg))))
+     (let [{:keys [line]} (meta &form)
+           [context msg] (if (and (string? context) (string? msg))
+                           [context msg]
+                           ["" (str "ERROR: trc requires literal strings on line " line " in " (str *ns*))])]
+       (if (:ns &env) `(js/trc_alpha ~context ~msg) `(trc-ssr ~context ~msg)))))
 
 #?(:clj
    (defmacro trc-unsafe
@@ -222,8 +226,11 @@
      (trf \"{name} owes {amount, currency)\" {:name who :amount amt})
      "
      [format & args]
-     (assert (string? format) "Format argument to trf must be a literal string.")
-     (if (:ns &env) `(js/trf_alpha ~format ~@args) `(trf-ssr ~format ~@args))))
+     (let [{:keys [line]} (meta &form)
+           [format args] (if (string? format)
+                           [format args]
+                           [(str "ERROR: trf requires a literal string on line " line " in " (str *ns*)) []])]
+       (if (:ns &env) `(js/trf_alpha ~format ~@args) `(trf-ssr ~format ~@args)))))
 
 #?(:clj
    (defmacro with-locale
