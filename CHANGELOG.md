@@ -6,6 +6,12 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.3.2
+-----
+- Fixed bug in template form of initial state when mixing from above in non-template form.
+- Added alpha versions of new, tighter, DOM functions that do not require props, or #js
+- A few minor bug fixes in i18n alpha
+
 2.3.1
 -----
 - Added fulcro.alpha.i18n. A rewrite of i18n support.
