@@ -10771,16 +10771,17 @@ own and invoke the `change-locale` mutation, but the pre-written one can be used
 (defsc Root [this {:keys [locale-selector]}]
   {:query         [{:locale-selector (prim/get-query i18n/LocaleSelector)}
                    {::i18n/current-locale (prim/get-query i18n/Locale)}]
-   :initial-state {::i18n/current-locale {:locale :en :translations {}}
-                   :locale-selector      {:locales [{:locale :en :name "English"}
-                                                    {:locale :es :name "Espanol"}
-                                                    {:locale :de :name "Deutsch"}]}}}
+   :initial-state (fn [p] {::i18n/current-locale (prim/get-initial-state Locale {:locale :en :translations {}})
+                           :locale-selector      (prim/get-initial-state LocaleSelector
+                                                   {:locales [(prim/get-initial-state Locale {:locale :en :name "English"})
+                                                              (prim/get-initial-state Locale {:locale :es :name "Espanol"})
+                                                              (prim/get-initial-state Locale {:locale :de :name "Deutsch"})]}}}
   (dom/div nil
     (i18n/ui-locale-selector locale-selector)
     ...))
 ```
 
-The initialization parameters (shown here in initial-state's template form) are a list of the locales that
+The initialization parameters are a list of the locales that
 are available on your server. You could, of course, load these at startup and fill out app state; however,
 since you have to know what locales you're supporting in order to work with translators, it's probably just
 as easy to hard-code them.

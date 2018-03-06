@@ -39,11 +39,12 @@
   {:query         [{:locale-selector (prim/get-query i18n/LocaleSelector)}
                    {::i18n/current-locale (prim/get-query i18n/Locale)}
                    {:child (prim/get-query Child)}]
-   :initial-state {:child                {}
-                   ::i18n/current-locale {:locale :en :name "English" :translations {}}
-                   :locale-selector      {:locales [{:locale :en :name "English"}
-                                                    {:locale :es :name "Espanol"}
-                                                    {:locale :de :name "Deutsch"}]}}}
+   :initial-state (fn [p]
+                    {:child                (prim/get-initial-state Child {})
+                     ::i18n/current-locale (prim/get-initial-state i18n/Locale {:locale :en :name "English" :translations {}})
+                     :locale-selector      (prim/get-initial-state i18n/LocaleSelector {:locales [(prim/get-initial-state i18n/Locale {:locale :en :name "English"})
+                                                                                                  (prim/get-initial-state i18n/Locale {:locale :es :name "Espanol"})
+                                                                                                  (prim/get-initial-state i18n/Locale {:locale :de :name "Deutsch"})]})})}
   (dom/div nil
     (i18n/ui-locale-selector locale-selector)
     (ui-child child)))
