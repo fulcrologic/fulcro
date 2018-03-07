@@ -727,7 +727,10 @@
    (defn compiler-merge-css [attr-map {:keys [id className]}]
      (let [id-in-map (:id attr-map)]
        (cond-> attr-map
-         className (update :className str " " className)
+         className (update :className (fn [s]
+                                        (if s
+                                          (str s " " className)
+                                          className)))
          id-in-map (assoc :id id-in-map)
          id (assoc :id id)))))
 
@@ -765,12 +768,12 @@
 
               `(fulcro.client.alpha.dom/macro-create-element
                  ~tag# ~(JSValue. (into [attrs-value#] children#)) ~css#))
-            `(element {:tag       (quote ~name)
-                       :attrs     (-> ~'attrs-value#
+            `(element {:tag       (quote ~(symbol tag#))
+                       :attrs     (-> ~attrs-value#
                                     (dissoc :ref :key)
-                                    (compiler-merge-css css#))
-                       :react-key (:key ~'attrs-value#)
-                       :children  ~'children#}))))))
+                                    (compiler-merge-css ~css#))
+                       :react-key (:key ~attrs-value#)
+                       :children  ~children#}))))))
 
 #?(:clj
    (defmacro gen-dom-macros []
