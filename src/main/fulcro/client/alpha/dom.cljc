@@ -8,7 +8,7 @@
                [clojure.core.reducers :as r]
                [clojure.walk :as walk]
                [fulcro.util :as util]
-               [fulcro.client.alpha.css-parser :as css]
+               [fulcro.client.alpha.css-keywords :as css]
                [fulcro.checksums :as chk]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))

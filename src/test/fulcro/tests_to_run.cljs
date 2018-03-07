@@ -19,6 +19,7 @@
     fulcro.server-render-spec
     fulcro.alpha.i18n-spec
     fulcro.client.alpha.dom-spec
+    fulcro.client.alpha.css-keywords-spec
     fulcro.i18n-spec))
 
 ;********************************************************************************

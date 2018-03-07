@@ -1,9 +1,8 @@
 (ns fulcro.client.alpha.dom
   (:refer-clojure :exclude [map mask meta time select])
-  (:require-macros [fulcro.client.alpha.dom :as dom])
+  (:require-macros [fulcro.client.alpha.dom])
   (:require [cljsjs.react]
             [cljsjs.react.dom]
-            [fulcro.client.util :as util]
             [goog.object :as gobj]))
 
 ;; (dom/gen-react-dom-fns)
@@ -42,11 +41,11 @@
 
 (def ^{:private true} element-marker
   (-> (js/React.createElement "div" nil)
-      (gobj/get "$$typeof")))
+    (gobj/get "$$typeof")))
 
 (defn element? [x]
   (and (object? x)
-       (= element-marker (gobj/get x "$$typeof"))))
+    (= element-marker (gobj/get x "$$typeof"))))
 
 (defn convert-props [props]
   (cond
@@ -72,11 +71,11 @@
 
 (defn add-css [attr-map {:keys [id className]}]
   (let [classes-in-map (or (:class attr-map)
-                           (:className attr-map))
+                         (:className attr-map))
         id-in-map      (:id attr-map)]
     (assoc attr-map
-           :className (str classes-in-map " " className)
-           :id (or id id-in-map))))
+      :className (str classes-in-map " " className)
+      :id (or id id-in-map))))
 
 ;; fallback if the macro didn't do this
 (defn macro-create-element
@@ -96,15 +95,15 @@
 
        (map? head)
        (macro-create-element*
-        (doto #js [type (clj->js (add-css head css))]
-          (arr-append tail)))
+         (doto #js [type (clj->js (add-css head css))]
+           (arr-append tail)))
 
        (element? head)
        (macro-create-element*
-        (doto #js [type #js {:id id :className className}]
-          (arr-append args)))
+         (doto #js [type #js {:id id :className className}]
+           (arr-append args)))
 
        :else
        (macro-create-element*
-        (doto #js [type #js {:id id :className className}]
-          (arr-append args)))))))
+         (doto #js [type #js {:id id :className className}]
+           (arr-append args)))))))

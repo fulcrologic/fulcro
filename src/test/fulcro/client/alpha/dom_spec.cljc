@@ -57,27 +57,53 @@
                                                                            "className" "a"}))
 
        (div :.a#j "Hello"))
-     (let [some-class "x"]
-       (provided "It is passed an id/class kw AND CLJ properties:"
+     (let [some-class      "x"
+           some-js-props   #js {:className "a" :id 1}
+           some-cljs-props {:className "a" :id 1}]
+       (provided "It is passed a variety of alternate arguments for props:"
          (dom/macro-create-element* args) =1x=> (do
                                                   (assertions
-                                                    "merges the classes. The ID from the keyword overrides the ID"
+                                                    "kw + cljs -> merges the classes. The ID from the keyword overrides the ID"
                                                     (js->clj (aget args 1)) => {"id"        "j"
                                                                                 "className" "b a c e"}))
          (dom/macro-create-element* args) =1x=> (do
                                                   (assertions
-                                                    "order doesn't matter"
+                                                    "kw-based class and ID order doesn't matter"
                                                     (js->clj (aget args 1)) => {"id"        "j"
                                                                                 "className" "b a c e"}))
          (dom/macro-create-element* args) =1x=> (do
                                                   (assertions
-                                                    "classnames can come from a binding in env"
+                                                    "classnames can be combined in from a binding in env"
                                                     (js->clj (aget args 1)) => {"id"        "j"
                                                                                 "className" "x a c e"}))
+         (dom/macro-create-element* args) =1x=> (do
+                                                  (assertions
+                                                    "cljs props passed as a symbol result in runtime conversion to js props"
+                                                    (js->clj (aget args 1)) => {"id"        1
+                                                                                "className" "a"}))
+         (dom/macro-create-element* args) =1x=> (do
+                                                  (assertions
+                                                    "js props passed as a symbol result in runtime pass-through as js props"
+                                                    (js->clj (aget args 1)) => {"id"        1
+                                                                                "className" "a"}))
+         (dom/macro-create-element* args) =1x=> (do
+                                                  (assertions
+                                                    "js props combined with class specifier results in updated js props"
+                                                    (js->clj (aget args 1)) => {"id"        "y"
+                                                                                "className" "x a"}))
+         (dom/macro-create-element* args) =1x=> (do
+                                                  (assertions
+                                                    "js props combined with class specifier results in updated cljs props"
+                                                    (js->clj (aget args 1)) => {"id"        "y"
+                                                                                "className" "a x"}))
 
          (div :.a.c.e#j {:id 1 :className "b"} "Hello")
          (div :#j.a.c.e {:id 1 :className "b"} "Hello")
-         (div :.a#j.c.e {:id 1 :className some-class} "Hello")))
+         (div :.a#j.c.e {:id 1 :className some-class} "Hello")
+         (div some-cljs-props "Hello")
+         (div some-js-props "Hello")
+         (div :.x#y some-js-props "Hello")
+         (div :.x#y some-cljs-props "Hello")))
 
      (provided "There are nested elements as children (no props)"
        (dom/macro-create-element* args) =1x=> (do
