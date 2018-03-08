@@ -19,13 +19,6 @@
              nm
              "unknown/unknown")))
 
-(defn local-kw
-  "Generate a keyword for a localized CSS class for use in Garden CSS syntax as a localized component classname keyword."
-  ([comp-class]
-   (keyword (str "." (cssify (fq-component comp-class)))))
-  ([comp-class nm]
-   (keyword (str "." (cssify (fq-component comp-class)) "__" (name nm)))))
-
 (defn local-class
   "Generates a string name of a localized CSS class. This function combines the fully-qualified name of the given class
      with the (optional) specified name."

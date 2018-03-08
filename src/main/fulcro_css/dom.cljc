@@ -802,14 +802,14 @@
          (case attrs-type
            :js-object                                       ; kw combos not supported
            (if css
-             (let [attr-expr `(fulcro.client.alpha.css-keywords/combine ~attrs-value ~css)]
-               `(fulcro.client.alpha.dom/macro-create-element*
+             (let [attr-expr `(fulcro-css.dom/combine ~attrs-value ~css)]
+               `(fulcro-css.dom/macro-create-element*
                   ~(JSValue. (into [str-tag-name attr-expr] children))))
-             `(fulcro.client.alpha.dom/macro-create-element*
+             `(fulcro-css.dom/macro-create-element*
                 ~(JSValue. (into [str-tag-name attrs-value] children))))
 
            :map
-           `(fulcro.client.alpha.dom/macro-create-element*
+           `(fulcro-css.dom/macro-create-element*
               ~(JSValue. (into [str-tag-name (-> attrs-value
                                                (combine css)
                                                (clj-map->js-object))]
@@ -817,27 +817,27 @@
 
            :runtime-map
            (let [attr-expr (if css
-                             `(fulcro.client.alpha.css-keywords/combine ~(clj-map->js-object attrs-value) ~css)
+                             `(fulcro-css.dom/combine ~(clj-map->js-object attrs-value) ~css)
                              (clj-map->js-object attrs-value))]
-             `(fulcro.client.alpha.dom/macro-create-element*
+             `(fulcro-css.dom/macro-create-element*
                 ~(JSValue. (into [str-tag-name attr-expr] children))))
 
 
            :symbol
-           `(fulcro.client.alpha.dom/macro-create-element
+           `(fulcro-css.dom/macro-create-element
               ~str-tag-name ~(into [attrs-value] children) ~css)
 
            :nil
-           `(fulcro.client.alpha.dom/macro-create-element*
+           `(fulcro-css.dom/macro-create-element*
               ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
 
            ;; pure children
-           `(fulcro.client.alpha.dom/macro-create-element
+           `(fulcro-css.dom/macro-create-element
               ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))
          `(element {:tag       (quote ~(symbol str-tag-name))
                     :attrs     (-> ~attrs-value
                                  (dissoc :ref :key)
-                                 (fulcro.client.alpha.css-keywords/combine ~css))
+                                 (fulcro-css.dom/combine ~css))
                     :react-key (:key ~attrs-value)
                     :children  ~children})))))
 
