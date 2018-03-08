@@ -62,7 +62,7 @@
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
-                               :parallel-build       true
+                               #_#_:parallel-build       true
                                ;:verbose              true
                                ;:compiler-stats       true
                                :preloads             [devtools.preload]
@@ -76,7 +76,7 @@
                                :output-dir           "resources/public/js/cards"
                                :asset-path           "js/cards"
                                :preloads             [devtools.preload]
-                               :parallel-build       true
+                               #_#_:parallel-build       true
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "book"
@@ -95,7 +95,7 @@
                                                 ; For the dynamic code splitting demo
                                                 :main        {:output-to "resources/public/js/book/main-ui.js"
                                                               :entries   #{book.demos.dynamic-ui-main}}}
-                               :parallel-build true}}
+                               #_#_:parallel-build true}}
                {:id           "book-live"
                 :source-paths ["src/main" "src/book"]
                 :compiler     {:output-dir     "docs/js/book"
@@ -111,7 +111,7 @@
                                                 ; For the dynamic code splitting demo
                                                 :main        {:output-to "docs/js/book/main-ui.js"
                                                               :entries   #{book.demos.dynamic-ui-main}}}
-                               :parallel-build true}}
+                               #_#_:parallel-build true}}
                {:id           "tutorial"
                 :figwheel     {:devcards true}
                 :source-paths ["src/main" "src/tutorial"]
@@ -121,7 +121,7 @@
                                :output-to      "resources/public/js/tutorial.js"
                                :output-dir     "resources/public/js/tutorial"
                                :preloads       [devtools.preload]
-                               :parallel-build true
+                               #_#_:parallel-build true
                                :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
                                                  :requires ["cljsjs.codemirror"]
                                                  :file     "resources/public/codemirror/closebrackets-min.js"}
@@ -135,7 +135,7 @@
                                :asset-path     "js"
                                :output-to      "docs/js/tutorial.js"
                                :output-dir     "resources/public/js/tutorial-live"
-                               :parallel-build true
+                               #_#_:parallel-build true
                                :optimizations  :advanced
                                :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
                                                  :requires ["cljsjs.codemirror"]

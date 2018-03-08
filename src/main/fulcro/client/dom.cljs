@@ -3,7 +3,6 @@
   (:require-macros [fulcro.client.dom :as dom])
   (:require [cljsjs.react]
             [cljsjs.react.dom]
-            [fulcro.client.util :as util]
             [goog.object :as gobj]))
 
 (defn- update-state

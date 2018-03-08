@@ -9,6 +9,7 @@
                [cljs.util]]
         :cljs [[goog.string :as gstring]
                [goog.object :as gobj]])
+               fulcro-css.css
                [clojure.core.async :as async]
                [clojure.set :as set]
                [fulcro.history :as hist]
