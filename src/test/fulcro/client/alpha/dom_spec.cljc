@@ -52,7 +52,11 @@
                                                  "Hello"]})
        "kw + symbol emits runtime conversion"
        (jsvalue->map (dom/emit-tag "div" true [:.a 'props "Hello"]))
-       => `(dom/macro-create-element "div" [~'props "Hello"] :.a))))
+       => `(dom/macro-create-element "div" [~'props "Hello"] :.a)
+
+       "embedded code in props is passed through"
+       (jsvalue->map (dom/emit-tag "div" true [:.a '{:onClick (fn [] (do-it))} "Hello"]))
+       => `(dom/macro-create-element* {:jsvalue ["div" (fulcro.client.alpha.css-keywords/combine {:jsvalue {:onClick (~'fn [] (~'do-it))}} :.a) "Hello"]}))))
 
 #?(:cljs
    (specification "DOM Tag Functions (CLJS)" :focused
@@ -109,6 +113,19 @@
                                                                            "className" "a"}))
 
        (div :.a#j "Hello"))
+
+     (provided "there is code embedded in literal props:"
+       (dom/macro-create-element* args) =1x=> (do
+                                                (assertions
+                                                  "cljs props combined with class specifier results in updated cljs props"
+                                                  (js->clj (aget args 1)) => {"id"        "y"
+                                                                              "className" "x a"}))
+
+
+       (div :.x#y {:className (cond-> ""
+                                true (str "a"))} "Hello"))
+
+
      (let [some-class      "x"
            some-js-props   #js {:className "a" :id 1}
            some-cljs-props {:className "a" :id 1}]
@@ -156,6 +173,7 @@
          (div some-js-props "Hello")
          (div :.x#y some-js-props "Hello")
          (div :.x#y some-cljs-props "Hello")))
+
 
      (provided "There are nested elements as children (no props)"
        (dom/macro-create-element* args) =1x=> (do

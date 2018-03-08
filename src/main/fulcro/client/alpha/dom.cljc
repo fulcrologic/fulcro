@@ -702,27 +702,30 @@
    (defn clj-map->js-object
      "Recursively convert a map to a JS object. For use in macro expansion."
      [m]
-     (walk/postwalk (fn [x]
-                      (cond
-                        (map? x) (JSValue. x)
-                        (symbol? x) `(cljs.core/clj->js ~x)
-                        :else x))
-       m)))
+     {:pre [(map? m)]}
+     (JSValue. (into {}
+                 (clojure.core/map (fn [[k v]]
+                                     (cond
+                                       (map? v) [k (clj-map->js-object v)]
+                                       (vector? v) [k (mapv #(if (map? %) (clj-map->js-object %) %) v)]
+                                       (symbol? v) [k `(cljs.core/clj->js ~v)]
+                                       :else [k v])))
+                 m))))
 
 (s/def ::map-of-literals (fn [v]
                            (and (map? v)
                              (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
 
-(s/def ::map-with-symbols (fn [v]
-                            (and (map? v)
-                              (some symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
+(s/def ::map-with-expr (fn [v]
+                         (and (map? v)
+                           (some #(or (symbol? %) (list? %)) (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
 
 (s/def ::dom-element-args
   (s/cat
     :css (s/? keyword?)
     :attrs (s/? (s/or :nil nil?
                   :map ::map-of-literals
-                  :runtime-map ::map-with-symbols
+                  :runtime-map ::map-with-expr
                   :js-object #(instance? JSValue %)
                   :symbol symbol?))
     :children (s/* (s/or :string string?
@@ -748,9 +751,9 @@
            (if css
              (let [attr-expr `(fulcro.client.alpha.css-keywords/combine ~attrs-value ~css)]
                `(fulcro.client.alpha.dom/macro-create-element*
-                 ~(JSValue. (into [str-tag-name attr-expr] children))))
+                  ~(JSValue. (into [str-tag-name attr-expr] children))))
              `(fulcro.client.alpha.dom/macro-create-element*
-               ~(JSValue. (into [str-tag-name attrs-value] children))))
+                ~(JSValue. (into [str-tag-name attrs-value] children))))
 
            :map
            `(fulcro.client.alpha.dom/macro-create-element*
