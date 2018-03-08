@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.3.2-SNAPSHOT"
+(defproject fulcrologic/fulcro "2.4.0-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -6,12 +6,14 @@
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
                  [org.clojure/clojurescript "1.9.946" :scope "provided"]
 
-                 [cljsjs/react "15.6.2-1"]
-                 [cljsjs/react-dom "15.6.2-1"]
+                 [cljsjs/react "15.6.2-4"]
+                 [cljsjs/react-dom "15.6.2-4"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.243"]
                  [org.clojure/core.async "0.3.465" :exclusions [org.clojure/tools.reader]]
-                 [com.ibm.icu/icu4j "59.1"]                 ; needed for i18n on server-side rendering
+                 [garden "1.3.4"]
+                 [com.rpl/specter "1.1.0"]
+                 [com.ibm.icu/icu4j "60.2"]                 ; needed for i18n on server-side rendering
 
                  [clojure-future-spec "1.9.0-beta4"]
 
@@ -21,11 +23,11 @@
                  [bk/ring-gzip "0.2.1"]
                  [com.stuartsierra/component "0.3.2"]
                  [com.taoensso/timbre "4.10.0" :scope "provided"] ; only needed by deprecated client logging
-                 [bidi "2.1.2"]                             ; needed by easy-server
+                 [bidi "2.1.3"]                             ; needed by easy-server
                  [com.taoensso/sente "1.12.0"]              ; websockets
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.0.0-beta3" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "2.0.3-1" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.8" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
@@ -151,25 +153,21 @@
                                :optimizations :none}}]}
 
   :profiles {:book {:dependencies [[devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-css "2.0.0"] ; demos
-                                   [fulcrologic/fulcro-inspect "2.0.0-alpha4" :exclusions [fulcrologic/fulcro]]
+                                   [fulcrologic/fulcro-inspect "2.0.0-alpha6" :exclusions [fulcrologic/fulcro]]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
-                                   [com.rpl/specter "1.0.5"] ; only used in demos
                                    [org.flywaydb/flyway-core "4.2.0"]]}
              :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/tutorial" "src/book"]
                     :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                     :dependencies [[binaryage/devtools "0.9.7"]
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-css "2.0.0"] ; demos
-                                   [fulcrologic/fulcro-inspect "2.0.0-alpha4" :exclusions [fulcrologic/fulcro]]
+                                   [fulcrologic/fulcro-inspect "2.0.0-alpha6" :exclusions [fulcrologic/fulcro fulcrologic/fulcro-css]]
                                    [com.cemerick/piggieback "0.2.2"]
-                                   [figwheel-sidecar "0.5.14"]
+                                   [figwheel-sidecar "0.5.15"]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
-                                   [com.rpl/specter "1.0.5"] ; only used in demos
                                    [org.flywaydb/flyway-core "4.2.0"]
                                    [org.clojure/tools.namespace "0.3.0-alpha4"]
                                    [cljsjs/codemirror "5.8.0-0"]
