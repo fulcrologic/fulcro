@@ -9,7 +9,6 @@
                [cljs.util]]
         :cljs [[goog.string :as gstring]
                [goog.object :as gobj]])
-               fulcro-css.css
                [clojure.core.async :as async]
                [clojure.set :as set]
                [fulcro.history :as hist]
@@ -21,7 +20,7 @@
                [fulcro.client.impl.protocols :as p]
                [fulcro.client.impl.parser :as parser]
                [fulcro.util :as util]
-               [clojure.walk :as walk :refer [prewalk]]
+               [clojure.walk :refer [prewalk]]
                [clojure.string :as str]
                [clojure.spec.alpha :as s]
     #?(:clj
