@@ -741,14 +741,16 @@
            children       (mapv second children)
            attrs-type     (or (first attrs) :nil)           ; attrs omitted == nil
            attrs-value    (or (second attrs) {})]
-       (when (and is-cljs? (= attrs-type :js-object) css)
-         (throw (ex-info "Keyword CSS/ID Cannot be combined with JS maps. Drop the #js." {})))
        (if is-cljs?
          ; TODO: If there is a symbol included in the literal value, then we have to use runtime conversion in certain cases
          (case attrs-type
            :js-object                                       ; kw combos not supported
-           `(fulcro.client.alpha.dom/macro-create-element*
-              ~(JSValue. (into [str-tag-name attrs-value] children)))
+           (if css
+             (let [attr-expr `(fulcro.client.alpha.css-keywords/combine ~attrs-value ~css)]
+               `(fulcro.client.alpha.dom/macro-create-element*
+                 ~(JSValue. (into [str-tag-name attr-expr] children))))
+             `(fulcro.client.alpha.dom/macro-create-element*
+               ~(JSValue. (into [str-tag-name attrs-value] children))))
 
            :map
            `(fulcro.client.alpha.dom/macro-create-element*

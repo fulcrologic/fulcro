@@ -39,9 +39,12 @@
              {:jsvalue ["div"
                         (fulcro.client.alpha.css-keywords/combine {:jsvalue {:data-x (cljs.core/clj->js ~'some-var)}} :.a)
                         "Hello"]})
-       "kw + JS data throws an exception to indicate unsupported combination"
-       (jsvalue->map (dom/emit-tag "div" true [:.a (JSValue. {:data-x 'some-var}) "Hello"])) =throws=> {:regex #"Cannot be combined with JS"}
-       (jsvalue->map (dom/emit-tag "div" true [:.a (JSValue. {}) "Hello"])) =throws=> {:regex #"Cannot be combined with JS"}
+       "kw + JS data emits a runtime combine operation on the JS data without embedded processing."
+       (jsvalue->map (dom/emit-tag "div" true [:.a (JSValue. {:data-x 'some-var}) "Hello"]))
+       => `(dom/macro-create-element*
+             {:jsvalue ["div"
+                        (fulcro.client.alpha.css-keywords/combine {:jsvalue {:data-x ~'some-var}} :.a)
+                        "Hello"]})
        "Plain JS maps are passed through as props"
        (jsvalue->map (dom/emit-tag "div" true [(JSValue. {:data-x 1}) "Hello"]))
        => `(dom/macro-create-element* {:jsvalue ["div"
@@ -64,6 +67,7 @@
                                                (aget args 2) => "Hello"))
 
        (div "Hello"))
+
      (provided "It is passed a CLJ map:"
        (dom/macro-create-element* args) => (do
                                              (assertions

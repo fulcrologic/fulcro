@@ -20,7 +20,7 @@
     (css/parse :a) =throws=> {:regex #"Invalid style"}
     (css/parse :.a#.j) =throws=> {:regex #"Invalid style"}))
 
-(specification "Combining keywords on CLJ(s) property maps"
+(specification "Combining keywords on CLJ(s) property maps" :focused
   (let [props         {:className "c1"}
         props-with-id {:id 1 :className "c1"}]
     (assertions
@@ -30,17 +30,17 @@
       (css/combine props-with-id :.a) => {:id 1 :className "a c1"}
       "overrides existing id when kw has an ID"
       (css/combine props-with-id :.a#2) => {:id "2" :className "a c1"})
-    #?(:clj (component "On the server:"
-              (assertions
-                "a nil props and nil kw results in an empty js map"
-                (css/combine nil nil) => {}
-                "a nil props and real kw results in js props"
-                (css/combine nil :.a.b#2) => {:className "a b"
-                                              :id        "2"}
-                "a kw with multiple classes combines properly"
-                (css/combine props :.a.some-class.other-class) => {:className "a some-class other-class c1"})
-
-              ))))
+    ;; Need to run these because the cljs version of these emit JS maps
+    #?(:clj
+       (component "On the server:"
+         (assertions
+           "a nil props and nil kw results in an empty js map"
+           (css/combine nil nil) => {}
+           "a nil props and real kw results in js props"
+           (css/combine nil :.a.b#2) => {:className "a b"
+                                         :id        "2"}
+           "a kw with multiple classes combines properly"
+           (css/combine props :.a.some-class.other-class) => {:className "a some-class other-class c1"})))))
 
 #?(:cljs
    (specification "Combining keywords on JS property maps"
@@ -68,5 +68,4 @@
          (js->clj (css/combine nil :.a.b#2)) => {"className" "a b"
                                                  "id"        "2"}
          "a kw with multiple classes combines properly"
-         (js->clj (css/combine js-props :.a.some-class.other-class)) => {"className" "a some-class other-class c1"})
-       )))
+         (js->clj (css/combine js-props :.a.some-class.other-class)) => {"className" "a some-class other-class c1"}))))
