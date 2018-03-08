@@ -3,6 +3,7 @@
   (:require-macros [fulcro.client.alpha.dom])
   (:require [cljsjs.react]
             [cljsjs.react.dom]
+            [fulcro.client.dom :as old-dom]
             [fulcro.client.alpha.css-keywords :as cssk]
             [goog.object :as gobj]))
 

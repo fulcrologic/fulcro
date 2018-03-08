@@ -6,7 +6,6 @@
                [clojure.spec.alpha :as s]
                [clojure.future :refer :all]
                [clojure.core.reducers :as r]
-               [clojure.walk :as walk]
                [fulcro.util :as util]
                [fulcro.client.alpha.css-keywords :as cssk]
                [fulcro.checksums :as chk]))
@@ -275,7 +274,16 @@
     polygon
     radialGradient
     stop
-    tspan])
+    tspan
+
+    ;; forms (TODO: wrapped versions)
+    input
+    select
+    option
+    textarea
+
+
+    ])
 
 ;; ===================================================================
 ;; Server-side rendering
@@ -691,14 +699,6 @@
                   :children  ~'children}))))
 
 #?(:clj
-   (defmacro gen-all-tags []
-     (when-not (boolean (:ns &env))
-       `(do
-          ~@(clojure.core/map gen-tag-fn
-              ;; In CLJS we generate these separately
-              (into tags '[input textarea option select]))))))
-
-#?(:clj
    (defn clj-map->js-object
      "Recursively convert a map to a JS object. For use in macro expansion."
      [m]
@@ -745,7 +745,6 @@
            attrs-type     (or (first attrs) :nil)           ; attrs omitted == nil
            attrs-value    (or (second attrs) {})]
        (if is-cljs?
-         ; TODO: If there is a symbol included in the literal value, then we have to use runtime conversion in certain cases
          (case attrs-type
            :js-object                                       ; kw combos not supported
            (if css
@@ -778,6 +777,7 @@
            `(fulcro.client.alpha.dom/macro-create-element*
               ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
 
+           ;; pure children
            `(fulcro.client.alpha.dom/macro-create-element
               ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))
          `(element {:tag       (quote ~(symbol str-tag-name))
@@ -785,8 +785,7 @@
                                  (dissoc :ref :key)
                                  (fulcro.client.alpha.css-keywords/combine ~css))
                     :react-key (:key ~attrs-value)
-                    :children  ~children})))
-     ))
+                    :children  ~children})))))
 
 #?(:clj
    (defn gen-dom-macro [name]
