@@ -8,7 +8,7 @@
                [clojure.core.reducers :as r]
                [clojure.walk :as walk]
                [fulcro.util :as util]
-               [fulcro.client.alpha.css-keywords :as css]
+               [fulcro.client.alpha.css-keywords :as cssk]
                [fulcro.checksums :as chk]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
@@ -709,71 +709,86 @@
                         :else x))
        m)))
 
-#?(:clj
-   (s/def ::dom-element-args
-     (s/cat
-       :css (s/? keyword?)
-       :attrs (s/? (s/or :nil nil?
-                     :map map?
-                     :js-object #(instance? JSValue %)
-                     :symbol symbol?))
-       :children (s/* (s/or :string string?
-                        :number number?
-                        :symbol symbol?
-                        :nil nil?
-                        :list list?)))))
+(s/def ::map-of-literals (fn [v]
+                           (and (map? v)
+                             (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
+
+(s/def ::map-with-symbols (fn [v]
+                            (and (map? v)
+                              (some symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
+
+(s/def ::dom-element-args
+  (s/cat
+    :css (s/? keyword?)
+    :attrs (s/? (s/or :nil nil?
+                  :map ::map-of-literals
+                  :runtime-map ::map-with-symbols
+                  :js-object #(instance? JSValue %)
+                  :symbol symbol?))
+    :children (s/* (s/or :string string?
+                     :number number?
+                     :symbol symbol?
+                     :nil nil?
+                     :list list?))))
 
 #?(:clj
-   (defn compiler-merge-css [attr-map {:keys [id className]}]
-     (let [id-in-map (:id attr-map)]
-       (cond-> attr-map
-         className (update :className (fn [s]
-                                        (if s
-                                          (str s " " className)
-                                          className)))
-         id-in-map (assoc :id id-in-map)
-         id (assoc :id id)))))
+   (defn emit-tag [str-tag-name is-cljs? args]
+     (let [conformed-args (util/conform! ::dom-element-args args)
+           {attrs    :attrs
+            children :children
+            css      :css} conformed-args
+           css-props      (cssk/combine {} css)
+           children       (mapv second children)
+           attrs-type     (or (first attrs) :nil)           ; attrs omitted == nil
+           attrs-value    (or (second attrs) {})]
+       (when (and is-cljs? (= attrs-type :js-object) css)
+         (throw (ex-info "Keyword CSS/ID Cannot be combined with JS maps. Drop the #js." {})))
+       (if is-cljs?
+         ; TODO: If there is a symbol included in the literal value, then we have to use runtime conversion in certain cases
+         (case attrs-type
+           :js-object                                       ; kw combos not supported
+           `(fulcro.client.alpha.dom/macro-create-element*
+              ~(JSValue. (into [str-tag-name attrs-value] children)))
+
+           :map
+           `(fulcro.client.alpha.dom/macro-create-element*
+              ~(JSValue. (into [str-tag-name (-> attrs-value
+                                               (cssk/combine css)
+                                               (clj-map->js-object))]
+                           children)))
+
+           :runtime-map
+           (let [attr-expr (if css
+                             `(fulcro.client.alpha.css-keywords/combine ~(clj-map->js-object attrs-value) ~css)
+                             (clj-map->js-object attrs-value))]
+             `(fulcro.client.alpha.dom/macro-create-element*
+                ~(JSValue. (into [str-tag-name attr-expr] children))))
+
+
+           :symbol
+           `(fulcro.client.alpha.dom/macro-create-element
+              ~str-tag-name ~(into [attrs-value] children) ~css)
+
+           :nil
+           `(fulcro.client.alpha.dom/macro-create-element*
+              ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
+
+           `(fulcro.client.alpha.dom/macro-create-element
+              ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))
+         `(element {:tag       (quote ~(symbol str-tag-name))
+                    :attrs     (-> ~attrs-value
+                                 (dissoc :ref :key)
+                                 (fulcro.client.alpha.css-keywords/combine ~css))
+                    :react-key (:key ~attrs-value)
+                    :children  ~children})))
+     ))
 
 #?(:clj
    (defn gen-dom-macro [name]
      `(defmacro ~name [& args#]
-        (let [tag#            ~(str name)
-              conformed-args# (util/conform! ::dom-element-args args#)
-              {attrs#    :attrs
-               children# :children
-               css#      :css} conformed-args#
-
-              children#       (mapv second children#)
-              attrs-type#     (or (first attrs#) :nil)      ; attrs omitted == nil
-              attrs-value#    (or (second attrs#) {})
-              css#            (css/parse css#)
-
-              cljs?#          (boolean (:ns ~'&env))]
-          (if cljs?#
-            (case attrs-type#
-              :js-object
-              `(fulcro.client.alpha.dom/macro-create-element*
-                 ~(JSValue. (into [tag# attrs-value#] children#)))
-
-              :map
-              `(fulcro.client.alpha.dom/macro-create-element*
-                 ~(JSValue. (into [tag# (-> attrs-value#
-                                          (compiler-merge-css css#)
-                                          clj-map->js-object)]
-                              children#)))
-
-              :nil
-              `(fulcro.client.alpha.dom/macro-create-element*
-                 ~(JSValue. (into [tag# (JSValue. css#)] children#)))
-
-              `(fulcro.client.alpha.dom/macro-create-element
-                 ~tag# ~(JSValue. (into [attrs-value#] children#)) ~css#))
-            `(element {:tag       (quote ~(symbol tag#))
-                       :attrs     (-> ~attrs-value#
-                                    (dissoc :ref :key)
-                                    (compiler-merge-css ~css#))
-                       :react-key (:key ~attrs-value#)
-                       :children  ~children#}))))))
+        (let [tag#      ~(str name)
+              is-cljs?# (boolean (:ns ~'&env))]
+          (emit-tag tag# is-cljs?# args#)))))
 
 #?(:clj
    (defmacro gen-dom-macros []

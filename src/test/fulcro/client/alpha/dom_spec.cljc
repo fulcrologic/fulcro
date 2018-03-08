@@ -1,7 +1,55 @@
 (ns fulcro.client.alpha.dom-spec
   (:require
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
-    [fulcro.client.alpha.dom :as dom :refer [div p span]]))
+    [fulcro.client.alpha.dom :as dom :refer [div p span]])
+  #?(:clj
+     (:import (cljs.tagged_literals JSValue))))
+
+#?(:clj
+   (defn jsvalue->map
+     "Converts a data structure (recursively) that contains JSValues, replacing any JSValue with
+     a map {:jsvalue val} where val is the original val in the JSValue."
+     [v]
+     (cond
+       (instance? JSValue v) {:jsvalue (jsvalue->map (.-val v))}
+       (map? v) (clojure.walk/prewalk (fn [n] (if (instance? JSValue n) (jsvalue->map n) n)) v)
+       (vector? v) (mapv jsvalue->map v)
+       (seq? v) (doall (map jsvalue->map v))
+       :else v)))
+
+#?(:clj
+   (specification "Macro processing" :focused
+     (assertions
+       "kw + nil props converts to a runtime js obj"
+       (jsvalue->map (dom/emit-tag "div" true [:.a nil "Hello"]))
+       => `(dom/macro-create-element*
+             {:jsvalue ["div"
+                        {:jsvalue {:className "a"}}
+                        "Hello"]})
+       "kw + CLJS data converts to a runtime js obj"
+       (jsvalue->map (dom/emit-tag "div" true [:.a {:data-x 1} "Hello"]))
+       => `(dom/macro-create-element*
+             {:jsvalue ["div"
+                        {:jsvalue {:data-x    1
+                                   :className "a"}}
+                        "Hello"]})
+       "kw + CLJS data with symbols embeds runtime conversion on the symbols"
+       (jsvalue->map (dom/emit-tag "div" true [:.a {:data-x 'some-var} "Hello"]))
+       => `(dom/macro-create-element*
+             {:jsvalue ["div"
+                        (fulcro.client.alpha.css-keywords/combine {:jsvalue {:data-x (cljs.core/clj->js ~'some-var)}} :.a)
+                        "Hello"]})
+       "kw + JS data throws an exception to indicate unsupported combination"
+       (jsvalue->map (dom/emit-tag "div" true [:.a (JSValue. {:data-x 'some-var}) "Hello"])) =throws=> {:regex #"Cannot be combined with JS"}
+       (jsvalue->map (dom/emit-tag "div" true [:.a (JSValue. {}) "Hello"])) =throws=> {:regex #"Cannot be combined with JS"}
+       "Plain JS maps are passed through as props"
+       (jsvalue->map (dom/emit-tag "div" true [(JSValue. {:data-x 1}) "Hello"]))
+       => `(dom/macro-create-element* {:jsvalue ["div"
+                                                 {:jsvalue {:data-x 1}}
+                                                 "Hello"]})
+       "kw + symbol emits runtime conversion"
+       (jsvalue->map (dom/emit-tag "div" true [:.a 'props "Hello"]))
+       => `(dom/macro-create-element "div" [~'props "Hello"] :.a))))
 
 #?(:cljs
    (specification "DOM Tag Functions (CLJS)" :focused
@@ -65,17 +113,17 @@
                                                   (assertions
                                                     "kw + cljs -> merges the classes. The ID from the keyword overrides the ID"
                                                     (js->clj (aget args 1)) => {"id"        "j"
-                                                                                "className" "b a c e"}))
+                                                                                "className" "a c e b"}))
          (dom/macro-create-element* args) =1x=> (do
                                                   (assertions
                                                     "kw-based class and ID order doesn't matter"
                                                     (js->clj (aget args 1)) => {"id"        "j"
-                                                                                "className" "b a c e"}))
+                                                                                "className" "a c e b"}))
          (dom/macro-create-element* args) =1x=> (do
                                                   (assertions
                                                     "classnames can be combined in from a binding in env"
                                                     (js->clj (aget args 1)) => {"id"        "j"
-                                                                                "className" "x a c e"}))
+                                                                                "className" "a c e x"}))
          (dom/macro-create-element* args) =1x=> (do
                                                   (assertions
                                                     "cljs props passed as a symbol result in runtime conversion to js props"
@@ -93,9 +141,9 @@
                                                                                 "className" "x a"}))
          (dom/macro-create-element* args) =1x=> (do
                                                   (assertions
-                                                    "js props combined with class specifier results in updated cljs props"
+                                                    "cljs props combined with class specifier results in updated cljs props"
                                                     (js->clj (aget args 1)) => {"id"        "y"
-                                                                                "className" "a x"}))
+                                                                                "className" "x a"}))
 
          (div :.a.c.e#j {:id 1 :className "b"} "Hello")
          (div :#j.a.c.e {:id 1 :className "b"} "Hello")
@@ -150,9 +198,9 @@
        => "<div class=\"a\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-244181499\">Hello</div>"
        "Rendering with kw and props map"
        (dom/render-to-str (div :.a#1 {:className "b"} "Hello"))
-       => "<div class=\"b a\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"385816199\">Hello</div>"
+       => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"385685127\">Hello</div>"
        "Nested rendering"
        (dom/render-to-str (div :.a#1 {:className "b"}
                             (p "P")
                             (p :.x (span "PS2"))))
-       => "<div class=\"b a\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1769091545\"><p data-reactid=\"2\">P</p><p class=\"x\" data-reactid=\"3\"><span data-reactid=\"4\">PS2</span></p></div>")))
+       => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1768960473\"><p data-reactid=\"2\">P</p><p class=\"x\" data-reactid=\"3\"><span data-reactid=\"4\">PS2</span></p></div>")))

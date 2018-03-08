@@ -16,7 +16,7 @@
 
   (parse :.klass3#some-id.klass1.klass2)
   => {:id        \"some-id\"
-      :className \"klass3 klass1 klass2\"}"
+      :classes [\"klass3\" \"klass1\" \"klass2\"]}"
   [k]
   (if k
     (let [tokens       (get-tokens k)
@@ -39,7 +39,7 @@
 
 (defn combine
   "Combine a hiccup-style keyword with props that are either a JS or CLJS map."
-  [kw props]
+  [props kw]
   (let [{:keys [classes id] :or {classes []}} (parse kw)]
     (if #?(:clj false :cljs (or (nil? props) (object? props)))
       #?(:clj  props

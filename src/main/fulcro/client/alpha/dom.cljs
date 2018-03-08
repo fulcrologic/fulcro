@@ -3,6 +3,7 @@
   (:require-macros [fulcro.client.alpha.dom])
   (:require [cljsjs.react]
             [cljsjs.react.dom]
+            [fulcro.client.alpha.css-keywords :as cssk]
             [goog.object :as gobj]))
 
 ;; (dom/gen-react-dom-fns)
@@ -69,41 +70,33 @@
 (defn arr-append [arr tail]
   (reduce arr-append* arr tail))
 
-(defn add-css [attr-map {:keys [id className]}]
-  (let [classes-in-map (or (:class attr-map)
-                         (:className attr-map))
-        id-in-map      (:id attr-map)]
-    (assoc attr-map
-      :className (str classes-in-map " " className)
-      :id (or id id-in-map))))
-
 ;; fallback if the macro didn't do this
 (defn macro-create-element
-  ([type args] (macro-create-element type args {}))
-  ([type args {:keys [id className] :as css}]
+  ([type args] (macro-create-element type args nil))
+  ([type args csskw]
    (let [[head & tail] args]
      (cond
        (nil? head)
        (macro-create-element*
-         (doto #js [type #js {:id id :className className}]
+         (doto #js [type (cssk/combine #js {} csskw)]
            (arr-append tail)))
 
        (object? head)
        (macro-create-element*
-         (doto #js [type head]
+         (doto #js [type (cssk/combine head csskw)]
            (arr-append tail)))
 
        (map? head)
        (macro-create-element*
-         (doto #js [type (clj->js (add-css head css))]
+         (doto #js [type (clj->js (cssk/combine head csskw))]
            (arr-append tail)))
 
        (element? head)
        (macro-create-element*
-         (doto #js [type #js {:id id :className className}]
+         (doto #js [type (cssk/combine #js {} csskw)]
            (arr-append args)))
 
        :else
        (macro-create-element*
-         (doto #js [type #js {:id id :className className}]
+         (doto #js [type (cssk/combine #js {} csskw)]
            (arr-append args)))))))
