@@ -18,7 +18,7 @@
        :else v)))
 
 #?(:clj
-   (specification "Macro processing" :focused
+   (specification "Macro processing"
      (assertions
        "kw + nil props converts to a runtime js obj"
        (jsvalue->map (dom/emit-tag "div" true [:.a nil "Hello"]))
@@ -59,7 +59,7 @@
        => `(dom/macro-create-element* {:jsvalue ["div" (fulcro.client.alpha.css-keywords/combine {:jsvalue {:onClick (~'fn [] (~'do-it))}} :.a) "Hello"]}))))
 
 #?(:cljs
-   (specification "DOM Tag Functions (CLJS)" :focused
+   (specification "DOM Tag Functions (CLJS)"
      (provided "It is passed no arguments it:"
        (dom/macro-create-element* args) => (do
                                              (assertions
@@ -207,7 +207,7 @@
        (div :.a (p :.b "Hello")))))
 
 #?(:clj
-   (specification "Server-side Rendering" :focused
+   (specification "Server-side Rendering"
      (assertions
        "Simple tag rendering"
        (dom/render-to-str (div {} "Hello"))

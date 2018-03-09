@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [map meta time])
   #?(:cljs (:require-macros [fulcro-css.dom]))
   (:require
+    [fulcro.client.primitives :as prim]
     [clojure.string :as str]
     [clojure.spec.alpha :as s]
     #?@(:clj  [
@@ -12,6 +13,7 @@
     [fulcro.checksums :as chk]]
         :cljs [[cljsjs.react]
                [cljsjs.react.dom]
+               [cljsjs.react.dom.server]
                [goog.object :as gobj]]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
@@ -56,7 +58,10 @@
 (defn combine
   "Combine a hiccup-style keyword with props that are either a JS or CLJS map."
   [props kw]
-  (let [{:keys [classes id] :or {classes []}} (parse kw)]
+  (let [{:keys [classes id] :or {classes []}} (parse kw)
+        classes (if prim/*parent*
+                  (mapv #(fulcro-css.css/local-class (prim/react-type prim/*parent*) %) classes)
+                  classes)]
     (if #?(:clj false :cljs (or (nil? props) (object? props)))
       #?(:clj  props
          :cljs (let [props            (gobj/clone props)
@@ -794,7 +799,7 @@
            {attrs    :attrs
             children :children
             css      :css} conformed-args
-           css-props      (combine {} css)
+           css-props      (if css `(fulcro-css.dom/combine nil ~css) nil)
            children       (mapv second children)
            attrs-type     (or (first attrs) :nil)           ; attrs omitted == nil
            attrs-value    (or (second attrs) {})]
@@ -827,9 +832,9 @@
            `(fulcro-css.dom/macro-create-element
               ~str-tag-name ~(into [attrs-value] children) ~css)
 
-           :nil
+           :nil                                             ; also used for MISSING props
            `(fulcro-css.dom/macro-create-element*
-              ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
+              ~(JSValue. (into [str-tag-name css-props] children)))
 
            ;; pure children
            `(fulcro-css.dom/macro-create-element
@@ -975,6 +980,7 @@
            ([type args] (macro-create-element type args nil))
            ([type args csskw]
             (let [[head & tail] args]
+              (js/console.log :MCE)
               (cond
                 (nil? head)
                 (macro-create-element*

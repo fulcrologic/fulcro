@@ -20,7 +20,7 @@
     (css/parse :a) =throws=> {:regex #"Invalid style"}
     (css/parse :.a#.j) =throws=> {:regex #"Invalid style"}))
 
-(specification "Combining keywords on CLJ(s) property maps" :focused
+(specification "Combining keywords on CLJ(s) property maps"
   (let [props         {:className "c1"}
         props-with-id {:id 1 :className "c1"}]
     (assertions

@@ -29,7 +29,7 @@
   #?(:clj  (java.util.Date. (- year 1900) month day hour min sec)
      :cljs (js/Date. year month day hour min sec millis)))
 
-(defn format [{:keys [::i18n/localized-format-string
+(defn deflt-format [{:keys [::i18n/localized-format-string
                       ::i18n/locale ::i18n/format-options]}]
   #?(:cljs
      (let [locale-str (name locale)
@@ -48,11 +48,11 @@
 (specification "Base translation -- tr"
   (assertions
     "returns the message key if there is no translation"
-    (i18n/with-locale format locale-with-no-translations (tr "Hello")) => "Hello"
+    (i18n/with-locale deflt-format locale-with-no-translations (tr "Hello")) => "Hello"
     "returns message key if translation is an empty string"
-    (i18n/with-locale format bad-locale (tr "Hi")) => "Hi"
+    (i18n/with-locale deflt-format bad-locale (tr "Hi")) => "Hi"
     "returns message key if no entry is found in the translations"
-    (i18n/with-locale format es-locale (tr "Hello")) => "Hello"
+    (i18n/with-locale deflt-format es-locale (tr "Hello")) => "Hello"
     "Returns an error-marker string if anything but a literal string is used"
     (str/starts-with? (tr 4) "ERROR: tr requires a literal string") => true
     (str/starts-with? (tr map) "ERROR: tr requires a literal string") => true
@@ -76,10 +76,10 @@
     (trc "Abbreviation for Monday" "M") => "M")
   (assertions
     "Formats in an es locale"
-    (i18n/with-locale format es-locale (trc "Abbreviation for Monday" "M")) => "L"))
+    (i18n/with-locale deflt-format es-locale (trc "Abbreviation for Monday" "M")) => "L"))
 
 (specification "Message format translation -- trf"
-  (i18n/with-locale format locale-with-no-translations
+  (i18n/with-locale deflt-format locale-with-no-translations
     (assertions "returns the string it is passed if there is no translation"
       (trf "Hello") => "Hello")
     (let [s "str"]
@@ -107,8 +107,8 @@
         (trf "{n, plural, =0 {no apples} =1 {1 apple} other {# apples}}" :n 2) => "2 apples"
         (trf "{n, plural, =0 {no apples} =1 {1 apple} other {# apples}}" :n 146) => "146 apples"))
     (assertions "formats numbers - Germany"
-      (i18n/with-locale format {::i18n/locale :de} (trf "{a, number}" :a 18349)) => "18.349")
-    (i18n/with-locale format (assoc es-locale ::i18n/locale :es-MX)
+      (i18n/with-locale deflt-format {::i18n/locale :de} (trf "{a, number}" :a 18349)) => "18.349")
+    (i18n/with-locale deflt-format (assoc es-locale ::i18n/locale :es-MX)
       (behavior "NOTE: JVM and various browsers all do this a little differently due to nuances of the various formatting implementations!"
         #?(:cljs (assertions
                    "formats dates - Mexico (client-side)"
@@ -127,7 +127,7 @@
           (trf "{n,plural,=0 {none} =1 {one} other {#}}" :n 146) => "146")))))
 
 (specification "An undefined locale"
-  (i18n/with-locale format nil
+  (i18n/with-locale deflt-format nil
     (behavior "uses the in-code translation"
       (assertions
         "tr"

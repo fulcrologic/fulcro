@@ -8,6 +8,7 @@
 
                  [cljsjs/react "15.6.2-4"]
                  [cljsjs/react-dom "15.6.2-4"]
+                 [cljsjs/react-dom-server "15.6.2-4"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.243"]
                  [org.clojure/core.async "0.3.465" :exclusions [org.clojure/tools.reader]]
