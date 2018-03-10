@@ -24,10 +24,10 @@
 
 (defn remove-separators [s]
   (when s
-    (str/replace s #"^[.#]" "")))
+    (str/replace s #"^[.#$]" "")))
 
 (defn get-tokens [k]
-  (re-seq #"[#.]?[^#.]+" (name k)))
+  (re-seq #"[#.$]?[^#.$]+" (name k)))
 
 (defn parse
   "Parse CSS shorthand keyword and return map of id/classes.
@@ -37,14 +37,21 @@
       :classes [\"klass3\" \"klass1\" \"klass2\"]}"
   [k]
   (if k
-    (let [tokens       (get-tokens k)
-          id           (->> tokens (filter #(re-matches #"^#.*" %)) first)
-          classes      (->> tokens (filter #(re-matches #"^\..*" %)))
-          sanitized-id (remove-separators id)]
-      (when-not (re-matches #"^(\.[^.#]+|#[^.#]+)+$" (name k))
+    (let [tokens         (get-tokens k)
+          id             (->> tokens (filter #(re-matches #"^#.*" %)) first)
+          classes        (->> tokens (filter #(re-matches #"^\..*" %)))
+          global-classes (into []
+                           (comp
+                             (filter #(re-matches #"^[$].*" %))
+                             (clojure.core/map (fn [k] (-> k
+                                                         name
+                                                         (str/replace "$" "")))))
+                           tokens)
+          sanitized-id   (remove-separators id)]
+      (when-not (re-matches #"^(\.[^.#$]+|#[^.#$]+|[$][^.#$]+)+$" (name k))
         (throw (ex-info "Invalid style keyword. It contains something other than classnames and IDs." {})))
-      (cond-> {:classes (into []
-                          (keep remove-separators classes))}
+      (cond-> {:global-classes global-classes
+               :classes        (into [] (keep remove-separators classes))}
         sanitized-id (assoc :id sanitized-id)))
     {}))
 
@@ -55,24 +62,63 @@
   [classes-seq classes-str]
   (str/join " " (if (seq classes-str) (conj classes-seq classes-str) classes-seq)))
 
+(letfn [(pget [p nm dflt] (cond
+                            #?@(:clj [(instance? JSValue p) (get-in p [:val nm] dflt)])
+                            (map? p) (get p nm dflt)
+                            #?@(:cljs [(object? p) (gobj/get p (name nm) dflt)])))
+        (passoc [p nm v] (cond
+                           #?@(:clj [(instance? JSValue p) (JSValue. (assoc (.-val p) nm v))])
+                           (map? p) (assoc p nm v)
+                           #?@(:cljs [(object? p) (do (gobj/set p (name nm) v) p)])))
+        (pdissoc [p nm] (cond
+                          #?@(:clj [(instance? JSValue p) (JSValue. (dissoc (.-val p) nm))])
+                          (map? p) (dissoc p nm)
+                          #?@(:cljs [(object? p) (do (gobj/remove p (name nm)) p)])))
+        (strip-prefix [s] (str/replace s #"^[:.#$]*" ""))]
+  (defn fold-in-classes
+    "Update the :className prop in the given props to include the classes in the :classes entry of props. Works on js objects and CLJ maps as props.
+    If using js props, they must be mutable."
+    [props component]
+    (if-let [extra-classes (pget props :classes nil)]
+      (let [old-classes (pget props :className "")]
+        (pdissoc
+          (if component
+            (let [clz         (prim/react-type component)
+                  new-classes (combined-classes (clojure.core/map (fn [c]
+                                                                    (let [c (some-> c name)]
+                                                                      (cond
+                                                                       (nil? c) ""
+                                                                       (str/starts-with? c ".") (fulcro-css.css/local-class clz (strip-prefix c))
+                                                                       (str/starts-with? c "$") (strip-prefix c)
+                                                                       :else c))) extra-classes) old-classes)]
+              (passoc props :className new-classes))
+            (let [new-classes (combined-classes (clojure.core/map strip-prefix extra-classes) old-classes)]
+              (passoc props :className new-classes)))
+          :classes))
+      props)))
+
 (defn combine
   "Combine a hiccup-style keyword with props that are either a JS or CLJS map."
   [props kw]
-  (let [{:keys [classes id] :or {classes []}} (parse kw)
-        classes (if prim/*parent*
-                  (mapv #(fulcro-css.css/local-class (prim/react-type prim/*parent*) %) classes)
-                  classes)]
-    (if #?(:clj false :cljs (or (nil? props) (object? props)))
-      #?(:clj  props
-         :cljs (let [props            (gobj/clone props)
-                     existing-classes (gobj/get props "className")]
-                 (when (seq classes) (gobj/set props "className" (combined-classes classes existing-classes)))
-                 (when id (gobj/set props "id" id))
-                 props))
-      (let [existing-classes (:className props)]
-        (cond-> (or props {})
-          (seq classes) (assoc :className (combined-classes classes existing-classes))
-          id (assoc :id id))))))
+  (let [{:keys [global-classes classes id] :or {classes []}} (parse kw)
+        classes (vec (concat
+                       (if prim/*parent*
+                         (clojure.core/map #(fulcro-css.css/local-class (prim/react-type prim/*parent*) %) classes)
+                         classes)
+                       global-classes))]
+    (fold-in-classes
+      (if #?(:clj false :cljs (or (nil? props) (object? props)))
+        #?(:clj  props
+           :cljs (let [props            (gobj/clone props)
+                       existing-classes (gobj/get props "className")]
+                   (when (seq classes) (gobj/set props "className" (combined-classes classes existing-classes)))
+                   (when id (gobj/set props "id" id))
+                   props))
+        (let [existing-classes (:className props)]
+          (cond-> (or props {})
+            (seq classes) (assoc :className (combined-classes classes existing-classes))
+            id (assoc :id id))))
+      prim/*parent*)))
 
 (declare tags
   a
@@ -805,34 +851,28 @@
            attrs-value    (or (second attrs) {})]
        (if is-cljs?
          (case attrs-type
-           :js-object                                       ; kw combos not supported
-           (if css
-             (let [attr-expr `(fulcro-css.dom/combine ~attrs-value ~css)]
-               `(fulcro-css.dom/macro-create-element*
-                  ~(JSValue. (into [str-tag-name attr-expr] children))))
-             `(fulcro-css.dom/macro-create-element*
-                ~(JSValue. (into [str-tag-name attrs-value] children))))
-
-           :map
-           `(fulcro-css.dom/macro-create-element*
-              ~(JSValue. (into [str-tag-name (-> attrs-value
-                                               (combine css)
-                                               (clj-map->js-object))]
-                           children)))
-
-           :runtime-map
-           (let [attr-expr (if css
-                             `(fulcro-css.dom/combine ~(clj-map->js-object attrs-value) ~css)
-                             (clj-map->js-object attrs-value))]
+           :js-object
+           (let [attr-expr `(fulcro-css.dom/combine ~attrs-value ~css)]
              `(fulcro-css.dom/macro-create-element*
                 ~(JSValue. (into [str-tag-name attr-expr] children))))
 
+           :map
+           (let [attr-expr (if (or css (contains? attrs-value :classes))
+                             `(combine ~(clj-map->js-object attrs-value) ~css)
+                             (clj-map->js-object attrs-value))]
+             `(fulcro-css.dom/macro-create-element* ~(JSValue. (into [str-tag-name attr-expr] children))))
+
+           :runtime-map
+           (let [attr-expr `(fulcro-css.dom/combine ~(clj-map->js-object attrs-value) ~css)]
+             `(fulcro-css.dom/macro-create-element*
+                ~(JSValue. (into [str-tag-name attr-expr] children))))
 
            :symbol
            `(fulcro-css.dom/macro-create-element
               ~str-tag-name ~(into [attrs-value] children) ~css)
 
-           :nil                                             ; also used for MISSING props
+           ;; also used for MISSING props
+           :nil
            `(fulcro-css.dom/macro-create-element*
               ~(JSValue. (into [str-tag-name css-props] children)))
 
@@ -980,7 +1020,6 @@
            ([type args] (macro-create-element type args nil))
            ([type args csskw]
             (let [[head & tail] args]
-              (js/console.log :MCE)
               (cond
                 (nil? head)
                 (macro-create-element*
