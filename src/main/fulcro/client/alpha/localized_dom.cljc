@@ -1,6 +1,6 @@
-(ns fulcro-css.dom
+(ns fulcro.client.alpha.localized-dom
   (:refer-clojure :exclude [map meta time])
-  #?(:cljs (:require-macros [fulcro-css.dom]))
+  #?(:cljs (:require-macros [fulcro.client.alpha.localized-dom]))
   (:require
     [fulcro.client.primitives :as prim]
     [clojure.string :as str]
@@ -88,7 +88,7 @@
                                                                     (let [c (some-> c name)]
                                                                       (cond
                                                                        (nil? c) ""
-                                                                       (str/starts-with? c ".") (fulcro-css.css/local-class clz (strip-prefix c))
+                                                                       (str/starts-with? c ".") (fulcro.client.css/local-class clz (strip-prefix c))
                                                                        (str/starts-with? c "$") (strip-prefix c)
                                                                        :else c))) extra-classes) old-classes)]
               (passoc props :className new-classes))
@@ -103,7 +103,7 @@
   (let [{:keys [global-classes classes id] :or {classes []}} (parse kw)
         classes (vec (concat
                        (if prim/*parent*
-                         (clojure.core/map #(fulcro-css.css/local-class (prim/react-type prim/*parent*) %) classes)
+                         (clojure.core/map #(fulcro.client.css/local-class (prim/react-type prim/*parent*) %) classes)
                          classes)
                        global-classes))]
     (fold-in-classes
@@ -845,44 +845,44 @@
            {attrs    :attrs
             children :children
             css      :css} conformed-args
-           css-props      (if css `(fulcro-css.dom/combine nil ~css) nil)
+           css-props      (if css `(fulcro.client.alpha.localized-dom/combine nil ~css) nil)
            children       (mapv second children)
            attrs-type     (or (first attrs) :nil)           ; attrs omitted == nil
            attrs-value    (or (second attrs) {})]
        (if is-cljs?
          (case attrs-type
            :js-object
-           (let [attr-expr `(fulcro-css.dom/combine ~attrs-value ~css)]
-             `(fulcro-css.dom/macro-create-element*
+           (let [attr-expr `(fulcro.client.alpha.localized-dom/combine ~attrs-value ~css)]
+             `(fulcro.client.alpha.localized-dom/macro-create-element*
                 ~(JSValue. (into [str-tag-name attr-expr] children))))
 
            :map
            (let [attr-expr (if (or css (contains? attrs-value :classes))
                              `(combine ~(clj-map->js-object attrs-value) ~css)
                              (clj-map->js-object attrs-value))]
-             `(fulcro-css.dom/macro-create-element* ~(JSValue. (into [str-tag-name attr-expr] children))))
+             `(fulcro.client.alpha.localized-dom/macro-create-element* ~(JSValue. (into [str-tag-name attr-expr] children))))
 
            :runtime-map
-           (let [attr-expr `(fulcro-css.dom/combine ~(clj-map->js-object attrs-value) ~css)]
-             `(fulcro-css.dom/macro-create-element*
+           (let [attr-expr `(fulcro.client.alpha.localized-dom/combine ~(clj-map->js-object attrs-value) ~css)]
+             `(fulcro.client.alpha.localized-dom/macro-create-element*
                 ~(JSValue. (into [str-tag-name attr-expr] children))))
 
            :symbol
-           `(fulcro-css.dom/macro-create-element
+           `(fulcro.client.alpha.localized-dom/macro-create-element
               ~str-tag-name ~(into [attrs-value] children) ~css)
 
            ;; also used for MISSING props
            :nil
-           `(fulcro-css.dom/macro-create-element*
+           `(fulcro.client.alpha.localized-dom/macro-create-element*
               ~(JSValue. (into [str-tag-name css-props] children)))
 
            ;; pure children
-           `(fulcro-css.dom/macro-create-element
+           `(fulcro.client.alpha.localized-dom/macro-create-element
               ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))
          `(element {:tag       (quote ~(symbol str-tag-name))
                     :attrs     (-> ~attrs-value
                                  (dissoc :ref :key)
-                                 (fulcro-css.dom/combine ~css))
+                                 (fulcro.client.alpha.localized-dom/combine ~css))
                     :react-key (:key ~attrs-value)
                     :children  ~children})))))
 

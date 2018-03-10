@@ -1,7 +1,7 @@
-(ns fulcro-css.css-spec
+(ns fulcro.client.css-spec
   (:require
     [fulcro-spec.core :refer [specification assertions behavior]]
-    [fulcro-css.css :as css]
+    [fulcro.client.css :as css]
     [fulcro.client.primitives :as prim :refer [defui]]
     [fulcro.client.dom :as dom]
     [garden.selectors :as sel]))
@@ -99,30 +99,30 @@
   (behavior "can be obtained from"
     (assertions
       "a single component"
-      (css/get-css ListItem) => '([:.fulcro-css_css-spec_ListItem__item {:font-weight "bold"}])
+      (css/get-css ListItem) => '([:.fulcro_client_css-spec_ListItem__item {:font-weight "bold"}])
       "a component with a child"
-      (css/get-css ListComponent) => '([:.fulcro-css_css-spec_ListComponent__items-wrapper {:background-color "blue"}]
-                                        [:.fulcro-css_css-spec_ListItem__item {:font-weight "bold"}])
+      (css/get-css ListComponent) => '([:.fulcro_client_css-spec_ListComponent__items-wrapper {:background-color "blue"}]
+                                        [:.fulcro_client_css-spec_ListItem__item {:font-weight "bold"}])
       "a component with nested children"
-      (css/get-css Root) => '([:.fulcro-css_css-spec_Root__container {:background-color "red"}]
+      (css/get-css Root) => '([:.fulcro_client_css-spec_Root__container {:background-color "red"}]
                                [:.text {:color "green"}]
-                               [:.fulcro-css_css-spec_ListComponent__items-wrapper {:background-color "blue"}]
-                               [:.fulcro-css_css-spec_ListItem__item {:font-weight "bold"}])
+                               [:.fulcro_client_css-spec_ListComponent__items-wrapper {:background-color "blue"}]
+                               [:.fulcro_client_css-spec_ListItem__item {:font-weight "bold"}])
       "a component with multiple direct children"
-      (css/get-css Parent) => '([:.fulcro-css_css-spec_Child1__child1class {:color "red"}]
-                                 [:.fulcro-css_css-spec_Child2__child2class {:color "blue"}])
+      (css/get-css Parent) => '([:.fulcro_client_css-spec_Child1__child1class {:color "red"}]
+                                 [:.fulcro_client_css-spec_Child2__child2class {:color "blue"}])
       "a component with multiple direct children without duplicating rules"
-      (css/get-css MyRoot) => '([:.fulcro-css_css-spec_MyForm__form {:background-color "white"}]
-                                 [:.fulcro-css_css-spec_MyNavigation__nav {:width "100px"}]
-                                 [:.fulcro-css_css-spec_MyButton__my-button {:color "black"}]
-                                 [:.fulcro-css_css-spec_MyLabel__my-label {:color "green"}]))))
+      (css/get-css MyRoot) => '([:.fulcro_client_css-spec_MyForm__form {:background-color "white"}]
+                                 [:.fulcro_client_css-spec_MyNavigation__nav {:width "100px"}]
+                                 [:.fulcro_client_css-spec_MyButton__my-button {:color "black"}]
+                                 [:.fulcro_client_css-spec_MyLabel__my-label {:color "green"}]))))
 
 (specification "Generate classnames from CSS"
   (assertions
     "global classnames are untouched"
     (:text (css/get-classnames Root)) => "text"
     "local classnames are transformed"
-    (:container (css/get-classnames Root)) => "fulcro-css_css-spec_Root__container"
+    (:container (css/get-classnames Root)) => "fulcro_client_css-spec_Root__container"
     "does not generate children-classnames"
     (:items-wrapper (css/get-classnames Root)) => nil))
 
@@ -164,17 +164,17 @@
 (specification "CSS Combinators"
   (assertions
     "Child selector"
-    (first-css-selector (css/get-css A)) => ".fulcro-css_css-spec_A__a > .fulcro-css_css-spec_A__b > .fulcro-css_css-spec_A__c"
+    (first-css-selector (css/get-css A)) => ".fulcro_client_css-spec_A__a > .fulcro_client_css-spec_A__b > .fulcro_client_css-spec_A__c"
     "Child selector with localization prevention"
-    (first-css-selector (css/get-css B)) => ".a > .fulcro-css_css-spec_B__b > span > .c"
+    (first-css-selector (css/get-css B)) => ".a > .fulcro_client_css-spec_B__b > span > .c"
     "Adjacent sibling selector"
-    (first-css-selector (css/get-css C)) => ".fulcro-css_css-spec_C__a + .b"
+    (first-css-selector (css/get-css C)) => ".fulcro_client_css-spec_C__a + .b"
     "General sibling selector"
-    (first-css-selector (css/get-css D)) => ".fulcro-css_css-spec_D__a ~ .fulcro-css_css-spec_D__b"
+    (first-css-selector (css/get-css D)) => ".fulcro_client_css-spec_D__a ~ .fulcro_client_css-spec_D__b"
     "Multiple different selectors"
-    (first-css-selector (css/get-css E)) => ".fulcro-css_css-spec_E__a + .b > span"
+    (first-css-selector (css/get-css E)) => ".fulcro_client_css-spec_E__a + .b > span"
     "Get classnames"
-    (css/get-classnames F) => {:a "fulcro-css_css-spec_F__a"
+    (css/get-classnames F) => {:a "fulcro_client_css-spec_F__a"
                                :b "b"
                                :c "c"
                                :d "d"}))
@@ -192,14 +192,14 @@
 (specification "Special &-selector"
   (assertions
     "Get CSS rules"
-    (css/get-css G) => '([:.fulcro-css_css-spec_G__a {:color "orange"}
-                          [:&.fulcro-css_css-spec_G__b {:font-weight "bold"}]
+    (css/get-css G) => '([:.fulcro_client_css-spec_G__a {:color "orange"}
+                          [:&.fulcro_client_css-spec_G__b {:font-weight "bold"}]
                           [:&.c {:background-color "black"}]]
                           [:.d {:color "green"}
                            [:&.e {:color "gray"}]])
     "Get classnames"
-    (css/get-classnames G) => {:a "fulcro-css_css-spec_G__a"
-                               :b "fulcro-css_css-spec_G__b"
+    (css/get-classnames G) => {:a "fulcro_client_css-spec_G__a"
+                               :b "fulcro_client_css-spec_G__b"
                                :c "c"
                                :d "d"
                                :e "e"}))

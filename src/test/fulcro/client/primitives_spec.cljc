@@ -3,7 +3,7 @@
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
             [fulcro.client.dom :as dom]
-            [fulcro-css.css]
+            [fulcro.client.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
             fulcro.client
@@ -1127,12 +1127,12 @@
        (assertions
          "Can take templates and turn them into the proper protocol"
          (#'prim/build-css 'this {:template []} {:template []})
-         => '(static fulcro-css.css/CSS
+         => '(static fulcro.client.css/CSS
                (local-rules [_] [])
                (include-children [_] []))
          "Can take methods and turn them into the proper protocol"
          (#'prim/build-css 'th {:method '(fn [] [:rule])} {:method '(fn [] [CrapTastic])})
-         => '(static fulcro-css.css/CSS
+         => '(static fulcro.client.css/CSS
                (local-rules [th] [:rule])
                (include-children [th] [CrapTastic]))
          "Omits the entire protocol if neiter are supplied"
@@ -1173,7 +1173,7 @@
                (~'render [~'this]
                  (let [{:keys [~'a]} (fulcro.client.primitives/props ~'this)
                        {:keys [~'onSelect]} (fulcro.client.primitives/get-computed ~'this)
-                       ~'{:keys [my-class]} (fulcro-css.css/get-classnames ~'Boo)]
+                       ~'{:keys [my-class]} (fulcro.client.css/get-classnames ~'Boo)]
                    (~'dom/div nil "Hello"))))))
      (component "make-lifecycle"
        (assertions
@@ -1320,7 +1320,7 @@
                          (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
-               fulcro-css.css/CSS
+               fulcro.client.css/CSS
                (local-rules [_] [:rule])
                (include-children [_] [])
                Object
@@ -1356,7 +1356,7 @@
                          (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
-               fulcro-css.css/CSS
+               fulcro.client.css/CSS
                (local-rules [_] [])
                (include-children [_] [A])
                static
@@ -1388,7 +1388,7 @@
                          (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
-               fulcro-css.css/CSS
+               fulcro.client.css/CSS
                (local-rules [this] [:rule])
                (include-children [this] [A])
                static
@@ -1406,7 +1406,7 @@
                          (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
-               fulcro-css.css/CSS
+               fulcro.client.css/CSS
                (local-rules [this] [:rule])
                (include-children [this] [A])
                static

@@ -1,4 +1,4 @@
-(ns fulcro-css.css
+(ns fulcro.client.css
   (:require [cljs.tagged-literals]
             [clojure.string :as str]
             [com.rpl.specter :as sp]

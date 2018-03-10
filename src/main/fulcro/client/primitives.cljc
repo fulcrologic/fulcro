@@ -9,7 +9,7 @@
                [cljs.util]]
         :cljs [[goog.string :as gstring]
                [goog.object :as gobj]])
-               fulcro-css.css
+               fulcro.client.css
                [clojure.core.async :as async]
                [clojure.set :as set]
                [fulcro.history :as hist]
@@ -2891,7 +2891,7 @@
 
 #?(:clj
    (defn- build-render [classsym thissym propsym compsym csssym body]
-     (let [css-bindings      (when csssym `[~csssym (fulcro-css.css/get-classnames ~classsym)])
+     (let [css-bindings      (when csssym `[~csssym (fulcro.client.css/get-classnames ~classsym)])
            computed-bindings (when compsym `[~compsym (fulcro.client.primitives/get-computed ~thissym)])]
        `(~'Object
           (~'render [~thissym]
@@ -3083,7 +3083,7 @@
                                                `(~'include-children [~'_] ~include-template))
                             include-method (replace-and-validate-fn 'include-children [thissym] 0 include-method 'css-include)
                             :else '(include-children [_] []))]
-         `(~'static fulcro-css.css/CSS
+         `(~'static fulcro.client.css/CSS
             ~local-form
             ~include-form)))))
 

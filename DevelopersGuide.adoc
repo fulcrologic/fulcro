@@ -2828,7 +2828,7 @@ Step (1) means that nesting of param-namespaced keywords is supported, but reali
 === CSS Support
 
 Support for using `fulcrologic/fulcro-css` is built-in, but it is a dynamic dependency so to use it you must include
-the `fulcrologic/fulcro-css` library in your project dependencies and require the `fulcro-css.css` namespace in any file
+the `fulcrologic/fulcro-css` library in your project dependencies and require the `fulcro.client.css` namespace in any file
 that uses this support.
 
 The keys in the options map are:

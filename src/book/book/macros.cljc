@@ -4,7 +4,7 @@
     [fulcro.client :as fc]
     #?(:cljs [devcards.util.edn-renderer :as edn])
     #?(:cljs [goog.object :as obj])
-    fulcro-css.css
+    fulcro.client.css
     [fulcro.client.dom :as dom]
     [fulcro.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]

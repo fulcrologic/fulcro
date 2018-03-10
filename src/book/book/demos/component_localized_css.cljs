@@ -1,6 +1,6 @@
 (ns book.demos.component-localized-css
   (:require
-    [fulcro-css.css :as css]
+    [fulcro.client.css :as css]
     [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
     [fulcro.client.dom :as dom]))
 
