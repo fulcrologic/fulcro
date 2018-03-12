@@ -87,10 +87,10 @@
                   new-classes (combined-classes (clojure.core/map (fn [c]
                                                                     (let [c (some-> c name)]
                                                                       (cond
-                                                                       (nil? c) ""
-                                                                       (str/starts-with? c ".") (fulcro.client.css/local-class clz (strip-prefix c))
-                                                                       (str/starts-with? c "$") (strip-prefix c)
-                                                                       :else c))) extra-classes) old-classes)]
+                                                                        (nil? c) ""
+                                                                        (str/starts-with? c ".") (fulcro.client.css/local-class clz (strip-prefix c))
+                                                                        (str/starts-with? c "$") (strip-prefix c)
+                                                                        :else c))) extra-classes) old-classes)]
               (passoc props :className new-classes))
             (let [new-classes (combined-classes (clojure.core/map strip-prefix extra-classes) old-classes)]
               (passoc props :className new-classes)))
@@ -383,14 +383,10 @@
     radialGradient
     stop
     tspan
-
-    ;; forms (TODO: wrapped versions)
     input
     select
     option
-    textarea
-
-    ])
+    textarea])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Server-side rendering

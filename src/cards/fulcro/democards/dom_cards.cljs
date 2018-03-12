@@ -1,8 +1,6 @@
-(ns fulcro.democards.alpha.dom-cards
+(ns fulcro.democards.dom-cards
   (:require [devcards.core :as dc]
-            [fulcro.client :as fc]
             [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.dom :as old-dom]
             [fulcro.client.alpha.dom :as dom :refer [div span]]
             [goog.object :as gobj]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
@@ -45,7 +43,7 @@
 
 (defsc CssShorthand [this props]
   (let [x             nil
-        symbolic-attr {:style {:backgroundColor "yellow"}} ]
+        symbolic-attr {:style {:backgroundColor "yellow"}}]
     (div
       (dom/style "#the-id {background-color: coral;}")
       (dom/style ".border-klass {border-style: solid;}")
@@ -72,18 +70,18 @@
    :ident             [:form/by-id :db/id]
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (gobj/get this "n")] (.focus e)))}
-  (old-dom/input #js {:onChange #(m/set-string! this :form/value :event %)
-                      :ref      (fn [r] (gobj/set this "n" r))
-                      :value    value}))
+  (dom/input :#id.cls {:onChange #(m/set-string! this :form/value :event %)
+                    :ref      (fn [r] (gobj/set this "n" r))
+                    :value    value}))
 
 (defsc OldForm [this {:keys [:db/id :form/value] :as props}]
   {:query             [:db/id :form/value]
    :ident             [:form/by-id :db/id]
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (dom/node this "thing")] (.focus e)))}
-  (old-dom/input #js {:onChange #(m/set-string! this :form/value :event %)
-                      :ref      "thing"
-                      :value    value}))
+  (dom/input {:onChange #(m/set-string! this :form/value :event %)
+              :ref      "thing"
+              :value    value}))
 
 (def ui-form (prim/factory Form {:keyfn :db/id}))
 (def ui-old-form (prim/factory OldForm {:keyfn :db/id}))

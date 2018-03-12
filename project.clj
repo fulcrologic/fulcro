@@ -28,7 +28,7 @@
                  [com.taoensso/sente "1.12.0"]              ; websockets
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.0.3-1" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "2.0.4" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.8" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
@@ -63,7 +63,7 @@
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
-                               #_#_:parallel-build       true
+                               #_#_:parallel-build true
                                ;:verbose              true
                                ;:compiler-stats       true
                                :preloads             [devtools.preload]
@@ -77,73 +77,73 @@
                                :output-dir           "resources/public/js/cards"
                                :asset-path           "js/cards"
                                :preloads             [devtools.preload]
-                               #_#_:parallel-build       true
+                               #_#_:parallel-build true
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "book"
                 :source-paths ["src/main" "src/book"]
                 :figwheel     true
-                :compiler     {:output-dir     "resources/public/js/book"
-                               :asset-path     "js/book"
-                               :preloads       [devtools.preload]
-                               :modules        {:entry-point {:output-to "resources/public/js/book.js"
-                                                              :entries   #{book.main}}
-                                                ; For the dynamic i18n loading demo
-                                                :de          {:output-to "resources/public/js/book/de.js"
-                                                              :entries   #{translations.de}}
-                                                :es-MX       {:output-to "resources/public/js/book/es-MX.js"
-                                                              :entries   #{translations.es-MX}}
-                                                ; For the dynamic code splitting demo
-                                                :main        {:output-to "resources/public/js/book/main-ui.js"
-                                                              :entries   #{book.demos.dynamic-ui-main}}}
+                :compiler     {:output-dir "resources/public/js/book"
+                               :asset-path "js/book"
+                               :preloads   [devtools.preload]
+                               :modules    {:entry-point {:output-to "resources/public/js/book.js"
+                                                          :entries   #{book.main}}
+                                            ; For the dynamic i18n loading demo
+                                            :de          {:output-to "resources/public/js/book/de.js"
+                                                          :entries   #{translations.de}}
+                                            :es-MX       {:output-to "resources/public/js/book/es-MX.js"
+                                                          :entries   #{translations.es-MX}}
+                                            ; For the dynamic code splitting demo
+                                            :main        {:output-to "resources/public/js/book/main-ui.js"
+                                                          :entries   #{book.demos.dynamic-ui-main}}}
                                #_#_:parallel-build true}}
                {:id           "book-live"
                 :source-paths ["src/main" "src/book"]
-                :compiler     {:output-dir     "docs/js/book"
-                               :asset-path     "js/book"
-                               :optimizations  :advanced
-                               :modules        {:entry-point {:output-to "docs/js/book.js"
-                                                              :entries   #{book.main}}
-                                                ; For the dynamic i18n loading demo
-                                                :de          {:output-to "docs/js/book/de.js"
-                                                              :entries   #{translations.de}}
-                                                :es-MX       {:output-to "docs/js/book/es-MX.js"
-                                                              :entries   #{translations.es-MX}}
-                                                ; For the dynamic code splitting demo
-                                                :main        {:output-to "docs/js/book/main-ui.js"
-                                                              :entries   #{book.demos.dynamic-ui-main}}}
+                :compiler     {:output-dir    "docs/js/book"
+                               :asset-path    "js/book"
+                               :optimizations :advanced
+                               :modules       {:entry-point {:output-to "docs/js/book.js"
+                                                             :entries   #{book.main}}
+                                               ; For the dynamic i18n loading demo
+                                               :de          {:output-to "docs/js/book/de.js"
+                                                             :entries   #{translations.de}}
+                                               :es-MX       {:output-to "docs/js/book/es-MX.js"
+                                                             :entries   #{translations.es-MX}}
+                                               ; For the dynamic code splitting demo
+                                               :main        {:output-to "docs/js/book/main-ui.js"
+                                                             :entries   #{book.demos.dynamic-ui-main}}}
                                #_#_:parallel-build true}}
                {:id           "tutorial"
                 :figwheel     {:devcards true}
                 :source-paths ["src/main" "src/tutorial"]
-                :compiler     {:main           fulcro-tutorial.main
-                               :asset-path     "js/tutorial"
-                               :devcards       true
-                               :output-to      "resources/public/js/tutorial.js"
-                               :output-dir     "resources/public/js/tutorial"
-                               :preloads       [devtools.preload]
+                :compiler     {:main         fulcro-tutorial.main
+                               :asset-path   "js/tutorial"
+                               :devcards     true
+                               :output-to    "resources/public/js/tutorial.js"
+                               :output-dir   "resources/public/js/tutorial"
+                               :preloads     [devtools.preload]
                                #_#_:parallel-build true
-                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
-                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
+                               :foreign-libs [{:provides ["cljsjs.codemirror.addons.closebrackets"]
+                                               :requires ["cljsjs.codemirror"]
+                                               :file     "resources/public/codemirror/closebrackets-min.js"}
+                                              {:provides ["cljsjs.codemirror.addons.matchbrackets"]
+                                               :requires ["cljsjs.codemirror"]
+                                               :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "tutorial-live"
                 :source-paths ["src/main" "src/tutorial"]
-                :compiler     {:main           fulcro-tutorial.main
-                               :devcards       true
-                               :asset-path     "js"
-                               :output-to      "docs/js/tutorial.js"
-                               :output-dir     "resources/public/js/tutorial-live"
+                :compiler     {:main          fulcro-tutorial.main
+                               :devcards      true
+                               :asset-path    "js"
+                               :output-to     "docs/js/tutorial.js"
+                               :output-dir    "resources/public/js/tutorial-live"
                                #_#_:parallel-build true
-                               :optimizations  :advanced
-                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
-                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
+                               :optimizations :advanced
+                               :foreign-libs  [{:provides ["cljsjs.codemirror.addons.closebrackets"]
+                                                :requires ["cljsjs.codemirror"]
+                                                :file     "resources/public/codemirror/closebrackets-min.js"}
+                                               {:provides ["cljsjs.codemirror.addons.matchbrackets"]
+                                                :requires ["cljsjs.codemirror"]
+                                                :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to     "resources/private/js/unit-tests.js"
