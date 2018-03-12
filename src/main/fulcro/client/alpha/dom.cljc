@@ -282,7 +282,6 @@
     option
     textarea
 
-
     ])
 
 ;; ===================================================================
@@ -436,7 +435,7 @@
    (defn escape-html ^String [^String s]
      (let [len (count s)]
        (loop [^StringBuilder sb nil
-              i                 (int 0)]
+              i (int 0)]
          (if (< i len)
            (let [char (.charAt s i)
                  repl (case char
@@ -520,39 +519,39 @@
      [{:keys [tag attrs react-key children] :as elem}]
      (assert (name tag))
      (assert (or (nil? attrs) (map? attrs)) (format "elem %s attrs invalid" elem))
-     (let [children         (flatten children)
+     (let [children (flatten children)
            child-node-count (count children)
-           reduce-fn        (if (> child-node-count 1)
-                              r/reduce
-                              reduce)
-           children         (reduce-fn
-                              (fn [res c]
-                                (let [c' (cond
-                                           (or (instance? fulcro.client.impl.protocols.IReactDOMElement c)
-                                             (satisfies? p/IReactDOMElement c))
-                                           c
+           reduce-fn (if (> child-node-count 1)
+                       r/reduce
+                       reduce)
+           children (reduce-fn
+                      (fn [res c]
+                        (let [c' (cond
+                                   (or (instance? fulcro.client.impl.protocols.IReactDOMElement c)
+                                     (satisfies? p/IReactDOMElement c))
+                                   c
 
-                                           (or (instance? fulcro.client.impl.protocols.IReactComponent c)
-                                             (satisfies? p/IReactComponent c))
-                                           (let [rendered (if-let [element (render-component c)]
-                                                            element
-                                                            (react-empty-node))]
-                                             (assoc rendered :react-key
-                                                             (some-> (:props c) :fulcro$reactKey)))
+                                   (or (instance? fulcro.client.impl.protocols.IReactComponent c)
+                                     (satisfies? p/IReactComponent c))
+                                   (let [rendered (if-let [element (render-component c)]
+                                                    element
+                                                    (react-empty-node))]
+                                     (assoc rendered :react-key
+                                                     (some-> (:props c) :fulcro$reactKey)))
 
-                                           (or (string? c) (number? c))
-                                           (let [c (cond-> c (number? c) str)]
-                                             (if (> child-node-count 1)
-                                               (react-text-node c)
-                                               (text-node c)))
+                                   (or (string? c) (number? c))
+                                   (let [c (cond-> c (number? c) str)]
+                                     (if (> child-node-count 1)
+                                       (react-text-node c)
+                                       (text-node c)))
 
-                                           (nil? c) nil
+                                   (nil? c) nil
 
-                                           :else
-                                           (throw (IllegalArgumentException. (str "Invalid child element: ") c)))]
-                                  (cond-> res
-                                    (some? c') (conj c'))))
-                              [] children)]
+                                   :else
+                                   (throw (IllegalArgumentException. (str "Invalid child element: ") c)))]
+                          (cond-> res
+                            (some? c') (conj c'))))
+                      [] children)]
        (map->Element {:tag       (name tag)
                       :attrs     attrs
                       :react-key react-key
@@ -740,33 +739,36 @@
            {attrs    :attrs
             children :children
             css      :css} conformed-args
-           css-props      (cssk/combine {} css)
-           children       (mapv second children)
-           attrs-type     (or (first attrs) :nil)           ; attrs omitted == nil
-           attrs-value    (or (second attrs) {})]
+           css-props (cssk/combine {} css)
+           children (mapv second children)
+           attrs-type (or (first attrs) :nil)               ; attrs omitted == nil
+           attrs-value (or (second attrs) {})
+           create-element (case str-tag-name
+                            "input" 'fulcro.client.dom/input
+                            "textarea" 'fulcro.client.dom/textarea
+                            "select" 'fulcro.client.dom/select
+                            "option" 'fulcro.client.dom/option
+                            'fulcro.client.alpha.dom/macro-create-element*)
+           ]
        (if is-cljs?
          (case attrs-type
            :js-object                                       ; kw combos not supported
            (if css
              (let [attr-expr `(fulcro.client.alpha.css-keywords/combine ~attrs-value ~css)]
-               `(fulcro.client.alpha.dom/macro-create-element*
-                  ~(JSValue. (into [str-tag-name attr-expr] children))))
-             `(fulcro.client.alpha.dom/macro-create-element*
-                ~(JSValue. (into [str-tag-name attrs-value] children))))
+               `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
+             `(~create-element ~(JSValue. (into [str-tag-name attrs-value] children))))
 
            :map
-           `(fulcro.client.alpha.dom/macro-create-element*
-              ~(JSValue. (into [str-tag-name (-> attrs-value
-                                               (cssk/combine css)
-                                               (clj-map->js-object))]
-                           children)))
+           `(~create-element ~(JSValue. (into [str-tag-name (-> attrs-value
+                                                              (cssk/combine css)
+                                                              (clj-map->js-object))]
+                                          children)))
 
            :runtime-map
            (let [attr-expr (if css
                              `(fulcro.client.alpha.css-keywords/combine ~(clj-map->js-object attrs-value) ~css)
                              (clj-map->js-object attrs-value))]
-             `(fulcro.client.alpha.dom/macro-create-element*
-                ~(JSValue. (into [str-tag-name attr-expr] children))))
+             `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
 
 
            :symbol
@@ -774,7 +776,7 @@
               ~str-tag-name ~(into [attrs-value] children) ~css)
 
            :nil
-           `(fulcro.client.alpha.dom/macro-create-element*
+           `(~create-element
               ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
 
            ;; pure children
@@ -790,7 +792,7 @@
 #?(:clj
    (defn gen-dom-macro [name]
      `(defmacro ~name [& args#]
-        (let [tag#      ~(str name)
+        (let [tag# ~(str name)
               is-cljs?# (boolean (:ns ~'&env))]
           (emit-tag tag# is-cljs?# args#)))))
 
@@ -818,7 +820,7 @@
                                       render-component)]
                      element
                      (react-empty-node))
-           sb      (StringBuilder.)]
+           sb (StringBuilder.)]
        (p/-render-to-string element (volatile! 1) sb)
        sb)))
 

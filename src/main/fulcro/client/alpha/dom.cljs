@@ -75,29 +75,30 @@
 (defn macro-create-element
   ([type args] (macro-create-element type args nil))
   ([type args csskw]
-   (let [[head & tail] args]
+   (let [[head & tail] args
+         f (case type
+             "input" fulcro.client.dom/input
+             "textarea" fulcro.client.dom/textarea
+             "select" fulcro.client.dom/select
+             "option" fulcro.client.dom/option
+             macro-create-element*)]
      (cond
        (nil? head)
-       (macro-create-element*
-         (doto #js [type (cssk/combine #js {} csskw)]
+       (f (doto #js [type (cssk/combine #js {} csskw)]
            (arr-append tail)))
 
        (object? head)
-       (macro-create-element*
-         (doto #js [type (cssk/combine head csskw)]
+       (f (doto #js [type (cssk/combine head csskw)]
            (arr-append tail)))
 
        (map? head)
-       (macro-create-element*
-         (doto #js [type (clj->js (cssk/combine head csskw))]
+       (f (doto #js [type (clj->js (cssk/combine head csskw))]
            (arr-append tail)))
 
        (element? head)
-       (macro-create-element*
-         (doto #js [type (cssk/combine #js {} csskw)]
+       (f (doto #js [type (cssk/combine #js {} csskw)]
            (arr-append args)))
 
        :else
-       (macro-create-element*
-         (doto #js [type (cssk/combine #js {} csskw)]
+       (f (doto #js [type (cssk/combine #js {} csskw)]
            (arr-append args)))))))

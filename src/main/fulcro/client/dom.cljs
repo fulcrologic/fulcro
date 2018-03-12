@@ -18,6 +18,9 @@
       (gobj/set next-state "ref" inputRef))
     (.setState component next-state)))
 
+;; TODO: Was just about to test wrapped inputs on alpha dom via cards
+;; Need to wrap wrappers to match the sigs...
+
 (defn wrap-form-element [element]
   (let [ctor (fn [props]
                (this-as this
