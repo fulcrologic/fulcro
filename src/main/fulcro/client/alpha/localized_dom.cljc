@@ -90,7 +90,7 @@
                                                                     (let [c (some-> c name)]
                                                                       (cond
                                                                         (nil? c) ""
-                                                                        (str/starts-with? c ".") (fulcro.client.css/local-class clz (strip-prefix c))
+                                                                        (str/starts-with? c ".") (fulcro-css.css/local-class clz (strip-prefix c))
                                                                         (str/starts-with? c "$") (strip-prefix c)
                                                                         :else c))) extra-classes) old-classes)]
               (passoc props :className new-classes))
@@ -105,7 +105,7 @@
   (let [{:keys [global-classes classes id] :or {classes []}} (parse kw)
         classes (vec (concat
                        (if prim/*parent*
-                         (clojure.core/map #(fulcro.client.css/local-class (prim/react-type prim/*parent*) %) classes)
+                         (clojure.core/map #(fulcro-css.css/local-class (prim/react-type prim/*parent*) %) classes)
                          classes)
                        global-classes))]
     (fold-in-classes

@@ -20,7 +20,7 @@
     fulcro.alpha.i18n-spec
     fulcro.client.alpha.dom-spec
     fulcro.client.alpha.localized-dom-spec
-    fulcro.client.css-spec
+    fulcro-css.css-spec
     fulcro.i18n-spec))
 
 ;********************************************************************************

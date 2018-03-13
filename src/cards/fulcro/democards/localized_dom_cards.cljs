@@ -5,7 +5,7 @@
             [goog.object :as gobj]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]
-            [fulcro.client.css :as css]))
+            [fulcro-css.css :as css]))
 
 (defsc AttrStatic [this props]
   (div

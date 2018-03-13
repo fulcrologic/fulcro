@@ -46,7 +46,7 @@
 (defsc SymbolicClassJSPropsComponent [this props] (let [props #js {:className "x"}] (dom/div :.a#y props "Hello")))
 (defsc SymbolicClassNilPropsComponent [this props] (let [props nil] (dom/div :.a#y props "Hello")))
 
-;; NOTE: There are some pathological cases that I'm just not bothering to support. E.g. a #js {:fulcro.client.css/classes #js [:.a]} as props
+;; NOTE: There are some pathological cases that I'm just not bothering to support. E.g. a #js {:fulcro-css.css/classes #js [:.a]} as props
 
 #?(:cljs
    (specification "Contextual rendering with localized CSS" :focused
