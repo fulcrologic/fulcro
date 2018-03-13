@@ -24,14 +24,14 @@
 
 #?(:cljs (declare macro-create-wrapped-form-element macro-create-element macro-create-element*))
 
-(defn remove-separators [s]
+(defn- remove-separators [s]
   (when s
     (str/replace s #"^[.#]" "")))
 
-(defn get-tokens [k]
+(defn- get-tokens [k]
   (re-seq #"[#.]?[^#.]+" (name k)))
 
-(defn parse
+(defn- parse
   "Parse CSS shorthand keyword and return map of id/classes.
 
   (parse :.klass3#some-id.klass1.klass2)
@@ -57,7 +57,7 @@
   [classes-seq classes-str]
   (str/join " " (if (seq classes-str) (conj classes-seq classes-str) classes-seq)))
 
-(defn combine
+(defn add-kwprops-to-props
   "Combine a hiccup-style keyword with props that are either a JS or CLJS map."
   [props kw]
   (let [{:keys [classes id] :or {classes []}} (parse kw)]
@@ -130,12 +130,12 @@
                         :list seq?)))))
 
 #?(:clj
-   (defn emit-tag [str-tag-name is-cljs? args]
+   (defn- emit-tag [str-tag-name is-cljs? args]
      (let [conformed-args (util/conform! ::dom-element-args args)
            {attrs    :attrs
             children :children
             css      :css} conformed-args
-           css-props      (combine {} css)
+           css-props      (add-kwprops-to-props {} css)
            children       (mapv second children)
            attrs-type     (or (first attrs) :nil)           ; attrs omitted == nil
            attrs-value    (or (second attrs) {})
@@ -149,19 +149,19 @@
          (case attrs-type
            :js-object                                       ; kw combos not supported
            (if css
-             (let [attr-expr `(fulcro.client.alpha.dom/combine ~attrs-value ~css)]
+             (let [attr-expr `(fulcro.client.alpha.dom/add-kwprops-to-props ~attrs-value ~css)]
                `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
              `(~create-element ~(JSValue. (into [str-tag-name attrs-value] children))))
 
            :map
            `(~create-element ~(JSValue. (into [str-tag-name (-> attrs-value
-                                                              (combine css)
+                                                              (add-kwprops-to-props css)
                                                               (clj-map->js-object))]
                                           children)))
 
            :runtime-map
            (let [attr-expr (if css
-                             `(fulcro.client.alpha.dom/combine ~(clj-map->js-object attrs-value) ~css)
+                             `(fulcro.client.alpha.dom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
                              (clj-map->js-object attrs-value))]
              `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
 
@@ -180,12 +180,12 @@
          `(fulcro.client.dom/element {:tag       (quote ~(symbol str-tag-name))
                                       :attrs     (-> ~attrs-value
                                                    (dissoc :ref :key)
-                                                   (fulcro.client.alpha.dom/combine ~css))
+                                                   (fulcro.client.alpha.dom/add-kwprops-to-props ~css))
                                       :react-key (:key ~attrs-value)
                                       :children  ~children})))))
 
 #?(:clj
-   (defn gen-dom-macro [name]
+   (defn- gen-dom-macro [name]
      `(defmacro ~name [& args#]
         (let [tag#      ~(str name)
               is-cljs?# (boolean (:ns ~'&env))]
@@ -204,12 +204,15 @@
        (gobj/get "$$typeof"))))
 
 #?(:cljs
-   (defn element? [x]
+   (defn element? "Returns true if the given arg is a react element."
+     [x]
      (and (object? x)
        (= element-marker (gobj/get x "$$typeof")))))
 
 #?(:cljs
-   (defn convert-props [props]
+   (defn convert-props
+     "Given props, which can be nil, a js-obj or a clj map: returns a js object."
+     [props]
      (cond
        (nil? props)
        #js {}
@@ -222,6 +225,7 @@
 ;; react v16 is really picky, the old direct .children prop trick no longer works
 #?(:cljs
    (defn macro-create-element*
+     "Used internally by the DOM element generation."
      [arr]
      {:pre [(array? arr)]}
      (.apply js/React.createElement nil arr)))
@@ -236,16 +240,18 @@
    (def wrapped-select "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (dom/wrap-form-element "select")))
 
 #?(:cljs
-   (defn arr-append* [arr x]
+   (defn- arr-append* [arr x]
      (.push arr x)
      arr))
 
 #?(:cljs
-   (defn arr-append [arr tail]
+   (defn- arr-append [arr tail]
      (reduce arr-append* arr tail)))
 
 #?(:cljs
-   (defn macro-create-wrapped-form-element [opts]
+   (defn macro-create-wrapped-form-element
+     "Used internally by element generation."
+     [opts]
      (let [tag      (aget opts 0)
            props    (aget opts 1)
            children (aget opts 2)]
@@ -258,6 +264,7 @@
 ;; fallback if the macro didn't do this
 #?(:cljs
    (defn macro-create-element
+     "Used internally by element generation."
      ([type args] (macro-create-element type args nil))
      ([type args csskw]
       (let [[head & tail] args
@@ -269,21 +276,21 @@
                 macro-create-element*)]
         (cond
           (nil? head)
-          (f (doto #js [type (combine #js {} csskw)]
+          (f (doto #js [type (add-kwprops-to-props #js {} csskw)]
                (arr-append tail)))
 
           (object? head)
-          (f (doto #js [type (combine head csskw)]
+          (f (doto #js [type (add-kwprops-to-props head csskw)]
                (arr-append tail)))
 
           (map? head)
-          (f (doto #js [type (clj->js (combine head csskw))]
+          (f (doto #js [type (clj->js (add-kwprops-to-props head csskw))]
                (arr-append tail)))
 
           (element? head)
-          (f (doto #js [type (combine #js {} csskw)]
+          (f (doto #js [type (add-kwprops-to-props #js {} csskw)]
                (arr-append args)))
 
           :else
-          (f (doto #js [type (combine #js {} csskw)]
+          (f (doto #js [type (add-kwprops-to-props #js {} csskw)]
                (arr-append args))))))))

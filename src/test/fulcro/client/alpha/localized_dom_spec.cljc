@@ -2,27 +2,29 @@
   #?(:cljs (:require-macros fulcro.client.alpha.localized-dom-spec))
   (:require
     [fulcro-spec.core :refer [specification assertions behavior provided when-mocking]]
+    [fulcro.client.alpha.dom :as adom]
     [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.client.alpha.localized-dom :as dom :refer [div p span]])
+    [fulcro.client.alpha.localized-dom :as dom :refer [div p span]]
+    [clojure.string :as str])
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
 #?(:clj
    (defmacro check-kw-processing [name component expected-classes]
-     `(let [real-create# fulcro.client.alpha.localized-dom/macro-create-element*]
+     `(let [real-create# adom/macro-create-element*]
         (provided ~name
-          ~'(dom/macro-create-element* args) ~'=> (do
-                                                    (assertions
-                                                      "passes the tag name"
-                                                      (~'aget ~'args 0) ~'=> "div"
-                                                      "passes the props with the expected classes"
-                                                      (~'js->clj (~'aget ~'args 1)) ~'=> {"className" ~expected-classes
-                                                                                          "id"        "y"}
-                                                      "passes the children"
-                                                      (~'aget ~'args 2) ~'=> "Hello")
-                                                    (real-create# ~'args))
+          ~'(adom/macro-create-element* args) ~'=1x=> (do
+                                                        (assertions
+                                                          "passes the tag name"
+                                                          (~'aget ~'args 0) ~'=> "div"
+                                                          "passes the props with the expected classes"
+                                                          (~'js->clj (~'aget ~'args 1)) ~'=> {"className" ~expected-classes
+                                                                                              "id"        "y"}
+                                                          "passes the children"
+                                                          (~'aget ~'args 2) ~'=> "Hello")
+                                                        (real-create# ~'args))
 
-          (fulcro.client.alpha.localized-dom/render-to-str ((fulcro.client.primitives/factory ~component) {}))))))
+          (adom/render-to-str ((fulcro.client.primitives/factory ~component) {}))))))
 
 (defsc NoPropsComponent [this props] (dom/div :.a#y "Hello"))
 (defsc NilPropsComponent [this props] (dom/div :.a#y nil "Hello"))
@@ -104,44 +106,41 @@
 (defn render-component [component]
   (dom/render-to-str ((prim/factory component) {})))
 
-(comment
-  #?(:clj
-     (specification "SSR With Extended classes" :focused
-       (assertions
-         "kw + no props"
-         (render-component NoPropsComponent) => "<div class=\"fulcro_client_alpha_localized-dom-spec_NoPropsComponent__a\" id=\"y\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"211625318\">Hello</div>"
-         "kw + nil props"
-         (render-component NilPropsComponent) => "<div class=\"fulcro_client_alpha_localized-dom-spec_NilPropsComponent__a\" id=\"y\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"911615436\">Hello</div>"
-         "kw + empty cljs props"
-         (render-component EmptyPropsComponent) => "<div class=\"fulcro_client_alpha_localized-dom-spec_EmptyPropsComponent__a\" id=\"y\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-1809570120\">Hello</div>"
-         "kw + empty js props"
-         (render-component EmptyJSPropsComponent) => "<div class=\"fulcro_client_alpha_localized-dom-spec_EmptyJSPropsComponent__a\" id=\"y\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-584505515\">Hello</div>"
-         "kw + cljs props"
-         (render-component CLJPropsComponent) => "<div class=\"fulcro_client_alpha_localized-dom-spec_CLJPropsComponent__a x\" id=\"y\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1774134810\">Hello</div>"
-         "kw + cljs props + id override"
-         (render-component CLJPropsWithIDComponent) => "<div id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_CLJPropsWithIDComponent__a x\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"955459651\">Hello</div>"
-         "kw + js props + id override"
-         (render-component JSPropsWithIDComponent) => "<div id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_JSPropsWithIDComponent__a x\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"423634951\">Hello</div>"
-         "symbolic class name in props"
-         (render-component SymbolicClassPropComponent) => "<div id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassPropComponent__a x\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-413128186\">Hello</div>"
-         "global + localized kw + cljs props"
-         (render-component ExtendedCSSComponent) => "<div class=\"fulcro_client_alpha_localized-dom-spec_ExtendedCSSComponent__a b x\" id=\"y\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"866068425\">Hello</div>"
-         "just js props"
-         (render-component NoKWComponent) => "<div id=\"y\" class=\"x\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"17700452\">Hello</div>"
-         "just cljs props"
-         (render-component NoKWCLJComponent) => "<div id=\"y\" class=\"x\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"17700452\">Hello</div>"
-         ":classes in props"
-         (render-component DynamicClassesComponent) => "<div id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicClassesComponent__a b\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1451174058\">Hello</div>"
-         ":classes as symbol in props"
-         (render-component DynamicSymClassesComponent) => "<div id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicSymClassesComponent__a b\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-553899549\">Hello</div>"
-         ":classes in props as symbol"
-         (render-component DynamicSymPropsComponent) => "<div id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicSymPropsComponent__a b\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-1985861335\">Hello</div>"
-         ":classes in props as symbol + kw"
-         (render-component DynamicSymPropsWithKWComponent) => "<div id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicSymPropsWithKWComponent__z x fulcro_client_alpha_localized-dom-spec_DynamicSymPropsWithKWComponent__a b\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"500908337\">Hello</div>"
-         "cljs props as symbol"
-         (render-component SymbolicClassPropsComponent) => "<div class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassPropsComponent__a x\" id=\"y\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1194928761\">Hello</div>"
-         "js props as symbol"
-         (render-component SymbolicClassJSPropsComponent) => "<div class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassJSPropsComponent__a x\" id=\"y\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-1748358378\">Hello</div>"
-         "nil props as symbol"
-         (render-component SymbolicClassNilPropsComponent) => "<div class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassNilPropsComponent__a\" id=\"y\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"2100374276\">Hello</div>")))
-  )
+#?(:clj
+   (specification "SSR With Extended classes" :focused
+     (assertions
+       "kw + no props"
+       (render-component NoPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_alpha_localized-dom-spec_NoPropsComponent__a\" id=\"y\"") "kw + nil props"
+       (render-component NilPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_alpha_localized-dom-spec_NilPropsComponent__a\" id=\"y\"")
+       "kw + empty cljs props"
+       (render-component EmptyPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_alpha_localized-dom-spec_EmptyPropsComponent__a\" id=\"y\"")
+       "kw + empty js props"
+       (render-component EmptyJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_EmptyJSPropsComponent__a\" id=\"y\"")
+       "kw + cljs props"
+       (render-component CLJPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_CLJPropsComponent__a x\" id=\"y\"")
+       "kw + cljs props + id override"
+       (render-component CLJPropsWithIDComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_CLJPropsWithIDComponent__a x\"")
+       "kw + js props + id override"
+       (render-component JSPropsWithIDComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_JSPropsWithIDComponent__a x\" ")
+       "symbolic class name in props"
+       (render-component SymbolicClassPropComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassPropComponent__a x\"")
+       "global + localized kw + cljs props"
+       (render-component ExtendedCSSComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_ExtendedCSSComponent__a b x\" id=\"y\"")
+       "just js props"
+       (render-component NoKWComponent) =fn=> #(str/includes? % " id=\"y\" class=\"x\" ")
+       "just cljs props"
+       (render-component NoKWCLJComponent) =fn=> #(str/includes? % " id=\"y\" class=\"x\"")
+       ":classes in props"
+       (render-component DynamicClassesComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicClassesComponent__a b\" ")
+       ":classes as symbol in props"
+       (render-component DynamicSymClassesComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicSymClassesComponent__a b\"")
+       ":classes in props as symbol"
+       (render-component DynamicSymPropsComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicSymPropsComponent__a b\" ")
+       ":classes in props as symbol + kw"
+       (render-component DynamicSymPropsWithKWComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicSymPropsWithKWComponent__z x fulcro_client_alpha_localized-dom-spec_DynamicSymPropsWithKWComponent__a b\" ")
+       "cljs props as symbol"
+       (render-component SymbolicClassPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassPropsComponent__a x\" id=\"y\"")
+       "js props as symbol"
+       (render-component SymbolicClassJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassJSPropsComponent__a x\" id=\"y\"")
+       "nil props as symbol"
+       (render-component SymbolicClassNilPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassNilPropsComponent__a\" id=\"y\" "))))
