@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.4.0
+-----
+- IMPORTANT CHANGE: Integrated Fulcro CSS. You should remove fulcrologic/fulcro-css from your dependencies.
+
 2.3.2
 -----
 - Fixed bug in template form of initial state when mixing from above in non-template form.

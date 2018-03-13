@@ -99,7 +99,7 @@
        :clj  (assertions
                "formats dates - Mexico (server-side)"
                (trf "{a, date, long}" :a (date 1990 3 1 13 45 22 0)) => "1 de abril de 1990"
-               (trf "{a, date, medium}" :a (date 1990 3 1 13 45 22 0)) =fn=> (fn [s] (re-matches #"01/04/1990" s))
+               (trf "{a, date, medium}" :a (date 1990 3 1 13 45 22 0)) =fn=> (fn [s] (re-matches #"1 abr 1990" s))
                (trf "{a, date, short}" :a (date 1990 3 1 13 45 22 0)) => "01/04/90")))
   (reset! i18n/*current-locale* "es-US")
   (behavior "formats plurals - Spanish"
