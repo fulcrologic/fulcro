@@ -9,9 +9,6 @@ small and tractable.
 2.4.0
 -----
 - IMPORTANT CHANGE: Integrated Fulcro CSS. You should remove fulcrologic/fulcro-css from your dependencies.
-
-2.3.2
------
 - Fixed bug in template form of initial state when mixing from above in non-template form.
 - Added alpha versions of new, tighter, DOM functions that do not require props, or #js
 - A few minor bug fixes in i18n alpha
