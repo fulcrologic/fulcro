@@ -2,7 +2,8 @@
   (:require
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro.client.dom :refer [render-to-str]]
-    [fulcro.client.alpha.dom :as dom :refer [div p span]])
+    [fulcro.client.alpha.dom :as dom :refer [div p span]]
+    [fulcro.client.dom :as old-dom])
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
@@ -41,7 +42,7 @@
            (dom/add-kwprops-to-props nil nil) => {}
            "a nil props and real kw results in js props"
            (dom/add-kwprops-to-props nil :.a.b#2) => {:className "a b"
-                                         :id                     "2"}
+                                                      :id        "2"}
            "a kw with multiple classes combines properly"
            (dom/add-kwprops-to-props props :.a.some-class.other-class) => {:className "a some-class other-class c1"})))))
 
@@ -55,21 +56,21 @@
          "adds the given keyword classes to any existing props"
          (js->clj (dom/add-kwprops-to-props js-props :.a)) => {"className" "a c1"}
          "leaves existing id in place when kw does not have an ID"
-         (js->clj (dom/add-kwprops-to-props js-props-with-id :.a)) => {"id" 1
-                                                          "className"       "a c1"}
+         (js->clj (dom/add-kwprops-to-props js-props-with-id :.a)) => {"id"        1
+                                                                       "className" "a c1"}
          "overrides existing id when kw has an ID"
-         (js->clj (dom/add-kwprops-to-props js-props-with-id :.a#2)) => {"id" "2"
-                                                            "className"       "a c1"}
+         (js->clj (dom/add-kwprops-to-props js-props-with-id :.a#2)) => {"id"        "2"
+                                                                         "className" "a c1"}
          "a nil kw leaves classes alone"
-         (js->clj (dom/add-kwprops-to-props js-props-with-id nil)) => {"id" 1
-                                                          "className"       "c1"}
+         (js->clj (dom/add-kwprops-to-props js-props-with-id nil)) => {"id"        1
+                                                                       "className" "c1"}
          "a nil props and nil kw results in an empty js map"
          (object? (dom/add-kwprops-to-props nil nil)) => true
          (js->clj (dom/add-kwprops-to-props nil nil)) => {}
          "a nil props and real kw results in js props"
          (object? (dom/add-kwprops-to-props nil :.a.b#2)) => true
          (js->clj (dom/add-kwprops-to-props nil :.a.b#2)) => {"className" "a b"
-                                                 "id"                     "2"}
+                                                              "id"        "2"}
          "a kw with multiple classes combines properly"
          (js->clj (dom/add-kwprops-to-props js-props :.a.some-class.other-class)) => {"className" "a some-class other-class c1"}))))
 
@@ -127,8 +128,8 @@
        => `(dom/macro-create-element* {:jsvalue ["div" (fulcro.client.alpha.dom/add-kwprops-to-props {:jsvalue {:onClick (~'fn [] (~'do-it))}} :.a) "Hello"]}))))
 
 #?(:cljs
-   (specification "DOM Tag Functions (CLJS)"
-     (provided "It is passed no arguments it:"
+   (specification "DOM Tag Macros (CLJS)"
+     (provided "It is passed no arguments"
        (dom/macro-create-element* args) => (do
                                              (assertions
                                                "passes the tag name"
@@ -294,3 +295,17 @@
                         (p "P")
                         (p :.x (span "PS2"))))
        => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1768960473\"><p data-reactid=\"2\">P</p><p class=\"x\" data-reactid=\"3\"><span data-reactid=\"4\">PS2</span></p></div>")))
+
+(specification "DOM elements are usable as functions"
+  #?(:clj
+     (provided "The correct SSR function is called"
+       (old-dom/element opts) => (assertions
+                                   (:tag opts) => 'div)
+
+       (apply div {} ["Hello"]))
+     :cljs
+     (provided ""
+       (dom/macro-create-element t args) => (assertions
+                                              t => "div")
+
+       (apply div {} ["Hello"]))))

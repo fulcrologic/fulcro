@@ -16,7 +16,9 @@
                 [goog.object :as gobj]))
     [fulcro.client.dom :as dom])
   #?(:clj
-     (:import (cljs.tagged_literals JSValue))))
+     (:import
+       (fulcro.client.dom Element)
+       (cljs.tagged_literals JSValue))))
 
 (def node fulcro.client.dom/node)
 (def render-to-str fulcro.client.dom/render-to-str)
@@ -74,7 +76,7 @@
           id (assoc :id id))))))
 
 
-(declare tags a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite
+(declare a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite
   code col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form
   h1 h2 h3 h4 h5 h6 head header hr html i iframe img ins input textarea select option kbd keygen
   label legend li link main map mark menu menuitem meta meter nav noscript object ol optgroup output p param picture
@@ -104,30 +106,44 @@
                                        :else [k v])))
                  m))))
 
-#?(:clj
-   (s/def ::map-of-literals (fn [v]
-                              (and (map? v)
-                                (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v))))))
+#?(:cljs
+   (def ^{:private true} element-marker
+     (-> (js/React.createElement "div" nil)
+       (gobj/get "$$typeof"))))
 
 #?(:clj
-   (s/def ::map-with-expr (fn [v]
-                            (and (map? v)
-                              (some #(or (symbol? %) (list? %)) (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v))))))
+   (defn element? [x] (instance? Element x))
+   :cljs
+   (defn element? "Returns true if the given arg is a react element."
+     [x]
+     (and (object? x)
+       (= element-marker (gobj/get x "$$typeof")))))
 
-#?(:clj
-   (s/def ::dom-element-args
-     (s/cat
-       :css (s/? keyword?)
-       :attrs (s/? (s/or :nil nil?
-                     :map ::map-of-literals
-                     :runtime-map ::map-with-expr
-                     :js-object #(instance? JSValue %)
-                     :symbol symbol?))
-       :children (s/* (s/or :string string?
-                        :number number?
-                        :symbol symbol?
-                        :nil nil?
-                        :list seq?)))))
+(s/def ::map-of-literals (fn [v]
+                           (and (map? v)
+                             (not (element? v))
+                             (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
+
+(s/def ::map-with-expr (fn [v]
+                         (and (map? v)
+                           (not (element? v))
+                           (some #(or (symbol? %) (list? %)) (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
+
+(s/def ::dom-element-args
+  (s/cat
+    :css (s/? keyword?)
+    :attrs (s/? (s/or :nil nil?
+                  :map ::map-of-literals
+                  :runtime-map ::map-with-expr
+                  :js-object #?(:clj  #(instance? JSValue %)
+                                :cljs object?)
+                  :symbol symbol?))
+    :children (s/* (s/or :string string?
+                     :number number?
+                     :symbol symbol?
+                     :nil nil?
+                     :list seq?
+                     :element element?))))
 
 #?(:clj
    (defn- emit-tag [str-tag-name is-cljs? args]
@@ -184,30 +200,34 @@
                                       :react-key (:key ~attrs-value)
                                       :children  ~children})))))
 
-#?(:clj
-   (defn- gen-dom-macro [name]
-     `(defmacro ~name [& args#]
-        (let [tag#      ~(str name)
-              is-cljs?# (boolean (:ns ~'&env))]
-          (emit-tag tag# is-cljs?# args#)))))
+(defn- gen-dom-macro [name]
+  `(defmacro ~name [& args#]
+     (let [tag#      ~(str name)
+           is-cljs?# (boolean (:ns ~'&env))]
+       (emit-tag tag# is-cljs?# args#))))
 
-#?(:clj
-   (defmacro gen-dom-macros []
-     `(do ~@(clojure.core/map gen-dom-macro tags))))
+(defmacro gen-dom-macros []
+  (when (boolean (:ns &env))
+    `(do ~@(clojure.core/map gen-dom-macro tags))))
 
 #?(:clj
    (gen-dom-macros))
 
-#?(:cljs
-   (def ^{:private true} element-marker
-     (-> (js/React.createElement "div" nil)
-       (gobj/get "$$typeof"))))
+(defn- gen-client-dom-fn [tag]
+  `(defn ~tag [& ~'args]
+     (let [conformed-args# (util/conform! ::dom-element-args ~'args)
+           {attrs#    :attrs
+            children# :children
+            css#      :css} conformed-args#
+           children#       (mapv second children#)
+           attrs-value#    (or (second attrs#) {})]
+       (fulcro.client.alpha.dom/macro-create-element ~(name tag) (into [attrs-value#] children#) css#))))
 
-#?(:cljs
-   (defn element? "Returns true if the given arg is a react element."
-     [x]
-     (and (object? x)
-       (= element-marker (gobj/get x "$$typeof")))))
+(defmacro gen-client-dom-fns []
+  (when (boolean (:ns &env))
+    `(do ~@(clojure.core/map gen-client-dom-fn tags))))
+
+(gen-client-dom-fns)
 
 #?(:cljs
    (defn convert-props
@@ -294,3 +314,29 @@
           :else
           (f (doto #js [type (add-kwprops-to-props #js {} csskw)]
                (arr-append args))))))))
+
+;; Server-side only gets function versions
+#?(:clj
+   (defn gen-tag-fn [tag]
+     `(defn ~tag [& ~'args]
+        (let [conformed-args# (util/conform! ::dom-element-args ~'args)
+              {attrs#    :attrs
+               children# :children
+               css#      :css} conformed-args#
+              children#       (mapv second children#)
+              attrs-value#    (or (second attrs#) {})]
+          (fulcro.client.dom/element {:tag       '~tag
+                                      :attrs     (-> attrs-value#
+                                                   (dissoc :ref :key)
+                                                   (fulcro.client.alpha.dom/add-kwprops-to-props css#))
+                                      :react-key (:key attrs-value#)
+                                      :children  children#})))))
+
+#?(:clj
+   (defmacro gen-all-tags []
+     (when-not (boolean (:ns &env))
+       `(do
+          ~@(clojure.core/map gen-tag-fn tags)))))
+
+#?(:clj
+   (gen-all-tags))
