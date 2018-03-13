@@ -224,10 +224,9 @@
        (fulcro.client.alpha.dom/macro-create-element ~(name tag) (into [attrs-value#] children#) css#))))
 
 (defmacro gen-client-dom-fns []
-  (when (boolean (:ns &env))
-    `(do ~@(clojure.core/map gen-client-dom-fn tags))))
+  `(do ~@(clojure.core/map gen-client-dom-fn tags)))
 
-(gen-client-dom-fns)
+#?(:cljs (fulcro.client.alpha.dom/gen-client-dom-fns))
 
 #?(:cljs
    (defn convert-props
