@@ -11,7 +11,7 @@
                  [cljsjs/react-dom-server "15.6.2-4"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.243"]
-                 [org.clojure/core.async "0.3.465" :exclusions [org.clojure/tools.reader]]
+                 [org.clojure/core.async "0.4.474" :exclusions [org.clojure/tools.reader]]
                  [garden "1.3.4"]
                  [com.rpl/specter "1.1.0"]
                  [com.ibm.icu/icu4j "60.2"]                 ; needed for i18n on server-side rendering
