@@ -1,15 +1,8 @@
 (ns fulcro.client.alpha.localized-dom
   (:refer-clojure :exclude [map meta time])
-  #?(:cljs (:require-macros [fulcro.client.alpha.localized-dom]))
+  (:require-macros [fulcro.client.alpha.localized-dom])
   (:require
-    [fulcro.client.primitives :as prim]
-    [clojure.string :as str]
-    [clojure.spec.alpha :as s]
-    [cljsjs.react]
-    [cljsjs.react.dom]
-    [cljsjs.react.dom.server]
     [fulcro.client.alpha.dom :as adom]
-    [goog.object :as gobj]
     [fulcro.client.alpha.localized-dom-common :as cdom]))
 
 (def node adom/node)

@@ -2,16 +2,10 @@
   (:refer-clojure :exclude [map meta time])
   (:require
     [fulcro.client.dom :as old-dom]
-    [fulcro.client.primitives :as prim]
-    [clojure.string :as str]
     [clojure.spec.alpha :as s]
-    [fulcro.client.alpha.dom-server :as adom]
-    [fulcro.client.impl.protocols :as p]
     [clojure.future :refer :all]
-    [clojure.core.reducers :as r]
     [fulcro.util :as util]
-    [fulcro.checksums :as chk]
-    [fulcro.client.alpha.dom-common :as cdom])
+    fulcro.client.alpha.localized-dom-common)
   (:import (cljs.tagged_literals JSValue)))
 
 (defn clj-map->js-object
@@ -54,25 +48,25 @@
         {attrs    :attrs
          children :children
          css      :css} conformed-args
-        css-props      (if css `(cdom/add-kwprops-to-props nil ~css) nil)
+        css-props      (if css `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props nil ~css) nil)
         children       (mapv second children)
         attrs-type     (or (first attrs) :nil)              ; attrs omitted == nil
         attrs-value    (or (second attrs) {})]
     (if is-cljs?
       (case attrs-type
         :js-object
-        (let [attr-expr `(cdom/add-kwprops-to-props ~attrs-value ~css)]
+        (let [attr-expr `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~attrs-value ~css)]
           `(fulcro.client.alpha.dom/macro-create-element*
              ~(JSValue. (into [str-tag-name attr-expr] children))))
 
         :map
         (let [attr-expr (if (or css (contains? attrs-value :classes))
-                          `(fulcro.client.alpha.localized-dom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
+                          `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
                           (clj-map->js-object attrs-value))]
           `(fulcro.client.alpha.dom/macro-create-element* ~(JSValue. (into [str-tag-name attr-expr] children))))
 
         :runtime-map
-        (let [attr-expr `(cdom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)]
+        (let [attr-expr `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)]
           `(fulcro.client.alpha.dom/macro-create-element*
              ~(JSValue. (into [str-tag-name attr-expr] children))))
 
@@ -91,7 +85,7 @@
       `(old-dom/element {:tag       (quote ~(symbol str-tag-name))
                          :attrs     (-> ~attrs-value
                                       (dissoc :ref :key)
-                                      (fulcro.client.alpha.localized-dom/add-kwprops-to-props ~css))
+                                      (fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~css))
                          :react-key (:key ~attrs-value)
                          :children  ~children}))))
 
@@ -102,6 +96,6 @@
        (emit-tag tag# is-cljs?# args#))))
 
 (defmacro gen-dom-macros []
-  `(do ~@(clojure.core/map gen-dom-macro cdom/tags)))
+  `(do ~@(clojure.core/map gen-dom-macro fulcro.client.alpha.dom-common/tags)))
 
 (gen-dom-macros)

@@ -7,7 +7,6 @@
             [fulcro.client.mutations :as m]
             [fulcro-css.css :as css]))
 
-(comment
 (defsc AttrStatic [this props]
   (div
     (div "Attr is missing with a string child")
@@ -115,4 +114,3 @@
   WrappedInputRoot
   {}
   {:inspect-data true})
-  )

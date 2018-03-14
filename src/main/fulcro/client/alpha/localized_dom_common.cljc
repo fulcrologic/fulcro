@@ -8,7 +8,7 @@
            [goog.object :as gobj]])
     [fulcro.client.primitives :as prim]
     [clojure.string :as str])
-  (:import (cljs.tagged_literals JSValue)))
+  #?(:clj (:import (cljs.tagged_literals JSValue))))
 
 
 (letfn [(remove-separators [s] (when s (str/replace s #"^[.#$]" "")))
