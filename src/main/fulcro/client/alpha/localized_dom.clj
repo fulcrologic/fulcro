@@ -1,10 +1,10 @@
 (ns fulcro.client.alpha.localized-dom
   (:refer-clojure :exclude [map meta time])
   (:require
-    [fulcro.client.dom :as old-dom]
     [clojure.spec.alpha :as s]
     [clojure.future :refer :all]
     [fulcro.util :as util]
+    fulcro.client.alpha.dom-common
     fulcro.client.alpha.localized-dom-common)
   (:import (cljs.tagged_literals JSValue)))
 
@@ -43,7 +43,7 @@
                      :nil nil?
                      :list list?))))
 
-(defn emit-tag [str-tag-name is-cljs? args]
+(defn emit-tag [str-tag-name args]
   (let [conformed-args (util/conform! ::dom-element-args args)
         {attrs    :attrs
          children :children
@@ -52,50 +52,55 @@
         children       (mapv second children)
         attrs-type     (or (first attrs) :nil)              ; attrs omitted == nil
         attrs-value    (or (second attrs) {})]
-    (if is-cljs?
-      (case attrs-type
-        :js-object
-        (let [attr-expr `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~attrs-value ~css)]
-          `(fulcro.client.alpha.dom/macro-create-element*
-             ~(JSValue. (into [str-tag-name attr-expr] children))))
-
-        :map
-        (let [attr-expr (if (or css (contains? attrs-value :classes))
-                          `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
-                          (clj-map->js-object attrs-value))]
-          `(fulcro.client.alpha.dom/macro-create-element* ~(JSValue. (into [str-tag-name attr-expr] children))))
-
-        :runtime-map
-        (let [attr-expr `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)]
-          `(fulcro.client.alpha.dom/macro-create-element*
-             ~(JSValue. (into [str-tag-name attr-expr] children))))
-
-        :symbol
-        `(fulcro.client.alpha.localized-dom/macro-create-element
-           ~str-tag-name ~(into [attrs-value] children) ~css)
-
-        ;; also used for MISSING props
-        :nil
+    (case attrs-type
+      :js-object
+      (let [attr-expr `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~attrs-value ~css)]
         `(fulcro.client.alpha.dom/macro-create-element*
-           ~(JSValue. (into [str-tag-name css-props] children)))
+           ~(JSValue. (into [str-tag-name attr-expr] children))))
 
-        ;; pure children
-        `(fulcro.client.alpha.localized-dom/macro-create-element
-           ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))
-      `(old-dom/element {:tag       (quote ~(symbol str-tag-name))
-                         :attrs     (-> ~attrs-value
-                                      (dissoc :ref :key)
-                                      (fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~css))
-                         :react-key (:key ~attrs-value)
-                         :children  ~children}))))
+      :map
+      (let [attr-expr (if (or css (contains? attrs-value :classes))
+                        `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
+                        (clj-map->js-object attrs-value))]
+        `(fulcro.client.alpha.dom/macro-create-element* ~(JSValue. (into [str-tag-name attr-expr] children))))
+
+      :runtime-map
+      (let [attr-expr `(fulcro.client.alpha.localized-dom-common/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)]
+        `(fulcro.client.alpha.dom/macro-create-element*
+           ~(JSValue. (into [str-tag-name attr-expr] children))))
+
+      :symbol
+      `(fulcro.client.alpha.localized-dom/macro-create-element
+         ~str-tag-name ~(into [attrs-value] children) ~css)
+
+      ;; also used for MISSING props
+      :nil
+      `(fulcro.client.alpha.dom/macro-create-element*
+         ~(JSValue. (into [str-tag-name css-props] children)))
+
+      ;; pure children
+      `(fulcro.client.alpha.localized-dom/macro-create-element
+         ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))))
 
 (defn gen-dom-macro [name]
-  `(defmacro ~name [& args#]
-     (let [tag#      ~(str name)
-           is-cljs?# (boolean (:ns ~'&env))]
-       (emit-tag tag# is-cljs?# args#))))
+  `(defmacro ~name [& ~'args]
+     (let [tag# ~(str name)]
+       (emit-tag tag# ~'args))))
 
 (defmacro gen-dom-macros []
   `(do ~@(clojure.core/map gen-dom-macro fulcro.client.alpha.dom-common/tags)))
+
+(defn- gen-client-dom-fn [tag]
+  `(defn ~tag [& ~'args]
+     (let [conformed-args# (util/conform! ::dom-element-args ~'args)
+           {attrs#    :attrs
+            children# :children
+            css#      :css} conformed-args#
+           children#       (mapv second children#)
+           attrs-value#    (or (second attrs#) {})]
+       (fulcro.client.alpha.localized-dom/macro-create-element ~(name tag) (into [attrs-value#] children#) css#))))
+
+(defmacro gen-client-dom-fns []
+  `(do ~@(clojure.core/map gen-client-dom-fn fulcro.client.alpha.dom-common/tags)))
 
 (gen-dom-macros)
