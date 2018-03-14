@@ -1,7 +1,9 @@
 (ns fulcro.client.alpha.localized-dom-server
   (:refer-clojure :exclude [map meta time])
   (:require [fulcro.util :as util]
-            [fulcro.client.alpha.dom-server :refer [element]]
+            [clojure.spec.alpha :as s]
+            [clojure.future :refer :all]
+            [fulcro.client.alpha.dom-server :refer [element element?]]
             [fulcro.client.alpha.dom-common :as dc]
             [fulcro.client.alpha.localized-dom-common :as ldc]))
 
@@ -12,6 +14,18 @@
   pre progress q rp rt ruby s samp script section small source span strong style sub summary sup table tbody
   td tfoot th thead time title tr track u ul var video wbr circle clipPath ellipse g line mask path
   pattern polyline rect svg text defs linearGradient polygon radialGradient stop tspan)
+
+(s/def ::dom-element-args
+  (s/cat
+    :css (s/? keyword?)
+    :attrs (s/? (s/or
+                  :nil nil?
+                  :map #(and (map? %) (not (element? %)))))
+    :children (s/* (s/or
+                     :string string?
+                     :number number?
+                     :collection #(or (vector? %) (seq? %))
+                     :element element?))))
 
 (defn gen-tag-fn [tag]
   `(defn ~tag [& ~'args]
