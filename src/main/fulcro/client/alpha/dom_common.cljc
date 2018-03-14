@@ -1,19 +1,10 @@
 (ns fulcro.client.alpha.dom-common
   (:refer-clojure :exclude [map meta time mask select])
-  #?(:cljs (:require-macros fulcro.client.alpha.dom))
   (:require
     [clojure.string :as str]
-    [fulcro.client.impl.protocols :as p]
-    [fulcro.util :as util]
-    [clojure.spec.alpha :as s]
-    #?@(:clj  (
-    [clojure.core.reducers :as r]
-    [clojure.future :refer :all]
-    [fulcro.checksums :as chk])
-        :cljs ([cljsjs.react]
+    #?@(:cljs ([cljsjs.react]
                 [cljsjs.react.dom]
-                [goog.object :as gobj]))
-    [fulcro.client.dom :as dom])
+                [goog.object :as gobj])))
   #?(:clj
      (:import
        (fulcro.client.dom Element)
