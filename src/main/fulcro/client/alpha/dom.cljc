@@ -129,25 +129,24 @@
                            (not (element? v))
                            (some #(or (symbol? %) (list? %)) (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
 
-(s/def ::dom-element-args
-  (s/cat
-    :css (s/? keyword?)
-    :attrs (s/? (s/or :nil nil?
-                  :map ::map-of-literals
-                  :runtime-map ::map-with-expr
-                  :js-object #?(:clj  #(instance? JSValue %)
-                                :cljs object?)
-                  :symbol symbol?))
-    :children (s/* (s/or :string string?
-                     :number number?
-                     :symbol symbol?
-                     :nil nil?
-                     :list seq?
-                     :element element?))))
+#?(:clj
+   (s/def ::dom-macro-args
+     (s/cat
+       :css (s/? keyword?)
+       :attrs (s/? (s/or :nil nil?
+                     :map ::map-of-literals
+                     :runtime-map ::map-with-expr
+                     :js-object #(instance? JSValue %)
+                     :symbol symbol?))
+       :children (s/* (s/or :string string?
+                        :number number?
+                        :symbol symbol?
+                        :nil nil?
+                        :list list?)))))
 
 #?(:clj
    (defn- emit-tag [str-tag-name is-cljs? args]
-     (let [conformed-args (util/conform! ::dom-element-args args)
+     (let [conformed-args (util/conform! ::dom-macro-args args)
            {attrs    :attrs
             children :children
             css      :css} conformed-args
@@ -212,6 +211,20 @@
 
 #?(:clj
    (gen-dom-macros))
+
+(s/def ::dom-element-args
+  (s/cat
+    :css (s/? keyword?)
+    :attrs (s/? (s/or
+                  :nil nil?
+                  :map #(and (map? %) (not (element? %)))
+                  :js-object #?(:clj  #(instance? JSValue %)
+                                :cljs #(and (object? %) (not (element? %))))))
+    :children (s/* (s/or
+                     :string string?
+                     :number number?
+                     :collection #(or (vector? %) (seq? %))
+                     :element element?))))
 
 (defn- gen-client-dom-fn [tag]
   `(defn ~tag [& ~'args]

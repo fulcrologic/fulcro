@@ -244,36 +244,41 @@
          (div :.x#y some-cljs-props "Hello")))
 
 
-     (provided "There are nested elements as children (no props)"
-       (dom/macro-create-element* args) =1x=> (do
-                                                (assertions
-                                                  "The child is evaluated first"
-                                                  (aget args 0) => "p"
-                                                  "The missing parameters are mapped to empty js map"
-                                                  (js->clj (aget args 1)) => {}))
-       (dom/macro-create-element* args) =1x=> (do
-                                                (assertions
-                                                  "The parent is evaluated next"
-                                                  (aget args 0) => "div"
-                                                  "The missing params are mapped as an empty js map"
-                                                  (js->clj (aget args 1)) => {}))
+     (let [real-mce dom/macro-create-element*]
+       (provided "There are nested elements as children (no props)"
+         (dom/macro-create-element* args) =1x=> (do
+                                                  (assertions
+                                                    "The child is evaluated first"
+                                                    (aget args 0) => "p"
+                                                    "The missing parameters are mapped to empty js map"
+                                                    (js->clj (aget args 1)) => {})
+                                                  (real-mce args))
+         (dom/macro-create-element* args) =1x=> (do
+                                                  (assertions
+                                                    "The parent is evaluated next"
+                                                    (aget args 0) => "div"
+                                                    "The missing params are mapped as an empty js map"
+                                                    (js->clj (aget args 1)) => {})
+                                                  (real-mce args))
 
-       (div (p "Hello")))
-     (provided "There are nested elements as children (keyword props)"
-       (dom/macro-create-element* args) =1x=> (do
-                                                (assertions
-                                                  "The child is evaluated first"
-                                                  (aget args 0) => "p"
-                                                  "The parameters are mapped to a js map"
-                                                  (js->clj (aget args 1)) => {"className" "b"}))
-       (dom/macro-create-element* args) =1x=> (do
-                                                (assertions
-                                                  "The parent is evaluated next"
-                                                  (aget args 0) => "div"
-                                                  "The params are mapped to a js map"
-                                                  (js->clj (aget args 1)) => {"className" "a"}))
+         (div (p "Hello")))
+       (provided "There are nested elements as children (keyword props)"
+         (dom/macro-create-element* args) =1x=> (do
+                                                  (assertions
+                                                    "The child is evaluated first"
+                                                    (aget args 0) => "p"
+                                                    "The parameters are mapped to a js map"
+                                                    (js->clj (aget args 1)) => {"className" "b"})
+                                                  (real-mce args))
+         (dom/macro-create-element* args) =1x=> (do
+                                                  (assertions
+                                                    "The parent is evaluated next"
+                                                    (aget args 0) => "div"
+                                                    "The params are mapped to a js map"
+                                                    (js->clj (aget args 1)) => {"className" "a"})
+                                                  (real-mce args))
 
-       (div :.a (p :.b "Hello")))))
+         (div :.a (p :.b "Hello"))))))
 
 #?(:clj
    (specification "Server-side Rendering"
