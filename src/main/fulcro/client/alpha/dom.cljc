@@ -1,133 +1,41 @@
 (ns fulcro.client.alpha.dom
+  "Client-side DOM macros and functions. For isomorphic (server) support, see also fulcro.client.alpha.dom-server"
   (:refer-clojure :exclude [map meta time mask select])
   #?(:cljs (:require-macros fulcro.client.alpha.dom))
   (:require
     fulcro.client.dom
-    [clojure.string :as str]
-    [fulcro.client.impl.protocols :as p]
-    [fulcro.util :as util]
     [clojure.spec.alpha :as s]
+    [fulcro.util :as util]
     #?@(:clj  (
-    [clojure.core.reducers :as r]
-    [clojure.future :refer :all]
-    [fulcro.checksums :as chk])
+    [clojure.future :refer :all])
         :cljs ([cljsjs.react]
                 [cljsjs.react.dom]
                 [goog.object :as gobj]))
-    [fulcro.client.dom :as dom])
+    [fulcro.client.alpha.dom-common :as cdom])
   #?(:clj
      (:import
-       (fulcro.client.dom Element)
        (cljs.tagged_literals JSValue))))
 
-(def node fulcro.client.dom/node)
-(def render-to-str fulcro.client.dom/render-to-str)
-(def create-element fulcro.client.dom/create-element)
-
-#?(:cljs (declare macro-create-wrapped-form-element macro-create-element macro-create-element*))
-
-(defn- remove-separators [s]
-  (when s
-    (str/replace s #"^[.#]" "")))
-
-(defn- get-tokens [k]
-  (re-seq #"[#.]?[^#.]+" (name k)))
-
-(defn- parse
-  "Parse CSS shorthand keyword and return map of id/classes.
-
-  (parse :.klass3#some-id.klass1.klass2)
-  => {:id        \"some-id\"
-      :classes [\"klass3\" \"klass1\" \"klass2\"]}"
-  [k]
-  (if k
-    (let [tokens       (get-tokens k)
-          id           (->> tokens (filter #(re-matches #"^#.*" %)) first)
-          classes      (->> tokens (filter #(re-matches #"^\..*" %)))
-          sanitized-id (remove-separators id)]
-      (when-not (re-matches #"^(\.[^.#]+|#[^.#]+)+$" (name k))
-        (throw (ex-info "Invalid style keyword. It contains something other than classnames and IDs." {})))
-      (cond-> {:classes (into []
-                          (keep remove-separators classes))}
-        sanitized-id (assoc :id sanitized-id)))
-    {}))
-
-(defn- combined-classes
-  "Takes a sequence of classname strings and a string with existing classes. Returns a string of these properly joined.
-
-  classes-str can be nil or and empty string, and classes-seq can be nil or empty."
-  [classes-seq classes-str]
-  (str/join " " (if (seq classes-str) (conj classes-seq classes-str) classes-seq)))
-
-(defn add-kwprops-to-props
-  "Combine a hiccup-style keyword with props that are either a JS or CLJS map."
-  [props kw]
-  (let [{:keys [classes id] :or {classes []}} (parse kw)]
-    (if #?(:clj false :cljs (or (nil? props) (object? props)))
-      #?(:clj  props
-         :cljs (let [props            (gobj/clone props)
-                     existing-classes (gobj/get props "className")]
-                 (when (seq classes) (gobj/set props "className" (combined-classes classes existing-classes)))
-                 (when id (gobj/set props "id" id))
-                 props))
-      (let [existing-classes (:className props)]
-        (cond-> (or props {})
-          (seq classes) (assoc :className (combined-classes classes existing-classes))
-          id (assoc :id id))))))
-
-
-(declare a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite
-  code col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form
-  h1 h2 h3 h4 h5 h6 head header hr html i iframe img ins input textarea select option kbd keygen
-  label legend li link main map mark menu menuitem meta meter nav noscript object ol optgroup output p param picture
-  pre progress q rp rt ruby s samp script section small source span strong style sub summary sup table tbody
-  td tfoot th thead time title tr track u ul var video wbr circle clipPath ellipse g line mask path
-  pattern polyline rect svg text defs linearGradient polygon radialGradient stop tspan)
-
-(def tags '#{a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite code
-             col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form h1
-             h2 h3 h4 h5 h6 head header hr html i iframe img input ins kbd keygen label legend li link main
-             map mark menu menuitem meta meter nav noscript object ol optgroup option output p param picture pre progress q rp rt
-             ruby s samp script section select small source span strong style sub summary sup table tbody td textarea
-             tfoot th thead time title tr track u ul var video wbr circle clipPath ellipse g line mask path pattern
-             polyline rect svg text defs linearGradient polygon radialGradient stop tspan})
-
-#?(:clj
-   (defn clj-map->js-object
-     "Recursively convert a map to a JS object. For use in macro expansion."
-     [m]
-     {:pre [(map? m)]}
-     (JSValue. (into {}
-                 (clojure.core/map (fn [[k v]]
-                                     (cond
-                                       (map? v) [k (clj-map->js-object v)]
-                                       (vector? v) [k (mapv #(if (map? %) (clj-map->js-object %) %) v)]
-                                       (symbol? v) [k `(cljs.core/clj->js ~v)]
-                                       :else [k v])))
-                 m))))
 
 #?(:cljs
    (def ^{:private true} element-marker
      (-> (js/React.createElement "div" nil)
        (gobj/get "$$typeof"))))
 
-#?(:clj
-   (defn element? [x] (instance? Element x))
-   :cljs
+#?(:cljs
    (defn element? "Returns true if the given arg is a react element."
      [x]
-     (and (object? x)
-       (= element-marker (gobj/get x "$$typeof")))))
+     (and (object? x) (= element-marker (gobj/get x "$$typeof")))))
 
-(s/def ::map-of-literals (fn [v]
-                           (and (map? v)
-                             (not (element? v))
-                             (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
+#?(:clj
+  (s/def ::map-of-literals (fn [v]
+                            (and (map? v)
+                              (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v))))))
 
-(s/def ::map-with-expr (fn [v]
-                         (and (map? v)
-                           (not (element? v))
-                           (some #(or (symbol? %) (list? %)) (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
+#?(:clj
+   (s/def ::map-with-expr (fn [v]
+                          (and (map? v)
+                            (some #(or (symbol? %) (list? %)) (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v))))))
 
 #?(:clj
    (s/def ::dom-macro-args
@@ -144,13 +52,85 @@
                         :nil nil?
                         :list list?)))))
 
+#?(:cljs
+   (s/def ::dom-element-args
+     (s/cat
+       :css (s/? keyword?)
+       :attrs (s/? (s/or
+                     :nil nil?
+                     :map #(and (map? %) (not (element? %)))
+                     :js-object #(and (object? %) (not (element? %)))))
+       :children (s/* (s/or
+                        :string string?
+                        :number number?
+                        :collection #(or (vector? %) (seq? %))
+                        :element element?)))))
+
+#?(:cljs
+   (defn render
+     "Equivalent to React.render"
+     [component el]
+     (js/ReactDOM.render component el)))
+
+#?(:cljs
+   (defn render-to-str
+     "Equivalent to React.renderToString"
+     [c]
+     (js/ReactDOMServer.renderToString c)))
+
+#?(:cljs
+   (defn node
+     "Returns the dom node associated with a component's React ref."
+     ([component]
+      (js/ReactDOM.findDOMNode component))
+     ([component name]
+      (some-> (.-refs component) (gobj/get name) (js/ReactDOM.findDOMNode)))))
+
+#?(:cljs
+   (defn create-element
+     "Create a DOM element for which there exists no corresponding function.
+      Useful to create DOM elements not included in React.DOM. Equivalent
+      to calling `js/React.createElement`"
+     ([tag]
+      (create-element tag nil))
+     ([tag opts]
+      (js/React.createElement tag opts))
+     ([tag opts & children]
+      (js/React.createElement tag opts children))))
+
+#?(:cljs (declare macro-create-wrapped-form-element macro-create-element macro-create-element*))
+
+(declare a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite
+  code col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form
+  h1 h2 h3 h4 h5 h6 head header hr html i iframe img ins input textarea select option kbd keygen
+  label legend li link main map mark menu menuitem meta meter nav noscript object ol optgroup output p param picture
+  pre progress q rp rt ruby s samp script section small source span strong style sub summary sup table tbody
+  td tfoot th thead time title tr track u ul var video wbr circle clipPath ellipse g line mask path
+  pattern polyline rect svg text defs linearGradient polygon radialGradient stop tspan)
+
 #?(:clj
-   (defn- emit-tag [str-tag-name is-cljs? args]
+   (defn clj-map->js-object
+     "Recursively convert a map to a JS object. For use in macro expansion."
+     [m]
+     {:pre [(map? m)]}
+     (JSValue. (into {}
+                 (clojure.core/map (fn [[k v]]
+                                     (cond
+                                       (map? v) [k (clj-map->js-object v)]
+                                       (vector? v) [k (mapv #(if (map? %) (clj-map->js-object %) %) v)]
+                                       (symbol? v) [k `(cljs.core/clj->js ~v)]
+                                       :else [k v])))
+                 m))))
+
+#?(:clj
+   (defn- emit-tag
+     "Helper function for generating CLJS DOM macros"
+     [str-tag-name is-cljs? args]
      (let [conformed-args (util/conform! ::dom-macro-args args)
            {attrs    :attrs
             children :children
             css      :css} conformed-args
-           css-props      (add-kwprops-to-props {} css)
+           css-props      (cdom/add-kwprops-to-props {} css)
            children       (mapv second children)
            attrs-type     (or (first attrs) :nil)           ; attrs omitted == nil
            attrs-value    (or (second attrs) {})
@@ -164,19 +144,19 @@
          (case attrs-type
            :js-object                                       ; kw combos not supported
            (if css
-             (let [attr-expr `(fulcro.client.alpha.dom/add-kwprops-to-props ~attrs-value ~css)]
+             (let [attr-expr `(cdom/add-kwprops-to-props ~attrs-value ~css)]
                `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
              `(~create-element ~(JSValue. (into [str-tag-name attrs-value] children))))
 
            :map
            `(~create-element ~(JSValue. (into [str-tag-name (-> attrs-value
-                                                              (add-kwprops-to-props css)
+                                                              (cdom/add-kwprops-to-props css)
                                                               (clj-map->js-object))]
                                           children)))
 
            :runtime-map
            (let [attr-expr (if css
-                             `(fulcro.client.alpha.dom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
+                             `(cdom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
                              (clj-map->js-object attrs-value))]
              `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
 
@@ -195,36 +175,22 @@
          `(fulcro.client.dom/element {:tag       (quote ~(symbol str-tag-name))
                                       :attrs     (-> ~attrs-value
                                                    (dissoc :ref :key)
-                                                   (fulcro.client.alpha.dom/add-kwprops-to-props ~css))
+                                                   (cdom/add-kwprops-to-props ~css))
                                       :react-key (:key ~attrs-value)
                                       :children  ~children})))))
 
 (defn- gen-dom-macro [name]
-  `(defmacro ~name [& args#]
+  `(defmacro ~name [& ~'args]
      (let [tag#      ~(str name)
            is-cljs?# (boolean (:ns ~'&env))]
-       (emit-tag tag# is-cljs?# args#))))
+       (emit-tag tag# is-cljs?# ~'args))))
 
 (defmacro gen-dom-macros []
   (when (boolean (:ns &env))
-    `(do ~@(clojure.core/map gen-dom-macro tags))))
+    `(do ~@(clojure.core/map gen-dom-macro cdom/tags))))
 
-#?(:clj
+#?(:cljs
    (gen-dom-macros))
-
-(s/def ::dom-element-args
-  (s/cat
-    :css (s/? keyword?)
-    :attrs (s/? (s/or
-                  :nil nil?
-                  :map #(and (map? %) (not (element? %)))
-                  :js-object #?(:clj  #(instance? JSValue %)
-                                :cljs #(and (object? %) (not (element? %))))))
-    :children (s/* (s/or
-                     :string string?
-                     :number number?
-                     :collection #(or (vector? %) (seq? %))
-                     :element element?))))
 
 (defn- gen-client-dom-fn [tag]
   `(defn ~tag [& ~'args]
@@ -237,9 +203,9 @@
        (fulcro.client.alpha.dom/macro-create-element ~(name tag) (into [attrs-value#] children#) css#))))
 
 (defmacro gen-client-dom-fns []
-  `(do ~@(clojure.core/map gen-client-dom-fn tags)))
+  `(do ~@(clojure.core/map gen-client-dom-fn cdom/tags)))
 
-#?(:cljs (fulcro.client.alpha.dom/gen-client-dom-fns))
+#?(:cljs (gen-client-dom-fns))
 
 #?(:cljs
    (defn convert-props
@@ -263,13 +229,71 @@
      (.apply js/React.createElement nil arr)))
 
 #?(:cljs
-   (def wrapped-input "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (dom/wrap-form-element "input")))
+   (defn- update-state
+     "Updates the state of the wrapped input element."
+     [component next-props value]
+     (let [on-change  (gobj/getValueByKeys component "state" "onChange")
+           next-state #js {}
+           inputRef   (gobj/get next-props "inputRef")]
+       (gobj/extend next-state next-props #js {:onChange on-change})
+       (gobj/set next-state "value" value)
+       (when inputRef
+         (gobj/remove next-state "inputRef")
+         (gobj/set next-state "ref" inputRef))
+       (.setState component next-state))))
+
 #?(:cljs
-   (def wrapped-textarea "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (dom/wrap-form-element "textarea")))
+   (defn wrap-form-element [element]
+     (let [ctor (fn [props]
+                  (this-as this
+                    (set! (.-state this)
+                      (let [state #js {:ref (gobj/get props "inputRef")}]
+                        (->> #js {:onChange (goog/bind (gobj/get this "onChange") this)}
+                          (gobj/extend state props))
+                        (gobj/remove state "inputRef")
+                        state))
+                    (.apply js/React.Component this (js-arguments))))]
+       (set! (.-displayName ctor) (str "wrapped-" element))
+       (goog.inherits ctor js/React.Component)
+       (specify! (.-prototype ctor)
+         Object
+         (onChange [this event]
+           (when-let [handler (.-onChange (.-props this))]
+             (handler event)
+             (update-state
+               this (.-props this)
+               (gobj/getValueByKeys event "target" "value"))))
+
+         (componentWillReceiveProps [this new-props]
+           (let [state-value   (gobj/getValueByKeys this "state" "value")
+                 element-value (gobj/get (js/ReactDOM.findDOMNode this) "value")]
+             (if (not= state-value element-value)
+               (update-state this new-props element-value)
+               (update-state this new-props (gobj/get new-props "value")))))
+
+         (render [this]
+           (js/React.createElement element (.-state this))))
+       (let [real-factory (js/React.createFactory ctor)]
+         (fn [props & children]
+           (if-let [r (gobj/get props "ref")]
+             (if (string? r)
+               (apply real-factory props children)
+               (let [p #js{}]
+                 (gobj/extend p props)
+                 (gobj/set p "inputRef" r)
+                 (gobj/remove p "ref")
+                 (real-factory p)))
+             (apply real-factory props children)))))))
+
+
 #?(:cljs
-   (def wrapped-option "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (dom/wrap-form-element "option")))
+   (def wrapped-input "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (wrap-form-element "input")))
 #?(:cljs
-   (def wrapped-select "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (dom/wrap-form-element "select")))
+   (def wrapped-textarea "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (wrap-form-element "textarea")))
+#?(:cljs
+   (def wrapped-option "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (wrap-form-element "option")))
+#?(:cljs
+   (def wrapped-select "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (wrap-form-element "select")))
 
 #?(:cljs
    (defn- arr-append* [arr x]
@@ -308,47 +332,21 @@
                 macro-create-element*)]
         (cond
           (nil? head)
-          (f (doto #js [type (add-kwprops-to-props #js {} csskw)]
+          (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
                (arr-append tail)))
 
           (object? head)
-          (f (doto #js [type (add-kwprops-to-props head csskw)]
+          (f (doto #js [type (cdom/add-kwprops-to-props head csskw)]
                (arr-append tail)))
 
           (map? head)
-          (f (doto #js [type (clj->js (add-kwprops-to-props head csskw))]
+          (f (doto #js [type (clj->js (cdom/add-kwprops-to-props head csskw))]
                (arr-append tail)))
 
           (element? head)
-          (f (doto #js [type (add-kwprops-to-props #js {} csskw)]
+          (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
                (arr-append args)))
 
           :else
-          (f (doto #js [type (add-kwprops-to-props #js {} csskw)]
+          (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
                (arr-append args))))))))
-
-;; Server-side only gets function versions
-#?(:clj
-   (defn gen-tag-fn [tag]
-     `(defn ~tag [& ~'args]
-        (let [conformed-args# (util/conform! ::dom-element-args ~'args)
-              {attrs#    :attrs
-               children# :children
-               css#      :css} conformed-args#
-              children#       (mapv second children#)
-              attrs-value#    (or (second attrs#) {})]
-          (fulcro.client.dom/element {:tag       '~tag
-                                      :attrs     (-> attrs-value#
-                                                   (dissoc :ref :key)
-                                                   (fulcro.client.alpha.dom/add-kwprops-to-props css#))
-                                      :react-key (:key attrs-value#)
-                                      :children  children#})))))
-
-#?(:clj
-   (defmacro gen-all-tags []
-     (when-not (boolean (:ns &env))
-       `(do
-          ~@(clojure.core/map gen-tag-fn tags)))))
-
-#?(:clj
-   (gen-all-tags))

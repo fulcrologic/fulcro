@@ -2,12 +2,12 @@
   (:refer-clojure :exclude [map meta time])
   #?(:cljs (:require-macros [fulcro.client.alpha.localized-dom]))
   (:require
-    [fulcro.client.alpha.dom :as adom]
     [fulcro.client.dom :as old-dom]
     [fulcro.client.primitives :as prim]
     [clojure.string :as str]
     [clojure.spec.alpha :as s]
     #?@(:clj  [
+    [fulcro.client.alpha.dom-server :as adom]
     [fulcro.client.impl.protocols :as p]
     [clojure.future :refer :all]
     [clojure.core.reducers :as r]
@@ -16,13 +16,15 @@
         :cljs [[cljsjs.react]
                [cljsjs.react.dom]
                [cljsjs.react.dom.server]
-               [goog.object :as gobj]]))
+               [fulcro.client.alpha.dom :as adom]
+               [goog.object :as gobj]])
+    [fulcro.client.alpha.dom-common :as cdom])
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
-(def node fulcro.client.dom/node)
-(def render-to-str fulcro.client.dom/render-to-str)
-(def create-element fulcro.client.dom/create-element)
+(def node adom/node)
+(def render-to-str adom/render-to-str)
+(def create-element adom/create-element)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLJC CSS Helpers
@@ -122,15 +124,6 @@
             id (assoc :id id))))
       prim/*parent*)))
 
-(declare tags
-  a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite code
-  col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form h1
-  h2 h3 h4 h5 h6 head header hr html i iframe img ins input textarea select option kbd keygen label
-  legend li link main map mark menu menuitem meta meter nav noscript object ol optgroup output p param picture pre
-  progress q rp rt ruby s samp script section small source span strong style sub summary sup table tbody td
-  tfoot th thead time title tr track u ul var video wbr circle clipPath ellipse g line mask path pattern
-  polyline rect svg text defs linearGradient polygon radialGradient stop tspan)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Macros and fns for SSR and Client DOM
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -180,26 +173,26 @@
            {attrs    :attrs
             children :children
             css      :css} conformed-args
-           css-props      (if css `(fulcro.client.alpha.localized-dom/add-kwprops-to-props nil ~css) nil)
+           css-props      (if css `(cdom/add-kwprops-to-props nil ~css) nil)
            children       (mapv second children)
            attrs-type     (or (first attrs) :nil)           ; attrs omitted == nil
            attrs-value    (or (second attrs) {})]
        (if is-cljs?
          (case attrs-type
            :js-object
-           (let [attr-expr `(fulcro.client.alpha.localized-dom/add-kwprops-to-props ~attrs-value ~css)]
-             `(adom/macro-create-element*
+           (let [attr-expr `(cdom/add-kwprops-to-props ~attrs-value ~css)]
+             `(fulcro.client.alpha.dom/macro-create-element*
                 ~(JSValue. (into [str-tag-name attr-expr] children))))
 
            :map
            (let [attr-expr (if (or css (contains? attrs-value :classes))
                              `(fulcro.client.alpha.localized-dom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
                              (clj-map->js-object attrs-value))]
-             `(adom/macro-create-element* ~(JSValue. (into [str-tag-name attr-expr] children))))
+             `(fulcro.client.alpha.dom/macro-create-element* ~(JSValue. (into [str-tag-name attr-expr] children))))
 
            :runtime-map
-           (let [attr-expr `(fulcro.client.alpha.localized-dom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)]
-             `(adom/macro-create-element*
+           (let [attr-expr `(cdom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)]
+             `(fulcro.client.alpha.dom/macro-create-element*
                 ~(JSValue. (into [str-tag-name attr-expr] children))))
 
            :symbol
@@ -208,7 +201,7 @@
 
            ;; also used for MISSING props
            :nil
-           `(adom/macro-create-element*
+           `(fulcro.client.alpha.dom/macro-create-element*
               ~(JSValue. (into [str-tag-name css-props] children)))
 
            ;; pure children
@@ -230,7 +223,7 @@
 
 #?(:clj
    (defmacro gen-dom-macros []
-     `(do ~@(clojure.core/map gen-dom-macro adom/tags))))
+     `(do ~@(clojure.core/map gen-dom-macro cdom/tags))))
 
 #?(:clj (gen-dom-macros))
 
@@ -244,26 +237,26 @@
         (let [[head & tail] args]
           (cond
             (nil? head)
-            (adom/macro-create-element*
+            (fulcro.client.alpha.dom/macro-create-element*
               (doto #js [type (add-kwprops-to-props #js {} csskw)]
                 (arr-append tail)))
 
             (object? head)
-            (adom/macro-create-element*
+            (fulcro.client.alpha.dom/macro-create-element*
               (doto #js [type (add-kwprops-to-props head csskw)]
                 (arr-append tail)))
 
             (map? head)
-            (adom/macro-create-element*
+            (fulcro.client.alpha.dom/macro-create-element*
               (doto #js [type (clj->js (add-kwprops-to-props head csskw))]
                 (arr-append tail)))
 
             (adom/element? head)
-            (adom/macro-create-element*
+            (fulcro.client.alpha.dom/macro-create-element*
               (doto #js [type (add-kwprops-to-props #js {} csskw)]
                 (arr-append args)))
 
             :else
-            (adom/macro-create-element*
+            (fulcro.client.alpha.dom/macro-create-element*
               (doto #js [type (add-kwprops-to-props #js {} csskw)]
                 (arr-append args)))))))))
