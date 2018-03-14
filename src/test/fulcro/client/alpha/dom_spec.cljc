@@ -2,7 +2,8 @@
   (:require
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro.client.alpha.dom-common :as cdom]
-    [fulcro.client.alpha.dom :as dom :refer [div p span]])
+    #?(:cljs [fulcro.client.alpha.dom :as dom :refer [div p span]]
+       :clj [fulcro.client.alpha.dom :as dom]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
@@ -281,6 +282,11 @@
 
 #?(:cljs
    (specification "DOM elements are usable as functions"
+     (assertions
+       "functions are defined"
+       (fn? div) => true
+       (fn? span) => true
+       (fn? p) => true)
      (provided ""
        (dom/macro-create-element t args) => (assertions
                                               t => "div")
