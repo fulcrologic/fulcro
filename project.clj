@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.4.0-SNAPSHOT"
+(defproject fulcrologic/fulcro "2.4.0"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -154,7 +154,7 @@
                                :optimizations :none}}]}
 
   :profiles {:book {:dependencies [[devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-inspect "2.0.0-alpha6" :exclusions [fulcrologic/fulcro]]
+                                   [fulcrologic/fulcro-inspect "2.0.0-alpha6" :exclusions [fulcrologic/fulcro fulcrologic/fulcro-css]]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
