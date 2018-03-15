@@ -7,17 +7,34 @@
             [fulcro.client.mutations :as m]
             [fulcro-css.css :as css]))
 
+(def fdiv div)
+(def fspan span)
+(def finput dom/input)
+
 (defsc AttrStatic [this props]
   (div
-    (div "Attr is missing with a string child")
-    (div
-      (span "attrs missing with a child element 1,")
-      (span " and a child element 2"))
-    (div nil "Attr is nil")
-    (div {} "Attr is empty map")
-    (div #js {} "Attr is empty js-object")
-    (div {:className "foo"} "Attr adds css class")
-    (div {:style {:backgroundColor "red"}} "Attr has nested inline style")))
+    (dom/section
+      (dom/h4 "Macros")
+      (div "Attr is missing with a string child")
+      (div
+        (span "attrs missing with a child element 1,")
+        (span " and a child element 2"))
+      (div nil "Attr is nil")
+      (div {} "Attr is empty map")
+      (div #js {} "Attr is empty js-object")
+      (div {:className "foo"} "Attr adds css class")
+      (div {:style {:backgroundColor "red"}} "Attr has nested inline style"))
+    (dom/section
+      (dom/h4 "Functions")
+      (div "Attr is missing with a string child")
+      (fdiv
+        (fspan "attrs missing with a child element 1,")
+        (fspan " and a child element 2"))
+      (fdiv nil "Attr is nil")
+      (fdiv {} "Attr is empty map")
+      (fdiv #js {} "Attr is empty js-object")
+      (fdiv {:className "foo"} "Attr adds css class")
+      (fdiv {:style {:backgroundColor "red"}} "Attr has nested inline style"))))
 
 (defcard-fulcro attr-static-enumeration
   "These attrs can be reasoned about at compile time."
@@ -31,12 +48,22 @@
         styles        {:backgroundColor "red"}
         symbolic-attr {:style {:backgroundColor "green"}}]
     (div
-      (div x "Attr is nil")
-      (div y "Attr is empty map")
-      (div z "Attr is empty js-object")
-      (div klass-info "Attr adds css class")
-      (div {:style styles} "Attr has nested inline symbolic style")
-      (div symbolic-attr "Attr has nested inline style and is all symbolic"))))
+      (dom/section
+        (dom/h4 "Macros")
+        (div x "Attr is nil")
+        (div y "Attr is empty map")
+        (div z "Attr is empty js-object")
+        (div klass-info "Attr adds css class")
+        (div {:style styles} "Attr has nested inline symbolic style")
+        (div symbolic-attr "Attr has nested inline style and is all symbolic"))
+      (dom/section
+        (dom/h4 "Functions")
+        (fdiv x "Attr is nil")
+        (fdiv y "Attr is empty map")
+        (fdiv z "Attr is empty js-object")
+        (fdiv klass-info "Attr adds css class")
+        (fdiv {:style styles} "Attr has nested inline symbolic style")
+        (fdiv symbolic-attr "Attr has nested inline style and is all symbolic")))))
 
 (defcard-fulcro attr-symbolic-enumeration
   "Part or all of these attrs are symbolic and resolved at runtime."
@@ -50,12 +77,22 @@
         symbolic-attr {:style {:backgroundColor "yellow"}}]
     (div
       (css/style-element CssShorthand)
-      (div :#the-id.border-klass "choral bg with border. Via localized kw")
-      (div :.border-klass {:className color-klass} "pink bg with border. via kw + className")
-      (div :.border-klass {:style {:backgroundColor "violet"}} "violet bg with border. via kw + inline styles")
-      (div :.border-klass x "white bg with border. Via kw + sym")
-      (div :.border-klass nil "white bg with border. Via kw + nil")
-      (div :.border-klass symbolic-attr "yellow bg with border. Via kw + sym with inline styles"))))
+      (dom/section
+        (dom/h4 "Macros")
+        (div :#the-id.border-klass "choral bg with border. Via localized kw")
+        (div :.border-klass {:className color-klass} "pink bg with border. via kw + className")
+        (div :.border-klass {:style {:backgroundColor "violet"}} "violet bg with border. via kw + inline styles")
+        (div :.border-klass x "white bg with border. Via kw + sym")
+        (div :.border-klass nil "white bg with border. Via kw + nil")
+        (div :.border-klass symbolic-attr "yellow bg with border. Via kw + sym with inline styles"))
+      (dom/section
+        (dom/h4 "Functions")
+        (fdiv :#the-id.border-klass "choral bg with border. Via localized kw")
+        (fdiv :.border-klass {:className color-klass} "pink bg with border. via kw + className")
+        (fdiv :.border-klass {:style {:backgroundColor "violet"}} "violet bg with border. via kw + inline styles")
+        (fdiv :.border-klass x "white bg with border. Via kw + sym")
+        (fdiv :.border-klass nil "white bg with border. Via kw + nil")
+        (fdiv :.border-klass symbolic-attr "yellow bg with border. Via kw + sym with inline styles")))))
 
 (defcard-fulcro css-shorthand
   "These dom elements use the CSS id/class (both shorthand and in attrs) with style tags."
@@ -75,7 +112,7 @@
    :ident             [:form/by-id :db/id]
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (dom/node this "thing")] (.focus e)))}
-  (dom/input {:onChange #(m/set-string! this :form/value :event %)
+  (finput {:onChange #(m/set-string! this :form/value :event %)
               :ref      "thing"
               :value    value}))
 
@@ -100,7 +137,7 @@
     (ui-old-form form)))
 
 (defcard-fulcro wrapped-input-card-string-refs
-  "# Inputs with (Deprecated) String ref.
+  "# Function Inputs with (Deprecated) String ref.
 
   Click on the card to show only this card and reload the page (it should auto-focus on mount)"
   OldWrappedInputRoot

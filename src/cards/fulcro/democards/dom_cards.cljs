@@ -6,17 +6,37 @@
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]))
 
+;; normally we get macro expansion, this will let us force calling the functions
+(def fdiv div)
+(def fspan span)
+(def finput dom/input)
+
 (defsc AttrStatic [this props]
   (div
-    (div "Attr is missing with a string child")
-    (div
-      (span "attrs missing with a child element 1,")
-      (span " and a child element 2"))
-    (div nil "Attr is nil")
-    (div {} "Attr is empty map")
-    (div #js {} "Attr is empty js-object")
-    (div {:className "foo"} "Attr adds css class")
-    (div {:style {:backgroundColor "red"}} "Attr has nested inline style")))
+    (dom/section
+      (dom/h4 "Macros")
+      (div "Attr is missing with a string child")
+      (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
+      (div
+        (span "attrs missing with a child element 1,")
+        (span " and a child element 2"))
+      (div nil "Attr is nil")
+      (div {} "Attr is empty map")
+      (div #js {} "Attr is empty js-object")
+      (div {:className "foo"} "Attr adds css class")
+      (div {:style {:backgroundColor "red"}} "Attr has nested inline style"))
+    (dom/section
+      (dom/h4 "Functions")
+      (fdiv "Attr is missing with a string child")
+      (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
+      (fdiv
+        (fspan "attrs missing with a child element 1,")
+        (fspan " and a child element 2"))
+      (fdiv nil "Attr is nil")
+      (fdiv {} "Attr is empty map")
+      (fdiv #js {} "Attr is empty js-object")
+      (fdiv {:className "foo"} "Attr adds css class")
+      (fdiv {:style {:backgroundColor "red"}} "Attr has nested inline style"))))
 
 (defcard-fulcro attr-static-enumeration
   "These attrs can be reasoned about at compile time."
@@ -30,12 +50,22 @@
         styles        {:backgroundColor "red"}
         symbolic-attr {:style {:backgroundColor "green"}}]
     (div
-      (div x "Attr is nil")
-      (div y "Attr is empty map")
-      (div z "Attr is empty js-object")
-      (div klass-info "Attr adds css class")
-      (div {:style styles} "Attr has nested inline symbolic style")
-      (div symbolic-attr "Attr has nested inline style and is all symbolic"))))
+      (dom/section
+        (dom/h4 "Macros")
+        (div x "Attr is nil")
+        (div y "Attr is empty map")
+        (div z "Attr is empty js-object")
+        (div klass-info "Attr adds css class")
+        (div {:style styles} "Attr has nested inline symbolic style")
+        (div symbolic-attr "Attr has nested inline style and is all symbolic"))
+      (dom/section
+        (dom/h4 "Functions")
+        (fdiv x "Attr is nil")
+        (fdiv y "Attr is empty map")
+        (fdiv z "Attr is empty js-object")
+        (fdiv klass-info "Attr adds css class")
+        (fdiv {:style styles} "Attr has nested inline symbolic style")
+        (fdiv symbolic-attr "Attr has nested inline style and is all symbolic")))))
 
 (defcard-fulcro attr-symbolic-enumeration
   "Part or all of these attrs are symbolic and resolved at runtime."
@@ -48,18 +78,32 @@
       (dom/style "#the-id {background-color: coral;}")
       (dom/style ".border-klass {border-style: solid;}")
       (dom/style ".color-klass {background-color: pink;}")
-
-      (div :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
-      (div :.border-klass {:className "color-klass"}
-        "Has a shorthand CSS for border class and pink color class in attrs")
-      (div :.border-klass {:style {:backgroundColor "violet"}}
-        "Has a shorthand CSS for border class and violet background inline styles")
-      (div :.border-klass x
-        "Has a shorthand CSS for border class and symbolic nil attrs")
-      (div :.border-klass nil
-        "Has a shorthand CSS for border class and nil attrs")
-      (div :.border-klass symbolic-attr
-        "Has a shorthand CSS for border class and yellow background symbolic inline styles"))))
+      (dom/section
+        (dom/h3 "Macros")
+        (div :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
+        (div :.border-klass {:className "color-klass"}
+          "Has a shorthand CSS for border class and pink color class in attrs")
+        (div :.border-klass {:style {:backgroundColor "violet"}}
+          "Has a shorthand CSS for border class and violet background inline styles")
+        (div :.border-klass x
+          "Has a shorthand CSS for border class and symbolic nil attrs")
+        (div :.border-klass nil
+          "Has a shorthand CSS for border class and nil attrs")
+        (div :.border-klass symbolic-attr
+          "Has a shorthand CSS for border class and yellow background symbolic inline styles"))
+      (dom/section
+        (dom/h3 "Functions")
+        (fdiv :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
+        (fdiv :.border-klass {:className "color-klass"}
+          "Has a shorthand CSS for border class and pink color class in attrs")
+        (fdiv :.border-klass {:style {:backgroundColor "violet"}}
+          "Has a shorthand CSS for border class and violet background inline styles")
+        (fdiv :.border-klass x
+          "Has a shorthand CSS for border class and symbolic nil attrs")
+        (fdiv :.border-klass nil
+          "Has a shorthand CSS for border class and nil attrs")
+        (fdiv :.border-klass symbolic-attr
+          "Has a shorthand CSS for border class and yellow background symbolic inline styles")))))
 
 (defcard-fulcro css-shorthand
   "These dom elements use the CSS id/class (both shorthand and in attrs) with style tags."
@@ -71,15 +115,15 @@
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (gobj/get this "n")] (.focus e)))}
   (dom/input :#id.cls {:onChange #(m/set-string! this :form/value :event %)
-                    :ref      (fn [r] (gobj/set this "n" r))
-                    :value    value}))
+                       :ref      (fn [r] (gobj/set this "n" r))
+                       :value    value}))
 
 (defsc OldForm [this {:keys [:db/id :form/value] :as props}]
   {:query             [:db/id :form/value]
    :ident             [:form/by-id :db/id]
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (dom/node this "thing")] (.focus e)))}
-  (dom/input {:onChange #(m/set-string! this :form/value :event %)
+  (finput {:onChange #(m/set-string! this :form/value :event %)
               :ref      "thing"
               :value    value}))
 
