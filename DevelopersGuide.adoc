@@ -337,6 +337,37 @@ equivalent:
 However, the former happens in the reader (before compile) and generates more efficient runtime code, but the
 latter is useful when you've computed attributes in regular clj data structures and need to convert it at runtime.
 
+=== Improvements to DOM [[AlphaDOM]]
+
+In version 2.4.0 the new `fulcro.client.alpha.dom` namespace allows more concise syntax and will soon become
+the default. The example in the last section can be written much more simply, and there is never a need
+(in fact it is disallowed) to convert your props manually:
+
+-----
+(ns app
+  (:require [fulcro.client.alpha.dom :as dom]))
+
+...
+;; old style is supported except for expressions as props (symbols are ok)
+(dom/div #js {:className "a"} "Hi") ; Supported, for bw compatibility, but not needed
+(dom/div nil "Hi")                  ; Supported, for bw compatibility, but not needed
+(dom/div attrs "Hi")                ; OK
+(dom/div (clj->js attrs) "Hi")      ; SYNTAX ERROR in new DOM
+
+;; New support (not availabe in old support)
+(dom/div {:className "a"} "Hi")     ; no need for #js
+(dom/div :.a "Hi")                  ; New keyword shorthand for classes
+(dom/div :.a {:onClick f} "Hi")     ; class kw can mix with props
+(dom/div "Hi")                      ; Preferred *new* way of supplying "no" attributes
+(dom/div :#id.x.y {:onClick f} "Hi"); Id, multiple classes, and props can all be combined
+-----
+
+The new DOM uses macros for inline the conversion of attributes at compile time (whenever possible), and
+also supplies functional forms to allow for higher-order use. In general this means that it is just as
+fast as the older code, but much more concise.
+
+This will become the default `fulcro.client.dom` in an upcoming release.
+
 === Props
 
 React components receive their data through props and state (which is local mutable state on the component).
@@ -2531,15 +2562,38 @@ So, there are functions for every possible HTML5 element. These are in the
 optimal performance, since React wants to consume Javascript data):
 
 ```
+(ns app.ui
+  (:require [fulcro.client.dom :as dom]))
+
+...
+
 (dom/div #js { :className "some-class" }
   (dom/ul nil
     (dom/li ...)))
 ```
 
+.NEW! DOM Improved Syntax
+********************************************************************************
+Version 2.4.0 includes a new DOM namespace that allows for optional parameters, Hiccup-style classes,
+and more. The example from the text can be written:
+
+-----
+(ns app.ui
+  (:require [fulcro.client.alpha.dom :as dom]))
+
+...
+(dom/div :.some-class    ; instead of (dom/div #js {:className "some-class"}
+  (dom/ul                ; instead of   (dom/ul nil
+    (dom/li ...)))
+-----
+
+See <<AlphaDOM, this section>> for more details.
+********************************************************************************
+
 Remember that this (nested) call of functions results in a representation (VDOM) of
 what you'd like to end up on the screen.
 
-The next level of abstraction you can use is simply a function.
+The next level of abstraction is simply a function.
 Combining more complex bits of UI into a function is a great way to group
 re-usable nested DOM:
 
@@ -2558,7 +2612,7 @@ Here are some common things you'll want to know how to do that are different whe
 ** `#js` is a reader tag. The reader is the thing that reads your source code, and it is configurable. This one
 tells the reader how to turn the map into a js object.
 ** `dom/p` is a function for generating p tags for use in React componenets. There is one of these for every legal HTML tag.
-* There are alternatives to this ([sablono](https://github.com/r0man/sablono) is popular). It adds some overhead, but many
+* See the new <<AlphaDOM, fulcro.client.alpha.dom>>, which is as concise as Sablano, and performs well.
 people prefer how it reads.
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
