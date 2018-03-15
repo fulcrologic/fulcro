@@ -21,7 +21,13 @@
     (render-to-str (div :.a#1 {:className "b"}
                      (p "P")
                      (p :.x (span "PS2"))))
-    => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1768960473\"><p data-reactid=\"2\">P</p><p class=\"x\" data-reactid=\"3\"><span data-reactid=\"4\">PS2</span></p></div>"))
+    => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1768960473\"><p data-reactid=\"2\">P</p><p class=\"x\" data-reactid=\"3\"><span data-reactid=\"4\">PS2</span></p></div>"
+    "works with threading macro"
+    (render-to-str (->>
+                     (span "PS2")
+                     (p :.x)
+                     (div :.a#1 {:className "b"})))
+    => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-213767666\"><p class=\"x\" data-reactid=\"2\"><span data-reactid=\"3\">PS2</span></p></div>"))
 
 (specification "DOM elements are usable as functions"
   (provided "The correct SSR function is called."

@@ -3,7 +3,8 @@
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro.client.alpha.dom-common :as cdom]
     #?(:cljs [fulcro.client.alpha.dom :as dom :refer [div p span]]
-       :clj [fulcro.client.alpha.dom :as dom]))
+       :clj
+    [fulcro.client.alpha.dom :as dom]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
@@ -194,6 +195,20 @@
        (div :.x#y {:className (cond-> ""
                                 true (str "a"))} "Hello"))
 
+     (provided "nesting is done via threading macro:"
+       (dom/macro-create-element* args) =1x=> (do
+                                                (assertions
+                                                  "cljs props combined with class specifier results in updated cljs props"
+                                                  (js->clj (aget args 0)) => "p"))
+       (dom/macro-create-element* args) =1x=> (do
+                                                (assertions
+                                                  "cljs props combined with class specifier results in updated cljs props"
+                                                  (js->clj (aget args 0)) => "div"))
+
+
+       (->> (p nil "Hello")
+         (div :.x#y {:className (cond-> ""
+                                  true (str "a"))})))
 
      (let [some-class      "x"
            some-js-props   #js {:className "a" :id 1}
@@ -243,6 +258,23 @@
          (div :.x#y some-js-props "Hello")
          (div :.x#y some-cljs-props "Hello")))
 
+     (provided "It is used as a lambda with pct child"
+       (dom/macro-create-element* args) =1x=> (assertions
+                                                "The runtime version of the processing is called "
+                                                (aget args 0) => "div"
+                                                (js->clj (aget args 1)) => {"className" "x"
+                                                                            "data-x"    22})
+
+       (mapv #(div :.x {:data-x 22} %) ["Hello"]))
+
+     (provided "It is used as a lambda with pct attrs"
+       (dom/macro-create-element* args) =1x=> (assertions
+                                                "The runtime version of the processing is called "
+                                                (aget args 0) => "div"
+                                                (js->clj (aget args 1)) => {"className" "x"
+                                                                            "data-x"    22})
+
+       (mapv #(div :.x % "Hello") [{:data-x 22}]))
 
      (let [real-mce dom/macro-create-element*]
        (provided "There are nested elements as children (no props)"
@@ -283,12 +315,13 @@
 #?(:cljs
    (specification "DOM elements are usable as functions"
      (assertions
-       "functions are defined"
+       "The functions exist and are defined as functions"
        (fn? div) => true
        (fn? span) => true
        (fn? p) => true)
-     (provided ""
+     (provided "It is used in a functional context"
        (dom/macro-create-element t args) => (assertions
+                                              "The runtime version of the processing is called"
                                               t => "div")
 
        (apply div {} ["Hello"]))))
