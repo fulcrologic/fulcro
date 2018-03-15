@@ -1,7 +1,6 @@
 (ns fulcro.democards.dom-cards
   (:require [devcards.core :as dc]
             [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.dom :as old-dom]
             [fulcro.client.alpha.dom :as dom :refer [div span]]
             [goog.object :as gobj]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
@@ -10,6 +9,7 @@
 ;; normally we get macro expansion, this will let us force calling the functions
 (def fdiv div)
 (def fspan span)
+(def finput dom/input)
 
 (defsc AttrStatic [this props]
   (div
@@ -123,7 +123,7 @@
    :ident             [:form/by-id :db/id]
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (dom/node this "thing")] (.focus e)))}
-  (dom/input {:onChange #(m/set-string! this :form/value :event %)
+  (finput {:onChange #(m/set-string! this :form/value :event %)
               :ref      "thing"
               :value    value}))
 

@@ -1,6 +1,5 @@
 (ns fulcro.client.alpha.localized-dom
   (:refer-clojure :exclude [map meta time])
-  (:require-macros [fulcro.client.alpha.localized-dom])
   (:require
     fulcro.client.alpha.dom
     [fulcro.client.alpha.localized-dom-common :as cdom]))
@@ -49,4 +48,4 @@
            (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
              (arr-append args))))))))
 
-(fulcro.client.alpha.localized-dom/gen-client-dom-fns)
+(fulcro.client.alpha.dom/gen-client-dom-fns fulcro.client.alpha.localized-dom/macro-create-element)

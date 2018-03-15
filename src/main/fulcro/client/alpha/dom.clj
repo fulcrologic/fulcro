@@ -96,35 +96,37 @@
       `(fulcro.client.alpha.dom/macro-create-element
          ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))))
 
-(defn- syntax-error [and-form ex]
+(defn syntax-error
+  "Format a DOM syntax error"
+  [and-form ex]
   (let [location         (clojure.core/meta and-form)
         file             (some-> (:file location) (str/replace #".*[/]" ""))
         line             (:line location)
         unexpected-input (::s/value (ex-data ex))]
     (str "Syntax error at " file ":" line ". Unexpected input " unexpected-input)))
 
-(defn- gen-dom-macro [name]
+(defn gen-dom-macro [emitter name]
   `(defmacro ~name [& ~'args]
      (let [tag# ~(str name)]
        (try
-         (emit-tag tag# ~'args)
+         (~emitter tag# ~'args)
          (catch ExceptionInfo e#
            (throw (ex-info (syntax-error ~'&form e#) (ex-data e#))))))))
 
-(defmacro gen-dom-macros []
-  `(do ~@(clojure.core/map gen-dom-macro cdom/tags)))
+(defmacro gen-dom-macros [emitter]
+  `(do ~@(clojure.core/map (partial gen-dom-macro emitter) cdom/tags)))
 
-(defn- gen-client-dom-fn [tag]
+(defn- gen-client-dom-fn [create-element-symbol tag]
   `(defn ~tag [& ~'args]
-     (let [conformed-args# (util/conform! ::dom-element-args ~'args)
+     (let [conformed-args# (util/conform! :fulcro.client.alpha.dom/dom-element-args ~'args) ; see CLJS file for spec
            {attrs#    :attrs
             children# :children
             css#      :css} conformed-args#
            children#       (mapv second children#)
            attrs-value#    (or (second attrs#) {})]
-       (fulcro.client.alpha.dom/macro-create-element ~(name tag) (into [attrs-value#] children#) css#))))
+       (~create-element-symbol ~(name tag) (into [attrs-value#] children#) css#))))
 
-(defmacro gen-client-dom-fns []
-  `(do ~@(clojure.core/map gen-client-dom-fn cdom/tags)))
+(defmacro gen-client-dom-fns [create-element-sym]
+  `(do ~@(clojure.core/map (partial gen-client-dom-fn create-element-sym) cdom/tags)))
 
-(gen-dom-macros)
+(gen-dom-macros fulcro.client.alpha.dom/emit-tag)

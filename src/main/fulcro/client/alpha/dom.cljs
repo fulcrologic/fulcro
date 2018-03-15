@@ -199,4 +199,4 @@
        (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
             (arr-append args)))))))
 
-(adom/gen-client-dom-fns)
+(adom/gen-client-dom-fns fulcro.client.alpha.dom/macro-create-element)
