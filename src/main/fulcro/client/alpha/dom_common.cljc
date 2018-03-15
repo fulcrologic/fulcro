@@ -7,7 +7,6 @@
                 [goog.object :as gobj])))
   #?(:clj
      (:import
-       (fulcro.client.dom Element)
        (cljs.tagged_literals JSValue))))
 
 (defn- remove-separators [s]
