@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: Feb 26, 2018
-:revnumber: 1.3
+:revdate: Mar 15, 2018
+:revnumber: 1.4
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -367,6 +367,24 @@ also supplies functional forms to allow for higher-order use. In general this me
 fast as the older code, but much more concise.
 
 This will become the default `fulcro.client.dom` in an upcoming release.
+
+==== New DOM and Server-Side Rendering
+
+There is a `fulcro.client.alpha.dom-server` namespace that provides the CLJ versions of the DOM functions. In
+order to write UI in CLJC files you will need to make sure you use a conditional reader tag to include the
+correct namespace for the correct langauge:
+
+```
+(ns app.ui
+  (:require #?(:clj [fulcro.client.alpha.dom-server :as dom] :cljs [fulcro.client.alpha.dom :as dom]))
+
+... same as before
+```
+
+The reason this is necessary is that CLJS requires macros to be in CLJ files, but in order to get higher-order
+operation in CLJ the DOM elements must be functions. In CLJS, you can have both a macro and function, but this
+is not true in CLJ. Therefore, in order to get the optimal (inlined) client performance two namespaces are
+required.
 
 === Props
 
@@ -2881,18 +2899,20 @@ Step (1) means that nesting of param-namespaced keywords is supported, but reali
 
 === CSS Support
 
-Support for using `fulcrologic/fulcro-css` is built-in, but it is a dynamic dependency so to use it you must include
-the `fulcrologic/fulcro-css` library in your project dependencies and require the `fulcro.client.css` namespace in any file
-that uses this support.
+Support for using `fulcrologic/fulcro-css` is built-in. Before 2.4 it was a dynamic dependency so to use needed to include
+the `fulcrologic/fulcro-css` library in your project dependencies and require the `fulcro-css.css` namespace in any file
+that used this support.
 
-The keys in the options map are:
+As of version 2.4 it is intregrated with Fulcro, and requires no special dependency.
+
+The keys in the `defsc` options map to leverage co-located CSS are:
 
 * `:css` - The items to put in protocol method css/local-rules. Can be pure garden data, or `(fn [] ...)`
 * `:css-include` - The items to put in protocol method css/include-children. Can be a vector of classes, or `(fn [] ...)`
 
 Both are optional. If you use neither, then your code will not incur a dependency on the fulcro-css library.
 
-See Fulcro CSS for more information.
+See <<ColocatedCSS, Colocated CSS>> for more details.
 
 === React Lifecycle Methods
 
@@ -3409,6 +3429,210 @@ The key is the call to `with-parent-context`. It causes the enclosed elements to
 from the component passed as the first parameter (in this case `this`).  Rendering will work 
 correctly without this wrapper, but interactions (particularly `transact!`) will not operate correctly 
 without it.
+
+== Colocated CSS [[ColocatedCSS]]
+
+Fulcro includes support for localizing CSS rules to components. It leverages
+https://github.com/noprompt/garden[Garden] for interpreting component-localized hiccup-style CSS rules.
+
+Before 2.4 you needed to include `fulcrologic/fulcro-css` as a dependency. As of 2.4, this is no longer
+the case.
+
+=== Basics
+
+CSS can be co-located on any component. This CSS does *not* take effect until it is embedded on the page
+(see Embedding The CSS below). The typical steps for usage are:
+
+. Add localized rules to your component via the `:css` option of `defsc` or by implementing the `fulcro-css.css/CSS` protocol's `local-rules`.
+ The result of this must be a vector in Garden notation. Any rules included here will be automatically prefixed with the CSSified namespace
+ and component name to ensure name collisions are impossible.
+. (optional) Add "global" rules. The vector of rules (in the prior step) can use a `$` prefix to prevent localization (`:$container` instead of `:.container`).
+. (optional) Add the `:css-incude` option to `defsc`. This MUST be a vector of components that are used within the `render`
+that *also* supply CSS. This allows the library to compose together your CSS according to what components you *use*. Pulling
+the CSS rules from some top-level component will dedupe any inclusions before generating the actual on-DOM CSS.
+. Use one of many options to get the "munged" classnames for use in your code:
+** `(fulcro-css.css/get-classnames Componenet)` returns a map of namespaced CSS classes keyed by the simple name you used in your garden rules.
+** The 4th argument to `defsc` is that same map, on which you can apply destructuring to get the munged class names.
+** Use `fulcro.client.alpha.localized-dom` for DOM rendering, and have it all automatically done for you!
+. Use the `fulcro-css.css/upsert-css` or `fulcro-css.css/style-element` function (or your own style element) to embed the CSS.
+
+A typical file will have the following layout:
+
+Using Fulcro 2.x `defsc`:
+
+-----
+(ns my-ui
+  (:require [fulcro.client.dom :as dom]
+            [fulcro-css.css :as css]
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
+
+; the item binding is destructured as the fourth param. The actual CSS classname
+; will be namespaced to the component as my_ui_ListItem__item, but will be available
+; as the value :item in css-classnames map parameter, so you can easily
+; destructure if and use it in the DOM without having to worry about how it is prefixed.
+(defsc ListItem [this {:keys [label] :as props} computed {:keys [item] :as css-classes}]
+  {:css [[:.item {:font-weight "bold"}]]}
+  (dom/li #js {:className item} label))
+
+(def ui-list-item (om/factory ListItem {:keyfn :id}))
+
+(defsc ListComponent [this {:keys [id items]} computed {:keys [items-wrapper]}]
+  {:css [[:.items-wrapper {:background-color "blue"}]] ; this component's css
+   :css-include [ListItem]} ; components whose CSS should be included if this component is included
+  (dom/div #js {:className items-wrapper}
+    (dom/h2 nil (str "List " id))
+    (dom/ul nil (map ui-list-item items))))
+
+(def ui-list (om/factory ListComponent {:keyfn :id}))
+
+(defsc Root [this props computed {:keys [text]}]
+  {:css [[:.container {:background-color "red"}]]
+   :css-include [ListComponent]}
+    (let [the-list {:id 1 :items [{:id 1 :label "A"} {:id 2 :label "B"}]}]
+      (dom/div #js {:className text}
+        (ui-list the-list))))
+
+; ...
+
+; Add the CSS from Root as a HEAD style element. If it already exists, replace it. This
+; will recursively follow all of the CSS includes *just* for components that Root includes!
+(css/upsert-css "my-css" Root)
+-----
+
+
+In the above example, the upsert results in this CSS on the page:
+
+```html
+<style id="my-css">
+.fulcro-css_cards-ui_Root__container {
+  background-color: red;
+}
+
+.text {
+  color: yellow;
+}
+
+.fulcro-css_cards-ui_ListComponent__items-wrapper {
+  background-color: blue;
+}
+
+.fulcro-css_cards-ui_ListItem__item {
+  font-weight: bold;
+}
+</style>
+```
+
+with a DOM for the UI of:
+
+```html
+<div class="text">
+  <div class="fulcro-css_cards-ui_ListComponent__items-wrapper">
+    <h2>List 1</h2>
+    <ul>
+      <li class="fulcro-css_cards-ui_ListItem__item">A</li>
+      <li class="fulcro-css_cards-ui_ListItem__item">B</li>
+    </ul>
+  </div>
+</div>
+```
+
+Garden's `selectors` are supported. These include the *CSS combinators* and the special `&` selector. Using the
+`$`-prefix will also prevent the selectors from being localized.
+
+-----
+  :css [[(garden.selectors/> :.a :$b) {:color "blue"}]]
+-----
+
+```html
+.namespace_Component__a > .b {
+  color: blue;
+}
+```
+
+See https://github.com/noprompt/garden[Garden's] documentation for more details on more complex rules.
+
+=== Upsert vs, Style Element
+
+There are two ways of placing the CSS for a (group of) components on a page:
+
+`(upsert-css ID Component)` will pull (recurisvely) the rules of Component, translate them to legal CSS, and then insert them
+on the *body* of the page's DOM at the given ID (overwriting the old style element with that same ID). If you ensure that
+this `upsert` happens on hot code reload, then your CSS will update as you edit your code.
+
+Typically, you'll run `upsert-css` with your initial mount and in your hot code reload trigger. This means that the
+computational overhead for the CSS is limited to initial startup.
+
+`(style-element Component)` will pull (recursively) the rules for Component and return a React style element. This allows
+you to embed CSS for a sub-tree of components in an "on-demand" fashion, since the element will only render of the component
+that uses it renders. The problem with this method is that the computational overhead for computing the CSS is moved into
+your primary rendering. This, however, is quite convenient in situations like `devcards` where you'd like to easily ensure
+that the CSS is there, but don't want to have to worry about conflicting with existing style elements on the top-level page.
+
+=== Localized CSS and Server-Side Rendering
+
+The `upsert-css` and `style-element` functions are conveniences for CLJS DOM, but they do not work in CLJ.
+
+Instead use `(garden/css (fulcro-css.css/get-css Component))` to get a string version of the generated CSS and embed that
+in the page. Version 2.4.1+ includes `fulcro-css.css/raw-css` for this expression.
+
+You can use the raw string in generated HTML, or use the server-compatible DOM functions:
+
+```
+(ns app.ui
+  (:require
+    [fulcro.client.dom :as dom]
+    [garden.core :as g]
+    [fulcro-css.css :as css]))
+
+(dom/style #js {:dangerouslySetInnerHTML #js {:__html (g/css (css/get-css component))}})
+```
+
+=== Using Localized DOM [[LocalizedDOM]]
+
+The `fulcro.client.alpha.localized-dom` uses the same more compact notation mentioned in <<AlphaDOM, the new DOM (alpha)>>, but
+it interprets the CSS keywords in the *context* of the component! This means that you can use localized CSS without
+having to destructure the munged names at all.
+
+*Instead of writing:*
+
+```
+(ns app.ui
+  (:require [fulcro.client.dom :as dom]))
+
+(defsc Component [this props comp {:keys [a]}]
+  {:css [[:.a {:color :red}]]}
+  (dom/div #js {:className a} "Hi!))
+```
+
+you can instead write (note the different require):
+
+```
+(ns app.ui
+  (:require [fulcro.client.alpha.localized-dom :as dom]))
+
+(defsc Component [this props]
+  {:css [[:.a {:color :red}]]}
+  (dom/div :.a "Hi!))
+```
+
+and avoid the argument destructuring, and JS properties map.
+
+This localization of the keyword does require a small bit of runtime overhead, but inline macro expansion is used wherever possible to
+make this as performant as possible.
+
+==== Localized DOM and Server-Side Rendering
+
+There is a `fulcro.client.alpha.localized-dom-server` namespace that provides the CLJ versions of the DOM functions. In
+order to write UI in CLJC files you will need to make sure you use a conditional reader tag to include the
+correct namespace for the correct langauge:
+
+```
+(ns app.ui
+  (:require #?(:clj [fulcro.client.alpha.localized-dom-server :as dom] :cljs [fulcro.client.alpha.localized-dom :as dom]))
+
+... same as before
+```
+
 
 == Demo: An Image Clip Tool
 
