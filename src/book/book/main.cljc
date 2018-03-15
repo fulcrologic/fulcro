@@ -67,6 +67,7 @@
                book.bootstrap.components.nav-routing
                book.demos.cascading-dropdowns
                book.demos.component-localized-css
+               book.demos.localized-dom
                book.demos.declarative-mutation-refresh
                book.demos.dynamic-ui-routing
                book.demos.dynamic-i18n
@@ -244,6 +245,7 @@
 #?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
 #?(:cljs (defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :networking book.main/example-server))
 #?(:cljs (defexample "Component Localized CSS" book.demos.component-localized-css/Root "component-localized-css" :networking book.main/example-server))
+#?(:cljs (defexample "Localized DOM" book.demos.localized-dom/Root "localized-dom"))
 #?(:cljs (defexample "Declarative Mutation Refresh" book.demos.declarative-mutation-refresh/Root "declarative-mutation-refresh" :networking book.main/example-server))
 #?(:cljs (defexample "dynamicUiRouting" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
            :started-callback book.demos.dynamic-ui-routing/application-loaded

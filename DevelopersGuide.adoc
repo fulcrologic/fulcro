@@ -3438,6 +3438,21 @@ https://github.com/noprompt/garden[Garden] for interpreting component-localized 
 Before 2.4 you needed to include `fulcrologic/fulcro-css` as a dependency. As of 2.4, this is no longer
 the case.
 
+The support make it easy to co-locate and compose localized component CSS with your UI! This leads to all sorts of wonderful and interesting
+results:
+
+* Your CSS is name-localized, so your component's CSS is effectively private
+* You don't have to go find the CSS file to include it in your application. It's already in the code.
+* Since it's code, you can use data manipualtion, variables, and more to create your CSS. It
+is the ultimate in code reuse and generality.
+* The composition facilities prevent duplication.
+* It becomes much easier to allow themed components with additional tool chains! Variables can be
+supplied that can simply be modified via code before CSS injection.
+* Google Closure's minification can be applied to reduce the size of the resulting files during your
+normal compilation!
+* Server-side rendering can pre-inject CSS rules into the server-side rendered page! No more waiting for
+your CSS to load for the UI to look right!
+
 === Basics
 
 CSS can be co-located on any component. This CSS does *not* take effect until it is embedded on the page
@@ -3457,8 +3472,6 @@ the CSS rules from some top-level component will dedupe any inclusions before ge
 . Use the `fulcro-css.css/upsert-css` or `fulcro-css.css/style-element` function (or your own style element) to embed the CSS.
 
 A typical file will have the following layout:
-
-Using Fulcro 2.x `defsc`:
 
 -----
 (ns my-ui
@@ -3551,7 +3564,7 @@ Garden's `selectors` are supported. These include the *CSS combinators* and the 
 
 See https://github.com/noprompt/garden[Garden's] documentation for more details on more complex rules.
 
-=== Upsert vs, Style Element
+=== Upsert vs. Style Element
 
 There are two ways of placing the CSS for a (group of) components on a page:
 
@@ -3567,6 +3580,20 @@ you to embed CSS for a sub-tree of components in an "on-demand" fashion, since t
 that uses it renders. The problem with this method is that the computational overhead for computing the CSS is moved into
 your primary rendering. This, however, is quite convenient in situations like `devcards` where you'd like to easily ensure
 that the CSS is there, but don't want to have to worry about conflicting with existing style elements on the top-level page.
+
+The live demo below upserts the co-located CSS from the code itself, but the embedded rules also
+base the color on the value in an atom (think theme color). At any time you can change your various
+embedded data on colocated CSS and re-upsert the generated result!
+
+++++
+<div class="example" id="component-localized-css"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.component-localized-css').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="component-localized-css source"]
+----
+include::src/book/book/demos/component_localized_css.cljs[]
+----
 
 === Localized CSS and Server-Side Rendering
 
@@ -3587,11 +3614,13 @@ You can use the raw string in generated HTML, or use the server-compatible DOM f
 (dom/style #js {:dangerouslySetInnerHTML #js {:__html (g/css (css/get-css component))}})
 ```
 
-=== Using Localized DOM [[LocalizedDOM]]
+== CSS Localized DOM [[LocalizedDOM]]
 
-The `fulcro.client.alpha.localized-dom` uses the same more compact notation mentioned in <<AlphaDOM, the new DOM (alpha)>>, but
-it interprets the CSS keywords in the *context* of the component! This means that you can use localized CSS without
-having to destructure the munged names at all.
+If you choose to add localized CSS rules to your components, then you will probably also
+want to use the DOM elements that support it natively. The `fulcro.client.alpha.localized-dom`
+uses the same more compact notation mentioned in <<AlphaDOM, the new DOM (alpha)>>, but
+it interprets the CSS keywords in the *context* of the component! This means that you can
+use localized CSS without having to destructure the munged names at all.
 
 *Instead of writing:*
 
@@ -3620,7 +3649,38 @@ and avoid the argument destructuring, and JS properties map.
 This localization of the keyword does require a small bit of runtime overhead, but inline macro expansion is used wherever possible to
 make this as performant as possible.
 
-==== Localized DOM and Server-Side Rendering
+The features include:
+
+* A class keyword may precede the props. `:.c` will be localized to the class, whereas `:$c` will be treated as a top-level (raw) class name.
+* The keyword can contain any number of classes, and one ID: `:..c$c2.c3#id`
+* Props are optional, but may contain `:className` or `:classes`
+* `:className` is a literal string. Its contents will be combined with the `:classes` and prefix keywords
+* `:classes` *must* be a vector of keywords (or expressions the result in keywords). Nil is allowed in the vector but is ignored.
+
+Some examples:
+
+```
+(div :.a "Hi") ; <div class="namespace_Component__a">Hi</div>
+(div :$a "Hi") ; <div class="a">Hi</div>
+(div :$a$b "Hi") ; <div class="a b">Hi</div>
+(div :$a.b "Hi") ; <div class="a namespace_Component__b">Hi</div>
+(div {:classes [(when true :$hide) :.a]} "Hi") ; <div class="hide namespace_Component__a">Hi</div>
+(div {:classes [(when false :$hide) :.a]} "Hi") ; <div class="namespace_Component__a">Hi</div>
+(div :$c {:className "boo" :classes [:$a]} "Hi") ; <div class="c boo a">Hi</div>
+```
+
+The demo below shows most of these techniques combined with theme and rendering logic:
+
+++++
+<div class="example" id="localized-dom"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.localized-dom').toggle()">Show/Hide Source</a>
+++++
+[source,clojure,role="localized-dom source"]
+----
+include::src/book/book/demos/localized_dom.cljs[]
+----
+
+=== Localized DOM and Server-Side Rendering
 
 There is a `fulcro.client.alpha.localized-dom-server` namespace that provides the CLJ versions of the DOM functions. In
 order to write UI in CLJC files you will need to make sure you use a conditional reader tag to include the
@@ -3633,8 +3693,7 @@ correct namespace for the correct langauge:
 ... same as before
 ```
 
-
-== Demo: An Image Clip Tool
+== Complex Graphical UI Demo: An Image Clip Tool
 
 Fulcro has the start of an image clip tool. Right now it is mainly for demonstration purposes, but it is in the main
 library and is a good example of a complex UI component where two components have to talk to each other and share
@@ -12902,67 +12961,6 @@ visualization, followed by the remote load.
 [source,clojure,role="cascading-dropdowns source"]
 ----
 include::src/book/book/demos/cascading_dropdowns.cljs[]
-----
-
-== Colocated CSS
-
-The https://github.com/fulcrologic/fulcro-css[Fulcro CSS] library adds extensions that make it easy to co-locate and compose localized
-component CSS with your UI! This leads to all sorts of wonderful and interesting
-results:
-
-* Your CSS is name-localized, so your component's CSS is effectively private
-* You don't have to go find the CSS file to include it in your application. It's already in the code.
-* Since it's code, you can use data manipualtion, variables, and more to create your CSS. It
-is the ultimate in code reuse and generality.
-* The composition facilities prevent duplication.
-* It becomes much easier to allow themed components with additional tool chains! Variables can be
-supplied that can simply be modified via code before CSS injection.
-* Google Closure's minification can be applied to reduce the size of the resulting files during your
-normal compilation!
-* Server-side rendering can pre-inject CSS rules into the server-side rendered page! No more waiting for
-your CSS to load for the UI to look right!
-
-Basically components define local rules via [garden](https://github.com/noprompt/garden) syntax, and Fulcro
-will localize the class names using the namespace and component name.
-Parent components compose in the children via `include-children` for the components that it uses.
-Just like initial state and queries. This causes all used components to compose to the root. Actually,
-you can stop at any time and extract CSS from any component, so you need not compose it to the root if
-you don't want/need to.
-
-Two support functions then give you easy access to the generated CSS and generated names.
-
-To access the localized names for a component, just use:
-
-```
-(let [{:keys [simple-name]} (css/get-classnames Child)] ...)
-```
-
-This function returns a map from the *simple* name you used in defining a rule with the value
-of the *localized* name that is in the CSS. This allows you to be unaware of the localization rules!
-
-At some point in your code (e.g. startup) you will want to inject the CSS into the DOM. Typically, with:
-
-```
-(css/upsert-css "dom-id" Component)
-```
-
-Any number of those can be done, at whatever ID you care to invent (it will replace or insert a style element
-as necessary).
-
-The card below upserts the co-located CSS from the code itself, but these code rules  also
-bases the color on the value in an atom (think theme color). At any time you can change your various
-embedded data on colocated CSS and re-upsert the generated result!
-
-The complete commented code and example is below. See the library documentation for more details.
-
-++++
-<div class="example" id="component-localized-css"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.component-localized-css').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="component-localized-css source"]
-----
-include::src/book/book/demos/component_localized_css.cljs[]
 ----
 
 == Dynamically Loaded Locales [[DynamicLocale]]
