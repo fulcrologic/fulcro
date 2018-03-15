@@ -3,7 +3,6 @@
   (:require-macros [fulcro.client.dom :as dom])
   (:require [cljsjs.react]
             [cljsjs.react.dom]
-            [fulcro.client.util :as util]
             [goog.object :as gobj]))
 
 (defn- update-state
@@ -18,6 +17,9 @@
       (gobj/remove next-state "inputRef")
       (gobj/set next-state "ref" inputRef))
     (.setState component next-state)))
+
+;; TODO: Was just about to test wrapped inputs on alpha dom via cards
+;; Need to wrap wrappers to match the sigs...
 
 (defn wrap-form-element [element]
   (let [ctor (fn [props]

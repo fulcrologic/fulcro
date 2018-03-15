@@ -6,11 +6,22 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
-2.3.2
+2.4.0
 -----
-- Fixed bug in template form of initial state when mixing from above in non-template form.
+- IMPORTANT CHANGE: Integrated Fulcro CSS. You should remove fulcrologic/fulcro-css from your dependencies,
+and exclude it from any libraries that bring it in.
+- Fixed bug in `:initial-state` when mixing template and lamda forms in different components.
 - Added alpha versions of new, tighter, DOM functions that do not require props, or #js
 - A few minor bug fixes in i18n alpha
+- PORTING TO fulcro.client.alpha.dom
+  - You cannot use expressions (e.g. list forms) for props. Only symbols, maps, or js objects
+  - Proper runtime optimization cannot be done for isomorphic rendering with a single namespace (this was a bug inherited from Om Next). For CLJC, the correct require is now:
+  ```
+  #?(:clj [fulcro.client.alpha.dom-server :as dom]
+     :cljs [fulcro.client.alpha.dom :as dom])
+  ```
+- Added `fulcro.client.alpha.localized-dom`. Syntax is just like the new `alpah.dom`, but
+class keywords are localized to the *component* via fulcro-css rules.
 
 2.3.1
 -----

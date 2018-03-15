@@ -55,7 +55,7 @@
   "Represents the data of a locale in app state. Normalized by locale ID."
   [this props]
   {:query         [::locale :ui/locale-name ::translations]
-   :initial-state (fn [{:keys [locale name translations]}] {::locale locale :ui/locale-name name ::translations translations})
+   :initial-state {::locale :param/locale :ui/locale-name :param/name ::translations :param/translations}
    :ident         [::locale-by-id ::locale]})
 
 (defmutation translations-loaded
@@ -105,7 +105,7 @@
      (if (= "" translation) string translation)))
   ([string {:keys [::context] :as options}]
    (let [k           [(or context "") string]
-         locale      (get-in prim/*shared* [::locale] :en) ; some locale needed or formatter might crash
+         locale      (get-in prim/*shared* [::locale] :en)  ; some locale needed or formatter might crash
          entry       (get-in prim/*shared* [::translations k] string)
          translation (if (= "" entry) string entry)
          formatter   (get prim/*shared* ::message-formatter (fn [{:keys [::localized-format-string]}] localized-format-string))]
@@ -125,7 +125,7 @@
   [this {:keys [::available-locales ::current-locale]}]
   {:query         [{::available-locales (prim/get-query Locale)}
                    {[::current-locale '_] (prim/get-query Locale)}]
-   :initial-state (fn [{:keys [locales]}] {::available-locales locales})}
+   :initial-state {::available-locales :param/locales}}
   (let [{:keys [::locale]} current-locale
         locale-kw (fn [l] (-> l (str/replace #":" "") keyword))]
     (dom/select #js {:className "fulcro$i18n$locale_selector"

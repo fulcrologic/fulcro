@@ -9,6 +9,7 @@
                [cljs.util]]
         :cljs [[goog.string :as gstring]
                [goog.object :as gobj]])
+               fulcro-css.css
                [clojure.core.async :as async]
                [clojure.set :as set]
                [fulcro.history :as hist]
@@ -20,7 +21,7 @@
                [fulcro.client.impl.protocols :as p]
                [fulcro.client.impl.parser :as parser]
                [fulcro.util :as util]
-               [clojure.walk :as walk :refer [prewalk]]
+               [clojure.walk :refer [prewalk]]
                [clojure.string :as str]
                [clojure.spec.alpha :as s]
     #?(:clj
@@ -3155,7 +3156,7 @@
    The lambda versions have arguments in scope that make sense for those lambdas, as listed below:
 
    ```
-   (defsc Component [this {:keys [db/id x] :as props} {:keys [onSelect] :as computed}]
+   (defsc Component [this {:keys [db/id x] :as props} {:keys [onSelect] :as computed} css-classmap]
      {
       ;; stateful component options
       ;; query template is literal. Use the lambda if you have ident-joins or unions.
@@ -3164,6 +3165,8 @@
       :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id]) ; this and props in scope
       ;; initial-state template is magic..see dev guide. Lambda version is normal.
       :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; this in scope
+      :css [] ; garden css rules
+      :css-include [] ; list of components that have CSS to compose towards root.
 
       ; React Lifecycle Methods (this in scope)
       :initLocalState            (fn [] ...)
@@ -3181,21 +3184,6 @@
       ; BODY forms. May be omitted IFF there is an options map, in order to generate a component that is used only for queries/normalization.
       (dom/div #js {:onClick onSelect} x))
    ```
-
-   To use with Fulcro CSS, be sure to require `fulcro-css.css`, and add an the argument (only when used):
-
-   ```
-   (ns ui
-     (require fulcro-css.css))
-
-   (defsc Component [this props computed {:keys [my-classname] :as classnames}]
-     {:css [[:.my-classname]] ; OR (fn [] [[:my-classname]])
-      :css-include [] ; list of children from which CSS should also be pulled
-      ... }
-      (dom/div #js {:className my-classname} ...))
-   ```
-
-   Only the first two arguments are required (this and props).
 
    See the Developer's Guide at book.fulcrologic.com for more details.
    "

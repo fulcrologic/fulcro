@@ -55,10 +55,10 @@
            (let [on-done  (fn [{:keys [body transaction]}] (on-done body transaction))
                  on-error (fn [{:keys [body]}] (on-error body))
                  on-load  (fn [progress] (when reconciler (prim/transact! reconciler (progress-tx progress))))]
-             (net/transmit net {::net/edn tx
-                                ::net/abort-id abort-id
-                                ::net/ok-handler on-done
-                                ::net/error-handler on-error
+             (net/transmit net {::net/edn              tx
+                                ::net/abort-id         abort-id
+                                ::net/ok-handler       on-done
+                                ::net/error-handler    on-error
                                 ::net/progress-handler on-load}))))))
   ([net tx on-done on-error on-load]
    (real-send net {:tx tx :on-done on-done :on-error on-error :on-load on-load})))
