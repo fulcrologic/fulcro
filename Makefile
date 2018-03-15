@@ -14,6 +14,10 @@ docs/DevelopersGuide.html: DevelopersGuide.adoc
 
 book: docs/DevelopersGuide.html
 
+bookdemos:
+	rm -rf docs/js/book docs/js/book.js
+	lein with-profile book cljsbuild once book-live
+
 publish: book
 	rsync -av docs/DevelopersGuide.html linode:/usr/share/nginx/html/index.html
 	rsync -av docs/js/book.js linode:/usr/share/nginx/html/js/
