@@ -12,6 +12,17 @@ small and tractable.
 - Fixed bug in template form of initial state when mixing from above in non-template form.
 - Added alpha versions of new, tighter, DOM functions that do not require props, or #js
 - A few minor bug fixes in i18n alpha
+- PORTING TO fulcro.client.alpha.dom
+  - You cannot use expressions for props. Only symbols, maps, or js objects
+  - There is no need for #js anymore. Literal maps are converted at compile time. If
+    you're using the elements with higher-order functions then they turn into
+    normal runtime functions, so you may choose to use #js to prevent the runtime
+    overhead of creation and conversion of the props map.
+  - For CLJC, require:
+  ```
+  #?(:clj [fulcro.client.alpha.dom-server :as dom]
+     :cljs [fulcro.client.alpha.dom :as dom])
+  ```
 
 2.3.1
 -----
