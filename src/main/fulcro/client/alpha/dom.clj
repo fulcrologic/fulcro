@@ -5,19 +5,20 @@
     [clojure.spec.alpha :as s]
     [fulcro.util :as util]
     [clojure.future :refer :all]
-    [fulcro.client.alpha.dom-common :as cdom])
+    [fulcro.client.alpha.dom-common :as cdom]
+    [fulcro.logging :as log]
+    [clojure.string :as str])
   (:import
-    (cljs.tagged_literals JSValue)))
+    (cljs.tagged_literals JSValue)
+    (clojure.lang ExceptionInfo)))
 
-(s/def ::map-of-literals
-  (fn [v]
-    (and (map? v)
-      (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
+(defn- map-of-literals? [v]
+  (and (map? v) (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v))))
+(s/def ::map-of-literals map-of-literals?)
 
-(s/def ::map-with-expr
-  (fn [v]
-    (and (map? v)
-      (some #(or (symbol? %) (list? %)) (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v)))))
+(defn- map-with-expr? [v]
+  (and (map? v) (some #(or (symbol? %) (list? %)) (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v))))
+(s/def ::map-with-expr map-with-expr?)
 
 (s/def ::dom-macro-args
   (s/cat
@@ -31,7 +32,7 @@
                      :number number?
                      :symbol symbol?
                      :nil nil?
-                     :list list?))))
+                     :list seq?))))
 
 (defn clj-map->js-object
   "Recursively convert a map to a JS object. For use in macro expansion."
@@ -48,7 +49,7 @@
 
 (defn- emit-tag
   "Helper function for generating CLJS DOM macros"
-  [str-tag-name is-cljs? args]
+  [str-tag-name args]
   (let [conformed-args (util/conform! ::dom-macro-args args)
         {attrs    :attrs
          children :children
@@ -63,50 +64,52 @@
                          "select" 'fulcro.client.alpha.dom/macro-create-wrapped-form-element
                          "option" 'fulcro.client.alpha.dom/macro-create-wrapped-form-element
                          'fulcro.client.alpha.dom/macro-create-element*)]
-    (if is-cljs?
-      (case attrs-type
-        :js-object                                          ; kw combos not supported
-        (if css
-          (let [attr-expr `(cdom/add-kwprops-to-props ~attrs-value ~css)]
-            `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
-          `(~create-element ~(JSValue. (into [str-tag-name attrs-value] children))))
-
-        :map
-        `(~create-element ~(JSValue. (into [str-tag-name (-> attrs-value
-                                                           (cdom/add-kwprops-to-props css)
-                                                           (clj-map->js-object))]
-                                       children)))
-
-        :runtime-map
-        (let [attr-expr (if css
-                          `(cdom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
-                          (clj-map->js-object attrs-value))]
+    (case attrs-type
+      :js-object                                            ; kw combos not supported
+      (if css
+        (let [attr-expr `(cdom/add-kwprops-to-props ~attrs-value ~css)]
           `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
+        `(~create-element ~(JSValue. (into [str-tag-name attrs-value] children))))
+
+      :map
+      `(~create-element ~(JSValue. (into [str-tag-name (-> attrs-value
+                                                         (cdom/add-kwprops-to-props css)
+                                                         (clj-map->js-object))]
+                                     children)))
+
+      :runtime-map
+      (let [attr-expr (if css
+                        `(cdom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
+                        (clj-map->js-object attrs-value))]
+        `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
 
 
-        :symbol
-        `(fulcro.client.alpha.dom/macro-create-element
-           ~str-tag-name ~(into [attrs-value] children) ~css)
+      :symbol
+      `(fulcro.client.alpha.dom/macro-create-element
+         ~str-tag-name ~(into [attrs-value] children) ~css)
 
-        :nil
-        `(~create-element
-           ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
+      :nil
+      `(~create-element
+         ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
 
-        ;; pure children
-        `(fulcro.client.alpha.dom/macro-create-element
-           ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))
-      `(fulcro.client.dom/element {:tag       (quote ~(symbol str-tag-name))
-                                   :attrs     (-> ~attrs-value
-                                                (dissoc :ref :key)
-                                                (cdom/add-kwprops-to-props ~css))
-                                   :react-key (:key ~attrs-value)
-                                   :children  ~children}))))
+      ;; pure children
+      `(fulcro.client.alpha.dom/macro-create-element
+         ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))))
+
+(defn- syntax-error [and-form ex]
+  (let [location         (clojure.core/meta and-form)
+        file             (some-> (:file location) (str/replace #".*[/]" ""))
+        line             (:line location)
+        unexpected-input (::s/value (ex-data ex))]
+    (str "Syntax error at " file ":" line ". Unexpected input " unexpected-input)))
 
 (defn- gen-dom-macro [name]
   `(defmacro ~name [& ~'args]
-    (let [tag#      ~(str name)
-          is-cljs?# (boolean (:ns ~'&env))]
-      (emit-tag tag# is-cljs?# ~'args))))
+     (let [tag# ~(str name)]
+       (try
+         (emit-tag tag# ~'args)
+         (catch ExceptionInfo e#
+           (throw (ex-info (syntax-error ~'&form e#) (ex-data e#))))))))
 
 (defmacro gen-dom-macros []
   `(do ~@(clojure.core/map gen-dom-macro cdom/tags)))

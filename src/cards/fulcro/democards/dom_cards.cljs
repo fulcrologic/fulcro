@@ -1,6 +1,7 @@
 (ns fulcro.democards.dom-cards
   (:require [devcards.core :as dc]
             [fulcro.client.cards :refer [defcard-fulcro]]
+            [fulcro.client.dom :as old-dom]
             [fulcro.client.alpha.dom :as dom :refer [div span]]
             [goog.object :as gobj]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
@@ -9,6 +10,7 @@
 (defsc AttrStatic [this props]
   (div
     (div "Attr is missing with a string child")
+    (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
     (div
       (span "attrs missing with a child element 1,")
       (span " and a child element 2"))
@@ -71,8 +73,8 @@
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (gobj/get this "n")] (.focus e)))}
   (dom/input :#id.cls {:onChange #(m/set-string! this :form/value :event %)
-                    :ref      (fn [r] (gobj/set this "n" r))
-                    :value    value}))
+                       :ref      (fn [r] (gobj/set this "n" r))
+                       :value    value}))
 
 (defsc OldForm [this {:keys [:db/id :form/value] :as props}]
   {:query             [:db/id :form/value]
