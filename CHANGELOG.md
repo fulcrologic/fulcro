@@ -8,8 +8,9 @@ small and tractable.
 
 2.4.0
 -----
-- IMPORTANT CHANGE: Integrated Fulcro CSS. You should remove fulcrologic/fulcro-css from your dependencies.
-- Fixed bug in template form of initial state when mixing from above in non-template form.
+- IMPORTANT CHANGE: Integrated Fulcro CSS. You should remove fulcrologic/fulcro-css from your dependencies,
+and exclude it from any libraries that bring it in.
+- Fixed bug in `:initial-state` when mixing template and lamda forms in different components.
 - Added alpha versions of new, tighter, DOM functions that do not require props, or #js
 - A few minor bug fixes in i18n alpha
 - PORTING TO fulcro.client.alpha.dom
@@ -19,7 +20,7 @@ small and tractable.
   #?(:clj [fulcro.client.alpha.dom-server :as dom]
      :cljs [fulcro.client.alpha.dom :as dom])
   ```
-- Added `fulcro.client.alpha.localized-dom`. Works just like the new `dom`, but
+- Added `fulcro.client.alpha.localized-dom`. Syntax is just like the new `alpah.dom`, but
 class keywords are localized to the *component* via fulcro-css rules.
 
 2.3.1
