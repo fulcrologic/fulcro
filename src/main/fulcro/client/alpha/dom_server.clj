@@ -27,7 +27,12 @@
 (defn element?
   "Returns true if the given arg is a server-side react element."
   [x]
-  (instance? Element x))
+  (satisfies? p/IReactDOMElement x))
+
+(defn component?
+  "Returns true if the given arg is a server-side react component."
+  [x]
+  (satisfies? p/IReactComponent x))
 
 (s/def ::dom-element-args
   (s/cat
@@ -36,9 +41,11 @@
                   :nil nil?
                   :map #(and (map? %) (not (element? %)))))
     :children (s/* (s/or
+                     :nil nil?
                      :string string?
                      :number number?
                      :collection #(or (vector? %) (seq? %))
+                     :component component?
                      :element element?))))
 
 (declare a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite
