@@ -901,10 +901,7 @@
   [class qualifier]
   (if (nil? class)
     (log/error "Query ID received no class (if you see this warning, it probably means metadata was lost on your query)" (ex-info "" {}))
-    (when-let [classname #?(:clj (-> (str (-> class meta :component-ns) "." (-> class meta :component-name))
-                                   (str/replace "." "$")
-                                   (str/replace "-" "_"))
-                            :cljs (.-name class))]
+    (when-let [classname (component-name class)]
       (str classname (when qualifier (str "$" qualifier))))))
 
 #?(:clj

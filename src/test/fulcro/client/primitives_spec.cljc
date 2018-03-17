@@ -127,9 +127,9 @@
 (specification "Query IDs"
   (assertions
     "Start with the fully-qualifier class name"
-    (prim/query-id A nil) => "fulcro$client$primitives_spec$A"
+    (prim/query-id A nil) => "fulcro.client.primitives-spec/A"
     "Include the optional qualifier"
-    (prim/query-id A :x) => "fulcro$client$primitives_spec$A$:x"))
+    (prim/query-id A :x) => "fulcro.client.primitives-spec/A$:x"))
 
 (specification "UI Factory"
   (assertions
@@ -267,11 +267,11 @@
         union-right  (get union-target :u2)]
     (assertions
       "Places a query ID on the metadata of each component's portion of the query"
-      (-> top-level meta :queryid) => "fulcro$client$primitives_spec$Root"
-      (-> join-target meta :queryid) => "fulcro$client$primitives_spec$Child"
-      (-> union-target meta :queryid) => "fulcro$client$primitives_spec$Union"
-      (-> union-left meta :queryid) => "fulcro$client$primitives_spec$UnionChildA"
-      (-> union-right meta :queryid) => "fulcro$client$primitives_spec$UnionChildB"))
+      (-> top-level meta :queryid) => "fulcro.client.primitives-spec/Root"
+      (-> join-target meta :queryid) => "fulcro.client.primitives-spec/Child"
+      (-> union-target meta :queryid) => "fulcro.client.primitives-spec/Union"
+      (-> union-left meta :queryid) => "fulcro.client.primitives-spec/UnionChildA"
+      (-> union-right meta :queryid) => "fulcro.client.primitives-spec/UnionChildB"))
   (let [app-state (prim/normalize-query {} (prim/get-query ui-root {}))
         app-state (assoc-in app-state [::prim/queries (prim/query-id UnionChildA nil) :query] [:UPDATED])]
     (behavior "Pulls a denormalized query from app state if one exists."
