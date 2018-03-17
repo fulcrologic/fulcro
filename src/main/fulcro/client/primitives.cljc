@@ -1809,18 +1809,18 @@
       (reduce step tree refs))))
 
 (defn- merge-novelty!
-  [reconciler state res query]
-  (let [config (:config reconciler)
-        [idts res'] (sift-idents res)
-        res'   (if (:normalize config)
-                 (tree->db
-                   (or query (:root @(:state reconciler)))
-                   res' true)
-                 res')]
+  [reconciler state result-tree query]
+  (let [config            (:config reconciler)
+        [idts result-tree] (sift-idents result-tree)
+        normalized-result (if (:normalize config)
+                            (tree->db
+                              (or query (:root @(:state reconciler)))
+                              result-tree true)
+                            result-tree)]
     (-> state
-      (merge-mutation-joins query res')
+      (merge-mutation-joins query result-tree)
       (merge-idents config idts query)
-      ((:merge-tree config) res'))))
+      ((:merge-tree config) normalized-result))))
 
 (defn get-tempids [m] (or (get m :tempids) (get m ::tempids)))
 
