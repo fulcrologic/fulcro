@@ -40,14 +40,11 @@
       (dom/button #js {:onClick focus} "Focus"))))
 
 (defcard-fulcro fn-ref-test-1
-  "# Tests that we can find the DOM component via a function ref
-
-  NOTE: This card will only work if you supplied -DrawInputs to the JVM that is running the compiler. Function-refs are broken
-  by the wrappers on inputs."
+  "# Tests that we can find the DOM component via a function ref."
   FunctionRefTest)
 
 (defcard-fulcro str-ref-test-1
   "# Tests that we can find the DOM component via string ref.
 
-  This card should work with wrapped and raw inputs, but string refs are deprecated in React."
+  This card should work with inputs, but string refs are deprecated in React."
   StringRefTest)

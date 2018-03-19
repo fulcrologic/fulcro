@@ -76,15 +76,6 @@
                (extends? IQuery class)))
      :cljs (implements? IQuery component)))
 
-(defn has-query-params?
-  #?(:cljs {:tag boolean})
-  [component]
-  #?(:clj  (if (fn? component)
-             (some? (-> component meta :params))
-             (let [class (cond-> component (component? component) class)]
-               (extends? IQueryParams class)))
-     :cljs (implements? IQueryParams component)))
-
 (defn get-initial-state
   "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
   [class params]
@@ -193,7 +184,7 @@
         {:dt dt' :statics statics}))))
 
 (defn- validate-statics [dt]
-  (when-let [invalid (some #{"Ident" "IQuery" "IQueryParams"}
+  (when-let [invalid (some #{"Ident" "IQuery"}
                        (map #(-> % str (str/split #"/") last)
                          (filter symbol? dt)))]
     (throw
