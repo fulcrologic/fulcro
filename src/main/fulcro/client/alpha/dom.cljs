@@ -159,7 +159,7 @@
   [opts]
   (let [tag      (aget opts 0)
         props    (aget opts 1)
-        children (aget opts 2)]
+        children (.splice opts 2)]
     (case tag
       "input" (apply wrapped-input props children)
       "textarea" (apply wrapped-textarea props children)

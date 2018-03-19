@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.4.2
+-----
+- Fixed bug in alpha dom select input
+
 2.4.1
 -----
 - Fixed dynamic query ID generation under adv optimization

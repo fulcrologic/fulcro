@@ -124,8 +124,8 @@
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (dom/node this "thing")] (.focus e)))}
   (finput {:onChange #(m/set-string! this :form/value :event %)
-              :ref      "thing"
-              :value    value}))
+           :ref      "thing"
+           :value    value}))
 
 (def ui-form (prim/factory Form {:keyfn :db/id}))
 (def ui-old-form (prim/factory OldForm {:keyfn :db/id}))
@@ -162,3 +162,26 @@
   WrappedInputRoot
   {}
   {:inspect-data true})
+
+
+(defsc TextAreaTest [this props]
+  {}
+  (dom/div
+    (dom/textarea {:value "This is a text area"})))
+
+(defcard-fulcro wrapped-textarea
+  TextAreaTest)
+
+(defsc SelectTest [this props]
+  {}
+  (dom/div
+
+    (dom/select {:value "c"}
+      (dom/option {:value "a" :label "A"})
+      (dom/option {:value "b" :label "B"})
+      (dom/option {:value "c" :label "C"})
+      (dom/option {:value "d" :label "D"}))
+    ))
+
+(defcard-fulcro wrapped-select
+  SelectTest)
