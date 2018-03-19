@@ -2160,7 +2160,7 @@ to specify which network to talk over:
 ```
                        :started-callback (fn [app]
 
-                                           (df/load app :posts Post {:remote :rest :target [:post-list/by-id :the-one :posts]})
+                                           (df/load app :posts root/Post {:remote :rest :target [:post-list/by-id :the-one :posts]})
 
                                            ... as before ...
 ```
