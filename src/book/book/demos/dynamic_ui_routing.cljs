@@ -18,7 +18,7 @@
   (dom/div #js {:style #js {:backgroundColor "skyblue"}}
     (str label " " new-user-prop)))
 
-(defsc Root [this {:keys [ui/react-key top-router :fulcro.client.routing/pending-route]}]
+(defsc Root [this {:keys [top-router :fulcro.client.routing/pending-route]}]
   {:initial-state (fn [params] (merge
                                  (r/routing-tree
                                    (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
@@ -27,14 +27,13 @@
                                  {:top-router (prim/get-initial-state r/DynamicRouter {:id :top-router})}))
    :query         [:ui/react-key {:top-router (r/get-dynamic-router-query :top-router)}
                    :fulcro.client.routing/pending-route]}
-  (let [my-query (prim/get-query Root (prim/app-state (prim/get-reconciler this)))]
-    (dom/div #js {:key react-key}
-      ; Sample nav mutations
-      (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
-      (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
-      (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
-      (dom/div nil (if pending-route "Loading" "Done"))
-      (r/ui-dynamic-router top-router))))
+  (dom/div nil
+    ; Sample nav mutations
+    (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
+    (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
+    (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
+    (dom/div nil (if pending-route "Loading" "Done"))
+    (r/ui-dynamic-router top-router)))
 
 ; Use this as started-callback. These would happen as a result of module loads:
 (defn application-loaded [{:keys [reconciler]}]

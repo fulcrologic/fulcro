@@ -264,7 +264,7 @@
           :params       {:x 1}
           :type         :call
           :query        (th/expand-meta ^{:component  Item
-                                          :queryid    "fulcro$client$mutations_spec$Item"
+                                          :queryid    "fulcro.client.mutations-spec/Item"
                                           ::df/target [:foo 123]} [:db/id :x])
           :component    Item
           :children     [{:type         :prop
@@ -299,7 +299,7 @@
           :params       {:x 1}
           :type         :call
           :query        (th/expand-meta ^{:component  Item
-                                          :queryid    "fulcro$client$mutations_spec$Item"
+                                          :queryid    "fulcro.client.mutations-spec/Item"
                                           ::df/target [:foo 123]} [:db/id :x])
           :component    Item
           :children     [{:type         :prop

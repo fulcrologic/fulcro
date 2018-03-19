@@ -6,6 +6,13 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.4.1
+-----
+- Fixed dynamic query ID generation under adv optimization
+- Fixed bug in mutation joins (server return values)
+- Removed support for bindable parameters in queries. Obscure feature no one was using that was broken.
+- Fixed bug in book demo
+
 2.4.0
 -----
 - IMPORTANT CHANGE: Integrated Fulcro CSS. You should remove fulcrologic/fulcro-css from your dependencies,

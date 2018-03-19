@@ -36,9 +36,6 @@
 (defprotocol Ident
   (ident [this props] "Return the ident for this component"))
 
-(defprotocol IQueryParams
-  (params [this] "Return the query parameters"))
-
 (defprotocol IQuery
   (query [this] "Return the component's unbound static query"))
 
@@ -78,15 +75,6 @@
              (let [class (cond-> component (component? component) class)]
                (extends? IQuery class)))
      :cljs (implements? IQuery component)))
-
-(defn has-query-params?
-  #?(:cljs {:tag boolean})
-  [component]
-  #?(:clj  (if (fn? component)
-             (some? (-> component meta :params))
-             (let [class (cond-> component (component? component) class)]
-               (extends? IQueryParams class)))
-     :cljs (implements? IQueryParams component)))
 
 (defn get-initial-state
   "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
@@ -196,7 +184,7 @@
         {:dt dt' :statics statics}))))
 
 (defn- validate-statics [dt]
-  (when-let [invalid (some #{"Ident" "IQuery" "IQueryParams"}
+  (when-let [invalid (some #{"Ident" "IQuery"}
                        (map #(-> % str (str/split #"/") last)
                          (filter symbol? dt)))]
     (throw
@@ -869,27 +857,6 @@
                (ident class props)
                (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)))))
 
-(defn- var? [x]
-  (and (symbol? x)
-    #?(:clj  (.startsWith (str x) "?")
-       :cljs (gstring/startsWith (str x) "?"))))
-
-(defn- var->keyword [x]
-  (keyword (.substring (str x) 1)))
-
-(defn- replace-var [expr params]
-  (if (var? expr)
-    (get params (var->keyword expr) expr)
-    expr))
-
-(defn- bind-query [query params]
-  (let [qm  (meta query)
-        ret (clojure.walk/prewalk #(replace-var % params) query)]
-    (cond-> ret
-      (and qm #?(:clj  (instance? clojure.lang.IObj ret)
-                 :cljs (satisfies? IMeta ret)))
-      (with-meta qm))))
-
 (defn component-name
   "Returns a string version of the given react component's name."
   [class]
@@ -901,10 +868,7 @@
   [class qualifier]
   (if (nil? class)
     (log/error "Query ID received no class (if you see this warning, it probably means metadata was lost on your query)" (ex-info "" {}))
-    (when-let [classname #?(:clj (-> (str (-> class meta :component-ns) "." (-> class meta :component-name))
-                                   (str/replace "." "$")
-                                   (str/replace "-" "_"))
-                            :cljs (.-name class))]
+    (when-let [classname (component-name class)]
       (str classname (when qualifier (str "$" qualifier))))))
 
 #?(:clj
@@ -1013,19 +977,10 @@
                    q
                    ele)) normalized-query))))
 
-(defn get-query-params
-  "get the declared static query params on a given class"
-  [class]
-  (when (has-query-params? class)
-    #?(:clj  ((-> class meta :params) class)
-       :cljs (params class))))
-
 (defn get-query-by-id [state-map class queryid]
-  (let [static-params (get-query-params class)
-        query         (or (denormalize-query state-map queryid) (get-static-query class))
-        params        (get-in state-map [::queries queryid :params] static-params)]
-    (with-meta (bind-query query params) {:component class
-                                          :queryid   queryid})))
+  (let [query (or (denormalize-query state-map queryid) (get-static-query class))]
+    (with-meta query {:component class
+                      :queryid   queryid})))
 
 (defn is-factory?
   [class-or-factory]
@@ -1117,20 +1072,16 @@
   "Put a query in app state.
   NOTE: Indexes must be rebuilt after setting a query, so this function should primarily be used to build
   up an initial app state."
-  [state-map ui-factory-class-or-queryid {:keys [query params]}]
+  [state-map ui-factory-class-or-queryid {:keys [query] :as args}]
   (let [queryid (cond
                   (nil? ui-factory-class-or-queryid) nil
                   (string? ui-factory-class-or-queryid) ui-factory-class-or-queryid
                   (some-> ui-factory-class-or-queryid meta (contains? :queryid)) (some-> ui-factory-class-or-queryid meta :queryid)
                   :otherwise (query-id ui-factory-class-or-queryid nil))
-        setq*   (fn [state] (normalize-query (update state ::queries dissoc queryid) (with-meta query {:queryid queryid})))
-        setp*   (fn [state-map]
-                  (let [params (get-in state-map [::queries queryid :params] params)]
-                    (assoc-in state-map [::queries queryid :params] params)))]
+        setq*   (fn [state] (normalize-query (update state ::queries dissoc queryid) (with-meta query {:queryid queryid})))]
     (if (string? queryid)
       (cond-> state-map
-        (seq query) (setq*)
-        (map? params) (setp*))
+        (contains? args :query) (setq*))
       (do
         (log/error "Set query failed. There was no query ID.")
         state-map))))
@@ -1812,18 +1763,18 @@
       (reduce step tree refs))))
 
 (defn- merge-novelty!
-  [reconciler state res query]
-  (let [config (:config reconciler)
-        [idts res'] (sift-idents res)
-        res'   (if (:normalize config)
-                 (tree->db
-                   (or query (:root @(:state reconciler)))
-                   res' true)
-                 res')]
+  [reconciler state result-tree query]
+  (let [config            (:config reconciler)
+        [idts result-tree] (sift-idents result-tree)
+        normalized-result (if (:normalize config)
+                            (tree->db
+                              (or query (:root @(:state reconciler)))
+                              result-tree true)
+                            result-tree)]
     (-> state
-      (merge-mutation-joins query res')
+      (merge-mutation-joins query result-tree)
       (merge-idents config idts query)
-      ((:merge-tree config) res'))))
+      ((:merge-tree config) normalized-result))))
 
 (defn get-tempids [m] (or (get m :tempids) (get m ::tempids)))
 

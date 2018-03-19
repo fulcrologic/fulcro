@@ -152,7 +152,7 @@ was to fix dynamic queries, and make the rendering refresh a bit simpler.
 * `defui` still exists, and is 100% API-compatible with Om Next's
 * Advanced optimization works, and does not rely on the compiler hacks that were present in Om Next.
 * Dynamic queries work in a general purpose and serializable way.
-** Query parameters (e.g. IQueryParams) wasn't changed.
+** Query parameters (e.g. IQueryParams) was removed
 * Other than the renames and a few minor function moves (from util), it should be API-compatible with existing Fulcro apps
 * Rendering should should be at least as fast as stock Om Next in most circumstances. It should be faster in many, but there
 are some circumstances where it could be slower.

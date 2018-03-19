@@ -204,6 +204,15 @@
         global-classnames (zipmap global-class-keys (map name global-class-keys))]
     (merge local-classnames global-classnames)))
 
+(defn raw-css
+  "Returns a string that contains the raw CSS for the rules defined on the given component's sub-tree. This can be used for
+   server-side rendering of the style element, or in a `style` element as the :dangerouslySetInnerHTML/:html value:
+
+   (dom/style #js {:dangerouslySetInnerHTML #js {:__html (raw-css component)}})
+   "
+  [component]
+  (g/css (get-css component)))
+
 #?(:cljs
    (defn style-element
      "Returns a React Style element with the (recursive) CSS of the given component. Useful for directly embedding in your UI VDOM."

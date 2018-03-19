@@ -9,7 +9,7 @@
 
 ;; SERVER
 
-(server/defquery-entity :person/by-id
+(server/defquery-entity ::person-by-id
   (value [env id params]
     {:db/id id :person/name (str "Person " id)}))
 
@@ -17,7 +17,7 @@
 
 (defsc Person [this {:keys [person/name]}]
   {:query [:db/id :person/name]
-   :ident [:person/by-id :db/id]}
+   :ident [::person-by-id :db/id]}
   (dom/div nil (str "Hi, I'm " name)))
 
 (def ui-person (prim/factory Person {:keyfn :db/id}))
@@ -26,6 +26,7 @@
   {:query         [:db/id {:pane/person (prim/get-query Person)}]
    :initial-state (fn [{:keys [id]}] {:db/id id :pane/person nil})
    :ident         [:pane/by-id :db/id]}
+
   (dom/div nil
     (dom/h4 nil (str "Pane " id))
     (if person
@@ -52,13 +53,14 @@
                        :both (df/multiple-targets
                                [:pane/by-id :left :pane/person]
                                [:pane/by-id :right :pane/person]))
-        person-ident [:person/by-id (rand-int 100)]]
+
+        person-ident [::person-by-id (rand-int 100)]]
     (df/load component person-ident Person {:target load-target :marker false})))
 
-(defsc Root [this {:keys [root/panel ui/react-key] :as props}]
-  {:query         [:ui/react-key {:root/panel (prim/get-query Panel)}]
+(defsc Root [this {:keys [root/panel] :as props}]
+  {:query         [{:root/panel (prim/get-query Panel)}]
    :initial-state (fn [params] {:root/panel (prim/get-initial-state Panel {})})}
-  (dom/div #js {:key react-key}
+  (dom/div nil
     (ui-panel panel)
     (dom/button #js {:onClick #(load-random-person this :left)} "Load into Left")
     (dom/button #js {:onClick #(load-random-person this :right)} "Load into Right")

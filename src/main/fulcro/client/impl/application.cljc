@@ -161,9 +161,9 @@
                                           ::hist/history-atom history
                                           ::prim/remote       remote
                                           ::net/abort-id      abort-id
-                                          ::f/on-load         (fn [result tx]
+                                          ::f/on-load         (fn [result mtx]
                                                                 ; middleware can modify tx, so we have to take as a param
-                                                                (cb result tx remote))
+                                                                (cb result (or mtx tx) remote))
                                           ::f/on-error        (fn [result] (fallback result))}))]
         (doseq [tx tx-list]
           (when (has-mutations? tx)
