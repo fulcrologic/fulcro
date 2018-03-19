@@ -29,7 +29,7 @@
 
 ;; NOTE: There are some pathological cases that I'm just not bothering to support. E.g. a #js {:fulcro-css.css/classes #js [:.a]} as props
 
-(specification "Contextual rendering with localized CSS" :focused
+(specification "Contextual rendering with localized CSS"
   (fulcro.client.alpha.localized-dom-spec/check-kw-processing "It is passed a style kw and no props:" NoPropsComponent "fulcro_client_alpha_localized-dom-spec_NoPropsComponent__a")
   (fulcro.client.alpha.localized-dom-spec/check-kw-processing "It is passed a style kw and nil props:" NilPropsComponent "fulcro_client_alpha_localized-dom-spec_NilPropsComponent__a")
   (fulcro.client.alpha.localized-dom-spec/check-kw-processing "It is passed a style kw and empty cljs props:" EmptyPropsComponent "fulcro_client_alpha_localized-dom-spec_EmptyPropsComponent__a")

@@ -7542,40 +7542,6 @@ The following live demo shows dynamic queries in action:
 include::src/book/book/queries/dynamic_queries.cljs[]
 ----
 
-== Query Parameters
-
-The dynamic query support allows you to use variables in your query to facilitate more easy modification of a component's query.
-Setting the entire query can be tedious when the query has a lot of elements, only one or a few of which need modifications.
-
-Query parameters are simply symbols you place in the query like so:
-
-```
-[:x ?p]
-```
-
-The symbol *must* start with a `?` to be a legal parameter.
-
-The parameters start out with no value, meaning that the query above will be interpreted as just `[:x]` at first.
-
-You can set the value of the parameter with `prim/set-query!`:
-
-```
-(prim/set-query! this Component {:params {:p :y}})
-```
-
-which in this case would cause the component's query to become `[:x :y]`. This is demonstrated in the
-demo below:
-
-++++
-<div class="example" id="dynamic-query-parameters"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-query-parameters').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="dynamic-query-parameters source"]
-----
-include::src/book/book/queries/dynamic_query_parameters.cljs[]
-----
-
 = Query Parsing
 
 In the <<Loading, Loading>> and <<IncrementalLoading, Incremental Loading>> sections we showed you the central entry
