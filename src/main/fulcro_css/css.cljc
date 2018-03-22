@@ -1,7 +1,7 @@
 (ns fulcro-css.css
   (:require [cljs.tagged-literals]
             [clojure.string :as str]
-            [com.rpl.specter :as sp]
+            [clojure.walk :as walk]
             [garden.core :as g]
             [garden.selectors :as gs]))
 
@@ -160,10 +160,11 @@
 (defn localize-css
   "Converts prefixed keywords into localized keywords and localizes the values of garden selectors"
   [component]
-  (sp/transform (sp/walker #(or (prefixed-keyword? %)
-                              (selector? %)))
-    #(if (prefixed-keyword? %) (localize-kw % component) (localize-selector % component))
-    (get-local-rules component)))
+  (walk/postwalk (fn [ele]
+                   (cond
+                     (prefixed-keyword? ele) (localize-kw ele component)
+                     (selector? ele) (localize-selector ele component)
+                     :otherwise ele)) (get-local-rules component)))
 
 (defn- get-css-rules
   "Gets the local and global rules from the given component."

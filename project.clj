@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.4.2"
+(defproject fulcrologic/fulcro "2.4.3-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -13,7 +13,6 @@
                  [com.cognitect/transit-cljs "0.8.243"]
                  [org.clojure/core.async "0.4.474" :exclusions [org.clojure/tools.reader]]
                  [garden "1.3.4"]
-                 [com.rpl/specter "1.1.0"]
                  [com.ibm.icu/icu4j "60.2"]                 ; needed for i18n on server-side rendering
 
                  [clojure-future-spec "1.9.0-beta4"]
@@ -157,10 +156,12 @@
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
+                                   [com.rpl/specter "1.1.0"]
                                    [org.flywaydb/flyway-core "4.2.0"]]}
              :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/tutorial" "src/book"]
                     :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                     :dependencies [[binaryage/devtools "0.9.7"]
+                                   [com.rpl/specter "1.1.0"] ; used by book demos
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
                                    [fulcrologic/fulcro-inspect "2.0.0-alpha6" :exclusions [fulcrologic/fulcro fulcrologic/fulcro-css]]
                                    [com.cemerick/piggieback "0.2.2"]
