@@ -23,6 +23,10 @@
 
        (fulcro.client.alpha.dom/render-to-str ((fulcro.client.primitives/factory ~component) {})))))
 
+(defn fn-props [] {:className "x"})
+(defn fn-js-props [] #js {:className "x"})
+(defn fn-nil-props [] nil)
+
 (defsc NoPropsComponent [this props] (ldom/div :.a#y "Hello"))
 (defsc NilPropsComponent [this props] (ldom/div :.a#y nil "Hello"))
 (defsc EmptyPropsComponent [this props] (ldom/div :.a#y {} "Hello"))
@@ -42,6 +46,9 @@
 (defsc SymbolicClassPropsComponent [this props] (let [props {:className "x"}] (ldom/div :.a#y props "Hello")))
 (defsc SymbolicClassJSPropsComponent [this props] (let [props #js {:className "x"}] (ldom/div :.a#y props "Hello")))
 (defsc SymbolicClassNilPropsComponent [this props] (let [props nil] (ldom/div :.a#y props "Hello")))
+(defsc ExprClassPropsComponent [this props] (ldom/div :.a#y (fn-props) "Hello"))
+(defsc ExprClassJSPropsComponent [this props] (ldom/div :.a#y (fn-js-props) "Hello"))
+(defsc ExprClassNilPropsComponent [this props] (ldom/div :.a#y (fn-nil-props) "Hello"))
 
 (defn jsvalue->map
   "Converts a data structure (recursively) that contains JSValues, replacing any JSValue with
@@ -113,4 +120,10 @@
     "js props as symbol"
     (render-component SymbolicClassJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassJSPropsComponent__a x\" id=\"y\"")
     "nil props as symbol"
-    (render-component SymbolicClassNilPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassNilPropsComponent__a\" id=\"y\" ")))
+    (render-component SymbolicClassNilPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassNilPropsComponent__a\" id=\"y\" ")
+    "cljs props as expression"
+    (render-component ExprClassPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_ExprClassPropsComponent__a x\" id=\"y\"")
+    "js props as expression"
+    (render-component ExprClassJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_ExprClassJSPropsComponent__a x\" id=\"y\"")
+    "nil props as expression"
+    (render-component ExprClassNilPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_ExprClassNilPropsComponent__a\" id=\"y\" ")))

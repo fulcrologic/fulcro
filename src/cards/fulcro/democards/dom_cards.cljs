@@ -11,21 +11,26 @@
 (def fspan span)
 (def finput dom/input)
 
+(defn js-classname [name] #js {:className name})
+(defn bg-color-style [color] {:style {:backgroundColor color}})
+
 (defsc AttrStatic [this props]
-  (div
-    (dom/section
+  (div nil
+    (dom/section nil
       (dom/h4 "Macros")
       (div "Attr is missing with a string child")
       (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
-      (div
+      (div nil
         (span "attrs missing with a child element 1,")
         (span " and a child element 2"))
       (div nil "Attr is nil")
       (div {} "Attr is empty map")
       (div #js {} "Attr is empty js-object")
       (div {:className "foo"} "Attr adds css class")
-      (div {:style {:backgroundColor "red"}} "Attr has nested inline style"))
-    (dom/section
+      (div {:style {:backgroundColor "red"}} "Attr has nested inline style")
+      (div (js-classname "foo") "Attr fn adds css class")
+      (div (bg-color-style "red") "Attr fn has nested inline style"))
+    (dom/section nil
       (dom/h4 "Functions")
       (fdiv "Attr is missing with a string child")
       (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
@@ -36,7 +41,9 @@
       (fdiv {} "Attr is empty map")
       (fdiv #js {} "Attr is empty js-object")
       (fdiv {:className "foo"} "Attr adds css class")
-      (fdiv {:style {:backgroundColor "red"}} "Attr has nested inline style"))))
+      (fdiv {:style {:backgroundColor "red"}} "Attr has nested inline style")
+      (fdiv (js-classname "foo") "Attr fn adds css class")
+      (fdiv (bg-color-style "red") "Attr fn has nested inline style"))))
 
 (defcard-fulcro attr-static-enumeration
   "These attrs can be reasoned about at compile time."
@@ -49,8 +56,8 @@
         klass-info    {:className "foo"}
         styles        {:backgroundColor "red"}
         symbolic-attr {:style {:backgroundColor "green"}}]
-    (div
-      (dom/section
+    (div nil
+      (dom/section nil
         (dom/h4 "Macros")
         (div x "Attr is nil")
         (div y "Attr is empty map")
@@ -58,7 +65,7 @@
         (div klass-info "Attr adds css class")
         (div {:style styles} "Attr has nested inline symbolic style")
         (div symbolic-attr "Attr has nested inline style and is all symbolic"))
-      (dom/section
+      (dom/section nil
         (dom/h4 "Functions")
         (fdiv x "Attr is nil")
         (fdiv y "Attr is empty map")
@@ -74,11 +81,11 @@
 (defsc CssShorthand [this props]
   (let [x             nil
         symbolic-attr {:style {:backgroundColor "yellow"}}]
-    (div
+    (div nil
       (dom/style "#the-id {background-color: coral;}")
       (dom/style ".border-klass {border-style: solid;}")
       (dom/style ".color-klass {background-color: pink;}")
-      (dom/section
+      (dom/section nil
         (dom/h3 "Macros")
         (div :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
         (div :.border-klass {:className "color-klass"}
@@ -91,7 +98,7 @@
           "Has a shorthand CSS for border class and nil attrs")
         (div :.border-klass symbolic-attr
           "Has a shorthand CSS for border class and yellow background symbolic inline styles"))
-      (dom/section
+      (dom/section nil
         (dom/h3 "Functions")
         (fdiv :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
         (fdiv :.border-klass {:className "color-klass"}
@@ -166,7 +173,7 @@
 
 (defsc TextAreaTest [this props]
   {}
-  (dom/div
+  (dom/div {}
     (dom/textarea {:value "This is a text area"})))
 
 (defcard-fulcro wrapped-textarea
@@ -174,14 +181,12 @@
 
 (defsc SelectTest [this props]
   {}
-  (dom/div
-
+  (dom/div nil
     (dom/select {:value "c"}
       (dom/option {:value "a" :label "A"})
       (dom/option {:value "b" :label "B"})
       (dom/option {:value "c" :label "C"})
-      (dom/option {:value "d" :label "D"}))
-    ))
+      (dom/option {:value "d" :label "D"}))))
 
 (defcard-fulcro wrapped-select
   SelectTest)

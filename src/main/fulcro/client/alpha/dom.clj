@@ -27,6 +27,7 @@
                   :map ::map-of-literals
                   :runtime-map ::map-with-expr
                   :js-object #(instance? JSValue %)
+                  :expression list?
                   :symbol symbol?))
     :children (s/* (s/or :string string?
                      :number number?
@@ -84,7 +85,7 @@
         `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
 
 
-      :symbol
+      (:symbol :expression)
       `(fulcro.client.alpha.dom/macro-create-element
          ~str-tag-name ~(into [attrs-value] children) ~css)
 
