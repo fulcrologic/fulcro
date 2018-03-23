@@ -1,20 +1,17 @@
 (ns fulcro.server
   (:require
     [com.stuartsierra.component :as component]
-    [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.java.io :as io]
     [clojure.edn :as edn]
     [clojure.walk :as walk]
     [cognitect.transit :as ct]
-    [ring.util.response :as resp]
-    [ring.util.request :as req]
     [fulcro.transit :as transit]
     [fulcro.client.impl.parser :as parser]
     [fulcro.util :as util]
     [fulcro.logging :as log])
   (:import (clojure.lang ExceptionInfo)
-           [java.io ByteArrayOutputStream File]))
+           [java.io ByteArrayOutputStream]))
 
 (defn parser
   "Create a parser. The argument is a map of two keys, :read and :mutate. Both
@@ -137,8 +134,14 @@
     (.reset baos)
     ret))
 
+(defn- get-content-type
+  "Return the content-type of the request, or nil if no content-type is set. Defined here to limit the need for Ring."
+  [request]
+  (if-let [type (get-in request [:headers "content-type"])]
+    (second (re-find #"^(.*?)(?:;|$)" type))))
+
 (defn- transit-request? [request]
-  (if-let [type (req/content-type request)]
+  (if-let [type (get-content-type request)]
     (let [mtch (re-find #"^application/transit\+(json|msgpack)" type)]
       [(not (empty? mtch)) (keyword (second mtch))])))
 
@@ -202,6 +205,12 @@ default-malformed-response
         malformed-response)
       (handler request))))
 
+(defn- set-content-type
+  "Returns an updated Ring response with the a Content-Type header corresponding
+  to the given content-type. This is defined here so non-ring users do not need ring."
+  [resp content-type]
+  (assoc-in resp [:headers "Content-Type"] (str content-type)))
+
 (defn wrap-transit-response
   "Middleware that converts responses with a map or a vector for a body into a
   Transit response.
@@ -218,7 +227,7 @@ default-malformed-response
           (let [transit-response (update-in response [:body] write encoding opts)]
             (if (contains? (:headers response) "Content-Type")
               transit-response
-              (resp/content-type transit-response (format "application/transit+%s; charset=utf-8" (name encoding)))))
+              (set-content-type transit-response (format "application/transit+%s; charset=utf-8" (name encoding)))))
           response)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
