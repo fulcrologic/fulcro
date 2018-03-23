@@ -33,7 +33,7 @@
                      :number number?
                      :symbol symbol?
                      :nil nil?
-                     :list seq?))))
+                     :list sequential?))))
 
 (defn clj-map->js-object
   "Recursively convert a map to a JS object. For use in macro expansion."

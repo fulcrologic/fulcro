@@ -35,7 +35,8 @@
     :children (s/* (s/or
                      :string string?
                      :number number?
-                     :collection #(or (vector? %) (seq? %))
+                     :collection #(or (vector? %) (seq? %) (array? %))
+                     :nil nil?
                      :element element?))))
 
 (defn render

@@ -25,6 +25,7 @@
                      :string string?
                      :number number?
                      :collection #(or (vector? %) (seq? %))
+                     :nil nil?
                      :element element?))))
 
 (defn gen-tag-fn [tag]
