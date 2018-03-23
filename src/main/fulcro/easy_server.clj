@@ -4,18 +4,61 @@
     [clojure.set :as set]
     [clojure.java.io :as io]
     [fulcro.server :as server]
-    [bidi.bidi :as bidi]
-    [org.httpkit.server :refer [run-server]]
-    [ring.middleware.content-type :refer [wrap-content-type]]
-    [ring.middleware.gzip :refer [wrap-gzip]]
-    [ring.middleware.not-modified :refer [wrap-not-modified]]
-    [ring.middleware.resource :refer [wrap-resource]]
-    [ring.util.response :as rsp :refer [response file-response resource-response]]
     [fulcro.logging :as log])
   (:gen-class))
 
+(defonce externs (atom {}))
+
+(defn resolve-externs
+  "Ensures the given needs are loaded, and resolved. Updates inmap to include all of the function symbols that were requested
+  as namespaced symbols.
+
+  inmap - A map (nil/empty)
+  needs - A sequence: ([namespace [f1 f2]] ...)
+
+  Returns a map keyed by namespaced symbol whose value is the resolved function:
+
+  {namespace/f1 (fn ...)
+   namespace/h2 (fn ...)
+   ...}
+
+  Logs a detailed error message if it fails.
+  "
+  [inmap needs]
+  (reduce (fn [m [nmspc fns]]
+            (try
+              (require nmspc)
+              (let [n     (find-ns nmspc)
+                    fn-keys (map #(symbol (name nmspc) (name %)) fns)
+                    fnmap (zipmap fn-keys (map #(or (ns-resolve n %) (throw (ex-info "No such symbol" {:ns nmspc :s %}))) fns))]
+                (merge m fnmap))
+              (catch Exception e
+                (log/error (str "Failed to load functions from " nmspc ". Fulcro does not have hard dependencies on that library, and you must explicitly add the dependency to your project.")))))
+    (or inmap {})
+    needs))
+
+(defn load-libs []
+  (when (or (nil? @externs) (empty? @externs))
+    (swap! externs resolve-externs '([bidi.bidi [match-route]]
+                                      [org.httpkit.server [run-server]]
+                                      [ring.middleware.content-type [wrap-content-type]]
+                                      [ring.middleware.gzip [wrap-gzip]]
+                                      [ring.middleware.not-modified [wrap-not-modified]]
+                                      [ring.middleware.resource [wrap-resource]]
+                                      [ring.util.response [response file-response resource-response]]))))
+
+(defn invoke
+  "Invoke the given dynamically resolved function. Will attempt to load the function if it isn't available. Throws
+  an exception if the function isn't found."
+  [fnsym & args]
+  (load-libs)
+  (if-let [f (get @externs fnsym)]
+    (apply f args)
+    (throw (ex-info "Dynamically loaded function not found. You forgot to add a dependency to your classpath."
+             {:sym fnsym}))))
+
 (defn index [req]
-  (assoc (resource-response (str "index.html") {:root "public"})
+  (assoc (invoke 'ring.util.response/resource-response (str "index.html") {:root "public"})
     :headers {"Content-Type" "text/html"}))
 
 (defn api
@@ -49,7 +92,7 @@
 
 (defn route-handler [req]
   (let [routes (app-namify-api default-routes (:app-name req))
-        match  (bidi/match-route routes (:uri req)
+        match  (invoke 'bidi.bidi/match-route routes (:uri req)
                  :request-method (:request-method req))]
     (case (:handler match)
       ;; explicit handling of / as index.html. wrap-resources does the rest
@@ -71,7 +114,7 @@
   (if-not extra-routes dflt-handler
                        (do (assert (and routes handlers) extra-routes)
                            (fn [req]
-                             (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
+                             (let [match (invoke 'bidi.bidi/match-route routes (:uri req) :request-method (:request-method req))]
                                (if-let [bidi-handler (get handlers (:handler match))]
                                  (bidi-handler (assoc om-parsing-env :request req) match)
                                  (dflt-handler req)))))))
@@ -89,17 +132,17 @@
   Returns a function that handles requests."
   [api-parser om-parsing-env extra-routes app-name pre-hook fallback-hook]
   ;; NOTE: ALL resources served via wrap-resources (from the public subdirectory). The BIDI route maps / -> index.html
-  (-> (not-found-handler)
-    (fallback-hook)
-    (wrap-connection route-handler api-parser om-parsing-env app-name)
-    (server/wrap-transit-params)
-    (server/wrap-transit-response)
-    (wrap-resource "public")
-    (wrap-extra-routes extra-routes om-parsing-env)
-    (pre-hook)
-    (wrap-content-type)
-    (wrap-not-modified)
-    (wrap-gzip)))
+  (as-> (not-found-handler) h
+    (fallback-hook h)
+    (wrap-connection h route-handler api-parser om-parsing-env app-name)
+    (server/wrap-transit-params h)
+    (server/wrap-transit-response h)
+    (invoke 'ring.middleware.resource/wrap-resource h "public")
+    (wrap-extra-routes h extra-routes om-parsing-env)
+    (pre-hook h)
+    (invoke 'ring.middleware.content-type/wrap-content-type h)
+    (invoke 'ring.middleware.not-modified/wrap-not-modified h)
+    (invoke 'ring.middleware.gzip/wrap-gzip h)))
 
 (defprotocol IHandler
   (set-pre-hook! [this pre-hook]
@@ -177,7 +220,7 @@
     (try
       (let [server-opts    (select-keys (-> this :config :value) http-kit-opts)
             port           (:port server-opts)
-            started-server (run-server (:middleware handler) server-opts)]
+            started-server (invoke 'org.httpkit.server/run-server (:middleware handler) server-opts)]
         (log/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
         (assoc this :port port :server started-server))
       (catch Exception e
