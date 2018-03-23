@@ -2,13 +2,11 @@
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
-            yahoo.intl-messageformat-with-locales
             [fulcro.server :as server :refer [defquery-root]]
             [fulcro.client.impl.parser :as p]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.data-fetch :as df]
-            [fulcro.alpha.i18n :as i18n :refer [tr trc trf]]
-            [fulcro.client.logging :as log]))
+            [fulcro.i18n :as i18n :refer [tr trc trf]]))
 
 (def mock-server-networking (server/new-server-emulator))
 

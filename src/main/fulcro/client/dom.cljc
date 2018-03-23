@@ -1,5 +1,6 @@
 (ns fulcro.client.dom
   (:refer-clojure :exclude [map meta time])
+  #?(:cljs (:require [fulcro.util]))
   #?(:clj
      (:require [clojure.string :as str]
                [fulcro.client.impl.protocols :as p]

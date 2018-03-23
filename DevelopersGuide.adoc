@@ -1320,11 +1320,10 @@ Your template already has one :)
 
 === Setting up a Server
 
-There are two server namespaces in Fulcro: `fulcro.server` and
-`fulcro.easy-server`. The former has composable bits for making a server that
-has a lot of your own extensions, while the latter is a pre-baked server that covers
-many of the common bases and is less work to get started with. You can always get started with the easy one, and upgrade
-to a more enhanced one later.
+WARNING: Starting in Fulcro 2.5 the prebuilt servers for Fulcro are in the add-on library `fulcrologic/fulcro-auxillary`.
+You must add that dependency in order to use them.
+
+You can always hand-build a server in Fulcro, but the `fulcro.easy-server` is a great option for getting started.
 
 The template generates the easy one for you in `src/main/app/server.clj`.
 
@@ -3694,9 +3693,8 @@ correct namespace for the correct langauge:
 
 == Complex Graphical UI Demo: An Image Clip Tool
 
-Fulcro has the start of an image clip tool. Right now it is mainly for demonstration purposes, but it is in the main
-library and is a good example of a complex UI component where two components have to talk to each other and share
-image data.
+Fulcro Auxillary has the start of an image clip tool in the https://github.com/fulcrologic/fulcro-auxillary[`fulcrologic/fulcro-auxillary` library].
+Right now it is mainly for demonstration purposes, and is a good example of a complex UI component where two components have to talk to each other and share image data.
 
 You should study the source code (`src/main/fulcro/ui/clip_tool.cljs`) to get the full details,
 but here is an overview of the critical facets:
@@ -10528,6 +10526,8 @@ See the <<RESTAPI, REST API>> section of the Getting Started chapter for an exam
 
 = Websockets [[Websockets]]
 
+WARNING: As of Fulcro 2.5 you must add `fulcrologic/fulcro-auxillary` to get websocket support.
+
 Fulcro includes support for using https://github.com/ptaoussanis/sente[Sente] to set up websockets as a remote
 for your applications. The support documented here is relatively new, and supercedes a prior version as of 2.2.0.
 
@@ -10831,20 +10831,21 @@ You should port to using the raw `sente-message` for this concern.
 want that, then store your application in a top level atom (e.g. `app`) and use this as your new `push-method` parameter
 when creating the networking: `(fn [m] (when @app (fulcro.websockets.networking/push-received @app m)))`.
 
-= Internationalization 2 (ALPHA) [[I18NAlpha]]
+= Internationalization [[I18N]]
 
 Fulcro has had internationalization support since inception. That original support worked well from the call-site; however,
 many lessons were learned about storing, transmitting, and structuring the actual data.
-An internal rewrite is now available in `fulcro.alpha.i18n`. This support improves the failing of the prior support, while
-still using the same basic calls from the UI.
 
-The new support:
+The support:
 
+* The ability to write UI strings in a default language/locale in the code. These are the defaults that are shown on
+the UI if no translation is available.
+* Supports string extraction from the compiled UI code.
+** The translator can use tools like POEdit to generate translation files
 * Leverages normal application state as the location to house loaded translations.
-* Allows the server to serve locales via a normal query.
+* Allows the server to serve new locale translations via a normal query.
 * Includes server tools to directly read locales from GNU gettext PO files (no more code generation).
-* Still supports string extraction from the compiled UI code.
-* Supports a pluggable message formatting system instead of being tied to FormatJS.
+* Supports a pluggable message formatting system.
 
 == The Core API
 
@@ -10910,6 +10911,9 @@ Fulcro's i18n support is designed to make it easy to code and extract translatab
 interested in doing message, number, currency, or date formatting. There are plenty of libraries, including Google Closure,
 that can already fill that role.
 
+The easiest pair to use for both server and client rendering are the FormatJS (client) and IBM ICU library (server). These
+two libraries follow the same formatting standards, and give good isomorphic rendering support.
+
 Fulcro does one central task: it takes a string in the UI, looks up an alternate string (based on the locale) from a PO
 file, and pushes that alternate string through the rest of the i18n processing chain (which you define).
 
@@ -10934,14 +10938,13 @@ message formatter into Fulcro's i18n system.
 
 == Configuring I18N
 
-Your first step is to define a function that can format messages. If you want to use Yahoo's FormatJS, then you'd use something
-like this:
+Your first step is to define a function that can format messages. If you want to use Yahoo's FormatJS, then you'd add the
+FormatJS library as a script in your HTML, and then use something like this:
 
 ```
 (ns appns
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
-            yahoo.intl-messageformat-with-locales
-            [fulcro.alpha.i18n :as i18n :refer [tr trc trf]]))
+            [fulcro.i18n :as i18n :refer [tr trc trf]]))
 
 (defn message-formatter [{:keys [::i18n/localized-format-string ::i18n/locale ::i18n/format-options]}]
   (let [locale-str (name locale)
@@ -10962,7 +10965,7 @@ When creating your client:
 ```
 (ns appns
   (:require [fulcro.client :as fc]
-            [fulcro.alpha.i18n :as i18n]))
+            [fulcro.i18n :as i18n]))
 
 (defn message-formatter ...)
 
@@ -11034,14 +11037,13 @@ the local disk will be searched instead.
 
 You can extract the strings from your UI for translation using GNU's CLI utility `xgettext` (available via Brew, etc).
 
-The *alpha* version steps are (the primary difference is the inclusion of `_alpha` in the arguments):
+The steps are:
 
 . Compile your application with whitespace optimizations.
 . Run this on the resulting js file:
 +
 ```bash
-$ xgettext --from-code=UTF-8 --debug -k -ktr_alpha:1 \
-           -ktrc_alpha:1c,2 -ktrf_alpha:1 -o messages.pot application.js
+$ xgettext --from-code=UTF-8 --debug -k -ktr:1 -ktrc:1c,2 -ktrf:1 -o messages.pot application.js
 ```
 
 == Generating Locale Translation Files
@@ -11145,11 +11147,9 @@ The message formatter could be:
         "???"))))
 ```
 
-= Internationalization (DEPRECATED. See <<I18NAlpha, Internationalization 2 (ALPHA)>>)
+= Internationalization (NOT PRESENT AFTER 2.5+)
 
-NOTE: As of 2.3.2 this version of i18n support is deprecated. New i18n support is in alpha testing and shares much of the
-API. Porting to it at the UI layer should be relatively painless (mostly a change of requires). This version is still in
-place to prevent breakage of existing users until the new support is stable.
+WARNING: As of 2.3.2 this version of i18n support was deprecated, and was removed in 2.5.
 
 Fulcro combines together a few tools and libraries to give a consistent and easy-to-use method of internationalizing
 your application. The approach includes the following features:
@@ -11305,18 +11305,6 @@ map entries are the above-mentioned translation entry keys and the desired trans
 
 NOTE: The internal translation map is keyed by the string version of the locale, not the keyword. You can
 use either to change the locale, but the translation map is keyed by the string version.
-
-=== A Small Demo
-
-++++
-<div class="example" id="basic-i18n"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.basic-i18n').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="basic-i18n source"]
-----
-include::src/book/book/basic_i18n.cljs[]
-----
 
 == How it Works
 
@@ -12273,7 +12261,9 @@ include::src/book/book/html_converter.cljs[]
 
 = Bootstrap (CSS Wrappers)
 
-Fulcro include a set of CLJC wrappers for a good portion of Bootstrap 3. These should be considered of alpha quality,
+NOTE: As of Fulcro 2.5 the bootstrap3 namespace is part of `fulcrologic/fulcro-auxillary`, and you must add that dependency to use it.
+
+Fulcro Auxillary include a set of CLJC wrappers for a good portion of Bootstrap 3. These should be considered of alpha quality,
 but they are used in many demos and can be useful in getting started quickly. The primary improvements that are
 needed would be easy contributions, and if you find them useful you can send a pull request to fix issues or
 extend them.
@@ -13068,29 +13058,6 @@ their ID:
 (new-fulcro-client Root :started-callback (fn [] (cljs.loader/set-loaded! :entry-point)))
 ```
 
-The demo below is the live example that uses modules for the German and Spanish translations (open your
-browser's network tab to see them load)
-
-++++
-<div class="example" id="dynamic-i18n"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-i18n').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="dynamic-i18n source"]
-----
-include::src/book/book/demos/dynamic_i18n.cljs[]
-----
-
-[source,clojure,role="dynamic-i18n source"]
-----
-include::src/book/translations/de.cljc[]
-----
-
-[source,clojure,role="dynamic-i18n source"]
-----
-include::src/book/translations/es_MX.cljc[]
-----
-
 == Loading due to a UI Event
 
 Tabbed interfaces typically use a UI Router (which can be further integrated into HTML5 routing as a routing tree). See
@@ -13734,6 +13701,7 @@ background-color: rgba(0,0,0,0.04);
 </style>
 
 <!-- The book demos -->
+<script src="intl-messageformat-with-locales.min.js"></script>
 <script src="js/book/cljs_base.js"></script>
 <script src="js/book.js"></script>
 <script src="js/main.js"></script>

@@ -6,7 +6,6 @@
     [fulcro.client.data-fetch :refer [load]]
     [fulcro.client :as core]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    yahoo.intl-messageformat-with-locales
     [fulcro.i18n :refer [tr trf]]
     [fulcro.client.network :as net]
     [fulcro.client :as fc]))

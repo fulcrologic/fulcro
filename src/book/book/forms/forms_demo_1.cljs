@@ -2,8 +2,7 @@
   (:require
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.ui.forms :as f]
-    [fulcro.i18n :refer [tr]]))
+    [fulcro.ui.forms :as f]))
 
 (defn field-with-label
   "A non-library helper function, written by you to help lay out your form."

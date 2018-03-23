@@ -6,6 +6,21 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.0
+-----
+- Dramatic cleanup reduces dependencies
+- Released new i18n (alpha promotion). BREAKING CHANGE.
+- Many optional features are now in [`fulcrologic/fulcro-auxillary`](https://github.com/fulcrologic/fulcro-auxillary)
+  - modular server (deprecated and now fulcro.modular-server)
+  - easy server
+  - clip tool (incubator)
+  - file upload (incubator)
+  - old forms
+  - websockets (incubator)
+  - bootstrap3 wrappers (incubator)
+- Removed deprecated fulcro.client.logging
+- Moved tutorial to a separate repo
+
 2.4.3
 -----
 - Bug in specter WRT cljs, so changed fulcro-css use clojure.walk for localizing things

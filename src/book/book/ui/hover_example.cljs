@@ -1,11 +1,9 @@
 (ns book.ui.hover-example
   (:require
     [fulcro.client.cards :refer [defcard-fulcro]]
-    [fulcro.i18n :refer [tr trf]]
     [fulcro.client.mutations :refer [defmutation]]
     [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
-    [fulcro.client.dom :as dom]
-    yahoo.intl-messageformat-with-locales))
+    [fulcro.client.dom :as dom]))
 
 (defn change-size*
   "Change the size of the canvas by some (pos or neg) amount.."

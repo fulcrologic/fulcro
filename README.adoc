@@ -17,8 +17,7 @@ synchronous story for the UI. The primary design goals are:
 
 Fulcro 1.0 is still supported but is only getting bug fix releases at this point. Version 1.0 was an
 add-on library for Om Next. Fulcro 2.0 no longer has a dependency on Om Next, though the surface API
-is still very similar (though in different namespaces). See link:/README-fulcro-2.0.adoc[README-fulcro-2.0.adoc] for
-porting instructions and the reasoning behind the change.
+is still very similar (though in different namespaces).
 
 NOTE: Production code and new users should use version 2.4.x.
 The 2.5.0-alpha series has features that either require porting from
