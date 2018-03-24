@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [map meta time])
   (:require
     fulcro.client.alpha.dom
+    fulcro.util
     [fulcro.client.alpha.localized-dom-common :as cdom]))
 
 (declare a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite

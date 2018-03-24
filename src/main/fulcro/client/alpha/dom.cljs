@@ -4,6 +4,7 @@
   (:require-macros [fulcro.client.alpha.dom :as adom])
   (:require
     [clojure.spec.alpha :as s]
+    fulcro.util
     [cljsjs.react]
     [cljsjs.react.dom]
     [goog.object :as gobj]
