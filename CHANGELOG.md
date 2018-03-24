@@ -8,17 +8,9 @@ small and tractable.
 
 2.5.0
 -----
-- Dramatic cleanup reduces dependencies
+- Dramatic cleanup reduces dependencies WARNING: If you use websockets or server namespaces, you must now explicitly add the dependencies to your project. Dynamic loading errors will report what is missing.
 - Released new i18n (alpha promotion). BREAKING CHANGE.
-- Many optional features are now in [`fulcrologic/fulcro-auxillary`](https://github.com/fulcrologic/fulcro-auxillary)
-  - modular server (deprecated and now fulcro.modular-server)
-  - easy server
-  - clip tool (incubator)
-  - file upload (incubator)
-  - old forms
-  - websockets (incubator)
-  - bootstrap3 wrappers (incubator)
-- Removed deprecated fulcro.client.logging
+- Behavioral change: The deprecated fulcro.client.logging is now just a facade to fulcro.logging
 - Moved tutorial to a separate repo
 
 2.4.3

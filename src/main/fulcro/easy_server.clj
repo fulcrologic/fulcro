@@ -3,59 +3,20 @@
     [com.stuartsierra.component :as component]
     [clojure.set :as set]
     [clojure.java.io :as io]
+    [fulcro.util :as util]
     [fulcro.server :as server]
     [fulcro.logging :as log])
   (:gen-class))
 
 (defonce externs (atom {}))
-
-(defn resolve-externs
-  "Ensures the given needs are loaded, and resolved. Updates inmap to include all of the function symbols that were requested
-  as namespaced symbols.
-
-  inmap - A map (nil/empty)
-  needs - A sequence: ([namespace [f1 f2]] ...)
-
-  Returns a map keyed by namespaced symbol whose value is the resolved function:
-
-  {namespace/f1 (fn ...)
-   namespace/h2 (fn ...)
-   ...}
-
-  Logs a detailed error message if it fails.
-  "
-  [inmap needs]
-  (reduce (fn [m [nmspc fns]]
-            (try
-              (require nmspc)
-              (let [n     (find-ns nmspc)
-                    fn-keys (map #(symbol (name nmspc) (name %)) fns)
-                    fnmap (zipmap fn-keys (map #(or (ns-resolve n %) (throw (ex-info "No such symbol" {:ns nmspc :s %}))) fns))]
-                (merge m fnmap))
-              (catch Exception e
-                (log/error (str "Failed to load functions from " nmspc ". Fulcro does not have hard dependencies on that library, and you must explicitly add the dependency to your project.")))))
-    (or inmap {})
-    needs))
-
-(defn load-libs []
-  (when (or (nil? @externs) (empty? @externs))
-    (swap! externs resolve-externs '([bidi.bidi [match-route]]
-                                      [org.httpkit.server [run-server]]
-                                      [ring.middleware.content-type [wrap-content-type]]
-                                      [ring.middleware.gzip [wrap-gzip]]
-                                      [ring.middleware.not-modified [wrap-not-modified]]
-                                      [ring.middleware.resource [wrap-resource]]
-                                      [ring.util.response [response file-response resource-response]]))))
-
-(defn invoke
-  "Invoke the given dynamically resolved function. Will attempt to load the function if it isn't available. Throws
-  an exception if the function isn't found."
-  [fnsym & args]
-  (load-libs)
-  (if-let [f (get @externs fnsym)]
-    (apply f args)
-    (throw (ex-info "Dynamically loaded function not found. You forgot to add a dependency to your classpath."
-             {:sym fnsym}))))
+(def externs-needed '([bidi.bidi [match-route]]
+                       [org.httpkit.server [run-server]]
+                       [ring.middleware.content-type [wrap-content-type]]
+                       [ring.middleware.gzip [wrap-gzip]]
+                       [ring.middleware.not-modified [wrap-not-modified]]
+                       [ring.middleware.resource [wrap-resource]]
+                       [ring.util.response [resource-response]]))
+(def invoke (util/build-invoke externs externs-needed))
 
 (defn index [req]
   (assoc (invoke 'ring.util.response/resource-response (str "index.html") {:root "public"})
