@@ -8,7 +8,10 @@ small and tractable.
 
 2.4.3
 -----
-- Made fulcro-css use clojure.walk for localizing things
+- Bug in specter WRT cljs, so changed fulcro-css use clojure.walk for localizing things
+    - Also eliminated that dependency
+- Updated alpha dom to support expressions in props
+- Added `sc` macro, a non-def version of `defsc`
 
 2.4.2
 -----

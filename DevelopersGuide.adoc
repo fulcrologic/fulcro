@@ -348,11 +348,10 @@ the default. The example in the last section can be written much more simply, an
   (:require [fulcro.client.alpha.dom :as dom]))
 
 ...
-;; old style is supported except for expressions as props (symbols are ok)
 (dom/div #js {:className "a"} "Hi") ; Supported, for bw compatibility, but not needed
 (dom/div nil "Hi")                  ; Supported, for bw compatibility, but not needed
 (dom/div attrs "Hi")                ; OK
-(dom/div (clj->js attrs) "Hi")      ; SYNTAX ERROR in new DOM
+(dom/div (clj->js attrs) "Hi")      ; OK
 
 ;; New support (not availabe in old support)
 (dom/div {:className "a"} "Hi")     ; no need for #js
