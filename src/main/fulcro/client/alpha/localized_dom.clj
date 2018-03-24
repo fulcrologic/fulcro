@@ -34,7 +34,7 @@
         `(fulcro.client.alpha.dom/macro-create-element*
            ~(JSValue. (into [str-tag-name attr-expr] children))))
 
-      :symbol
+      (:symbol :expression)
       `(fulcro.client.alpha.localized-dom/macro-create-element
          ~str-tag-name ~(into [attrs-value] children) ~css)
 

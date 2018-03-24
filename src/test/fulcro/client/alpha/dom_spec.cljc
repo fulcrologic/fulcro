@@ -8,7 +8,7 @@
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
-(specification "Conversion of keywords to CSS IDs and Classes"
+(specification "Conversion of keywords to CSS IDs and Classes" :focused
   (assertions
     "classnames are given as a vector"
     (#'cdom/parse :.a) => {:classes ["a"]}
@@ -25,7 +25,7 @@
     (#'cdom/parse :a) =throws=> {:regex #"Invalid style"}
     (#'cdom/parse :.a#.j) =throws=> {:regex #"Invalid style"}))
 
-(specification "Combining keywords on CLJ(s) property maps"
+(specification "Combining keywords on CLJ(s) property maps" :focused
   (let [props         {:className "c1"}
         props-with-id {:id 1 :className "c1"}]
     (assertions
@@ -48,7 +48,7 @@
            (cdom/add-kwprops-to-props props :.a.some-class.other-class) => {:className "a some-class other-class c1"})))))
 
 #?(:cljs
-   (specification "Combining keywords on JS property maps"
+   (specification "Combining keywords on JS property maps" :focused
      (let [js-props         #js {:className "c1"}
            js-props-with-id #js {:id 1 :className "c1"}]
        (assertions
@@ -88,7 +88,7 @@
        :else v)))
 
 #?(:clj
-   (specification "Macro processing"
+   (specification "Macro processing" :focused
      (assertions
        "kw + nil props converts to a runtime js obj"
        (jsvalue->map (#'dom/emit-tag "div" [:.a nil "Hello"]))
@@ -124,12 +124,16 @@
        (jsvalue->map (#'dom/emit-tag "div" [:.a 'props "Hello"]))
        => `(dom/macro-create-element "div" [~'props "Hello"] :.a)
 
+       "expression emits runtime conversion"
+       (jsvalue->map (#'dom/emit-tag "div" [:.a '(props-map) "Hello"]))
+       => `(dom/macro-create-element "div" [~'(props-map) "Hello"] :.a)
+
        "embedded code in props is passed through"
        (jsvalue->map (#'dom/emit-tag "div" [:.a '{:onClick (fn [] (do-it))} "Hello"]))
-       => `(dom/macro-create-element* {:jsvalue ["div" (cdom/add-kwprops-to-props {:jsvalue {:onClick (~'fn [] (~'do-it))}} :.a) "Hello"]}))))
+       => `(dom/macro-create-element* {:jsvalue ["div" (cdom/add-kwprops-to-props {:jsvalue {:onClick ~'(fn [] (do-it))}} :.a) "Hello"]}))))
 
 #?(:cljs
-   (specification "DOM Tag Macros (CLJS)"
+   (specification "DOM Tag Macros (CLJS)" :focused
      (provided "It is passed no arguments"
        (dom/macro-create-element* args) => (do
                                              (assertions
@@ -313,7 +317,7 @@
          (div :.a (p :.b "Hello"))))))
 
 #?(:cljs
-   (specification "DOM elements are usable as functions"
+   (specification "DOM elements are usable as functions" :focused
      (assertions
        "The functions exist and are defined as functions"
        (fn? div) => true
