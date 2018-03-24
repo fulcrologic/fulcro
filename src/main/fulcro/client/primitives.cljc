@@ -3148,6 +3148,18 @@
          (catch Exception e
            (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
 
+(defmacro sc
+  "Just like defsc, but returns the component instead. The arguments are the same, except do not supply a symbol:
+
+  ```
+  (let [C (prim/sc [this props] ...)] ...)
+  ```
+  "
+  [& args]
+  (let [t    (with-meta (gensym "sc_") {:anonymous true})
+        args (cons t args)]
+    `(do (defsc ~@args) ~t)))
+
 (defn integrate-ident
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
   implementations as a general helper function.
