@@ -15,12 +15,12 @@
 (defn bg-color-style [color] {:style {:backgroundColor color}})
 
 (defsc AttrStatic [this props]
-  (div nil
-    (dom/section nil
+  (div
+    (dom/section
       (dom/h4 "Macros")
       (div "Attr is missing with a string child")
       (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
-      (div nil
+      (div
         (span "attrs missing with a child element 1,")
         (span " and a child element 2"))
       (div nil "Attr is nil")
@@ -30,7 +30,7 @@
       (div {:style {:backgroundColor "red"}} "Attr has nested inline style")
       (div (js-classname "foo") "Attr fn adds css class")
       (div (bg-color-style "red") "Attr fn has nested inline style"))
-    (dom/section nil
+    (dom/section
       (dom/h4 "Functions")
       (fdiv "Attr is missing with a string child")
       (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
@@ -56,8 +56,8 @@
         klass-info    {:className "foo"}
         styles        {:backgroundColor "red"}
         symbolic-attr {:style {:backgroundColor "green"}}]
-    (div nil
-      (dom/section nil
+    (div
+      (dom/section
         (dom/h4 "Macros")
         (div x "Attr is nil")
         (div y "Attr is empty map")
@@ -65,7 +65,7 @@
         (div klass-info "Attr adds css class")
         (div {:style styles} "Attr has nested inline symbolic style")
         (div symbolic-attr "Attr has nested inline style and is all symbolic"))
-      (dom/section nil
+      (dom/section
         (dom/h4 "Functions")
         (fdiv x "Attr is nil")
         (fdiv y "Attr is empty map")
@@ -81,11 +81,11 @@
 (defsc CssShorthand [this props]
   (let [x             nil
         symbolic-attr {:style {:backgroundColor "yellow"}}]
-    (div nil
+    (div
       (dom/style "#the-id {background-color: coral;}")
       (dom/style ".border-klass {border-style: solid;}")
       (dom/style ".color-klass {background-color: pink;}")
-      (dom/section nil
+      (dom/section
         (dom/h3 "Macros")
         (div :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
         (div :.border-klass {:className "color-klass"}
@@ -98,7 +98,7 @@
           "Has a shorthand CSS for border class and nil attrs")
         (div :.border-klass symbolic-attr
           "Has a shorthand CSS for border class and yellow background symbolic inline styles"))
-      (dom/section nil
+      (dom/section
         (dom/h3 "Functions")
         (fdiv :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
         (fdiv :.border-klass {:className "color-klass"}
@@ -173,7 +173,7 @@
 
 (defsc TextAreaTest [this props]
   {}
-  (dom/div {}
+  (dom/div
     (dom/textarea {:value "This is a text area"})))
 
 (defcard-fulcro wrapped-textarea
@@ -181,7 +181,7 @@
 
 (defsc SelectTest [this props]
   {}
-  (dom/div nil
+  (dom/div
     (dom/select {:value "c"}
       (dom/option {:value "a" :label "A"})
       (dom/option {:value "b" :label "B"})

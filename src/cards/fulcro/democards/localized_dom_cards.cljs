@@ -12,11 +12,11 @@
 (def finput dom/input)
 
 (defsc AttrStatic [this props]
-  (div {}
-    (dom/section {}
+  (div
+    (dom/section
       (dom/h4 "Macros")
       (div "Attr is missing with a string child")
-      (div {}
+      (div
         (span "attrs missing with a child element 1,")
         (span " and a child element 2"))
       (div nil "Attr is nil")
@@ -24,10 +24,10 @@
       (div #js {} "Attr is empty js-object")
       (div {:className "foo"} "Attr adds css class")
       (div {:style {:backgroundColor "red"}} "Attr has nested inline style"))
-    (dom/section {}
+    (dom/section
       (dom/h4 "Functions")
       (div "Attr is missing with a string child")
-      (fdiv {}
+      (fdiv
         (fspan "attrs missing with a child element 1,")
         (fspan " and a child element 2"))
       (fdiv nil "Attr is nil")
@@ -47,8 +47,8 @@
         klass-info    {:className "foo"}
         styles        {:backgroundColor "red"}
         symbolic-attr {:style {:backgroundColor "green"}}]
-    (div {}
-      (dom/section {}
+    (div
+      (dom/section
         (dom/h4 "Macros")
         (div x "Attr is nil")
         (div y "Attr is empty map")
@@ -56,7 +56,7 @@
         (div klass-info "Attr adds css class")
         (div {:style styles} "Attr has nested inline symbolic style")
         (div symbolic-attr "Attr has nested inline style and is all symbolic"))
-      (dom/section {}
+      (dom/section
         (dom/h4 "Functions")
         (fdiv x "Attr is nil")
         (fdiv y "Attr is empty map")
@@ -75,9 +75,9 @@
          [:.color-klass {:background-color :pink}]]}
   (let [x             nil
         symbolic-attr {:style {:backgroundColor "yellow"}}]
-    (div {}
+    (div
       (css/style-element CssShorthand)
-      (dom/section {}
+      (dom/section
         (dom/h4 "Macros")
         (div :#the-id.border-klass "choral bg with border. Via localized kw")
         (div :.border-klass {:className color-klass} "pink bg with border. via kw + className")
@@ -85,7 +85,7 @@
         (div :.border-klass x "white bg with border. Via kw + sym")
         (div :.border-klass nil "white bg with border. Via kw + nil")
         (div :.border-klass symbolic-attr "yellow bg with border. Via kw + sym with inline styles"))
-      (dom/section {}
+      (dom/section
         (dom/h4 "Functions")
         (fdiv :#the-id.border-klass "choral bg with border. Via localized kw")
         (fdiv :.border-klass {:className color-klass} "pink bg with border. via kw + className")
@@ -125,7 +125,7 @@
                    {:old-form (prim/get-query OldForm)}]
    :ident         [:wrapped-input-root/by-id :db/id]
    :initial-state {:db/id 1 :form {}}}
-  (dom/div nil
+  (dom/div
     (ui-form form)))
 
 (defsc OldWrappedInputRoot [this {:keys [db/id form]}]
@@ -133,7 +133,7 @@
                    {:form (prim/get-query OldForm)}]
    :ident         [:wrapped-input-root/by-id :db/id]
    :initial-state {:db/id 1 :form {}}}
-  (dom/div nil
+  (dom/div
     (ui-old-form form)))
 
 (defcard-fulcro wrapped-input-card-string-refs

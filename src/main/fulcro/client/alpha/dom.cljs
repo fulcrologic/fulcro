@@ -184,6 +184,10 @@
        (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
             (arr-append tail)))
 
+       (element? head)
+       (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
+            (arr-append args)))
+
        (object? head)
        (f (doto #js [type (cdom/add-kwprops-to-props head csskw)]
             (arr-append tail)))
@@ -191,10 +195,6 @@
        (map? head)
        (f (doto #js [type (clj->js (cdom/add-kwprops-to-props head csskw))]
             (arr-append tail)))
-
-       (element? head)
-       (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
-            (arr-append args)))
 
        :else
        (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]

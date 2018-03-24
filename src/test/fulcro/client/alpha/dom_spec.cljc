@@ -8,7 +8,7 @@
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
-(specification "Conversion of keywords to CSS IDs and Classes"
+(specification "Conversion of keywords to CSS IDs and Classes" :focused
   (assertions
     "classnames are given as a vector"
     (#'cdom/parse :.a) => {:classes ["a"]}
@@ -25,7 +25,7 @@
     (#'cdom/parse :a) =throws=> {:regex #"Invalid style"}
     (#'cdom/parse :.a#.j) =throws=> {:regex #"Invalid style"}))
 
-(specification "Combining keywords on CLJ(s) property maps"
+(specification "Combining keywords on CLJ(s) property maps" :focused
   (let [props         {:className "c1"}
         props-with-id {:id 1 :className "c1"}]
     (assertions
@@ -48,7 +48,7 @@
            (cdom/add-kwprops-to-props props :.a.some-class.other-class) => {:className "a some-class other-class c1"})))))
 
 #?(:cljs
-   (specification "Combining keywords on JS property maps"
+   (specification "Combining keywords on JS property maps" :focused
      (let [js-props         #js {:className "c1"}
            js-props-with-id #js {:id 1 :className "c1"}]
        (assertions
