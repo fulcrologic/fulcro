@@ -30,7 +30,7 @@
 
                  ;; test deps
                  [fulcrologic/fulcro-spec "2.0.4" :scope "test" :exclusions [fulcrologic/fulcro]]
-                 [lein-doo "0.1.10-SNAPSHOT" :scope "test"]
+                 [lein-doo "0.1.10" :scope "test"]
                  [com.ibm.icu/icu4j "60.2" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
@@ -43,7 +43,7 @@
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target" "docs/js/book"]
 
   :plugins [[lein-cljsbuild "1.1.7"]
-            [lein-doo "0.1.10-SNAPSHOT"]
+            [lein-doo "0.1.10"]
             [com.jakemccrary/lein-test-refresh "0.21.1"]]
 
   :test-refresh {:report       fulcro-spec.reporters.terminal/fulcro-report
