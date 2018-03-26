@@ -8,7 +8,7 @@
 
 image:docs/logo.png[]
 
-Fulcro 2.0 is a library for building data-driven full-stack applications for the web. It uses React, is written in
+Fulcro is a library for building data-driven full-stack applications for the web. It uses React, is written in
 Clojure and Clojurescript (so it has first-class functional abilities with immutable data) which leads to a clean
 synchronous story for the UI. The primary design goals are:
 
@@ -19,6 +19,10 @@ Fulcro 1.0 is still supported but is only getting bug fix releases at this point
 add-on library for Om Next. Fulcro 2.0 no longer has a dependency on Om Next, though the surface API
 is still very similar (though in different namespaces). See link:/README-fulcro-2.0.adoc[README-fulcro-2.0.adoc] for
 porting instructions and the reasoning behind the change.
+
+NOTE: Production code and new users should use version 2.4.x.
+The 2.5.0-alpha series has features that either require porting from
+2.4, or are not yet heavily tested.
 
 Latest version on Clojars: image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
 

@@ -253,7 +253,7 @@
       (prim/get-query ui-rootp (prim/normalize-query {} (prim/get-query ui-rootp {})))
       => '[:a ({:join [:x]} {:join-params 2}) ({:union {:u1 [(:L {:child-params 1})] :u2 [:M]}} {:union-params 3})])))
 
-(specification "get-query*" :focused
+(specification "get-query*"
   (assertions
     "Obtains the static query from a given class"
     (prim/get-query Q) => [:a :b]
@@ -284,7 +284,7 @@
         "without state (raw static query)"
         (prim/get-query Root) => [:a {:join [:x]} {:union {:u1 [:L] :u2 [:M]}}]))))
 
-(specification "Normalization" :focused
+(specification "Normalization"
   (let [query               (prim/get-query ui-root {})
         parameterized-query (prim/get-query ui-rootp {})
         state               (prim/normalize-query {} query)
@@ -295,7 +295,7 @@
       "Preserves the query when parameters are present"
       (prim/get-query ui-rootp state-parameterized) => parameterized-query)))
 
-(specification "Setting a query" :focused
+(specification "Setting a query"
   (let [query                       (prim/get-query ui-root {})
         parameterized-query         (prim/get-query ui-rootp {})
         state                       (prim/normalize-query {} query)

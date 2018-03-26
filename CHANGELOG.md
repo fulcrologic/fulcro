@@ -6,6 +6,13 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.4.3
+-----
+- Bug in specter WRT cljs, so changed fulcro-css use clojure.walk for localizing things
+    - Also eliminated that dependency
+- Updated alpha dom to support expressions in props
+- Added `sc` macro, a non-def version of `defsc`
+
 2.4.2
 -----
 - Fixed bug in alpha dom select input

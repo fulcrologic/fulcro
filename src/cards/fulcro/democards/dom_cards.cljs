@@ -11,6 +11,9 @@
 (def fspan span)
 (def finput dom/input)
 
+(defn js-classname [name] #js {:className name})
+(defn bg-color-style [color] {:style {:backgroundColor color}})
+
 (defsc AttrStatic [this props]
   (div
     (dom/section
@@ -24,7 +27,9 @@
       (div {} "Attr is empty map")
       (div #js {} "Attr is empty js-object")
       (div {:className "foo"} "Attr adds css class")
-      (div {:style {:backgroundColor "red"}} "Attr has nested inline style"))
+      (div {:style {:backgroundColor "red"}} "Attr has nested inline style")
+      (div (js-classname "foo") "Attr fn adds css class")
+      (div (bg-color-style "red") "Attr fn has nested inline style"))
     (dom/section
       (dom/h4 "Functions")
       (fdiv "Attr is missing with a string child")
@@ -36,7 +41,9 @@
       (fdiv {} "Attr is empty map")
       (fdiv #js {} "Attr is empty js-object")
       (fdiv {:className "foo"} "Attr adds css class")
-      (fdiv {:style {:backgroundColor "red"}} "Attr has nested inline style"))))
+      (fdiv {:style {:backgroundColor "red"}} "Attr has nested inline style")
+      (fdiv (js-classname "foo") "Attr fn adds css class")
+      (fdiv (bg-color-style "red") "Attr fn has nested inline style"))))
 
 (defcard-fulcro attr-static-enumeration
   "These attrs can be reasoned about at compile time."
@@ -175,13 +182,11 @@
 (defsc SelectTest [this props]
   {}
   (dom/div
-
     (dom/select {:value "c"}
       (dom/option {:value "a" :label "A"})
       (dom/option {:value "b" :label "B"})
       (dom/option {:value "c" :label "C"})
-      (dom/option {:value "d" :label "D"}))
-    ))
+      (dom/option {:value "d" :label "D"}))))
 
 (defcard-fulcro wrapped-select
   SelectTest)

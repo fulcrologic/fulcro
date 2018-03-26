@@ -348,11 +348,10 @@ the default. The example in the last section can be written much more simply, an
   (:require [fulcro.client.alpha.dom :as dom]))
 
 ...
-;; old style is supported except for expressions as props (symbols are ok)
 (dom/div #js {:className "a"} "Hi") ; Supported, for bw compatibility, but not needed
 (dom/div nil "Hi")                  ; Supported, for bw compatibility, but not needed
 (dom/div attrs "Hi")                ; OK
-(dom/div (clj->js attrs) "Hi")      ; SYNTAX ERROR in new DOM
+(dom/div (clj->js attrs) "Hi")      ; OK
 
 ;; New support (not availabe in old support)
 (dom/div {:className "a"} "Hi")     ; no need for #js
@@ -11683,7 +11682,7 @@ as follows:
 1. Use `compressible-transact!` instead of `transact!`
 2. If more than one adjacent transaction is marked compressible in history then only the *last* of them is kept.
 
-The built-in mutations that set a value (e.g. m/set-value!) are meant to be used with user inputs and already mark their
+The built-in mutations that set a value (e.g. `m/set-value!`) are meant to be used with user inputs and already mark their
 transactions this way. This is quite useful when you don't want to pollute (or overflow) history with keystrokes that
 are not interesting.
 
@@ -11709,7 +11708,7 @@ main application knows to provide the link, but it does not yet have the renderi
 
 == Dynamic Routing and Code Splitting
 
-The `fulcro.client.routing` namespace includes a second kind of UIrouter that can be used with the routing tree: `DynamicRouter`.
+The `fulcro.client.routing` namespace includes a second kind of UI router that can be used with the routing tree: `DynamicRouter`.
 
 A `DynamicRouter` uses a dynamic query to change routes instead of a union, and it can derive the details of the target
 component at runtime, meaning that it can be used to route to screens that were not in the loaded application code base
@@ -11755,7 +11754,8 @@ but you will have to make sure their state and multimethod are set up at load ti
 via the mutation `r/install-route`. This mutation adds the screen's state *and* multimethod component dispatch.
 
 The demo application includes two such pre-installed routes (`Login` and `NewUser`), and one dynamically loaded one (main).
-The code called at application startup (via `:started-callback`) ensure the pre-loaded routes is:
+The code (called at application startup via `:started-callback`) to set up the pre-loaded routes and
+is:
 
 ```
 (defn application-loaded! [{:keys [reconciler]}]
@@ -11763,6 +11763,7 @@ The code called at application startup (via `:started-callback`) ensure the pre-
   (prim/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
                                (r/install-route {:target-kw :login :component ~Login})
                                (r/route-to {:handler :login})])
+  ; Clojurescript requires you call this on every successfully "loaded" module:
   (loader/set-loaded! :entry-point))
 
 ...
@@ -11772,8 +11773,8 @@ The code called at application startup (via `:started-callback`) ensure the pre-
 === The Demo
 
 Notice on initial load that the `[:main :singleton]` path in app state is not present. You could use the console to
-verify that `cards.dynamic_ui_main.Main` is not present (via Javascript) either. Once you route to `Main`, both will be present. You should
-see the network load of the code when you route as well. The `book` build configuration in `project.clj` has the module
+verify that `cards.dynamic_ui_main.Main` is not present (via Javascript) either. Once you route to `Main`, both will be present.
+You should see the network load of the code when you route as well. The `book` build configuration in `project.clj` has the module
 definitions, and looks like this:
 
 ```
@@ -11814,7 +11815,8 @@ include::src/book/book/demos/dynamic_ui_routing.cljs[]
 
 WARNING: Server-side rendering with dynamically-loaded modules requires support for `r/route-to-impl!` on the server
 to set the dynamic route in the app state that you want to render. At the time of this writing that function is not yet
-capable of running in Clojure.
+capable of running in Clojure. As a workaround you will need to use `prim/set-query*` to install the proper dynamic
+queries into the server-side app state database.
 
 Splitting up your application affects server-side rendering as well. If you want to pre-render a page that is normally loaded as a
 module then you must make sure it is loaded properly on the server. The basic steps are:
@@ -11922,6 +11924,52 @@ with a number of helpful features:
 * It is easy to run specifications from CI systems. Try out the https://github.com/fulcrologic/fulcro-lein-template[Leiningen template]
   to get an application that is already set up to go.
 
+== Defining a Test Suite
+
+The documentation for Fulcro Spec covers the full details. The same macro is used on both the client and server when
+defining a test suite, but there are a few other project details as well. The best source of a current example is the Fulcro
+Leiningen template, which emits a sample project that is set up with both client and server tests.
+
+A client test suite's configuration options include a namespace regex for finding your tests, and a map configuring
+the default and available test selectors (explained in a bit). Since the UI and the runner are the browser, there is
+really no other server component (other than your hot reload server from Figwheel or shadow-cljs):
+
+```
+(ns client.test-main
+  (:require
+    [fulcro-spec.selectors :as sel]
+    [fulcro-spec.suite :as suite]))
+
+(def-test-suite spec-report
+  {:ns-regex #".*-spec"}
+  {:default   #{::sel/none :focused}
+   :available #{:focused}})
+```
+
+The `spec-report` symbol that gets defined represents a function that can be called to run the tests: `(spec-report)`.
+
+The server test suite creates its own websocket enable server to serve the test runner UI. The server tests have
+automatic code change detection, and the selected tests are automatically re-run and results sent to the client renderer. The
+setup is very simiar:
+
+```
+(ns user
+  (:require
+    [fulcro-spec.selectors :as sel]
+    [fulcro-spec.suite :as suite]))
+
+(suite/def-test-suite server-tests
+  {:config       {:port 8888}
+   :test-paths   ["src/test"]
+   :source-paths ["src/main"]}
+  {:available #{:focused}
+   :default   #{::sel/none :focused}})
+```
+
+The macro defines a function (in this case `server-tests`) which when called (re)starts the websocket server
+on the given port. Opening a browser on `http://localhost:8888/fulcro-spec-server-tests.html` will bring up the
+user interface for those tests.
+
 == Specifications
 
 A specification is just a helpful wrapper around `clojure.test/deftest`. It looks like this:
@@ -11931,11 +11979,50 @@ A specification is just a helpful wrapper around `clojure.test/deftest`. It look
    ...)
 ```
 
+It has several improvements to deftest:
+
+* The name is a string, encouraging better naming.
+* It establishes a section in the test runner view
+* It can include any number of keyword markers that indicate when the body of the test should run, allowing
+you to focus your test running on unit, integration, or just the current coding task:
+
+=== Controlling Which Tests Run
+
+Adding keywords after the string name of a specification marks that specification for targeting. You can define
+any number of these targeting keywords:
+
+```
+(specification "Some Database Operation" :integration :focused
+   ...)
+```
+
+An inactive specification's body is skipped, leading to faster test suite run times when you're focusing on
+a task.
+
+When you define the test suite you define which of these selectors are defined, and which ones default to "on". For example
+a server test suite might be configured like this:
+
+```
+(ns user
+  (:require
+    [fulcro-spec.selectors :as sel]
+    [fulcro-spec.suite :as suite]))
+
+(suite/def-test-suite my-tests
+  { ...options... }
+  {:available #{:focused}
+   :default   #{::sel/none :focused}})
+```
+
+The special selector `::sel/none` means "any specification that has no selectors".  When you turn on/off selectors in the
+UI (via the fold-out left panel) the rule is: Run any specification that includes at least one active selector. So,
+turning off the "None" selector turns off all unmarked tests.
+
 == Behaviors, Components, and Assertions
 
-These macros assist you in organizing your specification. Behavior and component just add an outline
-entry and increase nesting. The `assertions` macro can add descriptions for each assertion, and gives a nice
-human-readable notation:
+These macros assist you in organizing your specification. The `behavior` and `component` macros just add an outline
+entry and increase nesting in the report, aiding readability. The `assertions` macro can add descriptions for each assertion,
+and gives a nice human-readable notation:
 
 ```
 (specification "Math"
@@ -11950,14 +12037,22 @@ human-readable notation:
 == Exceptions
 
 It is common to want to test error handling code. The `assertions` macro supports checking for, and pattern-matching
-against, exceptions:
+against, exceptions. It supports several notations for the right-hand side.
+
+The most platform-neutral syntax for exceptions is to use a map on the right-hand side which can contain the keys (all
+optional, but you should supply at least one):
 
 ```
 ...
    (assertions
       "Throws when arg is nil"
-      (f nil) =throws=> (ExceptionInfo #"Regex match on message"))
+      (f nil) =throws=> {:ex-type ExceptionInfo :regex #"Regex match on message" :fn (fn [e] true)}
+      ...
 ```
+
+* `:ex-type` The type of exception
+* `:regex` A regular expression to compare against the exception's message
+* `:fn` A function that will receive the exception and can return true/false to indicate if it looks right.
 
 == Functional Assertions
 

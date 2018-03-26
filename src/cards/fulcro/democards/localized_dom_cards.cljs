@@ -113,8 +113,8 @@
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (dom/node this "thing")] (.focus e)))}
   (finput {:onChange #(m/set-string! this :form/value :event %)
-              :ref      "thing"
-              :value    value}))
+           :ref      "thing"
+           :value    value}))
 
 (def ui-form (prim/factory Form {:keyfn :db/id}))
 (def ui-old-form (prim/factory OldForm {:keyfn :db/id}))

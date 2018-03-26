@@ -4,6 +4,7 @@
   (:require-macros [fulcro.client.alpha.dom :as adom])
   (:require
     [clojure.spec.alpha :as s]
+    fulcro.util
     [cljsjs.react]
     [cljsjs.react.dom]
     [goog.object :as gobj]
@@ -35,7 +36,8 @@
     :children (s/* (s/or
                      :string string?
                      :number number?
-                     :collection #(or (vector? %) (seq? %))
+                     :collection #(or (vector? %) (seq? %) (array? %))
+                     :nil nil?
                      :element element?))))
 
 (defn render
@@ -183,6 +185,10 @@
        (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
             (arr-append tail)))
 
+       (element? head)
+       (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
+            (arr-append args)))
+
        (object? head)
        (f (doto #js [type (cdom/add-kwprops-to-props head csskw)]
             (arr-append tail)))
@@ -190,10 +196,6 @@
        (map? head)
        (f (doto #js [type (clj->js (cdom/add-kwprops-to-props head csskw))]
             (arr-append tail)))
-
-       (element? head)
-       (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
-            (arr-append args)))
 
        :else
        (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
