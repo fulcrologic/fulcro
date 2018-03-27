@@ -1,7 +1,8 @@
 (ns fulcro.ui.icons
   (:require
     [clojure.string :as str]
-    [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
     [fulcro.client.primitives :as prim :refer-macros [defui]]))
 
 (def material-icon-paths

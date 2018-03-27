@@ -2,7 +2,8 @@
   (:require [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
-            [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
             [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]

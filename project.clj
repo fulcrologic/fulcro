@@ -26,10 +26,10 @@
 
                  ; pinned dependencies. Re-check on release
                  [org.clojure/tools.namespace "0.3.0-alpha4"]
-                 [org.clojure/tools.reader "1.2.2"]
+                 [org.clojure/tools.reader "1.1.3"]
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.0.4" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "2.1.0-SNAPSHOT" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.10" :scope "test"]
                  [com.ibm.icu/icu4j "60.2" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
@@ -69,8 +69,8 @@
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
                                ;:parallel-build       true
-                               ;:verbose              true
-                               ;:compiler-stats       true
+                               :verbose              true
+                               :compiler-stats       true
                                :preloads             [devtools.preload]
                                :asset-path           "js/test"
                                :optimizations        :none}}
@@ -83,6 +83,8 @@
                                :asset-path           "js/cards"
                                :preloads             [devtools.preload]
                                ;:parallel-build       true
+                               :verbose              true
+                               :compiler-stats       true
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "book"

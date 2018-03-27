@@ -3,7 +3,6 @@
     [fulcro.client :as fc]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
-    [fulcro.client.dom :as dom]
     [fulcro.client.impl.application :as app]
     [fulcro.client.mutations :as m]
     [fulcro.test-helpers :as th]))

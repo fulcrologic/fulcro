@@ -1,11 +1,11 @@
-(ns fulcro.client.alpha.localized-dom-server
+(ns fulcro.client.localized-dom-server
   (:refer-clojure :exclude [map meta time])
   (:require [fulcro.util :as util]
             [clojure.spec.alpha :as s]
             [clojure.future :refer :all]
-            [fulcro.client.alpha.dom-server :refer [element element?]]
-            [fulcro.client.alpha.dom-common :as dc]
-            [fulcro.client.alpha.localized-dom-common :as ldc]))
+            [fulcro.client.dom-server :refer [element element?]]
+            [fulcro.client.dom-common :as dc]
+            [fulcro.client.localized-dom-common :as ldc]))
 
 (declare a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite
   code col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form

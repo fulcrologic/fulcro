@@ -1,4 +1,4 @@
-(ns fulcro.client.alpha.dom-common
+(ns fulcro.client.dom-common
   (:refer-clojure :exclude [map meta time mask select])
   (:require
     [clojure.string :as str]

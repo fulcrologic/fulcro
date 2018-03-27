@@ -1,14 +1,14 @@
-(ns fulcro.client.alpha.dom-server
+(ns fulcro.client.dom-server
   "Support for rendering DOM from CLJ. Must be separate to enable same-named macros in CLJS for performance.
 
   Usage: Create your UI in CLJC files, and require with conditional reader tags:
 
   (ns app.ui
     (:require
-      #?(:clj [fulcro.client.alpha.dom-server :as dom] :cljs [fulcro.client.alpha.dom :as dom])))"
+      #?(:clj [fulcro.client.dom-server :as dom] :cljs [fulcro.client.dom :as dom])))"
   (:refer-clojure :exclude [map meta time mask select])
   (:require
-    [fulcro.client.alpha.dom-common :as cdom]
+    [fulcro.client.dom-common :as cdom]
     [clojure.string :as str]
     [fulcro.client.impl.protocols :as p]
     [fulcro.util :as util]

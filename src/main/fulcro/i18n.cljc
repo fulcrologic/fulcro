@@ -20,7 +20,8 @@
     [clojure.spec.alpha :as s]
     [fulcro.logging :as lg]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
     [fulcro.client.primitives :as prim :refer [defsc]]
     [clojure.string :as str]
     #?@(:clj (
@@ -128,16 +129,15 @@
    :initial-state {::available-locales :param/locales}}
   (let [{:keys [::locale]} current-locale
         locale-kw (fn [l] (-> l (str/replace #":" "") keyword))]
-    (dom/select #js {:className "fulcro$i18n$locale_selector"
-                     :onChange  (fn [evt] #?(:cljs (prim/transact! this `[(change-locale {:locale ~(locale-kw (.. evt -target -value))})])))
-                     :value     locale}
+    (dom/select :.fulcro$i18n$locale_selector
+      {:onChange (fn [evt] #?(:cljs (prim/transact! this `[(change-locale {:locale ~(locale-kw (.. evt -target -value))})])))
+       :value    locale}
       (map-indexed
         (fn [i {:keys [::locale :ui/locale-name]}]
-          (dom/option #js {:key i :value locale} locale-name))
+          (dom/option {:key i :value locale} locale-name))
         available-locales))))
 
 (def ui-locale-selector (prim/factory LocaleSelector))
-
 
 #?(:clj
    (defn tr-ssr [msg] (t msg))

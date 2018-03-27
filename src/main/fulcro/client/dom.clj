@@ -1,12 +1,11 @@
-(ns fulcro.client.alpha.dom
+(ns fulcro.client.dom
   "MACROS for generating CLJS code. See dom.cljs"
   (:refer-clojure :exclude [map meta time mask select])
   (:require
     [clojure.spec.alpha :as s]
     [fulcro.util :as util]
     [clojure.future :refer :all]
-    [fulcro.client.alpha.dom-common :as cdom]
-    [fulcro.logging :as log]
+    [fulcro.client.dom-common :as cdom]
     [clojure.string :as str])
   (:import
     (cljs.tagged_literals JSValue)
@@ -60,11 +59,11 @@
         attrs-type     (or (first attrs) :nil)              ; attrs omitted == nil
         attrs-value    (or (second attrs) {})
         create-element (case str-tag-name
-                         "input" 'fulcro.client.alpha.dom/macro-create-wrapped-form-element
-                         "textarea" 'fulcro.client.alpha.dom/macro-create-wrapped-form-element
-                         "select" 'fulcro.client.alpha.dom/macro-create-wrapped-form-element
-                         "option" 'fulcro.client.alpha.dom/macro-create-wrapped-form-element
-                         'fulcro.client.alpha.dom/macro-create-element*)]
+                         "input" 'fulcro.client.dom/macro-create-wrapped-form-element
+                         "textarea" 'fulcro.client.dom/macro-create-wrapped-form-element
+                         "select" 'fulcro.client.dom/macro-create-wrapped-form-element
+                         "option" 'fulcro.client.dom/macro-create-wrapped-form-element
+                         'fulcro.client.dom/macro-create-element*)]
     (case attrs-type
       :js-object                                            ; kw combos not supported
       (if css
@@ -86,7 +85,7 @@
 
 
       (:symbol :expression)
-      `(fulcro.client.alpha.dom/macro-create-element
+      `(fulcro.client.dom/macro-create-element
          ~str-tag-name ~(into [attrs-value] children) ~css)
 
       :nil
@@ -94,7 +93,7 @@
          ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
 
       ;; pure children
-      `(fulcro.client.alpha.dom/macro-create-element
+      `(fulcro.client.dom/macro-create-element
          ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))))
 
 (defn syntax-error
@@ -119,7 +118,7 @@
 
 (defn- gen-client-dom-fn [create-element-symbol tag]
   `(defn ~tag [& ~'args]
-     (let [conformed-args# (util/conform! :fulcro.client.alpha.dom/dom-element-args ~'args) ; see CLJS file for spec
+     (let [conformed-args# (util/conform! :fulcro.client.dom/dom-element-args ~'args) ; see CLJS file for spec
            {attrs#    :attrs
             children# :children
             css#      :css} conformed-args#
@@ -130,4 +129,4 @@
 (defmacro gen-client-dom-fns [create-element-sym]
   `(do ~@(clojure.core/map (partial gen-client-dom-fn create-element-sym) cdom/tags)))
 
-(gen-dom-macros fulcro.client.alpha.dom/emit-tag)
+(gen-dom-macros fulcro.client.dom/emit-tag)

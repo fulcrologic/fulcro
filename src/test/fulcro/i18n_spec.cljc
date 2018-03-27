@@ -4,7 +4,8 @@
             [fulcro.i18n :as i18n :refer [tr trf trc]]
             [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.server-render :as ssr]
-            [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
             [fulcro.logging :as log])
   #?(:clj
      (:import (com.ibm.icu.text MessageFormat)

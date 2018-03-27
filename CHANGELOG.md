@@ -6,8 +6,13 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
-2.5.0
------
+2.5.0-alpha2
+------------
+- Promoted fulcro.client.alpha.dom to fulcro.client.dom
+- Promoted fulcro.client.alpha.localized-dom to fulcro.client.localized-dom
+
+2.5.0-alpha1
+------------
 - Dramatic cleanup reduces dependencies WARNING: If you use websockets or server namespaces, you must now explicitly add the dependencies to your project. Dynamic loading errors will report what is missing.
 - Released new i18n (alpha promotion). BREAKING CHANGE.
 - Behavioral change: The deprecated fulcro.client.logging is now just a facade to fulcro.logging

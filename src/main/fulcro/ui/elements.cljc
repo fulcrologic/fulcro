@@ -1,6 +1,7 @@
 (ns fulcro.ui.elements
   (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
-            [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
             #?(:cljs [goog.object :as gobj])))
 
 (defn react-instance?

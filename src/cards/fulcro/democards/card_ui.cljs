@@ -4,7 +4,7 @@
     fulcro.democards.dom-cards
     fulcro.democards.localized-dom-cards
     fulcro.democards.load-cards
-    fulcro.democards.i18n-alpha-cards
+    fulcro.democards.i18n-cards
     fulcro.democards.manual-tests-of-dynamic-queries
     fulcro.democards.react-refs
     fulcro.democards.root-form-refresh

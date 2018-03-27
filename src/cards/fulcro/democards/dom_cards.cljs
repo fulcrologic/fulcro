@@ -1,7 +1,7 @@
 (ns fulcro.democards.dom-cards
   (:require [devcards.core :as dc]
             [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.alpha.dom :as dom :refer [div span]]
+            [fulcro.client.dom :as dom :refer [div span]]
             [goog.object :as gobj]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]))

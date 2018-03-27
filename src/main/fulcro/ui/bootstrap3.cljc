@@ -1,5 +1,7 @@
 (ns fulcro.ui.bootstrap3
-  (:require [fulcro.client.dom :as dom]
+  (:require
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.ui.elements :as ele]
             [fulcro.events :as evt]

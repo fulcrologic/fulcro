@@ -1,7 +1,7 @@
-(ns fulcro.client.alpha.dom-server-spec
+(ns fulcro.client.dom-server-spec
   (:require
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
-    [fulcro.client.alpha.dom-server :as dom :refer [div p span render-to-str]]))
+    [fulcro.client.dom-server :as dom :refer [div p span render-to-str]]))
 
 (specification "Server-side Rendering" :focused
   (assertions

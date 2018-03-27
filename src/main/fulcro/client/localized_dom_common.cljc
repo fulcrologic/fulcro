@@ -1,14 +1,14 @@
-(ns fulcro.client.alpha.localized-dom-common
+(ns fulcro.client.localized-dom-common
   (:refer-clojure :exclude [map meta time])
   (:require
     #?@(:cljs [[cljsjs.react]
            [cljsjs.react.dom]
            [cljsjs.react.dom.server]
-           [fulcro.client.alpha.dom :as adom]
            [goog.object :as gobj]])
     [fulcro.client.primitives :as prim]
     [clojure.string :as str])
-  #?(:clj (:import (cljs.tagged_literals JSValue))))
+  #?(:clj
+     (:import (cljs.tagged_literals JSValue))))
 
 
 (letfn [(remove-separators [s] (when s (str/replace s #"^[.#$]" "")))

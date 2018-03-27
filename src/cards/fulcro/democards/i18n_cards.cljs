@@ -1,11 +1,9 @@
-(ns fulcro.democards.i18n-alpha-cards
+(ns fulcro.democards.i18n-cards
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.server :as server :refer [defquery-root]]
-            [fulcro.client.impl.parser :as p]
             [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.client.data-fetch :as df]
             [fulcro.i18n :as i18n :refer [tr trc trf]]))
 
 (def mock-server-networking (server/new-server-emulator))
@@ -25,10 +23,10 @@
 (defsc Child [this props]
   {:query         [:ui/checked?]
    :initial-state {:ui/checked? false}}
-  (dom/div nil
-    (dom/p nil (trf "Hello, {name}" {:name "Sam"}))
-    (dom/p nil (trf "It is {n,date}" {:n (js/Date.)}))
-    (dom/p nil (trc "Gender abbreviation" "M"))
+  (dom/div
+    (dom/p (trf "Hello, {name}" {:name "Sam"}))
+    (dom/p (trf "It is {n,date}" {:n (js/Date.)}))
+    (dom/p (trc "Gender abbreviation" "M"))
     (tr "Hello")))
 
 (def ui-child (prim/factory Child))
@@ -43,7 +41,7 @@
                      :locale-selector      (prim/get-initial-state i18n/LocaleSelector {:locales [(prim/get-initial-state i18n/Locale {:locale :en :name "English"})
                                                                                                   (prim/get-initial-state i18n/Locale {:locale :es :name "Espanol"})
                                                                                                   (prim/get-initial-state i18n/Locale {:locale :de :name "Deutsch"})]})})}
-  (dom/div nil
+  (dom/div
     (i18n/ui-locale-selector locale-selector)
     (ui-child child)))
 

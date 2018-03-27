@@ -1,16 +1,16 @@
-(ns fulcro.client.alpha.localized-dom-spec
+(ns fulcro.client.localized-dom-spec
   (:require
     [fulcro-spec.core :refer [specification assertions behavior provided when-mocking]]
-    [fulcro.client.alpha.dom-server :refer [render-to-str]]
+    [fulcro.client.dom-server :refer [render-to-str]]
     [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.client.alpha.localized-dom-server :as ldom :refer [div p span]]
+    [fulcro.client.localized-dom-server :as ldom :refer [div p span]]
     [clojure.string :as str])
   (:import (cljs.tagged_literals JSValue)))
 
 (defmacro check-kw-processing [name component expected-classes]
-  `(let [real-create# fulcro.client.alpha.dom/macro-create-element*]
+  `(let [real-create# fulcro.client.dom/macro-create-element*]
      (provided ~name
-       ~'(fulcro.client.alpha.dom/macro-create-element* args) ~'=1x=> (do
+       ~'(fulcro.client.dom/macro-create-element* args) ~'=1x=> (do
                                                                         (assertions
                                                                           "passes the tag name"
                                                                           (~'aget ~'args 0) ~'=> "div"
@@ -21,7 +21,7 @@
                                                                           (~'aget ~'args 2) ~'=> "Hello")
                                                                         (real-create# ~'args))
 
-       (fulcro.client.alpha.dom/render-to-str ((fulcro.client.primitives/factory ~component) {})))))
+       (fulcro.client.dom/render-to-str ((fulcro.client.primitives/factory ~component) {})))))
 
 (defn fn-props [] {:className "x"})
 (defn fn-js-props [] #js {:className "x"})
@@ -87,43 +87,43 @@
 (specification "SSR With Extended classes" :focused
   (assertions
     "kw + no props"
-    (render-component NoPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_alpha_localized-dom-spec_NoPropsComponent__a\" id=\"y\"") "kw + nil props"
-    (render-component NilPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_alpha_localized-dom-spec_NilPropsComponent__a\" id=\"y\"")
+    (render-component NoPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_localized-dom-spec_NoPropsComponent__a\" id=\"y\"") "kw + nil props"
+    (render-component NilPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_localized-dom-spec_NilPropsComponent__a\" id=\"y\"")
     "kw + empty cljs props"
-    (render-component EmptyPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_alpha_localized-dom-spec_EmptyPropsComponent__a\" id=\"y\"")
+    (render-component EmptyPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_localized-dom-spec_EmptyPropsComponent__a\" id=\"y\"")
     "kw + empty js props"
-    (render-component EmptyJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_EmptyJSPropsComponent__a\" id=\"y\"")
+    (render-component EmptyJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_localized-dom-spec_EmptyJSPropsComponent__a\" id=\"y\"")
     "kw + cljs props"
-    (render-component CLJPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_CLJPropsComponent__a x\" id=\"y\"")
+    (render-component CLJPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_localized-dom-spec_CLJPropsComponent__a x\" id=\"y\"")
     "kw + cljs props + id override"
-    (render-component CLJPropsWithIDComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_CLJPropsWithIDComponent__a x\"")
+    (render-component CLJPropsWithIDComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_localized-dom-spec_CLJPropsWithIDComponent__a x\"")
     "kw + js props + id override"
-    (render-component JSPropsWithIDComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_JSPropsWithIDComponent__a x\" ")
+    (render-component JSPropsWithIDComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_localized-dom-spec_JSPropsWithIDComponent__a x\" ")
     "symbolic class name in props"
-    (render-component SymbolicClassPropComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassPropComponent__a x\"")
+    (render-component SymbolicClassPropComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_localized-dom-spec_SymbolicClassPropComponent__a x\"")
     "global + localized kw + cljs props"
-    (render-component ExtendedCSSComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_ExtendedCSSComponent__a b x\" id=\"y\"")
+    (render-component ExtendedCSSComponent) =fn=> #(str/includes? % " class=\"fulcro_client_localized-dom-spec_ExtendedCSSComponent__a b x\" id=\"y\"")
     "just js props"
     (render-component NoKWComponent) =fn=> #(str/includes? % " id=\"y\" class=\"x\" ")
     "just cljs props"
     (render-component NoKWCLJComponent) =fn=> #(str/includes? % " id=\"y\" class=\"x\"")
     ":classes in props"
-    (render-component DynamicClassesComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicClassesComponent__a b\" ")
+    (render-component DynamicClassesComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_localized-dom-spec_DynamicClassesComponent__a b\" ")
     ":classes as symbol in props"
-    (render-component DynamicSymClassesComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicSymClassesComponent__a b\"")
+    (render-component DynamicSymClassesComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_localized-dom-spec_DynamicSymClassesComponent__a b\"")
     ":classes in props as symbol"
-    (render-component DynamicSymPropsComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicSymPropsComponent__a b\" ")
+    (render-component DynamicSymPropsComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_localized-dom-spec_DynamicSymPropsComponent__a b\" ")
     ":classes in props as symbol + kw"
-    (render-component DynamicSymPropsWithKWComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_alpha_localized-dom-spec_DynamicSymPropsWithKWComponent__z x fulcro_client_alpha_localized-dom-spec_DynamicSymPropsWithKWComponent__a b\" ")
+    (render-component DynamicSymPropsWithKWComponent) =fn=> #(str/includes? % " id=\"y\" class=\"fulcro_client_localized-dom-spec_DynamicSymPropsWithKWComponent__z x fulcro_client_localized-dom-spec_DynamicSymPropsWithKWComponent__a b\" ")
     "cljs props as symbol"
-    (render-component SymbolicClassPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassPropsComponent__a x\" id=\"y\"")
+    (render-component SymbolicClassPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_localized-dom-spec_SymbolicClassPropsComponent__a x\" id=\"y\"")
     "js props as symbol"
-    (render-component SymbolicClassJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassJSPropsComponent__a x\" id=\"y\"")
+    (render-component SymbolicClassJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_localized-dom-spec_SymbolicClassJSPropsComponent__a x\" id=\"y\"")
     "nil props as symbol"
-    (render-component SymbolicClassNilPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_SymbolicClassNilPropsComponent__a\" id=\"y\" ")
+    (render-component SymbolicClassNilPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_localized-dom-spec_SymbolicClassNilPropsComponent__a\" id=\"y\" ")
     "cljs props as expression"
-    (render-component ExprClassPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_ExprClassPropsComponent__a x\" id=\"y\"")
+    (render-component ExprClassPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_localized-dom-spec_ExprClassPropsComponent__a x\" id=\"y\"")
     "js props as expression"
-    (render-component ExprClassJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_ExprClassJSPropsComponent__a x\" id=\"y\"")
+    (render-component ExprClassJSPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_localized-dom-spec_ExprClassJSPropsComponent__a x\" id=\"y\"")
     "nil props as expression"
-    (render-component ExprClassNilPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_alpha_localized-dom-spec_ExprClassNilPropsComponent__a\" id=\"y\" ")))
+    (render-component ExprClassNilPropsComponent) =fn=> #(str/includes? % " class=\"fulcro_client_localized-dom-spec_ExprClassNilPropsComponent__a\" id=\"y\" ")))
