@@ -14,7 +14,7 @@
          children :children
          css      :css} conformed-args
         css-props      (if css `(fulcro.client.localized-dom-common/add-kwprops-to-props nil ~css) nil)
-        children       (mapv second children)
+        children       (mapv (fn [c] `(fulcro.util/force-children ~(second c))) children)
         attrs-type     (or (first attrs) :nil)              ; attrs omitted == nil
         attrs-value    (or (second attrs) {})]
     (case attrs-type

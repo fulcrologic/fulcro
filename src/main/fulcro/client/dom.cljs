@@ -1,10 +1,10 @@
 (ns fulcro.client.dom
   "Client-side DOM macros and functions. For isomorphic (server) support, see also fulcro.client.dom-server"
   (:refer-clojure :exclude [map meta time mask select])
-  (:require-macros [fulcro.client.dom ])
+  (:require-macros [fulcro.client.dom])
   (:require
     [clojure.spec.alpha :as s]
-    fulcro.util
+    [fulcro.util :as util]
     [cljsjs.react]
     [cljsjs.react.dom]
     [goog.object :as gobj]
@@ -154,7 +154,7 @@
   arr)
 
 (defn- arr-append [arr tail]
-  (reduce arr-append* arr tail))
+  (reduce arr-append* arr (util/force-children tail)))
 
 (defn macro-create-wrapped-form-element
   "Used internally by element generation."
