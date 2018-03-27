@@ -16,8 +16,8 @@
     fulcro.ui.form-state-spec
     fulcro.server-render-spec
     fulcro.i18n-spec
-    fulcro.client.alpha.dom-spec
-    fulcro.client.alpha.localized-dom-spec
+    fulcro.client.dom-spec
+    fulcro.client.localized-dom-spec
     fulcro-css.css-spec))
 
 ;********************************************************************************

@@ -69,8 +69,8 @@
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
                                ;:parallel-build       true
-                               :verbose              true
-                               :compiler-stats       true
+                               ;:verbose              true
+                               ;:compiler-stats       true
                                :preloads             [devtools.preload]
                                :asset-path           "js/test"
                                :optimizations        :none}}
@@ -83,8 +83,8 @@
                                :asset-path           "js/cards"
                                :preloads             [devtools.preload]
                                ;:parallel-build       true
-                               :verbose              true
-                               :compiler-stats       true
+                               ;:verbose              true
+                               ;:compiler-stats       true
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "book"

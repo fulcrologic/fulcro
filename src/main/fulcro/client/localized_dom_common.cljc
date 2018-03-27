@@ -1,14 +1,13 @@
 (ns fulcro.client.localized-dom-common
   (:refer-clojure :exclude [map meta time])
   (:require
+    #?(:clj [cljs.tagged-literals :refer [->JSValue]])
     #?@(:cljs [[cljsjs.react]
-           [cljsjs.react.dom]
-           [cljsjs.react.dom.server]
-           [goog.object :as gobj]])
-    [fulcro.client.primitives :as prim]
-    [clojure.string :as str])
-  #?(:clj
-     (:import (cljs.tagged_literals JSValue))))
+               [cljsjs.react.dom]
+               [cljsjs.react.dom.server]
+               [goog.object :as gobj]])
+            [fulcro.client.primitives :as prim]
+            [clojure.string :as str]))
 
 
 (letfn [(remove-separators [s] (when s (str/replace s #"^[.#$]" "")))
@@ -47,15 +46,15 @@
   (str/join " " (if (seq classes-str) (conj classes-seq classes-str) classes-seq)))
 
 (letfn [(pget [p nm dflt] (cond
-                            #?@(:clj [(instance? JSValue p) (get-in p [:val nm] dflt)])
+                            #?@(:clj [(instance? cljs.tagged_literals.JSValue p) (get-in p [:val nm] dflt)])
                             (map? p) (get p nm dflt)
                             #?@(:cljs [(object? p) (gobj/get p (name nm) dflt)])))
         (passoc [p nm v] (cond
-                           #?@(:clj [(instance? JSValue p) (JSValue. (assoc (.-val p) nm v))])
+                           #?@(:clj [(instance? cljs.tagged_literals.JSValue p) (->JSValue (assoc (.-val p) nm v))])
                            (map? p) (assoc p nm v)
                            #?@(:cljs [(object? p) (do (gobj/set p (name nm) v) p)])))
         (pdissoc [p nm] (cond
-                          #?@(:clj [(instance? JSValue p) (JSValue. (dissoc (.-val p) nm))])
+                          #?@(:clj [(instance? cljs.tagged_literals.JSValue p) (->JSValue (dissoc (.-val p) nm))])
                           (map? p) (dissoc p nm)
                           #?@(:cljs [(object? p) (do (gobj/remove p (name nm)) p)])))
         (strip-prefix [s] (str/replace s #"^[:.#$]*" ""))]

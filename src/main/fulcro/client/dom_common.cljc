@@ -4,10 +4,7 @@
     [clojure.string :as str]
     #?@(:cljs ([cljsjs.react]
                 [cljsjs.react.dom]
-                [goog.object :as gobj])))
-  #?(:clj
-     (:import
-       (cljs.tagged_literals JSValue))))
+                [goog.object :as gobj]))))
 
 (defn- remove-separators [s]
   (when s
