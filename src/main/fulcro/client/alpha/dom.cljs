@@ -154,7 +154,7 @@
   arr)
 
 (defn- arr-append [arr tail]
-  (reduce arr-append* arr tail))
+  (reduce arr-append* arr (util/force-children tail)))
 
 (defn macro-create-wrapped-form-element
   "Used internally by element generation."
@@ -183,22 +183,22 @@
      (cond
        (nil? head)
        (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
-            (arr-append (util/force-children tail))))
+            (arr-append tail)))
 
        (element? head)
        (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
-            (arr-append (util/force-children args))))
+            (arr-append args)))
 
        (object? head)
        (f (doto #js [type (cdom/add-kwprops-to-props head csskw)]
-            (arr-append (util/force-children tail))))
+            (arr-append tail)))
 
        (map? head)
        (f (doto #js [type (clj->js (cdom/add-kwprops-to-props head csskw))]
-            (arr-append (util/force-children tail))))
+            (arr-append tail)))
 
        :else
        (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
-            (arr-append (util/force-children args))))))))
+            (arr-append args)))))))
 
 (adom/gen-client-dom-fns fulcro.client.alpha.dom/macro-create-element)

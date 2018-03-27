@@ -2,7 +2,7 @@
   (:refer-clojure :exclude [map meta time])
   (:require
     fulcro.client.alpha.dom
-    fulcro.util
+    [fulcro.util :as util]
     [fulcro.client.alpha.localized-dom-common :as cdom]))
 
 (declare a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite
@@ -18,7 +18,7 @@
 (def create-element fulcro.client.alpha.dom/create-element)
 
 (letfn [(arr-append* [arr x] (.push arr x) arr)
-        (arr-append [arr tail] (reduce arr-append* arr tail))]
+        (arr-append [arr tail] (reduce arr-append* arr (util/force-children tail)))]
   (defn macro-create-element
     ([type args] (macro-create-element type args nil))
     ([type args csskw]
