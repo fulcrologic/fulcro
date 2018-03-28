@@ -91,45 +91,45 @@
      (assertions
        "kw + nil props converts to a runtime js obj"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [:.a nil "Hello"]))
-       => `(dom/macro-create-element*
+       => `(fulcro.client.dom/macro-create-element*
              {:jsvalue ["div"
                         {:jsvalue {:className "a"}}
                         "Hello"]})
        "kw + CLJS data converts to a runtime js obj"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [:.a {:data-x 1} "Hello"]))
-       => `(dom/macro-create-element*
+       => `(fulcro.client.dom/macro-create-element*
              {:jsvalue ["div"
                         {:jsvalue {:data-x    1
                                    :className "a"}}
                         "Hello"]})
        "kw + CLJS data with symbols embeds runtime conversion on the symbols"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [:.a {:data-x 'some-var} "Hello"]))
-       => `(dom/macro-create-element*
+       => `(fulcro.client.dom/macro-create-element*
              {:jsvalue ["div"
                         (cdom/add-kwprops-to-props {:jsvalue {:data-x (cljs.core/clj->js ~'some-var)}} :.a)
                         "Hello"]})
        "kw + JS data emits a runtime combine operation on the JS data without embedded processing."
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [:.a (JSValue. {:data-x 'some-var}) "Hello"]))
-       => `(dom/macro-create-element*
+       => `(fulcro.client.dom/macro-create-element*
              {:jsvalue ["div"
                         (cdom/add-kwprops-to-props {:jsvalue {:data-x ~'some-var}} :.a)
                         "Hello"]})
        "Plain JS maps are passed through as props"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [(JSValue. {:data-x 1}) "Hello"]))
-       => `(dom/macro-create-element* {:jsvalue ["div"
+       => `(fulcro.client.dom/macro-create-element* {:jsvalue ["div"
                                                  {:jsvalue {:data-x 1}}
                                                  "Hello"]})
        "kw + symbol emits runtime conversion"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [:.a 'props "Hello"]))
-       => `(dom/macro-create-element "div" [~'props "Hello"] :.a)
+       => `(fulcro.client.dom/macro-create-element "div" [~'props "Hello"] :.a)
 
        "expression emits runtime conversion"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [:.a '(props-map) "Hello"]))
-       => `(dom/macro-create-element "div" [~'(props-map) "Hello"] :.a)
+       => `(fulcro.client.dom/macro-create-element "div" [~'(props-map) "Hello"] :.a)
 
        "embedded code in props is passed through"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [:.a '{:onClick (fn [] (do-it))} "Hello"]))
-       => `(dom/macro-create-element* {:jsvalue ["div" (cdom/add-kwprops-to-props {:jsvalue {:onClick ~'(fn [] (do-it))}} :.a) "Hello"]}))))
+       => `(fulcro.client.dom/macro-create-element* {:jsvalue ["div" (cdom/add-kwprops-to-props {:jsvalue {:onClick ~'(fn [] (do-it))}} :.a) "Hello"]}))))
 
 #?(:cljs
    (specification "DOM Tag Macros (CLJS)" :focused

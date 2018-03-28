@@ -55,7 +55,10 @@
          children :children
          css      :css} conformed-args
         css-props      (cdom/add-kwprops-to-props {} css)
-        children       (mapv (fn [c] `(fulcro.util/force-children ~(second c))) children)
+        children       (mapv (fn [[_ c]]
+                               (if (or (nil? c) (string? c))
+                                 c
+                                 `(fulcro.util/force-children ~c))) children)
         attrs-type     (or (first attrs) :nil)              ; attrs omitted == nil
         attrs-value    (or (second attrs) {})
         create-element (case str-tag-name
