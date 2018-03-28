@@ -1,7 +1,7 @@
 (ns fulcro.client.alpha.localized-dom
   (:refer-clojure :exclude [map meta time])
   (:require
-    fulcro.client.alpha.dom
+    [fulcro.client.alpha.dom :as adom]
     [fulcro.util :as util]
     [fulcro.client.alpha.localized-dom-common :as cdom]))
 
@@ -22,31 +22,29 @@
   (defn macro-create-element
     ([type args] (macro-create-element type args nil))
     ([type args csskw]
-     (let [[head & tail] args]
+     (let [[head & tail] args
+           f (if (adom/form-elements? type)
+               adom/macro-create-wrapped-form-element
+               adom/macro-create-element*)]
        (cond
          (nil? head)
-         (fulcro.client.alpha.dom/macro-create-element*
-           (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
-             (arr-append tail)))
-
-         (object? head)
-         (fulcro.client.alpha.dom/macro-create-element*
-           (doto #js [type (cdom/add-kwprops-to-props head csskw)]
-             (arr-append tail)))
-
-         (map? head)
-         (fulcro.client.alpha.dom/macro-create-element*
-           (doto #js [type (clj->js (cdom/add-kwprops-to-props head csskw))]
-             (arr-append tail)))
+         (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
+              (arr-append tail)))
 
          (fulcro.client.alpha.dom/element? head)
-         (fulcro.client.alpha.dom/macro-create-element*
-           (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
-             (arr-append args)))
+         (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
+              (arr-append args)))
+
+         (object? head)
+         (f (doto #js [type (cdom/add-kwprops-to-props head csskw)]
+              (arr-append tail)))
+
+         (map? head)
+         (f (doto #js [type (clj->js (cdom/add-kwprops-to-props head csskw))]
+              (arr-append tail)))
 
          :else
-         (fulcro.client.alpha.dom/macro-create-element*
-           (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
-             (arr-append args))))))))
+         (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
+              (arr-append args))))))))
 
 (fulcro.client.alpha.dom/gen-client-dom-fns fulcro.client.alpha.localized-dom/macro-create-element)
