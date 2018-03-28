@@ -12,4 +12,6 @@
     devcards.core))
 
 ;(st/instrument)
-(devcards.core/start-devcard-ui!)
+
+;; Use this for adv opt build:
+;(devcards.core/start-devcard-ui!) 
