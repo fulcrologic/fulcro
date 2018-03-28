@@ -4,7 +4,7 @@
   (:require-macros [fulcro.client.alpha.dom :as adom])
   (:require
     [clojure.spec.alpha :as s]
-    fulcro.util
+    [fulcro.util :as util]
     [cljsjs.react]
     [cljsjs.react.dom]
     [goog.object :as gobj]
@@ -154,7 +154,7 @@
   arr)
 
 (defn- arr-append [arr tail]
-  (reduce arr-append* arr tail))
+  (reduce arr-append* arr (util/force-children tail)))
 
 (defn macro-create-wrapped-form-element
   "Used internally by element generation."
@@ -168,17 +168,16 @@
       "select" (apply wrapped-select props children)
       "option" (apply wrapped-option props children))))
 
+(defonce form-elements? #{"input" "select" "option" "textarea"})
+
 ;; fallback if the macro didn't do this
 (defn macro-create-element
   "Used internally by element generation."
   ([type args] (macro-create-element type args nil))
   ([type args csskw]
    (let [[head & tail] args
-         f (case type
-             "input" macro-create-wrapped-form-element
-             "textarea" macro-create-wrapped-form-element
-             "select" macro-create-wrapped-form-element
-             "option" macro-create-wrapped-form-element
+         f (if (form-elements? type)
+             macro-create-wrapped-form-element
              macro-create-element*)]
      (cond
        (nil? head)

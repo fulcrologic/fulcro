@@ -17,6 +17,10 @@
 (defsc AttrStatic [this props]
   (div
     (dom/section
+      (dom/h4 "Lazy Sequences")
+      (map #(dom/div {} %) ["A" (map #(dom/span {} %) ["B.1" "B.2"]) "C"])
+      (map dom/div ["A" (map dom/span ["B.1" "B.2"]) "C"]))
+    (dom/section
       (dom/h4 "Macros")
       (div "Attr is missing with a string child")
       (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))

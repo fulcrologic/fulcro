@@ -1,6 +1,7 @@
 (ns fulcro.client.alpha.dom-spec
   (:require
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
+    [fulcro.util :as util]
     [fulcro.client.alpha.dom-common :as cdom]
     #?(:cljs [fulcro.client.alpha.dom :as dom :refer [div p span]]
        :clj

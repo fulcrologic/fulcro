@@ -14,6 +14,10 @@
 (defsc AttrStatic [this props]
   (div
     (dom/section
+      (dom/h4 "Lazy Sequences")
+      (map #(dom/div {} %) ["A" (map #(dom/span {} %) ["B.1" "B.2"]) "C"])
+      (map dom/div ["A" (map dom/span ["B.1" "B.2"]) "C"]))
+    (dom/section
       (dom/h4 "Macros")
       (div "Attr is missing with a string child")
       (div
@@ -69,6 +73,12 @@
   "Part or all of these attrs are symbolic and resolved at runtime."
   AttrSymbolic)
 
+(defsc SharedPropChild [this props]
+  (let [s (prim/shared this)]
+    (dom/div nil (pr-str s))))
+
+(def ui-shared-prop-child (prim/factory SharedPropChild {:keyfn :db/id}))
+
 (defsc CssShorthand [this props _ {:keys [color-klass]}]
   {:css [[:#the-id {:background-color :coral}]
          [:.border-klass {:border-style :solid}]
@@ -76,7 +86,11 @@
   (let [x             nil
         symbolic-attr {:style {:backgroundColor "yellow"}}]
     (div
-      (css/style-element CssShorthand)
+      (dom/section
+        (dom/h4 "Lazy Sequences (macro)")
+        (map #(dom/div {} %) ["A" (map #(dom/span {} %) ["B.1" "B.2" (ui-shared-prop-child {})]) "C"])
+        (dom/h4 "Lazy Sequences (runtime)")
+        (map #(dom/div :.a %) ["A" (map #(dom/span :.a %) ["B.1" "B.2" (ui-shared-prop-child {})]) "C"]))
       (dom/section
         (dom/h4 "Macros")
         (div :#the-id.border-klass "choral bg with border. Via localized kw")
@@ -96,7 +110,11 @@
 
 (defcard-fulcro css-shorthand
   "These dom elements use the CSS id/class (both shorthand and in attrs) with style tags."
-  CssShorthand)
+  CssShorthand
+  {}
+  {:fulcro {:reconciler-options {:shared {:a 1}}
+            :started-callback   (fn [app]
+                                  (css/upsert-css "css-shorthand-styles" CssShorthand))}})
 
 (defsc Form [this {:keys [:db/id :form/value] :as props}]
   {:query             [:db/id :form/value]

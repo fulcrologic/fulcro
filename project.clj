@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.4.3"
+(defproject fulcrologic/fulcro "2.4.4"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :license {:name "MIT"
@@ -79,6 +79,15 @@
                                :parallel-build       true
                                :source-map-timestamp true
                                :optimizations        :none}}
+               {:id           "cards-live"
+                :source-paths ["src/main" "src/cards"]
+                :compiler     {:main          fulcro.democards.card-ui
+                               :output-to     "resources/public/js/cards.min.js"
+                               :output-dir    "resources/public/js/cards-live"
+                               :asset-path    "js/cards-live"
+                               :devcards      true
+                               :verbose       true
+                               :optimizations :advanced}}
                {:id           "book"
                 :source-paths ["src/main" "src/book"]
                 :figwheel     true

@@ -8,6 +8,10 @@
     fulcro.democards.manual-tests-of-dynamic-queries
     fulcro.democards.react-refs
     fulcro.democards.root-form-refresh
-    fulcro.democards.parent-state-refresh))
+    fulcro.democards.parent-state-refresh
+    devcards.core))
 
-(st/instrument)
+;(st/instrument)
+
+;; Use this for adv opt build:
+;(devcards.core/start-devcard-ui!) 
