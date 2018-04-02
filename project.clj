@@ -1,10 +1,11 @@
-(defproject fulcrologic/fulcro "2.5.0-alpha2-SNAPSHOT"
+(defproject fulcrologic/fulcro "2.5.0-alpha2"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
+  :lein-min-version "2.8.1"
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.946" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
+                 [org.clojure/clojurescript "1.10.238" :scope "provided"]
 
                  [cljsjs/react "15.6.2-4"]
                  [cljsjs/react-dom "15.6.2-4"]
@@ -15,18 +16,12 @@
                  [com.stuartsierra/component "0.3.2"]
                  [garden "1.3.4"]
 
-                 [clojure-future-spec "1.9.0-beta4"]
-
                  ; Dynamic dependencies. You must require these if you use fulcro server extensions.
                  [http-kit "2.2.0" :scope "provided"]
                  [ring/ring-core "1.6.3" :scope "provided" :exclusions [commons-codec]]
                  [bk/ring-gzip "0.2.1" :scope "provided"]
                  [bidi "2.1.3" :scope "provided"]
                  [com.taoensso/sente "1.12.0" :scope "provided"]
-
-                 ; pinned dependencies. Re-check on release
-                 [org.clojure/tools.namespace "0.3.0-alpha4"]
-                 [org.clojure/tools.reader "1.1.3"]
 
                  ;; test deps
                  [fulcrologic/fulcro-spec "2.1.0-SNAPSHOT" :scope "test" :exclusions [fulcrologic/fulcro]]
@@ -39,7 +34,12 @@
   :resource-paths ["resources"]
   :test-paths ["src/test"]
 
-  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
+  :jvm-opts ~(let [version (System/getProperty "java.version")
+                   base-options ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
+                   [major _ _] (clojure.string/split version #"\.")]
+               (if (>= (Integer. major) 9)
+                 (conj base-options "--add-modules" "java.xml.bind")
+                 base-options))
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target" "docs/js/book"]
 
   :plugins [[lein-cljsbuild "1.1.7"]
@@ -54,8 +54,7 @@
   :doo {:build "automated-tests"
         :debug true
         :paths {:karma "node_modules/karma/bin/karma"}
-        :karma {:config {"files" ^:prepend ["resources/public/intl-messageformat-with-locales.min.js"]}}
-        }
+        :karma {:config {"files" ^:prepend ["resources/public/intl-messageformat-with-locales.min.js"]}}}
 
   :figwheel {:server-port     8080
              :validate-config false}
@@ -127,7 +126,7 @@
                                    [org.flywaydb/flyway-core "4.2.0"]]}
              :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/tutorial" "src/book"]
                     :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                    :dependencies [[binaryage/devtools "0.9.7"]
+                    :dependencies [[binaryage/devtools "0.9.9"]
                                    [com.rpl/specter "1.1.0"] ; used by book demos
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
                                    [fulcrologic/fulcro-inspect "2.0.0" :exclusions [fulcrologic/fulcro fulcrologic/fulcro-css]]
