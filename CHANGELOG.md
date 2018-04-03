@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.0-alpha3
+------------
+- Fixed a bug on wrapped select with ref
+
 2.5.0-alpha2
 ------------
 - Promoted fulcro.client.alpha.dom to fulcro.client.dom
