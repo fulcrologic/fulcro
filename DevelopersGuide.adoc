@@ -1320,8 +1320,16 @@ Your template already has one :)
 
 === Setting up a Server
 
-WARNING: Starting in Fulcro 2.5 the prebuilt servers for Fulcro are in the add-on library `fulcrologic/fulcro-auxillary`.
-You must add that dependency in order to use them.
+WARNING: Starting in Fulcro 2.5 the prebuilt servers for Fulcro require that you add some dependencies to your project.
+These namespaces dynamically resolve these so that you won't end up with extra dependencies in your product unless you
+need them:
+
+```
+[http-kit "2.2.0"]
+[ring/ring-core "1.6.3"]]
+[bk/ring-gzip "0.2.1"]
+[bidi "2.1.3"]
+```
 
 You can always hand-build a server in Fulcro, but the `fulcro.easy-server` is a great option for getting started.
 
@@ -3693,8 +3701,9 @@ correct namespace for the correct langauge:
 
 == Complex Graphical UI Demo: An Image Clip Tool
 
-Fulcro Auxillary has the start of an image clip tool in the https://github.com/fulcrologic/fulcro-auxillary[`fulcrologic/fulcro-auxillary` library].
-Right now it is mainly for demonstration purposes, and is a good example of a complex UI component where two components have to talk to each other and share image data.
+Fulcro has the start of an image clip tool.
+Right now it is mainly for demonstration purposes, and is a good example of a complex UI component where two components
+have to talk to each other and share image data.
 
 You should study the source code (`src/main/fulcro/ui/clip_tool.cljs`) to get the full details,
 but here is an overview of the critical facets:
@@ -10526,7 +10535,7 @@ See the <<RESTAPI, REST API>> section of the Getting Started chapter for an exam
 
 = Websockets [[Websockets]]
 
-WARNING: As of Fulcro 2.5 you must add `fulcrologic/fulcro-auxillary` to get websocket support.
+WARNING: As of Fulcro 2.5 you must add `sente` to your dependencies for websockets to work. The dependencies are dynamically resolved.
 
 Fulcro includes support for using https://github.com/ptaoussanis/sente[Sente] to set up websockets as a remote
 for your applications. The support documented here is relatively new, and supercedes a prior version as of 2.2.0.
