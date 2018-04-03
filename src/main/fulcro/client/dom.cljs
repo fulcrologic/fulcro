@@ -140,7 +140,7 @@
               (gobj/extend p props)
               (gobj/set p "inputRef" r)
               (gobj/remove p "ref")
-              (real-factory p)))
+              (apply real-factory p children)))
           (apply real-factory props children))))))
 
 

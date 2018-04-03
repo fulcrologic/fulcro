@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.5.0-alpha2"
+(defproject fulcrologic/fulcro "2.5.0-alpha3-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
@@ -16,7 +16,10 @@
                  [com.stuartsierra/component "0.3.2"]
                  [garden "1.3.4"]
 
-                 ; Dynamic dependencies. You must require these if you use fulcro server extensions.
+                 ;; In case someone is still using 1.8
+                 [clojure-future-spec "1.9.0-beta4"]
+
+                 ;; Dynamic dependencies. You must require these if you use fulcro server extensions.
                  [http-kit "2.2.0" :scope "provided"]
                  [ring/ring-core "1.6.3" :scope "provided" :exclusions [commons-codec]]
                  [bk/ring-gzip "0.2.1" :scope "provided"]
