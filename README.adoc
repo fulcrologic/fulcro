@@ -63,7 +63,7 @@ using it to get "fast UI updates", that is sufficient to start.
 
 The tutorial is an interactive coding tutorial using Devcards. To do it:
 
-. Clone the main https://github.com/fulcrologic/fulcro[Fulcro repository].
+. Clone the https://github.com/fulcrologic/fulcro-tutorial[Fulcro Tutorial repository].
 . Run the tutorial and follow the instructions.
 
 There is a shell script in the top-level directory that will start the tutorial:

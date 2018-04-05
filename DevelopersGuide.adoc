@@ -38,7 +38,7 @@ developers and covers most of the library in detail. Fulcro has a
 pretty extensive set of resources on the web tailored to fit your learning style.
 There is http://book.fulcrologic.com[this book],
 https://youtu.be/pLFOVhWsxMM?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube videos], 
-an http://fulcro.fulcrologic.com/tutorial.html[interactive tutorial], 
+an https://github.com/fulcrologic/fulcro-tutorial[interactive tutorial],
 and full-blown https://github.com/fulcrologic[sample applications].
 
 A lot of time and energy went into creating these libraries and materials and providing them free of 
