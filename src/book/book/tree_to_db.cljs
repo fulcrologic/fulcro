@@ -24,15 +24,15 @@
    :initial-state (fn [params]
                     ; some data we're just shoving into the database from root...***not normalized***
                     {:from {:id :top-1 :subs [{:id :sub-1 :data 1} {:id :sub-2 :data 2}]}})}
-  (dom/div nil
-    (dom/div nil
-      (dom/h4 nil "Pretend Incoming Tree")
+  (dom/div
+    (dom/div
+      (dom/h4 "Pretend Incoming Tree")
       (html-edn from))
-    (dom/div nil
-      (dom/h4 nil "Normalized Result (click below to normalize)")
+    (dom/div
+      (dom/h4 "Normalized Result (click below to normalize)")
       (when result
         (html-edn result)))
-    (dom/button #js {:onClick (fn [] (prim/transact! this `[(normalize-from-to-result {})]))} "Normalized (Run tree->db)")
-    (dom/button #js {:onClick (fn [] (prim/transact! this `[(reset {})]))} "Clear Result")))
+    (dom/button {:onClick (fn [] (prim/transact! this `[(normalize-from-to-result {})]))} "Normalized (Run tree->db)")
+    (dom/button {:onClick (fn [] (prim/transact! this `[(reset {})]))} "Clear Result")))
 
 

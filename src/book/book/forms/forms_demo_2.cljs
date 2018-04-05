@@ -14,11 +14,11 @@
   ([comp form name label] (field-with-label comp form name label nil))
   ([comp form name label validation-message]
    (dom/div #js {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
-     (dom/label #js {:className "col-sm-2" :htmlFor name} label)
+     (dom/label :.col-sm-2 {:htmlFor name} label)
      ;; THE LIBRARY SUPPLIES f/form-field. Use it to render the actual field
-     (dom/div #js {:className "col-sm-10"} (f/form-field comp form name))
+     (dom/div :.col-sm-10 (f/form-field comp form name))
      (when (and validation-message (f/invalid? form name))
-       (dom/span #js {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
+       (dom/span :.col-sm-offset-2.col-sm-10 {:className (str name)} validation-message)))))
 
 ;; Sample validator that requires there be at least two words
 (f/defvalidator name-valid? [_ value args]
@@ -36,7 +36,7 @@
                    (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])]
    :query         [:db/id :phone/type :phone/number f/form-key]
    :ident         [:phone/by-id :db/id]}
-  (dom/div #js {:className "form-horizontal"}
+  (dom/div :.form-horizontal
     (field-with-label this form :phone/type "Phone type:")
     ;; One more parameter to give the validation error message:
     (field-with-label this form :phone/number "Number:" "Please format as (###) ###-####")))
@@ -48,5 +48,5 @@
    :initial-state (fn [params]
                     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
                       {:phone (prim/get-initial-state ValidatedPhoneForm phone-number)}))}
-  (dom/div nil
+  (dom/div
     (ui-vphone-form phone)))

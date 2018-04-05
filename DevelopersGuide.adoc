@@ -1152,7 +1152,7 @@ This example could also cache that in component local state like this:
 ```
 (defsc ClickToEditField [this {:keys [value editing?]}]
   ...
-     (dom/input #js {:ref (fn [r] (prim/set-state! this {:input r}))})
+     (dom/input {:ref (fn [r] (prim/set-state! this {:input r}))})
   ...
 ```
 
@@ -1322,13 +1322,13 @@ libraries):
    :initial-state {:ui/slid? false :block {:id 1 :name "N"}}
    :ident         (fn [] [:control :demo])}
   (dom/div nil
-    (dom/button #js {:onClick (fn [] (m/toggle! this :ui/slid?))} "Toggle")
+    (dom/button {:onClick (fn [] (m/toggle! this :ui/slid?))} "Toggle")
     (ui-motion (clj->js {:style {"x" (spring (if slid? 400 0))}})
       (fn [p]
         (let [x (gobj/get p "x")]
           ; The binding wrapper ensures that internal fulcro bindings are held within the lambda
           (prim/with-parent-context this
-            (dom/div #js {:className "demo"}
+            (dom/div :.demo
               (ui-block (prim/computed block {:x x})))))))))
 ```
 
@@ -1392,14 +1392,14 @@ A typical file will have the following layout:
 ; destructure if and use it in the DOM without having to worry about how it is prefixed.
 (defsc ListItem [this {:keys [label] :as props} computed {:keys [item] :as css-classes}]
   {:css [[:.item {:font-weight "bold"}]]}
-  (dom/li #js {:className item} label))
+  (dom/li {:className item} label))
 
 (def ui-list-item (om/factory ListItem {:keyfn :id}))
 
 (defsc ListComponent [this {:keys [id items]} computed {:keys [items-wrapper]}]
   {:css [[:.items-wrapper {:background-color "blue"}]] ; this component's css
    :css-include [ListItem]} ; components whose CSS should be included if this component is included
-  (dom/div #js {:className items-wrapper}
+  (dom/div {:className items-wrapper}
     (dom/h2 nil (str "List " id))
     (dom/ul nil (map ui-list-item items))))
 
@@ -1409,7 +1409,7 @@ A typical file will have the following layout:
   {:css [[:.container {:background-color "red"}]]
    :css-include [ListComponent]}
     (let [the-list {:id 1 :items [{:id 1 :label "A"} {:id 2 :label "B"}]}]
-      (dom/div #js {:className text}
+      (dom/div {:className text}
         (ui-list the-list))))
 
 ; ...
@@ -1518,7 +1518,7 @@ You can use the raw string in generated HTML, or use the server-compatible DOM f
     [garden.core :as g]
     [fulcro-css.css :as css]))
 
-(dom/style #js {:dangerouslySetInnerHTML #js {:__html (g/css (css/get-css component))}})
+(dom/style {:dangerouslySetInnerHTML {:__html (g/css (css/get-css component))}})
 ```
 
 == CSS Localized DOM [[LocalizedDOM]]
@@ -1537,7 +1537,7 @@ use localized CSS without having to destructure the munged names at all.
 
 (defsc Component [this props comp {:keys [a]}]
   {:css [[:.a {:color :red}]]}
-  (dom/div #js {:className a} "Hi!))
+  (dom/div {:className a} "Hi!))
 ```
 
 you can instead write (note the different require):
@@ -2724,7 +2724,7 @@ broken (because you didn't know a component needed refresh).
   {:query         [:db/id :right/value]}
   (dom/div nil
     ; needs a follow-on read because it is updating something that is queried elsewhere...
-    (dom/button #js {:onClick #(prim/transact! this `[(ping-left {}) :left/value])} "Ping Left")
+    (dom/button {:onClick #(prim/transact! this `[(ping-left {}) :left/value])} "Ping Left")
     value))
 ```
 
@@ -2755,7 +2755,7 @@ The UI can then drop the follow-on reads:
   {:query         [:db/id :right/value] }
   (dom/div nil
     ; no longer need the :left/value as a follow-on read
-    (dom/button #js {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
+    (dom/button {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
     value))
 ```
 
@@ -3084,7 +3084,7 @@ We'll want to:
 ...
 (defsc Root ...
   (let [reconciler (prim/get-reconciler this)]  ; one way to get to the reconciler
-    (dom/button #js {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
+    (dom/button {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
    ...
 ```
 
@@ -4616,7 +4616,7 @@ Let's look at an example of a standard load. Say you want to load a list of peop
    :ident [:people-list/by-id :db/id]}
    (dom/div nil
      (if (seq people)
-       (dom/button #js {:onClick #(df/load-field this :people)} "Load People")
+       (dom/button {:onClick #(df/load-field this :people)} "Load People")
        (map ui-person people))))
 ```
 
@@ -4741,7 +4741,7 @@ of `:without` on the query:
    :query  [:db/id :blog/title {:blog/content (prim/get-query BlogContent)} {:blog/comments (prim/get-query BlogComment)}]}
   (dom/div nil
      ...
-     (dom/button #js {:onClick #(load-field this :blog/comments)} "Show Comments")
+     (dom/button {:onClick #(load-field this :blog/comments)} "Show Comments")
      ...)))
 ```
 
@@ -4991,13 +4991,13 @@ with `ptransact!`, which will force each call to complete before the next one ca
 check the result and run whatever in response to it.
 
 ```
-(defsc Root [this {:keys [ui/name ui/react-key overlay]}]
-  {:query         [:ui/react-key :ui/name {:overlay (prim/get-query BlockingOverlay)}]
+(defsc Root [this {:keys [ui/name overlay]}]
+  {:query         [:ui/name {:overlay (prim/get-query BlockingOverlay)}]
    :initial-state {:overlay {} :ui/name "Alicia"}}
-  (dom/div #js {:key react-key :style (clj->js {:width "400px" :height "100px"})}
+  (dom/div {:style (clj->js {:width "400px" :height "100px"})}
     (ui-overlay overlay)
     (dom/p nil "Name: " (dom/input #js {:value name}))
-    (dom/button #js {:onClick #(prim/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
+    (dom/button {:onClick #(prim/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
       "Submit")))
 ```
 
@@ -6287,7 +6287,7 @@ component of your UI). Of course, combining such things into functions adds a ni
 which can then be used more cleanly in the UI:
 
 ```
-(dom/a #js {:onClick #(show-report! this :a)} "Report A")
+(dom/a {:onClick #(show-report! this :a)} "Report A")
 ```
 
 == Mutations with Routing
@@ -6522,7 +6522,7 @@ what validator you're using.
 ```
 (defsc PersonForm [this {:keys [person/name] :as props}]
    ...
-   (dom/input #js { :value name :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
+   (dom/input { :value name :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
    (when (fs/invalid-spec? props :person/name)
       (dom/span nil "Invalid username!")
    ...)
@@ -6572,8 +6572,8 @@ The `mark-complete!` mutation can be used for the exact same purpose from the UI
 ```
 (defsc PersonForm [this {:keys [db/id person/name]}]
   ... ; as before
-  (dom/input #js {:value name
-                  :onBlur #(prim/transact! this `[(fs/mark-complete! {:entity-ident [:person/by-id ~id]})])})
+  (dom/input {:value name
+              :onBlur #(prim/transact! this `[(fs/mark-complete! {:entity-ident [:person/by-id ~id]})])})
   ...)
 ```
 
@@ -6609,7 +6609,7 @@ For example, you might want to make a simple new user form validation that looks
 
 (defsc NewUser [this {:keys [username password password-2] :as props}]
    ...
-   (dom/input #js {:name "password-2" :value password-2 :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
+   (dom/input {:name "password-2" :value password-2 :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
    (when (= :invalid (validator props :password-2))
       (dom/span nil "Passwords do not match!")
    ...)
@@ -6642,7 +6642,7 @@ database).
 
 (defsc Person [this props]
    ... ; as before
-   (dom/button #js {:onClick #(prim/transact! this `[(submit-person ~{:id id :diff (fs/dirty-fields props true)})])} "Submit")
+   (dom/button {:onClick #(prim/transact! this `[(submit-person ~{:id id :diff (fs/dirty-fields props true)})])} "Submit")
    ...)
 ```
 
@@ -6822,7 +6822,7 @@ The form fields themselves are rendered by calling `(f/form-field form field-nam
 the simple input itself.
 
 ```
-(f/form-field my-form :name) ;; results in: (dom/input #js { ... })
+(f/form-field my-form :name) ;; results in: (dom/input { ... })
 ```
 
 This is the minimum we can do to ensure that the logic is correctly connected, while not interfering with your
@@ -6837,12 +6837,12 @@ showing/hiding validation messages.
   "A non-library helper function, written by you to help lay out your form."
   ([comp form name label] (field-with-label comp form name label nil))
   ([comp form name label validation-message]
-   (dom/div #js {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
-     (dom/label #js {:className "col-sm-2" :htmlFor name} label)
+   (dom/div {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
+     (dom/label {:className "col-sm-2" :htmlFor name} label)
      ;; THE LIBRARY SUPPLIES f/form-field. Use it to render the actual field
-     (dom/div #js {:className "col-sm-10"} (f/form-field comp form name))
+     (dom/div {:className "col-sm-10"} (f/form-field comp form name))
      (when (and validation-message (f/invalid? form name))
-       (dom/span #js {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
+       (dom/span {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
 ```
 
 The rendering of the form is up to you! Thus, your forms can be as pretty (or ugly) as you care to make
@@ -7022,9 +7022,7 @@ For example, the button to run a transaction to add a phone number to
 a person creates a tempid for the phone number and passes it as a parameter in the transaction:
 
 ```
-  (dom/button #js {:onClick #(prim/transact! this
-                               `[(add-phone ~{:id     (prim/tempid)
-                                              ...})])}
+  (dom/button {:onClick #(prim/transact! this `[(add-phone ~{:id     (prim/tempid) ...})])}
     "Add Phone")
 ```
 
@@ -7242,7 +7240,7 @@ appearing on fields until you're actually ready to validate them:
 (when (invalid? this-form :field) (dom/span nil "Invalid!"))
 
 ;; Disables submit button unless all fields are marked `:valid` (none are :unchecked or :invalid)
-(dom/button #js {:disabled (not (valid? form)) :onClick submit} "Submit!")
+(dom/button {:disabled (not (valid? form)) :onClick submit} "Submit!")
 ```
 
 The tricky part is that global validation is never triggered by built-in field interaction because
@@ -7617,7 +7615,7 @@ The general Person form UI looks like this:
                    (f/on-form-change `check-username-available)
                    (f/text-input :person/name)
                    (f/integer-input :person/age)]}
-  (dom/div #js {:className "form-horizontal"}
+  (dom/div :.form-horizontal
     (field-with-label this props :person/name "Username:"
       (case name-status
         :duplicate (b/alert {:kind :warning}
@@ -7627,10 +7625,8 @@ The general Person form UI looks like this:
         :ok (b/alert {:color :success} "OK" (i/icon :check))
         ""))
     (field-with-label this props :person/age "Age:")
-    (dom/div #js {:className "button-group"}
-      (dom/button #js {:className "btn btn-default"
-                       :disabled  (not (f/dirty? props))
-                       :onClick   #(f/commit-to-entity! this :remote true)}
+    (dom/div :.button-group
+      (dom/button :.btn.btn-default { :disabled  (not (f/dirty? props)) :onClick   #(f/commit-to-entity! this :remote true)}
         "Save!"))))
 ```
 

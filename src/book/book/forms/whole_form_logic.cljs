@@ -21,11 +21,11 @@
   "A non-library helper function, written by you to help lay out your form."
   ([comp form name label] (field-with-label comp form name label nil))
   ([comp form name label validation-message]
-   (dom/div #js {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
-     (dom/label #js {:className "col-sm-2" :htmlFor name} label)
-     (dom/div #js {:className "col-sm-10"} (f/form-field comp form name))
+   (dom/div :.form-group {:className (when (f/invalid? form name) "has-error")}
+     (dom/label :.col-sm-2 {:htmlFor name} label)
+     (dom/div :.col-sm-10 (f/form-field comp form name))
      (when validation-message
-       (dom/div #js {:className (str "col-sm-offset-2 col-sm-10 " name)} validation-message)))))
+       (dom/div :.col-sm-offset-2.col-sm-10 {:className name} validation-message)))))
 
 (defmutation check-username-available
   "Sample mutation that simulates legal username check"
@@ -60,10 +60,8 @@
         :ok (b/alert {:color :success} "OK" (i/icon :check))
         ""))
     (field-with-label this props :person/age "Age:")
-    (dom/div #js {:className "button-group"}
-      (dom/button #js {:className "btn btn-default"
-                       :disabled  (not (f/dirty? props))
-                       :onClick   #(f/commit-to-entity! this :remote true)}
+    (dom/div :.button-group
+      (dom/button :.btn.btn-default {:disabled (not (f/dirty? props)) :onClick #(f/commit-to-entity! this :remote true)}
         "Save!"))))
 
 (def ui-person (prim/factory Person {:keyfn :db/id}))
@@ -71,5 +69,5 @@
 (defsc Root [this {:keys [person]}]
   {:initial-state (fn [_] {:person (prim/get-initial-state Person {:db/id 1})})
    :query         [{:person (prim/get-query Person)}]}
-  (dom/div nil
+  (dom/div
     (ui-person person)))

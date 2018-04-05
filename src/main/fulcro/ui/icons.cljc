@@ -2,7 +2,8 @@
   (:require
     [clojure.string :as str]
     #?(:cljs [fulcro.client.dom :as dom]
-       :clj [fulcro.client.dom-server :as dom])
+       :clj
+    [fulcro.client.dom-server :as dom])
     [fulcro.client.primitives :as prim :refer-macros [defui]]))
 
 (def material-icon-paths
@@ -1038,6 +1039,6 @@ z"
                     :role            "img"
                     :viewBox         "0 0 24 24"}
                    onClick (assoc :onClick #(onClick))))
-        (dom/title nil (str (title-case (str/replace (name icon-name) #"_" " "))))
-        (dom/path #js {:d path-check})))))
+        (dom/title (str (title-case (str/replace (name icon-name) #"_" " "))))
+        (dom/path {:d path-check})))))
 

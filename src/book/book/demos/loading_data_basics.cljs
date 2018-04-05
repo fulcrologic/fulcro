@@ -39,13 +39,13 @@
 (defsc Person [this {:keys [db/id person/name person/age-ms] :as props}]
   {:query [:db/id :person/name :person/age-ms :ui/fetch-state]
    :ident (fn [] [:load-samples.person/by-id id])}
-  (dom/li nil
+  (dom/li
     (str name " (last queried at " age-ms ")")
-    (dom/button #js {:onClick (fn []
-                                ; Load relative to an ident (of this component).
-                                ; This will refresh the entity in the db. The helper function
-                                ; (df/refresh! this) is identical to this, but shorter to write.
-                                (df/load this (prim/ident this props) Person))} "Update")))
+    (dom/button {:onClick (fn []
+                            ; Load relative to an ident (of this component).
+                            ; This will refresh the entity in the db. The helper function
+                            ; (df/refresh! this) is identical to this, but shorter to write.
+                            (df/load this (prim/ident this props) Person))} "Update")))
 
 (def ui-person (prim/factory Person {:keyfn :db/id}))
 
@@ -53,21 +53,21 @@
   {:initial-state (fn [{:keys [kind]}] {:people/kind kind})
    :query         [:people/kind {:people (prim/get-query Person)}]
    :ident         [:lists/by-type :people/kind]}
-  (dom/ul nil
+  (dom/ul
     ; we're loading a whole list. To sense/show a loading marker the :ui/fetch-state has to be queried in Person.
     ; Note the whole list is what we're loading, so the render lambda is a map over all of the incoming people.
     (df/lazily-loaded #(map ui-person %) people)))
 
 (def ui-people (prim/factory People {:keyfn :people/kind}))
 
-(defsc Root [this {:keys [ui/react-key friends enemies]}]
+(defsc Root [this {:keys [friends enemies]}]
   {:initial-state (fn [{:keys [kind]}] {:friends (prim/get-initial-state People {:kind :friends})
                                         :enemies (prim/get-initial-state People {:kind :enemies})})
-   :query         [:ui/react-key {:enemies (prim/get-query People)} {:friends (prim/get-query People)}]}
-  (dom/div #js {:key react-key}
-    (dom/h4 nil "Friends")
+   :query         [{:enemies (prim/get-query People)} {:friends (prim/get-query People)}]}
+  (dom/div
+    (dom/h4 "Friends")
     (ui-people friends)
-    (dom/h4 nil "Enemies")
+    (dom/h4 "Enemies")
     (ui-people enemies)))
 
 (defn initialize

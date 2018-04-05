@@ -23,11 +23,11 @@
                          [(make-person 5 "Ian"
                             [(make-person 6 "Zoe" [])])])]))
    :ident         [:person/by-id :db/id]}
-  (dom/div nil
-    (dom/h4 nil name)
+  (dom/div
+    (dom/h4 name)
     (when (seq children)
-      (dom/div nil
-        (dom/ul nil
+      (dom/div
+        (dom/ul
           (map (fn [p]
                  (ui-person p))
             children))))))
@@ -37,5 +37,5 @@
 (defsc Root [this {:keys [person-of-interest]}]
   {:initial-state {:person-of-interest {}}
    :query         [{:person-of-interest (prim/get-query Person)}]}
-  (dom/div nil
+  (dom/div
     (ui-person person-of-interest)))

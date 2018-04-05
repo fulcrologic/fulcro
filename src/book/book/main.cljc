@@ -85,7 +85,6 @@
                book.demos.server-return-values-manually-merging
                [book.server.ui-blocking-example :as ui-blocking]
                [fulcro-css.css :as css]])
-    [book.ui.example-1 :as ui-ex-1]
     [fulcro.server :as server :refer [defquery-root]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.network :as fcn]

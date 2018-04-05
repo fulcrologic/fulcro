@@ -8,13 +8,13 @@
   "A non-library helper function, written by you to help lay out your form."
   ([comp form name label] (field-with-label comp form name label nil))
   ([comp form name label validation-message]
-   (dom/div #js {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
-     (dom/label #js {:className "col-sm-2" :htmlFor name} label)
-     (dom/div #js {:className "col-sm-10"}
+   (dom/div :.form-group {:className (when (f/invalid? form name) " has-error")}
+     (dom/label :.col-sm-2 {:htmlFor name} label)
+     (dom/div :.col-sm-10
        ;; THE LIBRARY SUPPLIES f/form-field. Use it to render the actual field
        (f/form-field comp form name))
      (when (and validation-message (f/invalid? form name))
-       (dom/span #js {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
+       (dom/span :.col-sm-offset-2.col-sm-10 {:className (str name)} validation-message)))))
 
 ; form/props are the same thing. The entity state *is* the form state
 (defsc PhoneForm [this form]
@@ -22,7 +22,7 @@
    :form-fields   [(f/id-field :db/id) (f/text-input :phone/number :className "form-control") (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])]
    :query         (fn [] [:db/id :phone/type :phone/number f/form-key]) ; Don't forget f/form-key!
    :ident         [:phone/by-id :db/id]}
-  (dom/div #js {:className "form-horizontal"}
+  (dom/div :.form-horizontal
     (field-with-label this form :phone/type "Phone type:")  ; Use your own helpers to render out the fields
     (field-with-label this form :phone/number "Number:")))
 
@@ -33,5 +33,5 @@
    :initial-state (fn [params]
                     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
                       {:phone (prim/get-initial-state PhoneForm phone-number)}))}
-  (dom/div nil
+  (dom/div
     (ui-phone-form phone)))

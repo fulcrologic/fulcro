@@ -13,19 +13,19 @@
   "A non-library helper function, written by you to help lay out your form."
   ([comp form name label] (field-with-label comp form name label nil))
   ([comp form name label validation-message]
-   (dom/div #js {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
-     (dom/label #js {:className "col-sm-2" :htmlFor name} label)
+   (dom/div :.form-group {:className (when (f/invalid? form name) "has-error")}
+     (dom/label :.col-sm-2 {:htmlFor name} label)
      ;; THE LIBRARY SUPPLIES f/form-field. Use it to render the actual field
-     (dom/div #js {:className "col-sm-10"} (f/form-field comp form name))
+     (dom/div :.col-sm-10 (f/form-field comp form name))
      (when (and validation-message (f/invalid? form name))
-       (dom/span #js {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
+       (dom/span :.col-sm-offset-2.col-sm-10 {:className (str name)} validation-message)))))
 
 (defn checkbox-with-label
   "A helper function to lay out checkboxes."
   ([comp form name label] (field-with-label comp form name label nil))
   ([comp form name label validation-message]
-   (dom/div #js {:className "checkbox"}
-     (dom/label nil (f/form-field comp form name) label))))
+   (dom/div :.checkbox
+     (dom/label (f/form-field comp form name) label))))
 
 (f/defvalidator name-valid? [_ value args]
   (let [trimmed-value (str/trim value)]
@@ -44,14 +44,13 @@
       (prim/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
 
 (defsc ValidatedPhoneForm [this form]
-  {
-   :initial-state (fn [params] (f/build-form this (or params {})))
+  {:initial-state (fn [params] (f/build-form this (or params {})))
    :query         [:db/id :phone/type :phone/number f/form-key]
    :ident         [:phone/by-id :db/id]
    :form-fields   [(f/id-field :db/id)
                    (f/text-input :phone/number :validator `us-phone?) ; Addition of validator
                    (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])]}
-  (dom/div #js {:className "form-horizontal"}
+  (dom/div :.form-horizontal
     (field-with-label this form :phone/type "Phone type:")
     ;; One more parameter to give the validation error message:
     (field-with-label this form :phone/number "Number:" "Please format as (###) ###-####")))
@@ -59,8 +58,7 @@
 (def ui-vphone-form (prim/factory ValidatedPhoneForm))
 
 (defsc PersonForm [this {:keys [person/phone-numbers] :as props}]
-  {
-   :initial-state (fn [params] (f/build-form this (or params {})))
+  {:initial-state (fn [params] (f/build-form this (or params {})))
    :form-fields   [(f/id-field :db/id)
                    (f/subform-element :person/phone-numbers ValidatedPhoneForm :many)
                    (f/text-input :person/name :validator `name-valid?)
@@ -73,37 +71,32 @@
                    :person/registered-to-vote?
                    {:person/phone-numbers (prim/get-query ValidatedPhoneForm)}]
    :ident         [:people/by-id :db/id]}
-  (dom/div #js {:className "form-horizontal"}
+  (dom/div :.form-horizontal
     (field-with-label this props :person/name "Full Name:" "Please enter your first and last name.")
     (field-with-label this props :person/age "Age:" "That isn't a real age!")
     (checkbox-with-label this props :person/registered-to-vote? "Registered?")
     (when (f/current-value props :person/registered-to-vote?)
-      (dom/div nil "Good on you!"))
-    (dom/div nil
+      (dom/div "Good on you!"))
+    (dom/div
       (mapv ui-vphone-form phone-numbers))
     (when (f/valid? props)
-      (dom/div nil "All fields have had been validated, and are valid"))
-    (dom/div #js {:className "button-group"}
-      (dom/button #js {:className "btn btn-primary"
-                       :onClick   #(prim/transact! this
-                                     `[(add-phone ~{:id     (prim/tempid)
-                                                    :person (:db/id props)})])}
+      (dom/div "All fields have had been validated, and are valid"))
+    (dom/div :.button-group
+      (dom/button :.btn.btn-primary {:onClick #(prim/transact! this
+                                                 `[(add-phone ~{:id     (prim/tempid)
+                                                                :person (:db/id props)})])}
         "Add Phone")
-      (dom/button #js {:className "btn btn-default" :disabled (f/valid? props)
-                       :onClick   #(f/validate-entire-form! this props)}
+      (dom/button :.btn.btn-default {:disabled (f/valid? props) :onClick #(f/validate-entire-form! this props)}
         "Validate")
-      (dom/button #js {:className "btn btn-default", :disabled (not (f/dirty? props))
-                       :onClick   #(f/reset-from-entity! this props)}
+      (dom/button :.btn.btn-default {, :disabled (not (f/dirty? props)) :onClick #(f/reset-from-entity! this props)}
         "UNDO")
-      (dom/button #js {:className "btn btn-default", :disabled (not (f/dirty? props))
-                       :onClick   #(f/commit-to-entity! this)}
+      (dom/button :.btn.btn-default {:disabled (not (f/dirty? props)) :onClick #(f/commit-to-entity! this)}
         "Submit"))))
 
 (def ui-person-form (prim/factory PersonForm))
 
-(defsc Root [this {:keys [ui/react-key person]}]
-  {
-   :initial-state (fn [params]
+(defsc Root [this {:keys [person]}]
+  {:initial-state (fn [params]
                     {:ui/person-id 1
                      :person       (prim/get-initial-state PersonForm
                                      {:db/id                      1
@@ -118,8 +111,8 @@
                                                                      {:db/id        23
                                                                       :phone/type   :home
                                                                       :phone/number "(541) 555-1212"})]})})
-   :query         [:ui/react-key :ui/person-id {:person (prim/get-query PersonForm)}]}
-  (dom/div #js {:key react-key}
+   :query         [:ui/person-id {:person (prim/get-query PersonForm)}]}
+  (dom/div
     (when person
       (ui-person-form person))))
 

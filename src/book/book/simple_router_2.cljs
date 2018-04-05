@@ -9,19 +9,19 @@
   {:query         [:db/id :router/page]
    :ident         (fn [] [page id])
    :initial-state {:db/id 1 :router/page :PAGE/index}}
-  (dom/div nil "Index Page"))
+  (dom/div "Index Page"))
 
 (defsc EmailSettings [this {:keys [db/id router/page]}]
   {:query         [:db/id :router/page]
    :ident         (fn [] [page id])
    :initial-state {:db/id 1 :router/page :PAGE/email}}
-  (dom/div nil "Email Settings Page"))
+  (dom/div "Email Settings Page"))
 
 (defsc ColorSettings [this {:keys [db/id router/page]}]
   {:query         [:db/id :router/page]
    :ident         (fn [] [page id])
    :initial-state {:db/id 1 :router/page :PAGE/color}}
-  (dom/div nil "Color Settings"))
+  (dom/div "Color Settings"))
 
 (defrouter SettingsRouter :settings/router
   [:router/page :db/id]
@@ -37,13 +37,13 @@
                     {:db/id       1
                      :router/page :PAGE/settings
                      :subpage     (prim/get-initial-state SettingsRouter {})})}
-  (dom/div nil
-    (dom/a #js {:onClick #(prim/transact! this
-                            `[(r/set-route {:router :settings/router
-                                            :target [:PAGE/email 1]})])} "Email") " | "
-    (dom/a #js {:onClick #(prim/transact! this
-                            `[(r/set-route {:router :settings/router
-                                            :target [:PAGE/color 1]})])} "Colors")
+  (dom/div
+    (dom/a {:onClick #(prim/transact! this
+                        `[(r/set-route {:router :settings/router
+                                        :target [:PAGE/email 1]})])} "Email") " | "
+    (dom/a {:onClick #(prim/transact! this
+                        `[(r/set-route {:router :settings/router
+                                        :target [:PAGE/color 1]})])} "Colors")
     (js/console.log :p (prim/props this))
     (ui-settings-router subpage)))
 
@@ -58,13 +58,13 @@
 (defsc Root [this {:keys [router]}]
   {:initial-state (fn [p] {:router (prim/get-initial-state RootRouter {})})
    :query         [{:router (prim/get-query RootRouter)}]}
-  (dom/div nil
-    (dom/a #js {:onClick #(prim/transact! this
-                            `[(r/set-route {:router :root/router
-                                            :target [:PAGE/index 1]})])} "Index") " | "
-    (dom/a #js {:onClick #(prim/transact! this
-                            `[(r/set-route {:router :root/router
-                                            :target [:PAGE/settings 1]})])} "Settings")
+  (dom/div
+    (dom/a {:onClick #(prim/transact! this
+                        `[(r/set-route {:router :root/router
+                                        :target [:PAGE/index 1]})])} "Index") " | "
+    (dom/a {:onClick #(prim/transact! this
+                        `[(r/set-route {:router :root/router
+                                        :target [:PAGE/settings 1]})])} "Settings")
     (ui-root-router router)))
 
 

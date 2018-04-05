@@ -38,8 +38,8 @@
 (defsc CompletionList [this {:keys [values onValueSelect]}]
   (dom/ul nil
     (map (fn [v]
-           (dom/li #js {:key v}
-             (dom/a #js {:href "javascript:void(0)" :onClick #(onValueSelect v)} v))) values)))
+           (dom/li {:key v}
+             (dom/a {:href "javascript:void(0)" :onClick #(onValueSelect v)} v))) values)))
 
 (def ui-completion-list (prim/factory CompletionList))
 
@@ -80,29 +80,29 @@
         exact-match?         (and (= 1 (count filtered-suggestions)) (= value (first filtered-suggestions)))
         ; When they select an item, we place it's value in the input
         onSelect             (fn [v] (m/set-string! this :autocomplete/value :value v))]
-    (dom/div #js {:style #js {:height "600px"}}
-      (dom/label #js {:htmlFor field-id} "Airport: ")
-      (dom/input #js {:id       field-id
-                      :value    value
-                      :onChange (fn [evt]
-                                  (let [new-value (.. evt -target -value)]
-                                    ; we avoid even looking for help until they've typed a couple of letters
-                                    (if (>= (.-length new-value) 2)
-                                      (get-suggestions this new-value id)
-                                      ; if they shrink the value too much, clear suggestions
-                                      (m/set-value! this :autocomplete/suggestions []))
-                                    ; always update the input itself (controlled)
-                                    (m/set-string! this :autocomplete/value :value new-value)))})
+    (dom/div {:style {:height "600px"}}
+      (dom/label {:htmlFor field-id} "Airport: ")
+      (dom/input {:id       field-id
+                  :value    value
+                  :onChange (fn [evt]
+                              (let [new-value (.. evt -target -value)]
+                                ; we avoid even looking for help until they've typed a couple of letters
+                                (if (>= (.-length new-value) 2)
+                                  (get-suggestions this new-value id)
+                                  ; if they shrink the value too much, clear suggestions
+                                  (m/set-value! this :autocomplete/suggestions []))
+                                ; always update the input itself (controlled)
+                                (m/set-string! this :autocomplete/value :value new-value)))})
       ; show the completion list when it exists and isn't just exactly what they've chosen
       (when (and (vector? suggestions) (seq suggestions) (not exact-match?))
         (ui-completion-list {:values filtered-suggestions :onValueSelect onSelect})))))
 
 (def ui-autocomplete (prim/factory Autocomplete))
 
-(defsc AutocompleteRoot [this {:keys [ui/react-key airport-input]}]
+(defsc AutocompleteRoot [this {:keys [airport-input]}]
   {:initial-state (fn [p] {:airport-input (prim/get-initial-state Autocomplete {:id :airports})})
-   :query         [:ui/react-key {:airport-input (prim/get-query Autocomplete)}]}
-  (dom/div #js {:key react-key}
-    (dom/h4 nil "Airport Autocomplete")
+   :query         [{:airport-input (prim/get-query Autocomplete)}]}
+  (dom/div
+    (dom/h4 "Airport Autocomplete")
     (ui-autocomplete airport-input)))
 

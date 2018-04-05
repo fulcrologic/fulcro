@@ -32,9 +32,9 @@
   {:componentDidMount         (fn [] (render-squares this (prim/props this)))
    :shouldComponentUpdate     (fn [next-props next-state] false)
    :componentWillReceiveProps (fn [props] (render-squares this props))}
-  (dom/svg #js {:style   #js {:backgroundColor "rgb(240,240,240)"}
-                :width   200 :height 200
-                :viewBox "0 0 1000 1000"}))
+  (dom/svg {:style   {:backgroundColor "rgb(240,240,240)"}
+            :width   200 :height 200
+            :viewBox "0 0 1000 1000"}))
 
 (def d3-thing (prim/factory D3Thing))
 
@@ -62,12 +62,12 @@
 (defsc Root [this props]
   {:query         [:squares]
    :initial-state {:squares []}}
-  (dom/div nil
-    (dom/button #js {:onClick #(prim/transact! this
-                                 `[(add-square {})])} "Add Random Square")
-    (dom/button #js {:onClick #(prim/transact! this
-                                 `[(clear-squares {})])} "Clear")
-    (dom/br nil)
-    (dom/br nil)
+  (dom/div
+    (dom/button {:onClick #(prim/transact! this
+                             `[(add-square {})])} "Add Random Square")
+    (dom/button {:onClick #(prim/transact! this
+                             `[(clear-squares {})])} "Clear")
+    (dom/br)
+    (dom/br)
     (d3-thing props)))
 

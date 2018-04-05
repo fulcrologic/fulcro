@@ -31,7 +31,7 @@
   {:initial-state (fn [{:keys [id label]}] {:item/id id :item/label label})
    :query         [:item/id :item/label]
    :ident         [:items :item/id]}
-  (dom/li nil label (dom/button #js {:onClick #(on-delete id)} "X")))
+  (dom/li label (dom/button {:onClick #(on-delete id)} "X")))
 
 (def ui-list-item (prim/factory Item {:keyfn :item/id}))
 
@@ -44,16 +44,16 @@
    :ident         [:lists :list/id]}
   (let [; pass the operation through computed so that it is executed in the context of the parent.
         item-props (fn [i] (prim/computed i {:on-delete #(prim/transact! this `[(delete-item {:id ~(:item/id i)})])}))]
-    (dom/div nil
-      (dom/h4 nil name)
-      (dom/ul nil
+    (dom/div
+      (dom/h4 name)
+      (dom/ul
         (map #(ui-list-item (item-props %)) items)))))
 
 (def ui-list (prim/factory ItemList))
 
-(defsc Root [this {:keys [ui/react-key main-list] :or {ui/react-key "ROOT"}}]
+(defsc Root [this {:keys [main-list]}]
   {:initial-state (fn [p] {:main-list (prim/get-initial-state ItemList {})})
-   :query         [:ui/react-key {:main-list (prim/get-query ItemList)}]}
-  (dom/div #js {:key react-key} (ui-list main-list)))
+   :query         [{:main-list (prim/get-query ItemList)}]}
+  (dom/div (ui-list main-list)))
 
 

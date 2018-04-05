@@ -93,7 +93,7 @@
                  fs/form-config-join]
    :form-fields #{::phone-number ::phone-type}
    :ident       [:phone/by-id :db/id]}
-  (dom/div #js {:className "form"}
+  (dom/div :.form
     (input-with-label this ::phone-number "Phone:" "10-digit phone number is required.")
     (input-with-label this ::phone-type "Type:" ""
       (fn [attrs]
@@ -142,10 +142,10 @@
                  fs/form-config-join]
    :form-fields #{::person-name ::person-age ::phone-numbers} ; ::phone-numbers here becomes a subform because it is a join in the query.
    :ident       [:person/by-id :db/id]}
-  (dom/div #js {:className "form"}
+  (dom/div :.form
     (input-with-label this ::person-name "Name:" "Name is required.")
     (input-with-label this ::person-age "Age:" "Age must be between 1 and 120")
-    (dom/h4 #js {} "Phone numbers:")
+    (dom/h4 "Phone numbers:")
     (when (seq phone-numbers)
       (map ui-phone-form phone-numbers))
     (bs/button {:onClick #(prim/transact! this `[(add-phone {:person-id ~id})])} (bs/glyphicon {} :plus))))
@@ -201,8 +201,8 @@
   {:query         [{:root/person (prim/get-query PersonForm)}]
    :initial-state (fn [params] {})}
   (ele/ui-iframe {:frameBorder 0 :width 800 :height 700}
-    (dom/div #js {}
-      (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+    (dom/div
+      (dom/link {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       (bs/button {:onClick #(df/load this [:person/by-id 21] PersonForm {:target               [:root/person]
                                                                          :marker               false
                                                                          :post-mutation        `edit-existing-person
@@ -211,7 +211,7 @@
       (bs/button {:onClick #(prim/transact! this `[(edit-new-person {})])} "Simulate New Person Creation")
       (when (::person-name person)
         (ui-person-form person))
-      (dom/div nil
+      (dom/div
         (bs/button {:onClick  #(prim/transact! this `[(fs/reset-form! {:form-ident [:person/by-id ~(:db/id person)]})])
                     :disabled (not (fs/dirty? person))} "Reset")
         (bs/button {:onClick  #(prim/transact! this `[(submit-person {:id ~(:db/id person) :diff ~(fs/dirty-fields person false)})])

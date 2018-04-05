@@ -9,5 +9,5 @@
 (defsc Root [this {:keys [parse-runner]}]
   {:initial-state {:parse-runner {}}
    :query         [{:parse-runner (prim/get-query ParseRunner)}]}
-  (dom/div nil
+  (dom/div
     (ui-parse-runner (prim/computed parse-runner {:parser parser-42 :database {}}))))

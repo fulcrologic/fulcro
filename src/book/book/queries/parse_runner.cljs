@@ -23,18 +23,18 @@
   {:query         [:ui/query :error :result]
    :initial-state (fn [{:keys [query] :or {query ""}}] {:ui/query query :error "" :result {}})
    :ident         (fn [] [:widget/by-id :parse-runner])}
-  (dom/div nil
-    (dom/input #js {:type     "text"
-                    :value    query
-                    :onChange (fn [evt] (m/set-string! this :ui/query :event evt))})
-    (dom/button #js {:onClick #(prim/transact! this `[(run-query ~{:query query :database database :parser parser})])} "Run Parser")
+  (dom/div
+    (dom/input {:type     "text"
+                :value    query
+                :onChange (fn [evt] (m/set-string! this :ui/query :event evt))})
+    (dom/button {:onClick #(prim/transact! this `[(run-query ~{:query query :database database :parser parser})])} "Run Parser")
     (when error
-      (dom/div nil (str error)))
-    (dom/div nil
-      (dom/h4 nil "Query Result")
+      (dom/div (str error)))
+    (dom/div
+      (dom/h4 "Query Result")
       (html-edn result))
-    (dom/div nil
-      (dom/h4 nil "Database")
+    (dom/div
+      (dom/h4 "Database")
       (html-edn database))))
 
 (def ui-parse-runner (prim/factory ParseRunner))

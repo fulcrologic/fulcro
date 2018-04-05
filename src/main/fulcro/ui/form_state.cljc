@@ -427,7 +427,7 @@
   submission to a server should be triggered from UI with the output of this function as parameters:
 
   ```
-  (dom/input #js { :onClick #(prim/transact! this `[(some-submit-function {:diff ~(f/dirty-fields props true)})]) })
+  (dom/input { :onClick #(prim/transact! this `[(some-submit-function {:diff ~(f/dirty-fields props true)})]) })
   ```
 
   ui-entity - The entity (denormalized) from the UI.

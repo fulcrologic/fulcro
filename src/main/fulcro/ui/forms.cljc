@@ -4,7 +4,8 @@
     [clojure.set :as set]
     [clojure.string :as str]
     #?(:cljs [fulcro.client.dom :as dom]
-       :clj [fulcro.client.dom-server :as dom])
+       :clj
+    [fulcro.client.dom-server :as dom])
     [fulcro.client.primitives :as prim]
     [fulcro.util :as util]
     #?(:clj
@@ -1018,25 +1019,25 @@
         field     (field-config form field-name)
         optional? (= ::none (:input/default-value field))
         options   (:input/options field)]
-    (dom/select #js
-        {:name      field-name
-         :id        id
-         :className cls
-         :value     selection
-         :onChange  (fn [event]
-                      (let [value      (.. event -target -value)
-                            field-info {:form-id form-id
-                                        :field   field-name
-                                        :value   value}]
-                        (prim/transact! component
-                          `[(select-option ~field-info)
-                            ~@(get-on-form-change-mutation form field-name :edit)
-                            ~form-root-key])
-                        (when (and onChange (fn? onChange)) (onChange event))))}
+    (dom/select
+      {:name      field-name
+       :id        id
+       :className cls
+       :value     selection
+       :onChange  (fn [event]
+                    (let [value      (.. event -target -value)
+                          field-info {:form-id form-id
+                                      :field   field-name
+                                      :value   value}]
+                      (prim/transact! component
+                        `[(select-option ~field-info)
+                          ~@(get-on-form-change-mutation form field-name :edit)
+                          ~form-root-key])
+                      (when (and onChange (fn? onChange)) (onChange event))))}
       (when optional?
-        (dom/option #js {:value ::none} ""))
+        (dom/option {:value ::none} ""))
       (map (fn [{:keys [option/key option/label]}]
-             (dom/option #js {:key key :value key} label))
+             (dom/option {:key key :value key} label))
         options))))
 
 (defmethod form-field* ::checkbox [component form field-name & {:keys [id className] :as params}]
@@ -1073,23 +1074,23 @@
         field-id    (radio-button-id form field-name choice)
         current-val (current-value form field-name)]
     (dom/span nil
-      (dom/input #js
-          {:type      "radio"
-           :id        field-id
-           :name      field-name
-           :className cls
-           :value     (pr-str choice)
-           :checked   (= current-val choice)
-           :onChange  (fn [event]
-                        (let [value      (.. event -target -value)
-                              field-info {:form-id id
-                                          :field   field-name
-                                          :value   (reader/read-string value)}]
-                          (prim/transact! component
-                            `[(set-field ~field-info)
-                              ~@(get-on-form-change-mutation form field-name :edit)
-                              ~form-root-key])))})
-      (dom/label #js {:htmlFor field-id} label))))
+      (dom/input
+        {:type      "radio"
+         :id        field-id
+         :name      field-name
+         :className cls
+         :value     (pr-str choice)
+         :checked   (= current-val choice)
+         :onChange  (fn [event]
+                      (let [value      (.. event -target -value)
+                            field-info {:form-id id
+                                        :field   field-name
+                                        :value   (reader/read-string value)}]
+                        (prim/transact! component
+                          `[(set-field ~field-info)
+                            ~@(get-on-form-change-mutation form field-name :edit)
+                            ~form-root-key])))})
+      (dom/label {:htmlFor field-id} label))))
 
 (defmethod form-field* ::textarea [component form field-name & {:keys [id className] :as htmlProps}]
   (let [form-id (form-ident form)

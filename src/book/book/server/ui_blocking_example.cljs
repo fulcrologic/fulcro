@@ -59,14 +59,14 @@
       (do
         (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) " (Retrying...)"))
         (prim/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})]))))
-  (refresh [env] [:overlay])) ; we need this because the mutation runs outside of the context of a component
+  (refresh [env] [:overlay]))                               ; we need this because the mutation runs outside of the context of a component
 
-(defsc Root [this {:keys [ui/name ui/react-key overlay]}]
-  {:query         [:ui/react-key :ui/name {:overlay (prim/get-query BlockingOverlay)}]
+(defsc Root [this {:keys [ui/name overlay]}]
+  {:query         [:ui/name {:overlay (prim/get-query BlockingOverlay)}]
    :initial-state {:overlay {} :ui/name "Alicia"}}
-  (dom/div #js {:key react-key :style (clj->js {:width "400px" :height "100px"})}
+  (dom/div {:style {:width "400px" :height "100px"}}
     (ui-overlay overlay)
-    (dom/p nil "Name: " (dom/input #js {:value name}))
-    (dom/button #js {:onClick #(prim/ptransact! this `[(submit-form {}) (retry-or-hide-overlay {})])}
+    (dom/p "Name: " (dom/input {:value name}))
+    (dom/button {:onClick #(prim/ptransact! this `[(submit-form {}) (retry-or-hide-overlay {})])}
       "Submit")))
 

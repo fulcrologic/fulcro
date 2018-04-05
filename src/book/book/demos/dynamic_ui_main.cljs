@@ -11,7 +11,7 @@
   {:query         [r/dynamic-route-key :label :main-prop]
    :initial-state (fn [params] {r/dynamic-route-key :main :label "MAIN" :main-prop "main page data"})
    :ident         (fn [] [:main :singleton])}
-  (dom/div #js {:style #js {:backgroundColor "red"}}
+  (dom/div {:style {:backgroundColor "red"}}
     (str label " " main-prop)))
 
 (defmethod r/get-dynamic-router-target :main [k] Main)

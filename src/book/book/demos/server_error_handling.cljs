@@ -42,22 +42,22 @@
   {:initial-state (fn [p] {})
    :query         (fn [] [[:fulcro/server-error '_] :ui/button-disabled :fulcro/read-error])
    :ident         (fn [] [:error.child/by-id :singleton])}  ; lambda so we get a *literal* ident
-  (dom/div nil
+  (dom/div
     ;; declare a tx/fallback in the same transact call as the mutation
     ;; if the mutation fails, the fallback will be called
-    (dom/button #js {:onClick #(df/load this :data nil {:fallback `log-read-error})}
+    (dom/button {:onClick #(df/load this :data nil {:fallback `log-read-error})}
       "Click me to try a read with a fallback (logs to console)")
-    (dom/button #js {:onClick  #(prim/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
-                     :disabled button-disabled}
+    (dom/button {:onClick  #(prim/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
+                 :disabled button-disabled}
       "Click me for error (disables on error)!")
-    (dom/button #js {:onClick #(df/load-field this :fulcro/read-error)}
+    (dom/button {:onClick #(df/load-field this :fulcro/read-error)}
       "Click me for other error!")
-    (dom/div nil "Server error (root level): " (str server-error))))
+    (dom/div "Server error (root level): " (str server-error))))
 
 (def ui-child (prim/factory Child))
 
-(defsc Root [this {:keys [ui/react-key child] :or {ui/react-key "ROOT"}}]
+(defsc Root [this {:keys [child]}]
   {:initial-state (fn [params] {:child (prim/get-initial-state Child {})})
-   :query         [:ui/react-key {:child (prim/get-query Child)}]}
-  (dom/div #js {:key react-key} (ui-child child)))
+   :query         [{:child (prim/get-query Child)}]}
+  (dom/div (ui-child child)))
 

@@ -8,7 +8,7 @@
             [fulcro.client.mutations :as m]))
 
 (defsc Root [this props]
-  (dom/div nil "TODO"))
+  (dom/div "TODO"))
 
 (defsc FunctionRefTest [this props]
   ; create component-specific functions that will remain the same for the component lifetime, so we're not
@@ -21,11 +21,11 @@
   (let [focus (fn [evt]
                 (when-let [n (gobj/get this "input-field")]
                   (.focus n)))]
-    (dom/div nil
-      (dom/input #js {:value    (or (prim/get-state this :v) "")
-                      :onChange (gobj/get this "set-value")
-                      :ref      (gobj/get this "set-ref")})
-      (dom/button #js {:onClick focus} "Focus"))))
+    (dom/div
+      (dom/input {:value    (or (prim/get-state this :v) "")
+                  :onChange (gobj/get this "set-value")
+                  :ref      (gobj/get this "set-ref")})
+      (dom/button {:onClick focus} "Focus"))))
 
 (defsc StringRefTest [this props]
   {:componentWillMount (fn []
@@ -33,11 +33,11 @@
   (let [focus (fn [evt]
                 (let [n (dom/node this "input-field")]
                   (.focus n)))]
-    (dom/div nil
-      (dom/input #js {:value    (or (prim/get-state this :v) "")
-                      :onChange (gobj/get this "set-value")
-                      :ref      "input-field"})
-      (dom/button #js {:onClick focus} "Focus"))))
+    (dom/div
+      (dom/input {:value    (or (prim/get-state this :v) "")
+                  :onChange (gobj/get this "set-value")
+                  :ref      "input-field"})
+      (dom/button {:onClick focus} "Focus"))))
 
 (defcard-fulcro fn-ref-test-1
   "# Tests that we can find the DOM component via a function ref."

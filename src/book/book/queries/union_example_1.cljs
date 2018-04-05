@@ -1,11 +1,11 @@
 (ns book.queries.union-example-1
-(:require [fulcro.client.dom :as dom]
-  [fulcro.client.routing :as r :refer [defrouter]]
-  [fulcro.client.primitives :as prim :refer [defsc]]
-  [fulcro.client :as fc]
-  [fulcro.ui.bootstrap3 :as b]
-  [fulcro.ui.elements :as ele]
-  [fulcro.client.cards :refer [defcard-fulcro]]))
+  (:require [fulcro.client.dom :as dom]
+            [fulcro.client.routing :as r :refer [defrouter]]
+            [fulcro.client.primitives :as prim :refer [defsc]]
+            [fulcro.client :as fc]
+            [fulcro.ui.bootstrap3 :as b]
+            [fulcro.ui.elements :as ele]
+            [fulcro.client.cards :refer [defcard-fulcro]]))
 
 (defn item-ident
   "Generate an ident from a person, place, or thing."
@@ -26,7 +26,7 @@
   {:ident         (fn [] (item-ident props))
    :query         [:kind :db/id :person/name]
    :initial-state {:db/id :no-selection :kind :person/by-id}}
-  (dom/div nil
+  (dom/div
     (if (= id :no-selection)
       "Nothing selected"
       (str "Details about person " name))))
@@ -35,7 +35,7 @@
   {:ident         (fn [] (item-ident props))
    :query         [:kind :db/id :place/name]
    :initial-state {:db/id :no-selection :kind :place/by-id}}
-  (dom/div nil
+  (dom/div
     (if (= id :no-selection)
       "Nothing selected"
       (str "Details about place " name))))
@@ -44,7 +44,7 @@
   {:ident         (fn [] (item-ident props))
    :query         [:kind :db/id :thing/label]
    :initial-state {:db/id :no-selection :kind :thing/by-id}}
-  (dom/div nil
+  (dom/div
     (if (= id :no-selection)
       "Nothing selected"
       (str "Details about thing " label))))
@@ -54,24 +54,24 @@
                        {:keys [onSelect] :as computed}]
   {:ident (fn [] (item-ident props))
    :query [:kind :db/id :person/name]}
-  (dom/li #js {:onClick #(onSelect (item-ident props))}
-    (dom/a #js {:href "javascript:void(0)"} (str "Person " id " " name))))
+  (dom/li {:onClick #(onSelect (item-ident props))}
+    (dom/a {:href "javascript:void(0)"} (str "Person " id " " name))))
 
 (def ui-person (prim/factory PersonListItem {:keyfn item-key}))
 
 (defsc PlaceListItem [this {:keys [db/id place/name] :as props} {:keys [onSelect] :as computed}]
   {:ident (fn [] (item-ident props))
    :query [:kind :db/id :place/name]}
-  (dom/li #js {:onClick #(onSelect (item-ident props))}
-    (dom/a #js {:href "javascript:void(0)"} (str "Place " id " : " name))))
+  (dom/li {:onClick #(onSelect (item-ident props))}
+    (dom/a {:href "javascript:void(0)"} (str "Place " id " : " name))))
 
 (def ui-place (prim/factory PlaceListItem {:keyfn item-key}))
 
 (defsc ThingListItem [this {:keys [db/id thing/label] :as props} {:keys [onSelect] :as computed}]
   {:ident (fn [] (item-ident props))
    :query [:kind :db/id :thing/label]}
-  (dom/li #js {:onClick #(onSelect (item-ident props))}
-    (dom/a #js {:href "javascript:void(0)"} (str "Thing " id " : " label))))
+  (dom/li {:onClick #(onSelect (item-ident props))}
+    (dom/a {:href "javascript:void(0)"} (str "Thing " id " : " label))))
 
 (def ui-thing (prim/factory ThingListItem item-key))
 
@@ -107,7 +107,7 @@
                              (make-place 6 "Canada")]})
    :ident         (fn [] [:lists/by-id :singleton])
    :query         [{:items (prim/get-query ItemUnion)}]}
-  (dom/ul nil
+  (dom/ul
     (map (fn [i] (ui-item-union (prim/computed i {:onSelect onSelect}))) items)))
 
 (def ui-item-list (prim/factory ItemList))
@@ -125,9 +125,9 @@
                      (prim/transact! this `[(r/route-to {:handler :detail :route-params {:kind ~kind :id ~id}})]))]
     ; devcards, embed in iframe so we can use bootstrap css easily
     (ele/ui-iframe {:frameBorder 0 :height "300px" :width "100%"}
-      (dom/div #js {:key "example-frame-key"}
-        (dom/style nil ".boxed {border: 1px solid black}")
-        (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+      (dom/div {:key "example-frame-key"}
+        (dom/style ".boxed {border: 1px solid black}")
+        (dom/link {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
         (b/container-fluid {}
           (b/row {}
             (b/col {:xs 6} "Items")

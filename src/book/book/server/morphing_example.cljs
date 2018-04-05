@@ -28,16 +28,16 @@
 (defsc ToolbarItem [this {:keys [item/name]}]
   {:query [:db/id :item/name]
    :ident [:items/by-id :db/id]}
-  (dom/li nil name))
+  (dom/li name))
 
 (def ui-toolbar-item (prim/factory ToolbarItem {:keyfn :db/id}))
 
 (defsc ToolbarCategory [this {:keys [category/name category/items]}]
   {:query [:db/id :category/name {:category/items (prim/get-query ToolbarItem)}]
    :ident [:categories/by-id :db/id]}
-  (dom/li nil
+  (dom/li
     name
-    (dom/ul nil
+    (dom/ul
       (map ui-toolbar-item items))))
 
 (def ui-toolbar-category (prim/factory ToolbarCategory {:keyfn :db/id}))
@@ -70,10 +70,10 @@
 
 (defsc Toolbar [this {:keys [toolbar/categories]}]
   {:query [{:toolbar/categories (prim/get-query ToolbarCategory)}]}
-  (dom/div nil
-    (dom/button #js {:onClick #(prim/transact! this `[(group-items {})])} "Trigger Post Mutation")
-    (dom/button #js {:onClick #(prim/transact! this `[(group-items-reset {})])} "Reset")
-    (dom/ul nil
+  (dom/div
+    (dom/button {:onClick #(prim/transact! this `[(group-items {})])} "Trigger Post Mutation")
+    (dom/button {:onClick #(prim/transact! this `[(group-items-reset {})])} "Reset")
+    (dom/ul
       (map ui-toolbar-category categories))))
 
 (defexample "Morphing Data" Toolbar "morphing-example" :initial-state (atom (prim/tree->db component-query sample-server-response true)))
