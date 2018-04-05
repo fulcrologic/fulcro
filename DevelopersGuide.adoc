@@ -233,7 +233,7 @@ check-all is just the conjunction of it's children's `:checked?`:
 
 ```
 (let [all-checked (every? :checked? (get state :items)]
-   (dom/input #js {:checked all-checked}))
+   (dom/input {:checked all-checked}))
 ```
 
 The check-all button would have *no application state at all*, and React will
@@ -492,8 +492,8 @@ optimal performance, since React wants to consume Javascript data):
 
 ...
 
-(dom/div #js { :className "some-class" }
-  (dom/ul nil
+(dom/div { :className "some-class" }
+  (dom/ul
     (dom/li ...)))
 ```
 
@@ -507,8 +507,8 @@ and more. The example from the text can be written:
   (:require [fulcro.client.alpha.dom :as dom]))
 
 ...
-(dom/div :.some-class    ; instead of (dom/div #js {:className "some-class"}
-  (dom/ul                ; instead of   (dom/ul nil
+(dom/div :.some-class    ; instead of (dom/div {:className "some-class"}
+  (dom/ul                ; instead of   (dom/ul
     (dom/li ...)))
 -----
 
@@ -524,8 +524,8 @@ re-usable nested DOM:
 
 ```
 (defn my-header []
-  (dom/div #js { :className "some-class" }
-    (dom/ul nil
+  (dom/div { :className "some-class" }
+    (dom/ul
       (dom/li ...))))
 ```
 
@@ -533,21 +533,12 @@ re-usable nested DOM:
 
 Here are some common things you'll want to know how to do that are different when rendering with Fulcro:
 
-* Inline styles are specified with JS maps `(dom/p #js { :style #js {:backgroundColor "rgb(120,33,41)"} } ...)`.
-** `#js` is a reader tag. The reader is the thing that reads your source code, and it is configurable. This one
-tells the reader how to turn the map into a js object.
 ** `dom/p` is a function for generating p tags for use in React componenets. There is one of these for every legal HTML tag.
-* See the new <<AlphaDOM, fulcro.client.alpha.dom>>, which is as concise as Sablano, and performs well.
-people prefer how it reads.
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
 * Any time a VDOM includes a collection of elements they should each have a unique `:key`
 attribute. This helps the React diff figure out how that collection has changed. You will
 get warnings in the browser console if you fail to do so.
-* You can run-time convert cljs data structures (recursively) to js types with `(clj->js {:x {y 1}})`.
-The `#js` tag causes the *compiler* to output a Javascript
-data structure (it is *not* a conversion, nor is it recursive). Thus `#js` has no runtime overhead,
-but `clj->js` can convert dynamic things on the fly at runtime.
 
 == The Reconciler [[Reconciler]]
 
@@ -630,7 +621,7 @@ The primary argument list contains the common elements you might need to use in 
 ```
 (defsc [this props <optional-computed> <optional-css-map-if-using-css>]
  { ...options... }
- (dom/div #js {:onClick (:onClick computed)} (:db/id props)))
+ (dom/div {:onClick (:onClick computed)} (:db/id props)))
 ```
 
 The last parameter will let you destructure fulcro-css names, if and only if you're using the Fulcro CSS library.
@@ -640,7 +631,7 @@ Only the first two parameters are required, so you can even write:
 ```
 (defsc [this props]
  { ...options... }
- (dom/div nil (:db/id props)))
+ (dom/div (:db/id props)))
 ```
 
 ==== Argument Destructuring
@@ -656,7 +647,7 @@ separate let:
   {:query         [:db/id]
    :initial-state {:db/id 22}
    :css           [[:.my-css-class {:color :black}]]}
-  (dom/div #js {:className my-css-class}
+  (dom/div {:className my-css-class}
     (str "Component: " id)))
 ```
 
@@ -859,7 +850,7 @@ Here is an example of adding Fulcro CSS using protocols instead of options:
                 (local-rules [_] [])
                 (include-children [_] []))
     ...}
-   (dom/div nil ...))
+   (dom/div ...))
 ```
 
 This gives you the full protocol capabilities of `defui`, but you only need the extra protocol additions when you
@@ -933,9 +924,9 @@ easily become out of sync and lead to more complex logic.
 (defsc Checkboxes [this {:keys [items]}]
   {:query [{:items (prim/get-query CheckboxItem)}]}
   (let [all-checked? (every item-checked? items)]
-    (dom/div nil
-      "All: " (dom/input #js {:checked all-checked? ...})
-    (dom/ul nil ...))))
+    (dom/div
+      "All: " (dom/input {:checked all-checked? ...})
+    (dom/ul ...))))
 ```
 
 ==== General Guidelines for Derived Values
@@ -1028,7 +1019,7 @@ So, say you wanted to create the following kind of rendering scheme:
 (ui-panel {}
   (ui-panel-header {} "Some Heading Text")
   (ui-panel-body {}
-     (dom/div nil "Some sub-DOM")))
+     (dom/div "Some sub-DOM")))
 ```
 
 The DOM generation for `Panel` will need to find the header and body children:
@@ -1039,9 +1030,9 @@ The DOM generation for `Panel` will need to find the header and body children:
         header (util/first-node PanelHeader children)
         body (util/first-node PanelBody children)]
     (when header
-      (dom/h4 nil header))
+      (dom/h4 header))
     (when body
-      (dom/div nil body))))
+      (dom/div body))))
 ```
 
 Basically, the child or children can simply be dropped into the place where they should be rendered.
@@ -1071,7 +1062,7 @@ should be shown/hidden. The actual DOM elements of those children are immaterial
   {:initial-state (fn [p] {:collapse-1 (prim/get-initial-state b/Collapse {:id 1 :start-open false})})
    :query [{:collapse-1 (prim/get-query b/Collapse)}
            {:child (prim/get-query SomeChild)}]}
-  (dom/div nil
+  (dom/div
     (b/button {:onClick (fn [] (prim/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
     (b/ui-collapse collapse-1
       (ui-child child))))
@@ -1321,7 +1312,7 @@ libraries):
   {:query         [:ui/slid? {:block (prim/get-query Block)}]
    :initial-state {:ui/slid? false :block {:id 1 :name "N"}}
    :ident         (fn [] [:control :demo])}
-  (dom/div nil
+  (dom/div
     (dom/button {:onClick (fn [] (m/toggle! this :ui/slid?))} "Toggle")
     (ui-motion (clj->js {:style {"x" (spring (if slid? 400 0))}})
       (fn [p]
@@ -1400,8 +1391,8 @@ A typical file will have the following layout:
   {:css [[:.items-wrapper {:background-color "blue"}]] ; this component's css
    :css-include [ListItem]} ; components whose CSS should be included if this component is included
   (dom/div {:className items-wrapper}
-    (dom/h2 nil (str "List " id))
-    (dom/ul nil (map ui-list-item items))))
+    (dom/h2 (str "List " id))
+    (dom/ul (map ui-list-item items))))
 
 (def ui-list (om/factory ListComponent {:keyfn :id}))
 
@@ -1964,7 +1955,7 @@ is roughly this (cleaned up from macro output):
      :person/by-id ((prim/factory PersonDetail) (prim/props this))
      :place/by-id ((prim/factory PlaceDetail) (prim/props this))
      :thing/by-id ((prim/factory ThingDetail) (prim/props this))
-     (dom/div nil (str "Cannot route: Unknown Screen " page))))
+     (dom/div (str "Cannot route: Unknown Screen " page))))
 
 (defsc ItemDetail [this props]
   {:initial-state (fn [params] {:fulcro.client.routing/id :detail-router
@@ -2722,7 +2713,7 @@ broken (because you didn't know a component needed refresh).
 ```
 (defsc Right [this {:keys [db/id right/value]}]
   {:query         [:db/id :right/value]}
-  (dom/div nil
+  (dom/div
     ; needs a follow-on read because it is updating something that is queried elsewhere...
     (dom/button {:onClick #(prim/transact! this `[(ping-left {}) :left/value])} "Ping Left")
     value))
@@ -2753,7 +2744,7 @@ The UI can then drop the follow-on reads:
 ```
 (defsc Right [this {:keys [db/id right/value]}]
   {:query         [:db/id :right/value] }
-  (dom/div nil
+  (dom/div
     ; no longer need the :left/value as a follow-on read
     (dom/button {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
     value))
@@ -4157,9 +4148,9 @@ You can access this marker from any component that composes to root by including
   {:query [:id :title {:items (prim/get-query Item)} [:ui/loading-data '_]]}
   ...
   (if (and loading-data (empty? items))
-    (dom/div nil "Loading...")
-    (dom/div nil
-      (dom/h1 nil title)
+    (dom/div "Loading...")
+    (dom/div
+      (dom/h1 title)
       (map ui-item items))))
 ```
 
@@ -4614,7 +4605,7 @@ Let's look at an example of a standard load. Say you want to load a list of peop
 (defsc PeopleList [this {:keys [people]}]
   {:query [:db/id :list-title {:people (prim/get-query Person}]
    :ident [:people-list/by-id :db/id]}
-   (dom/div nil
+   (dom/div
      (if (seq people)
        (dom/button {:onClick #(df/load-field this :people)} "Load People")
        (map ui-person people))))
@@ -4739,7 +4730,7 @@ of `:without` on the query:
 (defsc Blog [this props]
   {:ident  [:blog/by-id :db/id]
    :query  [:db/id :blog/title {:blog/content (prim/get-query BlogContent)} {:blog/comments (prim/get-query BlogComment)}]}
-  (dom/div nil
+  (dom/div
      ...
      (dom/button {:onClick #(load-field this :blog/comments)} "Show Comments")
      ...)))
@@ -4996,7 +4987,7 @@ check the result and run whatever in response to it.
    :initial-state {:overlay {} :ui/name "Alicia"}}
   (dom/div {:style (clj->js {:width "400px" :height "100px"})}
     (ui-overlay overlay)
-    (dom/p nil "Name: " (dom/input #js {:value name}))
+    (dom/p "Name: " (dom/input {:value name}))
     (dom/button {:onClick #(prim/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
       "Submit")))
 ```
@@ -6524,7 +6515,7 @@ what validator you're using.
    ...
    (dom/input { :value name :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
    (when (fs/invalid-spec? props :person/name)
-      (dom/span nil "Invalid username!")
+      (dom/span "Invalid username!")
    ...)
 ```
 
@@ -6611,7 +6602,7 @@ For example, you might want to make a simple new user form validation that looks
    ...
    (dom/input {:name "password-2" :value password-2 :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
    (when (= :invalid (validator props :password-2))
-      (dom/span nil "Passwords do not match!")
+      (dom/span "Passwords do not match!")
    ...)
 ```
 
@@ -7237,7 +7228,7 @@ appearing on fields until you're actually ready to validate them:
 
 ```
 ;; only emits if the field is actually marked :invalid (not :unchecked)
-(when (invalid? this-form :field) (dom/span nil "Invalid!"))
+(when (invalid? this-form :field) (dom/span "Invalid!"))
 
 ;; Disables submit button unless all fields are marked `:valid` (none are :unchecked or :invalid)
 (dom/button {:disabled (not (valid? form)) :onClick submit} "Submit!")
@@ -8300,7 +8291,7 @@ Something like this is close:
                                    js-file (with-meta {} {:js-file (.item js-file-list file-idx)})]
                                `(upload-file ~{:id fid :file js-file})))
                        (range (.-length js-file-list))))))]
-  (dom/input #js {:multiple true :onChange onChange}))
+  (dom/input {:multiple true :onChange onChange}))
 ```
 
 The server for this would need middleware watching for file uploads at `/file-uploads`, that
@@ -8986,7 +8977,7 @@ own and invoke the `change-locale` mutation, but the pre-written one can be used
                                                    {:locales [(prim/get-initial-state Locale {:locale :en :name "English"})
                                                               (prim/get-initial-state Locale {:locale :es :name "Espanol"})
                                                               (prim/get-initial-state Locale {:locale :de :name "Deutsch"})]}}}
-  (dom/div nil
+  (dom/div
     (i18n/ui-locale-selector locale-selector)
     ...))
 ```
@@ -9501,8 +9492,8 @@ Here's a quick function that can be used within a card to wrap UI that wants to 
 ```
 (defn render-example [width height & children]
   (ele/ui-iframe {:frameBorder 0 :height height :width width}
-    (apply dom/div #js {:key "example-frame-key"}
-      (dom/link #js {:rel "stylesheet" :href "/css/bootstrap.min.css"})
+    (apply dom/div {:key "example-frame-key"}
+      (dom/link {:rel "stylesheet" :href "/css/bootstrap.min.css"})
       children)))
 ```
 
@@ -9512,8 +9503,8 @@ this function can then be used to put a pre-sized iframe into a component like s
 (defsc NavRoot [this props]
   { :query         [:boo]}
   (render-example "100%" "150px"
-    (dom/div #js { :className "row" }
-      (dom/div #js {:className "col-md-1"}
+    (dom/div { :className "row" }
+      (dom/div {:className "col-md-1"}
          ...))))
 ```
 
@@ -9634,7 +9625,7 @@ The `defsc` and `defmethod` needed for step 2 look like this:
   {:initial-state (fn [params] {r/dynamic-route-key :main :label "MAIN"})
    :ident (fn [] [:main :singleton])
    :query [r/dynamic-route-key :label]}
-  (dom/div #js {:style #js {:backgroundColor "red"}}
+  (dom/div {:style {:backgroundColor "red"}}
         label))
 
 (defmethod r/get-dynamic-router-target :main [k] Main)
@@ -9798,7 +9789,7 @@ Some general tips to start with in React are:
 1. Make sure your components have a *stable* react key. If the key changes, React will ignore the diff and redo the DOM. This is *very* slow. So,
 if you've generated keys using something like random numbers just to get warnings to go away, then you're asking for trouble.
 2. You're generally better off changing classes than DOM structure. For example, having a `(when render? (dom/div ...))` will cause entire
-sections to be inserted and removed from the DOM. Using a class is much more efficient: `(dom/div #js {:className (str "" (when-not render? " hidden"))} ...)`.
+sections to be inserted and removed from the DOM. Using a class is much more efficient: `(dom/div {:className (str "" (when-not render? " hidden"))} ...)`.
 3. Large DOM. React is pretty good with eliminating unnecessary changes, but that is still no reason to try to render a table with 1000's of rows. Paginate.
 
 
@@ -10393,16 +10384,16 @@ also demonstrates how one goes about triggering loads of data that some screen m
 If you look at the source for the root component you'll see two buttons with transactions on their click handlers.
 
 ```
-(defsc Root [this {:keys [ui/react-key current-tab] :as props}]
+(defsc Root [this {:keys [current-tab] :as props}]
   ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the
   ; app state graph database.
   {:initial-state (fn [params] {:ui/react-key "initial" :current-tab (prim/get-initial-state UITabs nil)})
-   :query         [:ui/react-key {:current-tab (prim/get-query UITabs)}]}
-  (dom/div #js {:key react-key}
+   :query         [{:current-tab (prim/get-query UITabs)}]}
+  (dom/div
     ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
     ; ensure proper re-render of the tab body). See prim/computed for passing callbacks.
-    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
-    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
+    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
+    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
                                                       ; extra mutation: sample of what you would do to lazy load the tab content
                                                       (lazy-load-tab {:tab :settings})])} "Settings")
     (ui-tabs current-tab)))
@@ -10462,7 +10453,7 @@ We represent the list items as you might expect:
 (defsc ListItem [this {:keys [item/id]}]
   {:query [:item/id :ui/fetch-state]
    :ident [:items/by-id :item/id]}
-  (dom/li nil (str "Item " id)))
+  (dom/li (str "Item " id)))
 ```
 
 We then generate a component to represent a page of them. This allows us to associate the items on a page with
@@ -10473,9 +10464,9 @@ a particular component, which makes tracking the page number and items on that p
   {:initial-state {:page/number 1 :page/items []}
    :query         [:page/number {:page/items (prim/get-query ListItem)}]
    :ident         [:page/by-number :page/number]}
-  (dom/div nil
-    (dom/p nil "Page number " number)
-    (df/lazily-loaded #(dom/ul nil (mapv ui-list-item %)) items)))
+  (dom/div
+    (dom/p "Page number " number)
+    (df/lazily-loaded #(dom/ul (mapv ui-list-item %)) items)))
 ```
 
 Next we build a component named `LargeList` to control which page we're on. This component does nothing more than
@@ -10488,10 +10479,10 @@ to jump to any page, since the mutation itself is `goto-page`.
    :query         [{:list/current-page (prim/get-query ListPage)}]
    :ident         (fn [] [:list/by-id 1])}
   (let [{:keys [page/number]} current-page]
-    (dom/div nil
-      (dom/button #js {:disabled (= 1 number)
+    (dom/div
+      (dom/button {:disabled (= 1 number)
         :onClick #(prim/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
-      (dom/button #js {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])}
+      (dom/button {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])}
         "Next Page")
       (ui-list-page current-page))))
 ```
@@ -10872,16 +10863,16 @@ The complete source for this demo is:
 (defsc Settings [this {:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]}]
   {:query [:db/id :settings/auto-open? :settings/keyboard-shortcuts?]
    :ident [:settings/by-id :db/id]}
-  (dom/ul nil
-    (dom/li nil (str "Auto open? " auto-open?))
-    (dom/li nil (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))
+  (dom/ul
+    (dom/li (str "Auto open? " auto-open?))
+    (dom/li (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))
 
 (def ui-settings (prim/factory Settings {:keyfn :db/id}))
 
 (defsc Member [this {:keys [db/id member/name]}]
   {:query [:db/id :member/name]
    :ident [:member/by-id :db/id]}
-  (dom/div nil
+  (dom/div
     "Member: " name))
 
 (def ui-member (prim/factory Member {:keyfn :db/id}))
@@ -10889,23 +10880,23 @@ The complete source for this demo is:
 (defsc Account [this {:keys [db/id account/name account/members account/settings]}]
   {:query [:db/id :account/name {:account/members (prim/get-query Member)} {:account/settings (prim/get-query Settings)}]
    :ident [:account/by-id :db/id]}
-  (dom/div nil
-    (dom/h3 nil (str "Account for " name))
-    (dom/ul nil
+  (dom/div
+    (dom/h3 (str "Account for " name))
+    (dom/ul
       (when (seq settings)
-        (dom/li nil
-          (dom/h3 nil "Settings")
+        (dom/li
+          (dom/h3 "Settings")
           (ui-settings settings)))
-      (dom/li nil
-        (dom/h3 nil "Members in the account")
+      (dom/li
+        (dom/h3 "Members in the account")
         (map ui-member members)))))
 
 (def ui-account (prim/factory Account {:keyfn :db/id}))
 
 (defsc Root [this {:keys [ui/react-key accounts]}]
   {:query [:ui/react-key {:accounts (prim/get-query Account)}]}
-  (dom/div #js {:key react-key}
-    (dom/h3 nil "Accounts with settings and users")
+  (dom/div {:key react-key}
+    (dom/h3 "Accounts with settings and users")
     (map ui-account accounts)))
 
 #?(:cljs (defonce app (atom (fc/new-fulcro-client :started-callback
