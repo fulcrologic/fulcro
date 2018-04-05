@@ -774,9 +774,9 @@ that you can use to deconstruct them:
                                    [(prim/get-initial-state Person {:name "Fred" :age 11})
                                     (prim/get-initial-state Person {:name "Bobby" :age 55})])})}
   (let [delete-person (fn [name] (println label "asked to delete" name))] ; <1>
-    (dom/div nil
-      (dom/h4 nil label)
-      (dom/ul nil
+    (dom/div
+      (dom/h4 label)
+      (dom/ul
         (map (fn [p] (ui-person (prim/computed p {:onDelete delete-person}))) people))))) ; <1>
 ```
 
@@ -1009,8 +1009,8 @@ The program will now look like this:
   {:query         [:db/id :person/name :person/age] ; <2>
    :ident         [:person/by-id :db/id] ; <1>
    :initial-state (fn [{:keys [id name age]}] {:db/id id :person/name name :person/age age})} ; <3>
-  (dom/li nil
-    (dom/h5 nil name (str "(age: " age ")") (dom/button {:onClick #(onDelete id)} "X")))) ; <4>
+  (dom/li
+    (dom/h5 (str name " (age: " age ")") (dom/button {:onClick #(onDelete id)} "X")))) ; <4>
 
 (def ui-person (prim/factory Person {:keyfn :person/name}))
 
@@ -1027,9 +1027,9 @@ The program will now look like this:
                                    [(prim/get-initial-state Person {:id 3 :name "Fred" :age 11})
                                     (prim/get-initial-state Person {:id 4 :name "Bobby" :age 55})])})}
   (let [delete-person (fn [person-id] (prim/transact! this `[(api/delete-person {:list-id ~id :person-id ~person-id})]))] ; <4>
-    (dom/div nil
-      (dom/h4 nil label)
-      (dom/ul nil
+    (dom/div
+      (dom/h4 label)
+      (dom/ul
         (map (fn [p] (ui-person (prim/computed p {:onDelete delete-person}))) people)))))
 
 (def ui-person-list (prim/factory PersonList))
@@ -1569,7 +1569,7 @@ We'll just use it on the Root UI node, where we don't need to "jump to the top":
    :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
                                 :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
   (dom/div
-    (dom/h4 nil (str "Current User: " (:person/name current-user))) ; <3>
+    (dom/h4 (str "Current User: " (:person/name current-user))) ; <3>
     (ui-person-list friends)
     (ui-person-list enemies)))
 ```
@@ -1727,7 +1727,7 @@ Let's embed that into our UI at the root:
    :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
                                 :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
   (dom/div
-    (dom/h4 nil (str "Current User: " (:person/name current-user)))
+    (dom/h4 (str "Current User: " (:person/name current-user)))
     ; NEW BUTTON HERE:
     (dom/button {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh Person with ID 3")
     (ui-person-list friends)
@@ -1770,8 +1770,8 @@ So, say we wanted a refresh button on each person. We could leverage `df/refresh
   {:query         [:db/id :person/name :person/age]
    :ident         [:person/by-id :db/id]
    :initial-state (fn [{:keys [id name age]}] {:db/id id :person/name name :person/age age})}
-  (dom/li nil
-    (dom/h5 nil name (str "(age: " age ")")
+  (dom/li
+    (dom/h5 (str name " (age: " age ")")
       (dom/button {:onClick #(onDelete id)} "X")
       (dom/button {:onClick #(df/refresh! this)} "Refresh")))) ; ADD THIS
 ```
@@ -1892,9 +1892,9 @@ a very simple UI we can add to our program:
 (defsc Post [this {:keys [post/title post/body]}]           ; <1>
   {:ident [:posts/by-id :db/id]
    :query [:db/id :post/user-id :post/body :post/title]}
-  (dom/div nil
-    (dom/h4 nil title)
-    (dom/p nil body)))
+  (dom/div
+    (dom/h4 title)
+    (dom/p body)))
 
 (def ui-post (prim/factory Post {:keyfn :db/id}))
 
@@ -1902,7 +1902,7 @@ a very simple UI we can add to our program:
   {:initial-state {:posts []}
    :ident         (fn [] [:post-list/by-id :the-one])
    :query         [{:posts (prim/get-query Post)}]}
-  (dom/ul nil
+  (dom/ul
     (map ui-post posts)))
 
 (def ui-posts (prim/factory Posts))
@@ -1920,11 +1920,11 @@ a very simple UI we can add to our program:
                                 :friends    (prim/get-initial-state PersonList {:id :friends :label "Friends"})
                                 :enemies    (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
   (dom/div
-    (dom/h4 nil (str "Current User: " (:person/name current-user)))
+    (dom/h4 (str "Current User: " (:person/name current-user)))
     (dom/button {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh User with ID 3")
     (ui-person-list friends)
     (ui-person-list enemies)
-    (dom/h4 nil "Blog Posts")                               ; <6>
+    (dom/h4 "Blog Posts")                               ; <6>
     (ui-posts blog-posts)))
 ```
 <1> A component to represent the post itself
