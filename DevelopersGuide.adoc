@@ -483,8 +483,7 @@ These stand-ins (commonly referred to as the virtual DOM or VDOM)
 are ultimately what React uses to generate, diff, and update the real DOM.
 
 So, there are functions for every possible HTML5 element. These are in the
-`fulcro.client.dom` namespace, and take a Javascript map for attributes (this gives
-optimal performance, since React wants to consume Javascript data):
+`fulcro.client.dom` namespace.
 
 ```
 (ns app.ui
@@ -492,28 +491,22 @@ optimal performance, since React wants to consume Javascript data):
 
 ...
 
-(dom/div { :className "some-class" }
-  (dom/ul
+(dom/div :.some-class
+  (dom/ul {:style {:color :red}}
     (dom/li ...)))
 ```
 
-.NEW! DOM Improved Syntax
-********************************************************************************
-Version 2.4.0 includes a new DOM namespace that allows for optional parameters, Hiccup-style classes,
-and more. The example from the text can be written:
+WARNING: Fulcro 2.4 and below required you to specify props as a `#js` map or nil.
 
------
-(ns app.ui
-  (:require [fulcro.client.alpha.dom :as dom]))
+The notation allowed is as follows:
 
-...
-(dom/div :.some-class    ; instead of (dom/div {:className "some-class"}
-  (dom/ul                ; instead of   (dom/ul
-    (dom/li ...)))
------
-
-See <<AlphaDOM, this section>> for more details.
-********************************************************************************
+```
+(dom/div "Hello") ; no props
+(dom/div nil "Hello") ; nil props (may perform slightly better)
+(dom/div #js {:data-x 1} ...) ; js objects are allowed
+(dom/div :.cls.cls2#id ...) ; shorthand for specifying static classes and ID
+(dom/div :.cls {:data-x 2} "Ho") ; shorthand + props
+```
 
 Remember that this (nested) call of functions results in a representation (VDOM) of
 what you'd like to end up on the screen.
@@ -524,7 +517,7 @@ re-usable nested DOM:
 
 ```
 (defn my-header []
-  (dom/div { :className "some-class" }
+  (dom/div :.some-class
     (dom/ul
       (dom/li ...))))
 ```
@@ -1366,7 +1359,7 @@ the CSS rules from some top-level component will dedupe any inclusions before ge
 . Use one of many options to get the "munged" classnames for use in your code:
 ** `(fulcro-css.css/get-classnames Componenet)` returns a map of namespaced CSS classes keyed by the simple name you used in your garden rules.
 ** The 4th argument to `defsc` is that same map, on which you can apply destructuring to get the munged class names.
-** Use `fulcro.client.alpha.localized-dom` for DOM rendering, and have it all automatically done for you!
+** Use `fulcro.client.localized-dom` for DOM rendering, and have it all automatically done for you!
 . Use the `fulcro-css.css/upsert-css` or `fulcro-css.css/style-element` function (or your own style element) to embed the CSS.
 
 A typical file will have the following layout:
@@ -1515,8 +1508,8 @@ You can use the raw string in generated HTML, or use the server-compatible DOM f
 == CSS Localized DOM [[LocalizedDOM]]
 
 If you choose to add localized CSS rules to your components, then you will probably also
-want to use the DOM elements that support it natively. The `fulcro.client.alpha.localized-dom`
-uses the same more compact notation mentioned in <<AlphaDOM, the new DOM (alpha)>>, but
+want to use the DOM elements that support it natively. The `fulcro.client.localized-dom`
+uses the same more compact notation of dom, but
 it interprets the CSS keywords in the *context* of the component! This means that you can
 use localized CSS without having to destructure the munged names at all.
 
@@ -1531,11 +1524,11 @@ use localized CSS without having to destructure the munged names at all.
   (dom/div {:className a} "Hi!))
 ```
 
-you can instead write (note the different require):
+you can instead write (note the different require for DOM):
 
 ```
 (ns app.ui
-  (:require [fulcro.client.alpha.localized-dom :as dom]))
+  (:require [fulcro.client.localized-dom :as dom]))
 
 (defsc Component [this props]
   {:css [[:.a {:color :red}]]}
@@ -1580,13 +1573,13 @@ include::src/book/book/demos/localized_dom.cljs[]
 
 === Localized DOM and Server-Side Rendering
 
-There is a `fulcro.client.alpha.localized-dom-server` namespace that provides the CLJ versions of the DOM functions. In
+There is a `fulcro.client.localized-dom-server` namespace that provides the CLJ versions of the DOM functions. In
 order to write UI in CLJC files you will need to make sure you use a conditional reader tag to include the
 correct namespace for the correct langauge:
 
 ```
 (ns app.ui
-  (:require #?(:clj [fulcro.client.alpha.localized-dom-server :as dom] :cljs [fulcro.client.alpha.localized-dom :as dom]))
+  (:require #?(:clj [fulcro.client.localized-dom-server :as dom] :cljs [fulcro.client.localized-dom :as dom]))
 
 ... same as before
 ```
@@ -8990,7 +8983,7 @@ as easy to hard-code them.
 Each locale must be given a name (UTF8) to be show in the resulting select drop-down. This renders
 as an HTML select with the CSS class "fulcro$i18n$locale_selector".
 
-See also `src/cards/fulcro/democards/i18n_alpha_cards.cljs` in the main Fulcro source.
+See also `src/cards/fulcro/democards/i18n_cards.cljs` in the main Fulcro source.
 
 == Server-Side Rendering
 
