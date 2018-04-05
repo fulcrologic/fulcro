@@ -27,7 +27,7 @@
                  [com.taoensso/sente "1.12.0" :scope "provided"]
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.1.0-SNAPSHOT" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "2.1.0-1" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.10" :scope "test"]
                  [com.ibm.icu/icu4j "60.2" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
