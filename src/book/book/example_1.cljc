@@ -1,7 +1,8 @@
 (ns book.example-1
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.mutations :refer [defmutation]]
-            [fulcro.client.dom :as dom]))
+            #?(:cljs [fulcro.client.dom :as dom]
+               :clj [fulcro.client.dom-server :as dom])))
 
 (defmutation bump-number [ignored]
   (action [{:keys [state]}]

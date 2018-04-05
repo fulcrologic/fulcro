@@ -446,7 +446,7 @@
   (start [this] this))
 
 (defn make-fulcro-network
-  "DERECATED: Use `make-fulcro-remote` instead.
+  "DERECATED: Use `fulcro-http-remote` instead.
 
   Build a Fulcro Network object using the default implementation.
 

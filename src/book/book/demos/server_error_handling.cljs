@@ -1,7 +1,6 @@
 (ns book.demos.server-error-handling
   (:require
     [fulcro.client :as fc]
-    [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]

@@ -1,8 +1,6 @@
 (ns book.demos.parallel-vs-sequential-loading
   (:require
-    yahoo.intl-messageformat-with-locales
     [fulcro.server :refer [defquery-root defquery-entity defmutation]]
-    [fulcro.i18n :refer [tr trf]]
     [fulcro.client.data-fetch :as df]
     [fulcro.client.dom :as dom]
     [fulcro.client.primitives :as prim :refer [defsc]]))

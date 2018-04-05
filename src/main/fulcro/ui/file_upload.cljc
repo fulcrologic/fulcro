@@ -4,7 +4,8 @@
     [com.stuartsierra.component :as component]
     [cognitect.transit :as ct]
     #?(:cljs [goog.events :as events])
-    [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.transit :as t]
     [fulcro.client :as fc]

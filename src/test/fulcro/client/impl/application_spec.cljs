@@ -74,47 +74,6 @@
       (-> (reconciler-with-config {:parser identity}) :parser)
       =fn=> #(not= % identity))))
 
-(specification "Server-side rendering of locale"
-  (let [state             {:ui/locale :es}
-        unmounted-app     (fc/new-fulcro-client
-                            :initial-state state
-                            :network-error-callback (fn [state _] (get-in @state [:thing/by-id 1])))
-        app               (fc/mount unmounted-app Root "application-mount-point")
-        mounted-app-state (prim/app-state (:reconciler app))]
-
-    (assertions
-      "is honored by the client"
-      @i18n/*current-locale* => :es
-      (get @mounted-app-state :ui/locale) => :es)))
-
-(specification "initialize-internationalization"
-  (behavior "Resets the watches for i18n"
-    (let [forced? (atom 0)]
-      (when-mocking
-        (prim/mounted? app) => true
-        (prim/app-root r) => :ignored
-        (js/setTimeout f t) => (do
-                                 (assertions
-                                   "delays the force render in order to allow change-locale mutation to finish"
-                                   t => 0)
-                                 (f))
-        (prim/force-root-render! r) => (swap! forced? inc)
-        (p/get-id r) => :id
-        (add-watch v k f) =1x=> (do
-                                  (assertions
-                                    "adds a watch on current-locale using the reconciler's unique id"
-                                    (identical? v i18n/*current-locale*) => true
-                                    k => :id)
-
-                                  ; simulate triggering the watch
-                                  (f))
-
-        (app/initialize-internationalization :mock-reconciler)
-
-        (assertions
-          "The installed watch function forces a root render if the app is mounted"
-          @forced? => 1)))))
-
 (specification "Fulcro Application (integration tests)"
   (let [startup-called    (atom false)
         thing-1           {:id 1 :name "A"}
@@ -450,8 +409,6 @@
         custom-read      (fn [env k params] (when (= k :custom) {:value 42}))
         parser           (partial (prim/parser {:read (partial app/read-local (constantly false))}) {:state state})
         augmented-parser (partial (prim/parser {:read (partial app/read-local custom-read)}) {:state state})]
-
-    (reset! i18n/*current-locale* "en-US")
 
     (assertions
       "read top-level properties"

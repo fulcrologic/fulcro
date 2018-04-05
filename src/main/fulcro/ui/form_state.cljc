@@ -7,7 +7,8 @@
             [fulcro.client.mutations :refer [defmutation]]
             [fulcro.util :as util]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
-            [fulcro.client.dom :as dom]))
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])))
 
 (defprotocol IFormFields
   (form-fields [this] "Returns a set of keywords that define the form fields of interest on an entity"))

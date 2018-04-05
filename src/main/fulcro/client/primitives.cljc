@@ -3050,7 +3050,7 @@
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
            [thissym propsym computedsym csssym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
-           body                             (or body ['(fulcro.client.dom/div nil "THIS COMPONENT HAS NO DECLARED UI")])
+           body                             (or body ['nil])
            ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
            initial-state-template-or-method (into {} [initial-state])
            query-template-or-method         (into {} [query])

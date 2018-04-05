@@ -1,7 +1,6 @@
 (ns fulcro.client.impl.application
   (:require [fulcro.logging :as log]
             [fulcro.client.primitives :as prim]
-            [fulcro.i18n :as i18n]
             [fulcro.client.mutations :as m]
             [fulcro.history :as hist]
             [clojure.set :as set]
@@ -261,18 +260,6 @@
             (async/<! response-channel))                    ; block until send-complete
           (recur (async/<! queue)))))))
 
-(defn initialize-internationalization
-  "Configure a re-render when the locale changes and also when the translations arrive from a module load.
-   During startup this function will be called once for each reconciler that is running on a page."
-  [reconciler]
-  (let [app-id (p/get-id reconciler)]
-    (letfn [(re-render [k r o n] #?(:cljs
-                                    ; the delay is necessary because the locale change triggers the watch before
-                                    ; it has affected the state of the application
-                                    (when (prim/mounted? (prim/app-root reconciler))
-                                      (js/setTimeout #(util/force-render reconciler) 0))))]
-      (add-watch i18n/*current-locale* app-id re-render))))
-
 (defn generate-reconciler
   "The reconciler's send method calls FulcroApplication/server-send, which itself requires a reconciler with a
   send method already defined. This creates a catch-22 / circular dependency on the reconciler and :send field within
@@ -290,10 +277,7 @@
                                     (let [state-migrate (or migrate prim/resolve-tempids)]
                                       (state-migrate pure tempids)))
         initial-state-with-locale (let [set-default-locale (fn [s] (update s :ui/locale (fnil identity :en)))
-                                        is-atom?           (futil/atom? initial-state)
-                                        incoming-locale    (get (if is-atom? @initial-state initial-state) :ui/locale)]
-                                    (when incoming-locale
-                                      (reset! i18n/*current-locale* incoming-locale))
+                                        is-atom?           (futil/atom? initial-state)]
                                     (if is-atom?
                                       (do
                                         (swap! initial-state set-default-locale)

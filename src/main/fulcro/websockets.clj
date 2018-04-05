@@ -1,15 +1,19 @@
 (ns fulcro.websockets
   (:require
-    [fulcro.websockets.protocols :as wp :refer [WSListener WSNet add-listener remove-listener client-added client-dropped]]
-    [taoensso.sente.server-adapters.http-kit :as hk]
+    [fulcro.websockets.protocols :refer [WSListener WSNet add-listener remove-listener client-added client-dropped]]
     [com.stuartsierra.component :as component]
-    [taoensso.sente :as sente]
     [fulcro.websockets.transit-packer :as tp]
-    [ring.middleware.params :refer [params-request]]
-    [ring.middleware.keyword-params :refer [keyword-params-request]]
     [fulcro.server :as server]
     [fulcro.logging :as log]
-    [fulcro.easy-server :as easy]))
+    [fulcro.easy-server :as easy]
+    [fulcro.util :as util]))
+
+(defonce externs (atom {}))
+(def externs-needed '([taoensso.sente [make-channel-socket-server! start-server-chsk-router!]]
+                       [taoensso.sente.server-adapters.http-kit [get-sch-adapter]]
+                       [ring.middleware.params [params-request]]
+                       [ring.middleware.keyword-params [keyword-params-request]]))
+(def invoke (util/build-invoke externs externs-needed))
 
 (defn sente-event-handler
   "A sente event handler that connects the websockets support up to the parser via the
@@ -50,7 +54,9 @@
                            (let [base-request-handler (old-pre-hook ring-handler)]
                              (fn [{:keys [request-method] :as req}]
                                (if (is-wsrequest? websockets req)
-                                 (let [request (-> req params-request keyword-params-request)
+                                 (let [request (as-> req r
+                                                 (invoke 'ring.middleware.params/params-request r)
+                                                 (invoke 'ring.middleware.keyword-params/keyword-params-request r))
                                        {:keys [ring-ajax-post ring-ajax-get-or-ws-handshake]} websockets]
                                    (case request-method
                                      :get (ring-ajax-get-or-ws-handshake request)
@@ -89,7 +95,7 @@
   (start [this]
     (log/info "Starting Sente websockets support")
     (let [transit-handlers (or transit-handlers {})
-          chsk-server      (sente/make-channel-socket-server!
+          chsk-server      (invoke 'taoensso.sente/make-channel-socket-server!
                              server-adapter (merge {:packer (tp/make-packer transit-handlers)}
                                               server-options))
           {:keys [ch-recv send-fn connected-uids
@@ -101,7 +107,7 @@
                              :send-fn send-fn
                              :listeners (atom #{})
                              :connected-uids connected-uids)
-          stop             (sente/start-server-chsk-router! ch-recv (partial sente-event-handler result))]
+          stop             (invoke 'taoensso.sente/start-server-chsk-router! ch-recv (partial sente-event-handler result))]
       (log/info "Started Sente websockets event loop.")
       (assoc result :stop-fn stop)))
   (stop [this]
@@ -145,7 +151,7 @@
   (map->Websockets {:server-options   (merge {:user-id-fn (fn [r] (:client-id r))} sente-options)
                     :transit-handlers (or transit-handlers {})
                     :websockets-uri   (or websockets-uri "/chsk")
-                    :server-adapter   (or http-server-adapter (hk/get-sch-adapter))
+                    :server-adapter   (or http-server-adapter (invoke 'taoensso.sente.server-adapters.http-kit/get-sch-adapter))
                     :parser           parser}))
 
 (defn wrap-api

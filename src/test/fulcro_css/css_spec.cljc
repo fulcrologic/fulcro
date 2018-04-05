@@ -3,7 +3,8 @@
     [fulcro-spec.core :refer [specification assertions behavior]]
     [fulcro-css.css :as css]
     [fulcro.client.primitives :as prim :refer [defui]]
-    [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
     [garden.selectors :as sel]))
 
 (defui ListItem

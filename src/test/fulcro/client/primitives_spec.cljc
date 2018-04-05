@@ -2,7 +2,8 @@
   (:require [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
-            [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
             [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
@@ -1513,7 +1514,7 @@
              (render [this]
                (clojure.core/let
                  [props (fulcro.client.primitives/props this)]
-                 (fulcro.client.dom/div nil "THIS COMPONENT HAS NO DECLARED UI")))
+                 nil))
              (shouldComponentUpdate [this props state] false))
        "can add fulcro 1.0 form spec"
        (prim/defsc* '(Person [this {:keys [a]}] {:form-fields [(f/text-input :a)]
