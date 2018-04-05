@@ -1,6 +1,6 @@
 (ns fulcro.client.dom
   "Client-side DOM macros and functions. For isomorphic (server) support, see also fulcro.client.dom-server"
-  (:refer-clojure :exclude [map meta time mask select])
+  (:refer-clojure :exclude [map meta time mask select use])
   (:require-macros [fulcro.client.dom])
   (:require
     [clojure.spec.alpha :as s]
@@ -15,7 +15,7 @@
   h1 h2 h3 h4 h5 h6 head header hr html i iframe img ins input textarea select option kbd keygen
   label legend li link main map mark menu menuitem meta meter nav noscript object ol optgroup output p param picture
   pre progress q rp rt ruby s samp script section small source span strong style sub summary sup table tbody
-  td tfoot th thead time title tr track u ul var video wbr circle clipPath ellipse g line mask path
+  td tfoot th thead time title tr track u ul use var video wbr circle clipPath ellipse g line mask path
   pattern polyline rect svg text defs linearGradient polygon radialGradient stop tspan)
 
 (def ^{:private true} element-marker
