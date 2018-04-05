@@ -6,6 +6,11 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.0-alpha4
+------------
+- Namespace fix in book source
+- Added svg use tag
+
 2.5.0-alpha3
 ------------
 - Fixed a bug on wrapped select with ref
