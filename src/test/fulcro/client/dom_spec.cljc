@@ -8,7 +8,7 @@
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
-(specification "Conversion of keywords to CSS IDs and Classes" :focused
+(specification "Conversion of keywords to CSS IDs and Classes"
   (assertions
     "classnames are given as a vector"
     (#'cdom/parse :.a) => {:classes ["a"]}
@@ -25,7 +25,7 @@
     (#'cdom/parse :a) =throws=> {:regex #"Invalid style"}
     (#'cdom/parse :.a#.j) =throws=> {:regex #"Invalid style"}))
 
-(specification "Combining keywords on CLJ(s) property maps" :focused
+(specification "Combining keywords on CLJ(s) property maps"
   (let [props         {:className "c1"}
         props-with-id {:id 1 :className "c1"}]
     (assertions
@@ -48,7 +48,7 @@
            (cdom/add-kwprops-to-props props :.a.some-class.other-class) => {:className "a some-class other-class c1"})))))
 
 #?(:cljs
-   (specification "Combining keywords on JS property maps" :focused
+   (specification "Combining keywords on JS property maps"
      (let [js-props         #js {:className "c1"}
            js-props-with-id #js {:id 1 :className "c1"}]
        (assertions
@@ -88,7 +88,7 @@
        :else v)))
 
 #?(:clj
-   (specification "Macro processing" :focused
+   (specification "Macro processing"
      (assertions
        "kw + nil props converts to a runtime js obj"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [:.a nil "Hello"]))
@@ -133,7 +133,7 @@
        => `(fulcro.client.dom/macro-create-element* {:jsvalue ["div" (cdom/add-kwprops-to-props {:jsvalue {:onClick ~'(fn [] (do-it))}} :.a) "Hello"]}))))
 
 #?(:cljs
-   (specification "DOM Tag Macros (CLJS)" :focused
+   (specification "DOM Tag Macros (CLJS)"
      (provided "It is passed no arguments"
        (dom/macro-create-element* args) => (do
                                              (assertions
@@ -317,7 +317,7 @@
          (div :.a (p :.b "Hello"))))))
 
 #?(:cljs
-   (specification "DOM elements are usable as functions" :focused
+   (specification "DOM elements are usable as functions"
      (assertions
        "The functions exist and are defined as functions"
        (fn? div) => true
