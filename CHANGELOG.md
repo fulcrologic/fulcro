@@ -6,10 +6,11 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
-2.5.0-alpha5
-------------
+2.5.0-beta1
+-----------
 - Fixed issue with internal merge on mutation joins getting :not-found in idents
 - Fixed a bug in forms that was trimming values incorrectly with new DOM
+- Various tweaks and fixes to book
 
 2.5.0-alpha4
 ------------
