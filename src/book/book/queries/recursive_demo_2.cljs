@@ -24,13 +24,13 @@
                                      :person/spouse {:db/id 1 :person/name "Joe"}}})
    :ident         [:person/by-id :db/id]}
   (dom/div
-    (dom/p "Name:" name)
-    (dom/p "Age:" age
+    (dom/div "Name:" name)
+    (dom/div "Age:" age
       (dom/button {:onClick
                    #(prim/transact! this `[(make-older {:id ~id})])} "Make Older"))
     (when spouse
       (dom/ul
-        (dom/p "Spouse:" (ui-person spouse))))))
+        (dom/div "Spouse:" (ui-person spouse))))))
 
 (def ui-person (prim/factory Person {:keyfn :db/id}))
 

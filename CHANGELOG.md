@@ -9,6 +9,7 @@ small and tractable.
 2.5.0-alpha5
 ------------
 - Fixed issue with internal merge on mutation joins getting :not-found in idents
+- Fixed a bug in forms that was trimming values incorrectly with new DOM
 
 2.5.0-alpha4
 ------------

@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.5.0-alpha5-SNAPSHOT"
+(defproject fulcrologic/fulcro "2.5.0"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
@@ -130,7 +130,7 @@
                                :optimizations :none}}]}
 
   :profiles {:book {:dependencies [[devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-inspect "2.0.0" :exclusions [fulcrologic/fulcro fulcrologic/fulcro-css]]
+                                   [fulcrologic/fulcro-inspect "2.0.1" :exclusions [fulcrologic/fulcro]]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
@@ -141,7 +141,7 @@
                     :dependencies [[binaryage/devtools "0.9.9"]
                                    [com.rpl/specter "1.1.0"] ; used by book demos
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-inspect "2.0.0" :exclusions [fulcrologic/fulcro fulcrologic/fulcro-css]]
+                                   [fulcrologic/fulcro-inspect "2.0.1" :exclusions [fulcrologic/fulcro]]
                                    [com.cemerick/piggieback "0.2.2"]
                                    [figwheel-sidecar "0.5.15"]
                                    [cljsjs/d3 "3.5.7-1"]

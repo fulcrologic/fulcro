@@ -8,6 +8,10 @@
 
 image:docs/logo.png[]
 
+image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
+image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"] (release)
+image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"] (develop)
+
 Fulcro is a library for building data-driven full-stack applications for the web. It uses React, is written in
 Clojure and Clojurescript (so it has first-class functional abilities with immutable data) which leads to a clean
 synchronous story for the UI. The primary design goals are:
@@ -15,20 +19,17 @@ synchronous story for the UI. The primary design goals are:
 . Provide structure and patterns that encourage simplicity in overall design.
 . Provide an out-of-the box experience that is as easy as possible, except where it conflicts with the first goal.
 
-Fulcro 1.0 is still supported but is only getting bug fix releases at this point. Version 1.0 was an
-add-on library for Om Next. Fulcro 2.0 no longer has a dependency on Om Next, though the surface API
-is still very similar (though in different namespaces).
-
-NOTE: Production code and new users should use version 2.4.x.
-The 2.5.0-alpha series has features that either require porting from
-2.4, or are not yet heavily tested.
-
-Latest version on Clojars: image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
-
-CI Results for Latest Release: image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"]
-Development Snapshot: image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"]
-
 *NOTE*: If you are using Java 9, you may need to include "--add-modules java.xml.bind" to your JVM.
+
+== Version Differences
+
+Fulcro has undergone a number of face-lifts over its lifetime.
+
+[[Horizontal]]
+1.x:: An add-on library for Om Next. Has various limitations as a result of this, and several bugs that are deep within Om Next (which was not getting updates).
+2.0 - 2.4:: No longer depends on Om Next. Public API is the same, except where improvements and fixes were needed.
+2.5:: Integrated co-located CSS for better support (e.g. localized-dom), made all server dependencies dynamic, rewrite of i18n. This
+version requires you to change a few i18n things if you were using it, and adds API to the DOM to make UI much more concise.
 
 == Writing Applications with Fulcro
 
@@ -40,11 +41,11 @@ If you want to jump and code, read on!
 
 === Getting Started
 
-New users are encouraged to do one or both of the following:
+New users are encouraged to do one or all of the following:
 
 . Follow along with the https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube] video series.
-. Follow along with the _Getting Started_ chapter of the http://book.fulcrologic.com/#_getting_started[Developer's Guide].
-. Do the Fulcro Tutorial. See below.
+. Follow the "README-style" https://github.com/fulcrologic/fulcro-getting-started[Getting Started Guide].
+. Do the devcards-based https://github.com/fulcrologic/fulcro-tutorial[Fulcro Tutorial].
 
 Experienced users that want to dive right in can use the `lein` template,
 which emits a bare-bones full-stack app with dev, testing, uberjar, i18n, and devcards support:
@@ -58,21 +59,6 @@ I recommend: http://www.braveclojure.com/[Clojure for the Brave and True], and d
 basic online exercises at http://www.4clojure.com/[4Clojure]. You should also have
 a passing familiarity with Facebook's React, though if you understand that we're
 using it to get "fast UI updates", that is sufficient to start.
-
-=== The Fulcro Tutorial
-
-The tutorial is an interactive coding tutorial using Devcards. To do it:
-
-. Clone the https://github.com/fulcrologic/fulcro-tutorial[Fulcro Tutorial repository].
-. Run the tutorial and follow the instructions.
-
-There is a shell script in the top-level directory that will start the tutorial:
-
-```
-./run-tutorial.sh
-```
-
-just follow the instructions it emits.
 
 == Fulcro Developers Guide
 

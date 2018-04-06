@@ -55,7 +55,7 @@
   #?(:cljs
      (dom/div {:className "example-edn"}
        (dom/button {:className toggle-button :onClick (fn [] (m/toggle! this :ui/open?))} "Toggle DB View")
-       (dom/div
+       (dom/div {:className db-block :style {:display (if open? "block" "none")}}
          (edn/html-edn edn)))))
 
 (def ui-edn (prim/factory EDN))

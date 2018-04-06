@@ -33,7 +33,7 @@
   {:query         [:db/id :left/value]
    :initial-state {:db/id 5 :left/value 42}
    :ident         [:left/by-id :db/id]}
-  (dom/div {:style {:float :left}}
+  (dom/div {:style {:float "left"}}
     (dom/button {:onClick #(prim/transact! this `[(ping-right {})])} "Ping Right")
     value))
 
@@ -43,7 +43,7 @@
   {:query         [:db/id :right/value]
    :initial-state {:db/id 1 :right/value 99}
    :ident         [:right/by-id :db/id]}
-  (dom/div {:style {:float :right}}
+  (dom/div {:style {:float "right"}}
     (dom/button {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
     value))
 

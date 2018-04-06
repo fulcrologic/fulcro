@@ -6,7 +6,7 @@
   (ns app.ui
     (:require
       #?(:clj [fulcro.client.dom-server :as dom] :cljs [fulcro.client.dom :as dom])))"
-  (:refer-clojure :exclude [map meta time mask select])
+  (:refer-clojure :exclude [map meta time mask select use])
   (:require
     [fulcro.client.dom-common :as cdom]
     [clojure.string :as str]

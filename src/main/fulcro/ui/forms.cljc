@@ -1007,10 +1007,11 @@
            "Mutation: Select a sepecific option from a selection list. form-id is the ident of the object acting as
            a form. field is the select field, and value is the value to select."
            [{:keys [form-id field value]}]
-           (action [{:keys [state]}] (let [value (.substring value 1)]
-                                       (swap! state assoc-in
-                                         (conj form-id field)
-                                         (keyword value))))))
+           (action [{:keys [state]}]
+             (let [value (str/replace value #"^:+" "")]
+               (swap! state assoc-in
+                 (conj form-id field)
+                 (keyword value))))))
 
 (defmethod form-field* ::dropdown [component form field-name & {:keys [id className onChange] :as params}]
   (let [form-id   (form-ident form)

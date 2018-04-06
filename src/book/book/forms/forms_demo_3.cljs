@@ -55,7 +55,7 @@
     ;; One more parameter to give the validation error message:
     (field-with-label this form :phone/number "Number:" "Please format as (###) ###-####")))
 
-(def ui-vphone-form (prim/factory ValidatedPhoneForm))
+(def ui-vphone-form (prim/factory ValidatedPhoneForm {:keyfn :db/id}))
 
 (defsc PersonForm [this {:keys [person/phone-numbers] :as props}]
   {:initial-state (fn [params] (f/build-form this (or params {})))

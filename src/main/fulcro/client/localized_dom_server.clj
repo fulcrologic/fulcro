@@ -1,5 +1,5 @@
 (ns fulcro.client.localized-dom-server
-  (:refer-clojure :exclude [map meta time])
+  (:refer-clojure :exclude [map meta time use])
   (:require [fulcro.util :as util]
             [clojure.spec.alpha :as s]
             [clojure.future :refer :all]

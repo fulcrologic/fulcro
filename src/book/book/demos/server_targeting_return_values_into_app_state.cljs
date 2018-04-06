@@ -67,7 +67,7 @@
   {:query         [:db/id :error-message {:children (prim/get-query Entity)}]
    :initial-state {:db/id :param/id :children []}
    :ident         [:item/by-id :db/id]}
-  (dom/div {:style {:float  :left
+  (dom/div {:style {:float  "left"
                     :width  "200px"
                     :margin "5px"
                     :border "1px solid black"}}
