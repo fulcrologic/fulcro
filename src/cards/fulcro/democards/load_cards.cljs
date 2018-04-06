@@ -25,12 +25,12 @@
   static prim/Ident
   (ident [this props] [:thing/by-id (:id props)])
   Object
-  (render [this] (dom/div nil "THING")))
+  (render [this] (dom/div "THING")))
 
 (defui Root
   Object
   (render [this]
-    (dom/div nil "TODO")))
+    (dom/div "TODO")))
 
 (m/defmutation add-thing
   "Read a thing"

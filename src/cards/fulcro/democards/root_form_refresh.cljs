@@ -16,35 +16,35 @@
 
 
 (defsc PersonForm [this {:keys [person/id person/name person/active] :as form}]
-  {:query [f/form-key :person/id :person/active :person/name]
-   :form-fields [(f/id-field :person/id) (f/text-input :person/name) (f/checkbox-input :person/active :default-value true)]
-   :ident [:person/by-id :person/id]
+  {:query         [f/form-key :person/id :person/active :person/name]
+   :form-fields   [(f/id-field :person/id) (f/text-input :person/name) (f/checkbox-input :person/active :default-value true)]
+   :ident         [:person/by-id :person/id]
    :initial-state (fn [params] (f/build-form PersonForm {:person/id 1 :person/active false :person/name "Mike"}))}
-  (dom/div nil
-    (dom/div nil (f/form-field this form :person/name))
-    (dom/button #js {:onClick (fn [evt] (prim/transact! this `[(simple-edit {:path [:person/by-id ~id :person/active] :fn ~not}) f/form-root-key]))}
+  (dom/div
+    (dom/div (f/form-field this form :person/name))
+    (dom/button {:onClick (fn [evt] (prim/transact! this `[(simple-edit {:path [:person/by-id ~id :person/active] :fn ~not}) f/form-root-key]))}
       "CLICK ME")))
 
 (def ui-person-form (prim/factory PersonForm {:key-fn :person/id}))
 
 (defsc TopForm [this {:keys [modal-item] :as form}]
-  {:form-fields [(f/subform-element :modal-item PersonForm :one :isComponent false)]
-   :query [f/form-root-key f/form-key {:modal-item (prim/get-query PersonForm)}]
-   :ident (fn [] [:topform :singleton])
+  {:form-fields   [(f/subform-element :modal-item PersonForm :one :isComponent false)]
+   :query         [f/form-root-key f/form-key {:modal-item (prim/get-query PersonForm)}]
+   :ident         (fn [] [:topform :singleton])
    :initial-state (fn [params] (f/build-form TopForm {:modal-item (prim/get-initial-state PersonForm {})}))}
   (let [{:keys [person/name person/active]} modal-item]
-    (dom/div nil
-      (dom/div nil (if active (str "! " name) (str "# " name)))
-      (dom/div nil
+    (dom/div
+      (dom/div (if active (str "! " name) (str "# " name)))
+      (dom/div
         (ui-person-form modal-item)))))
 
 (def ui-top-form (prim/factory TopForm))
 
-(defsc Root [this {:keys [ui/react-key top-form]}]
-  {:query [:ui/react-key {:top-form (prim/get-query TopForm)}]
+(defsc Root [this {:keys [top-form]}]
+  {:query         [{:top-form (prim/get-query TopForm)}]
    :initial-state (fn [params] {:top-form (prim/get-initial-state TopForm {})})}
-  (dom/div #js {:key react-key}
-    (dom/div nil "Title")
+  (dom/div
+    (dom/div "Title")
     (ui-top-form top-form)))
 
 (defcard-fulcro root-form-refresh Root)

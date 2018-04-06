@@ -3,7 +3,7 @@
     [fulcro-css.css :as css]
     [fulcro.client.mutations :refer [defmutation]]
     [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
-    [fulcro.client.alpha.localized-dom :as dom]))
+    [fulcro.client.localized-dom :as dom]))
 
 (defonce theme-color (atom :blue))
 

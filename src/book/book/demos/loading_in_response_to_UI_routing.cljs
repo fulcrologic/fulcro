@@ -86,18 +86,18 @@
   (remote [{:keys [state] :as env}]
     (df/remote-load env)))
 
-(defsc Root [this {:keys [ui/react-key current-tab] :as props}]
+(defsc Root [this {:keys [current-tab] :as props}]
   ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the
   ; app state graph database.
-  {:initial-state (fn [params] {:ui/react-key "initial" :current-tab (prim/get-initial-state UITabs nil)})
-   :query         [:ui/react-key {:current-tab (prim/get-query UITabs)}]}
-  (dom/div #js {:key react-key}
+  {:initial-state (fn [params] {:current-tab (prim/get-initial-state UITabs nil)})
+   :query         [{:current-tab (prim/get-query UITabs)}]}
+  (dom/div
     ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
     ; ensure proper re-render of the tab body). See prim/computed for passing callbacks.
-    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
-    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
-                                                      ; extra mutation: sample of what you would do to lazy load the tab content
-                                                      (lazy-load-tab {:tab :settings})])} "Settings")
+    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
+    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
+                                                  ; extra mutation: sample of what you would do to lazy load the tab content
+                                                  (lazy-load-tab {:tab :settings})])} "Settings")
     (ui-tabs current-tab)))
 
 

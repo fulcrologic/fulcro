@@ -23,19 +23,19 @@
                                      :person/age    22
                                      :person/spouse {:db/id 1 :person/name "Joe"}}})
    :ident         [:person/by-id :db/id]}
-  (dom/div nil
-    (dom/p nil "Name:" name)
-    (dom/p nil "Age:" age
-      (dom/button #js {:onClick
-                       #(prim/transact! this `[(make-older {:id ~id})])} "Make Older"))
+  (dom/div
+    (dom/div "Name:" name)
+    (dom/div "Age:" age
+      (dom/button {:onClick
+                   #(prim/transact! this `[(make-older {:id ~id})])} "Make Older"))
     (when spouse
-      (dom/ul nil
-        (dom/p nil "Spouse:" (ui-person spouse))))))
+      (dom/ul
+        (dom/div "Spouse:" (ui-person spouse))))))
 
 (def ui-person (prim/factory Person {:keyfn :db/id}))
 
 (defsc Root [this {:keys [person-of-interest]}]
   {:initial-state {:person-of-interest {}}
    :query         [{:person-of-interest (prim/get-query Person)}]}
-  (dom/div nil
+  (dom/div
     (ui-person person-of-interest)))

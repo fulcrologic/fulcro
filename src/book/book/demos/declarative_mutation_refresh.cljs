@@ -33,8 +33,8 @@
   {:query         [:db/id :left/value]
    :initial-state {:db/id 5 :left/value 42}
    :ident         [:left/by-id :db/id]}
-  (dom/div (clj->js {:style {:float :left}})
-    (dom/button #js {:onClick #(prim/transact! this `[(ping-right {})])} "Ping Right")
+  (dom/div {:style {:float "left"}}
+    (dom/button {:onClick #(prim/transact! this `[(ping-right {})])} "Ping Right")
     value))
 
 (def ui-left (prim/factory Left {:keyfn :db/id}))
@@ -43,18 +43,17 @@
   {:query         [:db/id :right/value]
    :initial-state {:db/id 1 :right/value 99}
    :ident         [:right/by-id :db/id]}
-  (dom/div (clj->js {:style {:float :right}})
-    (dom/button #js {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
+  (dom/div {:style {:float "right"}}
+    (dom/button {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
     value))
 
 (def ui-right (prim/factory Right {:keyfn :db/id}))
 
-(defsc Root [this {:keys [ui/react-key left right]}]
+(defsc Root [this {:keys [left right]}]
   {:query         [{:left (prim/get-query Left)}
-                   :ui/react-key
                    {:right (prim/get-query Right)}]
    :initial-state {:left {} :right {}}}
-  (dom/div #js {:key react-key :style #js {:width "600px" :height "50px"}}
+  (dom/div {:style {:width "600px" :height "50px"}}
     (ui-left left)
     (ui-right right)))
 

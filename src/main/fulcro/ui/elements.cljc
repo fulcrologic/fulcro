@@ -1,7 +1,9 @@
 (ns fulcro.ui.elements
   (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
-            [fulcro.client.dom :as dom]
-            #?(:cljs [goog.object :as gobj])))
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj
+            [fulcro.client.dom-server :as dom])
+    #?(:cljs [goog.object :as gobj])))
 
 (defn react-instance?
   "Returns the react-instance (which is logically true) iff the given react instance is an instance of the given react class.
@@ -45,9 +47,9 @@
      (render [this]
        (dom/iframe
          (-> (prim/props this)
-             (dissoc :child)
-             (assoc :onLoad #(start-frame this))
-             clj->js)))))
+           (dissoc :child)
+           (assoc :onLoad #(start-frame this))
+           clj->js)))))
 
 #?(:cljs
    (let [factory (prim/factory IFrame)]
@@ -74,7 +76,7 @@
            (dom/render child shadow-root))))
      (render [this]
        ; placeholder node to attach shadow DOM to
-       (dom/div #js {:style #js {:fontSize "14pt" :color "red"}} "Your browser does not support shadow DOM. Please try Chrome or Safari."))))
+       (dom/div {:style {:fontSize "14pt" :color "red"}} "Your browser does not support shadow DOM. Please try Chrome or Safari."))))
 
 #?(:clj
    (defn ui-shadow-dom [props children]

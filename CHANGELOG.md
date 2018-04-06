@@ -6,6 +6,33 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.0-beta1
+-----------
+- Fixed issue with internal merge on mutation joins getting :not-found in idents
+- Fixed a bug in forms that was trimming values incorrectly with new DOM
+- Various tweaks and fixes to book
+
+2.5.0-alpha4
+------------
+- Namespace fix in book source
+- Added svg use tag
+
+2.5.0-alpha3
+------------
+- Fixed a bug on wrapped select with ref
+
+2.5.0-alpha2
+------------
+- Promoted fulcro.client.alpha.dom to fulcro.client.dom
+- Promoted fulcro.client.alpha.localized-dom to fulcro.client.localized-dom
+
+2.5.0-alpha1
+------------
+- Dramatic cleanup reduces dependencies WARNING: If you use websockets or server namespaces, you must now explicitly add the dependencies to your project. Dynamic loading errors will report what is missing.
+- Released new i18n (alpha promotion). BREAKING CHANGE.
+- Behavioral change: The deprecated fulcro.client.logging is now just a facade to fulcro.logging
+- Moved tutorial to a separate repo
+
 2.4.4
 -----
 - Fixed bug in alpha dom. Lazy seqs were sometimes not properly expanded.

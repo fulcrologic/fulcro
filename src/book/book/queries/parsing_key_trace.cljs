@@ -21,23 +21,23 @@
   (action [{:keys [state]}]
     (let [parser (prim/parser {:read (tracing-reader state)})] ; make a parser that records calls to read
       (try
-        (swap! state assoc-in (tracer-path :trace) []) ; clear the last trace
-        (swap! state assoc-in (tracer-path :error) nil) ; clear the last error
-        (parser {} (r/read-string query)) ; Record the trace
+        (swap! state assoc-in (tracer-path :trace) [])      ; clear the last trace
+        (swap! state assoc-in (tracer-path :error) nil)     ; clear the last error
+        (parser {} (r/read-string query))                   ; Record the trace
         (catch js/Error e (swap! state assoc-in (tracer-path :error) e)))))) ; Record and exceptions
 
 (defsc ParsingTracer [this {:keys [trace error query result]}]
   {:query         [:trace :error :query :result]
    :ident         (fn [] [:widget/by-id :tracer])
    :initial-state {:trace [] :error nil :query ""}}
-  (dom/div nil
+  (dom/div
     (when error
-      (dom/div nil (str error)))
-    (dom/input #js {:type     "text"
-                    :value    query
-                    :onChange #(m/set-string! this :query :event %)})
-    (dom/button #js {:onClick #(prim/transact! this `[(record-parsing-trace ~{:query query})])} "Run Parser")
-    (dom/h4 nil "Parsing Trace")
+      (dom/div (str error)))
+    (dom/input {:type     "text"
+                :value    query
+                :onChange #(m/set-string! this :query :event %)})
+    (dom/button {:onClick #(prim/transact! this `[(record-parsing-trace ~{:query query})])} "Run Parser")
+    (dom/h4 "Parsing Trace")
     (html-edn trace)))
 
 (def ui-tracer (prim/factory ParsingTracer))

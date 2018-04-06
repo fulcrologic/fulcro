@@ -28,13 +28,13 @@ which case you should use git flow hotfix).
 The live website is auto-generated from the current `master`. So, merging
 and pushing to master will update the website.
 
-Remember to update the live tutorial javascript!
+Remember to update the live tutorial javascript in the Tutorial project!
 
 ```bash
 $ lein do clean, cljsbuild once tutorial-live
 ```
 
-should regenerate `docs/js/tutorial.js`. You should run through some of the
+and copy the result to `docs/js/tutorial.js`. You should run through some of the
 live pages to check it is ok:
 
 ```

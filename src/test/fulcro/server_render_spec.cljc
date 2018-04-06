@@ -1,6 +1,7 @@
 (ns fulcro.server-render-spec
   (:require [fulcro.client.primitives :as prim :refer [defui defsc]]
-            [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
             [fulcro-spec.core :refer [specification behavior assertions]]
             [fulcro.server-render :as ssr]
             [fulcro.client.util :as util]

@@ -36,7 +36,7 @@
       ; the `refresh!` function is a helper that can send an ident-based join query for a component.
       ; it is equivalent to `(load reconciler [:lazy-load.items/by-id ID] Item)`, but finds the params
       ; using the component itself.
-      (dom/button #js {:onClick #(df/refresh! this)} "Refresh"))))
+      (dom/button {:onClick #(df/refresh! this)} "Refresh"))))
 
 (def ui-item (prim/factory Item {:keyfn :db/id}))
 
@@ -47,14 +47,14 @@
   (let [; NOTE: Demostration of two ways of showing an item is refreshing...
         render-item (fn [idx i] (if (= idx 0)
                                   (ui-item i)               ; use the childs method of showing refresh
-                                  (dom/span #js {:key (str "ll-" idx)} ; the span is so we have a react key in the list
+                                  (dom/span {:key (str "ll-" idx)} ; the span is so we have a react key in the list
                                     (df/lazily-loaded ui-item i)))) ; replace child with a load marker
         render-list (fn [items] (map-indexed render-item items))]
     (dom/div nil
-      (dom/p nil "Child Label: " label)
+      (dom/p "Child Label: " label)
       ; Rendering for all of the states can be supplied to lazily-loaded as named parameters
       (df/lazily-loaded render-list items
-        :not-present-render (fn [items] (dom/button #js {:onClick #(df/load-field this :items)} "Load Items"))))))
+        :not-present-render (fn [items] (dom/button {:onClick #(df/load-field this :items)} "Load Items"))))))
 
 (def ui-child (prim/factory Child {:keyfn :child/label}))
 
@@ -62,19 +62,19 @@
   {:initial-state (fn [params] {:child nil})
    :query         (fn [] [[:ui/loading-data '_] {:child (prim/get-query Child)}])
    :ident         (fn [] [:lazy-load/ui :panel])}
-  (dom/div nil
-    (dom/div #js {:style #js {:float "right" :display (if loading-data "block" "none")}} "GLOBAL LOADING")
-    (dom/div nil "This is the Panel")
+  (dom/div
+    (dom/div {:style {:float "right" :display (if loading-data "block" "none")}} "GLOBAL LOADING")
+    (dom/div "This is the Panel")
     (df/lazily-loaded ui-child child
-      :not-present-render (fn [_] (dom/button #js {:onClick #(df/load-field this :child)} "Load Child")))))
+      :not-present-render (fn [_] (dom/button {:onClick #(df/load-field this :child)} "Load Child")))))
 
 (def ui-panel (prim/factory Panel))
 
 ; Note: Kinda hard to do idents/lazy loading right on root...so generally just have root render a div
 ; and then render a child that has the rest.
-(defsc Root [this {:keys [ui/react-key panel] :or {ui/react-key "ROOT"} :as props}]
-  {:initial-state (fn [params] {:ui/react-key "A" :panel (prim/get-initial-state Panel nil)})
-   :query         [:ui/loading-data :ui/react-key {:panel (prim/get-query Panel)}]}
-  (dom/div #js {:key react-key} (ui-panel panel)))
+(defsc Root [this {:keys [panel] :as props}]
+  {:initial-state (fn [params] {:panel (prim/get-initial-state Panel nil)})
+   :query         [:ui/loading-data {:panel (prim/get-query Panel)}]}
+  (dom/div (ui-panel panel)))
 
 

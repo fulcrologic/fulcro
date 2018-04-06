@@ -1,7 +1,8 @@
 (ns fulcro.client.routing-spec
   (:require [fulcro-spec.core :refer [specification behavior assertions when-mocking component provided]]
             [fulcro.client.routing :as r :refer [defrouter]]
-            [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
             [fulcro.client.util :as util]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.mutations :as m]

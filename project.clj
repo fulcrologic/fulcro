@@ -1,34 +1,35 @@
-(defproject fulcrologic/fulcro "2.4.4"
+(defproject fulcrologic/fulcro "2.5.0-beta1"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
+  :lein-min-version "2.8.1"
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.946" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
+                 [org.clojure/clojurescript "1.10.238" :scope "provided"]
 
                  [cljsjs/react "15.6.2-4"]
                  [cljsjs/react-dom "15.6.2-4"]
                  [cljsjs/react-dom-server "15.6.2-4"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.243"]
-                 [org.clojure/core.async "0.4.474" :exclusions [org.clojure/tools.reader]]
+                 [org.clojure/core.async "0.4.474"]
+                 [com.stuartsierra/component "0.3.2"]
                  [garden "1.3.4"]
-                 [com.ibm.icu/icu4j "60.2"]                 ; needed for i18n on server-side rendering
 
+                 ;; In case someone is still using 1.8
                  [clojure-future-spec "1.9.0-beta4"]
 
-                 ;; easy-server and server
-                 [http-kit "2.2.0"]
-                 [ring/ring-core "1.6.3" :exclusions [commons-codec]]
-                 [bk/ring-gzip "0.2.1"]
-                 [com.stuartsierra/component "0.3.2"]
-                 [com.taoensso/timbre "4.10.0" :scope "provided"] ; only needed by deprecated client logging
-                 [bidi "2.1.3"]                             ; needed by easy-server
-                 [com.taoensso/sente "1.12.0"]              ; websockets
+                 ;; Dynamic dependencies. You must require these if you use fulcro server extensions.
+                 [http-kit "2.2.0" :scope "provided"]
+                 [ring/ring-core "1.6.3" :scope "provided" :exclusions [commons-codec]]
+                 [bk/ring-gzip "0.2.1" :scope "provided"]
+                 [bidi "2.1.3" :scope "provided"]
+                 [com.taoensso/sente "1.12.0" :scope "provided"]
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.0.4" :scope "test" :exclusions [fulcrologic/fulcro]]
-                 [lein-doo "0.1.8" :scope "test"]
+                 [fulcrologic/fulcro-spec "2.1.0-1" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [lein-doo "0.1.10" :scope "test"]
+                 [com.ibm.icu/icu4j "60.2" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
 
   :source-paths ["src/main"]
@@ -36,11 +37,16 @@
   :resource-paths ["resources"]
   :test-paths ["src/test"]
 
-  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
-  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target"]
+  :jvm-opts ~(let [version (System/getProperty "java.version")
+                   base-options ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
+                   [major _ _] (clojure.string/split version #"\.")]
+               (if (>= (Integer. major) 9)
+                 (conj base-options "--add-modules" "java.xml.bind")
+                 base-options))
+  :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target" "docs/js/book"]
 
   :plugins [[lein-cljsbuild "1.1.7"]
-            [lein-doo "0.1.8"]
+            [lein-doo "0.1.10"]
             [com.jakemccrary/lein-test-refresh "0.21.1"]]
 
   :test-refresh {:report       fulcro-spec.reporters.terminal/fulcro-report
@@ -49,7 +55,9 @@
   :test-selectors {:focused :focused}
 
   :doo {:build "automated-tests"
-        :paths {:karma "node_modules/karma/bin/karma"}}
+        :debug true
+        :paths {:karma "node_modules/karma/bin/karma"}
+        :karma {:config {"files" ^:prepend ["resources/public/intl-messageformat-with-locales.min.js"]}}}
 
   :figwheel {:server-port     8080
              :validate-config false}
@@ -62,7 +70,7 @@
                                :output-to            "resources/public/js/test.js"
                                :output-dir           "resources/public/js/test"
                                :recompile-dependents true
-                               :parallel-build       true
+                               ;:parallel-build       true
                                ;:verbose              true
                                ;:compiler-stats       true
                                :preloads             [devtools.preload]
@@ -76,7 +84,9 @@
                                :output-dir           "resources/public/js/cards"
                                :asset-path           "js/cards"
                                :preloads             [devtools.preload]
-                               :parallel-build       true
+                               ;:parallel-build       true
+                               ;:verbose              true
+                               ;:compiler-stats       true
                                :source-map-timestamp true
                                :optimizations        :none}}
                {:id           "cards-live"
@@ -91,20 +101,15 @@
                {:id           "book"
                 :source-paths ["src/main" "src/book"]
                 :figwheel     true
-                :compiler     {:output-dir     "resources/public/js/book"
-                               :asset-path     "js/book"
-                               :preloads       [devtools.preload]
-                               :modules        {:entry-point {:output-to "resources/public/js/book.js"
-                                                              :entries   #{book.main}}
-                                                ; For the dynamic i18n loading demo
-                                                :de          {:output-to "resources/public/js/book/de.js"
-                                                              :entries   #{translations.de}}
-                                                :es-MX       {:output-to "resources/public/js/book/es-MX.js"
-                                                              :entries   #{translations.es-MX}}
-                                                ; For the dynamic code splitting demo
-                                                :main        {:output-to "resources/public/js/book/main-ui.js"
-                                                              :entries   #{book.demos.dynamic-ui-main}}}
-                               :parallel-build true}}
+                :compiler     {:output-dir "resources/public/js/book"
+                               :asset-path "js/book"
+                               :preloads   [devtools.preload]
+                               :modules    {:entry-point {:output-to "resources/public/js/book.js"
+                                                          :entries   #{book.main}}
+                                            ; For the dynamic code splitting demo
+                                            :main        {:output-to "resources/public/js/book/main-ui.js"
+                                                          :entries   #{book.demos.dynamic-ui-main}}}
+                               #_#_:parallel-build true}}
                {:id           "book-live"
                 :source-paths ["src/main" "src/book"]
                 :compiler     {:output-dir    "docs/js/book"
@@ -112,45 +117,9 @@
                                :optimizations :advanced
                                :modules       {:entry-point {:output-to "docs/js/book.js"
                                                              :entries   #{book.main}}
-                                               ; For the dynamic i18n loading demo
-                                               :de          {:output-to "docs/js/book/de.js"
-                                                             :entries   #{translations.de}}
-                                               :es-MX       {:output-to "docs/js/book/es-MX.js"
-                                                             :entries   #{translations.es-MX}}
                                                ; For the dynamic code splitting demo
                                                :main        {:output-to "docs/js/book/main-ui.js"
                                                              :entries   #{book.demos.dynamic-ui-main}}}}}
-               {:id           "tutorial"
-                :figwheel     {:devcards true}
-                :source-paths ["src/main" "src/tutorial"]
-                :compiler     {:main           fulcro-tutorial.main
-                               :asset-path     "js/tutorial"
-                               :devcards       true
-                               :output-to      "resources/public/js/tutorial.js"
-                               :output-dir     "resources/public/js/tutorial"
-                               :preloads       [devtools.preload]
-                               :parallel-build true
-                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
-                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
-               {:id           "tutorial-live"
-                :source-paths ["src/main" "src/tutorial"]
-                :compiler     {:main           fulcro-tutorial.main
-                               :devcards       true
-                               :asset-path     "js"
-                               :output-to      "docs/js/tutorial.js"
-                               :output-dir     "resources/public/js/tutorial-live"
-                               :parallel-build true
-                               :optimizations  :advanced
-                               :foreign-libs   [{:provides ["cljsjs.codemirror.addons.closebrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/closebrackets-min.js"}
-                                                {:provides ["cljsjs.codemirror.addons.matchbrackets"]
-                                                 :requires ["cljsjs.codemirror"]
-                                                 :file     "resources/public/codemirror/matchbrackets-min.js"}]}}
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to     "resources/private/js/unit-tests.js"
@@ -161,7 +130,7 @@
                                :optimizations :none}}]}
 
   :profiles {:book {:dependencies [[devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-inspect "2.0.0-alpha6" :exclusions [fulcrologic/fulcro fulcrologic/fulcro-css]]
+                                   [fulcrologic/fulcro-inspect "2.0.1" :exclusions [fulcrologic/fulcro]]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
@@ -169,10 +138,10 @@
                                    [org.flywaydb/flyway-core "4.2.0"]]}
              :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/tutorial" "src/book"]
                     :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                    :dependencies [[binaryage/devtools "0.9.7"]
+                    :dependencies [[binaryage/devtools "0.9.9"]
                                    [com.rpl/specter "1.1.0"] ; used by book demos
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-inspect "2.0.0-alpha6" :exclusions [fulcrologic/fulcro fulcrologic/fulcro-css]]
+                                   [fulcrologic/fulcro-inspect "2.0.1" :exclusions [fulcrologic/fulcro]]
                                    [com.cemerick/piggieback "0.2.2"]
                                    [figwheel-sidecar "0.5.15"]
                                    [cljsjs/d3 "3.5.7-1"]

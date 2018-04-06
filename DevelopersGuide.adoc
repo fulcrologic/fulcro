@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: Mar 19, 2018
+:revdate: April 5, 2018
 :revnumber: 1.5
 :lang: en
 :encoding: UTF-8
@@ -38,7 +38,7 @@ developers and covers most of the library in detail. Fulcro has a
 pretty extensive set of resources on the web tailored to fit your learning style.
 There is http://book.fulcrologic.com[this book],
 https://youtu.be/pLFOVhWsxMM?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube videos], 
-an http://fulcro.fulcrologic.com/tutorial.html[interactive tutorial], 
+an https://github.com/fulcrologic/fulcro-tutorial[interactive tutorial],
 and full-blown https://github.com/fulcrologic[sample applications].
 
 A lot of time and energy went into creating these libraries and materials and providing them free of 
@@ -94,2101 +94,9 @@ The next chapter, "Getting Started", is an exception. The code you see in that c
 a template that you create and run on your own machine. A complete running version of it is available on GitHub
 as described at the end of the chapter.
 
-= Getting Started
-
-This chapter is meant to be a whirlwind introduction. It takes you through a step-by-step guide of how to go
-from nothing to a full-stack basic application using the Fulcro leiningen template. Concepts are introduced as we
-go, and given a very cursory definition in the interest of concision. Once you've got the general idea you
-can use other materials to refine your understanding.
-
-The Leiningen template is the very quickest way to get started. It gives you a number of useful
-things like devcards, production builds, CI integration and more while also giving you the minimal
-amount of actual code. This can save you hours of setup.
-
-== Project setup
-
-You can get a basic app with no prewritten demo code using:
-
-[source,bash]
-----
-$ lein new fulcro app nodemo
-----
-
-The `nodemo` option tells the template not to include demonstration full-stack code. It gives you a
-shell of a project that still contains everything you'd want to set up (cards, testing, a development
-web server, figwheel, etc.) without much actual code to understand or delete.
-
-You should stop here for a moment and read the README in your generated project to see how that
-is laid out.
-
-=== Figwheel Startup Script
-
-Figwheel is a hot-reload development tool. We recommend using figwheel sidecar so
-you can easily start the project from the command line or use it from the REPL
-support built into IntelliJ. The template already has the code for doing this. Part of
-it is in `user.clj`, and the other part is a simple script `script/figwheel.clj` to invoke it:
-
-[source]
-----
-(require '[user :refer [start-figwheel]])
-
-(start-figwheel)
-----
-
-The `README` of your project describes how to start the various builds of your cljs code.
-
-== The Code Client Files
-
-A complete Fulcro front-end client can be created in about two lines of code. Hot-load
-concerns require just a few more lines.
-
-Your project should have a `src/main/app/client.cljs` file that looks something like this:
-
-```
-(ns app.client
-  (:require [fulcro.client :as fc]))
-
-(defonce app (atom (fc/new-fulcro-client)))
-```
-
-This creates a client and stores it in an atom. The client isn't active until you mount it. In
-order to do *that*, you need a UI. The file `src/main/ui/root.cljc` contains something like
-this:
-
-```
-(ns app.ui.root
-  (:require
-    translations.es
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
-
-(defsc Root [this {:keys [ui/react-key]}]
-  (dom/div #js {:key react-key} "TODO"))
-```
-
-The actual mount is done by code that figwheel is configured to load/run in
-`src/dev/user.cljs`:
-
-```
-(ns cljs.user
-  (:require
-    [fulcro.client :as fc]
-    [app.client :as core]
-    [app.ui.root :as root]
-    [cljs.pprint :refer [pprint]]
-    [fulcro.logging :as log]))
-
-(enable-console-print!)
-
-(log/set-level! :all)
-
-(defn mount []
-  (reset! core/app (fc/mount @core/app root/Root "app")))
-
-(mount)
-```
-
-If you look at your `project.clj` file you'll see it is configured to re-call `mount` on every hot load.
-Mounting an already mounted app is the same as asking for a forced UI refresh.
-
-This is all the real code you need to get started with a hot-code reload capable application! However, the
-browser needs instructions to load this stuff up, and the target `div` of the mount needs to exist.
-
-=== HTML
-
-The most basic HTML file you can start with (and it won't get much bigger) is:
-
-[source,html]
-----
-<!DOCTYPE html>
-<html>
-    <body>
-        <div id="app"></div>
-        <script src="js/app.js" type="text/javascript"></script>
-    </body>
-</html>
-----
-
-Save this in `resources/public/index.html`.
-
-=== Running Figwheel
-
-You can now run this project in various ways.
-
-From the command line:
-
-[source,bash]
-----
-$ lein run -m clojure.main script/figwheel.clj
-----
-
-Within IntelliJ:
-
-* Run -> Edit Configurations...
-* Press the '+' button, and choose Clojure REPL -> Local
-** Give it a name (like `dev`)
-** Choose "Use clojure.main in normal JVM process" (important: it defaults to nREPL which won't work right)
-** In `JVM Args` specify `-Ddev`. This is a trick of the template's figwheel script that lets you pick
-one or more build from your build config easily. This selects just the `dev` build.
-** In `Parameters` add `script/figwheel.clj`
-
-Now you should be able to start it from the Run menu.
-
-For Emacs + Cider:
-
-* Make sure a piggieback dev-time dependency and repl-option are in `project.clj`:
-```
-  :profiles {:dev {:source-paths ["src/dev" "src/main"]
-                   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :dependencies [[binaryage/devtools "0.9.4"]
-                                  [com.cemerick/piggieback "0.2.1"]
-                                  [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                  [figwheel-sidecar "0.5.13"]
-                                  [org.clojure/tools.nrepl "0.2.13"]]}})
-```
-* With `src/dev/user.clj` open in a buffer, choose `M-x cider-jack-in`. In the clojure repl, run `(start-figwheel)`, which will launch a cljs repl.
-
-You should see the application printing "Hello World" at: http://localhost:3449[]
-
-Now that you have a basic project working, let's understand how to add some
-content!
-
-IMPORTANT: When developing it is a good idea to: Use Chrome (the devtools only work there),
-have the developer's console open, and in the developer console settings: "Network, Disable cache (while
-DevTools is open)", and "Console, Enable custom formatters".
-
-Cached files can, as everywhere else, cause you lots of headaches. Fortunately they only really affect you poorly
-on the initial load in Fulcro. Hot reloads typically work very well.
-
-=== Fixing Things
-
-One of the most maddening things that can happen during development is mystery around build errors. Nothing is
-more frustrating than not understanding what is wrong.
-
-As you work on your code your compiler errors and warnings will show in the browser. DO NOT RELOAD THE PAGE! If
-you reload the page you'll lose the warning or error, and that makes it harder to figure out what is wrong!
-
-Instead, edit your code and re-save.
-
-If you are having problems and you've lost your way, it is sometimes useful to ask figwheel to clean and recompile
-everything:
-
-----
-cljs.user=> (reset-autobuild)
-----
-
-will typically get you back on track.
-
-==== Fixing Stubborn Things
-
-Sometimes stuff just fails for reasons we fail to understand. There are times when
-you may want to completely kill your REPL, clean the project with `lein clean`, and start again. Make sure all
-of the generated Javascript is removed when you clean, or things might not clear up.
-
-It is also true that problems in your project configuration may cause problems that are very difficult to
-understand. If this happens to you (especially if you've never run a project with the current project setup) then
-it is good to look at things like dependency problems with `lein deps :tree` and fix those.
-
-In general, if you see a conflict on versions it will work to place the newest version of the conflicted dependency into
-your own dependency list. This can cause problems as well, but is less likely to fail than using an older version
-of a library that doesn't have some needed feature of bug fix.
-
-== Basic UI Components
-
-Fulcro supplies `defsc` to build React components. This macro emits React components that work as 100% raw React
-components (i.e. once you compile them to Javascript they could be used from other native React code).
-
-There are also factory functions for generating all standard HTML5 DOM elements in React in the `fulcro.client.dom` namespace.
-
-=== The `defsc` Macro
-
-The basic code to build a simple component has the following form:
-
-```
-(defsc ComponentName
-  ; optional: "docstring"
-  [this props] ; parameters. Available in body, and in *some* of the options
-  ; optional:  { ...options... }
-  (dom/div #js {:className "a"}
-    (dom/p nil "Hello")))
-```
-
-For our purposes we won't be saying much about the React lifecycle methods, though they can be added. The basic
-intention of this macro's syntax is to declare a component that can render UI and participate in our
-data-driven story.
-
-This macro emits the equivalent of a React component with a `render` method.
-
-=== The `render` method.
-
-The body of `defsc` is the render for the component and can do whatever work you need, but it should return
-a react element (see https://facebook.github.io/react/blog/2015/12/18/react-components-elements-and-instances.html[React Components, Elements, and Instances]).
-
-Luckily, there are factory methods for all of HTML5 in `fulcro.client.dom`. These functions generally take a Javascript map
-as their first argument (for things like classname and event handlers) and any children. There are two ways to
-generate the Javascript map: with the reader tag `#js` or with `clj->js`. Thus the following two are functionally
-equivalent:
-
-```
-(dom/div #js {:className "a"} "Hi")
-(dom/div (clj->js {:className "a"}) "Hi")
-```
-
-However, the former happens in the reader (before compile) and generates more efficient runtime code, but the
-latter is useful when you've computed attributes in regular clj data structures and need to convert it at runtime.
-
-=== Improvements to DOM [[AlphaDOM]]
-
-In version 2.4.0 the new `fulcro.client.alpha.dom` namespace allows more concise syntax and will soon become
-the default. The example in the last section can be written much more simply, and there is never a need
-(in fact it is disallowed) to convert your props manually:
-
------
-(ns app
-  (:require [fulcro.client.alpha.dom :as dom]))
-
-...
-(dom/div #js {:className "a"} "Hi") ; Supported, for bw compatibility, but not needed
-(dom/div nil "Hi")                  ; Supported, for bw compatibility, but not needed
-(dom/div attrs "Hi")                ; OK
-(dom/div (clj->js attrs) "Hi")      ; OK
-
-;; New support (not availabe in old support)
-(dom/div {:className "a"} "Hi")     ; no need for #js
-(dom/div :.a "Hi")                  ; New keyword shorthand for classes
-(dom/div :.a {:onClick f} "Hi")     ; class kw can mix with props
-(dom/div "Hi")                      ; Preferred *new* way of supplying "no" attributes
-(dom/div :#id.x.y {:onClick f} "Hi"); Id, multiple classes, and props can all be combined
------
-
-The new DOM uses macros for inline the conversion of attributes at compile time (whenever possible), and
-also supplies functional forms to allow for higher-order use. In general this means that it is just as
-fast as the older code, but much more concise.
-
-This will become the default `fulcro.client.dom` in an upcoming release.
-
-==== New DOM and Server-Side Rendering
-
-There is a `fulcro.client.alpha.dom-server` namespace that provides the CLJ versions of the DOM functions. In
-order to write UI in CLJC files you will need to make sure you use a conditional reader tag to include the
-correct namespace for the correct langauge:
-
-```
-(ns app.ui
-  (:require #?(:clj [fulcro.client.alpha.dom-server :as dom] :cljs [fulcro.client.alpha.dom :as dom]))
-
-... same as before
-```
-
-The reason this is necessary is that CLJS requires macros to be in CLJ files, but in order to get higher-order
-operation in CLJ the DOM elements must be functions. In CLJS, you can have both a macro and function, but this
-is not true in CLJ. Therefore, in order to get the optimal (inlined) client performance two namespaces are
-required.
-
-=== Props
-
-React components receive their data through props and state (which is local mutable state on the component).
-In Fulcro we highly recommend using props for most things. This
-ensures that various other features work well. The data passed to a component can be accessed (as a cljs map) by
-calling `prim/props` on `this`, or by destructuring in the second argument of `defsc`.
-
-So, let's define a `Person` component to display details about
-a person. We'll assume that we're going to pass in name and age as properties:
-
-```
-(defsc Person [this {:keys [person/name person/age]}]
-  (dom/div nil
-    (dom/p nil "Name: " name)
-    (dom/p nil "Age: " age)))
-```
-
-Now, in order to use this component we need an element factory. An element factory lets
-us use the component within our React UI tree. Name confusion can become an
-issue (Person the component vs. person the factory?) we recommend prefixing the factory with `ui-`:
-
-```
-(def ui-person (prim/factory Person))
-```
-
-Now we can compose people into our root:
-
-```
-(defsc Root [this {:keys [ui/react-key]}]
-  (dom/div #js {:key react-key }
-    (ui-person {:person/name "Joe" :person/age 22})))
-```
-
-=== Hot Code Reload
-
-Part of our quick development story is getting hot code reload to update the UI whenever we change the source.
-If you were to omit the outer `div` in the above example it would look broken. Actually, hot code
-reload is working, but the UI refresh isn't.
-
-You can force React to re-render the entire UI (Fulcro optimizes away refresh when the app state hasn't changed).
-The trick here is to change the React key on the root element (which forces React to throw away the prior tree
-and generate a whole new one). Fulcro helps by sending your root component a property named `:ui/react-key` that
-only changes on (re)mount and forced refresh.
-
-Try editing the UI of `Person` and save. You should see the UI update even though the person's data didn't change.
-
-=== Composing
-
-You should already be getting the picture that your UI is going to be a tree composed from a root element. The
-method of data passing (via props) should also be giving you the picture that supplying data to your UI (through root)
-means you need to supply an equivalently structured tree of data. This is true of basic React.
-However, just to drive the point home let's make a slightly more complex UI and see it in detail:
-
-Replace your content with this:
-
-```
-(defsc Person [this {:keys [person/name person/age]}]
-  (dom/li nil
-    (dom/h5 nil name (str "(age: " age ")"))))
-
-(def ui-person (prim/factory Person {:keyfn :person/name}))
-
-(defsc PersonList [this {:keys [person-list/label person-list/people]}]
-  (dom/div nil
-    (dom/h4 nil label)
-    (dom/ul nil
-      (map ui-person people))))
-
-(def ui-person-list (prim/factory PersonList))
-
-(defsc Root [this {:keys [ui/react-key]}]
-  (let [ui-data {:friends {:person-list/label "Friends" :person-list/people
-                                              [{:person/name "Sally" :person/age 32}
-                                               {:person/name "Joe" :person/age 22}]}
-                 :enemies {:person-list/label "Enemies" :person-list/people
-                                              [{:person/name "Fred" :person/age 11}
-                                               {:person/name "Bobby" :person/age 55}]}}]
-    (dom/div #js {:key react-key}
-      (ui-person-list (:friends ui-data))
-      (ui-person-list (:enemies ui-data)))))
-```
-
-So that the UI graph looks like this:
-
-[ditaa,target=ui-graph]
-----
-      +--------+
-      |  Root  |
-      ++-----+-+
-       |     |
- +-----+--+ ++-------+
- |  List  | |  List  |
- +---+----+ +----+---+
-     |           |
- +---+----+ +----+---+
- | Person | | Person |
- |--------| |--------|
- | Person | | Person |
- +--------+ +--------+
-----
-
-and the data graph matches the same structure, with map keys acting as the graph "edges":
-
-```
-{ :friends           { :person-list/people [PERSON ...]
-;  ==to-one list=>      ==to-many people==>
-  :enemies           { :person-list/people [PERSON ...] }
-```
-
-[ditaa,target=data-tree]
-----
-      +--------+
-      |  Root  |
-      ++-----+-+
-enemies|     |friends
- +-----+--+ ++-------+
- |  List  | |  List  |
- +---+----+ +----+---+
-     |people     |people
- +---+----+ +----+---+
- | Person | | Person | 0
- |--------| |--------|
- | Person | | Person | 1
- +--------+ +--------+
-----
-
-== Feeding the Data Tree
-
-Obviously it isn't going to be desirable to hand-manage this very well for anything
-but the most trivial application (which is the crux of the problems with most UI libraries).
-
-At best it does give us a persistent data structure that represents the
-current "view" of the application (which has many benefits), but at worst it requires us to "think globally"
-about our application. We want local reasoning. We also want to be able to easily re-compose our UI as needed,
-and a static data graph like this would have to be updated every time we made a change! Almost equally as bad: if
-two different parts of our UI want to show the same data then we'd have to find and update a bunch of copies
-spread all over the data tree.
-
-So, how do we solve this?
-
-=== Why not have components just "grab" their data (sideband)?
-
-This is certainly a possibility; however, it leads to other complications. What is the data model? How do you
-interact with remotes to fill your data needs? Fulcro has a very nice cohesive story for these questions,
-while other systems end up with complications like event handler middleware, coeffect accretion,
-and signal graphs...not to mention that the sideband solution says nothing definitive about how you actually
-*accomplish* the server interactions with said data model.
-
-Fulcro has a model for all of this, and it is surprising how simple it makes your application once you
-put your appliation together.  Let's look at the steps and parts:
-
-=== Step 1 -- The Initial State
-
-All applications have some starting initial state. Since our UI is a tree, our starting state needs to
-somehow establish what goes to the initial nodes.
-
-In Fulcro, there is a way to construct the initial tree of data in a way that allows for local reasoning and
-easy refactoring: co-locate the initial desired part of the tree with the component that uses it. This allows
-you to compose the state tree in exactly the same way as the UI tree.
-
-The `defsc` macro makes short work of this with the `initial-state` option. Simply give it a
-lambda that gets parameters (optionally from the parent) and returns a map representing the state of the component.
-You can retrieve this data using `(prim/get-initial-state Component)`.
-
-It looks like this:
-
-```
-(ns app.ui.root
-  (:require
-    translations.es
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
-
-(defsc Person [this {:keys [person/name person/age]}]
-  { :initial-state (fn [{:keys [name age] :as params}] {:person/name name :person/age age}) }
-  (dom/li nil
-    (dom/h5 nil name (str "(age: " age ")"))))
-
-(def ui-person (prim/factory Person {:keyfn :person/name}))
-
-(defsc PersonList [this {:keys [person-list/label person-list/people]}]
-  {:initial-state
-   (fn [{:keys [label]}]
-     {:person-list/label  label
-      :person-list/people (if (= label "Friends")
-                            [(prim/get-initial-state Person {:name "Sally" :age 32})
-                             (prim/get-initial-state Person {:name "Joe" :age 22})]
-                            [(prim/get-initial-state Person {:name "Fred" :age 11})
-                             (prim/get-initial-state Person {:name "Bobby" :age 55})])})}
-   (dom/div nil
-     (dom/h4 nil label)
-     (dom/ul nil
-       (map ui-person people))))
-
-(def ui-person-list (prim/factory PersonList))
-
-; Root's initial state becomes the entire app's initial state!
-(defsc Root [this {:keys [ui/react-key friends enemies]}]
-  {:initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:label "Enemies"})}) }
-  (dom/div #js {:key react-key}
-    (ui-person-list friends)
-    (ui-person-list enemies)))
-```
-
-NOTE: You *must* reload your browser for this to show up. Fulcro pulls this data into the database when the
-application *first mounts*, not on hot code reload (because that would change your app state, and hot
-code reload is more useful without state changes).
-
-Now a lot of the specific data here is just for demonstration purposes. Data like this (people) would almost
-certainly come from a server, but it serves to illustrate that we can localize the initial data needs of a
-component to the component, and then compose that into the parent in an abstract way
-(by calling `get-initial-state` against that child).
-
-There are several benefits of this so far:
-
-. It generates the exact tree of data needed to feed the initial UI.
-. That initial state becomes your initial application database.
-. It restores local reasoning (and easy refactoring). Moving a component just means local reasoning about the
-component being moved and the component it is being moved from/to: You remove the `get-initial-state` from one
-parent and add it to a different one.
-
-You can see that there is no magic if you just pull the initial tree at the REPL:
-
-----
-dev:cljs.user=> (fulcro.client.primitives/get-initial-state app.ui.root/Root {})
-{:friends
- {:person-list/label "Friends",
-  :person-list/people
-  [{:person/name "Sally", :person/age 32}
-   {:person/name "Joe", :person/age 22}]},
- :enemies
- {:person-list/label "Enemies",
-  :person-list/people
-  [{:person/name "Fred", :person/age 11}
-   {:person/name "Bobby", :person/age 55}]}}
-----
-
-It's nothing more than function composition. The initial state option on `defsc` encodes your initial state
-into a function that can be accessed via `get-initial-state` on a class.
-
-So behind the scenes Fulcro detects the initial state on the first mount and automatically uses it to initialize your
-application state.
-
-By default, the entire initial state database is passed into your root node on render, so it is
-available for destructuring in Root's props.
-
-If you even want to see your current application state, you can do so through the atom that is holding
-your mounted application:
-
-[source]
-----
-dev:cljs.user=> @(fulcro.client.primitives/app-state (get @app.client/app :reconciler))
-----
-
-Let's see how we program our UI to access the data in the application state!
-
-=== Step 2 -- Establishing a Query
-
-Fulcro unifies the data access story using a co-located query on each component. This sets up data access
-for both the client and server, and also continues our story of local reasoning and composition.
-
-Queries go on a component in the same way as initial state: as `static` implementations of a protocol.
-
-The query notation is relatively light, and we'll just concentrate on two bits of query syntax: props and joins.
-
-Queries form a tree just like the UI and data. Obtaining a value at the current node in the tree traversal is done
-using the keyword for that value. Walking down the graph (a join) is represented as a map with a single entry whose
-key is the keyword for that nested bit of state.
-
-So, a data tree like this:
-
-```
-{:friends
- {:person-list/label "Friends",
-  :person-list/people
-  [{:person/name "Sally", :person/age 32}
-   {:person/name "Joe", :person/age 22}]},
- :enemies
- {:person-list/label "Enemies",
-  :person-list/people
-  [{:person/name "Fred", :person/age 11}
-   {:person/name "Bobby", :person/age 55}]}}
-```
-
-would have a query that looks like this:
-
-```
-[{:friends  ; JOIN
-    [ :person-list/label
-      {:person-list/people ; JOIN
-         [:person/name :person/age]}]}]
-```
-
-This query reads "At the root you'll find `:friends`, which joins to a nested entity that has a label and people,
-which in turn has nested properties name and age.
-
-- A vector always means "get this stuff at the current node"
-- `:friends` is a key in a map, so at the root of the application state the query engine would expect to find that
-key, and would expect the value to be nested state (because maps mean joins on the tree)
-- The value in the `:friends` join must be a vector, because we have to indicate what we want out of the nested data.
-
-Joins are automatically `to-one` if the data found in the state is a map, and `to-many` if the data found is a
-vector. In the example above the `:friends` field from root pointed to a single `PersonList`, whereas the `PersonList`
-field `:person-list/people` pointed to a vector of `Person`.  Be care that you don't confuse yourself with
-naming (e.g. friends is plural, but points to a single list).
-
-The namespacing of keywords in your data (and therefore your query) is highly encouraged, as it makes it clear to the
-reader what kind of entity you're working against (it also ensures that over-rendering doesn't happen on
-refreshes later).
-
-You can try this query stuff out in your REPL. Let's say you just want the friends list label. The function
-`db->tree` can take an application database (which we can generate from initial state) and run a query
-against it:
-
-[source]
-----
-dev:cljs.user=> (fulcro.client.primitives/db->tree [{:friends [:person-list/label]}] (fulcro.client.primitives/get-initial-state app.ui.root/Root {}) {})
-{:friends {:person-list/label "Friends"}}
-----
-
-HINT: The mirror of initial state with query is a great way to error-check your work (and `defsc` does some of that
-for you): For each scalar property in
-initial state, there should be an identical simple property in your query. For each join of initial state to a child via
-`get-initial-state` there should be a query join via `get-query` to that same child.
-
-==== Adding Queries to Our Example
-
-We want our queries to have the same nice local-reasoning as our initial data tree. The `get-query` function
-works just like the `get-initial-state` function, and can pull the query from a component. In this case, you
-should *not* ever call `query` directly. The `get-query` function augments the subqueries with metadata that is
-important at a later stage.
-
-So, the `Person` component queries for just the properties it needs:
-
-```
-(defsc Person [this {:keys [person/name person/age]}]
-  {:query         [:person/name :person/age]
-   :initial-state (fn [{:keys [name age] :as params}] {:person/name name :person/age age})}
-  (dom/li nil
-    (dom/h5 nil name (str "(age: " age ")"))))
-```
-
-Notice that the entire rest of the component *did not* change.
-
-Next up the chain, we compose the `Person` query into `PersonList` (notice how the composition of state and query
-are mirrored):
-
-```
-(defsc PersonList [this {:keys [person-list/label person-list/people]}]
-  {:query [:person-list/label {:person-list/people (prim/get-query Person)}]
-   :initial-state
-          (fn [{:keys [label]}]
-            {:person-list/label  label
-             :person-list/people (if (= label "Friends")
-                                   [(prim/get-initial-state Person {:name "Sally" :age 32})
-                                    (prim/get-initial-state Person {:name "Joe" :age 22})]
-                                   [(prim/get-initial-state Person {:name "Fred" :age 11})
-                                    (prim/get-initial-state Person {:name "Bobby" :age 55})])})}
-  (dom/div nil
-    (dom/h4 nil label)
-    (dom/ul nil
-      (map ui-person people))))
-```
-
-again, nothing else changes.
-
-=== Step 3 -- Receive the Data Feed as Props in Root
-
-Finally, we compose to `Root`:
-
-```
-(defsc Root [this {:keys [ui/react-key friends enemies]}]
-  {:query         [:ui/react-key {:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:label "Enemies"})})}
-  (dom/div #js {:key react-key}
-    (ui-person-list friends)
-    (ui-person-list enemies)))
-```
-
-This all looks like a minor (and useless) change. The operation is the same; however, we're getting close to
-the magic, so stick with us. The major difference in this code is that even though the database *starts
-out* with the initial state, there is nothing to say we have to query for everything that is in there,
-or that the state has to start out with everything we might query for in the future. We're getting
-close to having a dynamic data-driven application.
-
-Notice that everything we've done so far has *global client database* implications, but that each component
-codes only the portion it is concerned with. Local reasoning is maintained. All software evolution in
-this model preserves this critical aspect.
-
-Also, you now have application state that can evolve (the query is running against the active application
-database stored in an atom)!
-
-IMPORTANT: You should always think of the query as "running from root". You'll
-notice that `Root` still expects to receive the *entire* data tree for the UI (even though it doesn't have to
-know much about what is in it, other than the names of direct children), and it still picks out those sub-trees
-of data and passes them on. In this way an arbitrary component in the UI tree is not querying
-for it's data directly in a side-band sort of way, but is instead being composed in from parent to parent all the
-way to the root. Later, we'll learn how Fulcro can optimize this and pull the data from the database for
-a specific component, but the reasoning will remain the same.
-
-== Passing Callbacks and Other Parent-computed Data
-
-The queries on component describe what data the component wants from the database; however, you're not allowed
-to put code in the database, and sometimes a parent might compute something it needs to pass to a child like
-a callback function.
-
-It turns out that we *can* optimize away the refresh of components (if their data has not changed). This
-means that we can use a component's query to directly re-supply data for refresh; however, since doing so
-skips the rendering of the parent, if we are not careful this can lead to "losing" these extra bits of
-computationally generated data passed *from* the parent, like callbacks.
-
-Let's say we want to render a delete button on our individual people in our UI. This button will mean
-"remove the person from this list"...but the person itself has no idea which list it is in. Thus,
-the parent will need to pass in a function that the child can call to affect the delete properly:
-
-=== The Incorrect Way:
-
-```
-(defsc Person [this {:keys [person/name person/age onDelete]}] ; <3>
-  {:query         (fn [] [:person/name :person/age])
-   :initial-state (fn [{:keys [name age] :as params}] {:person/name name :person/age age})}
-  (dom/li nil
-    (dom/h5 nil name (str "(age: " age ")") (dom/button #js {:onClick #(onDelete name)} "X")))) ; <4>
-
-(def ui-person (prim/factory Person {:keyfn :person/name}))
-
-(defsc PersonList [this {:keys [person-list/label person-list/people]}]
-  {:query [:person-list/label {:person-list/people (prim/get-query Person)}]
-   :initial-state
-          (fn [{:keys [label]}]
-            {:person-list/label  label
-             :person-list/people (if (= label "Friends")
-                                   [(prim/get-initial-state Person {:name "Sally" :age 32})
-                                    (prim/get-initial-state Person {:name "Joe" :age 22})]
-                                   [(prim/get-initial-state Person {:name "Fred" :age 11})
-                                    (prim/get-initial-state Person {:name "Bobby" :age 55})])})}
-  (let [delete-person (fn [name] (println label "asked to delete" name))]  ; <1>
-    (dom/div nil
-      (dom/h4 nil label)
-      (dom/ul nil
-        (map (fn [p] (ui-person (assoc p :onDelete delete-person))) people))))) ;; <2>
-```
-
-<1> A function acting in as a stand-in for our real delete
-<2> Adding the callback into the props (WRONG)
-<3> Pulling the onDelete from the passed props (WRONG). The query has to be changed to a lambda to turn off error checking to even try this method.
-<4> Invoking the callback when delete is pressed.
-
-This method of passing a callback will work initially, but not consistently. The problem is that we can optimize away a
-re-render of a parent when it can figure out how to pull just the data of the child on a refresh, and in that case the
-callback will get lost because only the database data will get supplied to the child! Your delete button will work
-on the initial render (from root), but may stop working at a later time after a UI refresh.
-
-=== The Correct Way:
-
-There is a special helper function that can record the computed data like callbacks onto the child that receives them
-such that an optimized refresh will still know them. There is also an additional (optional) component parameter to `defsc`
-that you can use to deconstruct them:
-
-```
-(defsc Person [this {:keys [person/name person/age]} {:keys [onDelete]}]
-  {:query         [:person/name :person/age]
-   :initial-state (fn [{:keys [name age] :as params}] {:person/name name :person/age age})}
-  (dom/li nil
-    (dom/h5 nil name (str "(age: " age ")") (dom/button #js {:onClick #(onDelete name)} "X")))) ; <4>
-
-(def ui-person (prim/factory Person {:keyfn :person/name}))
-
-(defsc PersonList [this {:keys [person-list/label person-list/people]}] ; <2>
-  {:query [:person-list/label {:person-list/people (prim/get-query Person)}]
-   :initial-state
-          (fn [{:keys [label]}]
-            {:person-list/label  label
-             :person-list/people (if (= label "Friends")
-                                   [(prim/get-initial-state Person {:name "Sally" :age 32})
-                                    (prim/get-initial-state Person {:name "Joe" :age 22})]
-                                   [(prim/get-initial-state Person {:name "Fred" :age 11})
-                                    (prim/get-initial-state Person {:name "Bobby" :age 55})])})}
-  (let [delete-person (fn [name] (println label "asked to delete" name))] ; <1>
-    (dom/div nil
-      (dom/h4 nil label)
-      (dom/ul nil
-        (map (fn [p] (ui-person (prim/computed p {:onDelete delete-person}))) people))))) ; <1>
-```
-
-<1> The `prim/computed` function is used to add the computed data to the props being passed.
-<2> The child adds an additional parameter, and pulls the computed data from there. You can also
-use `(prim/get-computed this)` to pull all of the computed props in the body.
-
-Now you can be sure that your callbacks (or other parent-computed data) won't be lost to render optimizations.
-
-==  Updating the Data Tree
-
-Now the real fun begins: Making things dynamic.
-
-In general you don't have to think about how the UI updates, because most changes are run within the
-context that needs refreshed. But for general knowledge UI Refresh is triggered in two ways:
-
-- Running a data modification transaction on a component (which will re-render the subtree of that component), and
-refresh only the DOM for those bits that had actual changes.
-- Telling Fulcro that some specific data changed (e.g. `:person/name`).
-
-The former is most common, but the latter is often needed when a change executed in one part of the application
-modifies data that some UI component elsewhere in the tree needs to respond to.
-
-So, if we run the code that affects changes from the component that will need to refresh (a very common case) we're
-covered. If a child needs to make a change that will affect a parent (as in our earlier example), then the
-modification should run from the parent via a callback so that refresh will not require further interaction. Later we'll
-show you how to deal with refreshes that could be in far-flung parts of the UI. First, let's get some data
-changing.
-
-=== Transactions [[Transactions]]
-
-Every change to the application database must go through a transaction processing system. This has two
-goals:
-
-- Abstract the operation (like a function)
-- Treat the operation like data (which allows us to generalize it to remote interactions)
-
-The operations are written as quoted data structures. Specifically as a vector of mutation
-invocations. The entire transaction is just data. It is *not* something run in the UI, but instead
-passed into the underlying system for processing.
-
-You essentially just "make up" names for the operations you'd like to do to your database, just like
-function names. Namespacing is encouraged, and of course syntax quoting honors namespace aliases.
-
-```
-(prim/transact! this `[(ops/delete-person {:list-name "Friends" :person "Fred"})])
-```
-
-is asking the underlying system to run the mutation `ops/delete-person` (where ops can be an alias established
-in the `ns`). Of course, you'll typically use unquote to embed data from local variables:
-
-```
-(prim/transact! this `[(ops/delete-person {:list-name ~name :person ~person})])
-```
-
-=== Handling Mutations
-
-When a transaction runs in Fulcro it passes things off to a multimethod. The multi-method is described in more
-detail in the section on <<MutationMultimethod,the mutation multimethod>>, but Fulcro provides a macro that makes
-building (and using) mutations easier: `defmutation`.
-
-The template application comes with a pre-built namespace for these `src/main/app/api/mutations.cljs`, but you can put them anywhere as long
-as the namespace in question is required by your application at runtime. Note there is also a `mutations.clj`, which is
-for the server-side handling of these same mutations.
-
-A mutation looks a bit like a method. It can have a docstring, and the argument list will always receive a
-single argument (params) that will be a map (which then allows destructuring).
-
-The body looks a bit like a `letfn`, but the names we use for these methods are pre-established. The one
-we're interested in at the moment is `action`, which is what to do *locally*. The `action` method will be
-passed the application database's app-state atom, and it should change the data in that atom to reflect
-the new "state of the world" indicated by the mutation.
-
-For example, `delete-person` must find the list of people on the list in question, and filter out the one
-that we're deleting:
-
-```
-(ns app.api.mutations
-  (:require [fulcro.client.mutations :as m :refer [defmutation]]))
-
-(defmutation delete-person
-  "Mutation: Delete the person with name from the list with list-name"
-  [{:keys [list-name name]}] ; <1>
-  (action [{:keys [state]}] ; <2>
-    (let [path     (if (= "Friends" list-name)
-                     [:friends :person-list/people]
-                     [:enemies :person-list/people])
-          old-list (get-in @state path)
-          new-list (vec (filter #(not= (:person/name %) name) old-list))]
-      (swap! state assoc-in path new-list))))
-```
-
-<1> The argument list for the mutation itself
-<2> The thing to do, which receives the app-state atom as an argument.
-
-Then all that remains is to change `basic-ui` in the following ways:
-
-1. Add a require and alias for app.operations to the ns
-2. Change the callback to run the transaction
-
-```
-(ns app.basic-ui
-  (:require [fulcro.client :as fc]
-            [fulcro.client.dom :as dom]
-            ; ADD THIS:
-            [app.api.mutations :as api] ; <1>
-            [fulcro.client.primitives :as prim :refer [defui defsc]]))
-
-...
-
-(defsc PersonList [this {:keys [person-list/label person-list/people]}]
-  ...
-  (let [delete-person (fn [name] (prim/transact! this `[(api/delete-person {:list-name ~label :name ~name})]))] ; <2>
-  ...
-```
-
-<1> The require ensures that the mutations are loaded, and also gives us an alias to the namespace of the mutation's symbol.
-<2> Running the transaction in the callback.
-
-Note that our mutation's symbol is actually `app.api.mutations/delete-person`, but the syntax quoting will fix it.
-Also realize that the mutation is *not* running in the UI, it is instead being handled "behind the scenes". This
-allows a snapshot of the state history to be kept, and also a more seamless integration to full-stack operation
-over a network to a server (in fact, the UI code here is *already* full-stack capable *without any changes*!).
-
-This is where the power starts to show: all of the minutiae above is leading us to some grand unifications when
-it comes to writing full-stack applications.
-
-=== Hold on – This Sucks!
-
-But first, we should address a problem that many of you may have already noticed: The mutation code is tied to
-the shape of the UI tree!!!
-
-This breaks our lovely model in several ways:
-
-1. We can't refactor our UI without also rewriting the mutations (since the data tree would change shape)
-2. We can't locally reason about any data. Our mutations have to understand things globally!
-3. Our mutations could get rather large and ugly as our UI gets big
-4. If a fact appears in more than one place in the UI and data tree, then we'll have to update *all* of them
-in order for things to be correct. Data duplication is never your friend.
-
-== The Secret Sauce – Normalizing the Database
-
-Fortunately, we have a very good solution to the mutation problem above, and it is one that has been around for decades:
-database normalization!
-
-Here's what we're going to do:
-
-Each UI component represents some conceptual entity with data (assuming it has state and a query). In a fully
-normalized database, each such concept would have its own table, and related things would refer to it
-through some kind of foreign key. In SQL land this looks like:
-
-[ditaa, target=sql-norm]
-----
-                                 +-------------------------------------+
-                                 |                                     |
-PersonList                       |     Person                          |
-+---------------------------+    |     +----------------------------+  |
-| ID  | Label               |    |     |ID | Name         | List ID |  |
-|---------------------------|    |     |----------------------------|  |
-| 1   | Friends             |<---+     |1  | Joe          |    1    |--+
-+---------------------------+          |----------------------------|  |
-                                       |2  | Sally        |    1    |--+
-                                       +----------------------------+
-----
-
-In a graph database (like Datomic) a reference can have a to-many arity, so the direction can be more natural:
-
-[ditaa, target=datomic-norm]
-----
-PersonList                             Person
-+---------------------------+          +------------------+
-| ID  | Label   | People    |          |ID | Name         |
-|---------------------------|          |------------------|
-| 1   | Friends | #{1,2}    |----+---->|1  | Joe          |
-+---------------------------+    |     |------------------|
-                                 +---->|2  | Sally        |
-                                       +------------------+
-----
-
-Since we're storing things in a map, we can represent "tables" as an entry in the map where the key is the
-table name, and the value is a map from ID to entity value. So, the last diagram could be represented as:
-
-```
-{ :PersonList { 1  { :label "Friends"
-                     :people #{1, 2} }}
-  :Person { 1 {:id 1 :name "Joe" }
-            2 {:id 2 :name "Sally"}}}
-```
-
-This is close, but not quite good enough. The set in `:person-list/people` is a problem. There is no schema, so there is no
-way to know what kind of thing "1" and "2" are!
-
-The solution is rather easy: code the foreign reference to *include* the name of the table (is a single such
-"pointer", and to-many relations
-store many such "pointers" in a vector (so you end up with a doubly-nested vector)):
-
-```
-{ :PersonList { 1  { :label "Friends"
-                     :people [ [:Person 1] [:Person 2] ] }}
-  :Person { 1 {:id 1 :name "Joe" }
-            2 {:id 2 :name "Sally"}}}
-```
-
-A foreign key as a vector pair of `[TABLE ID]` is known as an `Ident`.
-
-So, now that we have the concept and implementation, let's talk about conventions:
-
-1. Properties are usually namespaced (as shown in earlier examples)
-2. Table names are usually namespaced with the entity type, and given a name that indicates how it is indexed.
-For example: `:person/by-id`, `:person-list/by-name`, etc. If you use Clojure spec, you may choose to
-alter this a bit for convenience in namespace-aliasing keywords (e.g. `::my-db-schema/person-by-id`).
-
-=== Automatic Normalization
-
-Fortunately, you don't have to hand-normalize your data. The components have almost everything they need to
-do it for you, other than the actual value of the `Ident`. So, we'll add one more option to your components
-(and we'll add IDs to the data at this point, for easier implementation):
-
-The program will now look like this:
-
-```
-(ns app.ui.root
-  (:require
-    translations.es
-    [fulcro.client.dom :as dom]
-    [app.api.mutations :as api]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
-
-(defsc Person [this {:keys [db/id person/name person/age]} {:keys [onDelete]}]
-  {:query         [:db/id :person/name :person/age] ; <2>
-   :ident         [:person/by-id :db/id] ; <1>
-   :initial-state (fn [{:keys [id name age]}] {:db/id id :person/name name :person/age age})} ; <3>
-  (dom/li nil
-    (dom/h5 nil name (str "(age: " age ")") (dom/button #js {:onClick #(onDelete id)} "X")))) ; <4>
-
-(def ui-person (prim/factory Person {:keyfn :person/name}))
-
-(defsc PersonList [this {:keys [db/id person-list/label person-list/people]}]
-  {:query [:db/id :person-list/label {:person-list/people (prim/get-query Person)}]
-   :ident [:person-list/by-id :db/id] ; <5>
-   :initial-state
-          (fn [{:keys [id label]}]
-            {:db/id              id
-             :person-list/label  label
-             :person-list/people (if (= label "Friends")
-                                   [(prim/get-initial-state Person {:id 1 :name "Sally" :age 32})
-                                    (prim/get-initial-state Person {:id 2 :name "Joe" :age 22})]
-                                   [(prim/get-initial-state Person {:id 3 :name "Fred" :age 11})
-                                    (prim/get-initial-state Person {:id 4 :name "Bobby" :age 55})])})}
-  (let [delete-person (fn [person-id] (prim/transact! this `[(api/delete-person {:list-id ~id :person-id ~person-id})]))] ; <4>
-    (dom/div nil
-      (dom/h4 nil label)
-      (dom/ul nil
-        (map (fn [p] (ui-person (prim/computed p {:onDelete delete-person}))) people)))))
-
-(def ui-person-list (prim/factory PersonList))
-
-(defsc Root [this {:keys [ui/react-key friends enemies]}]
-  {:query         [:ui/react-key {:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
-  (dom/div #js {:key react-key}
-    (ui-person-list friends)
-    (ui-person-list enemies)))
-```
-
-<1> Adding an ident allows Fulcro to know how to build a FK reference to a person (given its props). The first element is the table name, the second is the name of the property that
-contains the ID of the entity.
-<2> We will be using IDs now, so we need to add `:db/id` to the query (and props destructuring). This is just a convention for the ID attribute
-<3> The state of the entity will also need the ID
-<4> The callback can now delete people by their ID, which is more reliable.
-<5> The list will have an ID, and an Ident as well
-
-If you reload the web page (needed to reinitialize the database state), then you can look at the newly normalized
-database at the REPL:
-
-----
-dev:cljs.user=> @(fulcro.client.primitives/app-state (-> app.client/app deref :reconciler))
-{:friends [:person-list/by-id :friends],
- :enemies [:person-list/by-id :enemies],
- :person/by-id
- {1 {:db/id 1, :person/name "Sally", :person/age 32},
-  2 {:db/id 2, :person/name "Joe", :person/age 22},
-  3 {:db/id 3, :person/name "Fred", :person/age 11},
-  4 {:db/id 4, :person/name "Bobby", :person/age 55}},
- :person-list/by-id
- {:friends
-  {:db/id :friends,
-   :person-list/label "Friends",
-   :person-list/people [[:person/by-id 1] [:person/by-id 2]]},
-  :enemies
-  {:db/id :enemies,
-   :person-list/label "Enemies",
-   :person-list/people [[:person/by-id 3] [:person/by-id 4]]}}}
-----
-
-Note that `db->tree` understands this normalized form, and can convert it (via a query)
-to the proper data tree. `db->tree` (for legacy reasons) requires a way to resolve references (idents) and the
-database. In Fulcro these are the same. So, try this at the REPL:
-
-[source]
-----
-dev:cljs.user=> (def current-db @(fulcro.client.primitives/app-state (-> app.client/app deref :reconciler)))
-dev:cljs.user=> (def root-query (fulcro.client.primitives/get-query app.ui.root/Root))
-#'cljs.user/current-db
-dev:cljs.user=> (fulcro.client.primitives/db->tree root-query current-db current-db)
-{:friends
- {:db/id :friends,
-  :person-list/label "Friends",
-  :person-list/people
-  [{:db/id 1, :person/name "Sally", :person/age 32}
-   {:db/id 2, :person/name "Joe", :person/age 22}]},
- :enemies
- {:db/id :enemies,
-  :person-list/label "Enemies",
-  :person-list/people
-  [{:db/id 3, :person/name "Fred", :person/age 11}
-   {:db/id 4, :person/name "Bobby", :person/age 55}]}}
-----
-
-=== Mutations on a Normalized Database
-
-We have now made it possible to fix the problems with our mutation. Now, instead of removing
-a person from a tree, we can remove a FK from a TABLE entry!
-
-This is not only much easier to code, but it is completely independent of the shape of the UI tree:
-
-```
-(ns app.api.mutations
-  (:require [fulcro.client.mutations :as m :refer [defmutation]]))
-
-(defmutation delete-person
-  "Mutation: Delete the person with name from the list with list-name"
-  [{:keys [list-id person-id]}]
-  (action [{:keys [state]}]
-    (let [ident-to-remove [:person/by-id person-id] ; <1>
-          strip-fk (fn [old-fks]
-                     (vec (filter #(not= ident-to-remove %) old-fks)))] ; <2>
-      (swap! state update-in [:person-list/by-id list-id :person-list/people] strip-fk)))) ; <3>
-```
-
-<1> References are always idents, meaning we know the value to remove from the FK list
-<2> By defining a function that can filter the ident from (1), we can use update-in on the person list table's people.
-<3> This is a very typical operation in a mutation: swap on the application state, and update a particular thing
-in a table (in this case the people to-many ref in a specific person list).
-
-If we were to now wrap the person list in any amount of additional UI (e.g. a nav bar, sub-pane, modal dialog, etc) this
-mutation will still work perfectly, since the list itself will only have one place it ever lives in the
-database.
-
-=== How Automatic Normalization Works (optional)
-
-It is good to know how an arbitrary tree of data (the one in InitialAppState) can be converted to the normalized form.
-Understanding how this is accomplished can help you avoid some mistakes later.
-
-When you compose your query (via `prim/get-query`), the `get-query` function adds metadata to the query fragment that
-names which component that query fragment came from.
-
-For example, try this at the REPL:
-
-----
-dev:cljs.user=> (meta (fulcro.client.primitives/get-query app.basic-ui/PersonList))
-{:component app.basic-ui/PersonList}
-----
-
-The `get-query` function adds the component itself to the metadata for that query fragment. We already know that
-we can call the static methods on a component (in this case we're interested in `ident`).
-
-So, Fulcro includes a function called `tree->db` that can simultaneously walk a data tree (in this case initial-state) and a
-component-annotated query. When it reaches a data node whose query metadata names a component with an `Ident`, it
-places that data into the approprite table (by calling your `ident` function on it to obtain the table/id), and
-replaces the data in the tree with its FK ident.
-
-Once you realize that the query *and* the ident work together to do normalization, you can more easily
-figure out what mistakes you might make that could cause auto-normalization to fail (e.g. stealing a query from
-one component and placing it on another, writing the query of a sub-component by-hand instead of pulling it
-with `get-query`, etc.).
-
-== Review So Far
-
-* An Initial app state sets up a tree of data for startup to match the UI tree
-* Component query and ident are used to normalize this initial data into the database
-* The query is used to pull data from the normalized db into the props of the active Root UI
-* Transactions invoke abstract mutations
-** Mutations modify the (normalized) db
-** The transaction's subtree of components re-renders
-
-== Using Better Tools
-
-So far we've been hacking things in place and using the REPL to watch what we're doing. There are better ways to work
-on Fulcro applications, and now that we've got one basically working, let's take a look at them both.
-
-=== Fulcro Inspect
-
-A relatively recent (late 2017) addition to the ecosystem is Fucro Inspect. A set of tools you can load into your
-environment during development. In fact, the template already has them (for the `dev` build)! On OSX or Linux, simply hit
-`CTRL-F`.  See Fulcro Inspect's documentation for how to set the keyboard shortcut in Windows.
-
-The DB tab of this tool shows you your application's database *and* has a time slider to see the history of states! It also
-has tabs for showing you transactions that have run, and network interactions. See the tool's documentation for more
-information. In fact, by the time you read this it will probably have even more exciting features!
-
-=== Dev Cards
-
-There is a build in the template project called `cards`. This starts up a development environment where you can
-code entire applications (or portions of them) in an environment that can show you live state and is quite handy, particularly
-for working with small parts of your program (remember, we can actually split off chunks of the application because they
-are all relative to their parent).
-
-You can start this build just as we did near the start of this guide, and load it via `http://localhost:3449/cards.html`.
-
-In fact, you don't even have to start a new REPL! You can run `switch-to-build`:
-
-```
-dev:cljs.user=> (switch-to-build "cards" "dev")
-Figwheel: Watching build - cards
-Figwheel: Cleaning build - cards
-Compiling "resources/public/js/cards.js" from ["src/main" "src/cards"]...
-```
-
-Then you can embed a full-funcional Fulcro application into a card environment with very little code. Replace the
-content of `src/cards/app/intro.cljs` with:
-
-```
-(ns app.intro
-  (:require [fulcro.client.cards :refer [defcard-fulcro]]
-            [app.ui.root :as root]))
-
-(defcard-fulcro sample-app
-  root/Root
-  {}
-  {:inspect-data true})
-```
-
-save and go to http://localhost:3449/cards.html#!/app.intro. You should see your app running in a card, and
-you should be able to see the live database (which will change as you interact)!.
-
-== Going Remote!
-
-OK, back to the main story!
-
-Believe it or not, there's not much to add/change on the client to get it talking
-to a server, and there is also a relatively painless way to get a server up and
-running.
-
-Your template already has one :)
-
-=== Setting up a Server
-
-There are two server namespaces in Fulcro: `fulcro.server` and
-`fulcro.easy-server`. The former has composable bits for making a server that
-has a lot of your own extensions, while the latter is a pre-baked server that covers
-many of the common bases and is less work to get started with. You can always get started with the easy one, and upgrade
-to a more enhanced one later.
-
-The template generates the easy one for you in `src/main/app/server.clj`.
-
-==== Using the Easy Server
-
-The easy server is based upon the component system. It is set up so that it can be stopped, code refreshed,
-and restarted very quickly. The management functions are already written in `src/dev/user.clj` underneath
-the Figwheel startup code.
-
-The server code itself is very light:
-
-```
-(ns app.server
-  (:require
-    [fulcro.easy-server :refer [make-fulcro-server]]
-    ; MUST require these, or you won't get them installed.
-    [app.api.read]
-    [app.api.mutations]))
-
-(defn build-server
-  [{:keys [config] :or {config "config/dev.edn"}}]
-  (make-fulcro-server
-    :parser-injections #{:config}
-    :config-path config))
-```
-
-The `make-fulcro-server` function needs to know where to find the server config file. You can tell it a number
-of other things, including which components you'd like to be available when parsing the incoming
-client requests. In the template, the only component available is the one that reads the application
-config (which contains the port on which to run the web server).
-
-The configuration is meant for production environments, and requires a default file that spells out
-defaults in case the main config does not have values for them, and a primary config file that can
-override any defaults.
-
-Your template already has these in `src/main/config` (the config component looks for `defaults.edn` on the
-CLASSPATH at relative location `config/`):
-
-`defaults.edn`:
-
-[source]
-----
-{:port 3000}
-----
-
-`dev.edn`:
-
-[source]
-----
-{}
-----
-
-The first file is always looked for by the server, and should contain all of the default settings you think you
-want independent of where the server is started.
-
-The server (for safety reasons in production) will not start if there isn't a user-specified file containing potential
-overrides.
-
-Basically, it will deep-merge the two and have the latter override things in the former. This makes mistakes in
-production harder to make. If you read the source of the `go` function in the `user.clj` file you'll see that
-we supply this development config file as an argument. In production systems you'll typically want this file to be
-on the filesystem when an admin can tweak it.
-
-===== Starting the Server
-
-If you now start a local Clojure REPL (with *no special options*), it should start in the `user` namespace.
-You can kick off your own application's easy web server with:
-
-[source]
-----
-user=> (go)
-----
-
-The console should tell you the URL, and if you browse there you should see your `index.html` file.
-
-===== Server Refresh
-
-When you add/change code on the server you will want to see those changes in the live server without having to restart
-your REPL.
-
-[source]
-----
-user=> (restart)
-----
-
-will do this.
-
-If there are compiler errors, then the `user` namespace might not reload properly. In that case, you should be able
-to recover using:
-
-[source]
-----
-user=> (tools-ns/refresh)
-user=> (go)
-----
-
-WARNING: Don't call refresh while the server is running. It will refresh the code, *but it will lose* the reference to
-the running server, meaning you won't be able to stop it and free up the network port. If you do this, you'll have to
-restart your REPL.
-
-===== Serving your App
-
-Figwheel comes with a server that we've been using to serve our client. When you want to build a full-stack app
-*you must* serve your client from your own server. Thus, if you load your page with the figwheel server (which is still
-available on an alternate port) you'll see your app, but the server interactions won't succeed.
-
-One might ask: "If I don't use figwheel's server, do I lose hot code reload on the client?"
-
-The answer is no. When figwheel compiles your application it embeds it's own websocket code in your application for
-hot code reload. When you load that compiled code (in any way) it will try to connect to the figwheel websocket.
-
-So your network topology was:
-
-[ditaa,target=client-network-topo]
-----
-+----------+
-| Browser  |                  +-------------------+
-|  app     +-----+            |                   |
-|          |     |            |  port 3449        |
-+----------+     | http load  |  +-------------+  |
-                 +----------->|  | Figwheel    |  |
-                 |            |  |             |  |
-                 +----------->|  |             |  |
-                ws hot code   |  +-------------+  |
-                              +-------------------+
-----
-
-where both the HTML/CSS/JS resources and the hot code were coming from different connections to the same server.
-
-The networking picture during full-stack development just splits these like this:
-
-[ditaa,target=network-topo]
-----
-                           localhost
-                           +-------------------+
-                           |                   |
-                           |  port 3000        |
-              app requests |  +-------------+  |
-+----------+     +-------->|  |Your Server  |  |
-| Browser  |     |         |  +-------------+  |
-|  app     +-----+         |                   |
-|          |     |         |  port 3449        |
-+----------+     |         |  +-------------+  |
-                 +-------->|  | Figwheel    |  |
-             ws hot code   |  +-------------+  |
-                           |                   |
-                           +-------------------+
-----
-
-Fulcro's client will automatically route requests to the `/api` URI of the source URL that was used to load the page,
-and Fulcro's server is built to watch for communications at this endpoint.
-
-=== Setup for Playing with Loads
-
-It is very handy to be able to look at your application's state to see what might be wrong. We've been manually
-dumping application state at the REPL using a rather long expression. So, at this point make sure
-you are either running your application in a devcard, or you know how to look at things with Fulcro
-Inspect. The output in the devcards is typically easier for beginners to read.
-
-=== Loading Data [[Loading]]
-
-Now we will start to see more of the payoff of our UI co-located queries and auto-normalization. Our application
-so far is quite unrealistic: the people we're showing should be coming from a server-side database, they
-should not be embedded in the code of the client. Let's remedy that.
-
-Fulcro provides a few mechanisms for loading data, but every possible load scenario can be done using
-the `fulcro.client.data-fetch/load` function.
-
-It is very important to remember that our application database is completely normalized, so anything we'd want to put
-in that application state will be *at most* 3 levels deep (the table name, the ID of the thing in the table, and the
-field within that thing). We've also seen that Fulcro can also auto-normalize complete trees of data,
-and has graph queries that can be used to ask for those trees.
-
-Thus, there really are not very many scenarios!
-
-The three basic scenarios are:
-
-* Load something into the root of the application state
-* Load something into a particular field of an existing thing
-* Load some pile of data, and shape it into the database (e.g. load all of the people, and then separate them into
-a list of friends and enemies).
-
-Let's try out these different scenarios with our application.
-
-First, let's correct our application's initial state so that no people are there:
-
-```
-(defsc PersonList [this {:keys [db/id person-list/label person-list/people]}]
-  {:query [:db/id :person-list/label {:person-list/people (prim/get-query Person)}]
-   :ident [:person-list/by-id :db/id]
-   :initial-state
-          (fn [{:keys [id label]}]
-            {:db/id              id
-             :person-list/label  label
-             :person-list/people []})} ; REMOVE THE INITIAL PEOPLE
-  ...
-```
-
-If you now reload your page you should see two empty lists.
-
-==== Normalization
-
-When you load something you will use a query from something on your UI (it is rare to load something you don't want to
-show). Since those components (should) have a query and ident, the result of a load can be sent from the server as a
-tree, and the client can auto-normalize that tree just like it did for our initial state!
-
-==== Loading something into the DB root
-
-This case is less common, but it is a simple starting point. It is typically used to obtain something that you'd want
-to access globally (e.g. the user info about the current session). Let's assume that our Person component represents
-the same kind of data as the "logged in" user. Let's write a load that can ask the server for the "current user" and
-store that in the root of our database under the key `:current-user`.
-
-Loads, of course, can be triggered at any time (startup, event, timeout). Loading is just a function call.
-
-For this example, let's trigger the load just after the application has started.
-
-===== Triggering the Load
-
-To do this, we can add an option to our client. In `app.client` change `app`:
-
-```
-(ns app.client
-  (:require [fulcro.client :as fc]
-            [fulcro.client.data-fetch :as df] ; <1>
-            [app.ui.root :as root]))
-
-(defonce app (atom (fc/new-fulcro-client
-                     :started-callback
-                     (fn [app]  ; <2>
-                       (df/load app :current-user root/Person)))))
-```
-
-<1> Require the `data-fetch` namespace
-<2> Issue the load in the application's `started-callback`
-
-NOTE: *If you are using devcards* you will need to place the option for the application in the devcard's options
-under the `:fulcro` key:
-
-```
-(ns app.intro
-  (:require [fulcro.client.cards :refer [defcard-fulcro]]
-            [app.ui.root :as root]
-            [fulcro.client.data-fetch :as df]))
-
-(defcard-fulcro sample-app
-  root/Root
-  {}
-  {:inspect-data true
-   :fulcro       {:started-callback
-                  (fn [app] (df/load app :current-user root/Person))}})
-```
-
-Of course hot code reload does not restart the app (it just hot patches the code), so to see this load trigger we must
-reload the browser page.
-
-If you do that at the moment, you should see an error in the various consoles related to the failure of the load.
-
-IMPORTANT: Make sure your application (or dev card) is running from *your* server (port 3000) and not the figwheel one!
-
-Technically, `load` is just writing a query for you (in this case `[{:current-user (prim/get-query Person)}]`) and sending it to the
-server. The server will receive *exactly* that query as a CLJ data structure.
-
-===== Implementing the Server Handler
-
-You now need to converting the raw CLJ query into a response. You can read more
-about the gory details of that in the developer's guide; however, Fulcro's has some
-helpers that make our job much easier.
-
-The template has a spot to put your query handlers in `src/main/app/api/read.clj`.
-Since we're on the server and we're going to be supplying and manipulating people, we'll just make a single atom-based
-in-memory database. This could easily be stored in a database of any kind.
-To handle the incoming "current user" request, we can use a macro to write the handler for us.
-Change the file to look like this:
-
-```
-(ns app.api.read
-  (:require
-    [fulcro.server :refer [defquery-root defquery-entity defmutation]]))
-
-(def people-db (atom {1  {:db/id 1 :person/name "Bert" :person/age 55 :person/relation :friend}
-                      2  {:db/id 2 :person/name "Sally" :person/age 22 :person/relation :friend}
-                      3  {:db/id 3 :person/name "Allie" :person/age 76 :person/relation :enemy}
-                      4  {:db/id 4 :person/name "Zoe" :person/age 32 :person/relation :friend}
-                      99 {:db/id 99 :person/name "Me" :person/role "admin"}}))
-
-(defquery-root :current-user
-  "Queries for the current user and returns it to the client"
-  (value [env params]
-    (get @people-db 99)))
-```
-
-This actually augments a multimethod, which means we need to make sure this namespace is loaded by our server. The
-`user` namespace already does this. So, you should be able to simply restart/refresh the server at the SERVER REPL:
-
-----
-user=> (restart)
-----
-
-If you've done everything correctly, then reloading your application should successfully load your current user. You
-can verify this by examining the network data, but it will be even more convincing if you look at your client database
-via the dev card visualization on Fulcro Inspect. It should look something like this:
-
-```
-{:current-user         [:person/by-id 99]
- :person/by-id         {99 {:db/id 99 :person/name "Me" :person/role "admin"}}
- ...}
-```
-
-Notice that the top-level key is a normalized FK reference to the person, which has been placed into the correct database
-table.
-
-===== Using Data from Root
-
-Of course, the question is now "how do I use that in some arbitrary component?" We won't completely
-explore that right now, but the answer is easy: The query syntax has a notation for "query something at the root". It looks like this:
-`[ {[:current-user '_] (prim/get-query Person)} ]`. You should recognize this as a query join, but on something that
-looks like an ident without an ID (implying there is only one, at root).
-
-We'll just use it on the Root UI node, where we don't need to "jump to the top":
-
-```
-(defsc Root [this {:keys [ui/react-key friends enemies current-user]}] ; <2>
-  {:query         [:ui/react-key
-                   {:current-user (prim/get-query Person)} ; <1>
-                   {:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
-  (dom/div #js {:key react-key}
-    (dom/h4 nil (str "Current User: " (:person/name current-user))) ; <3>
-    (ui-person-list friends)
-    (ui-person-list enemies)))
-```
-
-<1> Add the current user to the query
-<2> Pull of from the props
-<3> Show something about it in the UI
-
-==== Loading something that gets "added in" to an existing entity
-
-The next common scenario is loading something into some other existing entity in your database. Remember that since
-the database is normalized this will cover all of the other loading cases (except for the one where you want to convert
-what the server tells you into a different shape (e.g. paginate, sort, etc.)).
-
-Fulcro's load method accomplishes this by loading the data into the root of the database, normalizing it, then
-(optionally) allowing you to re-target the top-level FK to different location(s) in the database.
-
-===== Targeting the Load
-
-The load looks very much like what we just did, but with one addition:
-
-```
-(df/load app :my-friends Person {:target [:person-list/by-id :friends :person-list/people]})
-```
-
-The `:target` option indicates that once the data is loaded and normalized (which will leave the FK reference
-at the root as we saw in the last section) this top-level reference (or vector of references) will be moved into the key-path provided.
-Since our database is normalized, this means a 3-tuple (table, id, target field).
-
-WARNING: It is important to choose a keyword for this load that won't stomp on real data in your database's root.
-We already have the top-level keys `:friends` and `:enemies` as part of our UI graph from root. So, we're making up
-`:my-friends`  as the load key. One could also namespace the keyword with something like `:server/friends`.
-
-Since friend and enemies are the same kind of query, let's add both into the startup code (in the card/client):
-
-```
-...
-     :started-callback
-     (fn [app]
-       (df/load app :current-user root/Person)
-       (df/load app :my-enemies root/Person {:target [:person-list/by-id :enemies :person-list/people]})
-       (df/load app :my-friends root/Person {:target [:person-list/by-id :friends :person-list/people]}))
-...
-```
-
-===== Handling the Load Request on the Server
-
-The server query processing is what you would expect from the last example (in `read.clj`):
-
-```
-(def people-db ...) ; as before
-
-(defn get-people [kind keys]
-  (->> @people-db
-    vals
-    (filter #(= kind (:person/relation %)))
-    vec))
-
-(defquery-root :my-friends
-  "Queries for friends and returns them to the client"
-  (value [{:keys [query]} params]
-    (get-people :friend query)))
-
-(defquery-root :my-enemies
-  "Queries for enemies and returns them to the client"
-  (value [{:keys [query]} params]
-    (get-people :enemy query)))
-```
-
-A refresh of the server and reload of the page should now populate your lists from the server!
-
-----
-user=> (restart)
-----
-
-==== Morphing the Loaded Data
-
-It is somewhat common for a server to return data that isn't quite what we want in our UI. So far we've just been placing
-the data returned from the server directly in our UI. Fulcro's load mechanism allows a post mutation of the loaded
-data once it arrives, allowing you to re-shape it into whatever form you might desire.
-
-For example, you may want the people in your lists to be sorted by name. You've already seen how to write client
-mutations that modify the database, and that is really all you need. The client mutation for sorting the people
-in the friends list could be (in `mutations.cljs`):
-
-
-```
-(defn sort-friends-by*
-  "Sort the idents in the friends person list by the indicated field. Returns the new app-state."
-  [state-map field]
-  (let [friend-idents  (get-in state-map [:person-list/by-id :friends :person-list/people] [])
-        friends        (map (fn [friend-ident] (get-in state-map friend-ident)) friend-idents)
-        sorted-friends (sort-by field friends)
-        new-idents     (mapv (fn [friend] [:person/by-id (:db/id friend)]) sorted-friends)]
-    (assoc-in state-map [:person-list/by-id :friends :person-list/people] new-idents)))
-
-(defmutation sort-friends [no-params]
-  (action [{:keys [state]}]
-    (swap! state sort-friends-by* :person/name)))
-```
-
-Of course this mutation could be triggered anywhere you could run a `transact!`, but since we're interested in morphing
-just-loaded data, we'll add it there. Our dev card would now look like this:
-
-```
-(ns app.intro
-  (:require [fulcro.client.cards :refer [defcard-fulcro]]
-            [app.ui.root :as root]
-            [fulcro.client.data-fetch :as df]
-            [app.api.mutations :as api]))
-
-(defcard-fulcro sample-app
-  root/Root
-  {}
-  {:inspect-data true
-   :fulcro       {:started-callback
-                  (fn [app] (df/load app :current-user root/Person)
-                    (df/load app :my-friends root/Person {:target        [:person-list/by-id :friends :person-list/people]
-                                                          :post-mutation `api/sort-friends})
-                    (df/load app :my-enemies root/Person {:target [:person-list/by-id :enemies :person-list/people]}))}})
-```
-
-Notice the syntax quoting. The post mutation has to be the *symbol* of the mutation. Remember that
-our require has `app.api.mutations` aliased to `api`, and syntax quoting will expand that for us.
-
-If you reload your UI you should now see the people sorted by name. Hopefully you can see how easy it is to change
-this sort order to something like "by age". Try it!
-
-==== Loading a specific entity and it's subgraph (by ident)
-
-Once things are loaded from the server they are immediately growing stale (unless you're pushing updates with
-websockets). It is very common to want to re-load a particular thing in your database. Of course, you can trigger
-a load just like we've been doing, but in that case we reloading a whole bunch of things. What if we just wanted to
-refresh a particular person (e.g. in preparation for editing it).
-
-The `load` function can be used for that as well. Just replace the keyword with an ident, and you're there!
-
-Load can take the `app` or any component's `this` as the first argument, so from within the UI we can trigger a load
-using `this`:
-
-```
-(df/load this [:person/by-id 3] Person)
-```
-
-===== Trigger the Load via a User Event
-
-Let's embed that into our UI at the root:
-
-```
-(defsc Root [this {:keys [ui/react-key friends enemies current-user]}]
-  {:query         [:ui/react-key
-                   {:current-user (prim/get-query Person)}
-                   {:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
-  (dom/div #js {:key react-key}
-    (dom/h4 nil (str "Current User: " (:person/name current-user)))
-    ; NEW BUTTON HERE:
-    (dom/button #js {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh Person with ID 3")
-    (ui-person-list friends)
-    (ui-person-list enemies)))
-```
-
-===== Handling an Entity Query on the Server
-
-The incoming query will have a slightly different form, so there is an alternate macro for making a handler for entity
-loading. Let's add this in our server's `read.clj`:
-
-```
-(defquery-entity :person/by-id
-  "Server query for allowing the client to pull an individual person from the database"
-  (value [env id params]
-    ; the update is just so we can see it change in the UI
-    (update (get @people-db id) :person/name str " (refreshed)")))
-```
-
-The `defquery-entity` takes the "table name" as the dispatch key. The `value` method of the query handler will receive
-the server environment, the ID of the entity to load, and any parameters passed with the query (see the `:params` option
-of `load`).
-
-In the implementation above we're augmenting the person's name with "(refreshed)" so that you can see it happen in the UI.
-
-Remember to `(restart)` your server to load this code.
-
-Your UI should now have a button, and when you press it you should see one person update!
-
-===== Refreshing "This"
-
-There is a special case that is somewhat common: you want to trigger a refresh from an event on the item that needs
-the refresh. The code for that is identical to what we've just presented (a load with an ident and component); however,
-the `data-fetch` namespace includes a convenience function for it.
-
-So, say we wanted a refresh button on each person. We could leverage `df/refresh` for that:
-
-```
-(defsc Person [this {:keys [db/id person/name person/age]} {:keys [onDelete]}]
-  {:query         [:db/id :person/name :person/age]
-   :ident         [:person/by-id :db/id]
-   :initial-state (fn [{:keys [id name age]}] {:db/id id :person/name name :person/age age})}
-  (dom/li nil
-    (dom/h5 nil name (str "(age: " age ")")
-      (dom/button #js {:onClick #(onDelete id)} "X")
-      (dom/button #js {:onClick #(df/refresh! this)} "Refresh")))) ; ADD THIS
-```
-
-This should already work with your server, so once the browser hot code reload has happened this button should just work!
-
-==== Additional Permutations
-
-Fulcro's load system covers a number of additional bases that bring the story to completion. There are load markers
-(so you can show network activity), UI refresh add-ons (when you modify data that isn't auto-detected, e.g. through a post
-mutation), server query parameters, and error handling. See the Developers Guide, doc strings, or source for more details.
-
-=== Handling Mutations on The Server
-
-Mutations are handled on the server using the server's `defmutation` macro (if you're using Fulcro's built-in request parser).
-
-This has the identical syntax to the client version!
-
-IMPORTANT: You want to place your mutations in the same namespace on the client and server since the `defmutation`
-macros namespace the symbol into the current namespace.
-
-So, this is really why we have a duplicated namespace in Clojure called `mutations.clj` right
-next to our `mutations.cljs`.
-
-So, let's add an implementation for our server-side `delete-person`. Your `mutations.clj` should end
-up looking like this (don't forget the require to get access to the people db):
-
-```
-(ns app.api.mutations
-  (:require
-    [taoensso.timbre :as timbre]
-    [app.api.read :refer [people-db]]
-    [fulcro.server :refer [defmutation]]))
-
-;; Place your server mutations here
-(defmutation delete-person
-  "Server Mutation: Handles deleting a person on the server"
-  [{:keys [person-id]}]
-  (action [{:keys [state]}]
-    (timbre/info "Server deleting person" person-id)
-    (swap! people-db dissoc person-id)))
-```
-
-Refresh the code on your server with `(restart)` at the REPL. However, don't expect it to work just yet. We have
-to tell the client to send the remote request.
-
-==== Triggering the Remote Mutation from the Client
-
-Mutations are simply optimistic local updates by default. To make them full-stack, you need to add a method-looking
-section to your `defmutation` handler:
-
-```
-(defmutation delete-person
-  "Mutation: Delete the person with person-id from the list with list-id"
-  [{:keys [list-id person-id]}]
-  (action [{:keys [state]}]
-    (let [ident-to-remove [:person/by-id person-id]
-          strip-fk        (fn [old-fks]
-                            (vec (filter #(not= ident-to-remove %) old-fks)))]
-      (swap! state update-in [:person-list/by-id list-id :person-list/people] strip-fk)))
-  (remote [env] true)) ; This one line is it!!!
-```
-
-The syntax for the addition is:
-
-```
-(remote-name [env] boolean-or-ast)
-```
-
-where `remote` is the name of a remote server (the default is `remote`). You can have any number of network remotes.
-The default one talks to the
-page origin at `/api`. What is this AST we speak of? It is the abstract syntax tree of the mutation itself (as data).
-Using a boolean true means "send it just as the client specified". If you wish you can pull the AST from the `env`,
-augment it (or completely change it) and return that instead. See the Developers Guide for more details.
-
-Now that you've got the UI in place, try deleting a person. It should disappear from the UI as it did before; however,
-now if you're watching the network you'll see a request to the server. If you server is working right, it will handle
-the delete.
-
-Try reloading your page from the server. That person should still be missing, indicating that it really was removed
-from the server.
-
-== Using a legacy REST API [[RESTAPI]]
-
-Fulcro is really meant to be a full-stack solution. That said, it isn't really that hard to make it talk to other kinds
-of servers. As an example, this addendum talks you through what it takes to talk to a legacy REST service.
-
-Working with legacy REST APIs is a simple, though tedious, task. Basically you need to add an additional remote to the Fulcro Client
-that knows how to talk via JSON instead of EDN.
-
-The basic steps are:
-
-1. Implement `FulcroNetwork`. See the `fulcro.client.network` namespace for the protocol and built-in implementation.
-    a. Your `send` method will be passed the query/mutations the client wants to do. You must translate them to a REST
-    call and translate the REST response into the desired tree of client data, which you then pass to the `ok` callback
-    that `send` is given.
-2. Install your network handler on the client (using the `:networking` option)
-3. Add the `:remote` option to your loads, or use your remote name as the remote side of a mutation
-
-=== Writing the Networking Code
-
-For this example we're going to use the following public REST API endpoint: `http://jsonplaceholder.typicode.com/posts`
-which returns a list of posts (try it to make sure it is working).
-
-It should return an array of JSON maps, with strings as keys.
-
-Basically, when you run a transaction (read or
-write) the raw transaction that is intended to go remote is passed into the `send` method of a networking protocol.
-The networking can send that unchanged, or it can choose to modify it in some way. Since REST servers don't understand
-our Fulcro requests, we have to add a layer at the network to convert one to the other, and back (for the response).
-
-=== The UI and Queries
-
-First, let's talk about the UI code for dealing with these posts, since the UI defines the queries. Here is
-a very simple UI we can add to our program:
-
-```
-(defsc Post [this {:keys [post/title post/body]}]           ; <1>
-  {:ident [:posts/by-id :db/id]
-   :query [:db/id :post/user-id :post/body :post/title]}
-  (dom/div nil
-    (dom/h4 nil title)
-    (dom/p nil body)))
-
-(def ui-post (prim/factory Post {:keyfn :db/id}))
-
-(defsc Posts [this {:keys [posts]}]                         ; <2>
-  {:initial-state {:posts []}
-   :ident         (fn [] [:post-list/by-id :the-one])
-   :query         [{:posts (prim/get-query Post)}]}
-  (dom/ul nil
-    (map ui-post posts)))
-
-(def ui-posts (prim/factory Posts))
-
-; ...
-
-(defsc Root [this {:keys [ui/react-key blog-posts current-user friends enemies]}] ; <5>
-  {:query         [:ui/react-key
-                   :ui/person-id
-                   {:current-user (prim/get-query Person)}
-                   {:blog-posts (prim/get-query Posts)}     ; <3>
-                   {:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:blog-posts (prim/get-initial-state Posts {}) ; <4>
-                                :friends    (prim/get-initial-state PersonList {:id :friends :label "Friends"})
-                                :enemies    (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
-  (dom/div #js {:key react-key}
-    (dom/h4 nil (str "Current User: " (:person/name current-user)))
-    (dom/button #js {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh User with ID 3")
-    (ui-person-list friends)
-    (ui-person-list enemies)
-    (dom/h4 nil "Blog Posts")                               ; <6>
-    (ui-posts blog-posts)))
-```
-<1> A component to represent the post itself
-<2> A component to represent the list of the posts
-<3> Composing the Posts UI into root query
-<4> Composing the Posts UI into root initial data
-<5> Pull the resulting app db data from props
-<6> Render the list
-
-Of course, there are no posts yet, so all you'll see is the heading. Notice that there is *nothing new here*. The UI
-is completely network agnostic, as it should be.
-
-Now for the networking code. This bit is a little longer, but most of it is the details around network communcation
-itself, rather than the work you have to do. Create a new namespace `src/main/app/rest.cljs`:
-
-```
-(ns app.rest
-  (:refer-clojure :exclude [send])
-  (:require [fulcro.logging :as log]
-            [fulcro.client.network :as net]
-            [cognitect.transit :as ct]
-            [goog.events :as events]
-            [fulcro.transit :as t]
-            [clojure.string :as str]
-            [clojure.set :as set]
-            [fulcro.client.primitives :as prim])
-  (:import [goog.net XhrIo EventType]))
-
-(defn make-xhrio [] (XhrIo.))
-
-(defrecord Network [url request-transform global-error-callback complete-app transit-handlers]
-  net/NetworkBehavior
-  (serialize-requests? [this] true)
-  net/IXhrIOCallbacks
-  (response-ok [this xhr-io valid-data-callback]
-    ;; Implies:  everything went well and we have a good response
-    ;; (i.e., got a 200).
-    (try
-      (let [read-handlers (:read transit-handlers)
-            ; STEP 3: Convert the JSON response into a proper tree structure to match the query
-            response      (.getResponseJson xhr-io)
-            edn           (js->clj response) ; convert it to clojure
-            ; Rename the keys from strings to the desired UI keywords
-            posts         (mapv #(set/rename-keys % {"id"     :db/id
-                                                     "title"  :post/title
-                                                     "userId" :post/user-id
-                                                     "body"   :post/body})
-                            edn)
-            ; IMPORTANT: structure of the final data we send to the callback must match the nesting structure of the query
-            ; [{:posts [...]}] or it won't merge correctly:
-            fixed-response      {:posts posts}]
-        (js/console.log :converted-response fixed-response)
-        ; STEP 4; Send the fixed up response back to the client DB
-        (when (and response valid-data-callback) (valid-data-callback fixed-response)))
-      (finally (.dispose xhr-io))))
-  (response-error [this xhr-io error-callback]
-    ;; Implies:  request was sent.
-    ;; *Always* called if completed (even in the face of network errors).
-    ;; Used to detect errors.
-    (try
-      (let [status                 (.getStatus xhr-io)
-            log-and-dispatch-error (fn [str error]
-                                     ;; note that impl.application/initialize will partially apply the
-                                     ;; app-state as the first arg to global-error-callback
-                                     (log/error str)
-                                     (error-callback error)
-                                     (when @global-error-callback
-                                       (@global-error-callback status error)))]
-        (if (zero? status)
-          (log-and-dispatch-error
-            (str "NETWORK ERROR: No connection established.")
-            {:type :network})
-          (log-and-dispatch-error (str "SERVER ERROR CODE: " status) {})))
-      (finally (.dispose xhr-io))))
-  net/FulcroNetwork
-  (send [this edn ok error]
-    (let [xhrio       (make-xhrio)
-          ; STEP 1: Convert the request(s) from query notation to REST...
-          ; some logic to morph the incoming request into REST (assume you'd factor this out to handle numerous kinds)
-          request-ast (-> (prim/query->ast edn) :children first)
-          uri         (str "/" (name (:key request-ast)))   ; in this case, posts
-          url         (str "http://jsonplaceholder.typicode.com" uri)]
-      (js/console.log :REQUEST request-ast :URI uri)
-      ; STEP 2: Send the request
-      (.send xhrio url "GET")
-      ; STEP 3 (see response-ok above)
-      (events/listen xhrio (.-SUCCESS EventType) #(net/response-ok this xhrio ok))
-      (events/listen xhrio (.-ERROR EventType) #(net/response-error this xhrio error))))
-  (start [this] this))
-
-(defn make-rest-network [] (map->Network {}))
-```
-
-The steps you need to customize are annotated in the comments of the code. There are just a few basic steps:
-
-. Fulcro comes with a handy function that can convert a query into an AST, which is easier to process. We don't really
-care too much about the whole query, we just want to detect what is being asked for (we're going to ask for
-`:posts`).
-. Once we've understood what is wanted, we create a REST URL and GET the data from the REST server.
-. When we get a successful response we need to convert the JSON into the proper EDN that the client expects. In
-this case we're looking for `{ :posts [ {:db/id 1 :post/body "..." :post/title "..." ] ... }`.
-. Once we have the properly structure tree of data to match the query, we simply pass it to the ok callback that
-our send was given.
-
-In a more complete program, you'd put hooks at steps (2) and (3) to handle all of the different REST requests, so that
-the majority of this code would be a one-time thing.
-
-=== Installing our Networking Code
-
-Fulcro lets you set up networking yourself. We'd still like to talk to our server, but now we also want to be able
-to talk to the REST server. The modification is done in our client options. For example, our devcard playground could
-be changed to this:
-
-```
-(ns app.intro
-  (:require [fulcro.client.cards :refer [defcard-fulcro]]
-            [app.ui.root :as root]
-            [fulcro.client.data-fetch :as df]
-            [app.rest :as rest]
-            [app.api.mutations :as api]
-            [fulcro.client.network :as net]))
-
-(defcard-fulcro sample-app
-  root/Root
-  {}
-  {:inspect-data true
-   :fulcro       {
-                  :networking {:remote (net/make-fulcro-network "/api" :global-error-callback (constantly nil))
-                               :rest   (rest/make-rest-network)}
-                  :started-callback
-                              (fn [app] (df/load app :current-user root/Person)
-                                (df/load app :my-friends root/Person {:target        [:person-list/by-id :friends :person-list/people]
-                                                                      :post-mutation `api/sort-friends})
-                                (df/load app :my-enemies root/Person {:target [:person-list/by-id :enemies :person-list/people]}))}})
-```
-
-=== Requesting Data from the Alternate Remote
-
-IMPORTANT NOTE: If you're using the dev cards, you might want to change `:inspect-data true` to `false`. Devcards get
-a bit slow if you put a lot of data in the app and ask the card to format it all in the inspector. In those cases
-it can be better to use Fulcro Inspect instead).
-
-All the hard stuff is done. Loading is now triggered just like you would have before, except with a `:remote` option
-to specify which network to talk over:
-
-```
-                       :started-callback (fn [app]
-
-                                           (df/load app :posts root/Post {:remote :rest :target [:post-list/by-id :the-one :posts]})
-
-                                           ... as before ...
-```
-
-=== Mutations over REST
-
-The same technique is used. Everything you've read is accurate for mutations as well (you'll see the mutation come
-into the `send` function). To trigger a mutation, just add another section to your client mutation (a mutation can
-be sent to any number of remotes, in fact):
-
-```
-(defmutation delete-post
-  [{:keys [id]}]
-  (action [env] ...stuff to affect local db...)
-  ; you could also include this: (remote [env] true)
-  (rest [env] true)) ; tell the :rest networking to send this mutation
-```
-
-So, `action` names the local (optimistic) effect. Each other method name *must* match a remote's name as configured
-in the `:networking` of the client. If you return true (or an AST) from one of these "remote" sections, it will trigger
-the mutation to be sent to that network handler.
-
-== The Complete Source
-
-For your convenience this complete application is at https://github.com/fulcrologic/fulcro-getting-started
-
 = Core Concepts
 
-This chapter covers some extra detail about core language features and theory that are important in the Fulcro ecosystem. You
+This chapter covers some detail about the core language features and theory that are important in the Fulcro ecosystem. You
 need not read this chapter to use Fulcro, but it will aid in your understanding of it quite a bit.
 
 == Immutable Data Structures
@@ -2325,7 +233,7 @@ check-all is just the conjunction of it's children's `:checked?`:
 
 ```
 (let [all-checked (every? :checked? (get state :items)]
-   (dom/input #js {:checked all-checked}))
+   (dom/input {:checked all-checked}))
 ```
 
 The check-all button would have *no application state at all*, and React will
@@ -2575,8 +483,7 @@ These stand-ins (commonly referred to as the virtual DOM or VDOM)
 are ultimately what React uses to generate, diff, and update the real DOM.
 
 So, there are functions for every possible HTML5 element. These are in the
-`fulcro.client.dom` namespace, and take a Javascript map for attributes (this gives
-optimal performance, since React wants to consume Javascript data):
+`fulcro.client.dom` namespace.
 
 ```
 (ns app.ui
@@ -2584,28 +491,22 @@ optimal performance, since React wants to consume Javascript data):
 
 ...
 
-(dom/div #js { :className "some-class" }
-  (dom/ul nil
+(dom/div :.some-class
+  (dom/ul {:style {:color :red}}
     (dom/li ...)))
 ```
 
-.NEW! DOM Improved Syntax
-********************************************************************************
-Version 2.4.0 includes a new DOM namespace that allows for optional parameters, Hiccup-style classes,
-and more. The example from the text can be written:
+WARNING: Fulcro 2.4 and below required you to specify props as a `#js` map or nil.
 
------
-(ns app.ui
-  (:require [fulcro.client.alpha.dom :as dom]))
+The notation allowed is as follows:
 
-...
-(dom/div :.some-class    ; instead of (dom/div #js {:className "some-class"}
-  (dom/ul                ; instead of   (dom/ul nil
-    (dom/li ...)))
------
-
-See <<AlphaDOM, this section>> for more details.
-********************************************************************************
+```
+(dom/div "Hello") ; no props
+(dom/div nil "Hello") ; nil props (may perform slightly better)
+(dom/div #js {:data-x 1} ...) ; js objects are allowed
+(dom/div :.cls.cls2#id ...) ; shorthand for specifying static classes and ID
+(dom/div :.cls {:data-x 2} "Ho") ; shorthand + props
+```
 
 Remember that this (nested) call of functions results in a representation (VDOM) of
 what you'd like to end up on the screen.
@@ -2616,8 +517,8 @@ re-usable nested DOM:
 
 ```
 (defn my-header []
-  (dom/div #js { :className "some-class" }
-    (dom/ul nil
+  (dom/div :.some-class
+    (dom/ul
       (dom/li ...))))
 ```
 
@@ -2625,21 +526,12 @@ re-usable nested DOM:
 
 Here are some common things you'll want to know how to do that are different when rendering with Fulcro:
 
-* Inline styles are specified with JS maps `(dom/p #js { :style #js {:backgroundColor "rgb(120,33,41)"} } ...)`.
-** `#js` is a reader tag. The reader is the thing that reads your source code, and it is configurable. This one
-tells the reader how to turn the map into a js object.
 ** `dom/p` is a function for generating p tags for use in React componenets. There is one of these for every legal HTML tag.
-* See the new <<AlphaDOM, fulcro.client.alpha.dom>>, which is as concise as Sablano, and performs well.
-people prefer how it reads.
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
 * Any time a VDOM includes a collection of elements they should each have a unique `:key`
 attribute. This helps the React diff figure out how that collection has changed. You will
 get warnings in the browser console if you fail to do so.
-* You can run-time convert cljs data structures (recursively) to js types with `(clj->js {:x {y 1}})`.
-The `#js` tag causes the *compiler* to output a Javascript
-data structure (it is *not* a conversion, nor is it recursive). Thus `#js` has no runtime overhead,
-but `clj->js` can convert dynamic things on the fly at runtime.
 
 == The Reconciler [[Reconciler]]
 
@@ -2722,7 +614,7 @@ The primary argument list contains the common elements you might need to use in 
 ```
 (defsc [this props <optional-computed> <optional-css-map-if-using-css>]
  { ...options... }
- (dom/div #js {:onClick (:onClick computed)} (:db/id props)))
+ (dom/div {:onClick (:onClick computed)} (:db/id props)))
 ```
 
 The last parameter will let you destructure fulcro-css names, if and only if you're using the Fulcro CSS library.
@@ -2732,7 +624,7 @@ Only the first two parameters are required, so you can even write:
 ```
 (defsc [this props]
  { ...options... }
- (dom/div nil (:db/id props)))
+ (dom/div (:db/id props)))
 ```
 
 ==== Argument Destructuring
@@ -2748,7 +640,7 @@ separate let:
   {:query         [:db/id]
    :initial-state {:db/id 22}
    :css           [[:.my-css-class {:color :black}]]}
-  (dom/div #js {:className my-css-class}
+  (dom/div {:className my-css-class}
     (str "Component: " id)))
 ```
 
@@ -2951,7 +843,7 @@ Here is an example of adding Fulcro CSS using protocols instead of options:
                 (local-rules [_] [])
                 (include-children [_] []))
     ...}
-   (dom/div nil ...))
+   (dom/div ...))
 ```
 
 This gives you the full protocol capabilities of `defui`, but you only need the extra protocol additions when you
@@ -3025,9 +917,9 @@ easily become out of sync and lead to more complex logic.
 (defsc Checkboxes [this {:keys [items]}]
   {:query [{:items (prim/get-query CheckboxItem)}]}
   (let [all-checked? (every item-checked? items)]
-    (dom/div nil
-      "All: " (dom/input #js {:checked all-checked? ...})
-    (dom/ul nil ...))))
+    (dom/div
+      "All: " (dom/input {:checked all-checked? ...})
+    (dom/ul ...))))
 ```
 
 ==== General Guidelines for Derived Values
@@ -3120,7 +1012,7 @@ So, say you wanted to create the following kind of rendering scheme:
 (ui-panel {}
   (ui-panel-header {} "Some Heading Text")
   (ui-panel-body {}
-     (dom/div nil "Some sub-DOM")))
+     (dom/div "Some sub-DOM")))
 ```
 
 The DOM generation for `Panel` will need to find the header and body children:
@@ -3131,9 +1023,9 @@ The DOM generation for `Panel` will need to find the header and body children:
         header (util/first-node PanelHeader children)
         body (util/first-node PanelBody children)]
     (when header
-      (dom/h4 nil header))
+      (dom/h4 header))
     (when body
-      (dom/div nil body))))
+      (dom/div body))))
 ```
 
 Basically, the child or children can simply be dropped into the place where they should be rendered.
@@ -3163,7 +1055,7 @@ should be shown/hidden. The actual DOM elements of those children are immaterial
   {:initial-state (fn [p] {:collapse-1 (prim/get-initial-state b/Collapse {:id 1 :start-open false})})
    :query [{:collapse-1 (prim/get-query b/Collapse)}
            {:child (prim/get-query SomeChild)}]}
-  (dom/div nil
+  (dom/div
     (b/button {:onClick (fn [] (prim/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
     (b/ui-collapse collapse-1
       (ui-child child))))
@@ -3244,7 +1136,7 @@ This example could also cache that in component local state like this:
 ```
 (defsc ClickToEditField [this {:keys [value editing?]}]
   ...
-     (dom/input #js {:ref (fn [r] (prim/set-state! this {:input r}))})
+     (dom/input {:ref (fn [r] (prim/set-state! this {:input r}))})
   ...
 ```
 
@@ -3413,14 +1305,14 @@ libraries):
   {:query         [:ui/slid? {:block (prim/get-query Block)}]
    :initial-state {:ui/slid? false :block {:id 1 :name "N"}}
    :ident         (fn [] [:control :demo])}
-  (dom/div nil
-    (dom/button #js {:onClick (fn [] (m/toggle! this :ui/slid?))} "Toggle")
+  (dom/div
+    (dom/button {:onClick (fn [] (m/toggle! this :ui/slid?))} "Toggle")
     (ui-motion (clj->js {:style {"x" (spring (if slid? 400 0))}})
       (fn [p]
         (let [x (gobj/get p "x")]
           ; The binding wrapper ensures that internal fulcro bindings are held within the lambda
           (prim/with-parent-context this
-            (dom/div #js {:className "demo"}
+            (dom/div :.demo
               (ui-block (prim/computed block {:x x})))))))))
 ```
 
@@ -3467,7 +1359,7 @@ the CSS rules from some top-level component will dedupe any inclusions before ge
 . Use one of many options to get the "munged" classnames for use in your code:
 ** `(fulcro-css.css/get-classnames Componenet)` returns a map of namespaced CSS classes keyed by the simple name you used in your garden rules.
 ** The 4th argument to `defsc` is that same map, on which you can apply destructuring to get the munged class names.
-** Use `fulcro.client.alpha.localized-dom` for DOM rendering, and have it all automatically done for you!
+** Use `fulcro.client.localized-dom` for DOM rendering, and have it all automatically done for you!
 . Use the `fulcro-css.css/upsert-css` or `fulcro-css.css/style-element` function (or your own style element) to embed the CSS.
 
 A typical file will have the following layout:
@@ -3484,16 +1376,16 @@ A typical file will have the following layout:
 ; destructure if and use it in the DOM without having to worry about how it is prefixed.
 (defsc ListItem [this {:keys [label] :as props} computed {:keys [item] :as css-classes}]
   {:css [[:.item {:font-weight "bold"}]]}
-  (dom/li #js {:className item} label))
+  (dom/li {:className item} label))
 
 (def ui-list-item (om/factory ListItem {:keyfn :id}))
 
 (defsc ListComponent [this {:keys [id items]} computed {:keys [items-wrapper]}]
   {:css [[:.items-wrapper {:background-color "blue"}]] ; this component's css
    :css-include [ListItem]} ; components whose CSS should be included if this component is included
-  (dom/div #js {:className items-wrapper}
-    (dom/h2 nil (str "List " id))
-    (dom/ul nil (map ui-list-item items))))
+  (dom/div {:className items-wrapper}
+    (dom/h2 (str "List " id))
+    (dom/ul (map ui-list-item items))))
 
 (def ui-list (om/factory ListComponent {:keyfn :id}))
 
@@ -3501,7 +1393,7 @@ A typical file will have the following layout:
   {:css [[:.container {:background-color "red"}]]
    :css-include [ListComponent]}
     (let [the-list {:id 1 :items [{:id 1 :label "A"} {:id 2 :label "B"}]}]
-      (dom/div #js {:className text}
+      (dom/div {:className text}
         (ui-list the-list))))
 
 ; ...
@@ -3610,14 +1502,14 @@ You can use the raw string in generated HTML, or use the server-compatible DOM f
     [garden.core :as g]
     [fulcro-css.css :as css]))
 
-(dom/style #js {:dangerouslySetInnerHTML #js {:__html (g/css (css/get-css component))}})
+(dom/style {:dangerouslySetInnerHTML {:__html (g/css (css/get-css component))}})
 ```
 
 == CSS Localized DOM [[LocalizedDOM]]
 
 If you choose to add localized CSS rules to your components, then you will probably also
-want to use the DOM elements that support it natively. The `fulcro.client.alpha.localized-dom`
-uses the same more compact notation mentioned in <<AlphaDOM, the new DOM (alpha)>>, but
+want to use the DOM elements that support it natively. The `fulcro.client.localized-dom`
+uses the same more compact notation of dom, but
 it interprets the CSS keywords in the *context* of the component! This means that you can
 use localized CSS without having to destructure the munged names at all.
 
@@ -3629,14 +1521,14 @@ use localized CSS without having to destructure the munged names at all.
 
 (defsc Component [this props comp {:keys [a]}]
   {:css [[:.a {:color :red}]]}
-  (dom/div #js {:className a} "Hi!))
+  (dom/div {:className a} "Hi!))
 ```
 
-you can instead write (note the different require):
+you can instead write (note the different require for DOM):
 
 ```
 (ns app.ui
-  (:require [fulcro.client.alpha.localized-dom :as dom]))
+  (:require [fulcro.client.localized-dom :as dom]))
 
 (defsc Component [this props]
   {:css [[:.a {:color :red}]]}
@@ -3681,22 +1573,22 @@ include::src/book/book/demos/localized_dom.cljs[]
 
 === Localized DOM and Server-Side Rendering
 
-There is a `fulcro.client.alpha.localized-dom-server` namespace that provides the CLJ versions of the DOM functions. In
+There is a `fulcro.client.localized-dom-server` namespace that provides the CLJ versions of the DOM functions. In
 order to write UI in CLJC files you will need to make sure you use a conditional reader tag to include the
 correct namespace for the correct langauge:
 
 ```
 (ns app.ui
-  (:require #?(:clj [fulcro.client.alpha.localized-dom-server :as dom] :cljs [fulcro.client.alpha.localized-dom :as dom]))
+  (:require #?(:clj [fulcro.client.localized-dom-server :as dom] :cljs [fulcro.client.localized-dom :as dom]))
 
 ... same as before
 ```
 
 == Complex Graphical UI Demo: An Image Clip Tool
 
-Fulcro has the start of an image clip tool. Right now it is mainly for demonstration purposes, but it is in the main
-library and is a good example of a complex UI component where two components have to talk to each other and share
-image data.
+Fulcro has the start of an image clip tool.
+Right now it is mainly for demonstration purposes, and is a good example of a complex UI component where two components
+have to talk to each other and share image data.
 
 You should study the source code (`src/main/fulcro/ui/clip_tool.cljs`) to get the full details,
 but here is an overview of the critical facets:
@@ -4056,7 +1948,7 @@ is roughly this (cleaned up from macro output):
      :person/by-id ((prim/factory PersonDetail) (prim/props this))
      :place/by-id ((prim/factory PlaceDetail) (prim/props this))
      :thing/by-id ((prim/factory ThingDetail) (prim/props this))
-     (dom/div nil (str "Cannot route: Unknown Screen " page))))
+     (dom/div (str "Cannot route: Unknown Screen " page))))
 
 (defsc ItemDetail [this props]
   {:initial-state (fn [params] {:fulcro.client.routing/id :detail-router
@@ -4814,9 +2706,9 @@ broken (because you didn't know a component needed refresh).
 ```
 (defsc Right [this {:keys [db/id right/value]}]
   {:query         [:db/id :right/value]}
-  (dom/div nil
+  (dom/div
     ; needs a follow-on read because it is updating something that is queried elsewhere...
-    (dom/button #js {:onClick #(prim/transact! this `[(ping-left {}) :left/value])} "Ping Left")
+    (dom/button {:onClick #(prim/transact! this `[(ping-left {}) :left/value])} "Ping Left")
     value))
 ```
 
@@ -4845,9 +2737,9 @@ The UI can then drop the follow-on reads:
 ```
 (defsc Right [this {:keys [db/id right/value]}]
   {:query         [:db/id :right/value] }
-  (dom/div nil
+  (dom/div
     ; no longer need the :left/value as a follow-on read
-    (dom/button #js {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
+    (dom/button {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
     value))
 ```
 
@@ -5176,7 +3068,7 @@ We'll want to:
 ...
 (defsc Root ...
   (let [reconciler (prim/get-reconciler this)]  ; one way to get to the reconciler
-    (dom/button #js {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
+    (dom/button {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
    ...
 ```
 
@@ -6249,9 +4141,9 @@ You can access this marker from any component that composes to root by including
   {:query [:id :title {:items (prim/get-query Item)} [:ui/loading-data '_]]}
   ...
   (if (and loading-data (empty? items))
-    (dom/div nil "Loading...")
-    (dom/div nil
-      (dom/h1 nil title)
+    (dom/div "Loading...")
+    (dom/div
+      (dom/h1 title)
       (map ui-item items))))
 ```
 
@@ -6706,9 +4598,9 @@ Let's look at an example of a standard load. Say you want to load a list of peop
 (defsc PeopleList [this {:keys [people]}]
   {:query [:db/id :list-title {:people (prim/get-query Person}]
    :ident [:people-list/by-id :db/id]}
-   (dom/div nil
+   (dom/div
      (if (seq people)
-       (dom/button #js {:onClick #(df/load-field this :people)} "Load People")
+       (dom/button {:onClick #(df/load-field this :people)} "Load People")
        (map ui-person people))))
 ```
 
@@ -6831,9 +4723,9 @@ of `:without` on the query:
 (defsc Blog [this props]
   {:ident  [:blog/by-id :db/id]
    :query  [:db/id :blog/title {:blog/content (prim/get-query BlogContent)} {:blog/comments (prim/get-query BlogComment)}]}
-  (dom/div nil
+  (dom/div
      ...
-     (dom/button #js {:onClick #(load-field this :blog/comments)} "Show Comments")
+     (dom/button {:onClick #(load-field this :blog/comments)} "Show Comments")
      ...)))
 ```
 
@@ -7083,13 +4975,13 @@ with `ptransact!`, which will force each call to complete before the next one ca
 check the result and run whatever in response to it.
 
 ```
-(defsc Root [this {:keys [ui/name ui/react-key overlay]}]
-  {:query         [:ui/react-key :ui/name {:overlay (prim/get-query BlockingOverlay)}]
+(defsc Root [this {:keys [ui/name overlay]}]
+  {:query         [:ui/name {:overlay (prim/get-query BlockingOverlay)}]
    :initial-state {:overlay {} :ui/name "Alicia"}}
-  (dom/div #js {:key react-key :style (clj->js {:width "400px" :height "100px"})}
+  (dom/div {:style (clj->js {:width "400px" :height "100px"})}
     (ui-overlay overlay)
-    (dom/p nil "Name: " (dom/input #js {:value name}))
-    (dom/button #js {:onClick #(prim/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
+    (dom/p "Name: " (dom/input {:value name}))
+    (dom/button {:onClick #(prim/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
       "Submit")))
 ```
 
@@ -8379,7 +6271,7 @@ component of your UI). Of course, combining such things into functions adds a ni
 which can then be used more cleanly in the UI:
 
 ```
-(dom/a #js {:onClick #(show-report! this :a)} "Report A")
+(dom/a {:onClick #(show-report! this :a)} "Report A")
 ```
 
 == Mutations with Routing
@@ -8614,9 +6506,9 @@ what validator you're using.
 ```
 (defsc PersonForm [this {:keys [person/name] :as props}]
    ...
-   (dom/input #js { :value name :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
+   (dom/input { :value name :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
    (when (fs/invalid-spec? props :person/name)
-      (dom/span nil "Invalid username!")
+      (dom/span "Invalid username!")
    ...)
 ```
 
@@ -8664,8 +6556,8 @@ The `mark-complete!` mutation can be used for the exact same purpose from the UI
 ```
 (defsc PersonForm [this {:keys [db/id person/name]}]
   ... ; as before
-  (dom/input #js {:value name
-                  :onBlur #(prim/transact! this `[(fs/mark-complete! {:entity-ident [:person/by-id ~id]})])})
+  (dom/input {:value name
+              :onBlur #(prim/transact! this `[(fs/mark-complete! {:entity-ident [:person/by-id ~id]})])})
   ...)
 ```
 
@@ -8701,9 +6593,9 @@ For example, you might want to make a simple new user form validation that looks
 
 (defsc NewUser [this {:keys [username password password-2] :as props}]
    ...
-   (dom/input #js {:name "password-2" :value password-2 :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
+   (dom/input {:name "password-2" :value password-2 :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
    (when (= :invalid (validator props :password-2))
-      (dom/span nil "Passwords do not match!")
+      (dom/span "Passwords do not match!")
    ...)
 ```
 
@@ -8734,7 +6626,7 @@ database).
 
 (defsc Person [this props]
    ... ; as before
-   (dom/button #js {:onClick #(prim/transact! this `[(submit-person ~{:id id :diff (fs/dirty-fields props true)})])} "Submit")
+   (dom/button {:onClick #(prim/transact! this `[(submit-person ~{:id id :diff (fs/dirty-fields props true)})])} "Submit")
    ...)
 ```
 
@@ -8914,7 +6806,7 @@ The form fields themselves are rendered by calling `(f/form-field form field-nam
 the simple input itself.
 
 ```
-(f/form-field my-form :name) ;; results in: (dom/input #js { ... })
+(f/form-field my-form :name) ;; results in: (dom/input { ... })
 ```
 
 This is the minimum we can do to ensure that the logic is correctly connected, while not interfering with your
@@ -8929,12 +6821,12 @@ showing/hiding validation messages.
   "A non-library helper function, written by you to help lay out your form."
   ([comp form name label] (field-with-label comp form name label nil))
   ([comp form name label validation-message]
-   (dom/div #js {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
-     (dom/label #js {:className "col-sm-2" :htmlFor name} label)
+   (dom/div {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
+     (dom/label {:className "col-sm-2" :htmlFor name} label)
      ;; THE LIBRARY SUPPLIES f/form-field. Use it to render the actual field
-     (dom/div #js {:className "col-sm-10"} (f/form-field comp form name))
+     (dom/div {:className "col-sm-10"} (f/form-field comp form name))
      (when (and validation-message (f/invalid? form name))
-       (dom/span #js {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
+       (dom/span {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
 ```
 
 The rendering of the form is up to you! Thus, your forms can be as pretty (or ugly) as you care to make
@@ -9114,9 +7006,7 @@ For example, the button to run a transaction to add a phone number to
 a person creates a tempid for the phone number and passes it as a parameter in the transaction:
 
 ```
-  (dom/button #js {:onClick #(prim/transact! this
-                               `[(add-phone ~{:id     (prim/tempid)
-                                              ...})])}
+  (dom/button {:onClick #(prim/transact! this `[(add-phone ~{:id     (prim/tempid) ...})])}
     "Add Phone")
 ```
 
@@ -9331,10 +7221,10 @@ appearing on fields until you're actually ready to validate them:
 
 ```
 ;; only emits if the field is actually marked :invalid (not :unchecked)
-(when (invalid? this-form :field) (dom/span nil "Invalid!"))
+(when (invalid? this-form :field) (dom/span "Invalid!"))
 
 ;; Disables submit button unless all fields are marked `:valid` (none are :unchecked or :invalid)
-(dom/button #js {:disabled (not (valid? form)) :onClick submit} "Submit!")
+(dom/button {:disabled (not (valid? form)) :onClick submit} "Submit!")
 ```
 
 The tricky part is that global validation is never triggered by built-in field interaction because
@@ -9709,7 +7599,7 @@ The general Person form UI looks like this:
                    (f/on-form-change `check-username-available)
                    (f/text-input :person/name)
                    (f/integer-input :person/age)]}
-  (dom/div #js {:className "form-horizontal"}
+  (dom/div :.form-horizontal
     (field-with-label this props :person/name "Username:"
       (case name-status
         :duplicate (b/alert {:kind :warning}
@@ -9719,10 +7609,8 @@ The general Person form UI looks like this:
         :ok (b/alert {:color :success} "OK" (i/icon :check))
         ""))
     (field-with-label this props :person/age "Age:")
-    (dom/div #js {:className "button-group"}
-      (dom/button #js {:className "btn btn-default"
-                       :disabled  (not (f/dirty? props))
-                       :onClick   #(f/commit-to-entity! this :remote true)}
+    (dom/div :.button-group
+      (dom/button :.btn.btn-default { :disabled  (not (f/dirty? props)) :onClick   #(f/commit-to-entity! this :remote true)}
         "Save!"))))
 ```
 
@@ -10396,7 +8284,7 @@ Something like this is close:
                                    js-file (with-meta {} {:js-file (.item js-file-list file-idx)})]
                                `(upload-file ~{:id fid :file js-file})))
                        (range (.-length js-file-list))))))]
-  (dom/input #js {:multiple true :onChange onChange}))
+  (dom/input {:multiple true :onChange onChange}))
 ```
 
 The server for this would need middleware watching for file uploads at `/file-uploads`, that
@@ -10527,6 +8415,8 @@ sort of networking component to deal with things like incoming streaming data.
 See the <<RESTAPI, REST API>> section of the Getting Started chapter for an example of working with REST.
 
 = Websockets [[Websockets]]
+
+WARNING: As of Fulcro 2.5 you must add `sente` to your dependencies for websockets to work. The dependencies are dynamically resolved.
 
 Fulcro includes support for using https://github.com/ptaoussanis/sente[Sente] to set up websockets as a remote
 for your applications. The support documented here is relatively new, and supercedes a prior version as of 2.2.0.
@@ -10831,20 +8721,21 @@ You should port to using the raw `sente-message` for this concern.
 want that, then store your application in a top level atom (e.g. `app`) and use this as your new `push-method` parameter
 when creating the networking: `(fn [m] (when @app (fulcro.websockets.networking/push-received @app m)))`.
 
-= Internationalization 2 (ALPHA) [[I18NAlpha]]
+= Internationalization [[I18N]]
 
 Fulcro has had internationalization support since inception. That original support worked well from the call-site; however,
 many lessons were learned about storing, transmitting, and structuring the actual data.
-An internal rewrite is now available in `fulcro.alpha.i18n`. This support improves the failing of the prior support, while
-still using the same basic calls from the UI.
 
-The new support:
+The support:
 
+* The ability to write UI strings in a default language/locale in the code. These are the defaults that are shown on
+the UI if no translation is available.
+* Supports string extraction from the compiled UI code.
+** The translator can use tools like POEdit to generate translation files
 * Leverages normal application state as the location to house loaded translations.
-* Allows the server to serve locales via a normal query.
+* Allows the server to serve new locale translations via a normal query.
 * Includes server tools to directly read locales from GNU gettext PO files (no more code generation).
-* Still supports string extraction from the compiled UI code.
-* Supports a pluggable message formatting system instead of being tied to FormatJS.
+* Supports a pluggable message formatting system.
 
 == The Core API
 
@@ -10910,6 +8801,9 @@ Fulcro's i18n support is designed to make it easy to code and extract translatab
 interested in doing message, number, currency, or date formatting. There are plenty of libraries, including Google Closure,
 that can already fill that role.
 
+The easiest pair to use for both server and client rendering are the FormatJS (client) and IBM ICU library (server). These
+two libraries follow the same formatting standards, and give good isomorphic rendering support.
+
 Fulcro does one central task: it takes a string in the UI, looks up an alternate string (based on the locale) from a PO
 file, and pushes that alternate string through the rest of the i18n processing chain (which you define).
 
@@ -10934,14 +8828,13 @@ message formatter into Fulcro's i18n system.
 
 == Configuring I18N
 
-Your first step is to define a function that can format messages. If you want to use Yahoo's FormatJS, then you'd use something
-like this:
+Your first step is to define a function that can format messages. If you want to use Yahoo's FormatJS, then you'd add the
+FormatJS library as a script in your HTML, and then use something like this:
 
 ```
 (ns appns
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
-            yahoo.intl-messageformat-with-locales
-            [fulcro.alpha.i18n :as i18n :refer [tr trc trf]]))
+            [fulcro.i18n :as i18n :refer [tr trc trf]]))
 
 (defn message-formatter [{:keys [::i18n/localized-format-string ::i18n/locale ::i18n/format-options]}]
   (let [locale-str (name locale)
@@ -10962,7 +8855,7 @@ When creating your client:
 ```
 (ns appns
   (:require [fulcro.client :as fc]
-            [fulcro.alpha.i18n :as i18n]))
+            [fulcro.i18n :as i18n]))
 
 (defn message-formatter ...)
 
@@ -11034,14 +8927,13 @@ the local disk will be searched instead.
 
 You can extract the strings from your UI for translation using GNU's CLI utility `xgettext` (available via Brew, etc).
 
-The *alpha* version steps are (the primary difference is the inclusion of `_alpha` in the arguments):
+The steps are:
 
 . Compile your application with whitespace optimizations.
 . Run this on the resulting js file:
 +
 ```bash
-$ xgettext --from-code=UTF-8 --debug -k -ktr_alpha:1 \
-           -ktrc_alpha:1c,2 -ktrf_alpha:1 -o messages.pot application.js
+$ xgettext --from-code=UTF-8 --debug -k -ktr:1 -ktrc:1c,2 -ktrf:1 -o messages.pot application.js
 ```
 
 == Generating Locale Translation Files
@@ -11078,7 +8970,7 @@ own and invoke the `change-locale` mutation, but the pre-written one can be used
                                                    {:locales [(prim/get-initial-state Locale {:locale :en :name "English"})
                                                               (prim/get-initial-state Locale {:locale :es :name "Espanol"})
                                                               (prim/get-initial-state Locale {:locale :de :name "Deutsch"})]}}}
-  (dom/div nil
+  (dom/div
     (i18n/ui-locale-selector locale-selector)
     ...))
 ```
@@ -11091,7 +8983,7 @@ as easy to hard-code them.
 Each locale must be given a name (UTF8) to be show in the resulting select drop-down. This renders
 as an HTML select with the CSS class "fulcro$i18n$locale_selector".
 
-See also `src/cards/fulcro/democards/i18n_alpha_cards.cljs` in the main Fulcro source.
+See also `src/cards/fulcro/democards/i18n_cards.cljs` in the main Fulcro source.
 
 == Server-Side Rendering
 
@@ -11143,344 +9035,6 @@ The message formatter could be:
       (catch Exception e
         (log/error "Formatting failed!" e)
         "???"))))
-```
-
-= Internationalization (DEPRECATED. See <<I18NAlpha, Internationalization 2 (ALPHA)>>)
-
-NOTE: As of 2.3.2 this version of i18n support is deprecated. New i18n support is in alpha testing and shares much of the
-API. Porting to it at the UI layer should be relatively painless (mostly a change of requires). This version is still in
-place to prevent breakage of existing users until the new support is stable.
-
-Fulcro combines together a few tools and libraries to give a consistent and easy-to-use method of internationalizing
-your application. The approach includes the following features:
-
-* A global setting for the *current* application locale.
-* The ability to write UI strings in a default language/locale in the code. These are the defaults that are shown on
-the UI if no translation is available.
-* The ability to extract these UI strings for translation in POT files (GNU gettext-style)
-** The translator can use tools like POEdit to generate translation files
-* The ability to convert the translation files into Clojurescript
-* The ability to code-split your locales so they can be dynamically loaded when the locale is changed (Clojurescript 1.9.905+ and Fulcro 1.0.0-beta9+).
-* The ability to format messages (using Yahoo's formatJS library), including very configurable plural support
-
-Fulcro leverages the GNU `xgettext` tool, and Yahoo's FormatJS library (which in turn leverages browser support
-for locales) to do most of the heavy lifting.
-
-The i18n support of Fulcro does *not* add overhead to your application if you do not use it.
-
-== Polyfills
-
-If you use the internationalization support of Fulcro then you must load
-Yahoo's FormatJS. Fulcro includes a version of this library so you can
-just require it from at one of your namespaces:
-
-```
-(ns some-namespace
-  (:require yahoo.intl-messageformat-with-locales))
-```
-
-You may also need additional polyfills (like https://github.com/andyearnshaw/Intl.js/[`Intl.js`]) to get full
-internaltional API support on Safari or older browsers.
-
-== Annotating Strings
-
-Fulcro uses the real UI strings as internaltionalization keys. This has a number of advantages:
-
-. You don't have to keep track of made-up keys
-. If you're missing a translation, it is easy to fall back to the default language so at least *something* is on the UI
-that is comprehensible.
-. It makes generating the list of things to translate something we can script.
-. The code itself remains easy to read and understand.
-
-Plain strings need only be wrapped in the `tr` macro:
-
-```
-(ns boo
-  (:require [fulcro.i18n :refer [tr]]))
-
-...
-(tr "This is a test")
-...
-```
-
-By default (you have not created any translations) a call to `tr` will simply return the parameter unaltered.
-
-The parameter to `tr` *must* be a literal string (or string extraction cannot work). There is a separate function
-for dealing with variables.
-
-== Translating Values in Variables
-
-There are times when you have a fixed known set of strings that you need to choose from (e.g. for a drop-down). In this
-case you need a way to format something that is in a variable. The `tr-unsafe` macro allows this. It is otherwise
-identical to `tr`.
-
-NOTE: The reason for the separate name and error checking is that string extraction cannot possibly figure out
-the values that are passed to `tr-unsafe` in a variable, which means you will have to find those manually and
-tell your translator to include translations for them, OR you could do a trick like this:
-
-```
-(defn unused-function []
-  (tr "Option One")
-  (tr "Option Two")
-  (tr "Option Three"))
-
-...
-
-(tr-unsafe v) ; where v has "Option One" ...
-```
-
-The calls to `tr` are just there so that the  generated code includes the literal string that need translations so
-that the extraction step can see them. If the code is made unreachable then advanced compilation will even remove them
-in your production build (but the i18n build for extraction will leave them in).
-
-== Resolving Ambiguity
-
-It is quite common for a string to be ambiguous to the developer or translator. For example the abbreviation for 'male'
-might be 'M' in English, but the letter itself doesn't provide enough information for a translator to know what they
-are doing. A call to `trc` (translate with context) resolves this by including a context string as part of the
-internal lookup key and as a comment to the translator:
-
-```
-(trc "Abbreviation for male" "M")
-```
-
-The translator will see this "contextual comment" when translating.
-
-== Formatting
-
-`trf` (translate with format) accepts a format string (see the Yahoo FormatJS library) and any additional arguments
-that should be placed in the string. This function handles formatting of numbers, percentages, plurals, etc.
-
-Any named parameter that you use in the format string must have a corresponding named parameter in the call (you
-can also use a map for the parameters):
-
-```
-(trf "{a}, {b}, and {c}" :a 1 :b 2 :c 3) ; => 1, 2, and 3
-; or
-(trf "{a}, {b}, and {c}" {:a 1 :b 2 :c 3}) ; => 1, 2, and 3
-```
-
-If the input parameter is needs to be further localized you may include a variety of formatting types (which
-are extensible):
-
-```
-(trf "N: {n, number} ({m, date, long})" :n 10229 :m (new js/Date))
-```
-
-See the formatJS documentation for further details.
-
-== Changing the Locale
-
-The locale of the current browser tab can be changed through the built-in mutation `fulcro.client.mutations/change-locale` with a `:lang`
-parameter (which can use the ISO standard two-letter language with an optional country code, and can be
-a string or keyword):
-
-```
-(prim/transact! reconciler '[(fulcro.client.mutations/change-locale {:lang :es})])
-; or if you've aliased mutations to m:
-(prim/transact! reconciler `[(m/change-locale {:lang :es})])
-```
-
-The rendering functions will search for a translation in that language and country, fall back to the language if
-no country-specific entries exist, and will fall back to the default language (the one in the UI code) if no
-translation is found at all.
-
-== Manually Installing Translations (see automation below as well)
-
-NOTE: This is *not* the recommended approach, but it allows you to understand the internals and
-perhaps generate custom tools and process around it.
-
-The format for translations is rather simple, so you can hand-code translations if you care to. The
-format of a translation entry key is "context|msgkey". So, for example the key for a `(tr "Hi")`
-is "|Hi" and the key for `(trc "male" "M")` is "male|M".
-
-Installing a translation map can be done as:
-
-```
-(swap! fulcro.i18n/loaded-translations assoc "es" {"|This is a test" "Spanish for 'this is a test'"})
-```
-
-in other words there is a global atom that holds the currently-loaded translations as a map, keyed by locale. The
-map entries are the above-mentioned translation entry keys and the desired translation.
-
-NOTE: The internal translation map is keyed by the string version of the locale, not the keyword. You can
-use either to change the locale, but the translation map is keyed by the string version.
-
-=== A Small Demo
-
-++++
-<div class="example" id="basic-i18n"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.basic-i18n').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="basic-i18n source"]
-----
-include::src/book/book/basic_i18n.cljs[]
-----
-
-== How it Works
-
-It is important to have a basic understanding of how this all works. When you call `tr`, it really just error
-checks your input to ensure it is a literal string (that is why it is a macro), and calls an underlying function.
-The underlying function looks in a translation map under the current locale key (a global dynamic variable) and
-emits the value found. If no value is found, then it just returns the string it was passed.
-
-When you change locales the entire UI must re-render. The mutation to change locales simply changes the global variable
-that tracks locale and does a call to force a re-render of the root of your UI.
-
-String extraction is done against compiled Javascript with whitespace optimizations. The optimizations cause it to become
-a single file (but doesn't remove dead code). The GNU gettext `xgettext` program can read Javascript and extract the
-strings! So, we don't have to maintain a separate utility!
-
-The Gettext tool chain is leveraged for all of the external work (translator interactions).
-
-=== Common Mistakes
-
-I18n isn't magic: it's just key-based lookups in maps. Here are some mistakes that you might make that will cause
-things to malfunction:
-
-. Using `tr-unsafe` and forgetting to translate the values you pass to it
-. Passing the output of a `tr` call to `tr`
-
-Both of these sound obvious, but the first one is easy to forget and the second one is easy to accidentally do.
-
-Here is an example:
-
-```
-; THIS IS WRONG!!! Do you see why?
-(def options [(tr "A") (tr "B")])
-
-(defn ui-dropdown [{:keys [value options]}]
-  (dom/select {:value value}
-    (map (fn [i] (dom/option {:value (tr-unsafe i)} (tr-unsafe i))) options)))
-
-...
-  (let [default-option (tr "A")
-        current-selection (or v default-option)]
-     (ui-dropdown {:value v :options options}))
-```
-
-There are a number of mistakes in this small example.
-
-. The definition of options uses tr. If the locale is set, it causes options to contain *that* locale's values. They
-won't update when the locale changes.
-. A possibly *translated* value of the options are being passed through, and then be re-used as *keys* to `tr-unsafe`.
-Lookups will fail.
-
-The correct way to do translations in this kind of scenario is like this:
-
-```
-; create options that have a true data abstraction separate from the display value
-(def options [{:key :a :value "A"} {:key :b :value "B"}])
-
-(defn ui-dropdown [{:keys [value options]}]
-  (dom/select {:value (:key value)}
-    ; translations should *always* be done when an element *renders*, not on "data"
-    (map (fn [i] (dom/option {:value (:key i)} (tr-unsafe (:value i)))) options)))
-
-...
-  (let [default-option (first options)
-        current-selection (or v default-option)]
-     (ui-dropdown {:value v :options options}))
-```
-
-The easiest rule to follow is this: Calls to translate values are a *rendering* concern. They should not be called
-to generate *data* that you store somewhere.
-
-== Using Tools to Generate Translation Files
-
-=== Extracting Strings for Translation
-
-String extraction is done via the following process:
-
-* Install GNU gettext (e.g. with `brew`). Make sure `xgettext` and `msgmerge` are on the env PATH that your REPL will see. For example,
-in IntelliJ `/usr/bin` or `/usr/local/bin` (it doesn't load your .profile).
-* Add a cljs build to your project with `:whitespace` optimizations
-* Build that CLJS build
-* Start a CLJ REPL and `(require 'fulcro.gettext)`
-
-The application is compiled using `:whitespace` optimization. This provides a single Javascript file. The GNU
-utility `xgettext` can then be used to extract the strings.
-
-```
-xgettext --from-code=UTF-8 --debug -k -ktr:1 -ktrc:1c,2 -ktrf:1 -o messages.pot compiled.js
-```
-
-If you have existing translations, you'd then merge this POT file into them. If you needed to make a new locale, you'd
-use the GNU `msginit` command.
-
-Fulcro comes with a function to do both the extraction and merging from a REPL: `(fulcro.gettext { options })`.
-
-```
-$ lein run -m clojure.main
-user=> (require 'fulcro.gettext)
-user=> (fulcro.gettext/extract-strings {:js-path "i18n/i18n.js" :po "i18n"})
-```
-
-This should create an `i18n` folder containing a `messages.pot`. This is
-your translation template. The `js-path` is the path to the whitespace-optimized js version of your app.
-The `:po` option specifies your translation directory.
-
-NOTE: This task will automatically merge the generated `.pot` file into any pre-existing `.po` files as a final step,
-so updating translations will just involve sending a human translator the resulting locale-specific `.po` files.
-
-=== Creating a new Locale
-
-Use `msginit` from a command line:
-
-```
-$ cd i18n
-$ lang=es
-$ msginit --no-translator -l $lang --no-wrap -o ${lang}.po -i messages.pot
-```
-
-This will create a new `.po` file. Send this to your translator.
-
-=== Translating Strings
-
-Once you've extracted the strings to a POT file you may translate them as you would any other gettext app. We
-recommend the GUI program POEdit. You should end up with a number of translations in files that you place
-in files like `i18n/es.po`, where `es` is the locale of the translation.
-Generally you'll check your `.po` files into source control in order to keep track of the translations you've already done,
-since the overall process allows carrying over old translations to newly extracted files.
-
-== Generating Clojure Versions of the Translations
-
-A function is provided for you that can be run from the REPL:
-
-```
-(fulcro.gettext/deploy-translations {:src "src/main" :po "i18n" })
-```
-
-`src` is your target source folder, and `:po` is where
-you keep your PO files. This step will generate one cljc file for each PO file. If you supply `:as-modules?` then
-your translations will support being dynamically loaded by `cljs-loader`. See the <<DynamicLocale, dynamically loaded locale demo>> for
-more information on modules.
-Translations will be output to the `translations` namespace in namespaces that match the locale name.
-
-=== Using the Generated Translation Code
-
-If you are using static translations (that all get loaded at once), then your client startup should just require all
-of the locales so they'll get loaded. That's it!
-
-If you place each locale into a module in Clojurescript 1.9.0-905+ then you can use your locales as loadable modules. The
-`change-locale` mutation will automatically trigger loads if needed.
-
-== Update Translations
-
-As your application evolves you'll need to update your translations.
-Just repeat the `extract-strings` function. It will automatically call `msgmerge` on all
-existing locales to both keep your old translations and put in the new ones. Then just
-repeat the translation and deployment steps.
-
-== Locales and Server-side Rendering
-
-The UI will render whatever the current locale is set to. This is a global dynamic variable holding an atom that can
-be set on the server. This makes server-side rendering a breeze:
-
-```
-(reset! fulcro.i18n/*current-locale* :es)
-(dom/render-to-str (ui-root props))
 ```
 
 = Dev Cards [[DevCards]]
@@ -11607,8 +9161,8 @@ Here's a quick function that can be used within a card to wrap UI that wants to 
 ```
 (defn render-example [width height & children]
   (ele/ui-iframe {:frameBorder 0 :height height :width width}
-    (apply dom/div #js {:key "example-frame-key"}
-      (dom/link #js {:rel "stylesheet" :href "/css/bootstrap.min.css"})
+    (apply dom/div {:key "example-frame-key"}
+      (dom/link {:rel "stylesheet" :href "/css/bootstrap.min.css"})
       children)))
 ```
 
@@ -11618,8 +9172,8 @@ this function can then be used to put a pre-sized iframe into a component like s
 (defsc NavRoot [this props]
   { :query         [:boo]}
   (render-example "100%" "150px"
-    (dom/div #js { :className "row" }
-      (dom/div #js {:className "col-md-1"}
+    (dom/div { :className "row" }
+      (dom/div {:className "col-md-1"}
          ...))))
 ```
 
@@ -11740,7 +9294,7 @@ The `defsc` and `defmethod` needed for step 2 look like this:
   {:initial-state (fn [params] {r/dynamic-route-key :main :label "MAIN"})
    :ident (fn [] [:main :singleton])
    :query [r/dynamic-route-key :label]}
-  (dom/div #js {:style #js {:backgroundColor "red"}}
+  (dom/div {:style {:backgroundColor "red"}}
         label))
 
 (defmethod r/get-dynamic-router-target :main [k] Main)
@@ -11904,7 +9458,7 @@ Some general tips to start with in React are:
 1. Make sure your components have a *stable* react key. If the key changes, React will ignore the diff and redo the DOM. This is *very* slow. So,
 if you've generated keys using something like random numbers just to get warnings to go away, then you're asking for trouble.
 2. You're generally better off changing classes than DOM structure. For example, having a `(when render? (dom/div ...))` will cause entire
-sections to be inserted and removed from the DOM. Using a class is much more efficient: `(dom/div #js {:className (str "" (when-not render? " hidden"))} ...)`.
+sections to be inserted and removed from the DOM. Using a class is much more efficient: `(dom/div {:className (str "" (when-not render? " hidden"))} ...)`.
 3. Large DOM. React is pretty good with eliminating unnecessary changes, but that is still no reason to try to render a table with 1000's of rows. Paginate.
 
 
@@ -12271,586 +9825,6 @@ removed, and the output indentation isn't ideal; Still, it turns the task into o
 include::src/book/book/html_converter.cljs[]
 ----
 
-= Bootstrap (CSS Wrappers)
-
-Fulcro include a set of CLJC wrappers for a good portion of Bootstrap 3. These should be considered of alpha quality,
-but they are used in many demos and can be useful in getting started quickly. The primary improvements that are
-needed would be easy contributions, and if you find them useful you can send a pull request to fix issues or
-extend them.
-
-NOTE: You must include version 3 of Bootstrap's CSS (and optionally theme), but *not* Javascript, in your HTML file.
-
-The CSS affects many DOM elements, which means you'll see examples that use DOM functions, which
-in turn require a JavaScript object as the first argument (for performance). The helper functions from the
-`bootstrap` namespace need to modify the incoming arguments, so the first argument (if it takes DOM props) is
-a cljs map instead.
-
-```
-; render a regular DOM element:
-(dom/div #js { :className "a" })
-; render a bootstrap element via one of these functions
-(b/button { :className "b"} "Button label")
-```
-
-The javascript object verion with regular DOM elements avoid data conversion overhead at runtime. The bootstrap functions
-in this library need to augment and manipulate the passed parameters, so they use cljs maps instead.
-
-This documentation covers the passive elements that largely add in proper structure and classnames for bootstrap rendering. The
-other sections on bootstrap cover active elements.
-
-Fulcro also includes `fulcro.ui.html-entities` (which we alias to `ent` here). These just give symbol names
-to HTML entities (e.g. `&times;` is `ent/times`) so they are easier to use in React.
-
-The examples in this section all render within iframes to prevent the bootstrap CSS from interfering with
-the book itself. Some of them intentionally go beyond their normal borders to show how they work on larger screens (even
-though your screen might not be that large).
-
-== Grids
-
-The four iframes below represent the widths of a large, medium, small, and xsmall screen. The content being
-rendered is:
-
-```
-(b/container-fluid {}
-  (b/row {}
-    (b/col {:xs 12 :md 8} "xs 12 md 8") (b/col {:xs 6 :md 4} "xs 6 md 4"))
-  (b/row {}
-    (b/col {:xs 6 :md 4} "xs 6 md 4")
-    (b/col {:xs 6 :md 4} "xs 6 md 4")
-    (b/col {:xs 6 :md 4} "xs 6 md 4"))
-  (b/row {} (b/col {:xs 6 } "xs 6") (b/col {:xs 6 } "xs 6")))
-```
-
-See the Bootstrap documetation for more details.
-
-++++
-<div class="example" id="bootstrap-grid"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-grid').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-grid source"]
-----
-include::src/book/book/bootstrap/grid.cljs[]
-----
-
-== Typography
-
-Various elements support modified typography.
-
-++++
-<div class="example" id="bootstrap-typography"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-typography').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-typography source"]
-----
-include::src/book/book/bootstrap/typography.cljs[]
-----
-
-== Formatting Code
-
-++++
-<div class="example" id="bootstrap-code"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-code').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-code source"]
-----
-include::src/book/book/bootstrap/code.cljs[]
-----
-
-== Tables
-
-++++
-<div class="example" id="bootstrap-tables"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-tables').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-tables source"]
-----
-include::src/book/book/bootstrap/tables.cljs[]
-----
-
-== Alerts
-
-++++
-<div class="example" id="bootstrap-alerts"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-alerts').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-alerts source"]
-----
-include::src/book/book/bootstrap/alerts.cljs[]
-----
-
-== Badges
-
-An inline badge that can be placed on other elements.
-
-++++
-<div class="example" id="bootstrap-badges"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-badges').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-badges source"]
-----
-include::src/book/book/bootstrap/badges.cljs[]
-----
-
-== Breadcrumbs
-
-++++
-<div class="example" id="bootstrap-breadcrumbs"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-breadcrumbs').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-breadcrumbs source"]
-----
-include::src/book/book/bootstrap/breadcrumbs.cljs[]
-----
-
-== Buttons
-
-++++
-<div class="example" id="bootstrap-buttons"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-buttons').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-buttons source"]
-----
-include::src/book/book/bootstrap/buttons.cljs[]
-----
-
-== Button Groups
-
-++++
-<div class="example" id="bootstrap-button-groups"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-button-groups').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-button-groups source"]
-----
-include::src/book/book/bootstrap/button_groups.cljs[]
-----
-
-== Form Fields
-
-++++
-<div class="example" id="bootstrap-form-fields"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-form-fields').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-form-fields source"]
-----
-include::src/book/book/bootstrap/form_fields.cljs[]
-----
-
-== Icons
-
-Glyphicon support through keyword names and the `b/glyphicon` function.
-E.g. `(b/glyphicon {} :arrow-left)`.
-
-++++
-<div class="example" id="bootstrap-icons"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-icons').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-icons source"]
-----
-include::src/book/book/bootstrap/icons.cljs[]
-----
-
-== Images
-
-++++
-<div class="example" id="bootstrap-images"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-images').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-images source"]
-----
-include::src/book/book/bootstrap/images.cljs[]
-----
-
-== Jumbotron
-
-A container that offsets the content. Note, this will not work if it isn't in the grid:
-
-++++
-<div class="example" id="bootstrap-jumbotron"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-jumbotron').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-jumbotron source"]
-----
-include::src/book/book/bootstrap/jumbotron.cljs[]
-----
-
-== Pagination
-
-++++
-<div class="example" id="bootstrap-pagination"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-pagination').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-pagination source"]
-----
-include::src/book/book/bootstrap/pagination.cljs[]
-----
-
-== Panels
-
-Panels use sub-elements to identify portions of the panel:
-
-```
-  (b/panel nil
-    (b/panel-heading nil "Heading without title")
-    (b/panel-body nil "This is the body of the panel")
-    (b/panel-footer nil "The footer"))
-  (b/panel {:kind :danger}
-    (b/panel-heading nil
-      (b/panel-title nil "Panel Title of :danger panel"))
-    (b/panel-body nil "This is the body of the panel"))))
-```
-
-NOTE: Tables can replace or follow the `panel-body`. They need not be placed within it.
-
-```
-(b/panel nil
-  (b/panel-heading nil
-    (b/panel-title nil "Panel with a table and no panel-body"))
-  (b/table nil
-    (dom/tbody nil
-      (dom/tr  nil
-        (dom/th nil "Name")
-        (dom/th nil "Address")
-        (dom/th nil "Phone"))
-      (dom/tr  nil
-        (dom/td nil "Sally")
-        (dom/td nil "555 N Nowhere")
-        (dom/td nil "555-1212")))))
-```
-
-++++
-<div class="example" id="bootstrap-panels"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-panels').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-panels source"]
-----
-include::src/book/book/bootstrap/panels.cljs[]
-----
-
-== Popovers
-
-Popovers are real React components (instead of just wrapper functions), thus the factory has a ui prefix.
-They do not have state, so they are fed their orientation and current state via props. You can include a
-single child (tree), and the popover will use that as its boundary for locating itself.
-
-(Only the Toggle All is hooked up in this example)
-
-++++
-<div class="example" id="bootstrap-popover"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-popover').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-popover source"]
-----
-include::src/book/book/bootstrap/popover.cljs[]
-----
-
-== Progress Bars
-
-++++
-<div class="example" id="bootstrap-progress"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-progress').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-progress source"]
-----
-include::src/book/book/bootstrap/progress.cljs[]
-----
-
-== Thumbnails
-
-++++
-<div class="example" id="bootstrap-thumbnails"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-thumbnails').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-thumbnails source"]
-----
-include::src/book/book/bootstrap/thumbnails.cljs[]
-----
-
-== Wells
-
-++++
-<div class="example" id="bootstrap-well"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-well').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-well source"]
-----
-include::src/book/book/bootstrap/well.cljs[]
-----
-
-= Bootstrap (Components)
-
-This chapter covers Fulcro implementations of some of the Bootstrap components. These have been re-implemented in
-CLJC to support server-side rendering and easy inclusion in your Fulcro applications without having to depend on
-external Javascript.
-
-These components therefore define mutations that manipulate them, and must be composed in with queries and
-such.
-
-== Collapse
-
-The collapse item is a stateful component that takes children. The children will be hidden/shown based on the
-state of the collapse wrapper.
-
-The built-in mutation `(b/toggle-collapse {:id ID-OF-COLLAPSE})` can be used to toggle a specific item, and
-the mutation `(b/set-collapse {:id ID :open BOOLEAN})` can be used to set the specific state.
-
-NOTE: Both of these mutations automatically do nothing if an animation is in progress.
-
-An example with source is below:
-
-++++
-<div class="example" id="bootstrap-collapse"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-collapse').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-collapse source"]
-----
-include::src/book/book/bootstrap/components/collapse.cljs[]
-----
-
-== Accordian (group of collapse)
-
-There is no default coordination among collapse items, but they have a well-known table in app state. Therefore it
-is easy to provide a way to group them together into an accordian. The behavior is implemented with a single
-additional mutation:
-
-```
-(b/toggle-collapse-group-item {:item-id ID :all-item-ids IDs)
-```
-
-This mutation toggles the specific item (by ID), and it understands the grouping because you also pass it
-the IDs of all of the other items in the group. There's no real need for them to be any
-more tightly coupled.
-
-For example, say we choose to use a `panel-group` to lay out each item. Each item can be a
-panel, so we define an extra `accordian-section` function (not part of the library) and
-create the instances in app state and map over them with our helper.
-
-Note that you can use the mutations defined for single Collapse elements (of course), but that will cause
-strangeness in your accordian (e.g. two sections open at once). The `toggle-collapse-group-item` *does*
-this correctly by closing all open sections except the one being opened.
-
-++++
-<div class="example" id="bootstrap-accordian"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-accordian').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-accordian source"]
-----
-include::src/book/book/bootstrap/components/accordian.cljs[]
-----
-
-== Dropdowns
-
-Active dropdowns are components with state. They must be initialized in app state, and have simple
-data constructor functions you can use for this purpose:
-
-* `dropdown` : a function that creates a dropdown's state
-* `dropdown-item` : a function that creates an items with a label
-* `ui-dropdown` : renders the dropdown. It requires the dropdown's properties, and allows optional named arguments
-** `:onSelect` : The callback for selection which receives an element's ID.
-** `:kind` : Identical to the `button` `:kind` attribute.
-
-All labels are run through `tr-unsafe`, so if a translation for the current locale exists it will be used.
-
-The following mutations are are available:
-
-Close (or open) a specific dropdown by ID:
-
-```
-(prim/transact! component `[(b/set-dropdown-open {:id :dropdown :open? false})]`)
-```
-
-Close dropdowns (globally). Useful for capturing clicks a the root to close dropdowns when the user clicks outside of
-an open dropdown.
-
-```
-(prim/transact! component `[(b/close-all-dropdowns {})])
-```
-
-You can set highlighting on an item in the menu (to mark it as active) with:
-
-```
-(prim/transact! component `[(b/set-dropdown-item-active {:id :item-id :active? true})])
-```
-
-++++
-<div class="example" id="bootstrap-dropdowns"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-dropdowns').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-dropdowns source"]
-----
-include::src/book/book/bootstrap/components/dropdowns.cljs[]
-----
-
-== Modals
-
-Modals are stateful Fulcro components with app state and queries. They can, of course, be mixed with other
-app state.
-
-The basic usage is to define your modal in the root, with the various things it should render. If you need
-more than one kind of modal, then you can use a UI router and embed them all in it, then embed the router
-at the root.
-
-The following demonstrates all of these techniques:
-
-++++
-<div class="example" id="bootstrap-modals"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-modals').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-modals source"]
-----
-include::src/book/book/bootstrap/components/modals.cljs[]
-----
-
-== Modal Variations
-
-This section just demonstrates some non-active modals so you can see some of the different layout sizes and options.
-
-NOTE: The iframe for some examples are forced larger than the container because large modals adapt down in size based on
-available space.
-
-++++
-<div class="example" id="bootstrap-modal-variations"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-modal-variations').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-modal-variations source"]
-----
-include::src/book/book/bootstrap/components/modal_variations.cljs[]
-----
-
-== Nav
-
-These are stateful components that act as tabs. A nav contains one or more `nav-link` or `dropdown`. It reports selections
-through an `onSelect` callback (which will send the ID of the item selected).
-
-The typical way to embed a nav is using the `nav` constructor in your initial state, adding `Nav`'s query to the query at
-the same key, and rendering it with `ui-nav`.
-
-In the demo below we define this mutation to call from the onSelect callback to display where the nav is currently
-pointing:
-
-```clojure
-(m/defmutation nav-to [{:keys [page]}]
-  (action [{:keys [state]}] (swap! state assoc :current-page page)))
-```
-
-Then the main component can display nav and also show the current 'page'.
-
-++++
-<div class="example" id="bootstrap-nav"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-nav').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-nav source"]
-----
-include::src/book/book/bootstrap/components/nav.cljs[]
-----
-
-== Nav and UI Routing
-
-The Nav component does nothing more than manage the UI of the tabs. You are still responsible for rendering the
-content of the application. You will likely wish to use the Fulcro routing system so that your UI performance stays
-high, and HTML5 routing becomes simpler. To this end, you will likely want to combine Nav with routing.
-
-=== Defining the UI Routing
-
-First, we'll need some screens to show. We'll just make some placeholders. They'll need to know (and query) their
-screen type:
-
-Then we'll need to define an ident that follows the `[type id]` semantic. Since there isn't really an ID, we'll just
-use the keyword `:singleton` for the ID.
-
-```clojure
-(ident [this props] [(:screen-type props) :singleton])
-```
-
-but this ident function goes with the UI router, which looks like this:
-
-```clojure
-(defrouter MainRouter :main-router
-  (ident [this props] [(:screen-type props) :singleton])
-  :home HomeScreen
-  :other OtherScreen)
-```
-
-=== Composing the UI Elements
-
-Composing the UI requires that you query for the correct router and nav subelements, compose in their initial state,
-and render them both. Something like this will work:
-
-=== Changing the Visible Screen
-
-This is now a component that can display whichever screen is currently active. The `fulcro.client.routing` namespace
-includes a helper functions called `set-route*` that can be composed into a mutation to change the current screen of
-a router:
-
-```
-(m/defmutation select-tab
-  "Select the given tab"
-  [{:keys [tab]}]
-  (action [{:keys [state]}]
-    (swap! state routing/set-route* :main-router [tab :singleton])))
-```
-
-Of course, we could also be using the routing tree mechanisms, which would be similar (though you'd use the
-`update-routing-links` helper then).
-
-=== Ensuring the Correct Tab is Active
-
-If you're using something like HTML5 routing, then you'll not only need to make sure the current screen is showing,
-but you'll need to make sure the `Nav` knows which tab to show as active. The bootstrap namespace includes
-an mutation for setting the current nav link `set-active-nav-link`, and a helper function `set-active-nav-link*`
-that can be composed into mutations.
-
-If you're careful to make the IDs of the tabs and screens the same, then you'll be able to ensure lock-step
-updates with that same mutation:
-
-```clojure
-(m/defmutation select-tab
-  "Select the given tab"
-  [{:keys [tab]}]
-  (action [{:keys [state]}]
-    (swap! state (fn [s]
-                   (-> s
-                     (routing/set-route* :main-router [tab :singleton])
-                     (b/set-active-nav-link* :main-nav tab))))))
-```
-
-The overall technique works the same with routing trees, but in that case you'll need to know what nav links need
-to be updated for a given page and compose those instructions with the `routing/update-routing-links` helper.
-
-++++
-<div class="example" id="bootstrap-nav-routing"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.bootstrap-nav-routing').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="bootstrap-nav-routing source"]
-----
-include::src/book/book/bootstrap/components/nav_routing.cljs[]
-----
-
 = Demos
 
 This chapter includes some additional running demos with source that will give you insight on how to approach various problems. Remember
@@ -13024,73 +9998,6 @@ visualization, followed by the remote load.
 include::src/book/book/demos/cascading_dropdowns.cljs[]
 ----
 
-== Dynamically Loaded Locales [[DynamicLocale]]
-
-NOTE: Figwheel support for code splitting started in 0.5.15. There are a few tweaks to get it to work with earlier versions.
-
-The i18n support allows for auto-generated locale code that can be configured into modules. This allows you to
-dynamically load locale-specific strings for your UI at runtime.
-
-The book's build is configured for this, and the following steps were required:
-
-. Code something that uses i18n.
-. Build the code with `:whitespace` optimizations and WITHOUT MODULES (so all code ends up in the generated js).
-. Use the normal extraction `fulcro.gettext/extract-strings` and translation steps.
-. Deploy the CLJC translation files to your source using: `(fulcro.gettext/deploy-translations {:src "src/demos" :po "resources/demos/i18n" :as-modules? true})`
-. Add the languages as modules to the project's build (see the `book` build in Fulcro's `project.clj`).
-
-The build (at the time of this writing) look like this:
-
-```
-{:id           "book"
- :source-paths ["src/main" "src/book"]
- :compiler     {:output-dir     "resources/public/js/book"
-                :asset-path     "js/book"
-                :modules        {:entry-point {:output-to "resources/public/js/book/book.js"
-                                               :entries   #{book.main}}
-                                 ; For the dynamic i18n loading demo
-                                 :de          {:output-to "resources/public/js/book/de.js"
-                                               :entries   #{translations.de}}
-                                 :es-MX       {:output-to "resources/public/js/book/es-MX.js"
-                                               :entries   #{translations.es-MX}}
-                                 ; For the dynamic code splitting demo
-                                 :main        {:output-to "resources/public/js/book/main-ui.js"
-                                               :entries   #{book.demos.dynamic-ui-main}}}}}
-```
-
-As with the other code splitting demos you must also load `cljs_base.js` in your HTML, since the common code is
-placed in it.
-
-On startup of any module program you must tell the loader which modules have been pre-loaded by
-their ID:
-
-```
-(new-fulcro-client Root :started-callback (fn [] (cljs.loader/set-loaded! :entry-point)))
-```
-
-The demo below is the live example that uses modules for the German and Spanish translations (open your
-browser's network tab to see them load)
-
-++++
-<div class="example" id="dynamic-i18n"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-i18n').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="dynamic-i18n source"]
-----
-include::src/book/book/demos/dynamic_i18n.cljs[]
-----
-
-[source,clojure,role="dynamic-i18n source"]
-----
-include::src/book/translations/de.cljc[]
-----
-
-[source,clojure,role="dynamic-i18n source"]
-----
-include::src/book/translations/es_MX.cljc[]
-----
-
 == Loading due to a UI Event
 
 Tabbed interfaces typically use a UI Router (which can be further integrated into HTML5 routing as a routing tree). See
@@ -13102,16 +10009,16 @@ also demonstrates how one goes about triggering loads of data that some screen m
 If you look at the source for the root component you'll see two buttons with transactions on their click handlers.
 
 ```
-(defsc Root [this {:keys [ui/react-key current-tab] :as props}]
+(defsc Root [this {:keys [current-tab] :as props}]
   ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the
   ; app state graph database.
   {:initial-state (fn [params] {:ui/react-key "initial" :current-tab (prim/get-initial-state UITabs nil)})
-   :query         [:ui/react-key {:current-tab (prim/get-query UITabs)}]}
-  (dom/div #js {:key react-key}
+   :query         [{:current-tab (prim/get-query UITabs)}]}
+  (dom/div
     ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
     ; ensure proper re-render of the tab body). See prim/computed for passing callbacks.
-    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
-    (dom/button #js {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
+    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
+    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
                                                       ; extra mutation: sample of what you would do to lazy load the tab content
                                                       (lazy-load-tab {:tab :settings})])} "Settings")
     (ui-tabs current-tab)))
@@ -13171,7 +10078,7 @@ We represent the list items as you might expect:
 (defsc ListItem [this {:keys [item/id]}]
   {:query [:item/id :ui/fetch-state]
    :ident [:items/by-id :item/id]}
-  (dom/li nil (str "Item " id)))
+  (dom/li (str "Item " id)))
 ```
 
 We then generate a component to represent a page of them. This allows us to associate the items on a page with
@@ -13182,9 +10089,9 @@ a particular component, which makes tracking the page number and items on that p
   {:initial-state {:page/number 1 :page/items []}
    :query         [:page/number {:page/items (prim/get-query ListItem)}]
    :ident         [:page/by-number :page/number]}
-  (dom/div nil
-    (dom/p nil "Page number " number)
-    (df/lazily-loaded #(dom/ul nil (mapv ui-list-item %)) items)))
+  (dom/div
+    (dom/p "Page number " number)
+    (df/lazily-loaded #(dom/ul (mapv ui-list-item %)) items)))
 ```
 
 Next we build a component named `LargeList` to control which page we're on. This component does nothing more than
@@ -13197,10 +10104,10 @@ to jump to any page, since the mutation itself is `goto-page`.
    :query         [{:list/current-page (prim/get-query ListPage)}]
    :ident         (fn [] [:list/by-id 1])}
   (let [{:keys [page/number]} current-page]
-    (dom/div nil
-      (dom/button #js {:disabled (= 1 number)
+    (dom/div
+      (dom/button {:disabled (= 1 number)
         :onClick #(prim/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
-      (dom/button #js {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])}
+      (dom/button {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])}
         "Next Page")
       (ui-list-page current-page))))
 ```
@@ -13581,16 +10488,16 @@ The complete source for this demo is:
 (defsc Settings [this {:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]}]
   {:query [:db/id :settings/auto-open? :settings/keyboard-shortcuts?]
    :ident [:settings/by-id :db/id]}
-  (dom/ul nil
-    (dom/li nil (str "Auto open? " auto-open?))
-    (dom/li nil (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))
+  (dom/ul
+    (dom/li (str "Auto open? " auto-open?))
+    (dom/li (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))
 
 (def ui-settings (prim/factory Settings {:keyfn :db/id}))
 
 (defsc Member [this {:keys [db/id member/name]}]
   {:query [:db/id :member/name]
    :ident [:member/by-id :db/id]}
-  (dom/div nil
+  (dom/div
     "Member: " name))
 
 (def ui-member (prim/factory Member {:keyfn :db/id}))
@@ -13598,23 +10505,23 @@ The complete source for this demo is:
 (defsc Account [this {:keys [db/id account/name account/members account/settings]}]
   {:query [:db/id :account/name {:account/members (prim/get-query Member)} {:account/settings (prim/get-query Settings)}]
    :ident [:account/by-id :db/id]}
-  (dom/div nil
-    (dom/h3 nil (str "Account for " name))
-    (dom/ul nil
+  (dom/div
+    (dom/h3 (str "Account for " name))
+    (dom/ul
       (when (seq settings)
-        (dom/li nil
-          (dom/h3 nil "Settings")
+        (dom/li
+          (dom/h3 "Settings")
           (ui-settings settings)))
-      (dom/li nil
-        (dom/h3 nil "Members in the account")
+      (dom/li
+        (dom/h3 "Members in the account")
         (map ui-member members)))))
 
 (def ui-account (prim/factory Account {:keyfn :db/id}))
 
 (defsc Root [this {:keys [ui/react-key accounts]}]
   {:query [:ui/react-key {:accounts (prim/get-query Account)}]}
-  (dom/div #js {:key react-key}
-    (dom/h3 nil "Accounts with settings and users")
+  (dom/div {:key react-key}
+    (dom/h3 "Accounts with settings and users")
     (map ui-account accounts)))
 
 #?(:cljs (defonce app (atom (fc/new-fulcro-client :started-callback
@@ -13734,6 +10641,7 @@ background-color: rgba(0,0,0,0.04);
 </style>
 
 <!-- The book demos -->
+<script src="intl-messageformat-with-locales.min.js"></script>
 <script src="js/book/cljs_base.js"></script>
 <script src="js/book.js"></script>
 <script src="js/main.js"></script>

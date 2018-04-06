@@ -8,11 +8,11 @@
 (defsc Counter [this {:keys [counter/id counter/n] :as props} {:keys [onClick] :as computed}]
   {:query [:counter/id :counter/n]
    :ident [:counter/by-id :counter/id]}
-  (dom/div #js {:className "counter"}
-    (dom/span #js {:className "counter-label"}
+  (dom/div :.counter
+    (dom/span :.counter-label
       (str "Current count for counter " id ":  "))
-    (dom/span #js {:className "counter-value"} n)
-    (dom/button #js {:onClick #(onClick id)} "Increment")))
+    (dom/span :.counter-value n)
+    (dom/button {:onClick #(onClick id)} "Increment")))
 
 (def ui-counter (prim/factory Counter {:keyfn :counter/id}))
 
@@ -35,10 +35,10 @@
    :ident         (fn [] [:panels/by-kw :counter])}
   (let [click-callback (fn [id] (prim/transact! this
                                   `[(increment-counter {:id ~id}) :counter/by-id]))]
-    (dom/div nil
+    (dom/div
       ; embedded style: kind of silly in a real app, but doable
-      (dom/style nil ".counter { width: 400px; padding-bottom: 20px; }
-                        button { margin-left: 10px; }")
+      (dom/style ".counter { width: 400px; padding-bottom: 20px; }
+                  button { margin-left: 10px; }")
       ; computed lets us pass calculated data to our component's 3rd argument. It has to be
       ; combined into a single argument or the factory would not be React-compatible (not would it be able to handle
       ; children).
@@ -62,9 +62,9 @@
   {:query         [{:panel (prim/get-query CounterPanel)}]
    :initial-state {:panel {}}}
   (let [reconciler (prim/get-reconciler this)]              ; pretend we've got the reconciler saved somewhere...
-    (dom/div #js {:style #js {:border "1px solid black"}}
+    (dom/div {:style {:border "1px solid black"}}
       ; NOTE: A plain function...pretend this is happening outside of the UI...we're doing it here so we can embed it in the book...
-      (dom/button #js {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
-      (dom/hr nil)
+      (dom/button {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
+      (dom/hr)
       "Counters:"
       (ui-counter-panel panel))))

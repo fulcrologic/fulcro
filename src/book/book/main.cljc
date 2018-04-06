@@ -31,7 +31,6 @@
                book.forms.whole-form-logic
                book.forms.full-stack-forms-demo
                [book.demos.autocomplete :as autocomplete]
-               book.basic-i18n
                book.ui-routing
                book.simple-router-1
                book.simple-router-2
@@ -70,7 +69,6 @@
                book.demos.localized-dom
                book.demos.declarative-mutation-refresh
                book.demos.dynamic-ui-routing
-               book.demos.dynamic-i18n
                book.demos.initial-app-state
                book.demos.legacy-load-indicators
                book.demos.loading-data-basics
@@ -87,12 +85,12 @@
                book.demos.server-return-values-manually-merging
                [book.server.ui-blocking-example :as ui-blocking]
                [fulcro-css.css :as css]])
-    [book.ui.example-1 :as ui-ex-1]
     [fulcro.server :as server :refer [defquery-root]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.network :as fcn]
     [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
     [fulcro.logging :as log]
     [book.example-1 :as ex1]
     [fulcro.client.data-fetch :as df]
@@ -222,7 +220,6 @@
 #?(:cljs (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries"))
 #?(:cljs (defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters"))
 
-#?(:cljs (defexample "Internationalization Demo" book.basic-i18n/Root "basic-i18n"))
 #?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
 #?(:cljs (defexample "Simple Router" book.simple-router-1/Root "simple-router-1"))
 #?(:cljs (defexample "Nested Router" book.simple-router-2/Root "simple-router-2"))
@@ -250,10 +247,6 @@
 #?(:cljs (defexample "dynamicUiRouting" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
            :started-callback book.demos.dynamic-ui-routing/application-loaded
            :networking book.main/example-server))
-
-#?(:cljs (defexample "Dynamically Loaded Locales" book.demos.dynamic-i18n/Root "dynamic-i18n"
-           :networking book.main/example-server
-           :started-callback (fn [] (cljs.loader/set-loaded! :entry-point))))
 
 ; Bootstrap CSS
 #?(:cljs (defexample "Alerts" book.bootstrap.alerts/alerts "bootstrap-alerts"))

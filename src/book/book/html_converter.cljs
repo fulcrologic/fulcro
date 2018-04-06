@@ -21,7 +21,7 @@
     (vector? elem) (let [tag      (name (first elem))
                          attrs    (set/rename-keys (second elem) attr-renames)
                          children (map elem-to-cljs (rest (rest elem)))]
-                     (concat (list (symbol "dom" tag) (symbol "#js") attrs) children))
+                     (concat (list (symbol "dom" tag) attrs) children))
     :otherwise "UNKNOWN"))
 
 (defn to-cljs
@@ -40,18 +40,18 @@
   {:initial-state (fn [params] {:html "<div id=\"3\" class=\"b\"><p>Paragraph</p></div>" :cljs {:code (list)}})
    :query         [:cljs :html]
    :ident         (fn [] [:top :conv])}
-  (dom/div #js {:className ""}
-    (dom/textarea #js {:cols     80 :rows 10
-                       :onChange (fn [evt] (m/set-string! this :html :event evt))
-                       :value    html})
-    (dom/div #js {} (pr-str (:code cljs)))
-    (dom/button #js {:className "c-button" :onClick (fn [evt]
-                                                      (prim/transact! this `[(convert {})]))} "Convert")))
+  (dom/div {:className ""}
+    (dom/textarea {:cols     80 :rows 10
+                   :onChange (fn [evt] (m/set-string! this :html :event evt))
+                   :value    html})
+    (dom/div {} (pr-str (:code cljs)))
+    (dom/button :.c-button {:onClick (fn [evt]
+                                       (prim/transact! this `[(convert {})]))} "Convert")))
 
 (def ui-html-convert (prim/factory HTMLConverter))
 
 (defsc Root [this {:keys [converter]}]
   {:initial-state {:converter {}}
    :query         [{:converter (prim/get-query HTMLConverter)}]}
-  (dom/div nil (ui-html-convert converter)))
+  (ui-html-convert converter))
 

@@ -222,7 +222,6 @@
                         (gdom/getElement dom-id-or-node)
                         dom-id-or-node)
                 :clj        dom-id-or-node)]
-    (app/initialize-internationalization rec)
     (app/initialize-global-error-callbacks completed-app)
     (app/start-network-sequential-processing completed-app)
     (prim/add-root! rec root-component node)

@@ -84,7 +84,7 @@
 (defsc ListItem [this {:keys [item/id]}]
   {:query [:item/id :ui/fetch-state]
    :ident [:items/by-id :item/id]}
-  (dom/li nil (str "Item " id)))
+  (dom/li (str "Item " id)))
 
 (def ui-list-item (prim/factory ListItem {:keyfn :item/id}))
 
@@ -92,8 +92,8 @@
   {:initial-state {:page/number 1 :page/items []}
    :query         [:page/number {:page/items (prim/get-query ListItem)}]
    :ident         [:page/by-number :page/number]}
-  (dom/div nil
-    (dom/p nil "Page number " number)
+  (dom/div
+    (dom/p "Page number " number)
     (df/lazily-loaded #(dom/ul nil (mapv ui-list-item %)) items)))
 
 (def ui-list-page (prim/factory ListPage {:keyfn :page/number}))
@@ -103,17 +103,17 @@
    :query         [{:list/current-page (prim/get-query ListPage)}]
    :ident         (fn [] [:list/by-id 1])}
   (let [{:keys [page/number]} current-page]
-    (dom/div nil
-      (dom/button #js {:disabled (= 1 number) :onClick #(prim/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
-      (dom/button #js {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])} "Next Page")
+    (dom/div
+      (dom/button {:disabled (= 1 number) :onClick #(prim/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
+      (dom/button {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])} "Next Page")
       (ui-list-page current-page))))
 
 (def ui-list (prim/factory LargeList))
 
-(defsc Root [this {:keys [ui/react-key pagination/list] :or {ui/react-key "ROOT"}}]
+(defsc Root [this {:keys [pagination/list] :or {ui/react-key "ROOT"}}]
   {:initial-state (fn [params] {:pagination/list (prim/get-initial-state LargeList {})})
-   :query         [:ui/react-key {:pagination/list (prim/get-query LargeList)}]}
-  (dom/div #js {:key react-key} (ui-list list)))
+   :query         [{:pagination/list (prim/get-query LargeList)}]}
+  (dom/div (ui-list list)))
 
 (defn initialize
   "To be used as started-callback. Load the first page."

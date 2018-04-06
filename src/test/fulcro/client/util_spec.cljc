@@ -8,7 +8,8 @@
     [clojure.test.check.generators :as gen]
     [clojure.test.check.properties :as prop]
     [clojure.test :refer [is]]
-    [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
     [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 (specification "strip-parameters"

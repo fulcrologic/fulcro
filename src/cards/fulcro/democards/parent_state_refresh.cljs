@@ -19,12 +19,12 @@
   Object
   (render [this]
     (let [{:keys [id x y]} (prim/props this)]
-      (dom/div nil
-        (dom/button #js {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:id :x]}))} "Set query to :x")
-        (dom/button #js {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:id :y]}))} "Set query to :y")
-        (dom/button #js {:onClick (fn [e] (if x
-                                            (m/set-value! this :x (inc x))
-                                            (m/set-value! this :y (inc y))))}
+      (dom/div
+        (dom/button {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:id :x]}))} "Set query to :x")
+        (dom/button {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:id :y]}))} "Set query to :y")
+        (dom/button {:onClick (fn [e] (if x
+                                        (m/set-value! this :x (inc x))
+                                        (m/set-value! this :y (inc y))))}
           (str "Count: " (or x y)))
         " Leaf"))))
 
@@ -45,12 +45,12 @@
   (render [this]
     (let [{:keys [left right]} (prim/props this)
           {:keys [value]} (prim/get-state this)]
-      (dom/div nil
-        (dom/p nil value)
-        (dom/button #js {:onClick #(prim/react-set-state! this {:value (inc value)})} "Modify local state only. A bug would cause children to go back in time!")
-        (dom/h4 nil "Left")
+      (dom/div
+        (dom/p value)
+        (dom/button {:onClick #(prim/react-set-state! this {:value (inc value)})} "Modify local state only. A bug would cause children to go back in time!")
+        (dom/h4 "Left")
         (ui-leaf left)
-        (dom/h4 nil "Right")
+        (dom/h4 "Right")
         (ui-leaf right)))))
 
 (def ui-parent (prim/factory Parent))
@@ -63,8 +63,8 @@
   Object
   (render [this]
     (let [{:keys [parent] :as props} (prim/props this)]
-      (dom/div nil
-        (dom/button #js {:onClick #(prim/transact! this `[:left])} "Run real transaction (no-op)")
+      (dom/div
+        (dom/button {:onClick #(prim/transact! this `[:left])} "Run real transaction (no-op)")
         (ui-parent parent)))))
 
 (defcard-fulcro parent-refresh-card
