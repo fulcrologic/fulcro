@@ -123,6 +123,16 @@
       (meta))
     => {::prim/time 10 ::info true}))
 
+(defsc IdentExample [_ _]
+  {:ident [:id :id]})
+
+(specification "get-ident" :focused
+  (assertions
+    "Read components ident"
+    (prim/get-ident IdentExample {}) => [:id nil]
+    "Normalize ::prim/not-found to nil"
+    (prim/get-ident IdentExample {:id ::prim/not-found}) => [:id nil]))
+
 (defui A)
 
 (specification "Query IDs"

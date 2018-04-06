@@ -851,10 +851,16 @@
     #?(:clj  (if-let [ident (if (component? class)
                               ident
                               (-> class meta :ident))]
-               (ident class props)
+               (let [id (ident class props)]
+                 (if-not (util/ident? id)
+                   (log/warn "get-ident returned an invalid ident for class:" class))
+                 (if (= ::not-found (second id)) [(first id) nil] id))
                (log/warn "get-ident called with something that is either not a class or does not implement ident: " class))
        :cljs (if (implements? Ident class)
-               (ident class props)
+               (let [id (ident class props)]
+                 (if-not (util/ident? id)
+                   (log/warn "get-ident returned an invalid ident for class:" class))
+                 (if (= ::not-found (second id)) [(first id) nil] id))
                (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)))))
 
 (defn component-name
@@ -1120,7 +1126,7 @@
           ident #?(:clj (when-let [ident (-> class meta :ident)]
                           (ident class data))
                    :cljs (when (implements? Ident class)
-                           (ident class data)))]
+                           (get-ident class data)))]
       (if-not (nil? ident)
         (vary-meta (normalize* (get query (first ident)) data refs union-seen)
           assoc ::tag (first ident))                        ; FIXME: What is tag for?
@@ -1153,7 +1159,7 @@
                   (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
                                                    :cljs (implements? Ident class))))
                     (let [i #?(:clj ((-> class meta :ident) class v)
-                               :cljs (ident class v))]
+                               :cljs (get-ident class v))]
                       (swap! refs update-in [(first i) (second i)] merge x)
                       (recur (next q) (assoc ret k i)))
                     (recur (next q) (assoc ret k x))))
@@ -1164,7 +1170,7 @@
                   (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
                                                    :cljs (implements? Ident class))))
                     (let [is (into [] (map #?(:clj  #((-> class meta :ident) class %)
-                                              :cljs #(ident class %))) xs)]
+                                              :cljs #(get-ident class %))) xs)]
                       (if (vector? sel)
                         (when-not (empty? is)
                           (swap! refs
