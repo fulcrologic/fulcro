@@ -10641,7 +10641,6 @@ background-color: rgba(0,0,0,0.04);
 </style>
 
 <!-- The book demos -->
-<script src="intl-messageformat-with-locales.min.js"></script>
 <script src="js/book/cljs_base.js"></script>
 <script src="js/book.js"></script>
 <script src="js/main.js"></script>
