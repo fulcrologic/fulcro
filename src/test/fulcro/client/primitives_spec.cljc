@@ -2005,7 +2005,7 @@
     (prim/has-ident? AState) => false
     (prim/has-ident? AIdent) => true))
 
-(specification "focus-query-expr"
+(specification "focus-subquery"
   (assertions
     (prim/focus-subquery [] []) => []
     (prim/focus-subquery [:a :b :c] []) => []
