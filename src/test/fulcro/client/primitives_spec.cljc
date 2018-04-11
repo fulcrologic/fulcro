@@ -20,7 +20,8 @@
             [fulcro.client.impl.protocols :as p]
             [fulcro.util :as util]
             [clojure.walk :as walk]
-            [fulcro.ui.form-state :as f])
+            [fulcro.ui.form-state :as f]
+            [fulcro.test-helpers :as th])
   #?(:clj
      (:import (clojure.lang ExceptionInfo))))
 
@@ -2003,6 +2004,24 @@
     (prim/has-ident? A) => false
     (prim/has-ident? AState) => false
     (prim/has-ident? AIdent) => true))
+
+(specification "focus-query-expr" :focused
+  (assertions
+    (prim/focus-subquery [] []) => []
+    (prim/focus-subquery [:a :b :c] []) => []
+    (prim/focus-subquery [:a :b :c] [:d]) => []
+    (prim/focus-subquery [:a :b :c] [:a]) => [:a]
+    (prim/focus-subquery [:a :b :c] [:a :b]) => [:a :b]
+    (prim/focus-subquery [:a {:b [:d]}] [:a :b]) => [:a {:b [:d]}]
+    (prim/focus-subquery [:a {:b [:c :d]}] [:a {:b [:c]}]) => [:a {:b [:c]}]
+    (prim/focus-subquery [:a '({:b [:c :d]} {:param "value"})] [:a {:b [:c]}])
+    => [:a '({:b [:c]} {:param "value"})]
+
+    ; in union case, keys absent from focus will be pulled anyway, given ones will focus
+    (prim/focus-subquery [:a {:b {:c [:d :e]
+                                  :f [:g :h]}}]
+      [:a {:b {:f [:g]}}])
+    => [:a {:b {:c [:d :e] :f [:g]}}]))
 
 (specification "db->tree"
   (assertions

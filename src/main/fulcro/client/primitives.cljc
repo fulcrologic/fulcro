@@ -1261,6 +1261,56 @@
   [query path]
   (focus-query* query path nil))
 
+(declare focus-subquery*)
+
+(defn- focus-subquery-union*
+  [query-ast sub-ast]
+  (let [s-index (into {} (map #(vector (:union-key %) %)) (:children sub-ast))]
+    (assoc query-ast
+      :children
+      (reduce
+        (fn [children {:keys [union-key] :as union-entry}]
+          (if-let [sub (get s-index union-key)]
+            (conj children (focus-subquery* union-entry sub))
+            (conj children union-entry)))
+        []
+        (:children query-ast)))))
+
+(defn- focus-subquery*
+  [query-ast sub-ast]
+  (let [q-index (into {} (map #(vector (:key %) %)) (:children query-ast))]
+    (assoc query-ast
+      :children
+      (reduce
+        (fn [children {:keys [key type] :as focus}]
+          (if-let [source (get q-index key)]
+            (cond
+              (= :join type (:type source))
+              (conj children (focus-subquery* source focus))
+
+              (= :union type (:type source))
+              (conj children (focus-subquery-union* source focus))
+
+              :else
+              (conj children source))
+            children))
+        []
+        (:children sub-ast)))))
+
+(defn focus-subquery
+  "Given a query, focus it along the specified query expression.
+
+  Examples:
+    (focus-query [:foo :bar :baz] [:foo])
+    => [:foo]
+
+    (fulcro.client.primitives/focus-query [{:foo [:bar :baz]} :woz] [{:foo [:bar]} :woz])
+    => [{:foo [:bar]} :woz]"
+  [query sub-query]
+  (let [query-ast (query->ast query)
+        sub-ast   (query->ast sub-query)]
+    (ast->query (focus-subquery* query-ast sub-ast))))
+
 (defn- expr->key
   "Given a query expression return its key."
   [expr]
