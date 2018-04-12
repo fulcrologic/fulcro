@@ -54,7 +54,7 @@
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [state-map server-property-or-ident class-or-factory {:keys [target params marker refresh parallel post-mutation post-mutation-params
-                                                               fallback remote without initialize abort-id]
+                                                               fallback remote focus without initialize abort-id]
                                                         :or   {remote     :remote marker true parallel false refresh [] without #{}
                                                                initialize false}}]
   {:pre [(or (nil? target) (vector? target))
@@ -65,15 +65,21 @@
          (vector? refresh)
          (or (nil? params) (map? params))
          (set? without)
+         (or (nil? focus) (vector? focus))
          (or (util/ident? server-property-or-ident) (keyword? server-property-or-ident))]}
-  (let [query (cond
-                (and class-or-factory (map? params)) `[({~server-property-or-ident ~(prim/get-query class-or-factory state-map)} ~params)]
-                class-or-factory [{server-property-or-ident (prim/get-query class-or-factory state-map)}]
-                (map? params) [(list server-property-or-ident params)]
-                :else [server-property-or-ident])]
+  (let [query' (if class-or-factory
+                 (cond-> (prim/get-query class-or-factory state-map)
+                   focus (prim/focus-subquery focus))
+                 nil)
+        query  (cond
+                 (and class-or-factory (map? params)) `[({~server-property-or-ident ~query'} ~params)]
+                 class-or-factory [{server-property-or-ident query'}]
+                 (map? params) [(list server-property-or-ident params)]
+                 :else [server-property-or-ident])]
     {:query                query
      :remote               remote
      :target               target
+     :focus                focus
      :without              without
      :post-mutation        post-mutation
      :post-mutation-params post-mutation-params
@@ -138,6 +144,7 @@
   should expect the data at the targeted location. The `env` of that mutation will be the env of the load (if available), but will also include `:load-request`.
   - `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
   - `fallback` - A mutation (symbol) to run if there is a server/network error. The `env` of the fallback will be the env of the load (if available), but will also include `:load-request`.
+  - `focus` - An optional subquery to focus on some parts of the original query.
   - `without` - An optional set of keywords that should (recursively) be removed from the query.
   - `abort-id` - An ID (typically a keyword) that you can use to cancel the load via `fulcro.client/abort`.
 

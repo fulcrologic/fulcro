@@ -100,3 +100,40 @@
                   :networking       (MockNetForMerge.)}
    :inspect-data true})
 
+(defsc FocusA [_ _]
+  {:query [:i :have :data]})
+
+(defsc FocusB [_ _]
+  {:query [:x :y]})
+
+(defsc FocusRoot [_ _]
+  {:query [{:a (prim/get-query FocusA)}
+           {:b (prim/get-query FocusB)}]})
+
+(def echo-parser
+  (prim/parser {:read (fn [{:keys [ast parser]} _ _]
+                        (if-let [q (:query ast)]
+                          {:value (parser {} q)}
+                          {:value (str (:key ast))}))}))
+
+(defrecord MockNetForEcho []
+  net/FulcroNetwork
+  (send [this edn done-callback error-callback]
+    (js/setTimeout (fn []
+                     (done-callback (echo-parser {} edn))) 500))
+  (start [this] this))
+
+(defcard-fulcro ui-load-focus
+  "# Focusing
+
+  ```
+  {:root {:a {:data \":data\"}
+          :b {:x \":x\" :y \":y\"}}}
+  ```
+  "
+  FocusRoot
+  {}
+  {:fulcro       {:started-callback (fn [{:keys [reconciler]}]
+                                      (js/setTimeout #(df/load reconciler :root FocusRoot {:focus [{:a [:data]} :b]}) 100))
+                  :networking       (MockNetForEcho.)}
+   :inspect-data true})

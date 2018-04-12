@@ -302,7 +302,6 @@
                                              (update c :params merge new-params)
                                              c)) %)))
 
-
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
   remoting and merging."

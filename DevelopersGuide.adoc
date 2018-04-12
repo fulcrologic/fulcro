@@ -3588,6 +3588,7 @@ Loads allow a number of additional arguments. Many of these are discussed in mor
 `:refresh`:: A vector of keywords and idents. Any component that queries these will be re-rendered once the load completes.
 `:parallel`:: Boolean. Defaults to false. When true, bypasses the sequential network queue. Allows multiple loads to run at once, but causes you to lose any guarantees about ordering since the server might complete them out-of-order.
 `:fallback`:: A mutation to run if the server throws an error during the load.
+`:focus`:: A subquery to filter from your component query. Covered in Incremental Loading.
 `:without`:: A set of keywords to elide from the query. Covered in Incremental Loading.
 `:params`:: A map. If supplied the params will appear as the params of the query on the server.
 `:initialize bool|map`:: If true, uses component's initial state as a basis for incoming merge. If a map, uses the map as the basis for incoming merge.
@@ -4750,6 +4751,61 @@ This kind of query can be handled on the server with `defquery-entity` (which is
   (value [{:keys [query]} id params]
     (get-blog id query))) ; SAME HANDLER WORKS!!!
 ```
+
+==== Load Focus
+
+Another way to load a subgraph part is to use the `:focus` setting on the `load`, `:focus`
+allow you to define a subquery to be loaded from the component query, to start simple here
+is how we can write the same previous example using `:focus`:
+
+```
+(defsc Blog [this props]
+  {:ident  [:blog/by-id :db/id]
+   :query  [:db/id :blog/title {:blog/content (prim/get-query BlogContent)} {:blog/comments (prim/get-query BlogComment)}]}
+  (dom/div
+     ...
+     (dom/button {:onClick #(load this (prim/get-ident this) Blog {:focus [:blog/comments]})}
+       "Show Comments")
+     ...)))
+```
+
+Although the interface requires more code, it's more flexible, let's say for instance you only want
+to load the comment id and author, you can write as:
+
+```
+(load this (get-ident this) Blog {:focus [{:blog/comments [:db/id :comment/author]}]})
+```
+
+As you might notice, in the first `:focus` example when we point to a join, the whole
+join sub-query will be pulled, but you can get more precise by expressing more of the
+sub-query.
+
+==== Load focus on unions
+
+A special case that worth mention about focus sub-query is how it handles unions. Other
+than on unions, `:focus` will only use the attributes mentioned on the sub-query, but
+on unions, if you don't express some union branch it will be pulled as is, for example, let's
+say you have this given query:
+
+```
+[{:feed/item {:message [:message/text :message/timestamp]
+              :activity [:activity/source-id :activity/url]}}]
+```
+
+If you `:focus` on this:
+
+```
+[{:feed/item {:message [:message/text]}}]
+```
+
+Then you get out the query:
+
+```
+[{:feed/item {:message [:message/text]
+              :activity [:activity/source-id :activity/url]}}]
+```
+
+This makes sure you will keep all union branches.
 
 == Full-Stack Error Handling [[FullStackErrorHandling]]
 
