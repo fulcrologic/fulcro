@@ -244,6 +244,7 @@ those.
 Change the `defonce` in `main.cljs` to look like this:
 
 ```
+; You'll need to add fulcro.client.data-fetch as df to your requires
 (defonce client (atom (fc/new-fulcro-client
                         :started-callback (fn [app]
                                             (df/load app :n nil {:marker false})))))
