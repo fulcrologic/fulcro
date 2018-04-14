@@ -12,12 +12,13 @@ a number of things:
 of complication under the hood, which in turn showed up as bugs. Fulcro's choice of the built-in database format makes
 these optimizations easier and hopefully more reliable.
 
-=== Porting From Fulcro 1.0
+=== Porting From Fulcro 1.0 and Untangled
 
-1. Remove Om Next from your dependencies, if present
-2. Update to the latest fulcro
-3. Update to fulcro-spec (if using it)
-4. Rename all of the Om namespaces to use the new ones in Fulcro, which are mostly API-compatible:
+1. Remove Om Next and all Untangled (client, server, om-css, and spec) dependencies, if present
+2. Add the latest fulcro (this covers client, server, css, and websockets).
+3. Add the latest fulcro-spec (if using it)
+4. Rename all of the Om namespaces to use the new ones in Fulcro, which are mostly API-compatible. Untangled namespaces
+*mostly* just need the word `untangled` changed to `fulcro`.
 +
 In Linux and OSX (assuming your project is in git), this `rename-ns` script is useful:
 +
@@ -54,7 +55,7 @@ forking import process.
 `unique-key`, `atom?`, `deep-merge`, and `conform!`
 6. Fix any uses of `load-action` or `load-field-action` to pass the `env` instead of just the state atom. In 1.0 either
 was OK. In 2.0 it has to be the full mutation `env`.
-7. The server namespaces of Untangled were all combined into `fulcro.server` and `fulcro.easy-server`. You'll have to
+7. The server namespaces of Untangled and Fulcro 1.0 were all combined into `fulcro.server` and `fulcro.easy-server`. You'll have to
 search for the correct places, since this combined multiple old namespaces into two.
 
 If you don't use dynamic queries then you're done! You can port any `defui` components to `defsc`, but at your own
@@ -200,6 +201,7 @@ are some circumstances where it could be slower.
 ** Compressible transactions. You can now ask the history to elide steps of history, like side-by-side keystrokes.
 ** Every change to app state (except your raw swaps) is now a transaction internally (`set-query!`, `merge!`, and `transact!`). This
 means that all strucutured progression of your app is properly recorded in history!
-** Should work with React 16 and Clojure 1.9. Not heavily tested in either yet, though. There are some React 16 things that could
-break your apps if you use deprecated things. Many existing React libraries have yet to port.
+** Should work with React 16 and Clojure 1.9. User reports indicate it is fine, though the Fulcro developers still use 15.
+There are some React 16 things that could break your apps if you use deprecated things. Also, at the time of this
+writing many existing React libraries have yet to port, and don't work with 16.
 
