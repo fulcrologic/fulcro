@@ -284,6 +284,8 @@ New users are encouraged to do one or both of the following:
 . Follow along with the https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube] video series.
 . Read the https://book.fulcrologic.com[Developer's Guide]
 . Do the devcards-based https://github.com/fulcrologic/fulcro-tutorial[Fulcro Tutorial].
+. Check out the posts on https://www.patreon.com/fulcro[Patreon]
+. Examine the various README files at https://github.com/fulcrologic/fulcro
 
 === Leiningen Template
 
