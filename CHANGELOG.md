@@ -6,6 +6,11 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.0-beta2
+-----------
+- Added support for :focus on loads
+-
+
 2.5.0-beta1
 -----------
 - Fixed issue with internal merge on mutation joins getting :not-found in idents
