@@ -41,7 +41,7 @@ Here is a minimal project file for a Fulcro app with hot code reload on the clie
 (defproject app "0.1.0-SNAPSHOT"
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.10.238"]
-                 [fulcrologic/fulcro "2.5.0-beta1"]]
+                 [fulcrologic/fulcro "2.5.0"]]
 
   :plugins [[lein-figwheel "0.5.15"]]
 
@@ -193,7 +193,7 @@ Fulcro's abstractions are tuned and ready for full-stack operation. First, add s
 (defproject app "0.1.0-SNAPSHOT"
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.10.238"]
-                 [fulcrologic/fulcro "2.5.0-beta1"]
+                 [fulcrologic/fulcro "2.5.0"]
 
                  ;; add these:
                  [http-kit "2.2.0" :scope "provided"]
@@ -282,14 +282,36 @@ to various resources like videos and evaluation guides.
 New users are encouraged to do one or both of the following:
 
 . Follow along with the https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube] video series.
-. Follow the "README-style" https://github.com/fulcrologic/fulcro-getting-started[Getting Started Guide].
+. Read the https://book.fulcrologic.com[Developer's Guide]
 . Do the devcards-based https://github.com/fulcrologic/fulcro-tutorial[Fulcro Tutorial].
 
-Experienced users that want to dive right in can use the `lein` template,
-which emits a bare-bones full-stack app with dev, testing, uberjar, i18n, and devcards support:
+=== Leiningen Template
+
+Experienced users that want to dive right in can use the `lein` template. This template will save you a lot of effort
+in green-field development, as it emits a project that is already set up with
+full-stack support, development modes, testing (including CI), uberjar, i18n, and even
+devcards support:
 
 ```
-lein new fulcro my-project
+lein new fulcro my-project nodemo
+```
+
+It generates a lein-based project (of course), but has options that let you choose between build systems:
+
+* figwheel (default) - Generates a project that uses Figwheel for hot code reload in development mode, and the standard
+cljs compiler.
+* shadow-cljs - Generates a project that uses shadow-cljs for the compiler and development environment. This is a great
+alternative that replaces figwheel for hot code reload and is a fork of the standard cljs compiler that has much
+better support for the native js ecosystem (i.e. npm). I generally recommend this to consulting clients for business
+use, since leveraging external libraries is often a critical cost concern.
+
+The `demo` and `nodemo` options cause the template to include some very basic example code (or not). If you don't choose
+one of those, it will ask.
+
+So, to generate a shadow-cljs project with demo code:
+
+```
+lein new fulcro my-project demo shadow-cljs
 ```
 
 If you don't know Clojure, you should at least get comfortable with the basics.
@@ -297,11 +319,6 @@ I recommend: http://www.braveclojure.com/[Clojure for the Brave and True], and d
 basic online exercises at http://www.4clojure.com/[4Clojure]. You should also have
 a passing familiarity with Facebook's React, though if you understand that we're
 using it to get "fast UI updates", that is sufficient to start.
-
-== Fulcro Developers Guide
-
-Yes! There is a book on Fulcro that covers all of the features in detail! You can read it at
-http://book.fulcrologic.com[].
 
 == Contributors
 
