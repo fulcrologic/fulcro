@@ -2362,7 +2362,7 @@ re-usable nested DOM:
 
 Here are some common things you'll want to know how to do that are different when rendering with Fulcro:
 
-** `dom/p` is a function for generating p tags for use in React componenets. There is one of these for every legal HTML tag.
+** `dom/p` is a function for generating p tags for use in React components. There is one of these for every legal HTML tag.
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
 * Any time a VDOM includes a collection of elements they should each have a unique `:key`
@@ -2569,7 +2569,7 @@ means:
 
 ```
 (defsc Person [this props]
-  {:initial-state (fn [params] {:db/id (:params id)}})}
+  {:initial-state (fn [params] {:db/id (:id params)}})}
   ...)
 ```
 
