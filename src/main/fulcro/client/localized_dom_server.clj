@@ -15,22 +15,9 @@
   td tfoot th thead time title tr track u ul var video wbr circle clipPath ellipse g line mask path
   pattern polyline rect svg text defs linearGradient polygon radialGradient stop tspan)
 
-(s/def ::dom-element-args
-  (s/cat
-    :css (s/? keyword?)
-    :attrs (s/? (s/or
-                  :nil nil?
-                  :map #(and (map? %) (not (element? %)))))
-    :children (s/* (s/or
-                     :string string?
-                     :number number?
-                     :collection #(or (vector? %) (seq? %))
-                     :nil nil?
-                     :element element?))))
-
 (defn gen-tag-fn [tag]
   `(defn ~tag [& ~'args]
-     (let [conformed-args# (util/conform! ::dom-element-args ~'args)
+     (let [conformed-args# (util/conform! :fulcro.client.dom-server/dom-element-args ~'args)
            {attrs#    :attrs
             children# :children
             css#      :css} conformed-args#

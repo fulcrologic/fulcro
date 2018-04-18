@@ -2362,7 +2362,7 @@ re-usable nested DOM:
 
 Here are some common things you'll want to know how to do that are different when rendering with Fulcro:
 
-** `dom/p` is a function for generating p tags for use in React componenets. There is one of these for every legal HTML tag.
+** `dom/p` is a function for generating p tags for use in React components. There is one of these for every legal HTML tag.
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
 * Any time a VDOM includes a collection of elements they should each have a unique `:key`
@@ -2569,7 +2569,7 @@ means:
 
 ```
 (defsc Person [this props]
-  {:initial-state (fn [params] {:db/id (:params id)}})}
+  {:initial-state (fn [params] {:db/id (:id params)}})}
   ...)
 ```
 
@@ -3454,6 +3454,180 @@ As you can see, the interaction performance is quite good.
 ----
 include::src/book/book/ui/clip_tool_example.cljs[]
 ----
+
+== React Higher-Order Components
+
+When using external libraries with Fulcro you'll often run into the higher-order component pattern.
+https://reactjs.org/docs/higher-order-components.html[React Higher Order Components (HOC)] can be used with
+http://fulcro.fulcrologic.com/[Fulcro] but due to how Fulcro works internally interop/glue code is needed.
+
+https://reactpatterns.com/#higher-order-component[Higher Order Components is a pattern in React] similar to the
+https://en.wikipedia.org/wiki/Decorator_pattern[Decorator pattern] in object-oriented programming: you wrap one
+component class with another component to decorate it with extra behaviour.
+
+Some React reusable components provide HOC components to wrap cross cutting logic needed for the wrapped components to work.
+
+For example https://github.com/fullstackreact/google-maps-react/[google-maps-react] provides `GoogleApiWrapper` HOC that handles
+dynamic loading and initialisation of Google Maps Javascript library so it doesn't have to be handled manually in every place where
+Google Maps React component (like `Map` or `Marker`) is used. In this particular example, `GoogleApiWrapper` creates a wrapper
+component class that behaves in the following way:
+- it will display a placeholder "Loading" component and trigger Google Maps script loading and initialisation
+- when the script loading and initialisation is complete it will replace "Loading" placeholder with the wrapped component
+
+=== Fulcro and React HOC
+
+So what's the issue with using React HOC in Fulcro Interop:
+* Fulcro will embed React JS components (ones created by HOC)
+* React JS HOC will wrap Fulcro components
+
+In the first case React JS components (like these from google-maps-react) expect props to be plain JavaScript objects,
+not ClojureScript maps. Fulcro components pass ClojureScript to nested components thus props need to be converted.
+This part is described in Fulcro Book's chapter on
+http://book.fulcrologic.com/#_using_javascript_react_components[Factory Functions for JS React Components].
+All we need to do is to have a factory function that will do the conversion. For example:
+
+```
+(ns hoc-example
+  (:require
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defsc]]
+    ["google-maps-react" :refer [GoogleApiWrapper Map Marker]]))
+
+(defn factory-apply [js-component-class]
+  (fn [props & children]
+    (apply js/React.createElement
+           js-component-class
+           (dom/convert-props props) ;; convert-props makes sure that props passed to React.createElement are plain JS object
+           children)))
+
+(def ui-google-map (factory-apply Map)) ;; Fulcro wrapper factory for google-maps-react's Map component
+(def ui-map-marker (factory-apply Marker)) ;; Another wrapper factory for Marker component
+```
+
+In the second scenario we will have React JS component passing plain JS object props to our Fulcro component and we need to
+add a layer that will do JS -> Cljs props conversion.
+
+Let's create our sample Fulcro `LocationView` component. It queries for view title, location's lat and lng and `google`
+which is the Google Maps API object required by google-maps-react components. It's managed by google-maps-react HOC wrapper
+and provided in props passed in our wrapped component.
+
+```
+(defsc LocationView [this {:keys [title lat lng google]}]
+  {:query [:lat :lng :google]}
+  (dom/div
+    (dom/h1 title)
+    (dom/div {:style {:width "250px" :height "250px"}}
+      (ui-google-map {:google google
+                      :zoom 15
+                      :initialCenter {:lat lat :lng lng}
+                      :style {:width "90%" :height "90%"}}
+        (ui-map-marker {:position {:lat lat :lng lng}})))))
+```
+
+Now we need to create a factory for our `LocationView`. It will need to sneak props as Cljs map so it's available
+for our wrapped `LocationView` component:
+
+```
+(defn hoc-wrapper-factory-apply [component-class]
+  (fn [props & children]
+    (apply js/React.createElement
+           component-class
+           #js {:hocFulcroCljPropsPassthrough props}
+           children)))
+```
+
+We also need `LocationView` factory that will get JS props received from HOC
+and will recover our Cljs map props enhancing it also with `google` object provided by HOC. We use https://reactpatterns.com/#function-as-children["function as child" React pattern].
+
+```
+;; Plain Fulcro factory that will be used in our interop layer.
+;; It won't be used directly in our client UI code.
+(def ui-location-view-wrapped (prim/factory LocationView)
+
+(defn ui-location-view-interop [js-props]
+  (let [fulcro-clj-props (.-hocFulcroCljPropsPassthrough js-props) ;; unwrapping Fulcro Cljs props wrapped by hoc-factory-apply
+        google (.-google js-props) ;; we need to extract google object passed by google-maps-react HOC
+        props (assoc fulcro-clj-props :google google)] ;; final version of cljs props that has a proper format for our LocationView component
+    (ui-location-view-wrapped props)))
+```
+
+Now we can finally create a factory for `LocationView` component that will be used in our client UI code:
+
+```
+(def ui-location-view
+  ;; GoogleApiWrapper is a function returning HOC with specified configuration parameters like API key
+  ;; Notice that it's a plain JS function thus it requires it's options to be plain JS map thus #js usage
+  (let [hoc (GoogleApiWrapper #js {:apiKey "AIzaSyDAiFHA9fwVjW83jUFjgL43D_KP9EFcIfE"})
+        WrappedLocationView (hoc ui-location-view-interop)]
+    (hoc-wrapper-factory-apply WrappedLocationView)))
+```
+
+Now we can use our `LocationView` in our views:
+
+```
+(ui-location-view {:lat 37.778519 :lng -122.405640})
+```
+
+=== Reusable HOC factory
+
+`utils-hoc` namespace presented below provides a reusable `hoc-factory` that can be used to handle all
+the boilerplate code and interop gluing. It supports `:extra-props-fn` in the opts argument that can be
+used to customize the final props passed to the wrapped component. The code below shows its usage where `google` value
+from `js-props` (injected by google-maps-react HOC wrapper) needs to be propagated under `:google` entry in Cljs
+props passed to the wrapped `LocationView` component.
+
+```
+(ns utils.hoc
+  (:require
+    goog.object
+    [fulcro.client.primitives :as prim]))
+
+(defn hoc-factory
+  "Creates a factory for HOC wrapped component class.
+  extra-props-fn allows for additional customization of props passed to the wrapped component. It will be provided
+  plain js-props and cljs-props unwrapped from js-props and must return cljs-props with modified contents if needed."
+  ([hoc-wrapper-fn wrapped-component-class]
+   (hoc-factory hoc-wrapper-fn wrapped-component-class nil))
+  ([hoc-wrapper-fn wrapped-component-class {:keys [extra-props-fn]}]
+   (let [cljs-props-key (name (gensym "fulcro-cljs-props"))
+         wrapped-component-factory (prim/factory wrapped-component-class)
+         js->clj-props-interop (fn js->clj-props-interop [js-props]
+                                 (let [clj-props (goog.object/get js-props cljs-props-key)
+                                       props (if extra-props-fn
+                                               (extra-props-fn js-props clj-props)
+                                               clj-props)]
+                                   (wrapped-component-factory props)))
+         hoc-wrapped-component-class (hoc-wrapper-fn js->clj-props-interop)]
+     (fn [props & children]
+       (apply js/React.createElement
+         hoc-wrapped-component-class
+         (js-obj cljs-props-key props)
+         children)))))
+
+(comment
+  "Example usage"
+
+  (defsc LocationView [this {:keys [lat lon google]}]
+    {:query [:lat :lon :google]}
+    (dom/div {:style {:width "250px" :height "250px"}}
+      (ui-google-map {:zoom 15
+                      :google google
+                      :initialCenter {:lat lat :lng lon}
+                      :style {:width "90%" :height "90%"}}
+      (ui-map-marker {:position {:lat lat :lng lon}}))))
+
+  (def google-maps-hoc (gmaps/google-api-wrapper #js {:apiKey "AIzaSyDAiFHA9fwVjW83jUFjgL43D_KP9EFcIfE"}))
+
+  (def ui-location-view
+    (hoc-factory
+      google-maps-hoc
+      LocationView
+      {:extra-props-fn (fn propagate-google-api [js-props cljs-props]
+                         (assoc cljs-props :google (goog.object/get js-props "google")))}))
+
+  (ui-location-view {:lat 37.778519 :lng -122.405640}))
+```
+
 
 == The `defui` Macro (Fulcro 1.x. Legacy support in 2.x)
 

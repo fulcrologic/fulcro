@@ -1,0 +1,207 @@
+== Fulcro 2.0+
+
+Fulcro maintains quite a bit of API compatibility with Untangled and Fulcro 1.0, but has forked from Om Next due to
+a number of things:
+
+* We wanted better control of our release cycle and bug fix schedule.
+* Om's support of pluggable databases causes a number of complications we didn't need.
+* Dynamic queries in Om Next use patterns that are at odds with some quite useful features:
+** True serializable support viewer history in the presence of dynamic queries
+** Reliable history navigation for error recovery
+* The rendering optimizations in stock Om Next were quite aggressive, but led to quite a bit
+of complication under the hood, which in turn showed up as bugs. Fulcro's choice of the built-in database format makes
+these optimizations easier and hopefully more reliable.
+
+=== Porting From Fulcro 1.0 and Untangled
+
+1. Remove Om Next and all Untangled (client, server, om-css, and spec) dependencies, if present
+2. Add the latest fulcro (this covers client, server, css, and websockets).
+3. Add the latest fulcro-spec (if using it)
+4. Rename all of the Om namespaces to use the new ones in Fulcro, which are mostly API-compatible. Untangled namespaces
+*mostly* just need the word `untangled` changed to `fulcro`.
++
+In Linux and OSX (assuming your project is in git), this `rename-ns` script is useful:
++
+```
+#!/bin/bash
+
+oldns=$1
+newns=$2
+files=$(git grep -l "$oldns")
+
+if [ ! -z "$files" ]; then
+  perl -pi.bak -e 's/\b\Q'$oldns'\E\b/'$newns'/g' $files
+  find . -name '*.bak' -print0 | xargs -0 -n100 rm
+fi
+```
++
+You'll want to rename things *in order* (assuming you're using the above script):
++
+```
+rename-ns om.next.impl.parser fulcro.client.impl.parser
+rename-ns om.next.protocols fulcro.client.impl.protocols
+rename-ns om.next.server fulcro.server
+rename-ns om.dom fulcro.client.dom
+rename-ns om.tempid fulcro.tempid
+rename-ns om.util fulcro.util
+rename-ns om.next fulcro.client.primitives
+rename-ns fulcro.client.core fulcro.client
+```
++
+5. Fix your use of `util` namespaces. There are now two util namespaces. This is an unfortunate consequence of the
+forking import process.
+** `get-ident` is now just part of the `primitives` namespace
+** The following functions that were in `fulcro.client.util` were moved to `fulcro.util`:
+`unique-key`, `atom?`, `deep-merge`, and `conform!`
+6. Fix any uses of `load-action` or `load-field-action` to pass the `env` instead of just the state atom. In 1.0 either
+was OK. In 2.0 it has to be the full mutation `env`.
+7. The server namespaces of Untangled and Fulcro 1.0 were all combined into `fulcro.server` and `fulcro.easy-server`. You'll have to
+search for the correct places, since this combined multiple old namespaces into two.
+
+If you don't use dynamic queries then you're done! You can port any `defui` components to `defsc`, but at your own
+pace. The new `defsc` macro is a lot more concise, and it has less repetition and better error checking.
+
+Here is the typical translation of a `defui`:
+
+```
+(defui :^once Component
+  static fc/InitialAppState
+  (initial-state [c p] {:x 1})
+  static om/IQuery
+  (query [t] [:x])
+  static om/Ident
+  (ident [t {:keys [db/id]}] [:table/by-id id])
+  Object
+  (render [this]
+    (let [{:keys [x]} (om/props this)]
+      (dom/div nil x))))
+```
+
+becomes:
+
+```
+(defsc Component [this {:keys [x] :as props}]
+  {:query [:x]
+   :ident [:table/by-id :db/id]
+   :initial-state {:x 1}}
+  (dom/div nil x))
+```
+
+Nice, eh? Oh, and if you make a typo (like destructuring `y` in the props) you'll get an error telling you that you
+didn't query for `y`. See the Developer's Guide for more details.
+
+=== Dynamic Queries
+
+If you've been wanting to use them but had problems because of how Om Next did them, read on!
+
+Om Next supports setting queries at a component level (e.g. every instance on the screen). In reality, this doesn't
+work very well (and is difficult to code correctly). Component instances cannot be stored in app state unless you're
+willing to give up history serialization, and to-many relationships present real difficulties (imagine wanting to
+set the query of the 2nd item in a list). Spurious React mount/unmounts will also lose your queries. Imagine changine
+from one tab to another and back again only to have your dynamic queries clear in the original tab you just returned
+to (because of the mount/unmount).
+
+Fulcro 2.0 changes the appraoch. Instead of storing the queries in the indexer and state by React component, we
+instead allow you to define the query ID (which is serializable). However, dynamic queries of this kind don't hide
+the magic. The API for dynamic queries exposes the fact that getting a query is a function of the component's query ID
+AND application state (since that is where custom ones are stored).
+
+==== The trade-offs:
+
+There is no free lunch. Fulcro 2.0's dynamic queries require you to basically give queries an identity. As such,
+they have the following properties:
+
+* You may set a query class-wide. All instances on screen that share that class will use the new query.
+* You may target a new query to a specific React factory (with a qualifier). This allows you to dynamically set a query
+on a subset of on-screen components that share a class.
+
+The down-side is that you cannot arbitrarily set a query on an arbitrary on-screen component without involving a custom
+factory for that instance. That would require indexing by component React instace, and just doesn't work well with other
+features (react re-mounts and serializable history). In practice dynamic queries are mainly needed for code splitting,
+and the fact that you can re-use a single class with as many different qualifiers as you want means that the vast
+majority of dynamic query desires can be easily met.
+
+==== Query IDs
+
+Query IDs are composed of two components: A component's class name, and an optional user-defined keyword qualifier. The
+class and qualifier are needed when asking Fulcro for a query, and React instances that need targeted refresh will also
+need to supply the underlying engine with the Query ID they were originally rendered with.
+
+This implies that the best way to "name" a query without having to repeat yourself is by using a factory
+(which has to know the class name and the qualifier in order to work). Thus,
+Fulcro dynamic queries can define a factory with a query qualifier like so:
+
+```
+(def ui-thing-a (fulcro.client.primitives/factory Thing {:qualifier :a}))
+(def ui-thing-b (fulcro.client.primitives/factory Thing {:qualifier :b}))
+```
+
+The example above gives you two separate kinds of `Thing` that can have their query set dynamically. If the qualifier is not
+set, then setting a query on the given class will affect all instances on the screen that have that class.
+
+==== The Dynamic Query API
+
+If you just want to be able to change the query class-wide, then there are no source changes to your components. If
+you'd like to be able to change the queries for specific instances, then you'll have to involve factories in your
+query functions. This also means you need to use the lambda form of the new defsc macro. In `defui`, nothing changes
+except the use of factories:
+
+
+```
+(ns ui
+  (:require [fulcro.client.primitives :as prim :refer [defsc]]))
+
+(declare ui-thing-a)
+
+(defsc Thing [this props]
+  {:query (fn [] [:prop {:join (prim/get-query ui-thing-a state)}]) }
+  ...
+  )
+
+; OR
+
+(defui Thing
+  static prim/IQuery
+  (query [this] [:prop {:join (prim/get-query ui-thing-a state)}])
+  ...)
+
+(def ui-thing-a (fulcro.client.primitives/factory Thing {:qualifier :a}))
+```
+
+The new `set-query!` has an API change to match (you must pass a class, factory, or query ID):
+
+```
+(set-query! this ui-factory {:query [:x]})
+```
+
+There is a `set-query*` function for SSR initial app setup so you can pre-populate dynamic queries. There is also
+a mutation version you can call directly from `transact!`: `fulcro.client.mutations/set-query!`.
+
+=== Status
+
+* Om Next is no longer a dependency. The relevant code has been imported, and simplified internally. A lot of this
+was to fix dynamic queries, and make the rendering refresh a bit simpler.
+* Fulcro's `defsc` macro was expanded and is now the recommended way to build components
+* `defui` still exists, and is 100% API-compatible with Om Next's
+* Advanced optimization works, and does not rely on the compiler hacks that were present in Om Next.
+* Dynamic queries work in a general purpose and serializable way.
+** Query parameters (e.g. IQueryParams) wasn't changed.
+* Other than the renames and a few minor function moves (from util), it should be API-compatible with existing Fulcro apps
+* Rendering should should be at least as fast as stock Om Next in most circumstances. It should be faster in many, but there
+are some circumstances where it could be slower.
+* New history recording and viewer work (tested against todo mvc)
+** History now contains client timestamps, db before/after, the transaction itself, and whatever the mutation functions returned.
+** History API is now richer. It includes a navigator for moving around. See `fulcro.history`.
+** History tracks networking so that old history isn't removed until the network actions related to it complete.
+* There are a number of new features:
+** Mutation joins (returning entities from server mutations)
+** Load markers can now be normalized and queried directly (instead of stomping on your data)
+** Targeting of loads is more capable (can target to-many with append/prepend, and multiple different places all at once)
+** Pessimistic transactions! You can now have the items in a full-stack mutation run one at a time (in a full-stack sense)
+** Compressible transactions. You can now ask the history to elide steps of history, like side-by-side keystrokes.
+** Every change to app state (except your raw swaps) is now a transaction internally (`set-query!`, `merge!`, and `transact!`). This
+means that all strucutured progression of your app is properly recorded in history!
+** Should work with React 16 and Clojure 1.9. User reports indicate it is fine, though the Fulcro developers still use 15.
+There are some React 16 things that could break your apps if you use deprecated things. Also, at the time of this
+writing many existing React libraries have yet to port, and don't work with 16.
+
