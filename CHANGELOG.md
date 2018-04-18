@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.1
+-----
+- Fixed a bug in the spec for localized dom on server
+
 2.5.0
 -----------
 - Added support for :focus on loads
