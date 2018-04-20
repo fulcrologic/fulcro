@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.2
+-----
+- Added missing helpers for server-side rendering with dynamic routing.
+
 2.5.1
 -----
 - Fixed a bug in the spec for localized dom on server
