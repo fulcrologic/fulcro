@@ -5,10 +5,10 @@
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.impl.protocols :as p]
     #?(:cljs [cljs.loader :as loader])
-      [fulcro.logging :as log]
-      [fulcro.util :as util]
-      [clojure.spec.alpha :as s]
-      [fulcro.logging :as log]))
+            [fulcro.logging :as log]
+            [fulcro.util :as util]
+            [clojure.spec.alpha :as s]
+            [fulcro.logging :as log]))
 
 #?(:clj
    (s/def ::mutation-args
@@ -222,14 +222,15 @@ NOTES:
                      (prim/get-query state)))]
     (if query
       (do
-        (p/queue! reconciler [::pending-route])
+        (when reconciler (p/queue! reconciler [::pending-route]))
         (prim/set-query* state (prim/factory DynamicRouter {:qualifier router-id})
           {:query [::id ::dynamic {::current-route query}]}))
       state)))
 
 (defn- update-routing-queries
   "Given the reconciler, state, and a routing tree route: finds and sets all of the dynamic queries needed to
-  accomplish that route. Returns the updated state."
+  accomplish that route. Returns the updated state. reconciler can be nil, in which case UI refresh may not
+  happen, but that is useful for SSR."
   [state reconciler {:keys [handler route-params]}]
   (let [routing-instructions (get-in state [routing-tree-key handler])]
     (if-not (or (nil? routing-instructions) (vector? routing-instructions))
@@ -270,6 +271,11 @@ NOTES:
         normalized-state (-> (prim/tree->db query tree-state true)
                            (dissoc :tmp/new-route))]
     (util/deep-merge state-map normalized-state)))
+
+(defn install-route*
+  "Implementation of mutation. Useful for SSR setup."
+  [state-map target-kw component]
+  (add-route-state state-map target-kw component))
 
 (defn- install-route-impl [state target-kw component]
   (defmethod get-dynamic-router-target target-kw [k] component)
@@ -356,16 +362,17 @@ NOTES:
 (defn- get-missing-routes
   "Returns a sequence of routes that need to be loaded in order for routing to succeed."
   [reconciler state-map {:keys [handler route-params] :as params}]
-  (let [routing-instructions (get-in state-map [routing-tree-key handler])]
-    (if-not (or (nil? routing-instructions) (vector? routing-instructions))
-      (do
-        (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
-        [])
-      (reduce (fn [routes {:keys [target-router target-screen]}]
-                (let [router (prim/ref->any reconciler [routers-table target-router])]
-                  (if (and (is-dynamic-router? router) (route-target-missing? target-screen))
-                    (conj routes (first target-screen))
-                    routes))) [] routing-instructions))))
+  #?(:clj []
+     :cljs (let [routing-instructions (get-in state-map [routing-tree-key handler])]
+             (if-not (or (nil? routing-instructions) (vector? routing-instructions))
+               (do
+                 (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
+                 [])
+               (reduce (fn [routes {:keys [target-router target-screen]}]
+                         (let [router (prim/ref->any reconciler [routers-table target-router])]
+                           (if (and (is-dynamic-router? router) (route-target-missing? target-screen))
+                             (conj routes (first target-screen))
+                             routes))) [] routing-instructions)))))
 
 (defn- load-dynamic-route
   "Triggers the actual load of a route, and retries if the networking is down. If the pending route (in state) has changed
@@ -374,22 +381,22 @@ NOTES:
   ([state-atom pending-route-handler route-to-load finish-fn]
    (load-dynamic-route state-atom pending-route-handler route-to-load finish-fn 0 0))
   ([state-atom pending-route-handler route-to-load finish attempt delay]
-   #?(:cljs (js/setTimeout
-              (fn []
-                (let [current-pending-route (get @state-atom ::pending-route)]
-                  (when (and pending-route-handler (= current-pending-route pending-route-handler))
+    #?(:cljs (js/setTimeout
+               (fn []
+                 (let [current-pending-route (get @state-atom ::pending-route)]
+                   (when (and pending-route-handler (= current-pending-route pending-route-handler))
                      ; if the load succeeds, finish will be called to finish the route instruction
-                    (let [deferred-result (loader/load route-to-load)
+                     (let [deferred-result (loader/load route-to-load)
                            ;; see if the route is no longer needed (pending has changed)
-                          next-delay      (min 10000 (* 2 (max 1000 delay)))]
+                           next-delay      (min 10000 (* 2 (max 1000 delay)))]
                        ; if the load fails, retry
-                      (.addCallback deferred-result finish)
-                      (.addErrback deferred-result
-                        (fn [_]
-                          (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
+                       (.addCallback deferred-result finish)
+                       (.addErrback deferred-result
+                         (fn [_]
+                           (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
                            ; TODO: We're tracking attempts..but I don't see a reason to stop trying if the route is still pending...
-                          (load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))))
-              delay))))
+                           (load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))))
+               delay))))
 
 (defn- load-routes [{:keys [state] :as env} routes]
   #?(:clj (log/info "Dynamic loading of routes is not done on the server itself.")
@@ -429,6 +436,19 @@ NOTES:
                       (dissoc ::pending-route)
                       (update-routing-links bidi-match))))))
 
+(defn route-to*
+  "Implementation of routing tree data manipulations on app state. Returns an updated app state.
+
+  WARNING: This function will not trigger dynamic module loading, as it is
+  only responsible for returning a state-map that has been set (as far as is possible) to the given route. You typically
+  do *not* want to use this on a client, but exists a separate function for server-side rendering to be easily able
+  to route, since no dynamic code loading will be needed."
+  [state-map bidi-match]
+  (-> state-map
+    (update-routing-queries nil bidi-match)
+    (dissoc ::pending-route)
+    (update-routing-links bidi-match)))
+
 (m/defmutation route-to
   "Mutation (use in transact! only):
 
@@ -443,7 +463,9 @@ NOTES:
   loading will continue.
 
   You may use a link query to get [:fulcro.client.routing/pending-route '_] in your application. If it is not nil
-  then a route is pending, and you can show UI indicators of this."
+  then a route is pending, and you can show UI indicators of this.
+
+  Server-side rendering should require all dynamic portions of the UI and use `route-to*`."
   [{:keys [handler route-params] :as params}]
   (action [env]
     (try
