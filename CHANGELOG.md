@@ -8,7 +8,7 @@ small and tractable.
 
 2.5.2
 -----
-- Added missing helpers for dynamic routing SSR
+- Added missing helpers for server-side rendering with dynamic routing.
 
 2.5.1
 -----

@@ -11441,23 +11441,121 @@ include::src/book/book/demos/dynamic_ui_routing.cljs[]
 
 == Code Splitting and Server-Side Rendering
 
-WARNING: Server-side rendering with dynamically-loaded modules requires support for `r/route-to-impl!` on the server
-to set the dynamic route in the app state that you want to render. At the time of this writing that function is not yet
-capable of running in Clojure. As a workaround you will need to use `prim/set-query*` to install the proper dynamic
-queries into the server-side app state database.
+Version 2.5.2 of Fulcro added the support functions necessary to support server-side rendering of dynamic routes. The
+basics can be see in this example below:
 
-Splitting up your application affects server-side rendering as well. If you want to pre-render a page that is normally loaded as a
-module then you must make sure it is loaded properly on the server. The basic steps are:
+One screen is defined in `other.cljc`:
 
-. Make sure the namespace of the dynamic screen is required so that the `defmethod` for `get-dynamic-router-target` has been installed.
-. During the app state setup, use `r/route-to-impl!` to set the route on app state.
-. Render the DOM to a string.
+```
+(ns ssr-dynamic-routing.ui.other
+  (:require
+    #?(:cljs [cljs.loader :as loader])
+    #?(:cljs [fulcro.client.dom :as dom] :clj
+        [fulcro.client.dom-server :as dom])
+        [fulcro.client.primitives :as prim :refer [defsc]]
+        [fulcro.client.routing :as r]))
 
-When the application loads on the client you'll have passed the generated app state, so the route will be correct from
-a *data* standpoint, but you'll need your started callback to make sure the actual *code* gets loaded when it
-detects a dynamic route (which you'll have to do by analyzing the app state or setting the current handler in
-some easy-to-understand location. If you're using HTML5 history events then your URI will probably trigger the correct
-dynamic route call which will result in the correct result.
+(defsc Other [this {:keys [x]}]
+  {:query         [r/dynamic-route-key :x]
+   :ident         (fn [] [:other :singleton])
+   :initial-state (fn [_] {:x                  1
+                           r/dynamic-route-key :other})}
+  (dom/div nil (str "Other:" x)))
+
+(defmethod r/get-dynamic-router-target :other [_] Other)
+#?(:cljs (loader/set-loaded! :other))
+```
+
+Another (with Root and the routing tree) is in `main.cljc`:
+
+```
+(ns ssr-dynamic-routing.ui.root
+  (:require
+    #?(:cljs [cljs.loader :as loader])
+    #?(:cljs [fulcro.client.dom :as dom] :clj
+        [fulcro.client.dom-server :as dom])
+        [fulcro.client.primitives :as prim :refer [defsc]]
+        [fulcro.client.routing :as r]))
+
+(def routing-tree (r/routing-tree
+                    (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
+                    (r/make-route :other [(r/router-instruction :top-router [:other :singleton])])))
+
+(defsc Main [this {:keys [y]}]
+  {:query         [r/dynamic-route-key :y]
+   :initial-state (fn [_] {r/dynamic-route-key :main
+                           :y                  3})
+   :ident         (fn [] [:main :singleton])}
+  (dom/div (str "MAIN " y)))
+
+(def ui-main (prim/factory Main))
+
+(defsc Root [this {:keys [top-router]}]
+  {:query         [{:top-router (r/get-dynamic-router-query :top-router)}]
+   :initial-state (fn [_] (merge
+                            routing-tree
+                            {r/dynamic-route-key :main
+                             :top-router         (prim/get-initial-state r/DynamicRouter {:id :top-router})}))}
+  (r/ui-dynamic-router top-router))
+
+(defmethod r/get-dynamic-router-target :main [_] Main)
+#?(:cljs (loader/set-loaded! :main))
+```
+
+Notice that these look pretty much like what was described in the normal client stuff.
+
+Next, the basic server is then:
+
+```
+(ns ssr-dynamic-routing.server
+  (:require
+    [ring.util.response :as resp]
+    [fulcro.easy-server :refer [make-fulcro-server]]
+    [fulcro.server-render :as ssr]
+    [ssr-dynamic-routing.ui.other :as other]
+    [ssr-dynamic-routing.ui.root :as root]
+    [fulcro.client.dom-server :as dom]
+    [fulcro.client.primitives :as prim]
+    [fulcro.client.routing :as r]))
+
+(defn build-ui-tree [match]
+  (let [client-db (ssr/build-initial-state (prim/get-initial-state root/Root {}) root/Root)
+        final-db  (-> client-db
+                    ;; CRITICAL: Install the routes, or their state won't be in the db
+                    (r/install-route* :main root/Main)
+                    (r/install-route* :other other/Other)
+                    (r/route-to* match))]
+    ;; CRITICAL: Pass the final database to get-query!!! Or you won't get the updated dynamic query
+    (prim/db->tree (prim/get-query root/Root final-db) final-db final-db)))
+
+(defn server-side-render [env {:keys [handler] :as match}]
+  (let [ui-tree (build-ui-tree match)
+        html    (dom/render-to-str ((prim/factory root/Root) ui-tree))]
+    (-> (resp/response (str
+                         "<html><body><div id='app'>"
+                         html
+                         "</div></body></html>"))
+      (resp/content-type "text/html"))))
+
+(defn build-server
+  [{:keys [config] :or {config "config/dev.edn"}}]
+  (make-fulcro-server
+    :parser-injections #{:config}
+    ;; Quick way to hack a couple of pages in with different match handlers
+    :extra-routes {:routes   ["/" {"main.html"  :main
+                                   "other.html" :other}]
+                   :handlers {:main  server-side-render
+                              :other server-side-render}}
+    :config-path config))
+```
+
+We're using the easy server extra routes system to serve the pages. These handlers conveniently return a map in
+bidi match format, which can be used with `route-to*`. The critical pieces are marked:
+
+* Install the routes with `r/install-route*` for each screen
+* Use `route-to*` to update the database to the correct desired route
+* When you generate the UI tree with `db->tree`, be sure to pass the `get-query` the *final* db state after routing, otherwise
+the dynamic queries won't be seen, and rendering will be incorrect.
 
 = Hacking the Client Query Engine
 
