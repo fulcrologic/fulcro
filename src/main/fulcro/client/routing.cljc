@@ -362,17 +362,20 @@ NOTES:
 (defn- get-missing-routes
   "Returns a sequence of routes that need to be loaded in order for routing to succeed."
   [reconciler state-map {:keys [handler route-params] :as params}]
-  #?(:clj []
+  #?(:clj  []
      :cljs (let [routing-instructions (get-in state-map [routing-tree-key handler])]
              (if-not (or (nil? routing-instructions) (vector? routing-instructions))
                (do
                  (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
                  [])
-               (reduce (fn [routes {:keys [target-router target-screen]}]
-                         (let [router (prim/ref->any reconciler [routers-table target-router])]
-                           (if (and (is-dynamic-router? router) (route-target-missing? target-screen))
-                             (conj routes (first target-screen))
-                             routes))) [] routing-instructions)))))
+               (reduce
+                 (fn [routes {:keys [target-router target-screen]}]
+                   (let [router (prim/ref->any reconciler [routers-table target-router])]
+                     (if (and (is-dynamic-router? router) (route-target-missing? target-screen))
+                       (conj routes (first target-screen))
+                       routes)))
+                 []
+                 routing-instructions)))))
 
 (defn- load-dynamic-route
   "Triggers the actual load of a route, and retries if the networking is down. If the pending route (in state) has changed
