@@ -46,7 +46,8 @@
                 #?(:cljs (let [logger          (glog/getLogger file)
                                first-exception (first (filter #(instance? js/Error %) args))
                                message         (str/join " " args)]
-                           (.log logger (get level-map level (:info level-map)) message first-exception))
+                           (when logger
+                             (.log logger (get level-map level (:info level-map)) message first-exception)))
                    :clj  (println (str (-> level name str/upper-case) " [" location "] : " (str/join " " args))))))))))
 
 #?(:clj
