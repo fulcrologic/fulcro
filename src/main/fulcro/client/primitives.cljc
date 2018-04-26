@@ -500,7 +500,7 @@
   ([name form] (defui* name form nil))
   ([name forms env]
    (letfn [(field-set! [obj [field value]]
-             `(set! (. ~obj ~(symbol (str "-" field))) ~value))]
+             `(set! (. ^js ~obj ~(symbol (str "-" field))) ~value))]
      (let [docstring        (when (string? (first forms))
                               (first forms))
            forms            (cond-> forms
@@ -518,8 +518,8 @@
                                []
                                (this-as this#
                                  (.apply js/React.Component this# (js-arguments))
-                                 (if-not (nil? (.-initLocalState this#))
-                                   (set! (.-state this#) (.initLocalState this#))
+                                 (if-not (nil? (.-initLocalState ^js this#))
+                                   (set! (.-state this#) (.initLocalState ^js this#))
                                    (set! (.-state this#) (cljs.core/js-obj)))
                                  this#))
            set-react-proto! `(set! (.-prototype ~name)
@@ -539,7 +539,7 @@
           (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
           (set! (.. ~name -prototype -constructor) ~name)
           (set! (.. ~name -prototype -constructor -displayName) ~display-name)
-          (set! (.. ~name -prototype -fulcro$isComponent) true)
+          (set! (.-fulcro$isComponent ^js (.-prototype ^js ~name)) true)
           ~@(map #(field-set! name %) (:fields statics))
           (specify! ~name
             ~@(mapv #(cond-> %
@@ -601,7 +601,7 @@
   (if-not (nil? x)
     #?(:clj  (or (instance? fulcro.client.impl.protocols.IReactComponent x)
                (satisfies? p/IReactComponent x))
-       :cljs (true? (. x -fulcro$isComponent)))
+       :cljs (true? (.-fulcro$isComponent ^js x)))
     false))
 
 #?(:clj
@@ -642,7 +642,7 @@
 
 #?(:cljs
    (defn- om-props-basis [om-props]
-     (.-basis-t om-props)))
+     (.-basis-t ^js om-props)))
 
 #?(:cljs (def ^:private nil-props (om-props nil -1)))
 
@@ -2033,7 +2033,7 @@
       (should-update? c next-props nil))
      ([c next-props next-state]
       {:pre [(component? c)]}
-      (.shouldComponentUpdate c
+      (.shouldComponentUpdate  ^js c
         #js {"fulcro$value" next-props}
         #js {"fulcro$state" next-state}))))
 
