@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.4
+-----
+- Improved failed route message
+
 2.5.3
 -----
 - Fixes bug in logging for release compiles
