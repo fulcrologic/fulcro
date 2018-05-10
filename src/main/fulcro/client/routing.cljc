@@ -18,6 +18,10 @@
        :arglist vector?
        :body (s/+ (constantly true)))))
 
+(defn bad-route [page]
+  #?(:cljs (js/React.createElement "div" nil (str "Cannot route: Unknown Screen " page))
+     :clj  (str "Bad route " page)))
+
 #?(:clj
    (defn- emit-union-element [sym ident-arg kws-and-screens]
      (try
@@ -43,7 +47,7 @@
               (let [page# (first (fulcro.client.primitives/get-ident ~'this))]
                 (case page#
                   ~@render-stmt
-                  (str "Cannot route: Unknown Screen " page#))))))
+                  (bad-route page#))))))
        (catch Exception e `(def ~sym (log/error "BROKEN ROUTER!"))))))
 
 #?(:clj
