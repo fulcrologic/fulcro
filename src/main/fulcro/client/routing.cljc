@@ -43,7 +43,7 @@
               (let [page# (first (fulcro.client.primitives/get-ident ~'this))]
                 (case page#
                   ~@render-stmt
-                  (str "Cannot route: Unknown Screen " page#))))))
+                  (js/React.createElement "div" nil (str "Cannot route: Unknown Screen " page#)))))))
        (catch Exception e `(def ~sym (log/error "BROKEN ROUTER!"))))))
 
 #?(:clj
