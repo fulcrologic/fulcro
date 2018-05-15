@@ -96,7 +96,6 @@
 (s/def ::query vector?)
 (s/def ::transaction (s/every #(or (keyword? %) (util/mutation? %))
                        :kind vector?))
-(s/def ::component-or-reconciler vector?)
 (s/def ::pessimistic? boolean?)
 (s/def ::tempids (s/map-of tempid? any?))
 
