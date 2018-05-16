@@ -1822,8 +1822,7 @@
    (let [state (if-let [migrate (-> reconciler :config :migrate)]
                  (let [root-component (app-root reconciler)
                        root-query     (when-not query (get-query root-component @state))]
-                   (merge (select-keys state [:fulcro.client.primitives/queries])
-                          (migrate state (or query root-query) tempids)))
+                   (migrate state (or query root-query) tempids))
                  state)]
      (merge-novelty! reconciler state result-tree query)))
   ([reconciler state result-tree query]
