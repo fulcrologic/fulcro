@@ -1550,7 +1550,7 @@
     (first (p/key->components indexer ref))))
 
 (defn resolve-tempids
-  "Replaces all om-tempids in app-state with the ids returned by the server."
+  "Replaces all tempids in app-state with the ids returned by the server."
   [state tid->rid]
   (if (empty? tid->rid)
     state
@@ -1818,18 +1818,26 @@
       (reduce step tree refs))))
 
 (defn- merge-novelty!
-  [reconciler state result-tree query]
-  (let [config            (:config reconciler)
-        [idts result-tree] (sift-idents result-tree)
-        normalized-result (if (:normalize config)
-                            (tree->db
-                              (or query (:root @(:state reconciler)))
-                              result-tree true)
-                            result-tree)]
-    (-> state
-      (merge-mutation-joins query result-tree)
-      (merge-idents config idts query)
-      ((:merge-tree config) normalized-result))))
+  ([reconciler state result-tree query tempids]
+   (let [state (if-let [migrate (-> reconciler :config :migrate)]
+                 (let [root-component (app-root reconciler)
+                       root-query     (when-not query (get-query root-component @state))]
+                   (merge (select-keys state [:fulcro.client.primitives/queries])
+                          (migrate state (or query root-query) tempids)))
+                 state)]
+     (merge-novelty! reconciler state result-tree query)))
+  ([reconciler state result-tree query]
+   (let [config             (:config reconciler)
+         [idts result-tree] (sift-idents result-tree)
+         normalized-result  (if (:normalize config)
+                              (tree->db
+                                (or query (:root @(:state reconciler)))
+                                result-tree true)
+                              result-tree)]
+     (-> state
+         (merge-mutation-joins query result-tree)
+         (merge-idents config idts query)
+         ((:merge-tree config) normalized-result)))))
 
 (defn get-tempids [m] (or (get m :tempids) (get m ::tempids)))
 
@@ -1840,11 +1848,12 @@
   `:next` state
   and `::tempids` that need to be migrated"
   [reconciler state res query]
-  {:keys     (into [] (remove symbol?) (keys res))
-   :next     (merge-novelty! reconciler state res query)
-   ::tempids (->> (filter (comp symbol? first) res)
-               (map (comp get-tempids second))
-               (reduce merge {}))})
+  (let [tempids (->> (filter (comp symbol? first) res)
+                   (map (comp get-tempids second))
+                   (reduce merge {}))]
+    {:keys     (into [] (remove symbol?) (keys res))
+     :next     (merge-novelty! reconciler state res query tempids)
+     ::tempids tempids}))
 
 (defn merge!
   "Merge an arbitrary data-tree that conforms to the shape of the given query.
