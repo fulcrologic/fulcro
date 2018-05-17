@@ -329,6 +329,13 @@
            (when-not (nil? indexer#)
              (fulcro.client.impl.protocols/drop-component! indexer# this#))
            ~@body)))
+    'shouldComponentUpdate
+    (fn [[name [this next-props next-state :as args] & body]]
+      `(~name [this# next-props# next-state#]
+         (let [~this this#
+               ~next-props (goog.object/get next-props# "fulcro$value")
+               ~next-state (goog.object/get next-state# "fulcro$state")]
+           (do ~@body))))
     'render
     (fn [[name [this :as args] & body]]
       `(~name [this#]
@@ -354,9 +361,10 @@
                props-changed?#    (and
                                     (not next-props-stale?#)
                                     (not= current-props# next-props#))
+               next-state#        (goog.object/get next-state# "fulcro$state")
                state-changed?#    (and (.. this# ~'-state)
                                     (not= (goog.object/get (. this# ~'-state) "fulcro$state")
-                                      (goog.object/get next-state# "fulcro$state")))
+                                      next-state#))
                children-changed?# (not= (.. this# -props -children)
                                     next-children#)]
            (or props-changed?# state-changed?# children-changed?#))))
@@ -2318,7 +2326,7 @@
      :root-unmount - the root unmount function. Defaults to
                      ReactDOM.unmountComponentAtNode
      :render-mode  - :normal - fastest, and the default. Components with idents can refresh in isolation.
-                               shouldComponentUpdate returns false is state/data are unchanged. Follow-on reads are
+                               shouldComponentUpdate returns false if state/data are unchanged. Follow-on reads are
                                required to refresh non-local concerns.
                      :keyframe - Every data change runs a root-level query and re-renders from root.
                                  shouldComponentUpdate is the same as :default. Follow-on reads are *not* needed for
@@ -3191,6 +3199,10 @@
       :componentWillMount        (fn [] ...)
       :componentDidMount         (fn [] ...)
       :componentWillUnmount      (fn [] ...)
+
+      NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
+      that other libraries can control the sub-dom. If you do want to implement it, then old props can
+      be obtained from (prim/props this), and old state via (gobj/get (. this -state) \"fulcro$state\").
 
       ; Custom literal protocols (Object ok, too, to add arbitrary methods. Nothing automatically in scope.)
       :protocols [YourProtocol
