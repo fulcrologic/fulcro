@@ -7413,7 +7413,7 @@ the stack by making it depend on `:handler`. Here is an example:
                :components { :auth (component/using (map->Authentication {}) [:handler]))}))
 ```
 
-The same pattern is used for post-hooks.
+The same pattern is used for fallback hooks.
 
 The nesting of these functions can be a bit confusing, especially since none of the types are explicit. Here's a
 description of each:
@@ -7453,6 +7453,10 @@ Serve `index.html` from your `public` resources folder if the uri of the request
                       ((old-pre-hook ring-handler) req)))]
   ...
 ```
+
+NOTE: Remember that if you serve something like `index.html` for alternate paths you should use absolute paths for the
+resources (e.g. scripts) in that file. If the requested resource wasn't an `html` file, then you'll also need to set the
+content type on the response with something like `(-> (ring.middleware.resource/resource-request ...) (ring.util.response/content-type "text/html"))`.
 
 === Handling Filesystem Resources
 
