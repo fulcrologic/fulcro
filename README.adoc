@@ -226,6 +226,12 @@ and then add a `src/app/server.clj`:
   (c/start server))
 ```
 
+create a `resources/config/defaults.edn` that contains:
+
+```
+{:port 3000}
+```
+
 You can run this server with
 
 ```bash
