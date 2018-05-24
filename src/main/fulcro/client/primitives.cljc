@@ -201,7 +201,16 @@
     componentWillMount        [this]
     componentDidMount         [this]
     componentWillUnmount      [this]
-    render                    [this]})
+    render                    [this]
+    ;; react 16+
+    componentDidCatch         [this error info]
+
+    ;; TODO:
+    #_#_UNSAFE_componentWillMount [this]
+    #_#_UNSAFE_componentWillReceiveProps [this next-props]
+    #_#_UNSAFE_componentWillUpdate [this next-props next-state]
+    #_#_getDerivedStateFromProps [this nextProps prevState]
+    #_#_getSnapshotBeforeUpdate [this prevProps prevState]})
 
 (defn validate-sig [[name sig :as method]]
   (let [sig' (get lifecycle-sigs name)]
@@ -1834,17 +1843,17 @@
                  state)]
      (merge-novelty! reconciler state result-tree query)))
   ([reconciler state result-tree query]
-   (let [config             (:config reconciler)
+   (let [config            (:config reconciler)
          [idts result-tree] (sift-idents result-tree)
-         normalized-result  (if (:normalize config)
-                              (tree->db
-                                (or query (:root @(:state reconciler)))
-                                result-tree true)
-                              result-tree)]
+         normalized-result (if (:normalize config)
+                             (tree->db
+                               (or query (:root @(:state reconciler)))
+                               result-tree true)
+                             result-tree)]
      (-> state
-         (merge-mutation-joins query result-tree)
-         (merge-idents config idts query)
-         ((:merge-tree config) normalized-result)))))
+       (merge-mutation-joins query result-tree)
+       (merge-idents config idts query)
+       ((:merge-tree config) normalized-result)))))
 
 (defn get-tempids [m] (or (get m :tempids) (get m ::tempids)))
 
@@ -1856,8 +1865,8 @@
   and `::tempids` that need to be migrated"
   [reconciler state res query]
   (let [tempids (->> (filter (comp symbol? first) res)
-                   (map (comp get-tempids second))
-                   (reduce merge {}))]
+                  (map (comp get-tempids second))
+                  (reduce merge {}))]
     {:keys     (into [] (remove symbol?) (keys res))
      :next     (merge-novelty! reconciler state res query tempids)
      ::tempids tempids}))
@@ -2048,7 +2057,7 @@
       (should-update? c next-props nil))
      ([c next-props next-state]
       {:pre [(component? c)]}
-      (.shouldComponentUpdate  ^js c
+      (.shouldComponentUpdate ^js c
         #js {"fulcro$value" next-props}
         #js {"fulcro$state" next-state}))))
 
@@ -3199,6 +3208,8 @@
       :componentWillMount        (fn [] ...)
       :componentDidMount         (fn [] ...)
       :componentWillUnmount      (fn [] ...)
+      ;; React 16:
+      :componentDidCatch         (fn [error info])
 
       NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
       that other libraries can control the sub-dom. If you do want to implement it, then old props can
