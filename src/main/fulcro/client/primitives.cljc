@@ -96,7 +96,6 @@
 (s/def ::query vector?)
 (s/def ::transaction (s/every #(or (keyword? %) (util/mutation? %))
                        :kind vector?))
-(s/def ::component-or-reconciler vector?)
 (s/def ::pessimistic? boolean?)
 (s/def ::tempids (s/map-of tempid? any?))
 
@@ -202,7 +201,16 @@
     componentWillMount        [this]
     componentDidMount         [this]
     componentWillUnmount      [this]
-    render                    [this]})
+    render                    [this]
+    ;; react 16+
+    componentDidCatch         [this error info]
+
+    ;; TODO:
+    #_#_UNSAFE_componentWillMount [this]
+    #_#_UNSAFE_componentWillReceiveProps [this next-props]
+    #_#_UNSAFE_componentWillUpdate [this next-props next-state]
+    #_#_getDerivedStateFromProps [this nextProps prevState]
+    #_#_getSnapshotBeforeUpdate [this prevProps prevState]})
 
 (defn validate-sig [[name sig :as method]]
   (let [sig' (get lifecycle-sigs name)]
@@ -330,6 +338,13 @@
            (when-not (nil? indexer#)
              (fulcro.client.impl.protocols/drop-component! indexer# this#))
            ~@body)))
+    'shouldComponentUpdate
+    (fn [[name [this next-props next-state :as args] & body]]
+      `(~name [this# next-props# next-state#]
+         (let [~this this#
+               ~next-props (goog.object/get next-props# "fulcro$value")
+               ~next-state (goog.object/get next-state# "fulcro$state")]
+           (do ~@body))))
     'render
     (fn [[name [this :as args] & body]]
       `(~name [this#]
@@ -355,9 +370,10 @@
                props-changed?#    (and
                                     (not next-props-stale?#)
                                     (not= current-props# next-props#))
+               next-state#        (goog.object/get next-state# "fulcro$state")
                state-changed?#    (and (.. this# ~'-state)
                                     (not= (goog.object/get (. this# ~'-state) "fulcro$state")
-                                      (goog.object/get next-state# "fulcro$state")))
+                                      next-state#))
                children-changed?# (not= (.. this# -props -children)
                                     next-children#)]
            (or props-changed?# state-changed?# children-changed?#))))
@@ -1551,7 +1567,7 @@
     (first (p/key->components indexer ref))))
 
 (defn resolve-tempids
-  "Replaces all om-tempids in app-state with the ids returned by the server."
+  "Replaces all tempids in app-state with the ids returned by the server."
   [state tid->rid]
   (if (empty? tid->rid)
     state
@@ -1819,18 +1835,25 @@
       (reduce step tree refs))))
 
 (defn- merge-novelty!
-  [reconciler state result-tree query]
-  (let [config            (:config reconciler)
-        [idts result-tree] (sift-idents result-tree)
-        normalized-result (if (:normalize config)
-                            (tree->db
-                              (or query (:root @(:state reconciler)))
-                              result-tree true)
-                            result-tree)]
-    (-> state
-      (merge-mutation-joins query result-tree)
-      (merge-idents config idts query)
-      ((:merge-tree config) normalized-result))))
+  ([reconciler state result-tree query tempids]
+   (let [state (if-let [migrate (-> reconciler :config :migrate)]
+                 (let [root-component (app-root reconciler)
+                       root-query     (when-not query (get-query root-component @state))]
+                   (migrate state (or query root-query) tempids))
+                 state)]
+     (merge-novelty! reconciler state result-tree query)))
+  ([reconciler state result-tree query]
+   (let [config            (:config reconciler)
+         [idts result-tree] (sift-idents result-tree)
+         normalized-result (if (:normalize config)
+                             (tree->db
+                               (or query (:root @(:state reconciler)))
+                               result-tree true)
+                             result-tree)]
+     (-> state
+       (merge-mutation-joins query result-tree)
+       (merge-idents config idts query)
+       ((:merge-tree config) normalized-result)))))
 
 (defn get-tempids [m] (or (get m :tempids) (get m ::tempids)))
 
@@ -1841,11 +1864,12 @@
   `:next` state
   and `::tempids` that need to be migrated"
   [reconciler state res query]
-  {:keys     (into [] (remove symbol?) (keys res))
-   :next     (merge-novelty! reconciler state res query)
-   ::tempids (->> (filter (comp symbol? first) res)
-               (map (comp get-tempids second))
-               (reduce merge {}))})
+  (let [tempids (->> (filter (comp symbol? first) res)
+                  (map (comp get-tempids second))
+                  (reduce merge {}))]
+    {:keys     (into [] (remove symbol?) (keys res))
+     :next     (merge-novelty! reconciler state res query tempids)
+     ::tempids tempids}))
 
 (defn merge!
   "Merge an arbitrary data-tree that conforms to the shape of the given query.
@@ -2033,7 +2057,7 @@
       (should-update? c next-props nil))
      ([c next-props next-state]
       {:pre [(component? c)]}
-      (.shouldComponentUpdate  ^js c
+      (.shouldComponentUpdate ^js c
         #js {"fulcro$value" next-props}
         #js {"fulcro$state" next-state}))))
 
@@ -2311,7 +2335,7 @@
      :root-unmount - the root unmount function. Defaults to
                      ReactDOM.unmountComponentAtNode
      :render-mode  - :normal - fastest, and the default. Components with idents can refresh in isolation.
-                               shouldComponentUpdate returns false is state/data are unchanged. Follow-on reads are
+                               shouldComponentUpdate returns false if state/data are unchanged. Follow-on reads are
                                required to refresh non-local concerns.
                      :keyframe - Every data change runs a root-level query and re-renders from root.
                                  shouldComponentUpdate is the same as :default. Follow-on reads are *not* needed for
@@ -3184,6 +3208,12 @@
       :componentWillMount        (fn [] ...)
       :componentDidMount         (fn [] ...)
       :componentWillUnmount      (fn [] ...)
+      ;; React 16:
+      :componentDidCatch         (fn [error info])
+
+      NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
+      that other libraries can control the sub-dom. If you do want to implement it, then old props can
+      be obtained from (prim/props this), and old state via (gobj/get (. this -state) \"fulcro$state\").
 
       ; Custom literal protocols (Object ok, too, to add arbitrary methods. Nothing automatically in scope.)
       :protocols [YourProtocol

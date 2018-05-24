@@ -7413,7 +7413,50 @@ the stack by making it depend on `:handler`. Here is an example:
                :components { :auth (component/using (map->Authentication {}) [:handler]))}))
 ```
 
-The same pattern is used for post-hooks.
+The same pattern is used for fallback hooks.
+
+The nesting of these functions can be a bit confusing, especially since none of the types are explicit. Here's a
+description of each:
+
+[Horizontal]
+middleware:: A function that takes a "default handler" and returns a function of request -> response
+(which is where you can choose to call the default, or do your own thing).
+`ring-handler`:: A function from Ring request maps to responses `(fn [req] resp)`
+`old-pre-hook`:: The prior value of the hook. It is middleware.
+
+So in the example above you have complete control over what happens in your new hook. Here are some examples:
+
+Ignore the request altogether, and short-circuit everything with a literal response:
+
+```
+(let [...
+      new-hook     (fn [ring-handler] (fn [req] (ring.util.response "Hello world")]
+  ...
+```
+
+Ignore the old hook (this is like uninstalling all hooks):
+
+```
+(let [...
+      new-hook  (fn [ring-handler] (fn [req] (ring-handler req))]
+  ...
+```
+
+Serve `index.html` from your `public` resources folder if the uri of the request ends in `html` (useful for HTML5 routing):
+
+```
+(let [...
+      new-hook  (fn [ring-handler]
+                  (fn [req]
+                    (if (re-find #".*html$" uri)
+                      (ring.middleware.resource/resource-request (assoc req :uri "index.html") "public")
+                      ((old-pre-hook ring-handler) req)))]
+  ...
+```
+
+NOTE: Remember that if you serve something like `index.html` for alternate paths you should use absolute paths for the
+resources (e.g. scripts) in that file. If the requested resource wasn't an `html` file, then you'll also need to set the
+content type on the response with something like `(-> (ring.middleware.resource/resource-request ...) (ring.util.response/content-type "text/html"))`.
 
 === Handling Filesystem Resources
 

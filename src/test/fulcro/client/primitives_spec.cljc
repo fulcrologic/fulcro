@@ -766,7 +766,7 @@
 
 (specification "merge*"
   (when-mocking
-    (prim/merge-novelty! r s res q) => {:next true}
+    (prim/merge-novelty! r s res q tid) => {:next true}
 
     (let [result `{:data 33 f {:tempids {1 2}} g {::prim/tempids {3 4}}}
           {:keys [keys next ::prim/tempids]} (prim/merge* :reconciler (atom {}) result [])]

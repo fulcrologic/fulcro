@@ -6,6 +6,12 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.5
+-----
+- Fixed bug in tempid migrations on mutation merges
+- Fixed shouldComponentUpdate to give Fulcro props instead of low-level React
+- Added React 16 error boundary support (requires you use React 16, of course)
+
 2.5.4
 -----
 - Improved failed route message
