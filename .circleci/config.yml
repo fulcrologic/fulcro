@@ -5,13 +5,30 @@ jobs:
       - image: circleci/clojure:lein-2.8.1-node-browsers
     steps:
       - checkout
-      - run: npm install 
+      - restore_cache:
+          key: fulcro-{{ checksum "project.clj" }}
+      - run: npm install
+      - run: lein deps
+      - save_cache:
+                paths:
+                  - node_modules
+                  - ~/.m2
+                key: fulcro-{{ checksum "project.clj" }}
       - run: lein doo firefox automated-tests once
   clj:
     docker: 
       - image: circleci/clojure:lein-2.8.1-node-browsers
     steps:
       - checkout
+      - restore_cache:
+          key: fulcro-{{ checksum "project.clj" }}
+      - run: npm install
+      - run: lein deps
+      - save_cache:
+          paths:
+            - node_modules
+            - ~/.m2
+          key: fulcro-{{ checksum "project.clj" }}
       - run: lein test-refresh :run-once
 workflows:
   version: 2
