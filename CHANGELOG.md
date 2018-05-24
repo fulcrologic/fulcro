@@ -10,6 +10,7 @@ small and tractable.
 -----
 - Fixed bug in tempid migrations on mutation merges
 - Fixed shouldComponentUpdate to give Fulcro props instead of low-level React
+- Added React 16 error boundary support (requires you use React 16, of course)
 
 2.5.4
 -----
