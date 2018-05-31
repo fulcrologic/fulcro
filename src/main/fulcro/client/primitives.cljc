@@ -1834,15 +1834,15 @@
                 (merge-ident config tree' ident props)))]
       (reduce step tree refs))))
 
-(defn- merge-novelty!
-  ([reconciler state result-tree query tempids]
+(defn- merge-novelty
+  ([reconciler state-map result-tree query tempids]
    (let [state (if-let [migrate (-> reconciler :config :migrate)]
                  (let [root-component (app-root reconciler)
-                       root-query     (when-not query (get-query root-component @state))]
-                   (migrate state (or query root-query) tempids))
-                 state)]
-     (merge-novelty! reconciler state result-tree query)))
-  ([reconciler state result-tree query]
+                       root-query     (when-not query (get-query root-component state-map))]
+                   (migrate state-map (or query root-query) tempids))
+                 state-map)]
+     (merge-novelty reconciler state result-tree query)))
+  ([reconciler state-map result-tree query]
    (let [config            (:config reconciler)
          [idts result-tree] (sift-idents result-tree)
          normalized-result (if (:normalize config)
@@ -1850,7 +1850,7 @@
                                (or query (:root @(:state reconciler)))
                                result-tree true)
                              result-tree)]
-     (-> state
+     (-> state-map
        (merge-mutation-joins query result-tree)
        (merge-idents config idts query)
        ((:merge-tree config) normalized-result)))))
@@ -1858,7 +1858,7 @@
 (defn get-tempids [m] (or (get m :tempids) (get m ::tempids)))
 
 (defn merge*
-  "Internal implementation of merge. Given a reconciler, state, result, and query returns a map of the:
+  "Internal implementation of merge. Given a reconciler, state (map), result, and query returns a map of the:
 
   `:keys` to refresh
   `:next` state
@@ -1868,7 +1868,7 @@
                   (map (comp get-tempids second))
                   (reduce merge {}))]
     {:keys     (into [] (remove symbol?) (keys res))
-     :next     (merge-novelty! reconciler state res query tempids)
+     :next     (merge-novelty reconciler state res query tempids)
      ::tempids tempids}))
 
 (defn merge!
