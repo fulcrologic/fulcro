@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.6
+-----
+- Fixed bug in v2.5.5 merge improvement
+
 2.5.5
 -----
 - Fixed bug in tempid migrations on mutation merges
