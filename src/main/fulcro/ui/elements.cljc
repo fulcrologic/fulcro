@@ -3,6 +3,7 @@
     #?(:cljs [fulcro.client.dom :as dom]
        :clj
             [fulcro.client.dom-server :as dom])
+    #?(:cljs [cljsjs.react.dom])
     #?(:cljs [goog.object :as gobj])))
 
 (defn react-instance?

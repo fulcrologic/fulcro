@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.7
+-----
+- Fixed bug in some namespaces missing react requires that were breaking optimized builds.
+
 2.5.6
 -----
 - Fixed bug in v2.5.5 merge improvement

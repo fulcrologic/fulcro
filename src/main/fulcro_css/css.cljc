@@ -1,6 +1,7 @@
 (ns fulcro-css.css
   (:require [cljs.tagged-literals]
             [clojure.string :as str]
+    #?(:cljs [cljsjs.react.dom])
             [clojure.walk :as walk]
             [garden.core :as g]
             [garden.selectors :as gs]))
