@@ -5,6 +5,7 @@
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.impl.protocols :as p]
     #?(:cljs [cljs.loader :as loader])
+    #?(:cljs [cljsjs.react])
             [fulcro.logging :as log]
             [fulcro.util :as util]
             [clojure.spec.alpha :as s]

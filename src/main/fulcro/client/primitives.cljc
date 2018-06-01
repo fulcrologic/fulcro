@@ -8,6 +8,7 @@
                [clojure.reflect :as reflect]
                [cljs.util]]
         :cljs [[goog.string :as gstring]
+               [cljsjs.react]
                [goog.object :as gobj]])
                fulcro-css.css
                [clojure.core.async :as async]

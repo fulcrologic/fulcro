@@ -7,6 +7,7 @@
             [fulcro.events :as evt]
             [fulcro.ui.html-entities :as ent]
             [fulcro.i18n :refer [tr tr-unsafe]]
+    #?(:cljs [cljsjs.react.dom])
             [fulcro.client.mutations :as m :refer [defmutation]]
     #?(:clj
             [clojure.future :refer :all])
