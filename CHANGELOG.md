@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.8
+-----
+- Fixed a bug in transact! that sometimes caused :component to be nil in mutations.
+
 2.5.7
 -----
 - Fixed bug in some namespaces missing react requires that were breaking optimized builds.
