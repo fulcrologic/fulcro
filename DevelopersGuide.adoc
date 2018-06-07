@@ -10034,7 +10034,7 @@ Of course, the whole point is to pre-render the page. Now that you have a comple
 trivial:
 
 ```
-(let [props                (prim/db->tree (prim/get-query app/Root normalized-db)
+(let [props                (prim/db->tree (prim/get-query app/Root normalized-db) state-map state-map)
       root-factory         (prim/factory app/Root)]
   (dom/render-to-str (root-factory props)))
 ```
