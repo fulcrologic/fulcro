@@ -11640,12 +11640,14 @@ low:
 The `lein new fulcro app shadow-cljs` command will get you a pre-configured
 template with everything set up.  This will be the default in a future version as soon as I have time to rewrite this
 entire book around it.
-. Keep your namespaces small, and require statements pruned.  This isn't about "size of code to compile", it's about the dependency graph.
-I've gone almost to the point of single artifacts per file. When you put large amounts of code in a single namespace then all of your other
-namespaces will likely depend on it (probability of needing to require it goes up with the number of artifacts within it).
+. Keep your namespaces small, and `:require` sections pruned.  This is about "size of code to compile", but it's more
+about the dependency graph.
+I've gone almost to the point of single artifacts per file. When you put large amounts of code in a single namespace then many of your other
+namespaces will likely depend on it (the probability of needing to `require` it goes up with the number of artifacts within it).
 Changing a single line of code in that large namespace not only will take a long time for that single namespace, but
 will trigger tons of unnecessary dependent recompiles. I've adopted this in my recent personal projects, and this successfully keeps
-my compile times quite low even as the source grows.
+my compile times quite low even as the source grows.  Technically this could probably be solved at the compiler level, but
+it is a "hard problem" that may not be solved for some time (if ever).
 . Keep the compiler up-to-date. I've seen 10-20% performance boosts in single releases.
 
 == Poor Query Performance
