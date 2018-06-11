@@ -10,6 +10,8 @@ small and tractable.
 -----
 - Fixed a bug in transact! that sometimes caused :component to be nil in mutations.
 - Fixed a bug in SSR spec that cause sub-components to appear as props
+- Fixed websockets to prevent first transmission unless the state of the connection is good.
+- Changed websockets back-off to max out at 4s retries
 
 2.5.7
 -----
