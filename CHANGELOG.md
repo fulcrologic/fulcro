@@ -9,6 +9,7 @@ small and tractable.
 2.5.8
 -----
 - Fixed a bug in transact! that sometimes caused :component to be nil in mutations.
+- Fixed a bug in SSR spec that cause sub-components to appear as props
 
 2.5.7
 -----
