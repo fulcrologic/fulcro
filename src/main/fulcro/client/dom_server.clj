@@ -15,7 +15,7 @@
     [clojure.spec.alpha :as s]
     [clojure.core.reducers :as r]
     [clojure.future :refer :all]
-    [fulcro.checksums :as chk]) )
+    [fulcro.checksums :as chk]))
 
 (declare render-element!)
 
@@ -27,7 +27,7 @@
 (defn element?
   "Returns true if the given arg is a server-side react element."
   [x]
-  (satisfies? p/IReactDOMElement x))
+  (or (satisfies? p/IReactDOMElement x)))
 
 (defn component?
   "Returns true if the given arg is a server-side react component."
@@ -39,7 +39,9 @@
     :css (s/? keyword?)
     :attrs (s/? (s/or
                   :nil nil?
-                  :map #(and (map? %) (not (element? %)))))
+                  :map #(and (map? %)
+                          (not (satisfies? p/IReactComponent %))
+                          (not (element? %)))))
     :children (s/* (s/or
                      :nil nil?
                      :string string?
