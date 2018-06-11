@@ -10034,7 +10034,7 @@ Of course, the whole point is to pre-render the page. Now that you have a comple
 trivial:
 
 ```
-(let [props                (prim/db->tree (prim/get-query app/Root normalized-db)
+(let [props                (prim/db->tree (prim/get-query app/Root normalized-db) state-map state-map)
       root-factory         (prim/factory app/Root)]
   (dom/render-to-str (root-factory props)))
 ```
@@ -11629,6 +11629,26 @@ TODO
 
 Fulcro and React behave in a very performant manner for most data-driven applications. There are ways, however,
 in which you can negatively affect performance.
+
+== Development Compile Times
+
+One of the most annoying performance problems when building your application is slow compile times. We all want sub-second
+rebuilds on our code base so that we can continue to work quickly.  Here are some tips about keeping your compile times
+low:
+
+. Use shadow-cljs instead of Figwheel. *Especially* if you plan on using external Javascript libraries from npm.
+The `lein new fulcro app shadow-cljs` command will get you a pre-configured
+template with everything set up.  This will be the default in a future version as soon as I have time to rewrite this
+entire book around it.
+. Keep your namespaces small, and `:require` sections pruned.  This is about "size of code to compile", but it's more
+about the dependency graph.
+I've gone almost to the point of single artifacts per file. When you put large amounts of code in a single namespace then many of your other
+namespaces will likely depend on it (the probability of needing to `require` it goes up with the number of artifacts within it).
+Changing a single line of code in that large namespace not only will take a long time for that single namespace, but
+will trigger tons of unnecessary dependent recompiles. I've adopted this in my recent personal projects, and this successfully keeps
+my compile times quite low even as the source grows.  Technically this could probably be solved at the compiler level, but
+it is a "hard problem" that may not be solved for some time (if ever).
+. Keep the compiler up-to-date. I've seen 10-20% performance boosts in single releases.
 
 == Poor Query Performance
 

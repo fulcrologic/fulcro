@@ -2479,12 +2479,12 @@
               (annotate-mutations (get-ident x)))]
      (cond
        (reconciler? x) (transact* x nil nil tx)
-       (not (has-query? x)) (do
-                              (when-not (some-hasquery? x) (log/error
-                                                             (str "transact! should be called on a component"
-                                                               "that implements IQuery or has a parent that"
-                                                               "implements IQuery")))
-                              (transact* (get-reconciler x) nil nil tx))
+       (not (some-hasquery? x)) (do
+                                  (log/error
+                                    (str "transact! should be called on a component"
+                                      "that implements IQuery or has a parent that"
+                                      "implements IQuery"))
+                                  (transact* (get-reconciler x) nil nil tx))
        :else (do
                (loop [p (parent x) x x tx tx]
                  (if (nil? p)
