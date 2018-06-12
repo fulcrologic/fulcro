@@ -2265,7 +2265,7 @@ should namespace all keywords.
 
 The graph database on the client is the most central and key concept to understand in Fulcro. Remember
 that we are doing pure rendering. This means that the UI is simply a function transforming this
-graph database into the the UI.
+graph database into the UI.
 
 There are two primary things to write in Fulcro: the UI and the mutations. The UI pulls data from
 this database and displays it. The mutations evolve this database to a new version.
@@ -2404,7 +2404,7 @@ timing, tooling, etc.
 
 The reconciler does a number of things to optimize rendering beyond the basics of React.
 
-* Fulcro provides a a built-in `shouldComponentUpdate` that uses a comparison of the prior props to
+* Fulcro provides a built-in `shouldComponentUpdate` that uses a comparison of the prior props to
 tell React to skip no-op updates that would lead to a useless VDOM diff.
 * When more than one component will refresh the components are refreshed in depth-first order. This allows Fulcro
 to prevent double-rendering of children. (e.g. if a Parent and Child need to refresh then updating the parent
@@ -7511,7 +7511,7 @@ where you may need to compose in a query of an as-yet unloaded component tree of
 
 For dynamic queries to work right they have to be stored in your application database and every aspect of them must
 be serializable. Additionally, the UI must be able to look them up at the component level in order to do optimal refresh.
-The solution to this is query IDs. A query ID is a simple combination of the the component's fully-qualified class name
+The solution to this is query IDs. A query ID is a simple combination of the component's fully-qualified class name
 combined with a user-defined qualifier (which defaults to the empty string).
 
 Since this qualifier is needed both in the code that obtains queries (`get-query`) and in the UI rendering (the factory
