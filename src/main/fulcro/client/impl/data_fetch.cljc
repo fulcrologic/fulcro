@@ -160,13 +160,6 @@
               result)))))))
   ([keys-fn coll] (sequence (dedupe-by keys-fn) coll)))
 
-(defn join-key-or-nil [expr]
-  (when (util/join? expr)
-    (let [join-key-or-ident (util/join-key expr)]
-      (if (util/ident? join-key-or-ident)
-        (first join-key-or-ident)
-        join-key-or-ident))))
-
 (defn split-items-ready-to-load
   "This function is used to split accidental colliding queries into separate network
   requests. The most general description of this issue is
@@ -177,7 +170,7 @@
   is a map, and such a query would result in the backend parser being called twice (once per key in the subquery)
   but one would stomp on the other.
 
-  The other potential collision is if a load includes and abort ID. In this case such a load should not be batched
+  The other potential collision is if a load includes an abort ID. In this case such a load should not be batched
   with others because aborting it would take others down with it.
 
   Thus, this function ensures such accidental collisions are not combined into a single network request.
@@ -185,7 +178,12 @@
   This functions returns a list of the load items that can be batched (from the beginning, in order) and the
   remainder of the items which must be deferred to another request."
   [items-ready-to-load]
-  (let [item-keys          (fn [item] (set (keep join-key-or-nil (data-query item))))
+  (let [item-keys          (fn [item]
+                             (->> (data-query item)
+                               prim/query->ast
+                               :children
+                               (map :dispatch-key)
+                               set))
         abort-id-conflict? (fn [items-going? active-abort-id abort-id]
                              (and items-going? (or abort-id active-abort-id) (not= active-abort-id abort-id)))
         can-go-now?        (fn [{:keys [items current-keys current-abort-id]} item]

@@ -2,7 +2,8 @@
   (:require
     [devcards.core :as dc]
     [fulcro.client :as fc]
-    [fulcro.client.cards :refer [defcard-fulcro]]
+    [fulcro.server :as server]
+    [fulcro.client.cards :refer [defcard-fulcro make-root]]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.client.network :as net]
@@ -137,3 +138,26 @@
                                       (js/setTimeout #(df/load reconciler :root FocusRoot {:focus [{:a [:data]} :b]}) 100))
                   :networking       (MockNetForEcho.)}
    :inspect-data true})
+
+(defsc DupeKeyFetch [this {:keys [db/id a b c] :as props}]
+  {:query         [:db/id :a :b :c]
+   :ident         [:dupe-key-fetch/by-id :db/id]
+   :initial-state {:db/id 1}}
+  (dom/div (str a) (str b) (str c)))
+
+(def ui-dupe-key-fetch (prim/factory DupeKeyFetch {:keyfn :db/id}))
+
+(server/defquery-root ::x
+  (value [env params]
+    (js/console.log :FETCH ::X)
+    {:value (rand-int 100)}))
+
+(defcard-fulcro dupe-key-fetch
+  (make-root DupeKeyFetch {})
+  {}
+  {:inspect-data true
+   :fulcro       {:networking       (server/new-server-emulator)
+                  :started-callback (fn [app]
+                                      (df/load app ::x nil {:target [:T 1 :a]})
+                                      (df/load app ::x nil {:target [:T 1 :b]})
+                                      (df/load app ::x nil {:target [:T 1 :c]}))}})
