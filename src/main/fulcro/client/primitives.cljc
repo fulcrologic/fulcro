@@ -3243,9 +3243,8 @@
   ```
   "
   [& args]
-  (let [t    (with-meta (gensym "sc_") {:anonymous true})
-        args (cons t args)]
-    `(do (defsc ~@args) ~t)))
+  (let [t (with-meta (gensym "sc_") {:anonymous true})]
+    `(do (defsc ~t ~@args) ~t)))
 
 (defn integrate-ident
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
