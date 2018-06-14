@@ -6,6 +6,13 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.9
+-----
+- Added exception stack trace to mutation errors
+- Fixed query de-dupe
+- Changed marker to auto-disable when targeting to-many
+-
+
 2.5.8
 -----
 - Fixed a bug in transact! that sometimes caused :component to be nil in mutations.
