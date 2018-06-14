@@ -75,7 +75,10 @@
                  (and class-or-factory (map? params)) `[({~server-property-or-ident ~query'} ~params)]
                  class-or-factory [{server-property-or-ident query'}]
                  (map? params) [(list server-property-or-ident params)]
-                 :else [server-property-or-ident])]
+                 :else [server-property-or-ident])
+        marker (if (and (true? marker) (impl/special-target? target)) (do
+                                                                (log/warn (str "Load of " server-property-or-ident ": Boolean load marker not allowed. Turned off so load target will not overwrite a to-many relation. To fix this warning, set :marker to false or a marker ID."))
+                                                                false) marker)]
     {:query                query
      :remote               remote
      :target               target

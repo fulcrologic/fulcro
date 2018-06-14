@@ -359,7 +359,8 @@
                                 (catch #?(:cljs :default :clj Exception) e (log/error "Post mutate failed on dispatch to " k)))
                               action-result)
                             (catch #?(:cljs :default :clj Exception) e
-                              (log/error "Mutation " k " failed with exception" e)
+                              (log/error "Mutation " k " failed with exception")
+                              #?(:cljs (when goog.DEBUG (js/console.error e)))
                               (throw e)))))
       rv)))
 

@@ -2069,7 +2069,9 @@
       (try
         (.forceUpdate c cb)
         (catch :default e
-          (log/error "Component" c "threw an exception while rendering " e))))
+          (log/error "Component" c "threw an exception while rendering ")
+          (when goog.DEBUG
+            (js/console.error e)))))
      ([c]
       (force-update c nil))))
 
@@ -3243,9 +3245,8 @@
   ```
   "
   [& args]
-  (let [t    (with-meta (gensym "sc_") {:anonymous true})
-        args (cons t args)]
-    `(do (defsc ~@args) ~t)))
+  (let [t (with-meta (gensym "sc_") {:anonymous true})]
+    `(do (defsc ~t ~@args) ~t)))
 
 (defn integrate-ident
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
