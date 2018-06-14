@@ -3,7 +3,8 @@
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.dom :as dom :refer [div span]]
             [goog.object :as gobj]
-            [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
+            [fulcro.client.mutations :refer [defmutation]]
+            [fulcro.client.primitives :as prim :refer [sc defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]))
 
 ;; normally we get macro expansion, this will let us force calling the functions
@@ -14,40 +15,46 @@
 (defn js-classname [name] #js {:className name})
 (defn bg-color-style [color] {:style {:backgroundColor color}})
 
-(defsc AttrStatic [this props]
-  (div
-    (dom/section
-      (dom/h4 "Lazy Sequences")
-      (map #(dom/div {} %) ["A" (map #(dom/span {} %) ["B.1" "B.2"]) "C"])
-      (map dom/div ["A" (map dom/span ["B.1" "B.2"]) "C"]))
-    (dom/section
-      (dom/h4 "Macros")
-      (div "Attr is missing with a string child")
-      (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
-      (div
-        (span "attrs missing with a child element 1,")
-        (span " and a child element 2"))
-      (div nil "Attr is nil")
-      (div {} "Attr is empty map")
-      (div #js {} "Attr is empty js-object")
-      (div {:className "foo"} "Attr adds css class")
-      (div {:style {:backgroundColor "red"}} "Attr has nested inline style")
-      (div (js-classname "foo") "Attr fn adds css class")
-      (div (bg-color-style "red") "Attr fn has nested inline style"))
-    (dom/section
-      (dom/h4 "Functions")
-      (fdiv "Attr is missing with a string child")
-      (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
-      (fdiv
-        (fspan "attrs missing with a child element 1,")
-        (fspan " and a child element 2"))
-      (fdiv nil "Attr is nil")
-      (fdiv {} "Attr is empty map")
-      (fdiv #js {} "Attr is empty js-object")
-      (fdiv {:className "foo"} "Attr adds css class")
-      (fdiv {:style {:backgroundColor "red"}} "Attr has nested inline style")
-      (fdiv (js-classname "foo") "Attr fn adds css class")
-      (fdiv (bg-color-style "red") "Attr fn has nested inline style"))))
+(defmutation boo [params]
+  (action [env]
+    (js/ljhasdf.ckjhasdf "he")
+    ))
+
+(def AttrStatic (sc [this props]
+                  (div
+                    (dom/section
+                      (dom/button {:onClick #(prim/transact! this `[(boo {})])} "Hi")
+                      (dom/h4 "Lazy Sequences")
+                      (map #(dom/div {} %) ["A" (map #(dom/span {} %) ["B.1" "B.2"]) "C"])
+                      (map dom/div ["A" (map dom/span ["B.1" "B.2"]) "C"]))
+                    (dom/section
+                      (dom/h4 "Macros")
+                      (div "Attr is missing with a string child")
+                      (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
+                      (div
+                        (span "attrs missing with a child element 1,")
+                        (span " and a child element 2"))
+                      (div nil "Attr is nil")
+                      (div {} "Attr is empty map")
+                      (div #js {} "Attr is empty js-object")
+                      (div {:className "foo"} "Attr adds css class")
+                      (div {:style {:backgroundColor "red"}} "Attr has nested inline style")
+                      (div (js-classname "foo") "Attr fn adds css class")
+                      (div (bg-color-style "red") "Attr fn has nested inline style"))
+                    (dom/section
+                      (dom/h4 "Functions")
+                      (fdiv "Attr is missing with a string child")
+                      (->> "String threaded through multiple DOM elements with various args" (span :.x {:className "a"}) (span #js {}) (div :.z))
+                      (fdiv
+                        (fspan "attrs missing with a child element 1,")
+                        (fspan " and a child element 2"))
+                      (fdiv nil "Attr is nil")
+                      (fdiv {} "Attr is empty map")
+                      (fdiv #js {} "Attr is empty js-object")
+                      (fdiv {:className "foo"} "Attr adds css class")
+                      (fdiv {:style {:backgroundColor "red"}} "Attr has nested inline style")
+                      (fdiv (js-classname "foo") "Attr fn adds css class")
+                      (fdiv (bg-color-style "red") "Attr fn has nested inline style")))))
 
 (defcard-fulcro attr-static-enumeration
   "These attrs can be reasoned about at compile time."

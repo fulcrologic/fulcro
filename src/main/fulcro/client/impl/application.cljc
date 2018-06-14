@@ -360,7 +360,7 @@
                               action-result)
                             (catch #?(:cljs :default :clj Exception) e
                               (log/error "Mutation " k " failed with exception" e)
-                              #?(:cljs (when goog.DEBUG (js/console.log e)))
+                              #?(:cljs (when goog.DEBUG (js/console.error e)))
                               (throw e)))))
       rv)))
 
