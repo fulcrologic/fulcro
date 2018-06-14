@@ -8,10 +8,9 @@ small and tractable.
 
 2.5.9
 -----
-- Added exception stack trace to mutation errors
 - Fixed query de-dupe
 - Changed marker to auto-disable when targeting to-many
--
+- Added exception stack trace to mutation errors
 
 2.5.8
 -----
