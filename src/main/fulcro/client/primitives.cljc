@@ -2069,7 +2069,9 @@
       (try
         (.forceUpdate c cb)
         (catch :default e
-          (log/error "Component" c "threw an exception while rendering " e))))
+          (log/error "Component" c "threw an exception while rendering ")
+          (when goog.DEBUG
+            (js/console.error e)))))
      ([c]
       (force-update c nil))))
 
