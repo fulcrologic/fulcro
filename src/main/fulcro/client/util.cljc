@@ -38,18 +38,21 @@
 
 (defn transit-clj->str
   "Use transit to encode clj data as a string. Useful for encoding initial app state from server-side rendering."
-  [coll]
-  #?(:cljs (t/write (fulcro.transit/writer) coll)
-     :clj
-           (with-open [out (java.io.ByteArrayOutputStream.)]
-             (t/write (fulcro.transit/writer out) coll)
-             (.toString out "UTF-8"))))
+  ([coll] (transit-clj->str coll {}))
+  ([coll opts]
+   #?(:cljs (t/write (fulcro.transit/writer opts) coll)
+      :clj
+      (with-open [out (java.io.ByteArrayOutputStream.)]
+        (t/write (fulcro.transit/writer out opts) coll)
+        (.toString out "UTF-8")))))
 
 (defn transit-str->clj
   "Use transit to decode a string into a clj data structure. Useful for decoding initial app state when starting from a server-side rendering."
-  [str]
-  #?(:cljs (t/read (prim/reader) str)
-     :clj  (t/read (prim/reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8"))))))
+  ([str] (transit-str->clj str {}))
+  ([str opts]
+   #?(:cljs (t/read (prim/reader opts) str)
+      :clj  (t/read (prim/reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8"))
+                                 opts)))))
 
 (defn strip-parameters
   "Removes parameters from the query, e.g. for PCI compliant logging."
