@@ -84,7 +84,7 @@
   (fn [req]
     {:status  404
      :headers {"Content-Type" "text/html"}
-     :body    (io/file (io/resource "public/not-found.html"))}))
+     :body    (io/input-stream (io/resource "public/not-found.html"))}))
 
 (defn handler
   "Create a web request handler that sends all requests through a parser. The om-parsing-env of the parses
