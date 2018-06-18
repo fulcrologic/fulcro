@@ -51,8 +51,7 @@
   ([str] (transit-str->clj str {}))
   ([str opts]
    #?(:cljs (t/read (prim/reader opts) str)
-      :clj  (t/read (prim/reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8"))
-                                 opts)))))
+      :clj  (t/read (prim/reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8")) opts)))))
 
 (defn strip-parameters
   "Removes parameters from the query, e.g. for PCI compliant logging."
