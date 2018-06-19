@@ -6,6 +6,13 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.10
+------
+- Fixed resource access in uberjar for not-found page for easy server
+- Added support for transit options in str conversion functions and
+initial state generation functions for SSR.
+- Fixed bug where mutation-declared refresh was ignored by post mutations
+
 2.5.9
 -----
 - Fixed query de-dupe
