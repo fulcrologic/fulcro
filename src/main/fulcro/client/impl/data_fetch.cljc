@@ -531,7 +531,8 @@
                                                {:keys [action refresh]} (m/mutate (callback-env reconciler item original-env) mutation-symbol params)]
                                            (when (seq refresh)
                                              (swap! to-refresh into refresh))
-                                           (action)))))]
+                                           (when action
+                                             (action))))))]
       (remove-markers!)
       (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)
