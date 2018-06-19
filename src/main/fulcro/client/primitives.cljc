@@ -2613,11 +2613,18 @@
   [x]
   (tempid/tempid? x))
 
-(defn reader
-  "Create a transit reader. This reader can handler the tempid type.
-   Can pass transit reader customization opts map."
-  ([] (transit/reader))
-  ([opts] (transit/reader opts)))
+#?(:cljs
+   (defn reader
+     "Create a transit reader. This reader can handler the tempid type.
+      Can pass transit reader customization opts map."
+     ([] (transit/reader))
+     ([opts] (transit/reader opts)))
+   :clj
+   (defn reader
+     "Create a transit reader. This reader can handler the tempid type.
+      Can pass transit reader customization opts map."
+     ([in] (transit/reader in))
+     ([in opts] (transit/reader in opts))))
 
 (defn writer
   "Create a transit writer. This writer can handler the tempid type.

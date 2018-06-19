@@ -7,20 +7,31 @@
 
 #?(:clj
    (defn initial-state->script-tag
-     "Returns a string containing an HTML script tag that that sets js/window.INITIAL_APP_STATE to a transit-encoded string version of initial-state."
-     [initial-state]
-     (let [assignment (str "window.INITIAL_APP_STATE = '" (clojure.string/replace (util/transit-clj->str initial-state) #"'" "\\\\'") "'")]
-       (str
+     "Returns a string containing an HTML script tag that that sets js/window.INITIAL_APP_STATE to a transit-encoded string version of initial-state.
+
+  `opts` is a map to be passed to the transit writer.
+  `string-transform` should be a function with 1 argument. The stringified app-state is passed to it.
+  This is the place to perform additional string replacement operations to escape special characters,
+  as in the case of encoded polylines."
+     ([initial-state] (initial-state->script-tag initial-state {} identity))
+     ([initial-state opts] (initial-state->script-tag initial-state opts identity))
+     ([initial-state opts string-transform]
+      (let [state-string (-> (util/transit-clj->str initial-state opts)
+                             (clojure.string/replace #"'" "\\\\'")
+                             (string-transform))
+            assignment   (str "window.INITIAL_APP_STATE = '" state-string "'")]
+        (str
          "<script type='text/javascript'>\n"
          assignment
-         "\n</script>\n"))))
+         "\n</script>\n")))))
 
 #?(:cljs
    (defn get-SSR-initial-state
      "Obtain the value of the INITIAL_APP_STATE set from server-side rendering. Use initial-state->script-tag on the server to embed the state."
-     []
-     (when-let [state-string (.-INITIAL_APP_STATE js/window)]
-       (util/transit-str->clj state-string))))
+     ([] (get-SSR-initial-state {}))
+     ([opts]
+      (when-let [state-string (.-INITIAL_APP_STATE js/window)]
+        (util/transit-str->clj state-string opts)))))
 
 (defn build-initial-state
   "This function normalizes the given state-tree using the root-component's query into standard client db format,

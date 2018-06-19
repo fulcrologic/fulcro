@@ -514,7 +514,7 @@
           loading-items       (into #{} (map set-loading! items))
           refresh-set         (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           marked-response     (prim/mark-missing response query)
-          to-refresh          (into (vec refresh-set) (remove symbol?) (keys marked-response))
+          explicit-refresh    (into (vec refresh-set) (remove symbol?) (keys marked-response))
           app-state           (prim/app-state reconciler)
           ran-mutations       (atom false)
           remove-markers!     (fn [] (doseq [item loading-items]
@@ -522,14 +522,16 @@
                                                           (cond-> s
                                                             :always (update :fulcro/loads-in-progress disj (data-uuid item))
                                                             (data-marker? item) (remove-marker item))))))
+          to-refresh          (atom (set explicit-refresh))
           run-post-mutations! (fn [] (doseq [item loading-items]
                                        (when-let [mutation-symbol (::post-mutation item)]
                                          (reset! ran-mutations true)
                                          (let [params       (or (::post-mutation-params item) {})
-                                               original-env (-> item ::original-env meta)]
-                                           (some-> (m/mutate (callback-env reconciler item original-env) mutation-symbol params)
-                                             :action
-                                             (apply []))))))]
+                                               original-env (-> item ::original-env meta)
+                                               {:keys [action refresh]} (m/mutate (callback-env reconciler item original-env) mutation-symbol params)]
+                                           (when (seq refresh)
+                                             (swap! to-refresh into refresh))
+                                           (action)))))]
       (remove-markers!)
       (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)
@@ -538,7 +540,7 @@
       (tick! reconciler)
       (if (contains? refresh-set :fulcro/force-root)
         (prim/force-root-render! reconciler)
-        (force-render reconciler to-refresh)))))
+        (force-render reconciler (vec @to-refresh))))))
 
 (defn- error-callback
   "Generates a callback that is used whenever a hard server error occurs (status code 400+ or network error).
