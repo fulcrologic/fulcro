@@ -147,7 +147,11 @@
            "true: load params get initial state for component"
            (:initialize params) => {:root/comp {:x 1 :child {:y 2}}}
            "a map: load params get that map as the initial state of the component"
-           (:initialize params-with-init-params) => {:root/comp {:z 42}})))))
+           (:initialize params-with-init-params) => {:root/comp {:z 42}})))
+     (behavior "can focus the query"
+       (assertions
+         (:query (df/load-params* {} [:item/by-id 1] Item {:focus [:name {:comments [:title]}]}))
+         => [{[:item/by-id 1] [:name {:comments [:title]}]}]))))
 
 (specification "Load auto-refresh"
   (component "computed-refresh"

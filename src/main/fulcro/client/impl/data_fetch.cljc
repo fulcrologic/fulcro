@@ -160,13 +160,6 @@
               result)))))))
   ([keys-fn coll] (sequence (dedupe-by keys-fn) coll)))
 
-(defn join-key-or-nil [expr]
-  (when (util/join? expr)
-    (let [join-key-or-ident (util/join-key expr)]
-      (if (util/ident? join-key-or-ident)
-        (first join-key-or-ident)
-        join-key-or-ident))))
-
 (defn split-items-ready-to-load
   "This function is used to split accidental colliding queries into separate network
   requests. The most general description of this issue is
@@ -177,7 +170,7 @@
   is a map, and such a query would result in the backend parser being called twice (once per key in the subquery)
   but one would stomp on the other.
 
-  The other potential collision is if a load includes and abort ID. In this case such a load should not be batched
+  The other potential collision is if a load includes an abort ID. In this case such a load should not be batched
   with others because aborting it would take others down with it.
 
   Thus, this function ensures such accidental collisions are not combined into a single network request.
@@ -185,7 +178,12 @@
   This functions returns a list of the load items that can be batched (from the beginning, in order) and the
   remainder of the items which must be deferred to another request."
   [items-ready-to-load]
-  (let [item-keys          (fn [item] (set (keep join-key-or-nil (data-query item))))
+  (let [item-keys          (fn [item]
+                             (->> (data-query item)
+                               prim/query->ast
+                               :children
+                               (map :dispatch-key)
+                               set))
         abort-id-conflict? (fn [items-going? active-abort-id abort-id]
                              (and items-going? (or abort-id active-abort-id) (not= active-abort-id abort-id)))
         can-go-now?        (fn [{:keys [items current-keys current-abort-id]} item]
@@ -301,7 +299,6 @@
   (update-in ast [:children] #(map (fn [c] (if-let [new-params (get params (:dispatch-key c))]
                                              (update c :params merge new-params)
                                              c)) %)))
-
 
 (defn ready-state
   "Generate a ready-to-load state with all of the necessary details to do
@@ -517,7 +514,7 @@
           loading-items       (into #{} (map set-loading! items))
           refresh-set         (into #{:ui/loading-data :ui/fetch-state marker-table} (mapcat data-refresh items))
           marked-response     (prim/mark-missing response query)
-          to-refresh          (into (vec refresh-set) (remove symbol?) (keys marked-response))
+          explicit-refresh    (into (vec refresh-set) (remove symbol?) (keys marked-response))
           app-state           (prim/app-state reconciler)
           ran-mutations       (atom false)
           remove-markers!     (fn [] (doseq [item loading-items]
@@ -525,14 +522,17 @@
                                                           (cond-> s
                                                             :always (update :fulcro/loads-in-progress disj (data-uuid item))
                                                             (data-marker? item) (remove-marker item))))))
+          to-refresh          (atom (set explicit-refresh))
           run-post-mutations! (fn [] (doseq [item loading-items]
                                        (when-let [mutation-symbol (::post-mutation item)]
                                          (reset! ran-mutations true)
                                          (let [params       (or (::post-mutation-params item) {})
-                                               original-env (-> item ::original-env meta)]
-                                           (some-> (m/mutate (callback-env reconciler item original-env) mutation-symbol params)
-                                             :action
-                                             (apply []))))))]
+                                               original-env (-> item ::original-env meta)
+                                               {:keys [action refresh]} (m/mutate (callback-env reconciler item original-env) mutation-symbol params)]
+                                           (when (seq refresh)
+                                             (swap! to-refresh into refresh))
+                                           (when action
+                                             (action))))))]
       (remove-markers!)
       (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)
@@ -541,7 +541,7 @@
       (tick! reconciler)
       (if (contains? refresh-set :fulcro/force-root)
         (prim/force-root-render! reconciler)
-        (force-render reconciler to-refresh)))))
+        (force-render reconciler (vec @to-refresh))))))
 
 (defn- error-callback
   "Generates a callback that is used whenever a hard server error occurs (status code 400+ or network error).

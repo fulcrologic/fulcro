@@ -169,15 +169,15 @@
                        (prim/update-state! this assoc :aspect-ratio aspect-ratio :handle-size (or handle-size 10))
                        (set! (.-src image-object) url)))]}
   (let [onChange (prim/get-computed this :onChange)]
-    (dom/div #js {:style #js {:width "500px"}}
-      (dom/canvas #js {:ref         (fn [ele] (when ele (prim/update-state! this assoc :canvas ele)))
-                       :id          id
-                       :width       (str (:width size) "px")
-                       :height      (str (:height size) "px")
-                       :onMouseDown (fn [evt] (mouseDown this evt))
-                       :onMouseMove (fn [evt] (mouseMoved this evt onChange))
-                       :onMouseUp   (fn [evt] (mouseUp this evt))
-                       :className   "clip-tool"}))))
+    (dom/div {:style {:width "500px"}}
+      (dom/canvas {:ref         (fn [ele] (when ele (prim/update-state! this assoc :canvas ele)))
+                   :id          id
+                   :width       (str (:width size) "px")
+                   :height      (str (:height size) "px")
+                   :onMouseDown (fn [evt] (mouseDown this evt))
+                   :onMouseMove (fn [evt] (mouseMoved this evt onChange))
+                   :onMouseUp   (fn [evt] (mouseUp this evt))
+                   :className   "clip-tool"}))))
 
 (def ui-clip-tool (prim/factory ClipTool))
 
@@ -199,19 +199,19 @@
 (defsc PreviewClip [this {:keys [filename width height clip-region]}]
   {}
   (let [{:keys [ul lr]} clip-region]
-    (dom/div #js {:style #js {:position "relative" :top "-400px" :left "500px"}}
-      (dom/canvas #js {:ref       (fn [elem] (when elem
-                                               (refresh-image elem this)))
-                       :style     #js {:border "1px solid black"}
-                       :width     (str width "px")
-                       :height    (str height "px")
-                       :className "preview-clip"})
-      (dom/div nil (str filename
-                     "?x1=" (-> ul :x int)
-                     "&y1=" (-> ul :y int)
-                     "&x2=" (-> lr :x int)
-                     "&y2=" (-> lr :y int)
-                     "&width=" width)))))
+    (dom/div {:style {:position "relative" :top "-400px" :left "500px"}}
+      (dom/canvas {:ref       (fn [elem] (when elem
+                                           (refresh-image elem this)))
+                   :style     {:border "1px solid black"}
+                   :width     (str width "px")
+                   :height    (str height "px")
+                   :className "preview-clip"})
+      (dom/div (str filename
+                 "?x1=" (-> ul :x int)
+                 "&y1=" (-> ul :y int)
+                 "&x2=" (-> lr :x int)
+                 "&y2=" (-> lr :y int)
+                 "&width=" width)))))
 
 (def ui-preview-clip
   "Render a preview of a clipped image. "

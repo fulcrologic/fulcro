@@ -84,27 +84,27 @@
 
 (defsc Person [this {:keys [name address cc-number]}]
   {:query [:ui/fetch-state :name :address :cc-number]}
-  (dom/div nil
-    (dom/ul nil
-      (dom/li nil (str "name: " name))
-      (dom/li nil (str "address: " address))
-      (dom/li nil (str "cc-number: " cc-number)))))
+  (dom/div
+    (dom/ul
+      (dom/li (str "name: " name))
+      (dom/li (str "address: " address))
+      (dom/li (str "cc-number: " cc-number)))))
 
 (def ui-person (prim/factory Person))
 
 (defmutation clear-error [params] (action [{:keys [state]}] (swap! state dissoc :fulcro/server-error)))
 
-(defsc Root [this {:keys [ui/react-key person fulcro/server-error] :or {ui/react-key "ROOT"} :as props}]
-  {:query [:ui/react-key {:person (prim/get-query Person)} :fulcro/server-error]}
-  (dom/div #js {:key react-key}
+(defsc Root [this {:keys [person fulcro/server-error] :as props}]
+  {:query [{:person (prim/get-query Person)} :fulcro/server-error]}
+  (dom/div
     (when server-error
-      (dom/p nil (pr-str "SERVER ERROR: " server-error)))
-    (dom/button #js {:onClick (fn []
-                                (prim/transact! this `[(clear-error {})])
-                                (df/load this :person Person {:refresh [:person]}))} "Query for person with credit card")
-    (dom/button #js {:onClick (fn []
-                                (prim/transact! this `[(clear-error {})])
-                                (df/load this :person Person {:refresh [:person] :without #{:cc-number}}))} "Query for person WITHOUT credit card")
+      (dom/p (pr-str "SERVER ERROR: " server-error)))
+    (dom/button {:onClick (fn []
+                            (prim/transact! this `[(clear-error {})])
+                            (df/load this :person Person {:refresh [:person]}))} "Query for person with credit card")
+    (dom/button {:onClick (fn []
+                            (prim/transact! this `[(clear-error {})])
+                            (df/load this :person Person {:refresh [:person] :without #{:cc-number}}))} "Query for person WITHOUT credit card")
     (df/lazily-loaded ui-person person)))
 
 

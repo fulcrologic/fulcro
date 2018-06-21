@@ -12,12 +12,13 @@
     fulcro.client.primitives-spec
     fulcro.client.routing-spec
     fulcro.client.util-spec
-    fulcro.client.logging-spec
     fulcro.history-spec
-    fulcro.ui.forms-spec
     fulcro.ui.form-state-spec
     fulcro.server-render-spec
-    fulcro.i18n-spec))
+    fulcro.i18n-spec
+    fulcro.client.dom-spec
+    fulcro.client.localized-dom-spec
+    fulcro-css.css-spec))
 
 ;********************************************************************************
 ; IMPORTANT:

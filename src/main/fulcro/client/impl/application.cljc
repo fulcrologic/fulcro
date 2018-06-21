@@ -1,7 +1,6 @@
 (ns fulcro.client.impl.application
   (:require [fulcro.logging :as log]
             [fulcro.client.primitives :as prim]
-            [fulcro.i18n :as i18n]
             [fulcro.client.mutations :as m]
             [fulcro.history :as hist]
             [clojure.set :as set]
@@ -55,10 +54,10 @@
            (let [on-done  (fn [{:keys [body transaction]}] (on-done body transaction))
                  on-error (fn [{:keys [body]}] (on-error body))
                  on-load  (fn [progress] (when reconciler (prim/transact! reconciler (progress-tx progress))))]
-             (net/transmit net {::net/edn tx
-                                ::net/abort-id abort-id
-                                ::net/ok-handler on-done
-                                ::net/error-handler on-error
+             (net/transmit net {::net/edn              tx
+                                ::net/abort-id         abort-id
+                                ::net/ok-handler       on-done
+                                ::net/error-handler    on-error
                                 ::net/progress-handler on-load}))))))
   ([net tx on-done on-error on-load]
    (real-send net {:tx tx :on-done on-done :on-error on-error :on-load on-load})))
@@ -161,9 +160,9 @@
                                           ::hist/history-atom history
                                           ::prim/remote       remote
                                           ::net/abort-id      abort-id
-                                          ::f/on-load         (fn [result tx]
+                                          ::f/on-load         (fn [result mtx]
                                                                 ; middleware can modify tx, so we have to take as a param
-                                                                (cb result tx remote))
+                                                                (cb result (or mtx tx) remote))
                                           ::f/on-error        (fn [result] (fallback result))}))]
         (doseq [tx tx-list]
           (when (has-mutations? tx)
@@ -261,18 +260,6 @@
             (async/<! response-channel))                    ; block until send-complete
           (recur (async/<! queue)))))))
 
-(defn initialize-internationalization
-  "Configure a re-render when the locale changes and also when the translations arrive from a module load.
-   During startup this function will be called once for each reconciler that is running on a page."
-  [reconciler]
-  (let [app-id (p/get-id reconciler)]
-    (letfn [(re-render [k r o n] #?(:cljs
-                                    ; the delay is necessary because the locale change triggers the watch before
-                                    ; it has affected the state of the application
-                                    (when (prim/mounted? (prim/app-root reconciler))
-                                      (js/setTimeout #(util/force-render reconciler) 0))))]
-      (add-watch i18n/*current-locale* app-id re-render))))
-
 (defn generate-reconciler
   "The reconciler's send method calls FulcroApplication/server-send, which itself requires a reconciler with a
   send method already defined. This creates a catch-22 / circular dependency on the reconciler and :send field within
@@ -290,10 +277,7 @@
                                     (let [state-migrate (or migrate prim/resolve-tempids)]
                                       (state-migrate pure tempids)))
         initial-state-with-locale (let [set-default-locale (fn [s] (update s :ui/locale (fnil identity :en)))
-                                        is-atom?           (futil/atom? initial-state)
-                                        incoming-locale    (get (if is-atom? @initial-state initial-state) :ui/locale)]
-                                    (when incoming-locale
-                                      (reset! i18n/*current-locale* incoming-locale))
+                                        is-atom?           (futil/atom? initial-state)]
                                     (if is-atom?
                                       (do
                                         (swap! initial-state set-default-locale)
@@ -375,7 +359,8 @@
                                 (catch #?(:cljs :default :clj Exception) e (log/error "Post mutate failed on dispatch to " k)))
                               action-result)
                             (catch #?(:cljs :default :clj Exception) e
-                              (log/error "Mutation " k " failed with exception" e)
+                              (log/error "Mutation " k " failed with exception")
+                              #?(:cljs (when goog.DEBUG (js/console.error e)))
                               (throw e)))))
       rv)))
 

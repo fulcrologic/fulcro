@@ -39,15 +39,15 @@
    :ident (fn [] [:lazy-load.items/by-id id])}
   (let [marker-id (keyword "item-marker" (str id))
         marker    (get-in props [df/marker-table marker-id])]
-    (dom/div nil label
+    (dom/div label
       ; If an item is rendered, and the fetch state is present, you can use helper functions from df namespace
       ; to provide augmented rendering.
       (if (df/loading? marker)
-        (dom/span nil " (reloading...)")
+        (dom/span " (reloading...)")
         ; the `refresh!` function is a helper that can send an ident-based join query for a component.
         ; it is equivalent to `(load reconciler [:lazy-load.items/by-id id] Item)`, but finds the params
         ; using the component itself.
-        (dom/button #js {:onClick #(df/refresh! this {:marker marker-id})} "Refresh")))))
+        (dom/button {:onClick #(df/refresh! this {:marker marker-id})} "Refresh")))))
 
 (def ui-item (prim/factory Item {:keyfn :db/id}))
 
@@ -55,11 +55,11 @@
   {:query [:child/label {:items (prim/get-query Item)}]
    :ident (fn [] [:lazy-load/ui :child])}
   (let [render-list (fn [items] (map ui-item items))]
-    (dom/div nil
-      (dom/p nil "Child Label: " label)
+    (dom/div
+      (dom/p "Child Label: " label)
       (if (seq items)
         (map ui-item items)
-        (dom/button #js {:onClick #(df/load-field this :items :marker :child-marker)} "Load Items")))))
+        (dom/button {:onClick #(df/load-field this :items :marker :child-marker)} "Load Items")))))
 
 (def ui-child (prim/factory Child {:keyfn :child/label}))
 
@@ -69,22 +69,22 @@
    :ident         (fn [] [:lazy-load/ui :panel])}
   (let [markers (get props df/marker-table)
         marker  (get markers :child-marker)]
-    (dom/div nil
-      (dom/div #js {:style #js {:float "right" :display (if loading-data "block" "none")}} "GLOBAL LOADING")
-      (dom/div nil "This is the Panel")
+    (dom/div
+      (dom/div {:style {:float "right" :display (if loading-data "block" "none")}} "GLOBAL LOADING")
+      (dom/div "This is the Panel")
       (if marker
-        (dom/h4 nil "Loading child...")
+        (dom/h4 "Loading child...")
         (if child
           (ui-child child)
-          (dom/button #js {:onClick #(df/load-field this :child :marker :child-marker)} "Load Child"))))))
+          (dom/button {:onClick #(df/load-field this :child :marker :child-marker)} "Load Child"))))))
 
 (def ui-panel (prim/factory Panel))
 
 ; Note: Kinda hard to do idents/lazy loading right on root...so generally just have root render a div
 ; and then render a child that has the rest.
-(defsc Root [this {:keys [ui/react-key panel] :or {ui/react-key "ROOT"} :as props}]
-  {:initial-state (fn [params] {:ui/react-key "A" :panel (prim/get-initial-state Panel nil)})
-   :query         [:ui/react-key {:panel (prim/get-query Panel)}]}
-  (dom/div #js {:key react-key} (ui-panel panel)))
+(defsc Root [this {:keys [panel] :as props}]
+  {:initial-state (fn [params] {:panel (prim/get-initial-state Panel nil)})
+   :query         [{:panel (prim/get-query Panel)}]}
+  (dom/div (ui-panel panel)))
 
 

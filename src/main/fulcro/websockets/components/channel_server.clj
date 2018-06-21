@@ -1,14 +1,18 @@
 (ns fulcro.websockets.components.channel-server
   (:require [com.stuartsierra.component :as component]
-            [taoensso.sente :as sente]
-            [taoensso.sente.server-adapters.http-kit :refer [sente-web-server-adapter]]
-            [ring.middleware.params :as params]
-            [ring.middleware.keyword-params :as keyword-params]
             [fulcro.easy-server :refer [api get-pre-hook set-pre-hook!]]
             [fulcro.websockets.transit-packer :as tp]
             [fulcro.websockets.protocols :refer [WSNet WSListener client-added client-dropped]]
             [fulcro.server :as server]
+            [fulcro.util :as util]
             [fulcro.logging :as log]))
+
+(defonce externs (atom {}))
+(def externs-needed '([taoensso.sente [make-channel-socket! start-server-chsk-router!]]
+                       [taoensso.sente.server-adapters.http-kit [get-sch-adapter]]
+                       [ring.middleware.params [wrap-params]]
+                       [ring.middleware.keyword-params [wrap-keyword-params]]))
+(def invoke (util/build-invoke externs externs-needed))
 
 (def post-handler (atom nil))
 
@@ -80,9 +84,9 @@
        :body   "You have tried to connect from an invalid origin."})))
 
 (defn wrap-web-socket [handler]
-  (-> handler
-    (keyword-params/wrap-keyword-params)
-    (params/wrap-params)))
+  (as-> handler h
+    (invoke 'ring.middleware.keyword-params/wrap-keyword-params h)
+    (invoke 'ring.middleware.params/wrap-params h)))
 
 ;; SAMPLE MESSAGE FROM CLIENT self-identified as "930" that we have assigned user-id 1 to (via (<! recv-channel))
 ;; {:?reply-fn      (fn [edn] ...plumbing to client ...),
@@ -161,7 +165,7 @@
                   ajax-post-fn
                   ch-recv
                   connected-uids
-                  send-fn]} (sente/make-channel-socket!
+                  send-fn]} (invoke 'taoensso.sente/make-channel-socket!
                               server-adapter
                               {:user-id-fn        client-id-fn
                                :handshake-data-fn handshake-data-fn
@@ -172,7 +176,7 @@
                       :ch-recv ch-recv
                       :chsk-send! send-fn
                       :connected-cids connected-uids        ; remap uid's to cid's
-                      :router (sente/start-server-chsk-router! ch-recv message-received))
+                      :router (invoke 'taoensso.sente/start-server-chsk-router! ch-recv message-received))
           env       (assoc env :ws-net component)]
 
       (reset! post-handler ajax-post-fn)
@@ -229,7 +233,7 @@
   (component/using
     (map->ChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
                                                                     (get (:headers ring-req) "Authorization")))
-                         :server-adapter    (or server-adapter sente-web-server-adapter)
+                         :server-adapter    (or server-adapter (invoke 'taoensso.sente.server-adapters.http-kit/get-sch-adapter))
                          :client-id-fn      (or client-id-fn (fn [request]
                                                                (:client-id request)))
                          :transit-handlers  transit-handlers})
@@ -261,7 +265,7 @@
                   ajax-post-fn
                   ch-recv
                   connected-uids
-                  send-fn]} (sente/make-channel-socket!
+                  send-fn]} (invoke 'taoensso.sente/make-channel-socket!
                               server-adapter
                               {:user-id-fn        client-id-fn
                                :handshake-data-fn handshake-data-fn
@@ -272,7 +276,7 @@
                       :ch-recv ch-recv
                       :chsk-send! send-fn
                       :connected-cids connected-uids        ; remap uid's to cid's
-                      :router (sente/start-server-chsk-router! ch-recv message-received))
+                      :router (invoke 'taoensso.sente/start-server-chsk-router! ch-recv message-received))
           parser    (server/fulcro-parser)
           env       (assoc {} :ws-net component)]
 
@@ -295,7 +299,7 @@
         (log/debug "Connection closed" client-id)
         (notify-listeners client-dropped listeners component uid))
 
-      (defmethod message-received :chsk/ws-ping [{:keys [client-id ?data ring-req uid] :as message}] )
+      (defmethod message-received :chsk/ws-ping [{:keys [client-id ?data ring-req uid] :as message}])
 
       component))
 
@@ -326,7 +330,7 @@
   (component/using
     (map->SimpleChannelServer {:handshake-data-fn (or handshake-data-fn (fn [ring-req]
                                                                           (get (:headers ring-req) "Authorization")))
-                               :server-adapter    (or server-adapter sente-web-server-adapter)
+                               :server-adapter    (or server-adapter (invoke 'taoensso.sente.server-adapters.http-kit/get-sch-adapter))
                                :client-id-fn      (or client-id-fn (fn [request]
                                                                      (:client-id request)))
                                :transit-handlers  transit-handlers})

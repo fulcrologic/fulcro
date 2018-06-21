@@ -31,9 +31,9 @@
   "Wrap an example in an iframe so we can load external CSS without affecting the containing page."
   [width height & children]
   (ele/ui-iframe {:frameBorder 0 :height height :width width}
-    (apply dom/div #js {:key "example-frame-key"}
-      (dom/style nil ".boxed {border: 1px solid black}")
-      (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+    (apply dom/div {:key "example-frame-key"}
+      (dom/style ".boxed {border: 1px solid black}")
+      (dom/link {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       children)))
 
 (defmutation show-list-loading
@@ -44,19 +44,18 @@
       [:bootstrap.dropdown/by-id id :fulcro.ui.bootstrap3/items]
       [(assoc (bs/dropdown-item :loading "Loading...") :fulcro.ui.bootstrap3/disabled? true)])))
 
-(defsc Root [this {:keys [:ui/react-key make-dropdown model-dropdown]}]
+(defsc Root [this {:keys [make-dropdown model-dropdown]}]
   {:initial-state (fn [params]
                     {:make-dropdown  (bs/dropdown :make "Make" [(bs/dropdown-item :ford "Ford")
                                                                 (bs/dropdown-item :honda "Honda")])
                      ; leave the model items empty
                      :model-dropdown (bs/dropdown :model "Model" [])})
-   :query         [:ui/react-key
-                   ; initial state for two Bootstrap dropdowns
+   :query         [; initial state for two Bootstrap dropdowns
                    {:make-dropdown (prim/get-query bs/Dropdown)}
                    {:model-dropdown (prim/get-query bs/Dropdown)}]}
   (let [{:keys [:fulcro.ui.bootstrap3/items]} model-dropdown]
     (render-example "200px" "200px"
-      (dom/div #js {:key react-key}
+      (dom/div
         (bs/ui-dropdown make-dropdown
           :onSelect (fn [item]
                       ; Update the state of the model dropdown to show a loading indicator

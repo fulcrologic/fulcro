@@ -76,13 +76,22 @@
   [tx request xhrio]
   #?(:clj {}
      :cljs
-          {:transaction      tx
-           :outgoing-request request
-           :body             (xhrio-response-text xhrio)
-           :status-code      (xhrio-status-code xhrio)
-           :status-text      (xhrio-status-text xhrio)
-           :error            (xhrio-error-code xhrio)
-           :error-text       (xhrio-error-text xhrio)}))
+          (try
+            {:transaction      tx
+             :outgoing-request request
+             :body             (xhrio-response-text xhrio)
+             :status-code      (xhrio-status-code xhrio)
+             :status-text      (xhrio-status-text xhrio)
+             :error            (xhrio-error-code xhrio)
+             :error-text       (xhrio-error-text xhrio)}
+            (catch :default e
+              {:transaction      tx
+               :outgoing-request request
+               :body             ""
+               :status-code      0
+               :status-text      "Internal Exception"
+               :error            :exception
+               :error-text       "Internal Exception from XHRIO"}))))
 
 ; Newer protocol that should be used for new networking remotes.
 (defprotocol FulcroRemoteI
@@ -282,11 +291,12 @@
          (let [xhrio                (make-xhrio)
                {:keys [body headers url method]} real-request
                http-verb            (-> (or method :post) name str/upper-case)
-               extract-response     (response-extractor* response-middleware edn real-request xhrio)
+               extract-response     #(extract-response body real-request xhrio)
+               extract-response-mw  (response-extractor* response-middleware edn real-request xhrio)
                gc-network-resources (cleanup-routine* abort-id active-requests xhrio)
                progress-routine     (progress-routine* extract-response progress-handler)
-               ok-routine           (ok-routine* progress-routine extract-response ok-handler error-handler)
-               error-routine        (error-routine* extract-response ok-routine progress-routine error-handler)
+               ok-routine           (ok-routine* progress-routine extract-response-mw ok-handler error-handler)
+               error-routine        (error-routine* extract-response-mw ok-routine progress-routine error-handler)
                with-cleanup         (fn [f] (fn [evt] (try (f evt) (finally (gc-network-resources)))))]
            (when abort-id
              (swap! active-requests update abort-id (fnil conj #{}) xhrio))
@@ -436,7 +446,7 @@
   (start [this] this))
 
 (defn make-fulcro-network
-  "DERECATED: Use `make-fulcro-remote` instead.
+  "DERECATED: Use `fulcro-http-remote` instead.
 
   Build a Fulcro Network object using the default implementation.
 

@@ -3,7 +3,6 @@
     [fulcro-spec.core :refer [specification provided behavior assertions component when-mocking]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [goog.debug.Logger.Level :as level]
-    [fulcro.i18n :as i18n]
     [fulcro.client.impl.data-fetch :as df]
     [fulcro.client]
     [fulcro.client.dom :as dom]
@@ -113,76 +112,6 @@
 
         (prim/transact! reconciler `[(not-a-real-transaction!)])))))
 
-(specification "Change locale mutation"
-  (behavior "accepts a string for locale"
-    (when-mocking
-      (m/locale-present? l) => true
-
-      (reset! i18n/*current-locale* "en-US")
-
-      (m/change-locale-impl {} "es-MX")
-
-      (assertions @i18n/*current-locale* => "es-MX")))
-  (behavior "accepts a keyword for locale"
-    (when-mocking
-      (m/locale-present? l) => true
-
-      (reset! i18n/*current-locale* "en-US")
-      (m/change-locale-impl {} :es-MX)
-      (assertions @i18n/*current-locale* => "es-MX")))
-  (provided "the locale is loaded"
-    (m/locale-present? l) => (do
-                               (assertions
-                                 "The locale check is passed a stringified version of the lang"
-                                 l => "es-MX"))
-
-    (reset! i18n/*current-locale* "en-US")
-    (let [new-state (m/change-locale-impl {} :es-MX)]
-      (assertions
-        "The locale is updated in app state as a string"
-        (:ui/locale new-state) => "es-MX"
-        "The global locale atom is updated"
-        @i18n/*current-locale* => "es-MX")))
-
-  (provided "the locale is not loaded, and is invalid"
-    (m/locale-present? l) => false
-    (m/locale-loadable? l) => (do
-                                (assertions
-                                  "the loadable check is passed a keyword version of the locale"
-                                  l => :ja)
-                                false)
-    (log/-log loc level & error) => (assertions
-                                      "Logs a console error"
-                                      (first error) =fn=> #(str/starts-with? % "Attempt to change locale to"))
-
-    (let [new-state (m/change-locale-impl {:x 1} "ja")]
-
-      (assertions
-        "Returns the original (unmodified) state"
-        new-state => {:x 1})))
-  (provided "the locale is not loaded, but is defined in a module"
-    (m/locale-present? l) => false
-    (m/locale-loadable? l) => true
-    (cljs.loader/load m cb) => (do
-                                 (assertions
-                                   "Triggers a module load with the locale's module keyword"
-                                   m => :ja
-                                   "passes the loader a callback to run when load completes"
-                                   (nil? cb) => false)
-                                 ; simulate the loader finishing the load
-                                 (reset! i18n/*current-locale* "value-to-verify-callback")
-                                 (assertions
-                                   (:ui/locale (cb)) => "ja"
-                                   "the loader callback updates the locale atom (whose watch will refresh the UI)"
-                                   (deref i18n/*current-locale*) => "ja"))
-
-    (let [new-state (m/change-locale-impl {} "ja")]
-      (assertions
-        "The locale is updated in app state as a string"
-        (:ui/locale new-state) => "ja"
-        "The global locale atom is updated"
-        @i18n/*current-locale* => "ja"))))
-
 (specification "Fallback mutations"
   (try
     (let [called (atom false)
@@ -264,7 +193,7 @@
           :params       {:x 1}
           :type         :call
           :query        (th/expand-meta ^{:component  Item
-                                          :queryid    "fulcro$client$mutations_spec$Item"
+                                          :queryid    "fulcro.client.mutations-spec/Item"
                                           ::df/target [:foo 123]} [:db/id :x])
           :component    Item
           :children     [{:type         :prop
@@ -299,7 +228,7 @@
           :params       {:x 1}
           :type         :call
           :query        (th/expand-meta ^{:component  Item
-                                          :queryid    "fulcro$client$mutations_spec$Item"
+                                          :queryid    "fulcro.client.mutations-spec/Item"
                                           ::df/target [:foo 123]} [:db/id :x])
           :component    Item
           :children     [{:type         :prop

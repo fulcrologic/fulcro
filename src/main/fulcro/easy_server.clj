@@ -3,19 +3,23 @@
     [com.stuartsierra.component :as component]
     [clojure.set :as set]
     [clojure.java.io :as io]
+    [fulcro.util :as util]
     [fulcro.server :as server]
-    [bidi.bidi :as bidi]
-    [org.httpkit.server :refer [run-server]]
-    [ring.middleware.content-type :refer [wrap-content-type]]
-    [ring.middleware.gzip :refer [wrap-gzip]]
-    [ring.middleware.not-modified :refer [wrap-not-modified]]
-    [ring.middleware.resource :refer [wrap-resource]]
-    [ring.util.response :as rsp :refer [response file-response resource-response]]
     [fulcro.logging :as log])
   (:gen-class))
 
+(defonce externs (atom {}))
+(def externs-needed '([bidi.bidi [match-route]]
+                       [org.httpkit.server [run-server]]
+                       [ring.middleware.content-type [wrap-content-type]]
+                       [ring.middleware.gzip [wrap-gzip]]
+                       [ring.middleware.not-modified [wrap-not-modified]]
+                       [ring.middleware.resource [wrap-resource]]
+                       [ring.util.response [resource-response]]))
+(def invoke (util/build-invoke externs externs-needed))
+
 (defn index [req]
-  (assoc (resource-response (str "index.html") {:root "public"})
+  (assoc (invoke 'ring.util.response/resource-response (str "index.html") {:root "public"})
     :headers {"Content-Type" "text/html"}))
 
 (defn api
@@ -49,7 +53,7 @@
 
 (defn route-handler [req]
   (let [routes (app-namify-api default-routes (:app-name req))
-        match  (bidi/match-route routes (:uri req)
+        match  (invoke 'bidi.bidi/match-route routes (:uri req)
                  :request-method (:request-method req))]
     (case (:handler match)
       ;; explicit handling of / as index.html. wrap-resources does the rest
@@ -71,7 +75,7 @@
   (if-not extra-routes dflt-handler
                        (do (assert (and routes handlers) extra-routes)
                            (fn [req]
-                             (let [match (bidi/match-route routes (:uri req) :request-method (:request-method req))]
+                             (let [match (invoke 'bidi.bidi/match-route routes (:uri req) :request-method (:request-method req))]
                                (if-let [bidi-handler (get handlers (:handler match))]
                                  (bidi-handler (assoc om-parsing-env :request req) match)
                                  (dflt-handler req)))))))
@@ -80,7 +84,7 @@
   (fn [req]
     {:status  404
      :headers {"Content-Type" "text/html"}
-     :body    (io/file (io/resource "public/not-found.html"))}))
+     :body    (io/input-stream (io/resource "public/not-found.html"))}))
 
 (defn handler
   "Create a web request handler that sends all requests through a parser. The om-parsing-env of the parses
@@ -89,17 +93,17 @@
   Returns a function that handles requests."
   [api-parser om-parsing-env extra-routes app-name pre-hook fallback-hook]
   ;; NOTE: ALL resources served via wrap-resources (from the public subdirectory). The BIDI route maps / -> index.html
-  (-> (not-found-handler)
-    (fallback-hook)
-    (wrap-connection route-handler api-parser om-parsing-env app-name)
-    (server/wrap-transit-params)
-    (server/wrap-transit-response)
-    (wrap-resource "public")
-    (wrap-extra-routes extra-routes om-parsing-env)
-    (pre-hook)
-    (wrap-content-type)
-    (wrap-not-modified)
-    (wrap-gzip)))
+  (as-> (not-found-handler) h
+    (fallback-hook h)
+    (wrap-connection h route-handler api-parser om-parsing-env app-name)
+    (server/wrap-transit-params h)
+    (server/wrap-transit-response h)
+    (invoke 'ring.middleware.resource/wrap-resource h "public")
+    (wrap-extra-routes h extra-routes om-parsing-env)
+    (pre-hook h)
+    (invoke 'ring.middleware.content-type/wrap-content-type h)
+    (invoke 'ring.middleware.not-modified/wrap-not-modified h)
+    (invoke 'ring.middleware.gzip/wrap-gzip h)))
 
 (defprotocol IHandler
   (set-pre-hook! [this pre-hook]
@@ -177,7 +181,7 @@
     (try
       (let [server-opts    (select-keys (-> this :config :value) http-kit-opts)
             port           (:port server-opts)
-            started-server (run-server (:middleware handler) server-opts)]
+            started-server (invoke 'org.httpkit.server/run-server (:middleware handler) server-opts)]
         (log/info (str "Web server (http://localhost:" port ")") "started successfully. Config of http-kit options:" server-opts)
         (assoc this :port port :server started-server))
       (catch Exception e

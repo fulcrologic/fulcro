@@ -3,15 +3,15 @@
   (:require
     [clojure.set :as set]
     [clojure.string :as str]
-    [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj
+    [fulcro.client.dom-server :as dom])
     [fulcro.client.primitives :as prim]
     [fulcro.util :as util]
     #?(:clj
     [clojure.future :refer :all])
     [clojure.tools.reader :as reader]
     [clojure.spec.alpha :as s]
-    [fulcro.client :as fc]
-    [fulcro.client.primitives :as prim+]
     [fulcro.util :as uu :refer [conform!]]
     [fulcro.client.data-fetch :as df]
     [fulcro.logging :as log]
@@ -1007,10 +1007,11 @@
            "Mutation: Select a sepecific option from a selection list. form-id is the ident of the object acting as
            a form. field is the select field, and value is the value to select."
            [{:keys [form-id field value]}]
-           (action [{:keys [state]}] (let [value (.substring value 1)]
-                                       (swap! state assoc-in
-                                         (conj form-id field)
-                                         (keyword value))))))
+           (action [{:keys [state]}]
+             (let [value (str/replace value #"^:+" "")]
+               (swap! state assoc-in
+                 (conj form-id field)
+                 (keyword value))))))
 
 (defmethod form-field* ::dropdown [component form field-name & {:keys [id className onChange] :as params}]
   (let [form-id   (form-ident form)
@@ -1019,25 +1020,25 @@
         field     (field-config form field-name)
         optional? (= ::none (:input/default-value field))
         options   (:input/options field)]
-    (dom/select #js
-        {:name      field-name
-         :id        id
-         :className cls
-         :value     selection
-         :onChange  (fn [event]
-                      (let [value      (.. event -target -value)
-                            field-info {:form-id form-id
-                                        :field   field-name
-                                        :value   value}]
-                        (prim/transact! component
-                          `[(select-option ~field-info)
-                            ~@(get-on-form-change-mutation form field-name :edit)
-                            ~form-root-key])
-                        (when (and onChange (fn? onChange)) (onChange event))))}
+    (dom/select
+      {:name      field-name
+       :id        id
+       :className cls
+       :value     selection
+       :onChange  (fn [event]
+                    (let [value      (.. event -target -value)
+                          field-info {:form-id form-id
+                                      :field   field-name
+                                      :value   value}]
+                      (prim/transact! component
+                        `[(select-option ~field-info)
+                          ~@(get-on-form-change-mutation form field-name :edit)
+                          ~form-root-key])
+                      (when (and onChange (fn? onChange)) (onChange event))))}
       (when optional?
-        (dom/option #js {:value ::none} ""))
+        (dom/option {:value ::none} ""))
       (map (fn [{:keys [option/key option/label]}]
-             (dom/option #js {:key key :value key} label))
+             (dom/option {:key key :value key} label))
         options))))
 
 (defmethod form-field* ::checkbox [component form field-name & {:keys [id className] :as params}]
@@ -1074,23 +1075,23 @@
         field-id    (radio-button-id form field-name choice)
         current-val (current-value form field-name)]
     (dom/span nil
-      (dom/input #js
-          {:type      "radio"
-           :id        field-id
-           :name      field-name
-           :className cls
-           :value     (pr-str choice)
-           :checked   (= current-val choice)
-           :onChange  (fn [event]
-                        (let [value      (.. event -target -value)
-                              field-info {:form-id id
-                                          :field   field-name
-                                          :value   (reader/read-string value)}]
-                          (prim/transact! component
-                            `[(set-field ~field-info)
-                              ~@(get-on-form-change-mutation form field-name :edit)
-                              ~form-root-key])))})
-      (dom/label #js {:htmlFor field-id} label))))
+      (dom/input
+        {:type      "radio"
+         :id        field-id
+         :name      field-name
+         :className cls
+         :value     (pr-str choice)
+         :checked   (= current-val choice)
+         :onChange  (fn [event]
+                      (let [value      (.. event -target -value)
+                            field-info {:form-id id
+                                        :field   field-name
+                                        :value   (reader/read-string value)}]
+                        (prim/transact! component
+                          `[(set-field ~field-info)
+                            ~@(get-on-form-change-mutation form field-name :edit)
+                            ~form-root-key])))})
+      (dom/label {:htmlFor field-id} label))))
 
 (defmethod form-field* ::textarea [component form field-name & {:keys [id className] :as htmlProps}]
   (let [form-id (form-ident form)

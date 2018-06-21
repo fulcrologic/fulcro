@@ -7,7 +7,8 @@
             [fulcro.client.mutations :refer [defmutation]]
             [fulcro.util :as util]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
-            [fulcro.client.dom :as dom]))
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])))
 
 (defprotocol IFormFields
   (form-fields [this] "Returns a set of keywords that define the form fields of interest on an entity"))
@@ -426,7 +427,7 @@
   submission to a server should be triggered from UI with the output of this function as parameters:
 
   ```
-  (dom/input #js { :onClick #(prim/transact! this `[(some-submit-function {:diff ~(f/dirty-fields props true)})]) })
+  (dom/input { :onClick #(prim/transact! this `[(some-submit-function {:diff ~(f/dirty-fields props true)})]) })
   ```
 
   ui-entity - The entity (denormalized) from the UI.

@@ -1,10 +1,13 @@
 (ns fulcro.ui.bootstrap3
-  (:require [fulcro.client.dom :as dom]
+  (:require
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.ui.elements :as ele]
             [fulcro.events :as evt]
             [fulcro.ui.html-entities :as ent]
             [fulcro.i18n :refer [tr tr-unsafe]]
+    #?(:cljs [cljsjs.react.dom])
             [fulcro.client.mutations :as m :refer [defmutation]]
     #?(:clj
             [clojure.future :refer :all])
@@ -88,7 +91,7 @@
   [name & {:keys [street street2 city-state phone email]}]
   (let [brs      (repeatedly #(dom/br nil))
         children (cond-> (vec (keep identity (list street street2 city-state)))
-                   phone (conj (dom/span nil (dom/abbr #js {:title "Phone"} "P:") phone)))]
+                   phone (conj (dom/span nil (dom/abbr {:title "Phone"} "P:") phone)))]
     (apply dom/address nil
       (dom/strong nil name) (dom/br nil)
       (vec (interleave children brs)))))
@@ -174,19 +177,19 @@
                              help (assoc :aria-describedby help-id)
                              :always (update :className #(str % " form-control")))]
     (cond
-      (int? split) (dom/div #js {:className form-group-classes}
-                     (dom/label #js {:className (str "control-label col-sm-" split) :htmlFor id} label)
-                     (dom/div #js {:className (str "col-sm-" split-right)}
+      (int? split) (dom/div {:className form-group-classes}
+                     (dom/label {:className (str "control-label col-sm-" split) :htmlFor id} label)
+                     (dom/div {:className (str "col-sm-" split-right)}
                        (if input-generator
                          (input-generator attrs)
                          (dom/input (clj->js attrs)))
-                       (when help (dom/span #js {:id help-id :className "help-block"} help))))
-      :else (dom/div #js {:className form-group-classes}
-              (dom/label #js {:className "control-label" :htmlFor id} label)
+                       (when help (dom/span {:id help-id :className "help-block"} help))))
+      :else (dom/div {:className form-group-classes}
+              (dom/label {:className "control-label" :htmlFor id} label)
               (if input-generator
                 (input-generator attrs)
                 (dom/input (clj->js attrs)))
-              (when help (dom/span #js {:id help-id :className "help-block"} help))))))
+              (when help (dom/span {:id help-id :className "help-block"} help))))))
 
 (defn button
   "Render a button with optional styling
@@ -217,7 +220,7 @@
                        addl-classes (str " " addl-classes))
         attrs        (assoc attrs :type "button" :aria-label "Close" :className classes)]
     (dom/button (clj->js attrs)
-      (dom/span #js {:aria-hidden true} "\u00D7"))))
+      (dom/span {:aria-hidden true} "\u00D7"))))
 
 (defn img
   "Render an img tag with bootstrap classes.
@@ -339,7 +342,7 @@
   (let [attrs (-> attrs
                 (dissoc :size)
                 (assoc :aria-hidden true)
-                (assoc :style #js {:fontSize size})
+                (assoc :style {:fontSize size})
                 (update :className #(str % " glyphicon glyphicon-" (name icon)))
                 clj->js)]
     (dom/span attrs "")))
@@ -381,8 +384,8 @@
   (let [attrs (update props :className #(str " breadcrumb"))]
     (dom/ol (clj->js attrs)
       (conj
-        (mapv (fn [item] (dom/li #js {:key (:label item)} (dom/a #js {:onClick (:onClick item)} (:label item)))) (butlast items))
-        (dom/li #js {:key (:label (last items)) :className "active"} (:label (last items)))))))
+        (mapv (fn [item] (dom/li {:key (:label item)} (dom/a {:onClick (:onClick item)} (:label item)))) (butlast items))
+        (dom/li {:key (:label (last items)) :className "active"} (:label (last items)))))))
 
 (defn pagination
   "Render a pagination control.
@@ -395,7 +398,7 @@
                   :always (str "pagination")
                   size (str " pagination-" (name size)))
         attrs   (assoc props :className classes)]
-    (dom/nav #js {:aria-label "Page Navigation"}
+    (dom/nav {:aria-label "Page Navigation"}
       (apply dom/ul (clj->js attrs) pagination-entries))))
 
 (defn pagination-entry
@@ -411,10 +414,10 @@
                   (dissoc :active :label :disabled :onClick))]
     (dom/li (clj->js attrs)
       (if (or (= label ent/raqao) (= label ent/laqao))
-        (dom/a #js {:onClick onClick :aria-label (if (= ent/raqao label) "Next" "Previous")}
-          (dom/span #js {:aria-hidden "true"} label))
-        (dom/a #js {:onClick onClick}
-          label (when active (dom/span #js {:className "sr-only"} " (current)")))))))
+        (dom/a {:onClick onClick :aria-label (if (= ent/raqao label) "Next" "Previous")}
+          (dom/span {:aria-hidden "true"} label))
+        (dom/a {:onClick onClick}
+          label (when active (dom/span {:className "sr-only"} " (current)")))))))
 
 
 (defn pager
@@ -423,18 +426,18 @@
   (let [attrs (-> props
                 (update :className #(str " pager"))
                 clj->js)]
-    (dom/nav #js {:aria-label "Page Navigation"}
+    (dom/nav {:aria-label "Page Navigation"}
       (apply dom/ul attrs children))))
 
 (defn pager-next
   "Render a next button in a pager"
   [{:keys [onClick disabled]} & label-children]
-  (dom/li #js {:key "next" :className (str "next" (when disabled " disabled"))} (apply dom/a #js {:onClick (or onClick identity)} label-children)))
+  (dom/li {:key "next" :className (str "next" (when disabled " disabled"))} (apply dom/a {:onClick (or onClick identity)} label-children)))
 
 (defn pager-previous
   "Render a previous button in a pager"
   [{:keys [onClick disabled]} & label-children]
-  (dom/li #js {:key "prior" :className (str "previous" (when disabled " disabled"))} (apply dom/a #js {:onClick (or onClick identity)} label-children)))
+  (dom/li {:key "prior" :className (str "previous" (when disabled " disabled"))} (apply dom/a {:onClick (or onClick identity)} label-children)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Dropdowns
@@ -502,14 +505,14 @@
           active?  (prim/get-computed this :active?)
           onSelect (or (prim/get-computed this :onSelect) identity)]
       (if (= ::divider label)
-        (dom/li #js {:key id :role "separator" :className "divider"})
-        (dom/li #js {:key id :className (cond-> ""
-                                          disabled? (str " disabled")
-                                          active? (str " active"))}
-          (dom/a #js {:onClick (fn [evt]
-                                 (.stopPropagation evt)
-                                 (onSelect id)
-                                 false)} (tr-unsafe label)))))))
+        (dom/li {:key id :role "separator" :className "divider"})
+        (dom/li {:key id :className (cond-> ""
+                                      disabled? (str " disabled")
+                                      active? (str " active"))}
+          (dom/a {:onClick (fn [evt]
+                             (.stopPropagation evt)
+                             (onSelect id)
+                             false)} (tr-unsafe label)))))))
 
 (let [ui-dropdown-item-factory (prim/factory DropdownItem {:keyfn ::id})]
   (defn ui-dropdown-item
@@ -551,8 +554,8 @@
       (button-group {:className (if open? "open" "")}
         (button {:className (cond-> "dropdown-toggle"
                               kind (str " btn-" (name kind))) :aria-haspopup true :aria-expanded open? :onClick open-menu}
-          (tr-unsafe label) " " (dom/span #js {:className "caret"}))
-        (dom/ul #js {:className "dropdown-menu"}
+          (tr-unsafe label) " " (dom/span {:className "caret"}))
+        (dom/ul {:className "dropdown-menu"}
           (map #(ui-dropdown-item % :onSelect onSelect :active? (cond
                                                                   stateful? (= (::id %) active-item)
                                                                   value (= value (::id %)))) items))))))
@@ -609,10 +612,10 @@
   (render [this]
     (let [{:keys [::id ::label ::disabled?]} (prim/props this)
           {:keys [onSelect active?]} (prim/get-computed this)]
-      (dom/li #js {:role "presentation" :className (cond-> ""
-                                                     active? (str " active")
-                                                     disabled? (str " disabled"))}
-        (dom/a #js {:onClick #(when onSelect (onSelect id))} (tr-unsafe label))))))
+      (dom/li {:role "presentation" :className (cond-> ""
+                                                 active? (str " active")
+                                                 disabled? (str " disabled"))}
+        (dom/a {:onClick #(when onSelect (onSelect id))} (tr-unsafe label))))))
 
 (def ui-nav-link (prim/factory NavLink {:keyfn ::id}))
 
@@ -654,7 +657,7 @@
           {:keys [onSelect]} (prim/get-computed this)
           onSelect (fn [nav-id] (when onSelect (onSelect nav-id))
                      (prim/transact! this `[(set-active-nav-link ~{:id id :target nav-id})]))]
-      (dom/ul #js {:className (str "nav nav-" (name kind) (case layout :justified " nav-justified" :stacked " nav-stacked" ""))}
+      (dom/ul {:className (str "nav nav-" (name kind) (case layout :justified " nav-justified" :stacked " nav-stacked" ""))}
         (map #(ui-nav-item (prim/computed % {:onSelect onSelect :active-id active-link-id :active? (= (::id %) active-link-id)})) links)))))
 
 (let [nav-factory (prim/factory Nav {:keyfn ::id})]
@@ -733,9 +736,9 @@
   [{:keys [current kind animated?] :or {kind :info} :as props}]
   (let [attrs (dissoc props :current :kind :animated?)]
     (div-with-class "progress" attrs
-      [(dom/div #js {:className (str "progress-bar progress-bar-" (name kind)
-                                  (when animated? " progress-bar-striped active")) :role "progressbar" :aria-valuenow current
-                     :aria-valuemin 0 :aria-valuemax 100 :style #js {:width (str current "%")}})])))
+      [(dom/div {:className (str "progress-bar progress-bar-" (name kind)
+                              (when animated? " progress-bar-striped active")) :role "progressbar" :aria-valuenow current
+                 :aria-valuemin 0 :aria-valuemax 100 :style {:width (str current "%")}})])))
 
 (defn panel
   "Render a panel. Use `panel-heading`, `panel-title`, `panel-body`, and `panel-footer` for elements of the panel.
@@ -809,7 +812,7 @@
                (.unmountComponentAtNode js/ReactDOM (.-popup this))
                (when doc
                  (.removeChild (.-body doc) (.-popup this))))))
-  (render [this] (dom/div #js {:key "placeholder" :ref (fn [r] (set! (.-doc-element this) r))})))
+  (render [this] (dom/div {:key "placeholder" :ref (fn [r] (set! (.-doc-element this) r))})))
 
 (def ui-render-in-body (prim/factory RenderInBody {:keyfn :key}))
 
@@ -848,18 +851,18 @@
         content    (util/first-node PopOverContent children)
         title      (util/first-node PopOverTitle children)
         target     (util/first-node PopOverTarget children)]
-    (dom/span #js {:style #js {:display "inline-block"} :ref (fn [r] (set! (.-target-ref this) r))}
+    (dom/span {:style {:display "inline-block"} :ref (fn [r] (set! (.-target-ref this) r))}
       (ui-render-in-body {}
-        (dom/div #js {:className (str "popover fade " (name orientation) (when active " in"))
-                      :ref       (fn [r] (set! (.-popup-ref this) r))
-                      :style     #js {:position "absolute"
-                                      :top      (str popupTop "px")
-                                      :left     (str popupLeft "px")
-                                      :display  "block"}}
-          (dom/div #js {:className "arrow" :style #js {:left (case orientation
-                                                               :left "100%"
-                                                               :right "-11px"
-                                                               "50%")}})
+        (dom/div {:className (str "popover fade " (name orientation) (when active " in"))
+                  :ref       (fn [r] (set! (.-popup-ref this) r))
+                  :style     {:position "absolute"
+                              :top      (str popupTop "px")
+                              :left     (str popupLeft "px")
+                              :display  "block"}}
+          (dom/div {:className "arrow" :style {:left (case orientation
+                                                       :left "100%"
+                                                       :right "-11px"
+                                                       "50%")}})
           (when title) title
           (when content) content))
       target)))
@@ -939,23 +942,23 @@
           title    (util/first-node ModalTitle children)
           body     (util/first-node ModalBody children)
           footer   (util/first-node ModalFooter children)]
-      (dom/div #js {:role      "dialog" :aria-labelledby label-id
-                    :ref       (fn [r] (set! (.-the-dialog this) r))
-                    :onKeyDown (fn [evt] (when (and keyboard (evt/escape-key? evt)) (onClose)))
-                    :style     #js {:display (if visible "block" "none")}
-                    :className (str "modal fade" (when active " in")) :tabIndex "-1"}
-        (dom/div #js {:role "document" :className (str "modal-dialog" (when size (str " modal-" (name size))))}
-          (dom/div #js {:className "modal-content"}
-            (dom/div #js {:key "modal-header" :className "modal-header"}
-              (dom/button #js {:type "button" :onClick onClose :aria-label "Close" :className "close"}
-                (dom/span #js {:aria-hidden "true"} ent/times))
+      (dom/div {:role      "dialog" :aria-labelledby label-id
+                :ref       (fn [r] (set! (.-the-dialog this) r))
+                :onKeyDown (fn [evt] (when (and keyboard (evt/escape-key? evt)) (onClose)))
+                :style     {:display (if visible "block" "none")}
+                :className (str "modal fade" (when active " in")) :tabIndex "-1"}
+        (dom/div {:role "document" :className (str "modal-dialog" (when size (str " modal-" (name size))))}
+          (dom/div {:className "modal-content"}
+            (dom/div {:key "modal-header" :className "modal-header"}
+              (dom/button {:type "button" :onClick onClose :aria-label "Close" :className "close"}
+                (dom/span {:aria-hidden "true"} ent/times))
               (when title
-                (dom/h4 #js {:key label-id :id label-id :className "modal-title"} title)))
+                (dom/h4 {:key label-id :id label-id :className "modal-title"} title)))
             (when body body)
             (when footer footer)))
         (when (and backdrop visible)
           (ui-render-in-body {}
-            (dom/div #js {:key "backdrop" :className (str "modal-backdrop fade" (when active " in"))})))))))
+            (dom/div {:key "backdrop" :className (str "modal-backdrop fade" (when active " in"))})))))))
 
 (let [modal-factory (prim/factory Modal {:keyfn (fn [props] (str "modal-" (:db/id props)))})]
   (defn ui-modal
@@ -981,7 +984,7 @@
       (b/ui-modal-title nil
         (dom/b nil \"WARNING!\"))
       (b/ui-modal-body nil
-        (dom/p #js {:className b/text-danger} \"Stuff went sideways.\"))
+        (dom/p  {:className b/text-danger} \"Stuff went sideways.\"))
       (b/ui-modal-footer nil
         (b/button {:onClick #(prim/transact! this `[(b/hide-modal {:id :warning-modal})])} \"Bummer!\"))))))
     ````
@@ -1023,7 +1026,7 @@
                        :open "collapse in"
                        :closed "collapse"
                        "collapsing")]
-      (apply dom/div #js {:className classes :style #js {:height height} :ref (fn [r] (set! (.-dom-element this) r))} children))))
+      (apply dom/div {:className classes :style {:height height} :ref (fn [r] (set! (.-dom-element this) r))} children))))
 
 (def ui-collapse
   "Render a collapse component that can height-animate in/out children. The props should be state from the
@@ -1105,10 +1108,10 @@
   (render [this]
     (let [{:keys [src alt] :as props} (prim/props this)
           caption (prim/children this)]
-      (dom/div #js {:key (hash src)}
-        (dom/img #js {:src src :alt alt})
+      (dom/div {:key (hash src)}
+        (dom/img {:src src :alt alt})
         (when (seq caption)
-          (dom/div #js {:className "carousel-caption"}
+          (dom/div {:className "carousel-caption"}
             caption))))))
 
 (def ui-carousel-item
@@ -1169,32 +1172,32 @@
           active-item-class (str "item active "
                               (when sliding? (if from-the-left? "left" "right")))
           slide-to-class    (str "item " (when sliding? (if from-the-left? "next left" "next right")))]
-      (dom/div #js {:className "carousel slide"
-                    :onKeyDown (fn [e]
-                                 (.preventDefault e)        ; TODO: not getting key evts
-                                 (.stopPropagation e)
-                                 (cond
-                                   (evt/left-arrow? e) (goto prior-index)
-                                   (evt/right-arrow? e) (goto next-index))
-                                 false)}
-        (dom/ol #js {:className "carousel-indicators"}
-          (map #(dom/li #js {:key % :className (str "" (when (= % active-index) "active"))} "") (range slide-count)))
+      (dom/div {:className "carousel slide"
+                :onKeyDown (fn [e]
+                             (.preventDefault e)            ; TODO: not getting key evts
+                             (.stopPropagation e)
+                             (cond
+                               (evt/left-arrow? e) (goto prior-index)
+                               (evt/right-arrow? e) (goto next-index))
+                             false)}
+        (dom/ol {:className "carousel-indicators"}
+          (map #(dom/li {:key % :className (str "" (when (= % active-index) "active"))} "") (range slide-count)))
 
         ; TODO: extra div needs unwrapped, but is already rendered
-        (dom/div #js {:className "carousel-inner" :role "listbox"}
+        (dom/div {:className "carousel-inner" :role "listbox"}
           (map-indexed (fn [idx i]
-                         (dom/div #js {:className (cond
-                                                    (= idx to) slide-to-class
-                                                    (= idx active-index) active-item-class
-                                                    :else "")} i))
+                         (dom/div {:className (cond
+                                                (= idx to) slide-to-class
+                                                (= idx active-index) active-item-class
+                                                :else "")} i))
             items))
         (when show-controls
-          (dom/a #js {:onClick #(goto prior-index) :className "left carousel-control" :role "button"}
+          (dom/a {:onClick #(goto prior-index) :className "left carousel-control" :role "button"}
             (glyphicon {:aria-hidden true} :chevron-left)
-            (dom/span #js {:className "sr-only"} "Previous"))
-          (dom/a #js {:onClick #(goto next-index) :className "right carousel-control" :role "button"}
+            (dom/span {:className "sr-only"} "Previous"))
+          (dom/a {:onClick #(goto next-index) :className "right carousel-control" :role "button"}
             (glyphicon {:aria-hidden true} :chevron-right)
-            (dom/span #js {:className "sr-only"} "Next")))))))
+            (dom/span {:className "sr-only"} "Next")))))))
 ; TODO: above is untested...might work ;)
 
 (def ui-carousel (prim/factory Carousel {:keyfn :db/id}))

@@ -79,7 +79,7 @@
                  fs/form-config-join]
    :form-fields #{::phone-number ::phone-type}
    :ident       [:phone/by-id :db/id]}
-  (dom/div #js {:className "form"}
+  (dom/div :.form
     (input-with-label this ::phone-number "Phone:" "10-digit phone number is required.")
     (input-with-label this ::phone-type "Type:" ""
       (fn [attrs]
@@ -97,8 +97,8 @@
   {:query         [:db/id ::phone-number ::phone-type]
    :initial-state {:db/id :param/id ::phone-number :param/number ::phone-type :param/type}
    :ident         [:phone/by-id :db/id]}
-  (dom/li nil
-    (dom/a #js {:onClick (fn [] (onSelect id))}
+  (dom/li
+    (dom/a {:onClick (fn [] (onSelect id))}
       (str phone-number " (" (phone-type {:home "Home" :work "Work" nil "Unknown"}) ")"))))
 
 (def ui-phone-number (prim/factory PhoneNumber {:keyfn :db/id}))
@@ -109,9 +109,9 @@
                    ::phone-numbers [{:id 1 :number "541-555-1212" :type :home}
                                     {:id 2 :number "541-555-5533" :type :work}]}
    :ident         [:phonebook/by-id :db/id]}
-  (dom/div nil
-    (dom/h4 nil "Phone Book (click a number to edit)")
-    (dom/ul nil
+  (dom/div
+    (dom/h4 "Phone Book (click a number to edit)")
+    (dom/ul
       (map (fn [n] (ui-phone-number (prim/computed n {:onSelect onSelect}))) phone-numbers))))
 
 (def ui-phone-book (prim/factory PhoneBook {:keyfn :db/id}))
@@ -129,9 +129,8 @@
                        ; tell the root UI that we're editing a phone number by linking it in
                        (assoc :root/phone [:phone/by-id id])))))))
 
-(defsc Root [this {:keys [:ui/react-key :root/phone :root/phonebook]}]
-  {:query         [:ui/react-key
-                   {:root/dropdown (prim/get-query bs/Dropdown)}
+(defsc Root [this {:keys [:root/phone :root/phonebook]}]
+  {:query         [{:root/dropdown (prim/get-query bs/Dropdown)}
                    {:root/phonebook (prim/get-query PhoneBook)}
                    {:root/phone (prim/get-query PhoneForm)}]
    :initial-state (fn [params]
@@ -139,8 +138,8 @@
                                                                       (bs/dropdown-item :home "Home")])
                      :root/phonebook (prim/get-initial-state PhoneBook {})})}
   (ele/ui-iframe {:frameBorder 0 :width 500 :height 200}
-    (dom/div #js {:key react-key}
-      (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+    (dom/div
+      (dom/link {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       (if (contains? phone ::phone-number)
         (ui-phone-form phone)
         (ui-phone-book (prim/computed phonebook {:onSelect (fn [id] (prim/transact! this `[(edit-phone-number {:id ~id})]))}))))))

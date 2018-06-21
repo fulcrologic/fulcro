@@ -173,7 +173,7 @@
 
 
 #?(:cljs
-   (specification "Aborting items on the remote queue" :focused
+   (specification "Aborting items on the remote queue"
      (let [queue     (async/chan 1024)
            payload-1 {:id 1 ::prim/query '[(h)]}
            payload-2 {:id 2 ::net/abort-id :X}

@@ -17,7 +17,7 @@
   {:initial-state (fn [{:keys [value]}] {:value value})
    :query         [:value]
    :ident         (fn [] [:labels/by-value value])}
-  (dom/p nil value))
+  (dom/p value))
 
 (def ui-label (prim/factory ItemLabel {:keyfn :value}))
 
@@ -26,8 +26,8 @@
 (defsc Foo [this {:keys [label]}]
   {:query         [:type :id {:label (prim/get-query ItemLabel)}]
    :initial-state (fn [{:keys [id label]}] {:id id :type :foo :label (prim/get-initial-state ItemLabel {:value label})})}
-  (dom/div nil
-    (dom/h2 nil "Foo")
+  (dom/div
+    (dom/h2 "Foo")
     (ui-label label)))
 
 (def ui-foo (prim/factory Foo {:keyfn :id}))
@@ -35,8 +35,8 @@
 (defsc Bar [this {:keys [label]}]
   {:query         [:type :id {:label (prim/get-query ItemLabel)}]
    :initial-state (fn [{:keys [id label]}] {:id id :type :bar :label (prim/get-initial-state ItemLabel {:value label})})}
-  (dom/div nil
-    (dom/h2 nil "Bar")
+  (dom/div
+    (dom/h2 "Bar")
     (ui-label label)))
 
 (def ui-bar (prim/factory Bar {:keyfn :id}))
@@ -51,7 +51,7 @@
   (case type
     :foo (ui-foo props)
     :bar (ui-bar props)
-    (dom/p nil "No Item renderer!")))
+    (dom/p "No Item renderer!")))
 
 (def ui-list-item (prim/factory ListItem {:keyfn :id}))
 
@@ -81,26 +81,24 @@
   (case type
     :settings (ui-settings props)
     :main (ui-main props)
-    (dom/p nil "NO PANE!")))
+    (dom/p "NO PANE!")))
 
 (def ui-panes (prim/factory PaneSwitcher {:keyfn :type}))
 
 ;; The root. Everything just composes to here (state and query)
 ;; Note, in core (where we create the app) there is no need to say anything about initial state!
-(defsc Root [this {:keys [ui/react-key panes items]}]
-  {:initial-state (fn [params] {:ui/react-key "abc"
-                                :panes        (prim/get-initial-state PaneSwitcher nil)
-                                :items        (prim/get-initial-state ListItem nil)})
-   :query         [:ui/react-key
-                   {:items (prim/get-query ListItem)}
+(defsc Root [this {:keys [panes items]}]
+  {:initial-state (fn [params] {:panes (prim/get-initial-state PaneSwitcher nil)
+                                :items (prim/get-initial-state ListItem nil)})
+   :query         [{:items (prim/get-query ListItem)}
                    {:panes (prim/get-query PaneSwitcher)}]}
-  (dom/div #js {:key react-key}
-    (dom/button #js {:onClick (fn [evt] (prim/transact! this '[(nav/settings)]))} "Go to settings")
-    (dom/button #js {:onClick (fn [evt] (prim/transact! this '[(nav/main)]))} "Go to main")
+  (dom/div
+    (dom/button {:onClick (fn [evt] (prim/transact! this '[(nav/settings)]))} "Go to settings")
+    (dom/button {:onClick (fn [evt] (prim/transact! this '[(nav/main)]))} "Go to main")
 
     (ui-panes panes)
 
-    (dom/h1 nil "Heterogenous list:")
+    (dom/h1 "Heterogenous list:")
 
-    (dom/ul nil
+    (dom/ul
       (mapv ui-list-item items))))

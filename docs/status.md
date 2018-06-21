@@ -8,8 +8,7 @@ idea of what features are core and solid, and which ones are still evolving:
 
 ## Core Features
 
-Fulcro is production-ready, and a number of companies are actively using it. Some of
-the newer features still have some rough edges.
+Fulcro is production-ready, and a number of companies are actively using it. 
 
 - Client-side rendering (100%)
 - Data Model (100%)
@@ -34,17 +33,16 @@ Routing is also supported for server-side rendering (100%).
 
 ## Form Support
 
-This is in active (priority) development. It should be relatively stable, but might
-have missing features that you need. File upload works, but
-needs some CSS love or other instructions for how to make it look good.
+Forms are largely something you'll want to have a lot of control over. The `forms-state` namespace is 
+particularly useful for managing a pristine vs. edited copy of state, along with minimal state diff tools.
 
-A simple state management version of forms is also planned (60% but on a branch currently).
+There is also a `forms` namespace that goes a bit further, but is deprecated since it seemed
+to be a bit of overreach. It includes:
 
 - Components as user-editable forms (100%)
 - Commit/submit (100%)
 - Validation (100%)
 - Custom "form input" rendering (90%)
-- File Upload (80%)
 
 ## Documentation
 
@@ -63,8 +61,7 @@ code generation (as namespaces and/or loadable modules) works.
 
 ## Websockets
 
-Working and in use in production applications. Could probably use a
-little bit more documentation and a bit of refactoring.
+Working and in use in production applications. 
 
 ## Server-Side
 
@@ -72,18 +69,11 @@ There are two ways to build a server. The easy way assumes you don't need
 to muck with the Ring handler much. It is fully extensible, but the
 extension points are a bit messy.
 
-The more recent modular server allows you to build your own Ring
-middleware stack, and is therefore a bit easier to understand (though
-more work). The modular nature of the new server also enables 3rd party
-libraries that can hook into your server-side query/mutation logic.
-
-Both are in good shape, and well-documented.
+There is also just an API handler hook that you can use to hook into
+any kind of custom server.  See the Developer's Guide for instructions on rolling your own
+server.
 
 - Easy Server (100%)
-- Module-based Server (100%)
-
-See the Developer's Guide for instructions on rolling your own
-server that isn't dependent on either.
 
 ## Twitter Bootstrap Support
 
@@ -95,7 +85,6 @@ bootstrap CSS and theme in your HTML page.
 - CSS (95%)
 - Components (90%)
 - Active Components (80%)
-- Integration with Forms (50%)
 
 This will probably be moved to an alternate project in the near future.
 
@@ -119,14 +108,4 @@ advanced-optimized Javascript. The former is easier and more performant if
 you write all of your components, but the latter is necessary if you
 use external Javascript libraries. See the `nashorn` branch of the template
 for a demonstration of the latter.
-
-## Random Bits
-
-Some of these will probably get moved with the bootstrap support. Most
-of these are UI-only concerns.
-
-- `events.cljs`: Has helpers for detecting a few kinds of key events. Could be dramatically expanded.
-- `icons.cljc` : Has embedded SVG data for generating nice SVG icons from the Material Icons set with needing CSS or other code.
-- `clip_tool.cljs` and `clip_geometry.cljs` : Experimental component for doing live image clipping with locked aspect ratios. Needs CSS love, and instructions.
-- `entities.cljc` : Simple defs in unicode of common HTML entities (since you can't type them in as `&blah;`). The ones that are there are correct. Many are missing.
 

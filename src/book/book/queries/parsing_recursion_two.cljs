@@ -43,5 +43,5 @@
 (defsc Root [this {:keys [parse-runner]}]
   {:initial-state (fn [params] {:parse-runner (prim/get-initial-state ParseRunner {:query query})})
    :query         [{:parse-runner (prim/get-query ParseRunner)}]}
-  (dom/div nil
+  (dom/div
     (ui-parse-runner (prim/computed parse-runner {:parser parser :database database}))))

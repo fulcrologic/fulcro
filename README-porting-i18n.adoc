@@ -1,0 +1,33 @@
+= Internationalization in Fulcro 2.5+
+
+This document covers the steps needed to port a Fulcro app that uses `fulcro.i18n` to version 2.5+
+
+== Checklist
+
+There should be no actual UI code modifications necessary. Most of the changes have to do with dependencies
+and initial setup. The translations are no longer turned into generated code, so the operations side of things
+is *much* simpler, and treating the translations as data means that multiple Fulcro apps on a page can have their
+own translations (and even locales) independently without conflict.
+
+Extraction of strings is still identical to the original I18N support (e.g. through `xgettext`).
+
+The porting steps are:
+
+. Remove any modular builds for locale translation CLJC files from your build. Translations are no longer code,
+so code splitting isn't needed for  them.
+. Delete any translation CLJC files from your project, and remove requires of them.
+. Add a `defquery-root` to satisfy translation loads from the client.
+    . Make sure the directory that houses your PO files can be served by your server. Translations are now dynamically served by normal queries to the server.
+. Update your locale selection code to use the new mutations.
+   * On the client: use the `fulcro.i18n.change-locale` mutation, which both triggers loads of missing translations and forces a full UI refresh.
+   * Current locale is a pure element of app state now, so server-side rendering and client both use state.
+   * See `with-locale` as a way to provide a scoped way to render a particular locale with a specific formatter.
+   * See the included `LocaleSelector` as a drop-in replacement for a dropdown.
+. If you want to continue to use IBM's ICU4j on the server, and Yahoo's FormatJS for the client:
+   * Add FormatJS's intl-messageformat-with-locales.min.js to your resources, and add to the HEAD of your HTML pages. There is no longer any hard dependency on this. OR: You can also use the Node dependency directly and require it in your client entry point (which is easiest if using shadow-cljs).
+   * Add icu4j to your project's dependencies.
+. Define your message formatter for both client and server. There is no default. If you fail to do this then `trf` will always result in "???".
+. Update your client reconciler options to include `:shared` and `:shared-fn` to make translations available to components.
+
+The http://book.fulcrologic.com/#I18N[chapter on I18N] in the Developer's Guide has specific details for each step,
+along with code samples of the formatters that are backwards compatible with the old support.

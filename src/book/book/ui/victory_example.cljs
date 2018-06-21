@@ -85,6 +85,6 @@
                                {:year 2000 :value 180}
                                {:year 2001 :value 200}
                                ]}}
-  (dom/div nil
+  (dom/div
     (yearly-value-chart props)))
 

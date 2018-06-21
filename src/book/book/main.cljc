@@ -31,8 +31,9 @@
                book.forms.whole-form-logic
                book.forms.full-stack-forms-demo
                [book.demos.autocomplete :as autocomplete]
-               book.basic-i18n
                book.ui-routing
+               book.simple-router-1
+               book.simple-router-2
                book.tree-to-db
                book.merge-component
                book.html-converter
@@ -65,9 +66,9 @@
                book.bootstrap.components.nav-routing
                book.demos.cascading-dropdowns
                book.demos.component-localized-css
+               book.demos.localized-dom
                book.demos.declarative-mutation-refresh
                book.demos.dynamic-ui-routing
-               book.demos.dynamic-i18n
                book.demos.initial-app-state
                book.demos.legacy-load-indicators
                book.demos.loading-data-basics
@@ -84,12 +85,12 @@
                book.demos.server-return-values-manually-merging
                [book.server.ui-blocking-example :as ui-blocking]
                [fulcro-css.css :as css]])
-    [book.ui.example-1 :as ui-ex-1]
     [fulcro.server :as server :refer [defquery-root]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.network :as fcn]
     [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
     [fulcro.logging :as log]
     [book.example-1 :as ex1]
     [fulcro.client.data-fetch :as df]
@@ -219,8 +220,9 @@
 #?(:cljs (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries"))
 #?(:cljs (defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters"))
 
-#?(:cljs (defexample "Internationalization Demo" book.basic-i18n/Root "basic-i18n"))
 #?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
+#?(:cljs (defexample "Simple Router" book.simple-router-1/Root "simple-router-1"))
+#?(:cljs (defexample "Nested Router" book.simple-router-2/Root "simple-router-2"))
 #?(:cljs (defexample "Tree to DB with Queries" book.tree-to-db/Root "tree-to-db" :networking book.main/example-server))
 #?(:cljs (defexample "Merging with a Component" book.merge-component/Root "merge-component" :networking book.main/example-server))
 #?(:cljs (defexample "HTML Converter" book.html-converter/Root "html-converter"))
@@ -240,14 +242,11 @@
 #?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
 #?(:cljs (defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :networking book.main/example-server))
 #?(:cljs (defexample "Component Localized CSS" book.demos.component-localized-css/Root "component-localized-css" :networking book.main/example-server))
+#?(:cljs (defexample "Localized DOM" book.demos.localized-dom/Root "localized-dom"))
 #?(:cljs (defexample "Declarative Mutation Refresh" book.demos.declarative-mutation-refresh/Root "declarative-mutation-refresh" :networking book.main/example-server))
 #?(:cljs (defexample "dynamicUiRouting" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
            :started-callback book.demos.dynamic-ui-routing/application-loaded
            :networking book.main/example-server))
-
-#?(:cljs (defexample "Dynamically Loaded Locales" book.demos.dynamic-i18n/Root "dynamic-i18n"
-           :networking book.main/example-server
-           :started-callback (fn [] (cljs.loader/set-loaded! :entry-point))))
 
 ; Bootstrap CSS
 #?(:cljs (defexample "Alerts" book.bootstrap.alerts/alerts "bootstrap-alerts"))

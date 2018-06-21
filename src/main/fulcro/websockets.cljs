@@ -1,6 +1,7 @@
 (ns fulcro.websockets
   (:require-macros [cljs.core.async.macros :refer (go go-loop)])
   (:require [cognitect.transit :as ct]
+            [cljs.core.async :as async]
             [taoensso.sente :as sente :refer (cb-success?)]
             [fulcro.client.network :refer [FulcroNetwork]]
             [fulcro.logging :as log]
@@ -12,51 +13,57 @@
   (fn [{:keys [id ?data] :as event}]
     (case id
       :api/server-push (when push-handler (push-handler ?data))
-      (log/debug "Unsupported message " id))))
+      nil)))
 
-(defrecord Websockets [channel-socket push-handler websockets-uri host state-callback global-error-callback transit-handlers req-params stop app auto-retry?]
+(defrecord Websockets [queue ready? channel-socket push-handler websockets-uri host state-callback global-error-callback transit-handlers req-params stop app auto-retry?]
   FulcroNetwork
-  (send [this edn ok err]
-    (let [{:keys [send-fn]} @channel-socket]
-      (send-fn [:fulcro.client/API edn] 30000
-        (fn process-response [resp]
-          (if (cb-success? resp)
-            (let [{:keys [status body]} resp]
-              (if (= 200 status)
-                (ok body)
-                (do
-                  (err body)
-                  (when global-error-callback
-                    (global-error-callback resp)))))
-            (if auto-retry?
-              (do
-                ; possibly useful to handle these separately
-                #_(case resp
-                    :chsk/closed (println "Connection closed...")
-                    :chsk/error (println "Connection error...")
-                    :chsk/timeout (println "Connection timeout...")
-                    (println "Unknown resp: " resp))
-                ; retry...probably don't need a back-off, but YMMV
-                (js/setTimeout #(fulcro.client.network/send this edn ok err) 1000))
-              (let [body {:fulcro.server/error :network-disconnect}]
-                (err body)
-                (when global-error-callback
-                  (global-error-callback {:status 408 :body body})))))))))
+  (send [this edn ok err] (async/go (async/>! queue {:this this :edn edn :ok ok :err err})))
   (start [this]
     (let [{:keys [ch-recv state] :as cs} (sente/make-channel-socket! websockets-uri ; path on server
                                            {:packer         (tp/make-packer transit-handlers)
                                             :host           host
                                             :type           :ws ; e/o #{:auto :ajax :ws}
+                                            :backoff-ms-fn  (fn [attempt] (min (* attempt 1000) 4000))
                                             :params         req-params
                                             :wrap-recv-evs? false})
           message-received (make-event-handler push-handler)]
+      (add-watch state ::ready (fn [a k o n]
+                                 (if auto-retry?
+                                   (do (reset! ready? (:open? n))) ; prevent send attempts until open again.
+                                   (when (:open? n)         ; not auto-retry: so single-shot. offline down should result in app level network error
+                                     (reset! ready? true)))))
       (cond
-        (fn? state-callback) (add-watch state ::state-callback (fn [a k o n]
-                                                                 (state-callback o n)))
-        (instance? Atom state-callback) (add-watch state ::state-callback (fn [a k o n]
-                                                                            (@state-callback o n))))
+        (fn? state-callback) (add-watch state ::state-callback (fn [a k o n] (state-callback o n)))
+        (instance? Atom state-callback) (add-watch state ::state-callback (fn [a k o n] (@state-callback o n))))
       (reset! channel-socket cs)
       (sente/start-chsk-router! ch-recv message-received)
+
+      (async/go-loop []
+        (if @ready?
+          (let [{:keys [this edn ok err]} (async/<! queue)
+                {:keys [send-fn]} @channel-socket]
+            (send-fn [:fulcro.client/API edn] 30000
+              (fn process-response [resp]
+                (if (cb-success? resp)
+                  (let [{:keys [status body]} resp]
+                    (if (= 200 status)
+                      (ok body)
+                      (do
+                        (err body)
+                        (when global-error-callback
+                          (global-error-callback resp)))))
+                  (if auto-retry?
+                    (do
+                      ; retry...sente already does connection back-off, so probably don't need back-off here
+                      (js/setTimeout #(fulcro.client.network/send this edn ok err) 1000))
+                    (let [body {:fulcro.server/error :network-disconnect}]
+                      (err body)
+                      (when global-error-callback
+                        (global-error-callback {:status 408 :body body}))))))))
+          (do
+            (log/info "Send attempted before channel ready...waiting")
+            (async/<! (async/timeout 1000))))
+        (recur))
       this)))
 
 (defn make-websocket-networking
@@ -79,6 +86,8 @@
   ([] (make-websocket-networking {}))
   ([{:keys [websockets-uri global-error-callback push-handler host req-params state-callback transit-handlers auto-retry?]}]
    (map->Websockets {:channel-socket        (atom nil)
+                     :queue                 (async/chan)
+                     :ready?                (atom false)
                      :auto-retry?           auto-retry?
                      :websockets-uri        (or websockets-uri "/chsk")
                      :push-handler          push-handler

@@ -6,6 +6,133 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.10
+------
+- Fixed resource access in uberjar for not-found page for easy server
+- Added support for transit options in str conversion functions and
+initial state generation functions for SSR.
+- Fixed bug where mutation-declared refresh was ignored by post mutations
+
+2.5.9
+-----
+- Fixed query de-dupe
+- Changed marker to auto-disable when targeting to-many
+- Added exception stack trace to mutation errors
+
+2.5.8
+-----
+- Fixed a bug in transact! that sometimes caused :component to be nil in mutations.
+- Fixed a bug in SSR spec that cause sub-components to appear as props
+- Fixed websockets to prevent first transmission unless the state of the connection is good.
+- Changed websockets back-off to max out at 4s retries
+
+2.5.7
+-----
+- Fixed bug in some namespaces missing react requires that were breaking optimized builds.
+
+2.5.6
+-----
+- Fixed bug in v2.5.5 merge improvement
+
+2.5.5
+-----
+- Fixed bug in tempid migrations on mutation merges
+- Fixed shouldComponentUpdate to give Fulcro props instead of low-level React
+- Added React 16 error boundary support (requires you use React 16, of course)
+
+2.5.4
+-----
+- Improved failed route message
+
+2.5.3
+-----
+- Fixes bug in logging for release compiles
+
+2.5.2
+-----
+- Added missing helpers for server-side rendering with dynamic routing.
+
+2.5.1
+-----
+- Fixed a bug in the spec for localized dom on server
+
+2.5.0
+-----------
+- Added support for :focus on loads
+
+2.5.0-beta1
+-----------
+- Fixed issue with internal merge on mutation joins getting :not-found in idents
+- Fixed a bug in forms that was trimming values incorrectly with new DOM
+- Various tweaks and fixes to book
+
+2.5.0-alpha4
+------------
+- Namespace fix in book source
+- Added svg use tag
+
+2.5.0-alpha3
+------------
+- Fixed a bug on wrapped select with ref
+
+2.5.0-alpha2
+------------
+- Promoted fulcro.client.alpha.dom to fulcro.client.dom
+- Promoted fulcro.client.alpha.localized-dom to fulcro.client.localized-dom
+
+2.5.0-alpha1
+------------
+- Dramatic cleanup reduces dependencies WARNING: If you use websockets or server namespaces, you must now explicitly add the dependencies to your project. Dynamic loading errors will report what is missing.
+- Released new i18n (alpha promotion). BREAKING CHANGE.
+- Behavioral change: The deprecated fulcro.client.logging is now just a facade to fulcro.logging
+- Moved tutorial to a separate repo
+
+2.4.4
+-----
+- Fixed bug in alpha dom. Lazy seqs were sometimes not properly expanded.
+
+2.4.3
+-----
+- Bug in specter WRT cljs, so changed fulcro-css use clojure.walk for localizing things
+    - Also eliminated that dependency
+- Updated alpha dom to support expressions in props
+- Added `sc` macro, a non-def version of `defsc`
+
+2.4.2
+-----
+- Fixed bug in alpha dom select input
+
+2.4.1
+-----
+- Fixed dynamic query ID generation under adv optimization
+- Fixed bug in mutation joins (server return values)
+- Removed support for bindable parameters in queries. Obscure feature no one was using that was broken.
+- Fixed bug in book demo
+
+2.4.0
+-----
+- IMPORTANT CHANGE: Integrated Fulcro CSS. You should remove fulcrologic/fulcro-css from your dependencies,
+and exclude it from any libraries that bring it in.
+- Fixed bug in `:initial-state` when mixing template and lamda forms in different components.
+- Added alpha versions of new, tighter, DOM functions that do not require props, or #js
+- A few minor bug fixes in i18n alpha
+- PORTING TO fulcro.client.alpha.dom
+  - You cannot use expressions (e.g. list forms) for props. Only symbols, maps, or js objects
+  - Proper runtime optimization cannot be done for isomorphic rendering with a single namespace (this was a bug inherited from Om Next). For CLJC, the correct require is now:
+  ```
+  #?(:clj [fulcro.client.alpha.dom-server :as dom]
+     :cljs [fulcro.client.alpha.dom :as dom])
+  ```
+- Added `fulcro.client.alpha.localized-dom`. Syntax is just like the new `alpah.dom`, but
+class keywords are localized to the *component* via fulcro-css rules.
+
+2.3.1
+-----
+- Added fulcro.alpha.i18n. A rewrite of i18n support.
+- Fixed problem related to a change in CLJS 1.10+
+- Fixed `:ref` support on wrapped inputs
+- Added a `make-root` helper to the fulcro.client.cards ns for helping with devcard creation
+
 2.3.0
 -----
 - Fixed bug in dirty-fields for form state, where relations were not properly reported.
@@ -30,6 +157,15 @@ and middleware is opt-in for now.
 - Removed some dead code in primitives
 - Removed dom dependencies in routing and data fetch, to enable easier use with React Native
 - BREAKING CHANGE: new Websockets API support refined and improved a bit, but the argument lists for construction changed slightly.
+
+2.2.2
+-----
+- Fix to SSR on routing changes
+- Improved get-ident to work consistently on server and client
+
+2.2.1
+-----
+- Improved UI routing documentation and API.
 
 2.2.0
 -----

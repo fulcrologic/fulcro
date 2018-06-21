@@ -2,7 +2,8 @@
   (:require [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
-            [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj [fulcro.client.dom-server :as dom])
             [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
@@ -19,7 +20,8 @@
             [fulcro.client.impl.protocols :as p]
             [fulcro.util :as util]
             [clojure.walk :as walk]
-            [fulcro.ui.form-state :as f])
+            [fulcro.ui.form-state :as f]
+            [fulcro.test-helpers :as th])
   #?(:clj
      (:import (clojure.lang ExceptionInfo))))
 
@@ -122,14 +124,24 @@
       (meta))
     => {::prim/time 10 ::info true}))
 
+(defsc IdentExample [_ _]
+  {:ident [:id :id]})
+
+(specification "get-ident" :focused
+  (assertions
+    "Read components ident"
+    (prim/get-ident IdentExample {}) => [:id nil]
+    "Normalize ::prim/not-found to nil"
+    (prim/get-ident IdentExample {:id ::prim/not-found}) => [:id nil]))
+
 (defui A)
 
 (specification "Query IDs"
   (assertions
     "Start with the fully-qualifier class name"
-    (prim/query-id A nil) => "fulcro$client$primitives_spec$A"
+    (prim/query-id A nil) => "fulcro.client.primitives-spec/A"
     "Include the optional qualifier"
-    (prim/query-id A :x) => "fulcro$client$primitives_spec$A$:x"))
+    (prim/query-id A :x) => "fulcro.client.primitives-spec/A$:x"))
 
 (specification "UI Factory"
   (assertions
@@ -248,7 +260,10 @@
                           union-child-a-id {:id    union-child-a-id
                                             :query [:L]}
                           child-id         {:query [:x]
-                                            :id    child-id}}})))
+                                            :id    child-id}}}
+      "Can normalize parameterized union queries."
+      (prim/get-query ui-rootp (prim/normalize-query {} (prim/get-query ui-rootp {})))
+      => '[:a ({:join [:x]} {:join-params 2}) ({:union {:u1 [(:L {:child-params 1})] :u2 [:M]}} {:union-params 3})])))
 
 (specification "get-query*"
   (assertions
@@ -264,11 +279,11 @@
         union-right  (get union-target :u2)]
     (assertions
       "Places a query ID on the metadata of each component's portion of the query"
-      (-> top-level meta :queryid) => "fulcro$client$primitives_spec$Root"
-      (-> join-target meta :queryid) => "fulcro$client$primitives_spec$Child"
-      (-> union-target meta :queryid) => "fulcro$client$primitives_spec$Union"
-      (-> union-left meta :queryid) => "fulcro$client$primitives_spec$UnionChildA"
-      (-> union-right meta :queryid) => "fulcro$client$primitives_spec$UnionChildB"))
+      (-> top-level meta :queryid) => "fulcro.client.primitives-spec/Root"
+      (-> join-target meta :queryid) => "fulcro.client.primitives-spec/Child"
+      (-> union-target meta :queryid) => "fulcro.client.primitives-spec/Union"
+      (-> union-left meta :queryid) => "fulcro.client.primitives-spec/UnionChildA"
+      (-> union-right meta :queryid) => "fulcro.client.primitives-spec/UnionChildB"))
   (let [app-state (prim/normalize-query {} (prim/get-query ui-root {}))
         app-state (assoc-in app-state [::prim/queries (prim/query-id UnionChildA nil) :query] [:UPDATED])]
     (behavior "Pulls a denormalized query from app state if one exists."
@@ -281,18 +296,16 @@
         "without state (raw static query)"
         (prim/get-query Root) => [:a {:join [:x]} {:union {:u1 [:L] :u2 [:M]}}]))))
 
-(specification "Normalization preserves query"
+(specification "Normalization"
   (let [query               (prim/get-query ui-root {})
         parameterized-query (prim/get-query ui-rootp {})
         state               (prim/normalize-query {} query)
         state-parameterized (prim/normalize-query {} parameterized-query)]
     (assertions
-      "When parameters are not present"
+      "Preserves the query when parameters are not present"
       (prim/get-query ui-root state) => query
-      "When parameters are present"
-      (prim/get-query ui-rootp state) => parameterized-query)))
-
-; TODO: This would be a great property-based check  (marshalling/unmarshalling) if we had generators that would work...
+      "Preserves the query when parameters are present"
+      (prim/get-query ui-rootp state-parameterized) => parameterized-query)))
 
 (specification "Setting a query"
   (let [query                       (prim/get-query ui-root {})
@@ -307,8 +320,7 @@
         state-queryid-modified-root (prim/set-query* state queryid {:query [:b
                                                                             {:join (prim/get-query ui-child state)}
                                                                             {:union (prim/get-query ui-union state)}]})
-        expected-root-query         (assoc query 0 :b)
-        state-parameterized         (prim/normalize-query {} parameterized-query)]
+        expected-root-query         (assoc query 0 :b)]
     (assertions
       "Can update a node by factory"
       (prim/get-query ui-root state-modified) => expected-query
@@ -754,7 +766,7 @@
 
 (specification "merge*"
   (when-mocking
-    (prim/merge-novelty! r s res q) => {:next true}
+    (prim/merge-novelty r s res q tid) => {:next true}
 
     (let [result `{:data 33 f {:tempids {1 2}} g {::prim/tempids {3 4}}}
           {:keys [keys next ::prim/tempids]} (prim/merge* :reconciler (atom {}) result [])]
@@ -1513,7 +1525,7 @@
              (render [this]
                (clojure.core/let
                  [props (fulcro.client.primitives/props this)]
-                 (fulcro.client.dom/div nil "THIS COMPONENT HAS NO DECLARED UI")))
+                 nil))
              (shouldComponentUpdate [this props state] false))
        "can add fulcro 1.0 form spec"
        (prim/defsc* '(Person [this {:keys [a]}] {:form-fields [(f/text-input :a)]
@@ -1574,6 +1586,38 @@
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))))))
+
+(defsc MMChild [this {:keys [:db/id] :as props}]
+  {:query         [:db/id]
+   :initial-state {:db/id :param/id}})
+
+(defsc MMParent [this {:keys [:db/id] :as props}]
+  {:query         [:db/id {:main-child (prim/get-query MMChild)} {:children (prim/get-query MMChild)}]
+   :initial-state {:db/id :param/id :main-child :param/main :children :param/children}})
+
+(specification "Mixed Mode Initial State"
+  (component "defsc components that use template initial state"
+    (assertions
+      "Accept maps of child parameters and automatically construct children from them"
+      (prim/get-initial-state MMParent {:id 1 :main {:id 1} :children [{:id 1}]})
+      => {:db/id      1
+          :main-child {:db/id 1}
+          :children   [{:db/id 1}]}
+      "Allow to-one children to be initialized directly with a call to get-initial-state"
+      (prim/get-initial-state MMParent {:id 1 :main (prim/get-initial-state MMChild {:id 1}) :children [{:id 1}]})
+      => {:db/id      1
+          :main-child {:db/id 1}
+          :children   [{:db/id 1}]}
+      "Allow to-many children to be initialized directly with calls to get-initial-state"
+      (prim/get-initial-state MMParent {:id 1 :main {:id 1} :children [(prim/get-initial-state MMChild {:id 1})]})
+      => {:db/id      1
+          :main-child {:db/id 1}
+          :children   [{:db/id 1}]}
+      "Allow to-many children to be initialized with a mix of maps and calls to get-initial-state"
+      (prim/get-initial-state MMParent {:id 1 :main {:id 1} :children [{:id 3} (prim/get-initial-state MMChild {:id 1})]})
+      => {:db/id      1
+          :main-child {:db/id 1}
+          :children   [{:db/id 3} {:db/id 1}]})))
 
 (defui ^:once MergeTestChild
   static prim/Ident
@@ -1960,6 +2004,24 @@
     (prim/has-ident? A) => false
     (prim/has-ident? AState) => false
     (prim/has-ident? AIdent) => true))
+
+(specification "focus-subquery"
+  (assertions
+    (prim/focus-subquery [] []) => []
+    (prim/focus-subquery [:a :b :c] []) => []
+    (prim/focus-subquery [:a :b :c] [:d]) => []
+    (prim/focus-subquery [:a :b :c] [:a]) => [:a]
+    (prim/focus-subquery [:a :b :c] [:a :b]) => [:a :b]
+    (prim/focus-subquery [:a {:b [:d]}] [:a :b]) => [:a {:b [:d]}]
+    (prim/focus-subquery [:a {:b [:c :d]}] [:a {:b [:c]}]) => [:a {:b [:c]}]
+    (prim/focus-subquery [:a '({:b [:c :d]} {:param "value"})] [:a {:b [:c]}])
+    => [:a '({:b [:c]} {:param "value"})]
+
+    ; in union case, keys absent from focus will be pulled anyway, given ones will focus
+    (prim/focus-subquery [:a {:b {:c [:d :e]
+                                  :f [:g :h]}}]
+      [:a {:b {:f [:g]}}])
+    => [:a {:b {:c [:d :e] :f [:g]}}]))
 
 (specification "db->tree"
   (assertions

@@ -8,7 +8,9 @@
                [clojure.reflect :as reflect]
                [cljs.util]]
         :cljs [[goog.string :as gstring]
+               [cljsjs.react]
                [goog.object :as gobj]])
+               fulcro-css.css
                [clojure.core.async :as async]
                [clojure.set :as set]
                [fulcro.history :as hist]
@@ -20,7 +22,7 @@
                [fulcro.client.impl.protocols :as p]
                [fulcro.client.impl.parser :as parser]
                [fulcro.util :as util]
-               [clojure.walk :as walk :refer [prewalk]]
+               [clojure.walk :refer [prewalk]]
                [clojure.string :as str]
                [clojure.spec.alpha :as s]
     #?(:clj
@@ -34,9 +36,6 @@
 
 (defprotocol Ident
   (ident [this props] "Return the ident for this component"))
-
-(defprotocol IQueryParams
-  (params [this] "Return the query parameters"))
 
 (defprotocol IQuery
   (query [this] "Return the component's unbound static query"))
@@ -78,29 +77,26 @@
                (extends? IQuery class)))
      :cljs (implements? IQuery component)))
 
-(defn has-query-params?
-  #?(:cljs {:tag boolean})
-  [component]
-  #?(:clj  (if (fn? component)
-             (some? (-> component meta :params))
-             (let [class (cond-> component (component? component) class)]
-               (extends? IQueryParams class)))
-     :cljs (implements? IQueryParams component)))
-
 (defn get-initial-state
   "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
   [class params]
-  #?(:clj  (when-let [initial-state (-> class meta :initial-state)]
-             (initial-state class params))
-     :cljs (when (implements? InitialAppState class)
-             (initial-state class params))))
+  (some->
+    #?(:clj  (when-let [initial-state (-> class meta :initial-state)]
+               (initial-state class params))
+       :cljs (when (implements? InitialAppState class)
+               (initial-state class params)))
+    (with-meta {:computed true})))
+
+(defn computed-initial-state?
+  "Returns true if the given initial state was computed from a call to get-initial-state."
+  [s]
+  (and (map? s) (some-> s meta :computed)))
 
 (s/def ::remote keyword?)
 (s/def ::ident (s/or :missing nil? :ident util/ident?))
 (s/def ::query vector?)
 (s/def ::transaction (s/every #(or (keyword? %) (util/mutation? %))
                        :kind vector?))
-(s/def ::component-or-reconciler vector?)
 (s/def ::pessimistic? boolean?)
 (s/def ::tempids (s/map-of tempid? any?))
 
@@ -188,7 +184,7 @@
         {:dt dt' :statics statics}))))
 
 (defn- validate-statics [dt]
-  (when-let [invalid (some #{"Ident" "IQuery" "IQueryParams"}
+  (when-let [invalid (some #{"Ident" "IQuery"}
                        (map #(-> % str (str/split #"/") last)
                          (filter symbol? dt)))]
     (throw
@@ -206,7 +202,16 @@
     componentWillMount        [this]
     componentDidMount         [this]
     componentWillUnmount      [this]
-    render                    [this]})
+    render                    [this]
+    ;; react 16+
+    componentDidCatch         [this error info]
+
+    ;; TODO:
+    #_#_UNSAFE_componentWillMount [this]
+    #_#_UNSAFE_componentWillReceiveProps [this next-props]
+    #_#_UNSAFE_componentWillUpdate [this next-props next-state]
+    #_#_getDerivedStateFromProps [this nextProps prevState]
+    #_#_getSnapshotBeforeUpdate [this prevProps prevState]})
 
 (defn validate-sig [[name sig :as method]]
   (let [sig' (get lifecycle-sigs name)]
@@ -334,6 +339,13 @@
            (when-not (nil? indexer#)
              (fulcro.client.impl.protocols/drop-component! indexer# this#))
            ~@body)))
+    'shouldComponentUpdate
+    (fn [[name [this next-props next-state :as args] & body]]
+      `(~name [this# next-props# next-state#]
+         (let [~this this#
+               ~next-props (goog.object/get next-props# "fulcro$value")
+               ~next-state (goog.object/get next-state# "fulcro$state")]
+           (do ~@body))))
     'render
     (fn [[name [this :as args] & body]]
       `(~name [this#]
@@ -359,9 +371,10 @@
                props-changed?#    (and
                                     (not next-props-stale?#)
                                     (not= current-props# next-props#))
+               next-state#        (goog.object/get next-state# "fulcro$state")
                state-changed?#    (and (.. this# ~'-state)
                                     (not= (goog.object/get (. this# ~'-state) "fulcro$state")
-                                      (goog.object/get next-state# "fulcro$state")))
+                                      next-state#))
                children-changed?# (not= (.. this# -props -children)
                                     next-children#)]
            (or props-changed?# state-changed?# children-changed?#))))
@@ -504,7 +517,7 @@
   ([name form] (defui* name form nil))
   ([name forms env]
    (letfn [(field-set! [obj [field value]]
-             `(set! (. ~obj ~(symbol (str "-" field))) ~value))]
+             `(set! (. ^js ~obj ~(symbol (str "-" field))) ~value))]
      (let [docstring        (when (string? (first forms))
                               (first forms))
            forms            (cond-> forms
@@ -522,8 +535,8 @@
                                []
                                (this-as this#
                                  (.apply js/React.Component this# (js-arguments))
-                                 (if-not (nil? (.-initLocalState this#))
-                                   (set! (.-state this#) (.initLocalState this#))
+                                 (if-not (nil? (.-initLocalState ^js this#))
+                                   (set! (.-state this#) (.initLocalState ^js this#))
                                    (set! (.-state this#) (cljs.core/js-obj)))
                                  this#))
            set-react-proto! `(set! (.-prototype ~name)
@@ -543,7 +556,7 @@
           (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
           (set! (.. ~name -prototype -constructor) ~name)
           (set! (.. ~name -prototype -constructor -displayName) ~display-name)
-          (set! (.. ~name -prototype -fulcro$isComponent) true)
+          (set! (.-fulcro$isComponent ^js (.-prototype ^js ~name)) true)
           ~@(map #(field-set! name %) (:fields statics))
           (specify! ~name
             ~@(mapv #(cond-> %
@@ -605,7 +618,7 @@
   (if-not (nil? x)
     #?(:clj  (or (instance? fulcro.client.impl.protocols.IReactComponent x)
                (satisfies? p/IReactComponent x))
-       :cljs (true? (. x -fulcro$isComponent)))
+       :cljs (true? (.-fulcro$isComponent ^js x)))
     false))
 
 #?(:clj
@@ -646,7 +659,7 @@
 
 #?(:cljs
    (defn- om-props-basis [om-props]
-     (.-basis-t om-props)))
+     (.-basis-t ^js om-props)))
 
 #?(:cljs (def ^:private nil-props (om-props nil -1)))
 
@@ -840,45 +853,32 @@
       :else (recur (parent c)))))
 
 (defn get-ident
-  "Given a mounted component with assigned props, return the ident for the
-   component. 2-arity version works on client or server using a component and
-   explicit props."
+  "Get the ident for a mounted component OR using a component class.
+
+  That arity-2 will return the ident using the supplied props map.
+
+  The single-arity version should only be used with a mounted component (e.g. `this` from `render`), and will derive the
+  props that were sent to it most recently."
   ([x]
    {:pre [(component? x)]}
-   (let [m (props x)]
-     (assert (not (nil? m)) "get-ident invoked on component with nil props")
-     (ident x m)))
+   (if-let [m (props x)]
+     (ident x m)
+     (log/warn "get-ident was invoked on component with nil props (this could mean it wasn't yet mounted): " x)))
   ([class props]
-    #?(:clj  (when-let [ident (-> class meta :ident)]
-               (ident class props))
-       :cljs (when (implements? Ident class)
-               (ident class props)))))
-
-(defn- var? [x]
-  (and (symbol? x)
-    #?(:clj  (.startsWith (str x) "?")
-       :cljs (gstring/startsWith (str x) "?"))))
-
-(defn- var->keyword [x]
-  (keyword (.substring (str x) 1)))
-
-(defn- replace-var [expr params]
-  (if (var? expr)
-    (get params (var->keyword expr) expr)
-    expr))
-
-(defn- bind-query [query params]
-  (let [qm  (meta query)
-        tr  (map #(bind-query % params))
-        ret (cond
-              (seq? query) (apply list (into [] tr query))
-              #?@(:clj [(instance? clojure.lang.IMapEntry query) (into [] tr query)])
-              (coll? query) (into (empty query) tr query)
-              :else (replace-var query params))]
-    (cond-> ret
-      (and qm #?(:clj  (instance? clojure.lang.IObj ret)
-                 :cljs (satisfies? IMeta ret)))
-      (with-meta qm))))
+    #?(:clj  (if-let [ident (if (component? class)
+                              ident
+                              (-> class meta :ident))]
+               (let [id (ident class props)]
+                 (if-not (util/ident? id)
+                   (log/warn "get-ident returned an invalid ident for class:" class))
+                 (if (= ::not-found (second id)) [(first id) nil] id))
+               (log/warn "get-ident called with something that is either not a class or does not implement ident: " class))
+       :cljs (if (implements? Ident class)
+               (let [id (ident class props)]
+                 (if-not (util/ident? id)
+                   (log/warn "get-ident returned an invalid ident for class:" class))
+                 (if (= ::not-found (second id)) [(first id) nil] id))
+               (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)))))
 
 (defn component-name
   "Returns a string version of the given react component's name."
@@ -891,10 +891,7 @@
   [class qualifier]
   (if (nil? class)
     (log/error "Query ID received no class (if you see this warning, it probably means metadata was lost on your query)" (ex-info "" {}))
-    (when-let [classname #?(:clj (-> (str (-> class meta :component-ns) "." (-> class meta :component-name))
-                                   (str/replace "." "$")
-                                   (str/replace "-" "_"))
-                            :cljs (.-name class))]
+    (when-let [classname (component-name class)]
       (str classname (when qualifier (str "$" qualifier))))))
 
 #?(:clj
@@ -1003,19 +1000,10 @@
                    q
                    ele)) normalized-query))))
 
-(defn get-query-params
-  "get the declared static query params on a given class"
-  [class]
-  (when (has-query-params? class)
-    #?(:clj  ((-> class meta :params) class)
-       :cljs (params class))))
-
 (defn get-query-by-id [state-map class queryid]
-  (let [static-params (get-query-params class)
-        query         (or (denormalize-query state-map queryid) (get-static-query class))
-        params        (get-in state-map [::queries queryid :params] static-params)]
-    (with-meta (bind-query query params) {:component class
-                                          :queryid   queryid})))
+  (let [query (or (denormalize-query state-map queryid) (get-static-query class))]
+    (with-meta query {:component class
+                      :queryid   queryid})))
 
 (defn is-factory?
   [class-or-factory]
@@ -1054,9 +1042,8 @@
 
 (defn link-element [element]
   (prewalk (fn link-element-helper [ele]
-             (if-let [{:keys [queryid]} (meta ele)]
-               queryid
-               ele)) element))
+             (let [{:keys [queryid]} (meta ele)]
+               (if queryid queryid ele))) element))
 
 (defn deep-merge [& xs]
   "Merges nested maps without overwriting existing keys."
@@ -1069,7 +1056,7 @@
   Returns the new state map."
   [state-map query]
   (reduce (fn normalize-query-elements-reducer [state ele]
-            (let [parameterized? (list? ele)
+            (let [parameterized? (seq? ele)                 ; not using list? because it could show up as a lazyseq
                   raw-element    (if parameterized? (first ele) ele)]
               (cond
                 (util/union? raw-element) (let [union-alternates            (first (vals raw-element))
@@ -1108,20 +1095,16 @@
   "Put a query in app state.
   NOTE: Indexes must be rebuilt after setting a query, so this function should primarily be used to build
   up an initial app state."
-  [state-map ui-factory-class-or-queryid {:keys [query params]}]
+  [state-map ui-factory-class-or-queryid {:keys [query] :as args}]
   (let [queryid (cond
                   (nil? ui-factory-class-or-queryid) nil
                   (string? ui-factory-class-or-queryid) ui-factory-class-or-queryid
                   (some-> ui-factory-class-or-queryid meta (contains? :queryid)) (some-> ui-factory-class-or-queryid meta :queryid)
-                  :otherwise (query-id ui-factory-class-or-queryid nil))]
+                  :otherwise (query-id ui-factory-class-or-queryid nil))
+        setq*   (fn [state] (normalize-query (update state ::queries dissoc queryid) (with-meta query {:queryid queryid})))]
     (if (string? queryid)
-      (do
-        ; we have to dissoc the old one, because normalize won't overwrite by default
-        (let [new-state (normalize-query (update state-map ::queries dissoc queryid) (with-meta query {:queryid queryid}))
-              params    (get-in new-state [::queries queryid :params] params)]
-          (if params
-            (assoc-in new-state [::queries queryid :params] params)
-            new-state)))
+      (cond-> state-map
+        (contains? args :query) (setq*))
       (do
         (log/error "Set query failed. There was no query ID.")
         state-map))))
@@ -1160,7 +1143,7 @@
           ident #?(:clj (when-let [ident (-> class meta :ident)]
                           (ident class data))
                    :cljs (when (implements? Ident class)
-                           (ident class data)))]
+                           (get-ident class data)))]
       (if-not (nil? ident)
         (vary-meta (normalize* (get query (first ident)) data refs union-seen)
           assoc ::tag (first ident))                        ; FIXME: What is tag for?
@@ -1193,7 +1176,7 @@
                   (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
                                                    :cljs (implements? Ident class))))
                     (let [i #?(:clj ((-> class meta :ident) class v)
-                               :cljs (ident class v))]
+                               :cljs (get-ident class v))]
                       (swap! refs update-in [(first i) (second i)] merge x)
                       (recur (next q) (assoc ret k i)))
                     (recur (next q) (assoc ret k x))))
@@ -1204,7 +1187,7 @@
                   (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
                                                    :cljs (implements? Ident class))))
                     (let [is (into [] (map #?(:clj  #((-> class meta :ident) class %)
-                                              :cljs #(ident class %))) xs)]
+                                              :cljs #(get-ident class %))) xs)]
                       (if (vector? sel)
                         (when-not (empty? is)
                           (swap! refs
@@ -1294,6 +1277,56 @@
     => [{:foo [:bar]}]"
   [query path]
   (focus-query* query path nil))
+
+(declare focus-subquery*)
+
+(defn- focus-subquery-union*
+  [query-ast sub-ast]
+  (let [s-index (into {} (map #(vector (:union-key %) %)) (:children sub-ast))]
+    (assoc query-ast
+      :children
+      (reduce
+        (fn [children {:keys [union-key] :as union-entry}]
+          (if-let [sub (get s-index union-key)]
+            (conj children (focus-subquery* union-entry sub))
+            (conj children union-entry)))
+        []
+        (:children query-ast)))))
+
+(defn- focus-subquery*
+  [query-ast sub-ast]
+  (let [q-index (into {} (map #(vector (:key %) %)) (:children query-ast))]
+    (assoc query-ast
+      :children
+      (reduce
+        (fn [children {:keys [key type] :as focus}]
+          (if-let [source (get q-index key)]
+            (cond
+              (= :join type (:type source))
+              (conj children (focus-subquery* source focus))
+
+              (= :union type (:type source))
+              (conj children (focus-subquery-union* source focus))
+
+              :else
+              (conj children source))
+            children))
+        []
+        (:children sub-ast)))))
+
+(defn focus-subquery
+  "Given a query, focus it along the specified query expression.
+
+  Examples:
+    (focus-query [:foo :bar :baz] [:foo])
+    => [:foo]
+
+    (fulcro.client.primitives/focus-query [{:foo [:bar :baz]} :woz] [{:foo [:bar]} :woz])
+    => [{:foo [:bar]} :woz]"
+  [query sub-query]
+  (let [query-ast (query->ast query)
+        sub-ast   (query->ast sub-query)]
+    (ast->query (focus-subquery* query-ast sub-ast))))
 
 (defn- expr->key
   "Given a query expression return its key."
@@ -1535,7 +1568,7 @@
     (first (p/key->components indexer ref))))
 
 (defn resolve-tempids
-  "Replaces all om-tempids in app-state with the ids returned by the server."
+  "Replaces all tempids in app-state with the ids returned by the server."
   [state tid->rid]
   (if (empty? tid->rid)
     state
@@ -1802,34 +1835,42 @@
                 (merge-ident config tree' ident props)))]
       (reduce step tree refs))))
 
-(defn- merge-novelty!
-  [reconciler state res query]
-  (let [config (:config reconciler)
-        [idts res'] (sift-idents res)
-        res'   (if (:normalize config)
-                 (tree->db
-                   (or query (:root @(:state reconciler)))
-                   res' true)
-                 res')]
-    (-> state
-      (merge-mutation-joins query res')
-      (merge-idents config idts query)
-      ((:merge-tree config) res'))))
+(defn- merge-novelty
+  ([reconciler state-map result-tree query tempids]
+   (let [state (if-let [migrate (-> reconciler :config :migrate)]
+                 (let [root-component (app-root reconciler)
+                       root-query     (when-not query (get-query root-component state-map))]
+                   (migrate state-map (or query root-query) tempids))
+                 state-map)]
+     (merge-novelty reconciler state result-tree query)))
+  ([reconciler state-map result-tree query]
+   (let [config            (:config reconciler)
+         [idts result-tree] (sift-idents result-tree)
+         normalized-result (if (:normalize config)
+                             (tree->db
+                               (or query (:root @(:state reconciler)))
+                               result-tree true)
+                             result-tree)]
+     (-> state-map
+       (merge-mutation-joins query result-tree)
+       (merge-idents config idts query)
+       ((:merge-tree config) normalized-result)))))
 
 (defn get-tempids [m] (or (get m :tempids) (get m ::tempids)))
 
 (defn merge*
-  "Internal implementation of merge. Given a reconciler, state, result, and query returns a map of the:
+  "Internal implementation of merge. Given a reconciler, state (map), result, and query returns a map of the:
 
   `:keys` to refresh
   `:next` state
   and `::tempids` that need to be migrated"
   [reconciler state res query]
-  {:keys     (into [] (remove symbol?) (keys res))
-   :next     (merge-novelty! reconciler state res query)
-   ::tempids (->> (filter (comp symbol? first) res)
-               (map (comp get-tempids second))
-               (reduce merge {}))})
+  (let [tempids (->> (filter (comp symbol? first) res)
+                  (map (comp get-tempids second))
+                  (reduce merge {}))]
+    {:keys     (into [] (remove symbol?) (keys res))
+     :next     (merge-novelty reconciler state res query tempids)
+     ::tempids tempids}))
 
 (defn merge!
   "Merge an arbitrary data-tree that conforms to the shape of the given query.
@@ -2017,7 +2058,7 @@
       (should-update? c next-props nil))
      ([c next-props next-state]
       {:pre [(component? c)]}
-      (.shouldComponentUpdate c
+      (.shouldComponentUpdate ^js c
         #js {"fulcro$value" next-props}
         #js {"fulcro$state" next-state}))))
 
@@ -2028,7 +2069,9 @@
       (try
         (.forceUpdate c cb)
         (catch :default e
-          (log/error "Component" c "threw an exception while rendering " e))))
+          (log/error "Component" c "threw an exception while rendering ")
+          (when goog.DEBUG
+            (js/console.error e)))))
      ([c]
       (force-update c nil))))
 
@@ -2295,7 +2338,7 @@
      :root-unmount - the root unmount function. Defaults to
                      ReactDOM.unmountComponentAtNode
      :render-mode  - :normal - fastest, and the default. Components with idents can refresh in isolation.
-                               shouldComponentUpdate returns false is state/data are unchanged. Follow-on reads are
+                               shouldComponentUpdate returns false if state/data are unchanged. Follow-on reads are
                                required to refresh non-local concerns.
                      :keyframe - Every data change runs a root-level query and re-renders from root.
                                  shouldComponentUpdate is the same as :default. Follow-on reads are *not* needed for
@@ -2438,12 +2481,12 @@
               (annotate-mutations (get-ident x)))]
      (cond
        (reconciler? x) (transact* x nil nil tx)
-       (not (has-query? x)) (do
-                              (when-not (some-hasquery? x) (log/error
-                                                             (str "transact! should be called on a component"
-                                                               "that implements IQuery or has a parent that"
-                                                               "implements IQuery")))
-                              (transact* (get-reconciler x) nil nil tx))
+       (not (some-hasquery? x)) (do
+                                  (log/error
+                                    (str "transact! should be called on a component"
+                                      "that implements IQuery or has a parent that"
+                                      "implements IQuery"))
+                                  (transact* (get-reconciler x) nil nil tx))
        :else (do
                (loop [p (parent x) x x tx tx]
                  (if (nil? p)
@@ -2570,11 +2613,18 @@
   [x]
   (tempid/tempid? x))
 
-(defn reader
-  "Create a transit reader. This reader can handler the tempid type.
-   Can pass transit reader customization opts map."
-  ([] (transit/reader))
-  ([opts] (transit/reader opts)))
+#?(:cljs
+   (defn reader
+     "Create a transit reader. This reader can handler the tempid type.
+      Can pass transit reader customization opts map."
+     ([] (transit/reader))
+     ([opts] (transit/reader opts)))
+   :clj
+   (defn reader
+     "Create a transit reader. This reader can handler the tempid type.
+      Can pass transit reader customization opts map."
+     ([in] (transit/reader in))
+     ([in opts] (transit/reader in opts))))
 
 (defn writer
   "Create a transit writer. This writer can handler the tempid type.
@@ -2913,25 +2963,44 @@
   (let [join-keys (set (keys children-by-query-key))
         init-keys (set (keys initial-state))
         is-child? (fn [k] (contains? join-keys k))
-        value-of  (fn value-of* [[k v]]
+        value-of  (fn value-of* [[isk isv]]
                     (let [param-name    (fn [v] (and (keyword? v) (= "param" (namespace v)) (keyword (name v))))
                           substitute    (fn [ele] (if-let [k (param-name ele)]
                                                     (get params k)
                                                     ele))
-                          param-key     (param-name v)
+                          param-key     (param-name isv)
                           param-exists? (contains? params param-key)
                           param-value   (get params param-key)
-                          child-class   (get children-by-query-key k)]
+                          child-class   (get children-by-query-key isk)]
                       (cond
+                        ; parameterized lookup with no value
                         (and param-key (not param-exists?)) nil
-                        (and (map? v) (is-child? k)) [k (get-initial-state child-class (into {} (keep value-of* v)))]
-                        (map? v) [k (into {} (keep value-of* v))]
-                        (and (vector? v) (is-child? k)) [k (mapv (fn [m] (get-initial-state child-class (into {} (keep value-of* m)))) v)]
-                        (and (vector? param-value) (is-child? k)) [k (mapv (fn [params] (get-initial-state child-class params)) param-value)]
-                        (vector? v) [k (mapv (fn [ele] (substitute ele)) v)]
-                        (and param-key (is-child? k) param-exists?) [k (get-initial-state child-class param-value)]
-                        param-key [k param-value]
-                        :else [k v])))]
+
+                        ; to-one join, where initial state is a map to be used as child initial state *parameters* (enforced by defsc macro)
+                        ; and which may *contain* parameters
+                        (and (map? isv) (is-child? isk)) [isk (get-initial-state child-class (into {} (keep value-of* isv)))]
+
+                        ; not a join. Map is literal initial value.
+                        (map? isv) [isk (into {} (keep value-of* isv))]
+
+                        ; to-many join. elements MUST be parameters (enforced by defsc macro)
+                        (and (vector? isv) (is-child? isk)) [isk (mapv (fn [m] (get-initial-state child-class (into {} (keep value-of* m)))) isv)]
+
+                        ; to-many join. elements might be parameter maps or already-obtained initial-state
+                        (and (vector? param-value) (is-child? isk)) [isk (mapv (fn [params]
+                                                                                 (if (computed-initial-state? params)
+                                                                                   params
+                                                                                   (get-initial-state child-class params))) param-value)]
+
+                        ; vector of non-children
+                        (vector? isv) [isk (mapv (fn [ele] (substitute ele)) isv)]
+
+                        ; to-one join with parameter. value might be params, or an already-obtained initial-state
+                        (and param-key (is-child? isk) param-exists?) [isk (if (computed-initial-state? param-value)
+                                                                             param-value
+                                                                             (get-initial-state child-class param-value))]
+                        param-key [isk param-value]
+                        :else [isk isv])))]
     (into {} (keep value-of initial-state))))
 
 #?(:clj
@@ -3071,7 +3140,7 @@
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
            [thissym propsym computedsym csssym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
-           body                             (or body ['(fulcro.client.dom/div nil "THIS COMPONENT HAS NO DECLARED UI")])
+           body                             (or body ['nil])
            ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
            initial-state-template-or-method (into {} [initial-state])
            query-template-or-method         (into {} [query])
@@ -3128,7 +3197,7 @@
    The lambda versions have arguments in scope that make sense for those lambdas, as listed below:
 
    ```
-   (defsc Component [this {:keys [db/id x] :as props} {:keys [onSelect] :as computed}]
+   (defsc Component [this {:keys [db/id x] :as props} {:keys [onSelect] :as computed} css-classmap]
      {
       ;; stateful component options
       ;; query template is literal. Use the lambda if you have ident-joins or unions.
@@ -3137,6 +3206,8 @@
       :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id]) ; this and props in scope
       ;; initial-state template is magic..see dev guide. Lambda version is normal.
       :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; this in scope
+      :css [] ; garden css rules
+      :css-include [] ; list of components that have CSS to compose towards root.
 
       ; React Lifecycle Methods (this in scope)
       :initLocalState            (fn [] ...)
@@ -3147,6 +3218,12 @@
       :componentWillMount        (fn [] ...)
       :componentDidMount         (fn [] ...)
       :componentWillUnmount      (fn [] ...)
+      ;; React 16:
+      :componentDidCatch         (fn [error info])
+
+      NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
+      that other libraries can control the sub-dom. If you do want to implement it, then old props can
+      be obtained from (prim/props this), and old state via (gobj/get (. this -state) \"fulcro$state\").
 
       ; Custom literal protocols (Object ok, too, to add arbitrary methods. Nothing automatically in scope.)
       :protocols [YourProtocol
@@ -3154,21 +3231,6 @@
       ; BODY forms. May be omitted IFF there is an options map, in order to generate a component that is used only for queries/normalization.
       (dom/div #js {:onClick onSelect} x))
    ```
-
-   To use with Fulcro CSS, be sure to require `fulcro-css.css`, and add an the argument (only when used):
-
-   ```
-   (ns ui
-     (require fulcro-css.css))
-
-   (defsc Component [this props computed {:keys [my-classname] :as classnames}]
-     {:css [[:.my-classname]] ; OR (fn [] [[:my-classname]])
-      :css-include [] ; list of children from which CSS should also be pulled
-      ... }
-      (dom/div #js {:className my-classname} ...))
-   ```
-
-   Only the first two arguments are required (this and props).
 
    See the Developer's Guide at book.fulcrologic.com for more details.
    "
@@ -3181,6 +3243,17 @@
          (defsc* args)
          (catch Exception e
            (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
+
+(defmacro sc
+  "Just like defsc, but returns the component instead. The arguments are the same, except do not supply a symbol:
+
+  ```
+  (let [C (prim/sc [this props] ...)] ...)
+  ```
+  "
+  [& args]
+  (let [t (with-meta (gensym "sc_") {:anonymous true})]
+    `(do (defsc ~t ~@args) ~t)))
 
 (defn integrate-ident
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation

@@ -2,7 +2,8 @@
   (:require
     [devcards.core :as dc]
     [fulcro.client :as fc]
-    [fulcro.client.cards :refer [defcard-fulcro]]
+    [fulcro.server :as server]
+    [fulcro.client.cards :refer [defcard-fulcro make-root]]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.client.network :as net]
@@ -25,12 +26,12 @@
   static prim/Ident
   (ident [this props] [:thing/by-id (:id props)])
   Object
-  (render [this] (dom/div nil "THING")))
+  (render [this] (dom/div "THING")))
 
 (defui Root
   Object
   (render [this]
-    (dom/div nil "TODO")))
+    (dom/div "TODO")))
 
 (m/defmutation add-thing
   "Read a thing"
@@ -100,3 +101,63 @@
                   :networking       (MockNetForMerge.)}
    :inspect-data true})
 
+(defsc FocusA [_ _]
+  {:query [:i :have :data]})
+
+(defsc FocusB [_ _]
+  {:query [:x :y]})
+
+(defsc FocusRoot [_ _]
+  {:query [{:a (prim/get-query FocusA)}
+           {:b (prim/get-query FocusB)}]})
+
+(def echo-parser
+  (prim/parser {:read (fn [{:keys [ast parser]} _ _]
+                        (if-let [q (:query ast)]
+                          {:value (parser {} q)}
+                          {:value (str (:key ast))}))}))
+
+(defrecord MockNetForEcho []
+  net/FulcroNetwork
+  (send [this edn done-callback error-callback]
+    (js/setTimeout (fn []
+                     (done-callback (echo-parser {} edn))) 500))
+  (start [this] this))
+
+(defcard-fulcro ui-load-focus
+  "# Focusing
+
+  ```
+  {:root {:a {:data \":data\"}
+          :b {:x \":x\" :y \":y\"}}}
+  ```
+  "
+  FocusRoot
+  {}
+  {:fulcro       {:started-callback (fn [{:keys [reconciler]}]
+                                      (js/setTimeout #(df/load reconciler :root FocusRoot {:focus [{:a [:data]} :b]}) 100))
+                  :networking       (MockNetForEcho.)}
+   :inspect-data true})
+
+(defsc DupeKeyFetch [this {:keys [db/id a b c] :as props}]
+  {:query         [:db/id :a :b :c]
+   :ident         [:dupe-key-fetch/by-id :db/id]
+   :initial-state {:db/id 1}}
+  (dom/div (str a) (str b) (str c)))
+
+(def ui-dupe-key-fetch (prim/factory DupeKeyFetch {:keyfn :db/id}))
+
+(server/defquery-root ::x
+  (value [env params]
+    (js/console.log :FETCH ::X)
+    {:value (rand-int 100)}))
+
+(defcard-fulcro dupe-key-fetch
+  (make-root DupeKeyFetch {})
+  {}
+  {:inspect-data true
+   :fulcro       {:networking       (server/new-server-emulator)
+                  :started-callback (fn [app]
+                                      (df/load app ::x nil {:target [:T 1 :a]})
+                                      (df/load app ::x nil {:target [:T 1 :b]})
+                                      (df/load app ::x nil {:target [:T 1 :c]}))}})

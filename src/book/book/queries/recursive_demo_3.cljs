@@ -21,14 +21,14 @@
                                      :person/age    22
                                      :person/spouse {:db/id 1 :person/name "Joe"}}})
    :ident         [:person/by-id :db/id]}
-  (dom/div nil
-    (dom/p nil "Name:" name)
-    (dom/p nil "Age:" age
-      (dom/button #js {:onClick
-                       #(prim/transact! this `[(make-older {:id ~id})])} "Make Older"))
+  (dom/div
+    (dom/div "Name:" name)
+    (dom/div "Age:" age
+      (dom/button {:onClick
+                   #(prim/transact! this `[(make-older {:id ~id})])} "Make Older"))
     (when (and (= 0 render-depth) spouse)
-      (dom/ul nil
-        (dom/p nil "Spouse:"
+      (dom/ul
+        (dom/div "Spouse:"
           ; recursively render, but increase the render depth so we can know when a
           ; targeted UI refresh would accidentally push the UI deeper.
           (ui-person (prim/computed spouse {:render-depth (inc render-depth)})))))))
@@ -38,5 +38,5 @@
 (defsc Root [this {:keys [person-of-interest]}]
   {:initial-state {:person-of-interest {}}
    :query         [{:person-of-interest (prim/get-query Person)}]}
-  (dom/div nil
+  (dom/div
     (ui-person person-of-interest)))

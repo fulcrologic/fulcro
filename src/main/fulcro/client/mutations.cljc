@@ -5,7 +5,6 @@
     [fulcro.util :refer [conform! join-key join-value join?]]
     [fulcro.logging :as log]
     [fulcro.client.primitives :as prim]
-    [fulcro.i18n :as i18n]
     #?(:cljs [cljs.loader :as loader])
     [fulcro.client.impl.protocols :as p]
     [fulcro.client.impl.parser :as parser]))
@@ -101,48 +100,6 @@
 ;; Add methods to this to implement post mutation behavior (called after each mutation): WARNING: EXPERIMENTAL.
 (defmulti post-mutate prim/dispatch)
 (defmethod post-mutate :default [env k p] nil)
-
-(defn default-locale? [locale-string] (#{"en" "en-US"} locale-string))
-
-(defn locale-present? [locale-string]
-  (or
-    (default-locale? locale-string)
-    (contains? @i18n/*loaded-translations* locale-string)))
-
-(defn locale-loadable?
-  "Returns true if the given locale is in a loadable module. Always returns false on the server-side."
-  [locale-key]
-  #?(:clj  false
-     :cljs (contains? cljs.loader/module-infos locale-key)))
-
-(defn change-locale-impl
-  "Given a state map and locale, returns a new state map with the locale properly changed. Also potentially triggers a module load.
-  There is also the mutation `change-locale` that can be used from transact."
-  [state-map lang]
-  (let [lang          (name lang)
-        locale-key    (keyword lang)
-        present?      (locale-present? lang)
-        loadable?     (locale-loadable? locale-key)
-        valid-locale? (or present? loadable?)
-        set-locale!   (fn []
-                        (reset! i18n/*current-locale* lang)
-                        (assoc state-map :ui/locale lang))
-        should-load?  (and (not present?) loadable?)]
-    (cond
-      should-load? (do
-                     #?(:cljs (loader/load locale-key set-locale!))
-                     (set-locale!))
-      valid-locale? (set-locale!)
-      :otherwise (do
-                   (log/error "Attempt to change locale to " lang " but there was no such locale required or available as a loadable module.")
-                   state-map))))
-
-#?(:cljs
-   (fulcro.client.mutations/defmutation change-locale
-     "mutation: Change the locale of the UI. lang can be a string or keyword version of the locale name (e.g. :en-US or \"en-US\").
-     NOTE: Locale is *global* within a browser page. I.e. If you have more than one Fulcro app on a page then this will change the locale of them all and re-render them."
-     [{:keys [lang]}]
-     (action [{:keys [reconciler state]}] (swap! state change-locale-impl lang reconciler))))
 
 #?(:cljs
    (fulcro.client.mutations/defmutation set-props
@@ -244,20 +201,12 @@
 #?(:cljs
    (fulcro.client.mutations/defmutation merge!
      "The mutation version of prim/merge!"
-     [{:keys [query data-tree remote] :as params}]
-     (action [env]
-       (let [{:keys [reconciler state]} env
-             config         (:config reconciler)
-             state          (prim/app-state reconciler)
-             root-component (prim/app-root reconciler)
-             root-query     (when-not query (prim/get-query root-component @state))
-             {:keys [keys next ::prim/tempids]} (prim/merge* reconciler @state data-tree query)]
+     [{:keys [query data-tree remote]}]
+     (action [{:keys [reconciler]}]
+       (let [state (prim/app-state reconciler)
+             {:keys [keys next]} (prim/merge* reconciler @state data-tree query)]
          (p/queue! reconciler keys remote)
-         (reset! state
-           (if-let [migrate (:migrate config)]
-             (merge (select-keys next [:fulcro.client.primitives/queries])
-               (migrate next (or query root-query) tempids))
-             next))
+         (reset! state next)
          (when-not (nil? remote)
            (p/reconcile! reconciler remote))))))
 

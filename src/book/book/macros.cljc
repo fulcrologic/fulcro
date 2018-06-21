@@ -5,7 +5,9 @@
     #?(:cljs [devcards.util.edn-renderer :as edn])
     #?(:cljs [goog.object :as obj])
     fulcro-css.css
-    [fulcro.client.dom :as dom]
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj
+    [fulcro.client.dom-server :as dom])
     [fulcro.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.primitives :as prim :refer [defsc]]))
@@ -39,7 +41,7 @@
                                            (log/fatal "App holder: Target div not found."))
                                          (log/fatal "App holder: Not given an app or root" :app app :root root)))))}
   #?(:clj  (dom/div nil "")
-     :cljs (dom/div #js {:className app-holder :ref (fn [r] (obj/set this "appdiv" r))} "")))
+     :cljs (dom/div {:className app-holder :ref (fn [r] (obj/set this "appdiv" r))} "")))
 
 (def ui-app-holder (prim/factory AppHolder))
 
@@ -51,9 +53,9 @@
                                      :margin    "5px"}]]
    :ident         (fn [] [:widgets/by-id :edn-renderer])}
   #?(:cljs
-     (dom/div #js {:className "example-edn"}
-       (dom/button #js {:className toggle-button :onClick (fn [] (m/toggle! this :ui/open?))} "Toggle DB View")
-       (dom/div #js {:className db-block :style #js {:display (if open? "block" "none")}}
+     (dom/div {:className "example-edn"}
+       (dom/button {:className toggle-button :onClick (fn [] (m/toggle! this :ui/open?))} "Toggle DB View")
+       (dom/div {:className db-block :style {:display (if open? "block" "none")}}
          (edn/html-edn edn)))))
 
 (def ui-edn (prim/factory EDN))
@@ -74,7 +76,7 @@
    :initial-state {:edn-tool {}}}
   (let [has-title? (not= "" title)]
     (dom/div nil
-      (when has-title? (dom/h4 #js {:className example-title} title))
+      (when has-title? (dom/h4 {:className example-title} title))
       (ui-app-holder example-app)
       (when has-title? (ui-edn (prim/computed edn-tool {:edn watched-state}))))))
 

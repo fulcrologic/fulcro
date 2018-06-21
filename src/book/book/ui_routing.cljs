@@ -9,39 +9,39 @@
 (defsc Main [this {:keys [label]}]
   {:initial-state {:page :main :label "MAIN"}
    :query         [:page :label]}
-  (dom/div #js {:style #js {:backgroundColor "red"}}
+  (dom/div {:style {:backgroundColor "red"}}
     label))
 
 (defsc Login [this {:keys [label]}]
   {:initial-state {:page :login :label "LOGIN"}
    :query         [:page :label]}
-  (dom/div #js {:style #js {:backgroundColor "green"}}
+  (dom/div {:style {:backgroundColor "green"}}
     label))
 
 (defsc NewUser [this {:keys [label]}]
   {:initial-state {:page :new-user :label "New User"}
    :query         [:page :label]}
-  (dom/div #js {:style #js {:backgroundColor "skyblue"}}
+  (dom/div {:style {:backgroundColor "skyblue"}}
     label))
 
 (defsc StatusReport [this {:keys [id]}]
   {:initial-state {:id :a :page :status-report}
    :query         [:id :page :label]}
-  (dom/div #js {:style #js {:backgroundColor "yellow"}}
-    (dom/div nil (str "Status " id))))
+  (dom/div {:style {:backgroundColor "yellow"}}
+    (dom/div (str "Status " id))))
 
 (defsc GraphingReport [this {:keys [id]}]
   {:initial-state {:id :a :page :graphing-report}
    :query         [:id :page :label]}                       ; make sure you query for everything need by the router's ident function!
-  (dom/div #js {:style #js {:backgroundColor "orange"}}
-    (dom/div nil (str "Graph " id))))
+  (dom/div {:style {:backgroundColor "orange"}}
+    (dom/div (str "Graph " id))))
 
 (defrouter ReportRouter :report-router
   ; This router expects numerous possible status and graph reports. The :id in the props of the report will determine
   ; which specific data set is used for the screen (though the UI of the screen will be either StatusReport or GraphingReport
   ; IMPORTANT: Make sure your components (e.g. StatusReport) query for what ident needs (i.e. in this example
   ; :page and :id at a minimum)
-  (ident [this props] [(:page props) (:id props)])
+  [:page :id]
   :status-report StatusReport
   :graphing-report GraphingReport)
 
@@ -52,14 +52,14 @@
   ; nest the router under any arbitrary key, just be consistent in your query and props extraction.
   {:initial-state (fn [params] {:page :report :report-router (prim/get-initial-state ReportRouter {})})
    :query         [:page {:report-router (prim/get-query ReportRouter)}]}
-  (dom/div #js {:style #js {:backgroundColor "grey"}}
+  (dom/div {:style {:backgroundColor "grey"}}
     ; Screen-specific content to be shown "around" or "above" the subscreen
     "REPORT MAIN SCREEN"
     ; Render the sub-router. You can also def a factory for the router (e.g. ui-report-router)
     (ui-report-router report-router)))
 
 (defrouter TopRouter :top-router
-  (ident [this props] [(:page props) :top])
+  (fn [this props] [(:page props) :top])
   :main Main
   :login Login
   :new-user NewUser
@@ -85,18 +85,18 @@
     (r/make-route :status [(r/router-instruction :top-router [:report :top])
                            (r/router-instruction :report-router [:status-report :param/report-id])])))
 
-(defsc Root [this {:keys [ui/react-key top-router]}]
+(defsc Root [this {:keys [top-router]}]
   ; r/routing-tree-key implies the alias of fulcro.client.routing as r.
   {:initial-state (fn [params] (merge routing-tree
                                  {:top-router (prim/get-initial-state TopRouter {})}))
-   :query         [:ui/react-key {:top-router (prim/get-query TopRouter)}]}
-  (dom/div #js {:key react-key}
+   :query         [{:top-router (prim/get-query TopRouter)}]}
+  (dom/div
     ; Sample nav mutations
-    (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
-    (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
-    (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
-    (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :status :route-params {:report-id :a}})])} "Status A") " | "
-    (dom/a #js {:onClick #(prim/transact! this `[(r/route-to {:handler :graph :route-params {:report-id :a}})])} "Graph A")
+    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
+    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
+    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
+    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :status :route-params {:report-id :a}})])} "Status A") " | "
+    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :graph :route-params {:report-id :a}})])} "Graph A")
     (ui-top top-router)))
 
 

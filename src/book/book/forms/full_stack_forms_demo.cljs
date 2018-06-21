@@ -14,9 +14,9 @@
 
 (defn render-example [width height & children]
   (ele/ui-iframe {:frameBorder 0 :height height :width width}
-    (apply dom/div #js {:key "example-frame-key"}
-      (dom/style nil ".boxed {border: 1px solid black}")
-      (dom/link #js {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
+    (apply dom/div {:key "example-frame-key"}
+      (dom/style ".boxed {border: 1px solid black}")
+      (dom/link {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       children)))
 
 (defn make-phone-number [id type num]
@@ -55,12 +55,12 @@
   "A non-library helper function, written by you to help lay out your form."
   ([comp form name label] (field-with-label comp form name label nil))
   ([comp form name label validation-message]
-   (dom/div #js {:className (str "form-group" (if (f/invalid? form name) " has-error" ""))}
-     (dom/label #js {:className "col-sm-2" :htmlFor name} label)
+   (dom/div :.form-group {:className (when (f/invalid? form name) " has-error")}
+     (dom/label :.col-sm-2 {:htmlFor name} label)
      ;; THE LIBRARY SUPPLIES f/form-field. Use it to render the actual field
-     (dom/div #js {:className "col-sm-10"} (f/form-field comp form name))
+     (dom/div :.col-sm-10 (f/form-field comp form name))
      (when (and validation-message (f/invalid? form name))
-       (dom/span #js {:className (str "col-sm-offset-2 col-sm-10" name)} validation-message)))))
+       (dom/span :.col-sm-offset-2.col-sm-10 {:className (str name)} validation-message)))))
 
 (defn phone-ident [id-or-props]
   (if (map? id-or-props)
@@ -73,7 +73,7 @@
    :form-fields [(f/id-field :db/id)
                  (f/text-input :phone/number)
                  (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])]}
-  (dom/div #js {:className "form-horizontal"}
+  (dom/div :.form-horizontal
     ; field-with-label is just a render-helper as covered in basic form documentation
     (field-with-label this form :phone/type "Phone type:")
     (field-with-label this form :phone/number "Number:")))
@@ -133,8 +133,8 @@
                           (r/route-to {:handler :route/phone-list})
                           ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
                           :main-ui-router]))]
-    (dom/div nil
-      (dom/h1 nil "Edit Phone Number")
+    (dom/div
+      (dom/h1 "Edit Phone Number")
       (when number-to-edit
         (ui-phone-form number-to-edit))
       (b/row {}
@@ -148,8 +148,8 @@
    ; make sure to include the :screen-type so the router can get the ident of this component
    :initial-state {:screen-type   :screen/phone-list
                    :phone-numbers []}}
-  (dom/div nil
-    (dom/h1 nil "Phone Numbers (click a row to edit)")
+  (dom/div
+    (dom/h1 "Phone Numbers (click a row to edit)")
     (b/container nil
       (b/row {} (b/col {:xs 2} "Phone Type") (b/col {:xs 2} "Phone Number"))
       ; Show a loading message while we're waiting for the network load
