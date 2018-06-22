@@ -408,7 +408,8 @@ void-tags
              :children  children})))
 
 (defn gen-tag-fn [tag]
-  `(defn ~tag [& ~'args]
+  `(defn ~tag ~(cdom/gen-docstring tag false)
+     [& ~'args]
      (let [conformed-args# (util/conform! ::dom-element-args ~'args)
            {attrs#    :attrs
             children# :children
