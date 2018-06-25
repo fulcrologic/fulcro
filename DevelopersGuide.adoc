@@ -16,6 +16,7 @@
 :imagesdir: assets/img
 :scriptsdir: js
 :imagesoutdir: docs/assets/img
+:favicon: assets/favicon.ico
 
 ifdef::env-github[]
 :tip-caption: :bulb:
