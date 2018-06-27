@@ -2,10 +2,10 @@
   (:refer-clojure :exclude [send])
   (:require [fulcro.logging :as log]
             [clojure.spec.alpha :as s]
-    #?(:clj
-            [clojure.future :refer :all])
+            #?(:clj
+               [clojure.future :refer :all])
             [cognitect.transit :as ct]
-    #?(:cljs [goog.events :as events])
+            #?(:cljs [goog.events :as events])
             [fulcro.transit :as t]
             [clojure.string :as str])
   #?(:cljs (:import [goog.net XhrIo EventType ErrorCode])))
@@ -262,7 +262,7 @@
   "Return a (fn [phase progress-event]) that calls the raw update function with progress and response data merged
   together as a response."
   [get-response-fn raw-update-fn]
-  (fn progress-routing
+  (fn progress-fn
     [phase evt]
     (when raw-update-fn
       (raw-update-fn (merge {:progress-phase phase
