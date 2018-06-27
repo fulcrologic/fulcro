@@ -12,7 +12,7 @@
     fulcro.democards.parent-state-refresh
     devcards.core))
 
-;(st/instrument)
+(st/instrument)
 
 ;; Use this for adv opt build:
 ;(devcards.core/start-devcard-ui!) 

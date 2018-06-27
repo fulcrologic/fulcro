@@ -85,6 +85,7 @@
              :error            (xhrio-error-code xhrio)
              :error-text       (xhrio-error-text xhrio)}
             (catch :default e
+              (log/error "Unable to extract response from XhrIO Object" e)
               {:transaction      tx
                :outgoing-request request
                :body             ""
@@ -149,7 +150,7 @@
             (let [base-handlers {"f" (fn [v] (js/parseFloat v)) "u" cljs.core/uuid}
                   handlers      (if (map? addl-transit-handlers) (merge base-handlers addl-transit-handlers) base-handlers)
                   reader        (t/reader {:handlers handlers})]
-              (fn [{:keys [body] :as response}]
+              (fn fulcro-response-handler [{:keys [body] :as response}]
                 (handler
                   (try
                     (let [new-body (if (str/blank? body)
@@ -182,16 +183,16 @@
 (s/def ::xhrio-event any?)
 (s/def ::xhrio any?)
 
-(s/def ::response-middleware (s/fspec
-                               :args (s/cat :r ::response)
-                               :ret ::response))
+(s/def ::response-middleware fn?)
 (s/def ::request-middleware (s/fspec
                               :args (s/cat :r ::request)
                               :ret ::request))
-(s/def ::active-requests (s/map-of any? set?))
+(s/def ::active-requests (s/and
+                           #(map? (deref %))
+                           #(every? set? (vals (deref %)))))
 
 (s/fdef extract-response
-  :args (s/cat :tx ::transaction :req ::request :xhrio ::xhrio)
+  :args (s/cat :tx any? :req ::request :xhrio ::xhrio)
   :ret ::response)
 
 (defn was-network-error?
@@ -255,17 +256,19 @@
              (progress-routine :complete evt)
              (raw-ok-handler r)))))))
 
-(s/fdef ok-routine* :args (s/cat :progress fn? :get-response fn? :complete-fn fn? :error-fn :fn?))
+(s/fdef ok-routine* :args (s/cat :progress fn? :get-response fn? :complete-fn fn? :error-fn fn?))
 
 (defn progress-routine*
   "Return a (fn [phase progress-event]) that calls the raw update function with progress and response data merged
   together as a response."
   [get-response-fn raw-update-fn]
-  (fn [phase evt] (when raw-update-fn
-                    (raw-update-fn (merge {:progress-phase phase
-                                           :progress-event evt} (get-response-fn))))))
+  (fn progress-routing
+    [phase evt]
+    (when raw-update-fn
+      (raw-update-fn (merge {:progress-phase phase
+                             :progress-event evt} (get-response-fn))))))
 
-(s/fdef progress-routine* :args (s/cat :response-fn fn? :update fn?))
+(s/fdef progress-routine* :args (s/cat :response-fn fn? :update (s/or :none nil? :func fn?)))
 
 (defn error-routine*
   "Returns a (fn [xhrio-evt]) that pulls the progress and reports it to the progress routine and the raw
