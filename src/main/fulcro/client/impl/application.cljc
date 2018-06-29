@@ -237,7 +237,7 @@
                                            :on-load on-update :abort-id abort-id}))))
 
 (defn is-sequential? [network]
-  (if (and #?(:clj false :cljs (implements? net/NetworkBehavior network)))
+  (if #?(:clj false :cljs (satisfies? net/NetworkBehavior network))
     (net/serialize-requests? network)
     true))
 

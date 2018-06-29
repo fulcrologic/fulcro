@@ -10,6 +10,9 @@
             [clojure.string :as str])
   #?(:cljs (:import [goog.net XhrIo EventType ErrorCode])))
 
+(defprotocol NetworkBehavior
+  (serialize-requests? [this] "Returns true if the network is configured to desire one request at a time."))
+
 #?(:cljs
    (def xhrio-error-states {(.-NO_ERROR ErrorCode)        :none
                             (.-EXCEPTION ErrorCode)       :exception
@@ -284,6 +287,8 @@
 (s/fdef error-routine* :args (s/cat :get fn? :ok fn? :progress fn? :error fn?))
 
 (defrecord FulcroHTTPRemote [url request-middleware response-middleware active-requests serial?]
+  NetworkBehavior
+  (serialize-requests? [this] serial?)
   FulcroRemoteI
   (transmit [this {:keys [::edn ::abort-id ::ok-handler ::error-handler ::progress-handler] :as raw-request}]
     #?(:cljs
@@ -341,32 +346,26 @@
   details of the result: `:status-code`, `:status-text`, `:error-code` (one of :none, :exception, :http-error, :abort, or :timeout),
   and `:error-text`.  Middleware is allowed to morph any of this to suit its needs.
 
+  `serial?` - A boolean (default true). Should requests to this remote be queued sequentially (false means they will hit the network
+  as submitted, true means the prior one has to complete (by default) before the next starts).  Loads can be made parallel
+  with a load option, so you should typically not override this option.
+
   A result with a 200 status code will result in a merge using the resulting response's `:transaction` as the query,
   and the `:body` as the EDN to merge. If the status code is anything else then the details of the response will be
   used when triggering the built-in error handling (e.g. fallbacks, global error handler, etc.)."
-  [{:keys [url request-middleware response-middleware] :or {url                 "/api"
-                                                            response-middleware (wrap-fulcro-response)
-                                                            request-middleware  (wrap-fulcro-request)} :as options}]
+  [{:keys [url request-middleware response-middleware serial?] :or {url                 "/api"
+                                                                    response-middleware (wrap-fulcro-response)
+                                                                    request-middleware  (wrap-fulcro-request)} :as options}]
   (map->FulcroHTTPRemote (merge options {:request-middleware  request-middleware
                                          :response-middleware response-middleware
+                                         :serial?             (if (nil? serial?) true serial?)
                                          :active-requests     (atom {})})))
-
-(comment
-  (log/set-level! :all)
-  (let [r (fulcro-http-remote {:url "http://www.google.com/q=hello"})
-        c (fn [r] (js/console.log :complete r))
-        e (fn [e v] (js/console.log :error e v))
-        u (fn [u] (js/console.log :update u))]
-    (transmit r {::edn [:hello] ::ok-handler c ::error-handler e ::progress-handler u})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Everything below this is DEPRECATED. Use code above this in new programs
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declare make-fulcro-network)
-
-(defprotocol NetworkBehavior
-  (serialize-requests? [this] "DEPRECATED. Returns true if the network is configured to desire one request at a time."))
 
 (defprotocol ProgressiveTransfer
   (updating-send [this edn done-callback error-callback update-callback] "DEPRECATED. Send EDN. The update-callback will merge the state
