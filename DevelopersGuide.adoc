@@ -7272,7 +7272,8 @@ and hot code reload using https://github.com/tolitius/mount[`mount`] instead of 
     (if (= uri (:uri request))
       (server/handle-api-request
         server-parser
-        {}
+        ;; this map is `env`. Put other defstate things in this map and they'll be in the mutations/query env on server.
+        {:config config}
         (:transit-params request))
       (handler request))))
 
