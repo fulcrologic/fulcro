@@ -6,6 +6,12 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.11
+------
+- Cleanup of some docs/dead code
+- Fixed clojure specs in networking that would cause networking to crash if instrument was on
+- Improved client networking remote support to include serial? option so remotes can be parallel (default to serial for sanity).
+
 2.5.10
 ------
 - Fixed resource access in uberjar for not-found page for easy server

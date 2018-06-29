@@ -41,14 +41,10 @@
     settings-content
     (df/lazily-loaded (fn [] (map ui-setting settings)) settings)))
 
-(def ui-settings-tab (prim/factory SettingsTab))
-
 (defsc MainTab [this {:keys [main-content]}]
   {:initial-state {:kind :main :main-content "Main Tab"}
    :query         [:kind :main-content]}
   (dom/div nil main-content))
-
-(def ui-main-tab (prim/factory MainTab))
 
 (r/defrouter UITabs :ui-router
   (ident [this {:keys [kind]}] [kind :tab])

@@ -16,6 +16,7 @@
 :imagesdir: assets/img
 :scriptsdir: js
 :imagesoutdir: docs/assets/img
+:favicon: assets/favicon.ico
 
 ifdef::env-github[]
 :tip-caption: :bulb:
@@ -3189,7 +3190,7 @@ CSS can be co-located on any component. This CSS does *not* take effect until it
  The result of this must be a vector in Garden notation. Any rules included here will be automatically prefixed with the CSSified namespace
  and component name to ensure name collisions are impossible.
 . (optional) Add "global" rules. The vector of rules (in the prior step) can use a `$` prefix to prevent localization (`:$container` instead of `:.container`).
-. (optional) Add the `:css-incude` option to `defsc`. This MUST be a vector of components that are used within the `render`
+. (optional) Add the `:css-include` option to `defsc`. This MUST be a vector of components that are used within the `render`
 that *also* supply CSS. This allows the library to compose together your CSS according to what components you *use*. Pulling
 the CSS rules from some top-level component will dedupe any inclusions before generating the actual on-DOM CSS.
 . Use one of many options to get the "munged" classnames for use in your code:

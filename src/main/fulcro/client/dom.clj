@@ -109,7 +109,8 @@
     (str "Syntax error at " file ":" line ". Unexpected input " unexpected-input)))
 
 (defn gen-dom-macro [emitter name]
-  `(defmacro ~name [& ~'args]
+  `(defmacro ~name ~(cdom/gen-docstring name true)
+     [& ~'args]
      (let [tag# ~(str name)]
        (try
          (~emitter tag# ~'args)
@@ -120,7 +121,8 @@
   `(do ~@(clojure.core/map (partial gen-dom-macro emitter) cdom/tags)))
 
 (defn- gen-client-dom-fn [create-element-symbol tag]
-  `(defn ~tag [& ~'args]
+  `(defn ~tag ~(cdom/gen-docstring tag true)
+     [& ~'args]
      (let [conformed-args# (util/conform! :fulcro.client.dom/dom-element-args ~'args) ; see CLJS file for spec
            {attrs#    :attrs
             children# :children

@@ -127,7 +127,7 @@
 (defsc IdentExample [_ _]
   {:ident [:id :id]})
 
-(specification "get-ident" :focused
+(specification "get-ident"
   (assertions
     "Read components ident"
     (prim/get-ident IdentExample {}) => [:id nil]

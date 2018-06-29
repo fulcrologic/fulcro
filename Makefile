@@ -8,7 +8,7 @@ tutorial:
 	lein cljsbuild once tutorial-live
 
 # gem install asciidoctor asciidoctor-diagram 
-# brew install coderay
+# gem install coderay
 docs/DevelopersGuide.html: DevelopersGuide.adoc
 	asciidoctor -o docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram DevelopersGuide.adoc
 

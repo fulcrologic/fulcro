@@ -2,13 +2,16 @@
   (:refer-clojure :exclude [send])
   (:require [fulcro.logging :as log]
             [clojure.spec.alpha :as s]
-    #?(:clj
-            [clojure.future :refer :all])
+            #?(:clj
+               [clojure.future :refer :all])
             [cognitect.transit :as ct]
-    #?(:cljs [goog.events :as events])
+            #?(:cljs [goog.events :as events])
             [fulcro.transit :as t]
             [clojure.string :as str])
   #?(:cljs (:import [goog.net XhrIo EventType ErrorCode])))
+
+(defprotocol NetworkBehavior
+  (serialize-requests? [this] "Returns true if the network is configured to desire one request at a time."))
 
 #?(:cljs
    (def xhrio-error-states {(.-NO_ERROR ErrorCode)        :none
@@ -85,6 +88,7 @@
              :error            (xhrio-error-code xhrio)
              :error-text       (xhrio-error-text xhrio)}
             (catch :default e
+              (log/error "Unable to extract response from XhrIO Object" e)
               {:transaction      tx
                :outgoing-request request
                :body             ""
@@ -149,7 +153,7 @@
             (let [base-handlers {"f" (fn [v] (js/parseFloat v)) "u" cljs.core/uuid}
                   handlers      (if (map? addl-transit-handlers) (merge base-handlers addl-transit-handlers) base-handlers)
                   reader        (t/reader {:handlers handlers})]
-              (fn [{:keys [body] :as response}]
+              (fn fulcro-response-handler [{:keys [body] :as response}]
                 (handler
                   (try
                     (let [new-body (if (str/blank? body)
@@ -182,16 +186,16 @@
 (s/def ::xhrio-event any?)
 (s/def ::xhrio any?)
 
-(s/def ::response-middleware (s/fspec
-                               :args (s/cat :r ::response)
-                               :ret ::response))
+(s/def ::response-middleware fn?)
 (s/def ::request-middleware (s/fspec
                               :args (s/cat :r ::request)
                               :ret ::request))
-(s/def ::active-requests (s/map-of any? set?))
+(s/def ::active-requests (s/and
+                           #(map? (deref %))
+                           #(every? set? (vals (deref %)))))
 
 (s/fdef extract-response
-  :args (s/cat :tx ::transaction :req ::request :xhrio ::xhrio)
+  :args (s/cat :tx any? :req ::request :xhrio ::xhrio)
   :ret ::response)
 
 (defn was-network-error?
@@ -255,17 +259,19 @@
              (progress-routine :complete evt)
              (raw-ok-handler r)))))))
 
-(s/fdef ok-routine* :args (s/cat :progress fn? :get-response fn? :complete-fn fn? :error-fn :fn?))
+(s/fdef ok-routine* :args (s/cat :progress fn? :get-response fn? :complete-fn fn? :error-fn fn?))
 
 (defn progress-routine*
   "Return a (fn [phase progress-event]) that calls the raw update function with progress and response data merged
   together as a response."
   [get-response-fn raw-update-fn]
-  (fn [phase evt] (when raw-update-fn
-                    (raw-update-fn (merge {:progress-phase phase
-                                           :progress-event evt} (get-response-fn))))))
+  (fn progress-fn
+    [phase evt]
+    (when raw-update-fn
+      (raw-update-fn (merge {:progress-phase phase
+                             :progress-event evt} (get-response-fn))))))
 
-(s/fdef progress-routine* :args (s/cat :response-fn fn? :update fn?))
+(s/fdef progress-routine* :args (s/cat :response-fn fn? :update (s/or :none nil? :func fn?)))
 
 (defn error-routine*
   "Returns a (fn [xhrio-evt]) that pulls the progress and reports it to the progress routine and the raw
@@ -281,6 +287,8 @@
 (s/fdef error-routine* :args (s/cat :get fn? :ok fn? :progress fn? :error fn?))
 
 (defrecord FulcroHTTPRemote [url request-middleware response-middleware active-requests serial?]
+  NetworkBehavior
+  (serialize-requests? [this] serial?)
   FulcroRemoteI
   (transmit [this {:keys [::edn ::abort-id ::ok-handler ::error-handler ::progress-handler] :as raw-request}]
     #?(:cljs
@@ -338,32 +346,26 @@
   details of the result: `:status-code`, `:status-text`, `:error-code` (one of :none, :exception, :http-error, :abort, or :timeout),
   and `:error-text`.  Middleware is allowed to morph any of this to suit its needs.
 
+  `serial?` - A boolean (default true). Should requests to this remote be queued sequentially (false means they will hit the network
+  as submitted, true means the prior one has to complete (by default) before the next starts).  Loads can be made parallel
+  with a load option, so you should typically not override this option.
+
   A result with a 200 status code will result in a merge using the resulting response's `:transaction` as the query,
   and the `:body` as the EDN to merge. If the status code is anything else then the details of the response will be
   used when triggering the built-in error handling (e.g. fallbacks, global error handler, etc.)."
-  [{:keys [url request-middleware response-middleware] :or {url                 "/api"
-                                                            response-middleware (wrap-fulcro-response)
-                                                            request-middleware  (wrap-fulcro-request)} :as options}]
+  [{:keys [url request-middleware response-middleware serial?] :or {url                 "/api"
+                                                                    response-middleware (wrap-fulcro-response)
+                                                                    request-middleware  (wrap-fulcro-request)} :as options}]
   (map->FulcroHTTPRemote (merge options {:request-middleware  request-middleware
                                          :response-middleware response-middleware
+                                         :serial?             (if (nil? serial?) true serial?)
                                          :active-requests     (atom {})})))
-
-(comment
-  (log/set-level! :all)
-  (let [r (fulcro-http-remote {:url "http://www.google.com/q=hello"})
-        c (fn [r] (js/console.log :complete r))
-        e (fn [e v] (js/console.log :error e v))
-        u (fn [u] (js/console.log :update u))]
-    (transmit r {::edn [:hello] ::ok-handler c ::error-handler e ::progress-handler u})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Everything below this is DEPRECATED. Use code above this in new programs
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declare make-fulcro-network)
-
-(defprotocol NetworkBehavior
-  (serialize-requests? [this] "DEPRECATED. Returns true if the network is configured to desire one request at a time."))
 
 (defprotocol ProgressiveTransfer
   (updating-send [this edn done-callback error-callback update-callback] "DEPRECATED. Send EDN. The update-callback will merge the state
