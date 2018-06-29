@@ -7479,7 +7479,7 @@ will also need to have manual configuration of networking to ensure that it trie
 API calls.
 
 ```
-(def client (fc/new-fulcro-client :networking {:remote (fulcro.client.network/make-fulcro-network :url "/app1/api" ...)}))
+(def client (fc/new-fulcro-client :networking {:remote (fulcro.client.network/fulcro-http-remote {:url "/app1/api"})}))
 ```
 
 === Adding Non-API Routes
@@ -8820,7 +8820,6 @@ the fact that you usually need roughly the same pattern for each form:
 * A way to indicate validation for fields
 * A way to calculate and submit the changes the user has made (ideally as a minimal diff)
 * A way to relate joined entities as sub forms of a form.
-* A way to do file uploads, possibly with progress updates.
 
 All of these things can be written with the primitives that you already have
 at your disposal, but the `fulcro.ui.forms` namespace gives you something to start out with
@@ -10204,7 +10203,7 @@ low-level networking. A remote can now manipulate everything from the request he
 A remote with these new features requires very little code:
 
 ```
-(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {})})
+(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {:url "/api"})})
 ```
 
 This will give you support for the abort and progress features.
@@ -10309,6 +10308,18 @@ normal browser download mechanisms (external to Fulcro).
 File uploads also require that you augment the new client network middleware, since there is no
 reliable way to encode an image of arbitrary size into a transaction.
 
+== Optional Non-Sequential Operation
+
+When you create a networking component you can optionally implement the `NetworkBehavior` protocol
+which has a single method `(serialize-requests? [this])`.
+The default (without this protocol) is to serialize them, but if you implement this
+protocol and return false from the method then Fulcro's plumbing will not manage request queuing at all and will just
+call `send` any time there is anything in the queue.
+
+The predefined networking support already implements this protocol, so you can simply pass an option to enable parallel
+operation:
+
+
 == Request Middleware
 
 The request will, by default, be sent through pre-written middleware `fulcro.client.network/wrap-fulcro-request`. This
@@ -10389,102 +10400,54 @@ Raw responses from the remote will include:
 The final response body and transaction combo will be given to Fulcro for merge. If you modify
 the transaction be sure to use a query from components so that normalization is done properly.
 
-Response middleware is allowed to rewrite an errant response to an OK one (by clearing the error fields and
+IMPORTANT: Response middleware is allowed to rewrite an errant response to an OK one (by clearing the error fields and
 setting :status-code to 200). This would allow you, for example, to merge
 specific errors into state as you see fit instead of relying on Fulcro's built-in error handling model.
 
-= The Client Network Layer (DEPRECATED)
-
-== Adding Additional Remotes
-
-When you create a client you can pass the `:networking` option. This is a map whose keys are remote "names" and whose values are objects that
-implement the `FulcroNetworking` protocol. Each remote that you add will be usable
-through the `:remote` parameter of loads, and that remote's name in mutations:
-
-```
-(def app (new-fulcro-client :networking {:custom-remote (map->MyNetworking {})}))
-
-...
-
-(load this :thing Things {:remote :custom-remote})
-
-...
-
-(defmutation something [params]
-  (custom-remote [env] true))
-```
-
-Loads must be queued to a single remote at a time, but mutations can technically list as many as you'd like (though there
-is no built-in coordination of them).
-
-=== Optional Sequential Operation
-
-When you create a networking component you can optionally implement the `NetworkBehavior` protocol
-which has a single method `(serialize-requests? [this])`.
-The default (without this protocol) is to serialize them, but if you implement this
-protocol and return false from the method then Fulcro's plumbing will not manage request queuing at all and will just
-call `send` any time there is anything in the queue.
-
-=== Implementing Send
-
-The send method of the `FulcroNetwork` protocol is given `[this edn done-callback error-callback]`. `this` is just
-the instance of your network implementation. The `edn` is the raw Fulcro query/mutation that was issued. The two callback
-functions are what you call when the request is complete. You must call one (and only one) of them exactly once
-with the response (or error).
-
-The error callback, if called, will trigger and fallbacks, will update the (optional) load markers for the
-request with an error state.
-
-The done callback, if called, expects to be given a response that matches the shape of the request. This is always
-a map that contains the top-level keys that were in the query/mutation. Mutations are keyed by the symbol of the mutation.
-
-So, a query like this `[:a]` should call done with a map like `{:a 1}`. A mutation like `[(f)]` should call
-the done callback with something like `{'f 42}`. The only automatically-handled return value from mutations
-are tempid remappings.
-
 === Merging State
 
-Fulcro remembers the query that was used when calling `send`. Therefore it can auto-normalize the server's tree-like
-response to a graph query. It is perfectly legal to alter this by passing a UI query to the `done-callback` as
-an additional argument. Doing so will cause the back-end to use the *specified query* for normalization instead of
-the original (remembered) outgoing query.
+As mentioned above: the final response body and transaction combo will be given to Fulcro for merge. The basic pipeline
+is like this:
 
-=== Network Progress Updates
+* You run a transact that goes remote. E.g. `(transact! this '[(f {:x 1})])`. `transaction` is `[(f {:x 1})]`
+* The response is received from the server. This *can* be anything you want to return, but typically for mutations is just `:tempids`.
+  For example `{'f {:tempids {1 2}}}`. This is the `body`.
+* Merge is a two-part affair:
+   . Any mutation keys in the response are pulled off and run through migrate to get tempid migrations.
+   . The remainder of the k/v pairs in the map are then run through normal merge (which requires a query, assumed to be in `transaction`).
 
-The networking layer of Fulcro will, by default, place load markers at the target location for any data that is
-scheduled to be loaded or is currently loading. It also updates a global loading marker. This gives you ample
-opportunities to give the user feedback about network activity.
+So, this gives you a *ton* of power in your response middleware to customize everything from error handling to doing post-operations
+on mutations.
 
-However, many applications have custom desires beyond showing a busy indicator in place of the data being loaded.
+Let's say you want to write response middleware that does the following: If there is an error, skip Fulcro's error
+pipeline and instead put the information in `:my-error` key at root (which perhaps you have set up to pop a modal in your
+UI code).
 
-For example, one might like to show the progress of a file upload. Fulcro includes an additional protocol
-to enable progress updates:
-
-```
-(defprotocol ProgressiveTransfer
-  (updating-send [this edn done-callback error-callback update-callback] "Send EDN. The update-callback will merge the state
-  given to it. The done-callback will merge the state given to it, and indicates completion. See
-  `fulcro.client.ui.file-upload/FileUploadNetwork` for an example."))
-```
-
-If you implement this protocol (in addition to `FulcroNetwork`), then you will be given a callback that can be called
-at any time to merge data into the app state:
+So, your desired merge transaction is `[:my-error]` (rewriting the transaction "as if" you had "asked" for the error),
+and the body is `{:my-error {...data for error...}}`!  The entire middleware component is:
 
 ```
-(update-callback data query)
+(defn wrap-errors [handler]
+  (fn [resp]
+    (let [{:keys [error status-code]} resp]
+      (handler
+        (if (not= 200 status-code) ; when there are errors, rewrite them "as-if" we had asked for it
+          (-> resp
+            (assoc :body {:my-error {:error error}} :transaction [:my-error] :status-code 200)
+            (dissoc :error))
+          resp)))))
 ```
 
-for example, say you're doing progress updates on a file upload represented in your app state by a `File` component:
+installed with:
 
 ```
-; on network update event for file 1:
-(let [ident (prim/get-ident File {:id 1})
-      file  ...] ; file would be a map containing the data for a File
-  (update-callback {ident file} {ident (prim/get-query File)}))
-```
+;; Resulting middleware (evaluates right to left because of nested composition)
+(def middleware (-> (net/wrap-fulcro-response) (wrap-errors)))
 
-The `fulcro.ui.fule-upload` namespace contains networking and UI for exactly this scenario. You could also use this
-sort of networking component to deal with things like incoming streaming data.
+...
+
+(def client (fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {:url "/api" :response-middleware middleware})})
+```
 
 === Interfacing with REST Servers
 
