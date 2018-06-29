@@ -10342,13 +10342,15 @@ add any keys it wishes. The final result of the middleware stack will be used as
 
 === File Uploads
 
-Fulcro will soon include pre-written middleware to accomplish file upload encoding for you.
+Fulcro may soon include pre-written software to accomplish file uploads for you. In the meantime you
+can just copy code from http://github.com/awkay/file-upload-demo[the file upload demo project]
+as a basis for your own projects.
 
-The basic scheme is as follows:
+The basic scheme is as follows (and is well-documented in that project):
 
 * Attach a `js/File` object to a mutation's parameters (typically as metadata to avoid various tool overhead)
    * Include a tempid in the parameters
-* The mutation should using an altered network object that has custom middleware
+* The mutation should using an network object that has custom middleware for file upload/error handling
    * The local side of the mutation puts the file information into app state with a tempid
 * The remote's middleware encodes the headers/body into a proper multipart form upload, and
 includes the tempid
@@ -10361,58 +10363,14 @@ includes the tempid
 When complete, the UI has an ID for the uploaded file, and can interact with the server via that ID
 (e.g. for generating file serving URLs for images, send delete mutations, etc.).
 
-Something like this is close:
-
-```
-; params will automatically include progress data
-(defmutation upload-progress [{:keys [id] :as params}]
-  (action [{:keys [state]}]
-    (swap! assoc-in [:file/by-id id] (net/progress% params))))
-
-(defmutation upload-file [{:keys [id file]}]
-  (action [{:keys [state]}]
-     (swap! state assoc-in [:file/by-id id] {:db/id id ...}))
-  (file-upload [{:keys ast}]
-    (m/with-progressive-updates ast `(upload-progress {:id ~id})))
-
-(defn wrap-file-upload []
-  (fn [req]
-    (let [mutation (some-> req :body prim/query->ast1)
-          params   (:params mutation)
-          id       (:id params)
-          js-file  (some-> params :file meta :js-file)
-          form (js/FormData.)]
-      (.append form "file" js-file)
-      (.append form "id" (util/transit-clj->str id))
-      (asoc req :body form :headers {} :method :post))))
-
-(def file-upload-middleware (wrap-file-upload))
-
-; client creation
-(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {})
-                                   :file-upload (net/fulcro-http-remote {:url "/file-uploads"
-                                                                         :request-middleware file-upload-middleware})})
-
-; an input triggering upload(s)
-(let [onChange (fn [evt]
-                 (let [js-file-list (.. evt -target -files)]
-                   (prim/transact! this
-                     (mapv (fn [file-idx]
-                             (let [fid     (prim/tempid)
-                                   js-file (with-meta {} {:js-file (.item js-file-list file-idx)})]
-                               `(upload-file ~{:id fid :file js-file})))
-                       (range (.-length js-file-list))))))]
-  (dom/input {:multiple true :onChange onChange}))
-```
-
-The server for this would need middleware watching for file uploads at `/file-uploads`, that
-returns a transit+json encoded map for the mutation:
+The server for this would need middleware watching for file uploads at `/file-uploads` that
+returns a transit+json encoded map for the mutation (the mutation name is irrelevant in the response):
 
 ```
 {`upload-file {:tempids {file-temp-id newly-assigned-id}}}
 ```
 
-== Response Middleware
+== Client Response Middleware
 
 The response will, by default, be sent through the pre-written middleware function `fulcro.client.network/wrap-fulcro-response`
 which contains the logic to properly decode an API response (which is essentially just a transit decode). If you specify
