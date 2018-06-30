@@ -349,18 +349,8 @@ Fulcro 2.5+:
 (dom/div :.a#thing {:data-prop 3} "Hi") ; props can still be supplied with the keyword
 (dom/div :.a.b.c "Hi") ; Any number of static classes (a b, and c).
 (dom/div {:className "a" :data-prop 3} "Hi") ; or it can all be done in props
+(dom/div {:classes [(when hidden "hidden") (if tall :.tall :.short)]} ...) ; :classes is nice for expressions (2.5.12+)
 ```
-
-Fulcro 2.5.12+ also includes a `:classes` property that can be used to add (typically via expressions) additional
-classes. It drops nil, and allows classname keywords and strings as well:
-
-```
-(dom/div :.a {:className "other" :classes [(when hidden "hidden") (if tall :.tall :.short)]} ...)
-```
-
-Assuming `hidden` and `(not tall)` would yield classes "a other hidden short" on output. Of course you probably don't need
-all of these at once, but supporting them all lets you programmatically combine them when generating props. NOTE: This feature
-does not work on props sent with the legacy `#js` notation.
 
 The 2.5 versions are macros that obtain the same runtime speed as the older versions in the most cases. Note that supplying
 props as nil (instead of omitting them) will result in a very slight performance improvement if the element has children.
@@ -2355,6 +2345,17 @@ The notation allowed is as follows:
 (dom/div :.cls.cls2#id ...) ; shorthand for specifying static classes and ID
 (dom/div :.cls {:data-x 2} "Ho") ; shorthand + props
 ```
+
+Fulcro 2.5.12+ also includes a `:classes` property that can be used to add (typically via expressions) additional
+classes. It drops nil, and allows classname keywords and strings as well:
+
+```
+(dom/div :.a {:className "other" :classes [(when hidden "hidden") (if tall :.tall :.short)]} ...)
+```
+
+Assuming `hidden` and `(not tall)` would yield classes "a other hidden short" on output. Of course you probably don't need
+all of these at once, but supporting them all lets you programmatically combine them when generating props. NOTE: This feature
+does not work on props sent with the legacy `#js` notation.
 
 Remember that this (nested) call of functions results in a representation (VDOM) of
 what you'd like to end up on the screen.
