@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.5.12
+------
+- Added `:classes` support to regular DOM elements.
+
 2.5.11
 ------
 - Cleanup of some docs/dead code

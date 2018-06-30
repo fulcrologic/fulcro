@@ -456,7 +456,7 @@
         (parser '[{:curr-view {:settings [*] :main [{:curr-item [:foo {:sub-items ...}]}]}}]) =>
         {:curr-view {:curr-item [{:foo :baz :sub-items [{:foo :bar}]}]}}))))
 
-(specification "is-sequential?" :focused
+(specification "is-sequential?"
   (let [snet (net/fulcro-http-remote {:serial? true})
         pnet (net/fulcro-http-remote {:serial? false})]
     (behavior "detects sequential behavior"

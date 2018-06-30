@@ -417,7 +417,7 @@ void-tags
            children#       (mapv second children#)
            attrs-value#    (or (second attrs#) {})]
        (element {:tag       '~tag
-                 :attrs     (-> attrs-value#
+                 :attrs     (-> (cdom/interpret-classes attrs-value#)
                               (dissoc :ref :key)
                               (cdom/add-kwprops-to-props css#))
                  :react-key (:key attrs-value#)

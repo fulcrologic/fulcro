@@ -4,6 +4,7 @@
   (:require-macros [fulcro.client.dom])
   (:require
     [clojure.spec.alpha :as s]
+    [clojure.string :as str]
     [fulcro.util :as util]
     [cljsjs.react]
     [cljsjs.react.dom]
@@ -170,9 +171,11 @@
 
 (defonce form-elements? #{"input" "select" "option" "textarea"})
 
+
+
 ;; fallback if the macro didn't do this
 (defn macro-create-element
-  "Used internally by element generation."
+  "Runtime interpretation of props. Used internally by element generation when the macro cannot expand the element at compile time."
   ([type args] (macro-create-element type args nil))
   ([type args csskw]
    (let [[head & tail] args
@@ -193,7 +196,7 @@
             (arr-append tail)))
 
        (map? head)
-       (f (doto #js [type (clj->js (cdom/add-kwprops-to-props head csskw))]
+       (f (doto #js [type (clj->js (cdom/add-kwprops-to-props (cdom/interpret-classes head) csskw))]
             (arr-append tail)))
 
        :else

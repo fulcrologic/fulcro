@@ -50,23 +50,25 @@
 (defn- emit-tag
   "Helper function for generating CLJS DOM macros"
   [str-tag-name args]
-  (let [conformed-args (util/conform! ::dom-macro-args args)
+  (let [conformed-args      (util/conform! ::dom-macro-args args)
         {attrs    :attrs
          children :children
          css      :css} conformed-args
-        css-props      (cdom/add-kwprops-to-props {} css)
-        children       (mapv (fn [[_ c]]
-                               (if (or (nil? c) (string? c))
-                                 c
-                                 `(fulcro.util/force-children ~c))) children)
-        attrs-type     (or (first attrs) :nil)              ; attrs omitted == nil
-        attrs-value    (or (second attrs) {})
-        create-element (case str-tag-name
-                         "input" 'fulcro.client.dom/macro-create-wrapped-form-element
-                         "textarea" 'fulcro.client.dom/macro-create-wrapped-form-element
-                         "select" 'fulcro.client.dom/macro-create-wrapped-form-element
-                         "option" 'fulcro.client.dom/macro-create-wrapped-form-element
-                         'fulcro.client.dom/macro-create-element*)]
+        css-props           (cdom/add-kwprops-to-props {} css)
+        children            (mapv (fn [[_ c]]
+                                    (if (or (nil? c) (string? c))
+                                      c
+                                      `(fulcro.util/force-children ~c))) children)
+        attrs-type          (or (first attrs) :nil)         ; attrs omitted == nil
+        attrs-value         (or (second attrs) {})
+        create-element      (case str-tag-name
+                              "input" 'fulcro.client.dom/macro-create-wrapped-form-element
+                              "textarea" 'fulcro.client.dom/macro-create-wrapped-form-element
+                              "select" 'fulcro.client.dom/macro-create-wrapped-form-element
+                              "option" 'fulcro.client.dom/macro-create-wrapped-form-element
+                              'fulcro.client.dom/macro-create-element*)
+        classes-expression? (and (= attrs-type :map) (contains? attrs-value :classes))
+        attrs-type          (if classes-expression? :runtime-map attrs-type)]
     (case attrs-type
       :js-object                                            ; kw combos not supported
       (if css
@@ -81,10 +83,7 @@
                                      children)))
 
       :runtime-map
-      (let [attr-expr (if css
-                        `(cdom/add-kwprops-to-props ~(clj-map->js-object attrs-value) ~css)
-                        (clj-map->js-object attrs-value))]
-        `(~create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
+      `(fulcro.client.dom/macro-create-element ~str-tag-name ~(into [attrs-value] children) ~css)
 
 
       (:symbol :expression)

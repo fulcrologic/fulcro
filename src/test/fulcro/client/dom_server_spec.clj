@@ -21,6 +21,8 @@
     "Rendering with kw and props map"
     (render-to-str (div :.a#1 {:className "b"} "Hello"))
     => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"385685127\">Hello</div>"
+    (render-to-str (div :.a#1 {:className "b" :classes ["x" :.c]} "Hello"))
+    => "<div class=\"a b x c\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1781864354\">Hello</div>"
     "Nested rendering"
     (render-to-str (div :.a#1 {:className "b"}
                      (p "P")

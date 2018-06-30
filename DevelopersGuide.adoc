@@ -349,6 +349,7 @@ Fulcro 2.5+:
 (dom/div :.a#thing {:data-prop 3} "Hi") ; props can still be supplied with the keyword
 (dom/div :.a.b.c "Hi") ; Any number of static classes (a b, and c).
 (dom/div {:className "a" :data-prop 3} "Hi") ; or it can all be done in props
+(dom/div {:classes [(when hidden "hidden") (if tall :.tall :.short)]} ...) ; :classes is nice for expressions (2.5.12+)
 ```
 
 The 2.5 versions are macros that obtain the same runtime speed as the older versions in the most cases. Note that supplying
@@ -2344,6 +2345,17 @@ The notation allowed is as follows:
 (dom/div :.cls.cls2#id ...) ; shorthand for specifying static classes and ID
 (dom/div :.cls {:data-x 2} "Ho") ; shorthand + props
 ```
+
+Fulcro 2.5.12+ also includes a `:classes` property that can be used to add (typically via expressions) additional
+classes. It drops nil, and allows classname keywords and strings as well:
+
+```
+(dom/div :.a {:className "other" :classes [(when hidden "hidden") (if tall :.tall :.short)]} ...)
+```
+
+Assuming `hidden` and `(not tall)` would yield classes "a other hidden short" on output. Of course you probably don't need
+all of these at once, but supporting them all lets you programmatically combine them when generating props. NOTE: This feature
+does not work on props sent with the legacy `#js` notation.
 
 Remember that this (nested) call of functions results in a representation (VDOM) of
 what you'd like to end up on the screen.
@@ -7239,56 +7251,93 @@ the `fulcro.server/fulcro-parser` because it is already hooked to the server mul
 like `defquery-root` and `defmutation`. Those won't work unless you use it, but any parser
 that can deal with the query/mutation syntax is technically legal.
 
-Here's a crappy little server with no configuration support, no ability to hot code reload, and no external
-integrations at all. But it shows how little you need:
+Here's a complete little server with full defaults/dev/prod configuration support (<<ServerConfig, see configuration>>),
+and hot code reload using https://github.com/tolitius/mount[`mount`] instead of component:
 
 ```
-(ns solutions.tiny-server
+(ns demo.server
   (:require
+    [fulcro.server :as server]
+    [immutant.web :as web]
+    [mount.core :refer [defstate]]
     [ring.middleware.content-type :refer [wrap-content-type]]
     [ring.middleware.gzip :refer [wrap-gzip]]
+    [ring.middleware.params :refer [wrap-params]]
+    [ring.middleware.multipart-params :refer [wrap-multipart-params]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
     [ring.middleware.resource :refer [wrap-resource]]
-    [ring.util.response :as rsp :refer [response file-response resource-response]]
-    [org.httpkit.server]
-    [fulcro.server :as server]))
+    [ring.util.response :refer [response file-response resource-response]]))
 
-(defn not-found-handler []
+;; You'll need defaults.edn and dev.edn in resources/config with at least {} as content.
+(defstate config :start (server/load-config {:config-path "config/dev.edn"}))
+
+(def ^:private not-found-handler
   (fn [req]
     {:status  404
      :headers {"Content-Type" "text/plain"}
      :body    "NOPE"}))
 
-(def parser (server/fulcro-parser))
+(defstate server-parser :start (server/fulcro-parser))
 
 (defn wrap-api [handler uri]
   (fn [request]
     (if (= uri (:uri request))
-      (server/handle-api-request parser {} (:transit-params request))
+      (server/handle-api-request
+        server-parser
+        ;; this map is `env`. Put other defstate things in this map and they'll be in the mutations/query env on server.
+        {:config config}
+        (:transit-params request))
       (handler request))))
 
-(defn my-tiny-server []
-  (let [port       9002
-        ring-stack (-> (not-found-handler)
-                     (wrap-api "/api")
-                     (server/wrap-transit-params)
-                     (server/wrap-transit-response)
-                     (wrap-resource "public")
-                     (wrap-content-type)
-                     (wrap-not-modified)
-                     (wrap-gzip))]
-    (org.httpkit.server/run-server ring-stack {:port port})))
+(defstate middleware
+  :start
+  (-> not-found-handler
+    (wrap-api "/api")
+    server/wrap-transit-params
+    server/wrap-transit-response
+    (wrap-resource "public")
+    wrap-content-type
+    wrap-not-modified
+    wrap-gzip))
+
+(defstate http-server
+  :start
+  (web/run middleware {:host "0.0.0.0"
+                       :port (get config :port 3000)}) ; defaults to 3000, but can also come from config file
+  :stop
+  (web/stop http-server))
 ```
 
-In a REPL, you could start this one up with:
+and the user namespace (typically in `src/dev`):
 
 ```
-solutions.tiny-server=> (my-tiny-server)
+(ns user
+  (:require
+    [clojure.tools.namespace.repl :as tools-ns :refer [set-refresh-dirs]]
+    demo.server
+    [mount.core :as mount]))
+
+(set-refresh-dirs "src/dev" "src/main")
+
+(defn go [] (mount/start))
+
+(defn restart []
+  (mount/stop)
+  (tools-ns/refresh :after 'user/go))
+```
+
+In a REPL, you could start this one up and restart it with:
+
+```
+$ lein repl
+user=> (go)
+user=> (restart)
+...hot code reload/restart...
 ```
 
 === Configuration
 
-Since you'll still need to configure your web server, it might be useful to note that the configuration used
+Since you'll need to configure your web server, it might be useful to note that the configuration used
 by the easy server is a component you can inject into your own server. A number of add-on components for Fulcro
 assume a `:config` keyed component will be in your system, so if you choose to use such components you can
 create a config component via `fulcro.server/new-config`.
@@ -7338,6 +7387,8 @@ defaults for everything that the application wants to configure.
 making the server). It can also contain an empty map, but is meant to be machine-local
 overrides of the configuration in the defaults. This file is required. We chose to do this because
 it keeps people from starting the app in an unconfigured production environment.
+NOTE: If the path is relative it is looked for via CLASSPATH (resource). If it is absolute, the real filesystem
+is searched.
 
 ```
 (defn make-system []
@@ -7360,6 +7411,14 @@ in it will override what is in defaults. The merge is a deep merge.
 - Values can take the form `:env/VAR`, which will use the *string* value of that environment variable as the value
 - Values can take the form `:env.edn/VAR`, which will use `read-string` to interpret the environment variable as the value
 - Relative paths for the config file can be used, and will search the CLASSPATH resources. This allows you to package your config with you jar.
+
+If you choose not to use components (see https://github.com/tolitius/mount[mount]), then you can use `load-config` directly:
+
+```
+(defstate config :start (server/load-config {:config-path "config/dev.edn"}))
+```
+
+and `config` (after start) will simply contain the EDN of the defaults/config file merge.
 
 === Pre-installed components
 
@@ -7479,7 +7538,7 @@ will also need to have manual configuration of networking to ensure that it trie
 API calls.
 
 ```
-(def client (fc/new-fulcro-client :networking {:remote (fulcro.client.network/make-fulcro-network :url "/app1/api" ...)}))
+(def client (fc/new-fulcro-client :networking {:remote (fulcro.client.network/fulcro-http-remote {:url "/app1/api"})}))
 ```
 
 === Adding Non-API Routes
@@ -8820,7 +8879,6 @@ the fact that you usually need roughly the same pattern for each form:
 * A way to indicate validation for fields
 * A way to calculate and submit the changes the user has made (ideally as a minimal diff)
 * A way to relate joined entities as sub forms of a form.
-* A way to do file uploads, possibly with progress updates.
 
 All of these things can be written with the primitives that you already have
 at your disposal, but the `fulcro.ui.forms` namespace gives you something to start out with
@@ -10204,7 +10262,7 @@ low-level networking. A remote can now manipulate everything from the request he
 A remote with these new features requires very little code:
 
 ```
-(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {})})
+(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {:url "/api"})})
 ```
 
 This will give you support for the abort and progress features.
@@ -10309,6 +10367,18 @@ normal browser download mechanisms (external to Fulcro).
 File uploads also require that you augment the new client network middleware, since there is no
 reliable way to encode an image of arbitrary size into a transaction.
 
+== Optional Non-Sequential Operation
+
+When you create a networking component you can optionally implement the `NetworkBehavior` protocol
+which has a single method `(serialize-requests? [this])`.
+The default (without this protocol) is to serialize them, but if you implement this
+protocol and return false from the method then Fulcro's plumbing will not manage request queuing at all and will just
+call `send` any time there is anything in the queue.
+
+The predefined networking support already implements this protocol, so you can simply pass an option to enable parallel
+operation:
+
+
 == Request Middleware
 
 The request will, by default, be sent through pre-written middleware `fulcro.client.network/wrap-fulcro-request`. This
@@ -10342,13 +10412,15 @@ add any keys it wishes. The final result of the middleware stack will be used as
 
 === File Uploads
 
-Fulcro will soon include pre-written middleware to accomplish file upload encoding for you.
+Fulcro may soon include pre-written software to accomplish file uploads for you. In the meantime you
+can just copy code from http://github.com/awkay/file-upload-demo[the file upload demo project]
+as a basis for your own projects.
 
-The basic scheme is as follows:
+The basic scheme is as follows (and is well-documented in that project):
 
 * Attach a `js/File` object to a mutation's parameters (typically as metadata to avoid various tool overhead)
    * Include a tempid in the parameters
-* The mutation should using an altered network object that has custom middleware
+* The mutation should using an network object that has custom middleware for file upload/error handling
    * The local side of the mutation puts the file information into app state with a tempid
 * The remote's middleware encodes the headers/body into a proper multipart form upload, and
 includes the tempid
@@ -10361,58 +10433,14 @@ includes the tempid
 When complete, the UI has an ID for the uploaded file, and can interact with the server via that ID
 (e.g. for generating file serving URLs for images, send delete mutations, etc.).
 
-Something like this is close:
-
-```
-; params will automatically include progress data
-(defmutation upload-progress [{:keys [id] :as params}]
-  (action [{:keys [state]}]
-    (swap! assoc-in [:file/by-id id] (net/progress% params))))
-
-(defmutation upload-file [{:keys [id file]}]
-  (action [{:keys [state]}]
-     (swap! state assoc-in [:file/by-id id] {:db/id id ...}))
-  (file-upload [{:keys ast}]
-    (m/with-progressive-updates ast `(upload-progress {:id ~id})))
-
-(defn wrap-file-upload []
-  (fn [req]
-    (let [mutation (some-> req :body prim/query->ast1)
-          params   (:params mutation)
-          id       (:id params)
-          js-file  (some-> params :file meta :js-file)
-          form (js/FormData.)]
-      (.append form "file" js-file)
-      (.append form "id" (util/transit-clj->str id))
-      (asoc req :body form :headers {} :method :post))))
-
-(def file-upload-middleware (wrap-file-upload))
-
-; client creation
-(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {})
-                                   :file-upload (net/fulcro-http-remote {:url "/file-uploads"
-                                                                         :request-middleware file-upload-middleware})})
-
-; an input triggering upload(s)
-(let [onChange (fn [evt]
-                 (let [js-file-list (.. evt -target -files)]
-                   (prim/transact! this
-                     (mapv (fn [file-idx]
-                             (let [fid     (prim/tempid)
-                                   js-file (with-meta {} {:js-file (.item js-file-list file-idx)})]
-                               `(upload-file ~{:id fid :file js-file})))
-                       (range (.-length js-file-list))))))]
-  (dom/input {:multiple true :onChange onChange}))
-```
-
-The server for this would need middleware watching for file uploads at `/file-uploads`, that
-returns a transit+json encoded map for the mutation:
+The server for this would need middleware watching for file uploads at `/file-uploads` that
+returns a transit+json encoded map for the mutation (the mutation name is irrelevant in the response):
 
 ```
 {`upload-file {:tempids {file-temp-id newly-assigned-id}}}
 ```
 
-== Response Middleware
+== Client Response Middleware
 
 The response will, by default, be sent through the pre-written middleware function `fulcro.client.network/wrap-fulcro-response`
 which contains the logic to properly decode an API response (which is essentially just a transit decode). If you specify
@@ -10431,102 +10459,54 @@ Raw responses from the remote will include:
 The final response body and transaction combo will be given to Fulcro for merge. If you modify
 the transaction be sure to use a query from components so that normalization is done properly.
 
-Response middleware is allowed to rewrite an errant response to an OK one (by clearing the error fields and
+IMPORTANT: Response middleware is allowed to rewrite an errant response to an OK one (by clearing the error fields and
 setting :status-code to 200). This would allow you, for example, to merge
 specific errors into state as you see fit instead of relying on Fulcro's built-in error handling model.
 
-= The Client Network Layer (DEPRECATED)
-
-== Adding Additional Remotes
-
-When you create a client you can pass the `:networking` option. This is a map whose keys are remote "names" and whose values are objects that
-implement the `FulcroNetworking` protocol. Each remote that you add will be usable
-through the `:remote` parameter of loads, and that remote's name in mutations:
-
-```
-(def app (new-fulcro-client :networking {:custom-remote (map->MyNetworking {})}))
-
-...
-
-(load this :thing Things {:remote :custom-remote})
-
-...
-
-(defmutation something [params]
-  (custom-remote [env] true))
-```
-
-Loads must be queued to a single remote at a time, but mutations can technically list as many as you'd like (though there
-is no built-in coordination of them).
-
-=== Optional Sequential Operation
-
-When you create a networking component you can optionally implement the `NetworkBehavior` protocol
-which has a single method `(serialize-requests? [this])`.
-The default (without this protocol) is to serialize them, but if you implement this
-protocol and return false from the method then Fulcro's plumbing will not manage request queuing at all and will just
-call `send` any time there is anything in the queue.
-
-=== Implementing Send
-
-The send method of the `FulcroNetwork` protocol is given `[this edn done-callback error-callback]`. `this` is just
-the instance of your network implementation. The `edn` is the raw Fulcro query/mutation that was issued. The two callback
-functions are what you call when the request is complete. You must call one (and only one) of them exactly once
-with the response (or error).
-
-The error callback, if called, will trigger and fallbacks, will update the (optional) load markers for the
-request with an error state.
-
-The done callback, if called, expects to be given a response that matches the shape of the request. This is always
-a map that contains the top-level keys that were in the query/mutation. Mutations are keyed by the symbol of the mutation.
-
-So, a query like this `[:a]` should call done with a map like `{:a 1}`. A mutation like `[(f)]` should call
-the done callback with something like `{'f 42}`. The only automatically-handled return value from mutations
-are tempid remappings.
-
 === Merging State
 
-Fulcro remembers the query that was used when calling `send`. Therefore it can auto-normalize the server's tree-like
-response to a graph query. It is perfectly legal to alter this by passing a UI query to the `done-callback` as
-an additional argument. Doing so will cause the back-end to use the *specified query* for normalization instead of
-the original (remembered) outgoing query.
+As mentioned above: the final response body and transaction combo will be given to Fulcro for merge. The basic pipeline
+is like this:
 
-=== Network Progress Updates
+* You run a transact that goes remote. E.g. `(transact! this '[(f {:x 1})])`. `transaction` is `[(f {:x 1})]`
+* The response is received from the server. This *can* be anything you want to return, but typically for mutations is just `:tempids`.
+  For example `{'f {:tempids {1 2}}}`. This is the `body`.
+* Merge is a two-part affair:
+   . Any mutation keys in the response are pulled off and run through migrate to get tempid migrations.
+   . The remainder of the k/v pairs in the map are then run through normal merge (which requires a query, assumed to be in `transaction`).
 
-The networking layer of Fulcro will, by default, place load markers at the target location for any data that is
-scheduled to be loaded or is currently loading. It also updates a global loading marker. This gives you ample
-opportunities to give the user feedback about network activity.
+So, this gives you a *ton* of power in your response middleware to customize everything from error handling to doing post-operations
+on mutations.
 
-However, many applications have custom desires beyond showing a busy indicator in place of the data being loaded.
+Let's say you want to write response middleware that does the following: If there is an error, skip Fulcro's error
+pipeline and instead put the information in `:my-error` key at root (which perhaps you have set up to pop a modal in your
+UI code).
 
-For example, one might like to show the progress of a file upload. Fulcro includes an additional protocol
-to enable progress updates:
-
-```
-(defprotocol ProgressiveTransfer
-  (updating-send [this edn done-callback error-callback update-callback] "Send EDN. The update-callback will merge the state
-  given to it. The done-callback will merge the state given to it, and indicates completion. See
-  `fulcro.client.ui.file-upload/FileUploadNetwork` for an example."))
-```
-
-If you implement this protocol (in addition to `FulcroNetwork`), then you will be given a callback that can be called
-at any time to merge data into the app state:
+So, your desired merge transaction is `[:my-error]` (rewriting the transaction "as if" you had "asked" for the error),
+and the body is `{:my-error {...data for error...}}`!  The entire middleware component is:
 
 ```
-(update-callback data query)
+(defn wrap-errors [handler]
+  (fn [resp]
+    (let [{:keys [error status-code]} resp]
+      (handler
+        (if (not= 200 status-code) ; when there are errors, rewrite them "as-if" we had asked for it
+          (-> resp
+            (assoc :body {:my-error {:error error}} :transaction [:my-error] :status-code 200)
+            (dissoc :error))
+          resp)))))
 ```
 
-for example, say you're doing progress updates on a file upload represented in your app state by a `File` component:
+installed with:
 
 ```
-; on network update event for file 1:
-(let [ident (prim/get-ident File {:id 1})
-      file  ...] ; file would be a map containing the data for a File
-  (update-callback {ident file} {ident (prim/get-query File)}))
-```
+;; Resulting middleware (evaluates right to left because of nested composition)
+(def middleware (-> (net/wrap-fulcro-response) (wrap-errors)))
 
-The `fulcro.ui.fule-upload` namespace contains networking and UI for exactly this scenario. You could also use this
-sort of networking component to deal with things like incoming streaming data.
+...
+
+(def client (fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {:url "/api" :response-middleware middleware})})
+```
 
 === Interfacing with REST Servers
 
