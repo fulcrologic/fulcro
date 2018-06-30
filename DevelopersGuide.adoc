@@ -351,6 +351,13 @@ Fulcro 2.5+:
 (dom/div {:className "a" :data-prop 3} "Hi") ; or it can all be done in props
 ```
 
+Fulcro 2.5.12+ also includes a `:classes` property that can be used to add (typically via expressions) additional
+classes. It drops nil, and allows classname keywords and strings as well:
+
+```
+(dom/div :.a {:className "other" :classes [(when hidden "hidden") (if tall :.tall :.short)]} ...)
+```
+
 The 2.5 versions are macros that obtain the same runtime speed as the older versions in the most cases. Note that supplying
 props as nil (instead of omitting them) will result in a very slight performance improvement if the element has children.
 

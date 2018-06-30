@@ -4,7 +4,7 @@
     [fulcro.util :as util]
     [fulcro.client.dom-common :as cdom]
     #?(:cljs [fulcro.client.dom :as dom :refer [div p span]]
-       :clj [fulcro.client.dom-server :as dom]))
+       :clj  [fulcro.client.dom-server :as dom]))
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
@@ -118,8 +118,8 @@
        "Plain JS maps are passed through as props"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [(JSValue. {:data-x 1}) "Hello"]))
        => `(fulcro.client.dom/macro-create-element* {:jsvalue ["div"
-                                                 {:jsvalue {:data-x 1}}
-                                                 "Hello"]})
+                                                               {:jsvalue {:data-x 1}}
+                                                               "Hello"]})
        "kw + symbol emits runtime conversion"
        (jsvalue->map (#'fulcro.client.dom/emit-tag "div" [:.a 'props "Hello"]))
        => `(fulcro.client.dom/macro-create-element "div" [~'props "Hello"] :.a)
@@ -329,3 +329,18 @@
                                               t => "div")
 
        (apply div {} ["Hello"]))))
+
+(specification "Interpretaion of :classes" :focused
+  (assertions
+    "Converts keywords to strings"
+    (cdom/classes->str [:.a :.b]) => "a b"
+    "Allows strings"
+    (cdom/classes->str [:.a "b"]) => "a b"
+    "Allows expressions that short-circuit entries"
+    (cdom/classes->str [:.a (when true "b")]) => "a b"
+    (cdom/classes->str [:.a (when false "b")]) => "a"
+    "Allows complex keywords"
+    (cdom/classes->str [:.a.b]) => "a b"
+    "Combines existing className in props with :classes (removing :classes)"
+    (cdom/interpret-classes {:className "x y" :classes [:.a (when false "b") "c"]}) => {:className "x y a c"}))
+

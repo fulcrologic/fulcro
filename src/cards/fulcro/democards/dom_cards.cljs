@@ -94,6 +94,10 @@
         (div :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
         (div :.border-klass {:className "color-klass"}
           "Has a shorthand CSS for border class and pink color class in attrs")
+        (div :.border-klass {:classes [:.color-klass]}
+          "Has a shorthand CSS for border class and pink color class in classes attrs")
+        (div {:classes [:.border-klass :.color-klass]}
+          "Has no shorthand but border class and pink color class in classes attrs")
         (div :.border-klass {:style {:backgroundColor "violet"}}
           "Has a shorthand CSS for border class and violet background inline styles")
         (div :.border-klass x
@@ -107,6 +111,10 @@
         (fdiv :#the-id.border-klass "Has a shorthand CSS for border class and coral background id")
         (fdiv :.border-klass {:className "color-klass"}
           "Has a shorthand CSS for border class and pink color class in attrs")
+        (fdiv :.border-klass {:classes [:.color-klass]}
+          "Has a shorthand CSS for border class and pink color class in classes attrs")
+        (fdiv {:classes [:.border-klass :.color-klass]}
+          "Has no shorthand but border class and pink color class in classes attrs")
         (fdiv :.border-klass {:style {:backgroundColor "violet"}}
           "Has a shorthand CSS for border class and violet background inline styles")
         (fdiv :.border-klass x

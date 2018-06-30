@@ -26,7 +26,7 @@
           classes      (->> tokens (filter #(re-matches #"^\..*" %)))
           sanitized-id (remove-separators id)]
       (when-not (re-matches #"^(\.[^.#]+|#[^.#]+)+$" (name k))
-        (throw (ex-info "Invalid style keyword. It contains something other than classnames and IDs." {})))
+        (throw (ex-info "Invalid style keyword. It contains something other than classnames and IDs." {:item k})))
       (cond-> {:classes (into []
                           (keep remove-separators classes))}
         sanitized-id (assoc :id sanitized-id)))
@@ -83,3 +83,28 @@
        "There is also a shorthand for CSS id and class names\n"
        "(" tag " :#the-id.klass.other-klass \"hello\")\n"
        "(" tag " :#the-id.klass.other-klass {:onClick f} \"hello\")"))
+
+(defn classes->str
+  [classes]
+  (str/join " "
+    (into []
+      (comp
+        (mapcat (fn [entry]
+                  (cond
+                    (keyword? entry) (:classes (parse entry))
+                    (string? entry) [entry])))
+        (filter string?))
+      classes)))
+
+(defn interpret-classes
+  "Interprets the :classes prop, reducing any non-nil elements into :className. returns the new props with updated
+  :className and no :classes"
+  [props]
+  (if (and (map? props) (contains? props :classes))
+    (let [new-class-strings (classes->str (:classes props))
+          strcls            (or (:className props) "")
+          final-classes     (str strcls " " new-class-strings)]
+      (-> props
+        (assoc :className final-classes)
+        (dissoc :classes)))
+    props))
