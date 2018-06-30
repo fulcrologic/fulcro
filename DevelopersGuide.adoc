@@ -358,6 +358,10 @@ classes. It drops nil, and allows classname keywords and strings as well:
 (dom/div :.a {:className "other" :classes [(when hidden "hidden") (if tall :.tall :.short)]} ...)
 ```
 
+Assuming `hidden` and `(not tall)` would yield classes "a other hidden short" on output. Of course you probably don't need
+all of these at once, but supporting them all lets you programmatically combine them when generating props. NOTE: This feature
+does not work on props sent with the legacy `#js` notation.
+
 The 2.5 versions are macros that obtain the same runtime speed as the older versions in the most cases. Note that supplying
 props as nil (instead of omitting them) will result in a very slight performance improvement if the element has children.
 
