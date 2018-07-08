@@ -2,40 +2,29 @@
   (:require [devcards.core :as dc]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro make-root]]
-            [fulcro.client.primitives :as prim :refer [defsc]]
+            [fulcro.client.primitives :as prim :refer [defsc defui]]
+            [goog.object :as gobj]
             [fulcro.client.mutations :as m]))
 
-(defsc D [this {:keys [n]}]
-  {:ident         (fn [] [:X 1])
-   :initial-state {:n 1}
-   :query         [:n]}
-  (dom/div nil
-    (when (> n 10)
-      (throw (ex-info "BOOM!" {})))
-    (dom/button {:onClick #(m/set-integer! this :n :value (inc n))} (str n))))
+(defui LegacyThing
+  static prim/IQuery
+  (query [this] [:v])
+  static prim/Ident
+  (ident [this props] [:thing/by-id 1])
+  static prim/InitialAppState
+  (initial-state [this params] {:v 1})
+  Object
+  (initLocalState [this]
+    ;; You can modify `this`:
+    (gobj/set this "handleClick" (fn [] (m/set-integer! this :v :value (inc (:v (prim/props this))))))
+    {})
+  (render [this]
+    (let [{:keys [v]} (prim/props this)]
+      (dom/div
+        (dom/button {:onClick #(prim/set-state! this {:a 1})} "Hi")
+        (dom/button {:onClick (.-handleClick this)} (str "Go " v))))))
 
-(def ui-d (prim/factory D))
-
-(defsc C [this props]
-  {:initLocalState    {:ui-error false}
-   :query             [{:ui/d (prim/get-query D)}]
-   :initial-state     {:ui/d {}}
-   :componentDidCatch (fn [error info]
-                        (js/console.log :CATCH!!! error info)
-                        (prim/set-state! this {:ui-error true}))}
-  (let [error? (prim/get-state this :ui-error)]
-    (dom/div
-      (if error?
-        (dom/div "Things went sideways")
-        (ui-d props)))))
-
-(defcard-fulcro test-card
-  "
-  ## React 16 Error Boundary Support
-
-  NOTE: This card won't run with error boundaries unless compiled with React 16, even though defsc will accept the
-  method signature.
-
-  Under React 16, hitting the button past 10 will result in an alternate rendering because of the busted subcomponent.
-  "
-  C)
+(defcard-fulcro card
+  (make-root LegacyThing {})
+  {}
+  {:inspect-data true})

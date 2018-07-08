@@ -183,7 +183,7 @@
             (recur nil dt' statics)))
         {:dt dt' :statics statics}))))
 
-(defn- validate-statics [dt]
+(defn validate-statics [dt]
   (when-let [invalid (some #{"Ident" "IQuery"}
                        (map #(-> % str (str/split #"/") last)
                          (filter symbol? dt)))]
@@ -193,7 +193,7 @@
          :cljs (js/Error.
                  (str invalid " protocol declaration must appear with `static`."))))))
 
-(def lifecycle-sigs
+(def lifecycle-sigs-v15
   '{initLocalState            [this]
     shouldComponentUpdate     [this next-props next-state]
     componentWillReceiveProps [this next-props]
@@ -204,22 +204,15 @@
     componentWillUnmount      [this]
     render                    [this]
     ;; react 16+
-    componentDidCatch         [this error info]
+    componentDidCatch         [this error info]})
 
-    ;; TODO:
-    #_#_UNSAFE_componentWillMount [this]
-    #_#_UNSAFE_componentWillReceiveProps [this next-props]
-    #_#_UNSAFE_componentWillUpdate [this next-props next-state]
-    #_#_getDerivedStateFromProps [this nextProps prevState]
-    #_#_getSnapshotBeforeUpdate [this prevProps prevState]})
-
-(defn validate-sig [[name sig :as method]]
+(defn- validate-sig [lifecycle-sigs [name sig :as method]]
   (let [sig' (get lifecycle-sigs name)]
     (assert (= (count sig') (count sig))
       (str "Invalid signature for " name " got " sig ", need " sig'))))
 
 #?(:clj
-   (def reshape-map-clj
+   (def reshape-map-clj-v15
      {:reshape
       {'render
        (fn [[name [this :as args] & body]]
@@ -259,7 +252,7 @@
         ~'render
         ([this#])}}))
 
-(def reshape-map
+(def reshape-map-v15
   {:reshape
    {'initLocalState
     (fn [[name [this :as args] & body]]
@@ -416,28 +409,29 @@
          (when-not (nil? indexer#)
            (fulcro.client.impl.protocols/drop-component! indexer# this#))))}})
 
-(defn reshape [dt {:keys [reshape defaults]}]
-  (letfn [(reshape* [x]
-            (if (and (sequential? x)
-                  (contains? reshape (first x)))
-              (let [reshapef (get reshape (first x))]
-                (validate-sig x)
-                (reshapef x))
-              x))
-          (add-defaults-step [ret [name impl]]
-            (if-not (some #{name} (map first (filter seq? ret)))
-              (let [[before [p & after]] (split-with (complement '#{Object}) ret)]
-                (into (conj (vec before) p (cons name impl)) after))
-              ret))
-          (add-defaults [dt]
-            (reduce add-defaults-step dt defaults))
-          (add-object-protocol [dt]
-            (if-not (some '#{Object} dt)
-              (conj dt 'Object)
-              dt))]
-    (->> dt (map reshape*) vec add-object-protocol add-defaults)))
+(defn reshape [dt {:keys [reshape-map lifecycle-signatures]}]
+  (let [{:keys [reshape defaults]} reshape-map]
+    (letfn [(reshape* [x]
+              (if (and (sequential? x)
+                    (contains? reshape (first x)))
+                (let [reshapef (get reshape (first x))]
+                  (validate-sig lifecycle-signatures x)
+                  (reshapef x))
+                x))
+            (add-defaults-step [ret [name impl]]
+              (if-not (some #{name} (map first (filter seq? ret)))
+                (let [[before [p & after]] (split-with (complement '#{Object}) ret)]
+                  (into (conj (vec before) p (cons name impl)) after))
+                ret))
+            (add-defaults [dt]
+              (reduce add-defaults-step dt defaults))
+            (add-object-protocol [dt]
+              (if-not (some '#{Object} dt)
+                (conj dt 'Object)
+                dt))]
+      (->> dt (map reshape*) vec add-object-protocol add-defaults))))
 
-#?(:clj (defn- extract-static-methods [protocols]
+#?(:clj (defn extract-static-methods [protocols]
           (letfn [(add-protocol-method [existing-methods method]
                     (let [nm              (first method)
                           new-arity       (rest method)
@@ -461,7 +455,7 @@
                   (assoc result :params '(fn [this]))))))))
 
 #?(:clj
-   (defn defui*-clj [name forms]
+   (defn- defui*-clj [{:keys [lifecycle-signatures reshape-map] :as react-config} name forms]
      (let [docstring              (when (string? (first forms))
                                     (first forms))
            forms                  (cond-> forms
@@ -469,7 +463,7 @@
            {:keys [dt statics]} (collect-statics forms)
            [other-protocols obj-dt] (split-with (complement '#{Object}) dt)
            klass-name             (symbol (str name "_klass"))
-           lifecycle-method-names (set (keys lifecycle-sigs))
+           lifecycle-method-names (set (keys lifecycle-signatures))
            {obj-dt false non-lifecycle-dt true} (group-by
                                                   (fn [x]
                                                     (and (sequential? x)
@@ -484,7 +478,7 @@
           (defrecord ~klass-name [~'state ~'refs ~'props ~'children]
             ;; TODO: non-lifecycle methods defined in the JS prototype - António
             fulcro.client.impl.protocols/IReactLifecycle
-            ~@(rest (reshape obj-dt reshape-map-clj))
+            ~@(rest (reshape obj-dt react-config))
 
             ~@other-protocols
 
@@ -513,9 +507,9 @@
                         :component-name ~(str name)}
                   ~class-methods))))))))
 
-(defn defui*
-  ([name form] (defui* name form nil))
-  ([name forms env]
+(defn- defui*
+  ([react-config name form] (defui* react-config name form nil))
+  ([react-config name forms env]
    (letfn [(field-set! [obj [field value]]
              `(set! (. ^js ~obj ~(symbol (str "-" field))) ~value))]
      (let [docstring        (when (string? (first forms))
@@ -553,7 +547,7 @@
                               'js/undefined)]
        `(do
           ~ctor
-          (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
+          (specify! (.-prototype ~name) ~@(reshape dt react-config))
           (set! (.. ~name -prototype -constructor) ~name)
           (set! (.. ~name -prototype -constructor -displayName) ~display-name)
           (set! (.-fulcro$isComponent ^js (.-prototype ^js ~name)) true)
@@ -568,15 +562,40 @@
             (fn [this# writer# opt#]
               (cljs.core/-write writer# ~(str fqn)))))))))
 
+(def react-configs
+  {:v15 {:lifecycle-signatures lifecycle-sigs-v15 :reshape-map reshape-map-v15}})
+
+#?(:clj
+   (def react-configs-ssr
+     {:v15 {:lifecycle-signatures lifecycle-sigs-v15 :reshape-map reshape-map-clj-v15}}))
+
+(defn- get-react-version
+  "Get a valid react version using the :react-version hint on the symbols metadata."
+  [sym]
+  (let [declared-version (or (-> name meta :react-version) :v15)
+        version          (if (contains? react-configs declared-version)
+                           declared-version
+                           :v15)]
+    version))
+
 (defmacro defui [name & forms]
-  (if (boolean (:ns &env))
-    (defui* name forms &env)
-    #?(:clj (defui*-clj name forms))))
+  (let [version (get-react-version name)]
+    (if (boolean (:ns &env))
+      (let [react-config (get react-configs version)]
+        (defui* react-config name forms &env))
+      #?(:clj
+         (let [react-config (get react-configs-ssr version)]
+           (defui*-clj react-config name forms))))))
 
 (defmacro ui
+  "Declare an anonymous UI component.  If the first argument is a keyword, then it is treated
+  as the React version (defaults to :v15)."
   [& forms]
-  (let [t (with-meta (gensym "ui_") {:anonymous true})]
-    `(do (defui ~t ~@forms) ~t)))
+  (if (keyword? (first forms))
+    (let [t (with-meta (gensym "ui_") {:anonymous true :react-version (first forms)})]
+      `(do (defui ~t ~@(rest forms)) ~t))
+    (let [t (with-meta (gensym "ui_") {:anonymous true :react-version :v15})]
+      `(do (defui ~t ~@forms) ~t))))
 
 ;; =============================================================================
 ;; Globals & Dynamics
@@ -2942,11 +2961,11 @@
               ~@body))))))
 
 #?(:clj
-   (defn- make-lifecycle [thissym options]
+   (defn- make-lifecycle [{:keys [lifecycle-signatures]} thissym options]
      (let [possible-methods  (-> options keys set)
-           lifecycle-kws     (->> lifecycle-sigs keys (map (comp keyword name)) set)
+           lifecycle-kws     (->> lifecycle-signatures keys (map (comp keyword name)) set)
            methods-to-define (set/intersection lifecycle-kws possible-methods)
-           get-signature     (fn [sym] (drop 1 (get lifecycle-sigs sym)))]
+           get-signature     (fn [sym] (drop 1 (get lifecycle-sigs-v15 sym)))]
        (mapv (fn [method-kw]
                (let [sym       (symbol (name method-kw))
                      lambda    (get options method-kw)
@@ -3154,7 +3173,8 @@
                                               (complement #{}))
            parsed-protocols                 (when protocols (group-by :protocol (s/conform :fulcro.client.primitives.defsc/protocols protocols)))
            object-methods                   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
-           lifecycle-methods                (make-lifecycle thissym options)
+           react-config                     (get react-configs (get-react-version sym))
+           lifecycle-methods                (make-lifecycle react-config thissym options)
            addl-protocols                   (some->> (dissoc parsed-protocols 'Object)
                                               vals
                                               (map (fn [[v]]
@@ -3250,10 +3270,15 @@
   ```
   (let [C (prim/sc [this props] ...)] ...)
   ```
+
+  If the first argument is a keyword it will be used as the react version. Defaults to :v15.
   "
   [& args]
-  (let [t (with-meta (gensym "sc_") {:anonymous true})]
-    `(do (defsc ~t ~@args) ~t)))
+  (if (keyword? (first args))
+    (let [t (with-meta (gensym "sc_") {:anonymous true :react-version (first args)})]
+      `(do (defsc ~t ~@(rest args)) ~t))
+    (let [t (with-meta (gensym "sc_") {:anonymous true :react-version :v15})]
+      `(do (defsc ~t ~@args) ~t))))
 
 (defn integrate-ident
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
