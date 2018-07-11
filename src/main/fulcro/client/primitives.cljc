@@ -40,13 +40,6 @@
 (defprotocol IQuery
   (query [this] "Return the component's unbound static query"))
 
-;; DEPRECATED: Unless someone can give me a compelling case to keep this, I'm dropping it:
-(defprotocol ILocalState
-  (-set-state! [this new-state] "Set the component's local state")
-  (-get-state [this] "Get the component's local state")
-  (-get-rendered-state [this] "Get the component's rendered local state")
-  (-merge-pending-state! [this] "Get the component's pending local state"))
-
 (defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
 
@@ -263,19 +256,24 @@
     (fn [[name [this next-props :as args] & body]]
       `(~name [this# next-props#]
          (let [~this this#
-               ~next-props (fulcro.client.primitives/-next-props next-props# this#)]
+               ~next-props (goog.object/get next-props# "fulcro$value")]
            ~@body)))
     'componentWillUpdate
     (fn [[name [this next-props next-state :as args] & body]]
       `(~name [this# next-props# next-state#]
          (let [~this this#
-               ~next-props (fulcro.client.primitives/-next-props next-props# this#)
-               ~next-state (or (goog.object/get next-state# "fulcro$pendingState")
-                             (goog.object/get next-state# "fulcro$state"))
-               ret# (do ~@body)]
+               ~next-props (goog.object/get next-props# "fulcro$value")
+               ~next-state (goog.object/get next-state# "fulcro$state")]
+           ~@body)))
+    'componentDidUpdate
+    (fn [[name [this prev-props prev-state :as args] & body]]
+      `(~name [this# prev-props# prev-state#]
+         (let [~this this#
+               ~prev-props (goog.object/get prev-props# "fulcro$value")
+               ~prev-state (goog.object/get prev-state# "fulcro$state")]
            (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
-             (let [ident#      (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))
-                   next-ident# (fulcro.client.primitives/ident this# ~next-props)]
+             (let [ident#      (fulcro.client.primitives/ident this# ~prev-props)
+                   next-ident# (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))]
                (when (not= ident# next-ident#)
                  (let [idxr# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
                    (when-not (nil? idxr#)
@@ -284,34 +282,18 @@
                          (-> indexes#
                            (update-in [:ref->components ident#] disj this#)
                            (update-in [:ref->components next-ident#] (fnil conj #{}) this#)))))))))
-           (fulcro.client.primitives/merge-pending-props! this#)
-           (fulcro.client.primitives/merge-pending-state! this#)
-           ret#)))
-    'componentDidUpdate
-    (fn [[name [this prev-props prev-state :as args] & body]]
-      `(~name [this# prev-props# prev-state#]
-         (let [~this this#
-               ~prev-props (fulcro.client.primitives/-prev-props prev-props# this#)
-               ~prev-state (goog.object/get prev-state# "fulcro$previousState")]
-           ~@body
-           (fulcro.client.primitives/clear-prev-props! this#))))
-    'componentWillMount
-    (fn [[name [this :as args] & body]]
-      `(~name [this#]
-         (let [~this this#
-               reconciler# (fulcro.client.primitives/get-reconciler this#)
-               indexer# (get-in reconciler# [:config :indexer])]
-           (when-not (nil? indexer#)
-             (fulcro.client.impl.protocols/index-component! indexer# this#))
            ~@body)))
     'componentDidMount
     (fn [[name [this :as args] & body]]
       `(~name [this#]
          (let [~this this#
                reconciler# (fulcro.client.primitives/get-reconciler this#)
-               lifecycle# (get-in reconciler# [:config :lifecycle])]
+               lifecycle# (get-in reconciler# [:config :lifecycle])
+               indexer# (get-in reconciler# [:config :indexer])]
            (goog.object/set this# "fulcro$mounted" true)
-           (when-not (nil? lifecycle#)
+           (when-not (nil? indexer#)
+             (fulcro.client.impl.protocols/index-component! indexer# this#))
+           (when lifecycle#
              (lifecycle# this# :mount))
            ~@body)))
     'componentWillUnmount
@@ -327,9 +309,9 @@
            (when (and (not (nil? st#))
                    (get-in @st# [:fulcro.client.primitives/queries this#]))
              (swap! st# update-in [:fulcro.client.primitives/queries] dissoc this#))
-           (when-not (nil? lifecycle#)
+           (when lifecycle#
              (lifecycle# this# :unmount))
-           (when-not (nil? indexer#)
+           (when indexer#
              (fulcro.client.impl.protocols/drop-component! indexer# this#))
            ~@body)))
     'shouldComponentUpdate
@@ -338,7 +320,7 @@
          (let [~this this#
                ~next-props (goog.object/get next-props# "fulcro$value")
                ~next-state (goog.object/get next-state# "fulcro$state")]
-           (do ~@body))))
+           ~@body)))
     'render
     (fn [[name [this :as args] & body]]
       `(~name [this#]
@@ -351,58 +333,52 @@
              ~@body))))}
    :defaults
    `{~'shouldComponentUpdate
+     ;; Detect if props/state or children changed
      ([this# next-props# next-state#]
        (if fulcro.client.primitives/*blindly-render*
          true
          (let [next-children#     (. next-props# -children)
                next-props#        (goog.object/get next-props# "fulcro$value")
-               next-props#        (cond-> next-props#
-                                    (instance? FulcroProps next-props#) unwrap)
                current-props#     (fulcro.client.primitives/props this#)
-               ; a parent could send in stale props due to a component-local state change..make sure we don't use them. (Props have a timestamp on metadata)
-               next-props-stale?# (> (get-basis-time current-props#) (get-basis-time next-props#))
-               props-changed?#    (and
-                                    (not next-props-stale?#)
-                                    (not= current-props# next-props#))
+               props-changed?#    (not= current-props# next-props#)
                next-state#        (goog.object/get next-state# "fulcro$state")
                state-changed?#    (and (.. this# ~'-state)
                                     (not= (goog.object/get (. this# ~'-state) "fulcro$state")
                                       next-state#))
-               children-changed?# (not= (.. this# -props -children)
-                                    next-children#)]
+               children-changed?# (not= (.. this# -props -children) next-children#)]
            (or props-changed?# state-changed?# children-changed?#))))
-     ~'componentWillUpdate
-     ([this# next-props# next-state#]
-       (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
-         (let [ident#      (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))
-               next-ident# (fulcro.client.primitives/ident this# (fulcro.client.primitives/-next-props next-props# this#))]
-           (when (not= ident# next-ident#)
-             (let [idxr# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
-               (when-not (nil? idxr#)
-                 (swap! (:indexes idxr#)
-                   (fn [indexes#]
-                     (-> indexes#
-                       (update-in [:ref->components ident#] disj this#)
-                       (update-in [:ref->components next-ident#] (fnil conj #{}) this#)))))))))
-       (fulcro.client.primitives/merge-pending-props! this#)
-       (fulcro.client.primitives/merge-pending-state! this#))
+
      ~'componentDidUpdate
+     ;; Update index of component when its ident changes
      ([this# prev-props# prev-state#]
-       (fulcro.client.primitives/clear-prev-props! this#))
-     ~'componentWillMount
+       (let [prev-props# (goog.object/get prev-props# "fulcro$value")]
+         (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
+           (let [ident#      (fulcro.client.primitives/ident this# prev-props#)
+                 next-ident# (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))]
+             (when (not= ident# next-ident#)
+               (let [idxr# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
+                 (when-not (nil? idxr#)
+                   (swap! (:indexes idxr#)
+                     (fn [indexes#]
+                       (-> indexes#
+                         (update-in [:ref->components ident#] disj this#)
+                         (update-in [:ref->components next-ident#] (fnil conj #{}) this#)))))))))))
+     ~'componentDidMount
+     ;; Add the component to the indexer when it mounts
      ([this#]
+       (goog.object/set this# "fulcro$mounted" true)
        (let [indexer# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
          (when-not (nil? indexer#)
            (fulcro.client.impl.protocols/index-component! indexer# this#))))
-     ~'componentDidMount
-     ([this#] (goog.object/set this# "fulcro$mounted" true))
      ~'componentWillUnmount
+     ;; Remove the component from the indexer, and remove any dynamic queries for it
      ([this#]
        (let [r#       (fulcro.client.primitives/get-reconciler this#)
              cfg#     (:config r#)
              st#      (:state cfg#)
              indexer# (:indexer cfg#)]
          (goog.object/set this# "fulcro$mounted" false)
+         ;; FIXME: WRONG...queries are not keyed by instance anymore (small possible memory leak)
          (when (and (not (nil? st#))
                  (get-in @st# [:fulcro.client.primitives/queries this#]))
            (swap! st# update-in [:fulcro.client.primitives/queries] dissoc this#))
@@ -616,18 +592,7 @@
        (munge
          (str (str/replace (str ns-name) "." "$") "$" cl-name)))))
 
-#?(:clj
-   (defn- compute-react-key [cl props]
-     (when-let [idx (-> props meta :om-path)]
-       (str (munge-component-name cl) "_" idx))))
 
-#?(:cljs
-   (defn- compute-react-key [cl props]
-     (if-let [rk (:react-key props)]
-       rk
-       (if-let [idx (-> props meta :om-path)]
-         (str (. cl -name) "_" idx)
-         js/undefined))))
 
 
 (defn component?
@@ -664,51 +629,11 @@
   {:pre [(component? c)]}
   (.-state c))
 
-(defn- get-prop
-  "PRIVATE: Do not use"
+(defn- get-raw-react-prop
+  "PRIVATE: Do not use. GET a RAW react prop"
   [c k]
   #?(:clj  (get (:props c) k)
      :cljs (gobj/get (.-props c) k)))
-
-#?(:cljs (deftype ^:private FulcroProps [props basis-t]))
-
-#?(:cljs
-   (defn- om-props [props basis-t]
-     (FulcroProps. props basis-t)))
-
-#?(:cljs
-   (defn- om-props-basis [om-props]
-     (.-basis-t ^js om-props)))
-
-#?(:cljs (def ^:private nil-props (om-props nil -1)))
-
-#?(:cljs
-   (defn- get-props*
-     [x k]
-     (if (nil? x)
-       nil-props
-       (let [y (gobj/get x k)]
-         (if (nil? y)
-           nil-props
-           y)))))
-
-#?(:cljs
-   (defn- get-prev-props [x]
-     (get-props* x "fulcro$prev$value")))
-
-#?(:cljs
-   (defn- get-next-props [x]
-     (get-props* x "fulcro$next$value")))
-
-#?(:cljs
-   (defn- get-props [x]
-     (get-props* x "fulcro$value")))
-
-#?(:cljs
-   (defn- set-prop!
-     "PRIVATE: Do not use"
-     [c k v]
-     (gobj/set (.-props c) k v)))
 
 (defn reconciler?
   "Returns true if x is a reconciler."
@@ -731,91 +656,28 @@
 (defn get-reconciler
   [c]
   {:pre [(component? c)]}
-  (get-prop c #?(:clj  :fulcro$reconciler
-                 :cljs "fulcro$reconciler")))
-
-#?(:cljs
-   (defn- unwrap [om-props]
-     (.-props om-props)))
-
-#?(:cljs
-   (defn- props*
-     ([x y]
-      (max-key om-props-basis x y))
-     ([x y z]
-      (max-key om-props-basis x (props* y z)))))
-
-#?(:cljs
-   (defn- prev-props*
-     ([x y]
-      (min-key om-props-basis x y))
-     ([x y z]
-      (min-key om-props-basis
-        (props* x y) (props* y z)))))
-
-#?(:cljs
-   (defn -prev-props [prev-props component]
-     (let [cst   (.-state component)
-           props (.-props component)]
-       (unwrap
-         (prev-props*
-           (props* (get-props prev-props) (get-prev-props cst))
-           (props* (get-props cst) (get-props props)))))))
-
-#?(:cljs
-   (defn -next-props [next-props component]
-     (unwrap
-       (props*
-         (-> component .-props get-props)
-         (get-props next-props)
-         (-> component .-state get-next-props)))))
-
-#?(:cljs
-   (defn- merge-pending-props! [c]
-     {:pre [(component? c)]}
-     (let [cst     (. c -state)
-           props   (.-props c)
-           pending (gobj/get cst "fulcro$next$value")
-           prev    (props* (get-props cst) (get-props props))]
-       (gobj/set cst "fulcro$prev$value" prev)
-       (when-not (nil? pending)
-         (gobj/remove cst "fulcro$next$value")
-         (gobj/set cst "fulcro$value" pending)))))
-
-#?(:cljs
-   (defn- clear-prev-props! [c]
-     (gobj/remove (.-state c) "fulcro$prev$value")))
-
-#?(:cljs
-   (defn- t
-     "Get basis t value for when the component last read its props from
-      the global state."
-     [c]
-     (om-props-basis
-       (props*
-         (-> c .-props get-props)
-         (-> c .-state get-props)))))
+  (get-raw-react-prop c #?(:clj  :fulcro$reconciler
+                           :cljs "fulcro$reconciler")))
 
 (defn- parent
   "Returns the parent component."
   [component]
-  (get-prop component #?(:clj  :fulcro$parent
-                         :cljs "fulcro$parent")))
+  (get-raw-react-prop component #?(:clj  :fulcro$parent
+                                   :cljs "fulcro$parent")))
 
 (defn depth
   "PRIVATE: Returns the render depth (a integer) of the component relative to
    the mount root."
   [component]
   (when (component? component)
-    (get-prop component #?(:clj  :fulcro$depth
-                           :cljs "fulcro$depth"))))
+    (get-raw-react-prop component #?(:clj  :fulcro$depth
+                                     :cljs "fulcro$depth"))))
 
 (defn react-key
   "Returns the components React key."
   [component]
-  (get-prop component #?(:clj  :fulcro$reactKey
-                         :cljs "fulcro$reactKey")))
-
+  (get-raw-react-prop component #?(:clj  :fulcro$reactKey
+                                   :cljs "fulcro$reactKey")))
 
 #?(:clj
    (defn props [component]
@@ -827,14 +689,7 @@
      "Return a components props."
      [component]
      {:pre [(component? component)]}
-     ;; When force updating we write temporarily props into state to avoid bogus
-     ;; complaints from React. We record the basis T of the reconciler to determine
-     ;; if the props recorded into state are more recent - props will get updated
-     ;; when React actually re-renders the component.
-     (unwrap
-       (props*
-         (-> component .-props get-props)
-         (-> component .-state get-props)))))
+     (gobj/get (.-props component) "fulcro$value")))
 
 #?(:clj
    (defn init-local-state [component]
@@ -847,13 +702,8 @@
    (get-state component []))
   ([component k-or-ks]
    {:pre [(component? component)]}
-   (let [cst (if #?(:clj  (satisfies? ILocalState component)
-                    :cljs (implements? ILocalState component))
-               (-get-state component)
-               #?(:clj  @(:state component)
-                  :cljs (when-let [state (. component -state)]
-                          (or (gobj/get state "fulcro$pendingState")
-                            (gobj/get state "fulcro$state")))))]
+   (let [cst #?(:clj @(:state component)
+                :cljs (when-let [state (. component -state)] (gobj/get state "fulcro$state")))]
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
 
 (defn- get-static-query
@@ -937,7 +787,7 @@
              (let [react-key (cond
                                (some? keyfn) (keyfn props)
                                (some? (:react-key props)) (:react-key props)
-                               :else (compute-react-key class props))
+                               :else nil)
                    ctor      class
                    ref       (:ref props)
                    props     {:fulcro$reactRef   ref
@@ -946,7 +796,6 @@
                                                    (map? props) (dissoc :ref))
                               :fulcro$queryid    (query-id class qualifier)
                               :fulcro$mounted?   (atom false)
-                              :fulcro$path       (-> props meta :om-path)
                               :fulcro$reconciler *reconciler*
                               :fulcro$parent     *parent*
                               :fulcro$shared     *shared*
@@ -984,20 +833,14 @@
                :children children
                :class    class
                :factory  (factory class (assoc opts :instrument? false))})
-            (let [key (if-not (nil? keyfn)
-                        (keyfn props)
-                        (compute-react-key class props))
+            (let [key (when-not (nil? keyfn) (keyfn props))
                   ref (:ref props)
-                  ref (cond-> ref (keyword? ref) str)
-                  t   (if-not (nil? *reconciler*)
-                        (get-current-time *reconciler*)
-                        0)]
+                  ref (cond-> ref (keyword? ref) str)]
               (create-element class
                 #js {:key               key
                      :ref               ref
                      :fulcro$reactKey   key
-                     :fulcro$value      (om-props props t)
-                     :fulcro$path       (-> props meta :om-path)
+                     :fulcro$value      props
                      :fulcro$queryid    (query-id class qualifier)
                      :fulcro$reconciler *reconciler*
                      :fulcro$parent     *parent*
@@ -1035,8 +878,8 @@
   "Get the query id that is cached in the component's props."
   [component]
   {:pre [(component? component)]}
-  (get-prop component #?(:clj  :fulcro$queryid
-                         :cljs "fulcro$queryid")))
+  (get-raw-react-prop component #?(:clj  :fulcro$queryid
+                                   :cljs "fulcro$queryid")))
 
 (defn get-query
   "Get the query for the given class or factory. If called without a state map, then you'll get the declared static
@@ -1145,12 +988,6 @@
                       #{} query)
     (map? query) (-> query keys set)                        ; a union component, which has a map for a query
     :else #{}))
-
-(defn- path
-  "Returns the component's data path."
-  [c]
-  (get-prop c #?(:clj  :fulcro$path
-                 :cljs "fulcro$path")))
 
 (defn- normalize* [query data refs union-seen]
   (cond
@@ -2018,7 +1855,7 @@
   "Returns true if the component is mounted."
   #?(:cljs {:tag boolean})
   [x]
-  #?(:clj  (and (component? x) @(get-prop x :fulcro$mounted?))
+  #?(:clj  (and (component? x) @(get-raw-react-prop x :fulcro$mounted?))
      :cljs (and (component? x) ^boolean (boolean (goog.object/get x "fulcro$mounted")))))
 
 (defn fulcro-ui->props
@@ -2031,7 +1868,7 @@
              (let [id          (ident c (props c))
                    has-tempid? (tempid? (second id))
                    query       [{id (get-query c @state)}]
-                   value       (get (parser env query) id)]
+                   value       (get (parser (assoc env :replacement-root-path (-> (props c) meta ::parser/data-path)) query) id)]
                (if (and has-tempid? (or (nil? value) (empty? value)))
                  ::no-ident                                 ; tempid remap happened...cannot do targeted props until full re-render
                  value)))]
@@ -2070,18 +1907,6 @@
     (if (or (coll? cs) #?(:cljs (array? cs))) cs [cs])))
 
 #?(:cljs
-   (defn should-update?
-     "Invoke the lifecycle method on the component to see if it would recommend an update given the next-props or next-props
-     and next-state"
-     ([c next-props]
-      (should-update? c next-props nil))
-     ([c next-props next-state]
-      {:pre [(component? c)]}
-      (.shouldComponentUpdate ^js c
-        #js {"fulcro$value" next-props}
-        #js {"fulcro$state" next-state}))))
-
-#?(:cljs
    (defn force-update
      "An exception-protected React .forceUpdate"
      ([c cb]
@@ -2094,25 +1919,25 @@
      ([c]
       (force-update c nil))))
 
-#?(:cljs
-   (defn- update-props!
-     "Store the given props onto the component so that when the factory is called (via forceUpdate) they can be used as the new
-     props for the rendering of that component."
-     [c next-props]
-     {:pre [(component? c)]}
-     ;; We cannot write directly to props, React will complain
-     (doto (.-state c)
-       (gobj/set "fulcro$next$value"
-         (om-props next-props (get-current-time (get-reconciler c)))))))
 
-#?(:cljs
-   (defn- update-component!
-     "Force an update of a component using the given new props, skipping the render from root. This will also update the
-     recorded reconciler basis time of the props."
-     [c next-props]
-     {:pre [(component? c)]}
-     (update-props! c next-props)
-     (force-update c)))
+#_(let [comp-c [:c]
+      comp-x (conj comp-c :x)
+      comp-z (conj comp-c :z)
+      paths  [comp-c comp-x comp-z]]
+
+  )
+
+(defn dedup-components-by-path [components]
+    (let [get-path #(some-> % props meta ::parser/data-path)
+          sorted-comps (sort-by get-path components)]
+     (reduce (fn [acc c]
+               (let [prev-path (get-path (last acc))]
+                 (if (and prev-path (= prev-path
+                                      (take (count prev-path)
+                                        (get-path c))))
+                   acc
+                   (conj acc c))))
+       [] sorted-comps)))
 
 (defn- optimal-render
   "Run an optimal render of the given `refresh-queue` (a list of idents and data query keywords). This function attempts
@@ -2121,44 +1946,29 @@
   [reconciler refresh-queue render-root]
   (let [reconciler-state      (:state reconciler)
         config                (:config reconciler)
-        app-state-atom        (:state config)
         components-to-refresh (transduce
                                 (map #(p/key->components (:indexer config) %))
                                 #(into %1 %2) #{} refresh-queue)
         env                   (assoc (to-env config) :reconciler reconciler)
-        root                  (:root @reconciler-state)
-        sort-by-depth         (:optimize config)]
+        {:keys [root render-props]} @reconciler-state]
     #?(:cljs
-       (doseq [c (sort-by-depth components-to-refresh)]
-         (let [current-time   (get-current-time reconciler)
-               component-time (t c)
-               props-change?  (> current-time component-time)]
-           (when (mounted? c)
-             (let [computed       (get-computed (props c))
-                   next-raw-props (if (has-query? c)
-                                    (add-basis-time (get-query c @app-state-atom) (fulcro-ui->props env c) current-time)
-                                    (add-basis-time (fulcro-ui->props env c) current-time))
-                   force-root?    (= ::no-ident next-raw-props) ; screw focused query...
-                   next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
-               (if force-root?
-                 (do
-                   (force-update c)                         ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
-                   (render-root))                           ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
-                 (do
-                   (when (and (exists? (.-componentWillReceiveProps c))
-                           (has-query? root)
-                           props-change?)
-                     (let [next-props (if (nil? next-props)
-                                        (when-let [props (props c)]
-                                          props)
-                                        next-props)]
-                       ;; `componentWilReceiveProps` is always called before `shouldComponentUpdate`
-                       (.componentWillReceiveProps c
-                         #js {:fulcro$value (om-props next-props (get-current-time reconciler))})))
-                   (when (should-update? c next-props (get-state c))
-                     (if-not (nil? next-props)
-                       (update-component! c next-props)
-                       (force-update c))))))))))))
+       (doseq [c (dedup-components-by-path components-to-refresh)]
+         (when (mounted? c)
+           (let [computed       (get-computed (props c))
+                 next-raw-props (fulcro-ui->props env c)
+                 force-root?    (= ::no-ident next-raw-props) ; screw focused query...
+                 next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
+             (if force-root?
+               (do
+                 #_(js/console.log "FORCE ROOT UPDATE")
+                 (force-update c)                           ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
+                 (render-root))                             ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
+               (do
+                 #_(js/console.log "Targeted optimal update of " (when (has-ident? c) (get-ident c)) "(calling wrp and scu)" (props c))
+                 (let [old-tree    (props root)
+                       target-path (-> next-props meta ::parser/data-path)
+                       new-tree    (assoc-in old-tree target-path next-props)]
+                   (render-props new-tree))))))))))
 
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
@@ -2218,7 +2028,7 @@
                             (renderf root-props))
                           (renderf @(:state config)))))]
         (swap! state merge
-          {:target target :render parsef :root root-class
+          {:target target :render parsef :root root-class :render-props renderf
            :remove (fn remove-fn []
                      (remove-watch (:state config) (p/get-id this))
                      (swap! state
@@ -2373,7 +2183,7 @@
            parser normalize
            send merge-sends remotes
            merge-tree merge-ident
-           optimize lifecycle
+           lifecycle
            root-render root-unmount
            migrate render-mode
            instrument tx-listen
@@ -2383,7 +2193,6 @@
            render-mode  :normal
            history      200
            lifecycle    nil
-           optimize     (fn depth-sorter [cs] (sort-by depth cs))
            root-render  #?(:clj  (fn clj-root-render [c target] c)
                            :cljs #(js/ReactDOM.render %1 %2))
            root-unmount #?(:clj  (fn clj-unmount [x])
@@ -2399,7 +2208,6 @@
                          :parser      parser :indexer idxr
                          :send        send :merge-sends merge-sends :remotes remotes
                          :merge-tree  merge-tree :merge-ident merge-ident
-                         :optimize    optimize
                          :normalize   (or (not norm?) normalize)
                          :root-render root-render :root-unmount root-unmount
                          :render-mode render-mode
@@ -2531,41 +2339,34 @@
 
 #?(:clj
    (defn set-state!
-     [component new-state]
-     {:pre [(component? component)]}
-     (if (satisfies? ILocalState component)
-       (-set-state! component new-state)
-       (reset! (:state component) new-state))))
+     ([component new-state cb]
+      (reset! (:state component) new-state)
+      (when cb (cb)))
+     ([component new-state]
+      (reset! (:state component) new-state))))
 
 #?(:cljs
    (defn set-state!
-     "Set the component local state of the component. Analogous to React's
-   setState. WARNING: This version triggers a reconcile which *will* run the query
-   on the component. This is to avoid spurious overhead of multiple renders on the DOM by
-   pushing the refresh off to the next animation frame; however, rapid animation updates
-   will not work well with this. Use react-set-state! instead. This function may
-   evolve in the future to just be the same as react-set-state!. Your feedback is
-   welcome."
-     [component new-state]
-     {:pre [(component? component)]}
-     (if (implements? ILocalState component)
-       (-set-state! component new-state)
-       (gobj/set (.-state component) "fulcro$pendingState" new-state))
-     (if-let [r (get-reconciler component)]
-       (do
-         (p/queue! r [component])
-         (schedule-render! r))
-       (force-update component))))
+     "Shallow merge new-state in the the state of this component. Uses React setState and will trigger an refresh
+     according to React rules (see React dos for the version you're using). callback is as described in the React docs.
+
+     If you're wanting low-level js interop, use React's setState. This function deals with cljs state."
+     ([component new-state callback]
+      {:pre [(component? component)]}
+      (.setState component
+        (fn [prev-state props]
+          #js {"fulcro$state" (merge (gobj/get prev-state "fulcro$state") new-state)})
+        callback))
+     ([component new-state]
+      {:pre [(component? component)]}
+      (set-state! component new-state nil))))
 
 (defn react-set-state!
+  "DEPRECATED: Use set-state! which *is* a React-level primitive now."
   ([component new-state]
    (react-set-state! component new-state nil))
   ([component new-state cb]
-   {:pre [(component? component)]}
-    #?(:clj  (do
-               (set-state! component new-state)
-               (cb))
-       :cljs (.setState component #js {"fulcro$state" new-state} cb))))
+   (set-state! component new-state cb)))
 
 (defn update-state!
   "Update a component's local state. Similar to Clojure(Script)'s swap!"
@@ -2700,7 +2501,7 @@
    (shared component []))
   ([component k-or-ks]
    {:pre [(component? component)]}
-   (let [shared #?(:clj (get-prop component :fulcro$shared)
+   (let [shared #?(:clj (get-raw-react-prop component :fulcro$shared)
                    :cljs (gobj/get (. component -props) "fulcro$shared"))
          ks             (cond-> k-or-ks
                           (not (sequential? k-or-ks)) vector)]
@@ -2709,19 +2510,17 @@
 
 (defn instrument [component]
   {:pre [(component? component)]}
-  (get-prop component #?(:clj  :fulcro$instrument
-                         :cljs "fulcro$instrument")))
+  (get-raw-react-prop component #?(:clj  :fulcro$instrument
+                                   :cljs "fulcro$instrument")))
 
 #?(:cljs
    (defn- merge-pending-state! [c]
-     (if (implements? ILocalState c)
-       (-merge-pending-state! c)
-       (when-let [pending (some-> c .-state (gobj/get "fulcro$pendingState"))]
-         (let [state    (.-state c)
-               previous (gobj/get state "fulcro$state")]
-           (gobj/remove state "fulcro$pendingState")
-           (gobj/set state "fulcro$previousState" previous)
-           (gobj/set state "fulcro$state" pending))))))
+     (when-let [pending (some-> c .-state (gobj/get "fulcro$pendingState"))]
+       (let [state    (.-state c)
+             previous (gobj/get state "fulcro$state")]
+         (gobj/remove state "fulcro$pendingState")
+         (gobj/set state "fulcro$previousState" previous)
+         (gobj/set state "fulcro$state" pending)))))
 
 (defn class->any
   "Get any component from the indexer that matches the component class."
@@ -2743,17 +2542,14 @@
       (p/key->components indexer ref))))
 
 (defn get-rendered-state
-  "Get the rendered state of component. om.next/get-state always returns the
+  "Get the rendered state of component. fulcro.client.primitives/get-state always returns the
    up-to-date state."
   ([component]
    (get-rendered-state component []))
   ([component k-or-ks]
    {:pre [(component? component)]}
-   (let [cst (if #?(:clj  (satisfies? ILocalState component)
-                    :cljs (implements? ILocalState component))
-               (-get-rendered-state component)
-               #?(:clj  (get-state component)
-                  :cljs (some-> component .-state (gobj/get "fulcro$state"))))]
+   (let [cst #?(:clj (get-state component)
+                :cljs (some-> component .-state (gobj/get "fulcro$state")))]
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
 
 (defn nil-or-map?
@@ -3230,16 +3026,27 @@
       :css-include [] ; list of components that have CSS to compose towards root.
 
       ; React Lifecycle Methods (this in scope)
-      :initLocalState            (fn [] ...)
+      :initLocalState            (fn [] ...) ; CAN BE used to call things as you might in a constructor. Return value is initial state.
       :shouldComponentUpdate     (fn [next-props next-state] ...)
-      :componentWillReceiveProps (fn [next-props] ...)
-      :componentWillUpdate       (fn [next-props next-state] ...)
+
       :componentDidUpdate        (fn [prev-props prev-state] ...)
-      :componentWillMount        (fn [] ...)
       :componentDidMount         (fn [] ...)
       :componentWillUnmount      (fn [] ...)
-      ;; React 16:
-      :componentDidCatch         (fn [error info])
+
+      ;; DEPRECATED IN REACT 16 (to be removed in 17):
+      :componentWillReceiveProps        (fn [next-props] ...)
+      :componentWillUpdate              (fn [next-props next-state] ...)
+      :componentWillMount               (fn [] ...)
+
+      ;; Replacements for deprecated methods
+      :UNSAFE_componentWillReceiveProps (fn [next-props] ...)
+      :UNSAFE_componentWillUpdate       (fn [next-props next-state] ...)
+      :UNSAFE_componentWillMount        (fn [] ...)
+
+      ;; ADDED for React 16:
+      :getDerivedStateFromProps  (fn [props state] ...) ; static. does NOT get `this`
+      :componentDidCatch         (fn [error info] ...)
+      :getSnapshotBeforeUpdate   (fn [prevProps prevState] ...)
 
       NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
       that other libraries can control the sub-dom. If you do want to implement it, then old props can

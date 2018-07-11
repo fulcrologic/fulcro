@@ -1,0 +1,131 @@
+== React Lifecycle
+
+Handling React Lifecycle in Fulcro:
+
+=== Targeted Updates
+
+Fulcro targeted updates use `forceUpdate` to send new props to a targeted sub-tree as
+an optimization. This allows us to run a much smaller query against the tree to
+ensure the best possible performance; however, we're sending in new props without
+involving React, so React does *not* see the props in question, which
+will cause lifecycle methods to end up with stale props in a number of circumstances:
+
+- A parent refreshes component-local state, and passes "old props" to children.
+- A root render will pass new props through the tree, but "prev props" should not be
+the "old props" from the parent, but should instead be the "old props" from the
+localized update.
+
+Fulcro's query engine adds time metadata to props.  This allows us to find outdated
+props correctly in these scenarios.  In order to track what we've *forced* onto
+a component, we have to cache the props.  In earlier versions of Om Next and Fulcro
+this was done on the component's local state; however, with changes in the react API
+this is no longer desirable (direct modifications to state are no longer a good
+idea post 15.4).
+
+So, instead we cache the props we've forced onto a component on the component instance itself at key "fulcro$forcedUpdate$props". These props include the basis time, so
+that we can compare their time to other props that are passed in as a normal part of
+the operation.
+
+In the case of successive forced updates, we also need to track our idea of "previous"
+and "current" props for certain lifecycle methods.  React will always call
+`componentWillUpdate` and `componentDidUpdate` itself, but it will *not* call
+`componentWillReveiceProps` on a `forceUpdate`...so we have to emulate that call.
+
+In all cases we need a wrapper around those lifecycle methods to ensure the correct
+things are seen:
+
+[[Horizontal]]
+`componentWillReceiveProps`:: `nextProps` is an argument holding the "incoming" props, and a call to `(prim/props this)` MUST return the props that were used to render the component last time.
+`componentWillUpdate`:: `nextProps` and `nextState` are arguments holding the "incoming" state and props. Calls to `props` and `get-state` should return the props/state from the last time the component renderered.
+`componentDidUpdate`:: `prevProps`, `prevState`, `snapshot`. Snapshot is new in 16.
+In this case the prevProps and prevState should be what they *were* during `componentWillUpdate`,
+while calling `props` or `get-state` should return the value that was just passed in. `snapshot` is
+the return value of `getSnapshotBeforeUpdate`.
+`getSnapshotBeforeUpdate`:: `prevProps`, `prevState` are the same as `componentWillUpdate`. The return
+value of this call gets passed to the new arg of `componentDidUpdate`. This method is *always* called before
+render even on `forceUpdate`.
+`getDerivedStateFromProps`:: This method DOES NOT have access to the component instance. It is passed `props`
+and `state` from React. This method *is* called for `forceUpdate`, but will end up with whatever React
+thought the last props were. **This is a problem.**
+
+== Potential New Rendering Scheme
+
+. Root render (initial frame and forced root refresh).  Run full root query.  Fulcro remembers root prop tree.
+. Component-targeted refresh (list of components/keywords/idents)
+   * Find the components in the indexer
+   * If any are missing idents, run root refresh (1)
+   * Else, sort components by their rendered path.
+     * Remove any whose path is a sub-path of any other (e.g. eliminate any possible dual refresh)
+     * Run ident-based queries for remaining components
+     * Patch the saved props from (1)/(2) using the rendered path
+     * Root refresh with updated props.
+
+=== Rendered Data Path
+
+In order to do the new rendering scheme, we'll need to add back path-meta to the props, since there is
+no way to know how a parent destructured props to render a child without requiring an inconvenient and
+invasive change to the API (where the parent would have to do an error-prone parameter to the child).
+
+So, a (stateful) component tree like this:
+
+[ditaa]
+----
+                +---+
+                | R |
+                +-+-+
+                  |
+           +------+----+ each to–one
+       c1  |    c2|    |  c3
+           v      v    v
+          +--+  +--+ +--+
+          |C1|  |C2| |C3|
+          ++-+  +--+ +--+
+   :items  | to–many
+           v
+          +--+    +---+
+        0 |I1+--->| X |
+          +--+    +---+
+        1 |I2| x
+          +--+
+----
+
+where each edge is labeled with the query key (colons not shown) that "filled" that data need. The data structure
+and query:
+
+* R Query: `[{:c1 (get-query C)} {:c2 (get-query C)} {:c3 (get-query C)}]`
+* C Query: `[{:items (get-query I)}]`
+* I Query: `[{:x (get-query X)}]`
+
+Total Query: `[{:c1 [{:items [:x]}]} {:c1 [{:items [:x]}]} {:c1 [{:items [:x]}]}]`
+
+Data for rendered tree as shown:
+
+```
+{:c1 {:items [{:x {}} {}]}
+ :c2 {}
+ :c3 {}}
+```
+
+The combination of the query and data can be combined by `path-meta` an annotated onto the real data tree.
+
+. `R` []
+. `C1` [:c1]
+. `I1` [:c1 :items 0]
+. `I2` [:c1 :items 1]
+. `X` [:c1 :items 0 :x]
+
+This metadata is placed on the data node the corresponds with the props that "go with" the given UI component.
+
+```
+(with-meta {:c1 (with-meta
+                  {:items (with-meta
+                            [(with-meta {:x {}} {:path [:c1 :items 0]}) (with-meta {} :path [:c1 :items 1])]
+                            [:c1 :items])}
+                  {:path [:c1]})
+            :c2 (with-meta {} {:path [:c2]})
+            :c3 (with-meta {} {:path [:c3]})}
+  {:path []})
+```
+
+Optimization NOTE: We can decorate this during `db->tree`, and if there is custom
+parsing, post-decorate the structure.

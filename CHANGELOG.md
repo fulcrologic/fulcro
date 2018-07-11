@@ -6,6 +6,13 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6
+---
+- Updated React 16 support to include all lifecycle methods
+- Added ability to select React compliance version
+- Removed dead code
+- Fixed bug related to next/prev props in lifecycle
+
 2.5.12
 ------
 - Added `:classes` support to regular DOM elements.

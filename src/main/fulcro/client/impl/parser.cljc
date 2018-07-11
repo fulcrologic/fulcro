@@ -158,22 +158,22 @@
              (parameterize expr params))
            (let [key (if (= :call type) (parameterize key params) key)]
              (if (or (= :join type)
-                     (and (= :call type) (:children ast)))
+                   (and (= :call type) (:children ast)))
                (if (and (not= '... query) (not (number? query))
-                        (or (true? unparse?)
-                            (= :call type)))
+                     (or (true? unparse?)
+                       (= :call type)))
                  (let [{:keys [children]} ast
                        query-meta (meta query)]
                    (if (and (== 1 (count children))
-                            (= :union (:type (first children)))) ;; UNION
+                         (= :union (:type (first children)))) ;; UNION
                      (with-meta
                        {key (into (cond-> (with-meta {} ast-meta)
                                     component (vary-meta assoc :component component))
-                                  (map (fn [{:keys [union-key children component]}]
-                                         [union-key
-                                          (cond-> (into [] (map #(ast->expr % unparse?)) children)
-                                            (not (nil? component)) (vary-meta assoc :component component))]))
-                                  (:children (first children)))}
+                              (map (fn [{:keys [union-key children component]}]
+                                     [union-key
+                                      (cond-> (into [] (map #(ast->expr % unparse?)) children)
+                                        (not (nil? component)) (vary-meta assoc :component component))]))
+                              (:children (first children)))}
                        ast-meta)
                      (with-meta
                        {key (cond-> (into (with-meta [] query-meta) (map #(ast->expr % unparse?)) children)
@@ -195,14 +195,14 @@
      (cond-> data
        #?(:clj  (instance? clojure.lang.IObj data)
           :cljs (satisfies? IWithMeta data))
-       (vary-meta assoc :om-path path))
+       (vary-meta assoc ::data-path path))
 
      (sequential? data)
      (-> (into []
            (map-indexed
              (fn [idx v]
                (path-meta v (conj path idx) query union-expr))) data)
-       (vary-meta assoc :om-path path))
+       (vary-meta assoc ::data-path path))
 
      (vector? query)
      (loop [joins (seq query) ret data]
@@ -232,7 +232,7 @@
          (cond-> ret
            #?(:clj  (instance? clojure.lang.IObj ret)
               :cljs (satisfies? IWithMeta ret))
-           (vary-meta assoc :om-path path))))
+           (vary-meta assoc ::data-path path))))
 
      :else
      ;; UNION
@@ -256,6 +256,25 @@
   (and (instance? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) x)
     (= :fulcro.client.primitives/abort (-> x ex-data :type))))
 
+(defn substitute-root-path-for-ident
+  "Given the result (and query) of an ident-based query like:
+
+  [{[:TABLE :ID] (get-query C)}]
+
+  a query response data tree:
+
+  { [:TABLE :ID] { ...props for C...} }
+
+  and a replacement-root-path such as [:ROOT/subcomponent :subcomponent/items 0],
+  adds path metadata to the val (props for C) of that data tree as-if it had been
+  queried from the UI root (replacement-root-path). E.g. the path metadata on the val (props of C) will
+  START at replacement-root-path."
+  [data-tree replacement-root-path query]
+  (let [join-ast-node              (-> (query->ast query) :children first)
+        {:keys [key]} join-ast-node
+        real-data-tree-of-interest (get data-tree key)]
+    {key (path-meta real-data-tree-of-interest replacement-root-path query)}))
+
 (defn parser
   "Given a :read and/or :mutate function return a parser. Refer to fulcro.client.primitives/parser
    for top level documentation."
@@ -264,9 +283,8 @@
     ([env query] (self env query nil))
     ([env query target]
      (let [target (or target (:target env))
-           {:keys [path] :as env}
-           (cond-> (assoc env :parser self :target target :query-root :fulcro.client.primitives/root)
-             (not (contains? env :path)) (assoc :path []))]
+           {:keys [replacement-root-path path] :as env} (cond-> (assoc env :parser self :target target :query-root :fulcro.client.primitives/root)
+                                                          (not (contains? env :path)) (assoc :path []))]
        (letfn [(step [ret expr]
                  (let [{query' :query :keys [key dispatch-key params] :as ast} (expr->ast expr)
                        env   (cond-> (merge env {:ast ast :query query'})
@@ -314,6 +332,10 @@
                              @mut-ret (assoc-in [key :result] @mut-ret)
                              (seq (:refresh res)) (vary-meta update :fulcro.client.primitives/refresh #(into (or %1 #{}) %2) (:refresh res))
                              @error (assoc key {:fulcro.client.primitives/error @error}))))))))]
-         (reduce step (if (nil? target) {} []) query))))))
+         (cond->
+           (reduce step (if (nil? target) {} []) query)
+           (and replacement-root-path (nil? target)) (substitute-root-path-for-ident replacement-root-path query)
+           (and (not replacement-root-path) (nil? target)) (path-meta path query)))))))
 
 (defn dispatch [_ k _] k)
+
