@@ -592,6 +592,20 @@
        (munge
          (str (str/replace (str ns-name) "." "$") "$" cl-name)))))
 
+#?(:clj
+   (defn- compute-react-key [cl props]
+     (when-let [idx (-> props meta :om-path)]
+       (str (munge-component-name cl) "_" idx))))
+
+#?(:cljs
+   (defn- compute-react-key [cl props]
+     (if-let [rk (:react-key props)]
+       rk
+       (if-let [idx (-> props meta ::parser/data-path)]
+         (str (. cl -name) "_" idx)
+         js/undefined))))
+
+
 (defn component?
   "Returns true if the argument is a component."
   #?(:cljs {:tag boolean})
@@ -784,7 +798,7 @@
              (let [react-key (cond
                                (some? keyfn) (keyfn props)
                                (some? (:react-key props)) (:react-key props)
-                               :else nil)
+                               :else (compute-react-key class props))
                    ctor      class
                    ref       (:ref props)
                    props     {:fulcro$reactRef   ref
@@ -832,7 +846,7 @@
                :factory  (factory class (assoc opts :instrument? false))})
             (let [key (if-not (nil? keyfn)
                         (keyfn props)
-                        js/undefined)
+                        (compute-react-key class props))
                   ref (:ref props)
                   ref (cond-> ref (keyword? ref) str)]
               (create-element class
