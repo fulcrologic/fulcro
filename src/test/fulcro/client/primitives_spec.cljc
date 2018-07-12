@@ -1187,31 +1187,31 @@
      (component "make-lifecycle"
        (assertions
          "Can convert :initLocalState"
-         (#'prim/make-lifecycle (:v15 prim/react-configs) 'this {:initLocalState '(fn [] {:x 1})})
+         (#'prim/make-lifecycle 'this {:initLocalState '(fn [] {:x 1})})
          => ['(initLocalState [this] {:x 1})]
          "Can convert :shouldComponentUpdate"
-         (#'prim/make-lifecycle (:v15 prim/react-configs) 'this {:shouldComponentUpdate '(fn [next-props next-state] false)})
+         (#'prim/make-lifecycle 'this {:shouldComponentUpdate '(fn [next-props next-state] false)})
          => ['(shouldComponentUpdate [this next-props next-state] false)]
          "Can convert :componentWillReceiveProps"
-         (#'prim/make-lifecycle (:v15 prim/react-configs) 'this {:componentWillReceiveProps '(fn [next-props] false)})
+         (#'prim/make-lifecycle 'this {:componentWillReceiveProps '(fn [next-props] false)})
          => ['(componentWillReceiveProps [this next-props] false)]
          "Can convert :componentWillUpdate"
-         (#'prim/make-lifecycle (:v15 prim/react-configs) 'this {:componentWillUpdate '(fn [next-props next-state] false)})
+         (#'prim/make-lifecycle 'this {:componentWillUpdate '(fn [next-props next-state] false)})
          => ['(componentWillUpdate [this next-props next-state] false)]
          "Can convert :componentDidUpdate"
-         (#'prim/make-lifecycle (:v15 prim/react-configs) 'this {:componentDidUpdate '(fn [pprops pstate] false)})
+         (#'prim/make-lifecycle 'this {:componentDidUpdate '(fn [pprops pstate] false)})
          => ['(componentDidUpdate [this pprops pstate] false)]
          "Can convert :componentWillMount"
-         (#'prim/make-lifecycle (:v15 prim/react-configs) 'this {:componentWillMount '(fn [] false)})
+         (#'prim/make-lifecycle 'this {:componentWillMount '(fn [] false)})
          => ['(componentWillMount [this] false)]
          "Can convert :componentWillUnmount"
-         (#'prim/make-lifecycle (:v15 prim/react-configs) 'this {:componentWillUnmount '(fn [] false)})
+         (#'prim/make-lifecycle 'this {:componentWillUnmount '(fn [] false)})
          => ['(componentWillUnmount [this] false)]
          "Can convert :componentDidMount"
-         (#'prim/make-lifecycle (:v15 prim/react-configs) 'this {:componentDidMount '(fn [] false)})
+         (#'prim/make-lifecycle 'this {:componentDidMount '(fn [] false)})
          => ['(componentDidMount [this] false)]
          "Ignores non-lifecycle methods"
-         (#'prim/make-lifecycle (:v15 prim/react-configs) 'this {:goobers '(fn [] false)})
+         (#'prim/make-lifecycle 'this {:goobers '(fn [] false)})
          => []))
      (component "make-state-map"
        (assertions
