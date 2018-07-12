@@ -574,7 +574,7 @@
 
 #?(:clj
    (defn- compute-react-key [cl props]
-     (when-let [idx (-> props meta :om-path)]
+     (when-let [idx (-> props meta ::parser/data-path)]
        (str (munge-component-name cl) "_" idx))))
 
 #?(:cljs
@@ -1861,7 +1861,10 @@
              (let [id          (ident c (props c))
                    has-tempid? (tempid? (second id))
                    query       [{id (get-query c @state)}]
-                   value       (get (parser (assoc env :replacement-root-path (-> (props c) meta ::parser/data-path)) query) id)]
+                   data-path   (-> (props c) meta ::parser/data-path)
+                   result      (parser (assoc env :replacement-root-path data-path) query)
+                   value       (get result id)]
+               #?(:cljs (js/console.log :replacement-path data-path))
                (if (and has-tempid? (or (nil? value) (empty? value)))
                  ::no-ident                                 ; tempid remap happened...cannot do targeted props until full re-render
                  value)))]
@@ -1945,26 +1948,23 @@
         env                   (assoc (to-env config) :reconciler reconciler)
         {:keys [root render-props]} @reconciler-state]
     #?(:cljs
-       (do
-         (js/console.log :requested-refresh components-to-refresh)
-         (js/console.log :filtered-refresh (dedup-components-by-path components-to-refresh))
-         (doseq [c (dedup-components-by-path components-to-refresh)]
-           (when (mounted? c)
-             (let [computed       (get-computed (props c))
-                   next-raw-props (fulcro-ui->props env c)
-                   force-root?    (= ::no-ident next-raw-props) ; screw focused query...
-                   next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
-               (if force-root?
-                 (do
-                   #_(js/console.log "FORCE ROOT UPDATE")
-                   (force-update c)                         ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
-                   (render-root))                           ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
-                 (do
-                   #_(js/console.log "Targeted optimal update of " (when (has-ident? c) (get-ident c)) "(calling wrp and scu)" (props c))
-                   (let [old-tree    (props root)
-                         target-path (-> next-props meta ::parser/data-path)
-                         new-tree    (assoc-in old-tree target-path next-props)]
-                     (render-props new-tree)))))))))))
+       (doseq [c (dedup-components-by-path components-to-refresh)]
+         (js/console.log :render c)
+         (when (mounted? c)
+           (let [computed       (get-computed (props c))
+                 next-raw-props (fulcro-ui->props env c)
+                 force-root?    (= ::no-ident next-raw-props) ; screw focused query...
+                 next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
+             (if force-root?
+               (do
+                 (force-update c)                           ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
+                 (render-root))                             ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
+               (do
+                 (let [old-tree    (props root)
+                       target-path (-> next-props meta ::parser/data-path)
+                       new-tree    (assoc-in old-tree target-path next-props)]
+                   (js/console.log :rnp next-raw-props :old old-tree :new new-tree :next-props next-props)
+                   (render-props new-tree))))))))))
 
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref

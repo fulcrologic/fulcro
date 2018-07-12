@@ -7,7 +7,7 @@
 (defsc Sample [this props] (dom/div "Hello"))
 (def ui-sample (prim/factory Sample))
 
-(specification "Server-side Rendering" :focused
+(specification "Server-side Rendering"
   (assertions
     "Simple tag rendering"
     (render-to-str (div {} "Hello"))
@@ -41,7 +41,7 @@
                      (div :.a#1 {:className "b"})))
     => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-213767666\"><p class=\"x\" data-reactid=\"2\"><span data-reactid=\"3\">PS2</span></p></div>"))
 
-(specification "DOM elements are usable as functions" :focused
+(specification "DOM elements are usable as functions"
   (provided "The correct SSR function is called."
     (dom/element opts) => (assertions
                             (:tag opts) => 'div)

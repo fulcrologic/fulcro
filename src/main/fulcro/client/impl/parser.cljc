@@ -271,9 +271,10 @@
   START at replacement-root-path."
   [data-tree replacement-root-path query]
   (let [join-ast-node              (-> (query->ast query) :children first)
-        {:keys [key]} join-ast-node
-        real-data-tree-of-interest (get data-tree key)]
-    {key (path-meta real-data-tree-of-interest replacement-root-path query)}))
+        {subquery :query :keys [key]} join-ast-node
+        real-data-tree-of-interest (get data-tree key)
+        result                     (path-meta real-data-tree-of-interest replacement-root-path subquery)]
+    {key result}))
 
 (defn parser
   "Given a :read and/or :mutate function return a parser. Refer to fulcro.client.primitives/parser
@@ -334,8 +335,8 @@
                              @error (assoc key {:fulcro.client.primitives/error @error}))))))))]
          (cond->
            (reduce step (if (nil? target) {} []) query)
-           (and replacement-root-path (nil? target)) (substitute-root-path-for-ident replacement-root-path query)
-           (and (not replacement-root-path) (nil? target)) (path-meta path query)))))))
+           (nil? target) (path-meta path query)
+           replacement-root-path (substitute-root-path-for-ident replacement-root-path query)))))))
 
 (defn dispatch [_ k _] k)
 

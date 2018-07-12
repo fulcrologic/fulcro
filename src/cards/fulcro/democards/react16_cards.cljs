@@ -27,20 +27,20 @@
     (js/console.log :pmeta (meta (prim/props this)))
     (dom/button {:onClick (fn [] (prim/update-state! this update :m inc))} (str "M: " (prim/get-state this :m)))
     (dom/button {:onClick (fn []
-                            #_(onClick id)
+                            (onClick id)
                             #_(m/set-value! this :n (inc n))
-                            (prim/transact! this `[(bump-with-root-refresh {:id ~id})]))} (str "N: " n))))
+                            #_(prim/transact! this `[(bump-with-root-refresh {:id ~id})]))} (str "N: " n))))
 
 (def ui-counter (prim/factory CounterButton {:keyfn :id}))
 
 (defsc Root [this {:keys [counters]}]
   {:query          [{:counters (prim/get-query CounterButton)}]
    :initLocalState {:n 22}
+   :ident          (fn [] [:A 1])
    :initial-state  {:counters [{:id 1} {:id 2} {:id 3}]}}
-  (let [n       (prim/get-state this :n)
-        onClick #(prim/transact! this `[(bump-with-root-refresh {:id ~%})])
-        ;;counters (map #(prim/computed % {:onClick onClick}) counters)
-        ]
+  (let [n        (prim/get-state this :n)
+        onClick  #(prim/transact! this `[(bump-with-root-refresh {:id ~%})])
+        counters (map #(prim/computed % {:onClick onClick}) counters)]
     (dom/div
       (dom/h3 "Counters")
       (dom/p (str "State of root " n))
@@ -49,6 +49,40 @@
         (map ui-counter counters)))))
 
 (defcard-fulcro card
-  Root
+  (make-root Root {})
+  {}
+  {:inspect-data true})
+
+(defsc ComputedChild
+  [this {:keys [my-value] :as p} {:keys [on-select]}]
+  {:initial-state (fn [_]
+                    {::id      (random-uuid)
+                     :my-value "initial"})
+   :ident         [::id ::id]
+   :query         [::id :my-value]
+   :css           []
+   :css-include   []}
+  (dom/div
+    (dom/div "VALUE - " my-value)
+    (dom/button {:onClick #(m/set-value! this :my-value "A")} "Set local A")
+    (dom/button {:onClick #(m/set-value! this :my-value "B")} "Set local B")
+    (dom/button {:onClick #(on-select "From inside")} "Call computed callback")))
+
+(def input-component (prim/factory ComputedChild))
+
+(defsc DemoContainer
+  [this {:keys [input ui/local-value] :as p}]
+  {:initial-state (fn [_]
+                    {:input          (prim/get-initial-state ComputedChild {})
+                     :ui/local-value "initial"})
+   :ident         (fn [] [:id "singleton"])
+   :query         [:id {:input (prim/get-query ComputedChild)}
+                   :ui/local-value]}
+  (dom/div
+    (dom/div "Outer - " local-value)
+    (input-component (prim/computed input {:on-select #(m/set-value! this :ui/local-value %)}))))
+
+(defcard-fulcro broke
+  (make-root DemoContainer {})
   {}
   {:inspect-data true})
