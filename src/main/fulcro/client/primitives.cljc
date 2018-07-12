@@ -592,9 +592,6 @@
        (munge
          (str (str/replace (str ns-name) "." "$") "$" cl-name)))))
 
-
-
-
 (defn component?
   "Returns true if the argument is a component."
   #?(:cljs {:tag boolean})
@@ -833,7 +830,9 @@
                :children children
                :class    class
                :factory  (factory class (assoc opts :instrument? false))})
-            (let [key (when-not (nil? keyfn) (keyfn props))
+            (let [key (if-not (nil? keyfn)
+                        (keyfn props)
+                        js/undefined)
                   ref (:ref props)
                   ref (cond-> ref (keyword? ref) str)]
               (create-element class
@@ -1921,23 +1920,23 @@
 
 
 #_(let [comp-c [:c]
-      comp-x (conj comp-c :x)
-      comp-z (conj comp-c :z)
-      paths  [comp-c comp-x comp-z]]
+        comp-x (conj comp-c :x)
+        comp-z (conj comp-c :z)
+        paths  [comp-c comp-x comp-z]]
 
-  )
+    )
 
 (defn dedup-components-by-path [components]
-    (let [get-path #(some-> % props meta ::parser/data-path)
-          sorted-comps (sort-by get-path components)]
-     (reduce (fn [acc c]
-               (let [prev-path (get-path (last acc))]
-                 (if (and prev-path (= prev-path
-                                      (take (count prev-path)
-                                        (get-path c))))
-                   acc
-                   (conj acc c))))
-       [] sorted-comps)))
+  (let [get-path     #(some-> % props meta ::parser/data-path)
+        sorted-comps (sort-by get-path components)]
+    (reduce (fn [acc c]
+              (let [prev-path (get-path (last acc))]
+                (if (and prev-path (= prev-path
+                                     (take (count prev-path)
+                                       (get-path c))))
+                  acc
+                  (conj acc c))))
+      [] sorted-comps)))
 
 (defn- optimal-render
   "Run an optimal render of the given `refresh-queue` (a list of idents and data query keywords). This function attempts
