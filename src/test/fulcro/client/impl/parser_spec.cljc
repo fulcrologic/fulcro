@@ -121,4 +121,4 @@
       "Runs the actions of the mutations, in order"
       @state => {:update [1 2]}
       "Includes a refresh set on the metadata of the result."
-      (meta result) => {::prim/refresh #{:x :y :a :b}})))
+      (-> result meta ::prim/refresh) => #{:x :y :a :b})))
