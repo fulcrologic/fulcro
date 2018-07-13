@@ -29,7 +29,7 @@
    ;:componentWillMount        (fn [] (js/console.log :will-mount :cp (prim/props this) :cs (prim/get-state this)))
    ;:UNSAFE_componentWillReceiveProps (fn [next-props] (js/console.log :will-rp :curr-props (prim/props this) :next-props next-props))
    ;:UNSAFE_componentWillUpdate       (fn [next-props next-state] (js/console.log :will-update :cp (prim/props this) :np next-props :cs (prim/get-state this) :crs (prim/get-rendered-state this) :ns next-state))
-   :UNSAFE_componentWillMount (fn [] #_(js/console.log :will-mount :cp (prim/props this) :cs (prim/get-state this)))
+   ;:UNSAFE_componentWillMount (fn [] #_(js/console.log :will-mount :cp (prim/props this) :cs (prim/get-state this)))
    }
   (dom/div
     #_(js/console.log :pmeta (meta (prim/props this)))
