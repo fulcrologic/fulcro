@@ -3,7 +3,8 @@
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
     #?(:cljs [fulcro.client.dom :as dom]
-       :clj [fulcro.client.dom-server :as dom])
+       :clj
+            [fulcro.client.dom-server :as dom])
             [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
@@ -1127,10 +1128,14 @@
        (assertions
          "Replaces the first symbol in a method/lambda form"
          (#'prim/replace-and-validate-fn 'nm [] 0 '(fn [] ...)) => '(nm [] ...)
+         "Allows correct number of args"
+         (#'prim/replace-and-validate-fn 'nm ['this] 1 '(fn [x] ...)) => '(nm [this x] ...)
+         "Allows too many args"
+         (#'prim/replace-and-validate-fn 'nm ['this] 1 '(fn [x y z] ...)) => '(nm [this x y z] ...)
          "Prepends the additional arguments to the front of the argument list"
          (#'prim/replace-and-validate-fn 'nm ['that 'other-thing] 3 '(fn [x y z] ...)) => '(nm [that other-thing x y z] ...)
-         "Throws an exception if the arity is wrong"
-         (#'prim/replace-and-validate-fn 'nm [] 2 '(fn [p] ...))
+         "Throws an exception if there are too few arguments"
+         (#'prim/replace-and-validate-fn 'nm ['a] 2 '(fn [p] ...))
          =throws=> (ExceptionInfo #"Invalid arity for nm")))
      (component "build-css"
        (assertions
@@ -1375,19 +1380,6 @@
                (render [this]
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
-         "checks method arity on css"
-         (prim/defsc* '(Person
-                         [this {:keys [db/id]}]
-                         {:query [:db/id]
-                          :css   (fn [a b] [])}
-                         (dom/div nil "Boo")))
-         =throws=> (ExceptionInfo #"Invalid arity for css")
-         "checks method arity on css-include"
-         (prim/defsc* '(Person
-                         [this {:keys [db/id]}]
-                         {:css-include (fn [a b] [])}
-                         (dom/div nil "Boo")))
-         =throws=> (ExceptionInfo #"Invalid arity for css-include")
          "allows method bodies"
          (prim/defsc* '(Person
                          [this {:keys [db/id]}]
