@@ -125,6 +125,11 @@ web server, figwheel, etc.) without much actual code to understand or delete.
 You should stop here for a moment and read the README in your generated project to see how that
 is laid out.
 
+=== Choosing a React Version
+
+Fulcro supports React 15 and 16 (and may even be fine with 17 with it is released). You can exclude the versions
+of React and React DOM from Fulcro's dependency list (using Leiningen exclusions, for example( and include your preferred version.
+
 === Figwheel Startup Script
 
 Figwheel is a hot-reload development tool. We recommend using figwheel sidecar so
@@ -2877,6 +2882,35 @@ The DOM generation for `Panel` will need to find the header and body children:
 ```
 
 Basically, the child or children can simply be dropped into the place where they should be rendered.
+
+==== React 16 Fragments and Returning Multiple Children
+
+Fulcro 2.6+ with React 16 allows you to return a vector of children or a `Fragment` from a component (so you no longer
+are forced to have a single child as a return value). Fulcro DOM namespaces include a `fragment`
+function to wrap elements in a fragment:
+
+```
+(defsc X [this props]
+  (dom/fragment
+    (dom/p "a")
+    (dom/p "b")))
+```
+
+or
+
+```
+(defsc X [this props]
+  [(dom/p "a") (dom/p "b")])
+```
+
+allows your component to return multiple elements that are spliced into the parent without any "wrapping" elements
+in the DOM.
+
+```
+(dom/div (ui-x)) => <div><p>a</p><p>b</p></div>
+```
+
+See React documentation for more details.
 
 ==== Mixing Data-Driven Children with UI-Only Concerns
 

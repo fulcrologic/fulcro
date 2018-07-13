@@ -363,21 +363,29 @@ void-tags
   {"=" "=0"
    ":" "=2"})
 
+(defn- is-element? [e]
+  (or
+    (instance? fulcro.client.impl.protocols.IReactComponent e)
+    (instance? fulcro.client.impl.protocols.IReactDOMElement e)
+    (satisfies? p/IReactComponent e)
+    (satisfies? p/IReactDOMElement e)))
+
 ;; preserves testability without having to compute checksums
 (defn- render-to-str* ^StringBuilder [x]
-  {:pre [(or (instance? fulcro.client.impl.protocols.IReactComponent x)
-           (instance? fulcro.client.impl.protocols.IReactDOMElement x)
-           (satisfies? p/IReactComponent x)
-           (satisfies? p/IReactDOMElement x))]}
-  (let [element (if-let [element (cond-> x
-                                   (or (instance? fulcro.client.impl.protocols.IReactComponent x)
-                                     (satisfies? p/IReactComponent x))
-                                   render-component)]
-                  element
-                  (react-empty-node))
-        sb      (StringBuilder.)]
-    (p/-render-to-string element (volatile! 1) sb)
-    sb))
+  {:pre [(or
+           (vector? x)
+           (is-element? x))]}
+  (if (vector? x)
+    (StringBuilder. (str/join " " (map render-to-str* x)))
+    (let [element (if-let [element (cond-> x
+                                     (or (instance? fulcro.client.impl.protocols.IReactComponent x)
+                                       (satisfies? p/IReactComponent x))
+                                     render-component)]
+                    element
+                    (react-empty-node))
+          sb      (StringBuilder.)]
+      (p/-render-to-string element (volatile! 1) sb)
+      sb)))
 
 (defn render-to-str ^String [x]
   (let [sb (render-to-str* x)]
@@ -429,3 +437,8 @@ void-tags
        ~@(clojure.core/map gen-tag-fn cdom/tags))))
 
 (gen-all-tags)
+
+(defn fragment [& args]
+  (println (type (first args)))
+  (let [children (if (is-element? (first args)) args (rest args))]
+    (vec children)))

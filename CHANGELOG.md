@@ -10,8 +10,13 @@ small and tractable.
 -----
 - Updated so that using React 16.4 includes all lifecycle methods (UNSAFE, etc.), EXCEPT getDerivedStateFromProps
 - Changed how React state works with Fulcro in order to be compliant with new React 16 requirements.
-- Still supports React 15.x
 - State changes required a rewrite of rendering optimizations to prevent lifecycle bugs. May be slightly slower until I optimize one algorithm a bit.
+- Added wrapper in DOM namespaces for React Fragment, and allows returning vectors of children in
+`defsc`.
+- Updated default React version to 16.4.  Those needed an older version must
+exclude react, react-dom, and react-dom-server from Fulcro, and include
+the version of React they need.
+- Still supports React 15.x
 
 2.5.12
 ------

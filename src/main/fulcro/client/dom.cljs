@@ -204,3 +204,11 @@
             (arr-append args)))))))
 
 (fulcro.client.dom/gen-client-dom-fns fulcro.client.dom/macro-create-element)
+
+(defn fragment
+  "Wraps children in a React.Fragment. Props are optional, like normal DOM elements."
+  [& args]
+  (let [[props children] (if (map? (first args))
+                           [(first args) (rest args)]
+                           [#js {} args])]
+    (js/React.createElement js/React.Fragment (clj->js props) children)))

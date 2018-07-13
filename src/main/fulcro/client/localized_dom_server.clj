@@ -36,3 +36,5 @@
        ~@(clojure.core/map gen-tag-fn dc/tags))))
 
 (gen-all-tags)
+
+(def fragment "Wrap elements in a React.Fragment" fulcro.client.dom-server/fragment)
