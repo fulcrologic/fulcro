@@ -327,7 +327,7 @@
 
        (apply div {} ["Hello"]))))
 
-(specification "Interpretaion of :classes" :focused
+(specification "Interpretaion of :classes"
   (assertions
     "Converts keywords to strings"
     (cdom/classes->str [:.a :.b]) => "a b"

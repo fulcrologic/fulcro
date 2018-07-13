@@ -1,6 +1,7 @@
 (ns fulcro.client.impl.parser-spec
   (:require
     [fulcro.client :as fc]
+    [fulcro.client.impl.parser :as parser]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro.client.impl.application :as app]
@@ -12,33 +13,33 @@
     (assertions
       "don't add the :meta key when meta is absent"
       (-> (prim/query->ast [:query])
-          (contains? :meta))
+        (contains? :meta))
       => false
 
       "on query root"
       (-> (prim/query->ast ^:marked [:query])
-          :meta)
+        :meta)
       => {:marked true}
 
       "on joins"
       (-> (prim/query->ast [^:marked {:join [:foo]}])
-          :children first :meta)
+        :children first :meta)
       => {:marked true}
 
       "on join subquery"
       (-> (prim/query->ast [{:join ^:marked [:foo]}])
-          :children first :query meta)
+        :children first :query meta)
       => {:marked true}
 
       "on calls"
       (-> (prim/query->ast [(with-meta '(call {:x "y"}) {:marked true})])
-          :children first :meta)
+        :children first :meta)
       => {:marked true})))
 
 (defn meta-round-trip [query]
   (-> (prim/query->ast query)
-      (prim/ast->query)
-      (th/expand-meta)))
+    (prim/ast->query)
+    (th/expand-meta)))
 
 (specification "meta persistence"
   (behavior "keep meta on round trip"
@@ -99,10 +100,10 @@
 (def parser (prim/parser {:read (partial app/read-local (constantly nil)) :mutate m/mutate}))
 
 (specification "Parser reads"
-  (let [state-db   {:top   [:table 1]
-                    :prop 1
+  (let [state-db   {:top         [:table 1]
+                    :prop        1
                     :name-in-use :no
-                    :table {1 {:id 1 :value :v}}}
+                    :table       {1 {:id 1 :value :v}}}
         state-atom (atom state-db)
         env        {:state state-atom}]
     (assertions
@@ -121,4 +122,39 @@
       "Runs the actions of the mutations, in order"
       @state => {:update [1 2]}
       "Includes a refresh set on the metadata of the result."
-      (meta result) => {::prim/refresh #{:x :y :a :b}})))
+      (-> result meta ::prim/refresh) => #{:x :y :a :b})))
+
+(specification "substitute-root-path-for-ident"
+  (let [node-ident  [:id "singleton"]
+        query       [{node-ident [:id {:input [:fulcro.democards.react16-cards/id :my-value]} :ui/local-value]}]
+        replacement [:ROOT]
+        data-tree   (with-meta
+                      {node-ident (with-meta
+                                    {:ui/local-value "From inside"
+                                     :input          (with-meta
+                                                       {:fulcro.democards.react16-cards/id #uuid "3627a8a5-ac4a-4ee8-8d3e-8e22d2ade810", :my-value "B"}
+                                                       {::parser/data-path [node-ident :input]})}
+                                    {::parser/data-path [node-ident]})}
+                      {::parser/data-path []})
+        result      (get (parser/substitute-root-path-for-ident data-tree replacement query) node-ident)]
+    (assertions
+      "Replaces root path"
+      (-> result meta ::parser/data-path) => [:ROOT]
+      "Replaces nested path"
+      (-> result (get :input) meta ::parser/data-path) => [:ROOT :input])))
+
+(specification "parser on ident-based queries with replacement root path" :focused
+  (let [node-ident   [:table :id]
+        query        [{node-ident [{:input [:my-value]} :ui/local-value]}]
+        state-map    {:input/by-id {1 {:my-value "b"}}
+                      :table       {:id {:input [:input/by-id 1]}}}
+        replacement  [:x :y :z]
+        local-parser (parser/parser {:read (partial app/read-local (constantly false))})
+        env          {:replacement-root-path replacement
+                      :state                 (atom state-map)}
+        result       (local-parser env query)]
+    (assertions
+      "Replaces metadata for root path"
+      (-> result (get node-ident) meta ::parser/data-path) => [:x :y :z]
+      "Replaces metadata for nested path"
+      (-> result (get-in [node-ident :input]) meta ::parser/data-path) => [:x :y :z :input])))

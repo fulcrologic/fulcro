@@ -1,36 +1,36 @@
-(defproject fulcrologic/fulcro "2.5.12"
+(defproject fulcrologic/fulcro "2.6.0-RC1"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.10.238" :scope "provided"]
+                 [org.clojure/clojurescript "1.10.339" :scope "provided"]
 
-                 [cljsjs/react "15.6.2-4"]
-                 [cljsjs/react-dom "15.6.2-4"]
-                 [cljsjs/react-dom-server "15.6.2-4"]
-                 [com.cognitect/transit-clj "0.8.300"]
-                 [com.cognitect/transit-cljs "0.8.243"]
+                 [cljsjs/react "16.4.0-0"]
+                 [cljsjs/react-dom "16.4.0-0"]
+                 [cljsjs/react-dom-server "16.4.0-0"]
+                 [com.cognitect/transit-clj "0.8.309"]
+                 [com.cognitect/transit-cljs "0.8.256"]
                  [org.clojure/core.async "0.4.474"]
                  [com.stuartsierra/component "0.3.2"]
-                 [garden "1.3.4"]
+                 [garden "1.3.5"]
 
                  ;; In case someone is still using 1.8
                  [clojure-future-spec "1.9.0-beta4"]
 
                  ;; Dynamic dependencies. You must require these if you use fulcro server extensions.
-                 [http-kit "2.2.0" :scope "provided"]
+                 [http-kit "2.3.0" :scope "provided"]
                  [ring/ring-core "1.6.3" :scope "provided" :exclusions [commons-codec]]
-                 [bk/ring-gzip "0.2.1" :scope "provided"]
+                 [bk/ring-gzip "0.3.0" :scope "provided"]
                  [bidi "2.1.3" :scope "provided"]
                  [com.taoensso/sente "1.12.0" :scope "provided"]
 
                  ;; test deps
                  [fulcrologic/fulcro-spec "2.1.0-1" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.10" :scope "test"]
-                 [com.ibm.icu/icu4j "60.2" :scope "test"]
-                 [org.clojure/test.check "0.10.0-alpha1" :scope "test"]]
+                 [com.ibm.icu/icu4j "62.1" :scope "test"]
+                 [org.clojure/test.check "0.10.0-alpha3" :scope "test"]]
 
   :source-paths ["src/main"]
   :jar-exclusions [#"public/.*" #"private/.*"]
@@ -47,7 +47,7 @@
 
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-doo "0.1.10"]
-            [com.jakemccrary/lein-test-refresh "0.21.1"]]
+            [com.jakemccrary/lein-test-refresh "0.22.0"]]
 
   :test-refresh {:report       fulcro-spec.reporters.terminal/fulcro-report
                  :changes-only false
@@ -129,19 +129,19 @@
                                ;:parallel-build true
                                :optimizations :none}}]}
 
-  :profiles {:book {:dependencies [[devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-inspect "2.0.1" :exclusions [fulcrologic/fulcro]]
+  :profiles {:book {:dependencies [[devcards "0.2.5" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
+                                   [fulcrologic/fulcro-inspect "2.2.0-beta8" :exclusions [fulcrologic/fulcro]]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
-                                   [com.rpl/specter "1.1.0"]
+                                   [com.rpl/specter "1.1.1"]
                                    [org.flywaydb/flyway-core "4.2.0"]]}
              :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/tutorial" "src/book"]
                     :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                    :dependencies [[binaryage/devtools "0.9.9"]
-                                   [com.rpl/specter "1.1.0"] ; used by book demos
+                    :dependencies [[binaryage/devtools "0.9.10"]
+                                   [com.rpl/specter "1.1.1"] ; used by book demos
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-inspect "2.0.1" :exclusions [fulcrologic/fulcro]]
+                                   [fulcrologic/fulcro-inspect "2.2.0-beta8" :exclusions [fulcrologic/fulcro]]
                                    [com.cemerick/piggieback "0.2.2"]
                                    [figwheel-sidecar "0.5.15"]
                                    [cljsjs/d3 "3.5.7-1"]
