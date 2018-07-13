@@ -2419,19 +2419,18 @@ The reconciler does a number of things to optimize rendering beyond the basics o
 
 * Fulcro provides a built-in `shouldComponentUpdate` that uses a comparison of the prior props to
 tell React to skip no-op updates that would lead to a useless VDOM diff.
-* When more than one component will refresh the components are refreshed in depth-first order. This allows Fulcro
-to prevent double-rendering of children. (e.g. if a Parent and Child need to refresh then updating the parent
-first will render the child, and the child can be skipped. If the child was rendered first then the parent refresh would
-try to double-render the child).
+* When more than one component needs a refresh Fulcro analyzes the tree and only renders the parent of common children
+to to prevent multiple-rendering of children.
 * If a component is the target of a refresh and has an ident then Fulcro will run the query for *just* that component,
-and re-render *just* that component's subtree (avoiding a root query and root render).
-** NOTE: a component without an ident will *always* trigger a root refresh, since there is no way to figure out
+avoiding quite a bit of database processing. This is the biggest performance win in "flame graph" tests.
+** NOTE: a component *without* an ident will *always* trigger a root query/refresh, since there is no way to figure out
 how to run that component's query (queries are relative, and idents give you an anchor point for them).
 
-The `shouldComponentUpdate` optimization reduces the load by quite a bit, but running the query from root can
+The `shouldComponentUpdate` optimization reduces the render load by quite a bit, but running the query from root can
 be somewhat costly depending on how well you <<Performance, optimized>> your UI query. Thus, idents become a major
 factor in both normalization and rendering performance since Fulcro relies on them in order to reduce
-the query overhead of UI refresh.
+the query overhead of UI refresh.  This isn't something you typically need to remember, since you should be using
+idents on *all* components so they are easier to refactor and reuse.
 
 === Rendering Modes
 
@@ -2441,7 +2440,7 @@ Version 2.1+ of Fulcro include the ability to tell the reconciler which renderin
 `:normal`:: The default mode. Uses all possible optimizations.
 `:keyframe`:: Disables the ident-based targeted refresh. Thus every render is considered a key frame of the DOM.
 This means that every transaction/change will run the root UI query and render from root. The `shouldComponentUpdate`
-optimization is in force and prevents quite a bit of work from React. This mode can be plenty fast and has the advantage
+optimization is in force and prevents quite a bit of work from React. This mode *can be* plenty fast and has the advantage
 of not needing you to program with follow-on reads.
 `:brutal`:: Disables all optimizations, runs queries from root, runs refresh from root, and forces React to do a full
 DOM diff. Primarily useful to compare how much benefit optimizations are actually giving you beyond React's DOM diff.
@@ -2947,6 +2946,10 @@ See https://facebook.github.io/react/docs/forms.html[React Forms] for more detai
 
 == React Lifecycle Examples [[ReactLifecycle]]
 
+NOTE: Fulcro 2.6+ includes React 16.4+ Lifecycle support (except `getDerivedStateFromProps`). You must explicitly include
+react and react-dom as dependencies in order to get the newer React versions since Fulcro still defaults to 15.6 to prevent breakage
+of existing apps.
+
 There are some common use-cases that can only be solved by working directly with the React Lifecycle methods.
 
 Some topics you should be familiar with in React to accomplish many of these things are:
@@ -3041,14 +3044,25 @@ The things to note for this example are:
 Sometimes you need to use component-local state to avoid the overhead in running a query to feed props. An example
 of this is when handing mouse interactions like drag. You'll typically use React refs to grab the actual low-level canvas.
 
-There are actually two ways to change component-local state. One of them defers rendering to the next animation frame,
+In Fulcro version *before* 2.6 there are actually two ways to change component-local state.
+One of them defers rendering to the next animation frame,
 but it *also* reconciles the database with the stateful components. This one will not give you as much of a speed boost
 (though it may be enough, since you're not changing the database or recording more UI history).
 
 The other mechanism completely avoids this, and just asks React for an immediate forced update.
 
-* `(set-state! this data)` and `(update-state! this data)` - trigger a reconcile against the database at the next animation frame. Limits frame rate to 60 fps.
-* `(react-set-state! this data)` - trigger a React forceUpdate immediately
+In Fulcro 2.6 `set-state!` *is* a Fulcro wrapper of React's `setState`, but it let's you use cljs maps instead of
+js ones. The shallow merge described by React is honored as if you used an updater function (there is no need
+for an updater function). The `set-state!` also allows a callback to give you full React compatibility.
+
+The `update-state!` function in Fulcro is like Clojurescripts `swap!` function, and uses `set-state!` behind the
+scenes.
+
+In older versions of Fulcro:
+
+* `(set-state! this data)` and `(update-state! this data)` - trigger a reconcile against the database at the next animation frame. Limits frame rate to 60 fps (in 2.6+ is identical to React `setState` with an `updater` and optional `callback`, but you
+just supply the map that will be merged. Use `update-state!` if you need more functional control.
+* `(react-set-state! this data)` - triggers a React render according to React's `setState` documentation.
 
 In this example we're using `set-state!`, and you can see it is still plenty fast!
 

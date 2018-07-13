@@ -11,15 +11,15 @@
   `(let [real-create# fulcro.client.dom/macro-create-element*]
      (provided ~name
        ~'(fulcro.client.dom/macro-create-element* args) ~'=1x=> (do
-                                                                        (assertions
-                                                                          "passes the tag name"
-                                                                          (~'aget ~'args 0) ~'=> "div"
-                                                                          "passes the props with the expected classes"
-                                                                          (~'js->clj (~'aget ~'args 1)) ~'=> {"className" ~expected-classes
-                                                                                                              "id"        "y"}
-                                                                          "passes the children"
-                                                                          (~'aget ~'args 2) ~'=> "Hello")
-                                                                        (real-create# ~'args))
+                                                                  (assertions
+                                                                    "passes the tag name"
+                                                                    (~'aget ~'args 0) ~'=> "div"
+                                                                    "passes the props with the expected classes"
+                                                                    (~'js->clj (~'aget ~'args 1)) ~'=> {"className" ~expected-classes
+                                                                                                        "id"        "y"}
+                                                                    "passes the children"
+                                                                    (~'aget ~'args 2) ~'=> "Hello")
+                                                                  (real-create# ~'args))
 
        (fulcro.client.dom/render-to-str ((fulcro.client.primitives/factory ~component) {})))))
 
@@ -61,7 +61,7 @@
     (seq? v) (doall (map jsvalue->map v))
     :else v))
 
-(specification "Server-side Rendering without parent context" :focused
+(specification "Server-side Rendering without parent context"
   (assertions
     "Simple tag rendering"
     (render-to-str (div {} "Hello"))
@@ -77,14 +77,14 @@
     => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"385685127\">Hello</div>"
     "Nested rendering"
     (render-to-str (div :.a#1 {:className "b"}
-                          (p "P")
-                          (p :.x (span "PS2"))))
+                     (p "P")
+                     (p :.x (span "PS2"))))
     => "<div class=\"a b\" id=\"1\" data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1768960473\"><p data-reactid=\"2\">P</p><p class=\"x\" data-reactid=\"3\"><span data-reactid=\"4\">PS2</span></p></div>"))
 
 (defn render-component [component]
   (render-to-str ((prim/factory component) {})))
 
-(specification "SSR With Extended classes" :focused
+(specification "SSR With Extended classes"
   (assertions
     "kw + no props"
     (render-component NoPropsComponent) =fn=> #(str/includes? % "class=\"fulcro_client_localized-dom-spec_NoPropsComponent__a\" id=\"y\"") "kw + nil props"
