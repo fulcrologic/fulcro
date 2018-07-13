@@ -105,40 +105,32 @@
 (defn wrap-form-element [element]
   (let [ctor (fn [props]
                (this-as this
-                 (set! (.-state this)
-                   (let [state #js {:ref (gobj/get props "inputRef")}]
-                     (->> #js {:onChange (goog/bind (gobj/get this "onChange") this)}
-                       (gobj/extend state props))
-                     (gobj/remove state "inputRef")
-                     state))
+                 (set! (.-state this) #js {:value (gobj/get props "value")})
                  (.apply js/React.Component this (js-arguments))))]
     (set! (.-displayName ctor) (str "wrapped-" element))
     (goog.inherits ctor js/React.Component)
     (specify! (.-prototype ctor)
       Object
-      (onChange [this event]
-        (when-let [handler (.-onChange (.-props this))]
-          (handler event)
-          (update-state
-            this (.-props this)
-            (gobj/getValueByKeys event "target" "value"))))
-
-      (componentWillReceiveProps [this new-props]
-        (let [state-value   (gobj/getValueByKeys this "state" "value")
-              element-value (gobj/get (js/ReactDOM.findDOMNode this) "value")]
-          (if (not= state-value element-value)
-            (update-state this new-props element-value)
-            (update-state this new-props (gobj/get new-props "value")))))
-
       (render [this]
-        (js/React.createElement element (.-state this))))
+        (let [props       (gobj/clone (gobj/get this "props"))
+              has-value?  (gobj/containsKey props "value")
+              handler     (gobj/get props "onChange")
+              inputRef    (gobj/get props "inputRef")
+              state-value (gobj/getValueByKeys this "state" "value")]
+          (gobj/remove props "inputRef")
+          (when inputRef (gobj/set props "ref" inputRef))
+          (when (and handler has-value?)
+            (gobj/set props "onChange" (fn [event]
+                                         (.setState this #js {:value (gobj/getValueByKeys event "target" "value")})
+                                         (when handler (handler event))))
+            (gobj/set props "value" state-value))
+          (js/React.createElement element props))))
     (let [real-factory (js/React.createFactory ctor)]
       (fn [props & children]
         (if-let [r (gobj/get props "ref")]
           (if (string? r)
             (apply real-factory props children)
-            (let [p #js{}]
-              (gobj/extend p props)
+            (let [p (gobj/clone props)]
               (gobj/set p "inputRef" r)
               (gobj/remove p "ref")
               (apply real-factory p children)))
@@ -212,3 +204,4 @@
                            [(first args) (rest args)]
                            [#js {} args])]
     (js/React.createElement js/React.Fragment (clj->js props) children)))
+

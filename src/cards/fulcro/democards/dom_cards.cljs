@@ -3,6 +3,7 @@
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.dom :as dom :refer [div span]]
             [goog.object :as gobj]
+            [goog.functions :as gf]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]))
 
@@ -128,14 +129,53 @@
   "These dom elements use the CSS id/class (both shorthand and in attrs) with style tags."
   CssShorthand)
 
+(defsc WrappedInput [this {:keys [iref onChange value] :as props}]
+  {:initLocalState    {:value ""}
+   :componentDidMount (fn []
+                        (let [{:keys [value]} (prim/props this)]
+                          (when value
+                            (prim/set-state! this {:value value}))))}
+  (let [attrs (cond-> (assoc props :onChange (fn [evt]
+                                               (let [v (.. evt -target -value)]
+                                                 (when onChange (onChange evt))
+                                                 (prim/set-state! this {:value v})))
+                                   :value (or (prim/get-state this :value) ""))
+                iref (assoc :ref iref)
+                iref (dissoc :iref)
+                :always (clj->js))]
+    (if (and onChange value)
+      (js/React.createElement "input" attrs)
+      (js/React.createElement "input" (clj->js (dissoc props :iref))))))
+
+(def ui-input (prim/factory WrappedInput))
+
 (defsc Form [this {:keys [:db/id :form/value] :as props}]
   {:query             [:db/id :form/value]
    :ident             [:form/by-id :db/id]
+   :initLocalState    (fn [] (gobj/set this "update"
+                               (let [update (gf/debounce (fn [v] (m/set-string! this :form/value :value v)) 500)]
+                                 (fn [event]
+                                   (update (.. event -target -value))))))
    :initial-state     {:db/id 1 :form/value 22}
    :componentDidMount (fn [] (when-let [e (gobj/get this "n")] (.focus e)))}
-  (dom/input :#id.cls {:onChange #(m/set-string! this :form/value :event %)
-                       :ref      (fn [r] (gobj/set this "n" r))
-                       :value    value}))
+  (dom/input {:className "cls"
+              :onChange  (gobj/get this "update")
+              :ref       (fn [r] (gobj/set this "n" r))
+              :onBlur    (fn [] (js/console.log :BLUR))
+              :value     value})
+  #_(ui-input {:className "cls"
+               :onChange  (fn [evt]
+                            (let [v (.. evt -target -value)]
+                              (js/setTimeout (fn [] (m/set-string! this :form/value :value v)) 400)))
+               :iref      (fn [r] (gobj/set this "n" r))
+               :value     value})
+  #_(js/React.createElement "input" #js {:className "cls"
+                                         :onChange  (fn [evt]
+                                                      (let [v (.. evt -target -value)]
+                                                        (js/setTimeout (fn [] (m/set-string! this :form/value :value v)) 400)))
+                                         :onBlur    #(js/console.log :BLUR)
+                                         :ref       (fn [r] (gobj/set this "n" r))
+                                         :value     value}))
 
 (defsc OldForm [this {:keys [:db/id :form/value] :as props}]
   {:query             [:db/id :form/value]
