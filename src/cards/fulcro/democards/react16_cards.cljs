@@ -17,15 +17,24 @@
    :initial-state             {:id :param/id :n 1}
    :ident                     [:counter/by-id :id]
    :initLocalState            (fn [] {:m 20})
-   :componentDidUpdate        (fn [prev-props prev-state] (js/console.log :did-update :pp prev-props :cp (prim/props this) :ps prev-state :cs (prim/get-state this)))
-   :componentDidMount         (fn [] (js/console.log :did-mount (prim/get-ident this) :cp (prim/props this) :cs (prim/get-state this)))
-   :componentWillUnmount      (fn [] (js/console.log :will-mount (prim/get-ident this) :cp (prim/props this) :cs (prim/get-state this)))
-   :componentWillReceiveProps (fn [next-props] (js/console.log :will-rp :curr-props (prim/props this) :next-props next-props))
-   :componentWillUpdate       (fn [next-props next-state] (js/console.log :will-update :cp (prim/props this) :np next-props :cs (prim/get-state this) :crs (prim/get-rendered-state this) :ns next-state))
-   :componentWillMount        (fn [] (js/console.log :will-mount :cp (prim/props this) :cs (prim/get-state this)))}
+   :getSnapshotBeforeUpdate   (fn [prev-props prev-state]
+                                #_(js/console.log :GET_SNAP :pp prev-props :cp (prim/props this) :ps prev-state :cs (prim/get-state this))
+                                :SNAP!)
+   :componentDidUpdate        (fn [prev-props prev-state snapshot] #_(js/console.log :snap snapshot))
+   :componentDidMount         (fn [] #_(js/console.log :did-mount (prim/get-ident this) :cp (prim/props this) :cs (prim/get-state this)))
+
+   ; :componentWillUnmount      (fn [] (js/console.log :will-mount (prim/get-ident this) :cp (prim/props this) :cs (prim/get-state this)))
+   ;:componentWillReceiveProps (fn [next-props] (js/console.log :will-rp :curr-props (prim/props this) :next-props next-props))
+   ;:componentWillUpdate       (fn [next-props next-state] (js/console.log :will-update :cp (prim/props this) :np next-props :cs (prim/get-state this) :crs (prim/get-rendered-state this) :ns next-state))
+   ;:componentWillMount        (fn [] (js/console.log :will-mount :cp (prim/props this) :cs (prim/get-state this)))
+   ;:UNSAFE_componentWillReceiveProps (fn [next-props] (js/console.log :will-rp :curr-props (prim/props this) :next-props next-props))
+   ;:UNSAFE_componentWillUpdate       (fn [next-props next-state] (js/console.log :will-update :cp (prim/props this) :np next-props :cs (prim/get-state this) :crs (prim/get-rendered-state this) :ns next-state))
+   :UNSAFE_componentWillMount (fn [] #_(js/console.log :will-mount :cp (prim/props this) :cs (prim/get-state this)))
+   }
   (dom/div
-    (js/console.log :pmeta (meta (prim/props this)))
+    #_(js/console.log :pmeta (meta (prim/props this)))
     (dom/button {:onClick (fn [] (prim/update-state! this update :m inc))} (str "M: " (prim/get-state this :m)))
+
     (dom/button {:onClick (fn []
                             (onClick id)
                             #_(m/set-value! this :n (inc n))

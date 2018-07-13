@@ -206,9 +206,10 @@
     getDerivedStateFromProps         [props state]})
 
 (defn- validate-sig [[name sig :as method]]
-  (let [sig' (get lifecycle-sigs name)]
-    (assert (= (count sig') (count sig))
-      (str "Invalid signature for " name " got " sig ", need " sig'))))
+  (let [required-signature (get lifecycle-sigs name)]
+    (assert
+      (<= (count required-signature) (count sig))           ; allow additional arg (context or snapshot)
+      (str "Invalid signature for " name " got " sig ", need " required-signature))))
 
 #?(:clj
    (def reshape-map-clj
@@ -273,23 +274,25 @@
       'UNSAFE_componentWillReceiveProps will-receive-props
       'componentWillUpdate              will-update
       'UNSAFE_componentWillUpdate       will-update
-      'componentDidUpdate               (fn [[name [this prev-props prev-state :as args] & body]]
-                                          `(~name [this# prev-props# prev-state#]
-                                             (let [~this this#
-                                                   ~prev-props (goog.object/get prev-props# "fulcro$value")
-                                                   ~prev-state (goog.object/get prev-state# "fulcro$state")]
-                                               (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
-                                                 (let [ident#      (fulcro.client.primitives/ident this# ~prev-props)
-                                                       next-ident# (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))]
-                                                   (when (not= ident# next-ident#)
-                                                     (let [idxr# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
-                                                       (when-not (nil? idxr#)
-                                                         (swap! (:indexes idxr#)
-                                                           (fn [indexes#]
-                                                             (-> indexes#
-                                                               (update-in [:ref->components ident#] disj this#)
-                                                               (update-in [:ref->components next-ident#] (fnil conj #{}) this#)))))))))
-                                               ~@body)))
+      'componentDidUpdate               (fn [[name [this prev-props prev-state & optional :as args] & body]]
+                                          (let [snapshot-sym (if (symbol? (first optional)) (first optional) (gensym "snapshot"))]
+                                            `(~name [this# prev-props# prev-state# snapshot#]
+                                               (let [~this this#
+                                                     ~snapshot-sym snapshot#
+                                                     ~prev-props (goog.object/get prev-props# "fulcro$value")
+                                                     ~prev-state (goog.object/get prev-state# "fulcro$state")]
+                                                 (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
+                                                   (let [ident#      (fulcro.client.primitives/ident this# ~prev-props)
+                                                         next-ident# (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))]
+                                                     (when (not= ident# next-ident#)
+                                                       (let [idxr# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
+                                                         (when-not (nil? idxr#)
+                                                           (swap! (:indexes idxr#)
+                                                             (fn [indexes#]
+                                                               (-> indexes#
+                                                                 (update-in [:ref->components ident#] disj this#)
+                                                                 (update-in [:ref->components next-ident#] (fnil conj #{}) this#)))))))))
+                                                 ~@body))))
       'componentDidMount                (fn [[name [this :as args] & body]]
                                           `(~name [this#]
                                              (let [~this this#
@@ -324,6 +327,12 @@
                                              (let [~this this#
                                                    ~next-props (goog.object/get next-props# "fulcro$value")
                                                    ~next-state (goog.object/get next-state# "fulcro$state")]
+                                               ~@body)))
+      'getSnapshotBeforeUpdate          (fn [[name [this prev-props prev-state :as args] & body]]
+                                          `(~name [this# prev-props# prev-state#]
+                                             (let [~this this#
+                                                   ~prev-props (goog.object/get prev-props# "fulcro$value")
+                                                   ~prev-state (goog.object/get prev-state# "fulcro$state")]
                                                ~@body)))
       'render
                                         (fn [[name [this :as args] & body]]
@@ -1864,7 +1873,6 @@
                    data-path   (-> (props c) meta ::parser/data-path)
                    result      (parser (assoc env :replacement-root-path data-path) query)
                    value       (get result id)]
-               #?(:cljs (js/console.log :replacement-path data-path))
                (if (and has-tempid? (or (nil? value) (empty? value)))
                  ::no-ident                                 ; tempid remap happened...cannot do targeted props until full re-render
                  value)))]
@@ -1915,14 +1923,6 @@
      ([c]
       (force-update c nil))))
 
-
-#_(let [comp-c [:c]
-        comp-x (conj comp-c :x)
-        comp-z (conj comp-c :z)
-        paths  [comp-c comp-x comp-z]]
-
-    )
-
 (defn dedup-components-by-path [components]
   (let [get-path     #(some-> % props meta ::parser/data-path)
         sorted-comps (sort-by get-path components)]
@@ -1949,7 +1949,6 @@
         {:keys [root render-props]} @reconciler-state]
     #?(:cljs
        (doseq [c (dedup-components-by-path components-to-refresh)]
-         (js/console.log :render c)
          (when (mounted? c)
            (let [computed       (get-computed (props c))
                  next-raw-props (fulcro-ui->props env c)
@@ -1963,7 +1962,6 @@
                  (let [old-tree    (props root)
                        target-path (-> next-props meta ::parser/data-path)
                        new-tree    (assoc-in old-tree target-path next-props)]
-                   (js/console.log :rnp next-raw-props :old old-tree :new new-tree :next-props next-props)
                    (render-props new-tree))))))))))
 
 (defrecord Reconciler [config state history]
@@ -2692,8 +2690,8 @@
   sym - The symbol to report in the error message (in case the rewrite uses a different target that the user knows)."
   ([sym external-args user-arity fn-form] (replace-and-validate-fn sym external-args user-arity fn-form sym))
   ([sym external-args user-arity fn-form user-known-sym]
-   (when-not (= user-arity (count (second fn-form)))
-     (throw (ex-info (str "Invalid arity for " user-known-sym) {:expected user-arity :got (count (second fn-form))})))
+   (when-not (<= user-arity (count (second fn-form)))
+     (throw (ex-info (str "Invalid arity for " user-known-sym) {:expected (str user-arity " or more") :got (count (second fn-form))})))
    (let [user-args    (second fn-form)
          updated-args (into (vec (or external-args [])) user-args)
          body-forms   (drop 2 fn-form)]
@@ -2987,7 +2985,7 @@
        ; You're at *compile time* in *Clojure*...you *cannot rely on components* that are defined because they might be only
        ; cljs artifacts.
        ; (when validate-css? (validate-css-destructuring csssym (:template css)))
-       `(fulcro.client.primitives/defui ~(with-meta sym {:once true})
+       `(fulcro.client.primitives/defui ~(vary-meta sym assoc :once true)
           ~@addl-protocols
           ~@css-forms
           ~@state-forms
@@ -3024,7 +3022,7 @@
       :initLocalState            (fn [] ...) ; CAN BE used to call things as you might in a constructor. Return value is initial state.
       :shouldComponentUpdate     (fn [next-props next-state] ...)
 
-      :componentDidUpdate        (fn [prev-props prev-state] ...)
+      :componentDidUpdate        (fn [prev-props prev-state snapshot] ...) ; snapshot is optional, and is 16+. Is context for 15
       :componentDidMount         (fn [] ...)
       :componentWillUnmount      (fn [] ...)
 
@@ -3033,15 +3031,16 @@
       :componentWillUpdate              (fn [next-props next-state] ...)
       :componentWillMount               (fn [] ...)
 
-      ;; Replacements for deprecated methods
+      ;; Replacements for deprecated methods in React 16.3+
       :UNSAFE_componentWillReceiveProps (fn [next-props] ...)
       :UNSAFE_componentWillUpdate       (fn [next-props next-state] ...)
       :UNSAFE_componentWillMount        (fn [] ...)
 
       ;; ADDED for React 16:
-      :getDerivedStateFromProps  (fn [props state] ...) ; static. does NOT get `this`
       :componentDidCatch         (fn [error info] ...)
       :getSnapshotBeforeUpdate   (fn [prevProps prevState] ...)
+
+      TODO:  :getDerivedStateFromProps  (fn [props state] ...)
 
       NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
       that other libraries can control the sub-dom. If you do want to implement it, then old props can

@@ -6,12 +6,12 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
-2.6
----
-- Updated React 16 support to include all lifecycle methods
-- Added ability to select React compliance version
-- Removed dead code
-- Fixed bug related to next/prev props in lifecycle
+2.6.0
+-----
+- Updated so that using React 16.4 includes all lifecycle methods (UNSAFE, etc.), EXCEPT getDerivedStateFromProps
+- Changed how React state works with Fulcro in order to be compliant with new React 16 requirements.
+- Still supports React 15.x
+- State changes required a rewrite of rendering optimizations to prevent lifecycle bugs. May be slightly slower until I optimize one algorithm a bit.
 
 2.5.12
 ------
