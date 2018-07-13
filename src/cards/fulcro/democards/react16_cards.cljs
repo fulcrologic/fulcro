@@ -1,5 +1,5 @@
 (ns fulcro.democards.react16-cards
-  (:require [devcards.core :as dc]
+  (:require [devcards.core :as dc :refer [defcard]]
             [fulcro.client.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro make-root]]
             [fulcro.client.primitives :as prim :refer [defsc defui]]
@@ -13,15 +13,15 @@
     [:counters]))
 
 (defsc CounterButton [this {:keys [id n]} {:keys [onClick]}]
-  {:query                     [:id :n]
-   :initial-state             {:id :param/id :n 1}
-   :ident                     [:counter/by-id :id]
-   :initLocalState            (fn [] {:m 20})
-   :getSnapshotBeforeUpdate   (fn [prev-props prev-state]
-                                #_(js/console.log :GET_SNAP :pp prev-props :cp (prim/props this) :ps prev-state :cs (prim/get-state this))
-                                :SNAP!)
-   :componentDidUpdate        (fn [prev-props prev-state snapshot] #_(js/console.log :snap snapshot))
-   :componentDidMount         (fn [] #_(js/console.log :did-mount (prim/get-ident this) :cp (prim/props this) :cs (prim/get-state this)))
+  {:query                   [:id :n]
+   :initial-state           {:id :param/id :n 1}
+   :ident                   [:counter/by-id :id]
+   :initLocalState          (fn [] {:m 20})
+   :getSnapshotBeforeUpdate (fn [prev-props prev-state]
+                              #_(js/console.log :GET_SNAP :pp prev-props :cp (prim/props this) :ps prev-state :cs (prim/get-state this))
+                              :SNAP!)
+   :componentDidUpdate      (fn [prev-props prev-state snapshot] #_(js/console.log :snap snapshot))
+   :componentDidMount       (fn [] #_(js/console.log :did-mount (prim/get-ident this) :cp (prim/props this) :cs (prim/get-state this)))
 
    ; :componentWillUnmount      (fn [] (js/console.log :will-mount (prim/get-ident this) :cp (prim/props this) :cs (prim/get-state this)))
    ;:componentWillReceiveProps (fn [next-props] (js/console.log :will-rp :curr-props (prim/props this) :next-props next-props))
@@ -95,3 +95,15 @@
   (make-root DemoContainer {})
   {}
   {:inspect-data true})
+
+(defsc FragDemo [this props]
+  (dom/fragment
+    (dom/p "Hi someone")
+    (dom/p "There")))
+
+(def ui-frag-demo (prim/factory FragDemo))
+
+(defcard fragments
+  (dom/div
+    (dom/p "sibling")
+    (ui-frag-demo {:n (rand-int 10000)})))

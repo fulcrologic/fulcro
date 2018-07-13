@@ -2893,7 +2893,7 @@
                                                       :doc (s/? string?)
                                                       :arglist (s/and vector? #(<= 2 (count %) 5))
                                                       :options (s/? :fulcro.client.primitives.defsc/options)
-                                                      :body (s/* list?))))
+                                                      :body (s/* any?))))
 #?(:clj (s/def :fulcro.client.primitives.defsc/static #{'static}))
 #?(:clj (s/def :fulcro.client.primitives.defsc/protocol-method list?))
 
