@@ -99,48 +99,6 @@
   (when reconciler
     (p/get-history reconciler)))
 
-(defn add-basis-time* [{:keys [children]} props time]
-  (if (map? props)
-    (if (seq children)
-      (let [children (if (= :union (-> children first :type))
-                       (apply concat (->> children first :children (map :children)))
-                       children)]
-        (-> (into props
-              (comp
-                (filter #(contains? props (:key %)))
-                (map (fn [{:keys [key query] :as ast}]
-                       (let [x   (get props key)
-                             ast (cond-> ast
-
-                                   (= '... query)
-                                   (assoc :children children)
-
-                                   (pos-int? query)
-                                   (assoc :children (mapv #(cond-> %
-                                                             (pos-int? (:query %))
-                                                             (update :query dec))
-                                                      children)))]
-                         [key
-                          (if (sequential? x)
-                            (mapv #(add-basis-time* ast % time) x)
-                            (add-basis-time* ast x time))]))))
-              children)
-          (vary-meta assoc ::time time)))
-      (vary-meta props assoc ::time time))
-    props))
-
-(defn add-basis-time
-  "Recursively add the given basis time to all of the maps in the props. This is part of the UI refresh optimization
-  algorithm. Children that refresh in isolation could be mis-drawn if a parent subsequently does a re-render without
-  a query (e.g. local state change). The basis times allow us to detect and avoid that."
-  ([props time]
-   (prewalk (fn [ele]
-              (if (map? ele)
-                (vary-meta ele assoc ::time time)
-                ele)) props))
-  ([q props time]
-   (add-basis-time* (query->ast q) props time)))
-
 (defn get-basis-time
   "Returns the basis time from the given props, or ::unset if not available."
   [props] (or (-> props meta ::time) :unset))
@@ -1928,41 +1886,51 @@
         sorted-comps (sort-by get-path components)]
     (reduce (fn [acc c]
               (let [prev-path (get-path (last acc))]
-                (if (and prev-path (= prev-path
-                                     (take (count prev-path)
-                                       (get-path c))))
+                (if (and prev-path
+                      (= prev-path (take (count prev-path) (get-path c))))
                   acc
                   (conj acc c))))
       [] sorted-comps)))
 
 (defn- optimal-render
   "Run an optimal render of the given `refresh-queue` (a list of idents and data query keywords). This function attempts
-   to refresh the minimum number of components according to the UI depth and state. If it cannot do targeted updates then
-   it will call `render-root` to render the entire UI. Other optimizations may apply in render-root."
+   to run the minimum number of component data queries to patch the props tree. If it cannot do targeted updates then
+   it will call `render-root` to query/render the entire UI. Other optimizations may apply in render-root."
   [reconciler refresh-queue render-root]
   (let [reconciler-state      (:state reconciler)
         config                (:config reconciler)
         components-to-refresh (transduce
                                 (map #(p/key->components (:indexer config) %))
                                 #(into %1 %2) #{} refresh-queue)
+        mounted-components    (filter mounted? components-to-refresh)
         env                   (assoc (to-env config) :reconciler reconciler)
         {:keys [root render-props]} @reconciler-state]
     #?(:cljs
-       (doseq [c (dedup-components-by-path components-to-refresh)]
-         (when (mounted? c)
-           (let [computed       (get-computed (props c))
-                 next-raw-props (fulcro-ui->props env c)
-                 force-root?    (= ::no-ident next-raw-props) ; screw focused query...
-                 next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
-             (if force-root?
-               (do
-                 (force-update c)                           ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
-                 (render-root))                             ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
-               (do
-                 (let [old-tree    (props root)
-                       target-path (-> next-props meta ::parser/data-path)
-                       new-tree    (assoc-in old-tree target-path next-props)]
-                   (render-props new-tree))))))))))
+       (let [old-tree     (props root)
+             components   (dedup-components-by-path mounted-components)
+             updated-tree (reduce
+                            (fn [tree c]
+                              (let [component-props (props c)
+                                    computed        (get-computed component-props)
+                                    target-path     (-> component-props meta ::parser/data-path)
+                                    next-raw-props  (fulcro-ui->props env c)
+                                    force-root?     (or (not target-path) (= ::no-ident next-raw-props)) ; can't do optimized query
+                                    next-props      (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
+                                (if force-root?
+                                  (do
+                                    (when (not target-path)
+                                      (log/warn "Optimal render skipping optimizations because component does not have a target path" c))
+                                    (reduced nil))
+                                  (let []
+                                    (assoc-in tree target-path next-props)))))
+                            old-tree
+                            components)]
+         (if updated-tree
+           (render-props updated-tree)
+           (let [start (inst-ms (js/Date.))
+                 _     (render-root)
+                 end   (inst-ms (js/Date.))]
+             (if (> (- end start) 20) (log/warn "Root render took " (- end start) "ms"))))))))
 
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
@@ -2013,10 +1981,8 @@
                       (let [root-query (get-query rctor (-> config :state deref))]
                         (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
                         (if-not (nil? root-query)
-                          (let [env          (to-env config)
-                                raw-props    ((:parser config) env root-query)
-                                current-time (get-current-time this)
-                                root-props   (add-basis-time root-query raw-props current-time)]
+                          (let [env        (to-env config)
+                                root-props ((:parser config) env root-query)]
                             (when (empty? root-props)
                               (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
                             (renderf root-props))

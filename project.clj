@@ -143,7 +143,7 @@
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
                                    [fulcrologic/fulcro-inspect "2.2.0-beta8" :exclusions [fulcrologic/fulcro]]
                                    [com.cemerick/piggieback "0.2.2"]
-                                   [figwheel-sidecar "0.5.15"]
+                                   [figwheel-sidecar "0.5.16"]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
