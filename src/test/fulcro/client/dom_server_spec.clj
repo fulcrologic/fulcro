@@ -51,11 +51,11 @@
 (specification "Fragments"
   (assertions
     "Allow multiple elements to be combined into a parent"
-    (dom/render-to-str (dom/div (dom/fragment {:key 1} (dom/p "a") (dom/p "b"))))
+    (dom/render-to-str (dom/div (prim/fragment {:key 1} (dom/p "a") (dom/p "b"))))
     =>
     "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"271326992\"><p data-reactid=\"2\">a</p><p data-reactid=\"3\">b</p></div>"
 
     "Props are optional"
-    (dom/render-to-str (dom/div (dom/fragment (dom/p "a") (dom/p "b"))))
+    (dom/render-to-str (dom/div (prim/fragment (dom/p "a") (dom/p "b"))))
     =>
     "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"271326992\"><p data-reactid=\"2\">a</p><p data-reactid=\"3\">b</p></div>"))

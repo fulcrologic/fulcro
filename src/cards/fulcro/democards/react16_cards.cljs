@@ -97,7 +97,7 @@
   {:inspect-data true})
 
 (defsc FragDemo [this props]
-  (dom/fragment
+  (prim/fragment
     (dom/p "Hi someone")
     (dom/p "There")))
 

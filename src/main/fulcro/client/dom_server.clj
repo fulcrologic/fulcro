@@ -365,8 +365,8 @@ void-tags
 
 (defn- is-element? [e]
   (or
-    (instance? fulcro.client.impl.protocols.IReactComponent e)
-    (instance? fulcro.client.impl.protocols.IReactDOMElement e)
+    (instance? p/IReactComponent e)
+    (instance? p/IReactDOMElement e)
     (satisfies? p/IReactComponent e)
     (satisfies? p/IReactDOMElement e)))
 
@@ -437,8 +437,3 @@ void-tags
        ~@(clojure.core/map gen-tag-fn cdom/tags))))
 
 (gen-all-tags)
-
-(defn fragment [& args]
-  (println (type (first args)))
-  (let [children (if (is-element? (first args)) args (rest args))]
-    (vec children)))
