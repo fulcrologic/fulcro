@@ -49,5 +49,3 @@
               (arr-append args))))))))
 
 (fulcro.client.dom/gen-client-dom-fns fulcro.client.localized-dom/macro-create-element)
-
-(def fragment "Wrap elements in a React.Fragment" fulcro.client.dom/fragment)

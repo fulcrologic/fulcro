@@ -437,8 +437,3 @@ void-tags
        ~@(clojure.core/map gen-tag-fn cdom/tags))))
 
 (gen-all-tags)
-
-(defn fragment [& args]
-  (println (type (first args)))
-  (let [children (if (is-element? (first args)) args (rest args))]
-    (vec children)))
