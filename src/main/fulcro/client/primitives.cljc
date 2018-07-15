@@ -854,6 +854,18 @@
          :queryid   (query-id class qualifier)
          :qualifier qualifier}))))
 
+(defn computed-factory
+  "Similar to factory, but returns a function with the signature
+  [props computed] instead of default [props & children]. This makes easier to send
+  computed but will not accept children params."
+  ([class] (computed-factory class {}))
+  ([class options]
+   (let [factory (factory class options)]
+     (fn real-factory
+       ([props] (real-factory props {}))
+       ([props computed]
+        (factory (computed props computed)))))))
+
 (defn denormalize-query
   "Takes a state map that may contain normalized queries and a query ID. Returns the stored query or nil."
   [state-map ID]
