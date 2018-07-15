@@ -1,6 +1,6 @@
 (ns fulcro.client.primitives
   #?(:cljs (:require-macros fulcro.client.primitives))
-  (:refer-clojure :exclude #?(:clj [deftype replace var? force]
+  (:refer-clojure :exclude #?(:clj  [deftype replace var? force]
                               :cljs [var? key replace force]))
   (:require
     #?@(:clj  [clojure.main
@@ -10,24 +10,24 @@
         :cljs [[goog.string :as gstring]
                [cljsjs.react]
                [goog.object :as gobj]])
-               fulcro-css.css
-               [clojure.core.async :as async]
-               [clojure.set :as set]
-               [fulcro.history :as hist]
-               [fulcro.logging :as log]
-               [fulcro.tempid :as tempid]
-               [fulcro.transit :as transit]
-               [clojure.zip :as zip]
-               [fulcro.client.impl.data-targeting :as targeting]
-               [fulcro.client.impl.protocols :as p]
-               [fulcro.client.impl.parser :as parser]
-               [fulcro.util :as util]
-               [clojure.walk :refer [prewalk]]
-               [clojure.string :as str]
-               [clojure.spec.alpha :as s]
+    fulcro-css.css
+    [clojure.core.async :as async]
+    [clojure.set :as set]
+    [fulcro.history :as hist]
+    [fulcro.logging :as log]
+    [fulcro.tempid :as tempid]
+    [fulcro.transit :as transit]
+    [clojure.zip :as zip]
+    [fulcro.client.impl.data-targeting :as targeting]
+    [fulcro.client.impl.protocols :as p]
+    [fulcro.client.impl.parser :as parser]
+    [fulcro.util :as util]
+    [clojure.walk :refer [prewalk]]
+    [clojure.string :as str]
+    [clojure.spec.alpha :as s]
     #?(:clj
-               [clojure.future :refer :all])
-               [cognitect.transit :as t])
+       [clojure.future :refer :all])
+    [cognitect.transit :as t])
   #?(:clj
      (:import [java.io Writer])))
 
@@ -1952,29 +1952,54 @@
    to refresh the minimum number of components according to the UI depth and state. If it cannot do targeted updates then
    it will call `render-root` to render the entire UI. Other optimizations may apply in render-root."
   [reconciler refresh-queue render-root]
-  (let [reconciler-state      (:state reconciler)
-        config                (:config reconciler)
-        components-to-refresh (transduce
-                                (map #(p/key->components (:indexer config) %))
-                                #(into %1 %2) #{} refresh-queue)
-        env                   (assoc (to-env config) :reconciler reconciler)
-        {:keys [root render-props]} @reconciler-state]
+  (let [reconciler-state       (:state reconciler)
+        {:keys [root render-props]} @reconciler-state
+        config                 (:config reconciler)
+        components-to-refresh  (transduce
+                                 (map #(p/key->components (:indexer config) %))
+                                 #(into %1 %2) #{} refresh-queue)
+        mounted-components     (filter mounted? components-to-refresh)
+        data-path              (fn [c] (some-> c props meta ::parser/data-path))
+        parent-with-path       (fn pwp [c]
+                                 (loop [p (parent c)]
+                                   (cond
+                                     (and p (data-path p)) p
+                                     p (recur (parent p))
+                                     :else root)))
+        refreshable-components (reduce
+                                 (fn [result c]
+                                   (if (data-path c)
+                                     (conj result c)
+                                     (conj result (parent-with-path c))))
+                                 []
+                                 mounted-components)
+        env                    (assoc (to-env config) :reconciler reconciler)]
     #?(:cljs
-       (doseq [c (dedup-components-by-path components-to-refresh)]
-         (when (mounted? c)
-           (let [computed       (get-computed (props c))
-                 next-raw-props (fulcro-ui->props env c)
-                 force-root?    (= ::no-ident next-raw-props) ; screw focused query...
-                 next-props     (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
-             (if force-root?
-               (do
-                 (force-update c)                           ; in case it was just a state update on that component, shouldComponentUpdate of root would keep it from working
-                 (render-root))                             ; NOTE: This will update time on all components, so the rest of the doseq will quickly short-circuit
-               (do
-                 (let [old-tree    (props root)
-                       target-path (-> next-props meta ::parser/data-path)
-                       new-tree    (assoc-in old-tree target-path next-props)]
-                   (render-props new-tree))))))))))
+       (let [old-tree     (props root)
+             components   (dedup-components-by-path refreshable-components)
+             updated-tree (reduce
+                            (fn [tree c]
+                              (let [component-props (props c)
+                                    computed        (get-computed component-props)
+                                    target-path     (data-path c)
+                                    next-raw-props  (fulcro-ui->props env c)
+                                    force-root?     (or (not target-path) (= ::no-ident next-raw-props)) ; can't do optimized query
+                                    next-props      (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
+                                (if force-root?
+                                  (do
+                                    (when (not target-path)
+                                      (log/warn "Optimal render skipping optimizations because component does not have a target path" c))
+                                    (reduced nil))
+                                  (let []
+                                    (assoc-in tree target-path next-props)))))
+                            old-tree
+                            components)]
+         (if updated-tree
+           (render-props updated-tree)
+           (let [start (inst-ms (js/Date.))
+                 _     (render-root)
+                 end   (inst-ms (js/Date.))]
+             (if (> (- end start) 20) (log/warn "Root render took " (- end start) "ms"))))))))
 
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
