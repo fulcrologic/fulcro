@@ -158,3 +158,23 @@
       (-> result (get node-ident) meta ::parser/data-path) => [:x :y :z]
       "Replaces metadata for nested path"
       (-> result (get-in [node-ident :input]) meta ::parser/data-path) => [:x :y :z :input])))
+
+(defn path-of [data path]
+  (-> (get-in data path) meta ::parser/data-path))
+
+(specification "path-meta"
+  (assertions
+    "Can assign the path of a nested map"
+    (path-of (parser/path-meta {:a {:b 1}} [] [{:a [:b]}]) [:a]) => [:a]
+    "Can assign the path of a to-many nested map"
+    (path-of (parser/path-meta {:a [{:b 1} {:b 2}]} [] [{:a [:b]}]) [:a 0]) => [:a 0]
+    (path-of (parser/path-meta {:a [{:b 1} {:b 2}]} [] [{:a [:b]}]) [:a 1]) => [:a 1]
+    "Can assign the path of data that used a recursive query"
+    (path-of (parser/path-meta {:a {:a 1}} [] '[{:a ...}]) [:a]) => [:a]
+    (path-of (parser/path-meta {:a {:children {:a 1}}} [] '[{:a [{:children ...}]}]) [:a]) => [:a]
+    (path-of (parser/path-meta {:a {:children {}}} [] '[{:a [{:children ...}]}]) [:a :children]) => [:a :children]
+    (path-of (parser/path-meta {:label "a" :children {:label "b" :children [{:label "c"}]}} [] '[:label {:children ...}]) [:children :children 0]) => [:children :children 0]
+    "Can assign through a union"
+    (path-of (parser/path-meta {:a {:subitems {:a 2}}} [] '[{:a {:x [:name {:subitems [:a]}] :y [:label {:children [:b]}]}}]) [:a]) => [:a]
+    (path-of (parser/path-meta {:a {:subitems {:a 2}}} [] '[{:a {:x [:name {:subitems [:a]}] :y [:label {:children [:b]}]}}]) [:a :subitems]) => [:a :subitems]
+    (path-of (parser/path-meta {:a {:children {:b 2}}} [] '[{:a {:x [:name {:subitems [:a]}] :y [:label {:children [:b]}]}}]) [:a :children]) => [:a :children]))
