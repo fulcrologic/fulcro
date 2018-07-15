@@ -1957,14 +1957,18 @@
      ([c]
       (force-update c nil))))
 
-(defn dedup-components-by-path [components]
+(defn dedup-components-by-path
+  "Remove components from the given list by removing those whose paths are encompassed by others. In other words,
+   remove components from the list when there is a parent of that component also in the list."
+  [components]
   (let [get-path     #(some-> % props meta ::parser/data-path)
         sorted-comps (sort-by get-path components)]
     (reduce (fn [acc c]
-              (let [prev-path (get-path (last acc))]
-                (if (and prev-path (= prev-path
-                                     (take (count prev-path)
-                                       (get-path c))))
+              (let [last-component (last acc)
+                    prev-path      (get-path last-component)
+                    path           (get-path c)
+                    path-prefix    (take (count prev-path) path)]
+                (if (or (= last-component c) (and prev-path (= prev-path path-prefix)))
                   acc
                   (conj acc c))))
       [] sorted-comps)))
@@ -1977,10 +1981,10 @@
   (let [reconciler-state       (:state reconciler)
         {:keys [root render-props]} @reconciler-state
         config                 (:config reconciler)
-        components-to-refresh  (transduce
+        queued-components      (transduce
                                  (map #(p/key->components (:indexer config) %))
                                  #(into %1 %2) #{} refresh-queue)
-        mounted-components     (filter mounted? components-to-refresh)
+        mounted-components     (filter mounted? queued-components)
         data-path              (fn [c] (some-> c props meta ::parser/data-path))
         parent-with-path       (fn pwp [c]
                                  (loop [p (parent c)]
