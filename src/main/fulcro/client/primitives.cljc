@@ -766,8 +766,8 @@
 #?(:clj
    (defn- is-element? [e]
      (or
-       (instance? p/IReactComponent e)
-       (instance? p/IReactDOMElement e)
+       (instance? fulcro.client.impl.protocols.IReactComponent e)
+       (instance? fulcro.client.impl.protocols.IReactDOMElement e)
        (satisfies? p/IReactComponent e)
        (satisfies? p/IReactDOMElement e))))
 
