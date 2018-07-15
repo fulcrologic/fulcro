@@ -2076,10 +2076,8 @@
                       (let [root-query (get-query rctor (-> config :state deref))]
                         (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
                         (if-not (nil? root-query)
-                          (let [env          (to-env config)
-                                raw-props    ((:parser config) env root-query)
-                                current-time (get-current-time this)
-                                root-props   (add-basis-time root-query raw-props current-time)]
+                          (let [env        (to-env config)
+                                root-props ((:parser config) env root-query)]
                             (when (empty? root-props)
                               (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
                             (renderf root-props))
