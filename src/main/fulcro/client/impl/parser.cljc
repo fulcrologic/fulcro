@@ -43,6 +43,7 @@
    mutations."}
   fulcro.client.impl.parser
   (:require [clojure.set :as set]
+            [fulcro.logging :as log]
             [fulcro.util :as util]))
 
 (declare expr->ast)
@@ -302,7 +303,8 @@
                                (:prop :join :union)
                                (do
                                  (assert read "Parse read attempted but no :read function supplied")
-                                 (read env dispatch-key params)))]
+                                 (read env dispatch-key params))
+                               nil)]
                    (if-not (nil? target)
                      (let [ast' (get res target)]
                        (cond-> ret
