@@ -764,6 +764,28 @@
       (str classname (when qualifier (str "$" qualifier))))))
 
 #?(:clj
+   (defn- is-element? [e]
+     (or
+       (instance? fulcro.client.impl.protocols.IReactComponent e)
+       (instance? fulcro.client.impl.protocols.IReactDOMElement e)
+       (satisfies? p/IReactComponent e)
+       (satisfies? p/IReactDOMElement e))))
+
+#?(:clj
+   (defn fragment [& args]
+     (let [children (if (is-element? (first args)) args (rest args))]
+       (vec children))))
+
+#?(:cljs
+   (defn fragment
+     "Wraps children in a React.Fragment. Props are optional, like normal DOM elements."
+     [& args]
+     (let [[props children] (if (map? (first args))
+                              [(first args) (rest args)]
+                              [#js {} args])]
+       (apply js/React.createElement js/React.Fragment (clj->js props) children))))
+
+#?(:clj
    (defn factory
      "Create a factory constructor from a component class created with
       fulcro.client.primitives/defui."
