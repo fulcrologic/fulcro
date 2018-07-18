@@ -1753,6 +1753,27 @@
         (get-in [:many :path]))
       => [[:table 99] [:table 3] [:table 77]])))
 
+(specification "remove-ident"
+  (let [state {:a {:b {:c [[:item/by-id 1]
+                           [:item/by-id 2]
+                           [:item/by-id 3]]}}}
+        path  [:a :b :c]]
+    (assertions
+      "Can remove a target ident"
+      (-> state
+          (prim/remove-ident [:item/by-id 1] path)
+          (get-in path))
+      => [[:item/by-id 2]
+          [:item/by-id 3]]
+
+      "Removing a missing ident results in a no-op"
+      (-> state
+          (prim/remove-ident [:item/by-id 100] path)
+          (get-in path))
+      => [[:item/by-id 1]
+          [:item/by-id 2]
+          [:item/by-id 3]])))
+
 (defui ^:once MergeX
   static prim/InitialAppState
   (initial-state [this params] {:type :x :n :x})
