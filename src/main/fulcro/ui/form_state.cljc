@@ -548,8 +548,12 @@
 
 (defn delete-form-state*
   "Removes copies of entities used by form-state logic."
-  [state-map & entity-idents]
-  (let [ks (mapv (fn [[t r]]
+  [state-map entity-ident-or-idents]
+  (let [entity-idents (if (util/ident? entity-ident-or-idents)
+                       [entity-ident-or-idents]
+                       entity-ident-or-idents)
+
+        ks (mapv (fn [[t r]]
                    {:table t :row r})
                  entity-idents)]
     (update state-map ::forms-by-ident

@@ -125,10 +125,16 @@
                                          :ui/n  22}}}
         configured-db (f/add-form-config* state-map Person [:person/by-id 1])]
     (assertions
-      "Removes form states of entity-idents"
+      "Removes form states of multiple entity-idents"
       (-> configured-db
-          (f/delete-form-state* [:person/by-id 1]
-                                [:phone/by-id 5])
+          (f/delete-form-state* [[:person/by-id 1]
+                                 [:phone/by-id 5]])
+          ::f/forms-by-ident)
+      => {}
+      "Removes form states of one entity-ident at a time"
+      (-> configured-db
+          (f/delete-form-state* [:person/by-id 1])
+          (f/delete-form-state* [:phone/by-id 5])
           ::f/forms-by-ident)
       => {})))
 
