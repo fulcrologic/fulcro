@@ -2,7 +2,7 @@
   #?(:cljs (:require-macros fulcro.client.mutations))
   (:require
     [clojure.spec.alpha :as s]
-    [fulcro.util :refer [conform! join-key join-value join?]]
+    [fulcro.util :as util :refer [conform! join-key join-value join?]]
     [fulcro.logging :as log]
     [fulcro.client.primitives :as prim]
     #?(:cljs [cljs.loader :as loader])
@@ -307,3 +307,19 @@
   (let [new-list (fn [old-list]
                    (vec (filter #(not= ident %) old-list)))]
     (update-in state-map path-to-idents new-list)))
+
+(defn integrate-ident*
+  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
+  implementations as a general helper function.
+
+  The named parameters can be specified any number of times. They are:
+
+  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
+  the ident if that ident is already in the list.
+  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
+  the ident if that ident is already in the list.
+  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
+   If the target is a vector element then that element must already exist in the vector."
+  [state ident & named-parameters]
+  {:pre [(map? state)]}
+  (apply util/__integrate-ident-impl__ state ident named-parameters))

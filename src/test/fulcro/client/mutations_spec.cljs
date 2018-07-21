@@ -294,7 +294,7 @@
       "extracts the set of distinct abort IDs for the mutations in a transaction"
       (m/abort-ids tx) => #{:abort-id :other-abort-id})))
 
-(specification "remove-ident" :focused
+(specification "remove-ident*"
   (let [state {:a {:b {:c [[:item/by-id 1]
                            [:item/by-id 2]
                            [:item/by-id 3]]}}}
@@ -314,3 +314,49 @@
       => [[:item/by-id 1]
           [:item/by-id 2]
           [:item/by-id 3]])))
+
+(specification "integrate-ident*"
+  (let [state {:a    {:path [[:table 2]]}
+               :b    {:path [[:table 2]]}
+               :d    [:table 6]
+               :many {:path [[:table 99] [:table 88] [:table 77]]}}]
+    (assertions
+      "Can append to an existing vector"
+      (-> state
+        (m/integrate-ident* [:table 3] :append [:a :path])
+        (get-in [:a :path]))
+      => [[:table 2] [:table 3]]
+
+      "(is a no-op if the ident is already there)"
+      (-> state
+        (m/integrate-ident* [:table 3] :append [:a :path])
+        (get-in [:a :path]))
+      => [[:table 2] [:table 3]]
+
+      "Can prepend to an existing vector"
+      (-> state
+        (m/integrate-ident* [:table 3] :prepend [:b :path])
+        (get-in [:b :path]))
+      => [[:table 3] [:table 2]]
+
+      "(is a no-op if already there)"
+      (-> state
+        (m/integrate-ident* [:table 3] :prepend [:b :path])
+        (get-in [:b :path]))
+      => [[:table 3] [:table 2]]
+
+      "Can create/replace a to-one ident"
+      (-> state
+        (m/integrate-ident* [:table 3] :replace [:d])
+        (get-in [:d]))
+      => [:table 3]
+      (-> state
+        (m/integrate-ident* [:table 3] :replace [:c :path])
+        (get-in [:c :path]))
+      => [:table 3]
+
+      "Can replace an existing to-many element in a vector"
+      (-> state
+        (m/integrate-ident* [:table 3] :replace [:many :path 1])
+        (get-in [:many :path]))
+      => [[:table 99] [:table 3] [:table 77]])))
