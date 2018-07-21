@@ -298,3 +298,12 @@
   (set (keep
          (fn [m] (some-> m seq first meta :fulcro.client.network/abort-id))
          tx)))
+
+(defn remove-ident*
+  "Removes an ident, if it exists, from a list of idents in app state. This
+  function is safe to use within mutations."
+  [state-map ident path-to-idents]
+  {:pre [(map? state-map)]}
+  (let [new-list (fn [old-list]
+                   (vec (filter #(not= ident %) old-list)))]
+    (update-in state-map path-to-idents new-list)))

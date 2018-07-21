@@ -293,3 +293,24 @@
     (assertions
       "extracts the set of distinct abort IDs for the mutations in a transaction"
       (m/abort-ids tx) => #{:abort-id :other-abort-id})))
+
+(specification "remove-ident" :focused
+  (let [state {:a {:b {:c [[:item/by-id 1]
+                           [:item/by-id 2]
+                           [:item/by-id 3]]}}}
+        path  [:a :b :c]]
+    (assertions
+      "Can remove a target ident"
+      (-> state
+          (m/remove-ident* [:item/by-id 1] path)
+          (get-in path))
+      => [[:item/by-id 2]
+          [:item/by-id 3]]
+
+      "Removing a missing ident results in a no-op"
+      (-> state
+          (m/remove-ident* [:item/by-id 100] path)
+          (get-in path))
+      => [[:item/by-id 1]
+          [:item/by-id 2]
+          [:item/by-id 3]])))

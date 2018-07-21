@@ -3179,15 +3179,6 @@
                   (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
       state actions)))
 
-(defn remove-ident
-  "Removes an ident, if it exists, from a list of idents in app state. This
-  function is safe to use within mutations."
-  [state-map ident path-to-idents]
-  {:pre [(map? state-map)]}
-  (let [new-list (fn [old-list]
-                   (vec (filter #(not= ident %) old-list)))]
-    (update-in state-map path-to-idents new-list)))
-
 (defn component-merge-query
   "Calculates the query that can be used to pull (or merge) a component with an ident
   to/from a normalized app database. Requires a tree of data that represents the instance of
@@ -3236,14 +3227,6 @@
   (assert (is-atom? state)
     "The state has to be an atom. Use 'integrate-ident' instead.")
   (apply swap! state integrate-ident ident named-parameters))
-
-(defn remove-ident!
-  "Removes an ident, if it exists, from a list of idents in app state. This
-  function is safe to use within mutations."
-  [state ident path-to-idents]
-  (assert (is-atom? state)
-          "The state has to be an atom. Use 'remove-ident' instead.")
-  (swap! state remove-ident ident path-to-idents))
 
 (defn merge-component
   "Given a state map of the application database, a component, and a tree of component-data: normalizes
