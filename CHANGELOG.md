@@ -6,6 +6,12 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.1
+------
+- Deprecated prim/integrate-ident and prim/integrate-ident! and moved logic to muations/integrate-ident*.
+- Added mutations/remove-ident* helper for removing idents from a list of idents in app state.
+- Added form-state/delete-form-state* for cleaning up data created by form-state.
+
 2.6.0
 -----
 - Updated so that using React 16.4 includes all lifecycle methods (UNSAFE, etc.), EXCEPT getDerivedStateFromProps
